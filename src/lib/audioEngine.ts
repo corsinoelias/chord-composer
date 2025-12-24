@@ -113,19 +113,51 @@ export function playChord(
 }
 
 /**
+ * Plays a click/tick sound for the metronome
+ * Uses a short high-frequency ping
+ */
+function playClick(
+  ctx: AudioContext,
+  destination: AudioNode,
+  startTime: number,
+  isDownbeat: boolean = false
+): void {
+  const osc = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  
+  // Higher pitch for downbeat, lower for other beats
+  osc.type = 'sine';
+  osc.frequency.value = isDownbeat ? 1000 : 800;
+  
+  osc.connect(gainNode);
+  gainNode.connect(destination);
+  
+  // Very short envelope for a click sound
+  gainNode.gain.setValueAtTime(0, startTime);
+  gainNode.gain.linearRampToValueAtTime(0.15, startTime + 0.005);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.05);
+  
+  osc.start(startTime);
+  osc.stop(startTime + 0.06);
+}
+
+/**
  * Schedules playback of an entire chord progression
  * Returns the total duration and a cancel function
  */
 export function scheduleProgression(
   chords: Chord[],
   bpm: number,
-  onChordChange: (index: number) => void
+  onChordChange: (index: number) => void,
+  onBeat?: (beat: number) => void
 ): { duration: number; cancel: () => void } {
   const ctx = getAudioContext();
   const startTime = ctx.currentTime + 0.1; // Small delay for stability
+  const beatDuration = 60 / bpm; // Duration of one beat in seconds
   
   let currentTime = startTime;
   const timeouts: number[] = [];
+  let totalBeats = 0;
   
   chords.forEach((chord, index) => {
     const chordStartTime = currentTime;
@@ -134,7 +166,25 @@ export function scheduleProgression(
     // Schedule the chord audio
     playChord(chord, chordStartTime, bpm);
     
-    // Schedule UI update callback
+    // Schedule click sounds for each beat in this chord
+    for (let beat = 0; beat < chord.duration; beat++) {
+      const beatTime = chordStartTime + (beat * beatDuration);
+      const isDownbeat = beat === 0; // First beat of chord is downbeat
+      playClick(ctx, masterGain!, beatTime, isDownbeat);
+      
+      // Schedule beat callback for UI updates
+      if (onBeat) {
+        const beatDelayMs = (beatTime - ctx.currentTime) * 1000;
+        const beatTimeout = window.setTimeout(() => {
+          onBeat(totalBeats + beat);
+        }, beatDelayMs);
+        timeouts.push(beatTimeout);
+      }
+    }
+    
+    totalBeats += chord.duration;
+    
+    // Schedule UI update callback for chord change
     const delayMs = (chordStartTime - ctx.currentTime) * 1000;
     const timeout = window.setTimeout(() => {
       onChordChange(index);
