@@ -142,64 +142,97 @@ function playClick(
 }
 
 /**
- * Schedules playback of an entire chord progression
+ * Schedules playback of an entire chord progression with optional looping
  * Returns the total duration and a cancel function
  */
 export function scheduleProgression(
   chords: Chord[],
   bpm: number,
   onChordChange: (index: number) => void,
-  onBeat?: (beat: number) => void
+  options: {
+    loop?: boolean;
+    metronome?: boolean;
+    onBeat?: (beat: number) => void;
+    onLoopEnd?: () => void;
+  } = {}
 ): { duration: number; cancel: () => void } {
+  const { loop = false, metronome = true, onBeat, onLoopEnd } = options;
   const ctx = getAudioContext();
-  const startTime = ctx.currentTime + 0.1; // Small delay for stability
-  const beatDuration = 60 / bpm; // Duration of one beat in seconds
+  const startTime = ctx.currentTime + 0.1;
+  const beatDuration = 60 / bpm;
   
   let currentTime = startTime;
   const timeouts: number[] = [];
   let totalBeats = 0;
+  let cancelled = false;
+  let nextLoopTimeout: number | null = null;
   
-  chords.forEach((chord, index) => {
-    const chordStartTime = currentTime;
-    const durationInSeconds = (chord.duration * 60) / bpm;
+  const scheduleLoop = (loopStartTime: number) => {
+    if (cancelled) return;
     
-    // Schedule the chord audio
-    playChord(chord, chordStartTime, bpm);
+    currentTime = loopStartTime;
+    totalBeats = 0;
     
-    // Schedule click sounds for each beat in this chord
-    for (let beat = 0; beat < chord.duration; beat++) {
-      const beatTime = chordStartTime + (beat * beatDuration);
-      const isDownbeat = beat === 0; // First beat of chord is downbeat
-      playClick(ctx, masterGain!, beatTime, isDownbeat);
+    chords.forEach((chord, index) => {
+      const chordStartTime = currentTime;
+      const durationInSeconds = (chord.duration * 60) / bpm;
       
-      // Schedule beat callback for UI updates
-      if (onBeat) {
-        const beatDelayMs = (beatTime - ctx.currentTime) * 1000;
-        const beatTimeout = window.setTimeout(() => {
-          onBeat(totalBeats + beat);
-        }, beatDelayMs);
-        timeouts.push(beatTimeout);
+      // Schedule the chord audio
+      playChord(chord, chordStartTime, bpm);
+      
+      // Schedule click sounds for each beat if metronome is enabled
+      if (metronome) {
+        for (let beat = 0; beat < chord.duration; beat++) {
+          const beatTime = chordStartTime + (beat * beatDuration);
+          const isDownbeat = beat === 0;
+          playClick(ctx, masterGain!, beatTime, isDownbeat);
+          
+          if (onBeat) {
+            const beatDelayMs = (beatTime - ctx.currentTime) * 1000;
+            const beatTimeout = window.setTimeout(() => {
+              if (!cancelled) onBeat(totalBeats + beat);
+            }, beatDelayMs);
+            timeouts.push(beatTimeout);
+          }
+        }
       }
+      
+      totalBeats += chord.duration;
+      
+      // Schedule UI update callback for chord change
+      const delayMs = (chordStartTime - ctx.currentTime) * 1000;
+      const timeout = window.setTimeout(() => {
+        if (!cancelled) onChordChange(index);
+      }, delayMs);
+      timeouts.push(timeout);
+      
+      currentTime += durationInSeconds;
+    });
+    
+    const loopDuration = currentTime - loopStartTime;
+    
+    // If looping, schedule the next iteration
+    if (loop && !cancelled) {
+      const loopDelayMs = (currentTime - ctx.currentTime) * 1000;
+      nextLoopTimeout = window.setTimeout(() => {
+        if (!cancelled) {
+          onLoopEnd?.();
+          scheduleLoop(ctx.currentTime + 0.05);
+        }
+      }, loopDelayMs);
     }
     
-    totalBeats += chord.duration;
-    
-    // Schedule UI update callback for chord change
-    const delayMs = (chordStartTime - ctx.currentTime) * 1000;
-    const timeout = window.setTimeout(() => {
-      onChordChange(index);
-    }, delayMs);
-    timeouts.push(timeout);
-    
-    currentTime += durationInSeconds;
-  });
+    return loopDuration;
+  };
   
-  const totalDuration = currentTime - startTime;
+  const totalDuration = scheduleLoop(startTime) || 0;
   
   return {
     duration: totalDuration,
     cancel: () => {
+      cancelled = true;
       timeouts.forEach(t => clearTimeout(t));
+      if (nextLoopTimeout) clearTimeout(nextLoopTimeout);
     }
   };
 }

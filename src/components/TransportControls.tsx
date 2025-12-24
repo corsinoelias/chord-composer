@@ -1,14 +1,18 @@
-import { Play, Square, RotateCcw, Download, Loader2 } from 'lucide-react';
+import { Play, Square, RotateCcw, Download, Loader2, Volume2, VolumeX } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface TransportControlsProps {
   isPlaying: boolean;
   isExporting: boolean;
   bpm: number;
+  metronomeEnabled: boolean;
   onPlay: () => void;
   onStop: () => void;
   onReset: () => void;
   onExport: () => void;
   onBpmChange: (bpm: number) => void;
+  onMetronomeToggle: (enabled: boolean) => void;
   hasChords: boolean;
 }
 
@@ -16,17 +20,19 @@ interface TransportControlsProps {
  * TransportControls Component
  * 
  * Provides playback controls (Play, Stop, Reset), tempo adjustment,
- * and export functionality.
+ * metronome toggle, and export functionality.
  */
 export function TransportControls({
   isPlaying,
   isExporting,
   bpm,
+  metronomeEnabled,
   onPlay,
   onStop,
   onReset,
   onExport,
   onBpmChange,
+  onMetronomeToggle,
   hasChords,
 }: TransportControlsProps) {
   return (
@@ -70,6 +76,24 @@ export function TransportControls({
           </button>
         </div>
         
+        {/* Metronome Toggle */}
+        <div className="flex items-center gap-2">
+          {metronomeEnabled ? (
+            <Volume2 size={16} className="text-muted-foreground" />
+          ) : (
+            <VolumeX size={16} className="text-muted-foreground" />
+          )}
+          <Switch
+            id="metronome"
+            checked={metronomeEnabled}
+            onCheckedChange={onMetronomeToggle}
+            disabled={isExporting}
+          />
+          <Label htmlFor="metronome" className="text-sm text-muted-foreground cursor-pointer">
+            Metronome
+          </Label>
+        </div>
+        
         {/* BPM Control */}
         <div className="flex-1 min-w-[180px] max-w-[280px]">
           <div className="flex items-center justify-between mb-1">
@@ -86,7 +110,7 @@ export function TransportControls({
             max={200}
             value={bpm}
             onChange={(e) => onBpmChange(parseInt(e.target.value))}
-            disabled={isPlaying || isExporting}
+            disabled={isExporting}
             className="
               w-full h-2 bg-secondary rounded-lg 
               appearance-none cursor-pointer accent-primary
@@ -123,7 +147,7 @@ export function TransportControls({
           ) : (
             <>
               <Download size={16} />
-              Export MP3
+              Export WAV
             </>
           )}
         </button>

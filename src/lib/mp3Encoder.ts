@@ -1,93 +1,107 @@
 /**
- * MP3 Encoder
+ * Audio Exporter
  * 
- * This module handles encoding AudioBuffer data to MP3 format using lamejs.
- * The encoding process converts the floating-point audio samples to 16-bit PCM,
- * then encodes them as MP3 data.
+ * This module handles encoding AudioBuffer data to WAV format for download.
+ * WAV export is more reliable across browsers than MP3.
  */
 
-// @ts-ignore - lamejs doesn't have TypeScript definitions
-import lamejs from 'lamejs';
-
 /**
- * Converts an AudioBuffer to MP3 format and triggers a download
+ * Converts an AudioBuffer to WAV format and triggers a download
  * 
- * The process:
- * 1. Extract raw audio samples from the AudioBuffer
- * 2. Convert from Float32 (-1 to 1) to Int16 (-32768 to 32767)
- * 3. Encode using LAME MP3 encoder
- * 4. Create a Blob and trigger download
+ * WAV format is uncompressed but universally supported and more reliable.
  * 
  * @param audioBuffer - The rendered audio buffer from OfflineAudioContext
  * @param filename - Name for the downloaded file
  */
 export async function encodeAndDownloadMp3(
   audioBuffer: AudioBuffer,
-  filename: string = 'chord-progression.mp3'
+  filename: string = 'chord-progression.wav'
 ): Promise<void> {
-  const channels = audioBuffer.numberOfChannels;
+  const numChannels = audioBuffer.numberOfChannels;
   const sampleRate = audioBuffer.sampleRate;
-  const samples = audioBuffer.length;
+  const length = audioBuffer.length;
   
-  // Get channel data
-  const leftChannel = audioBuffer.getChannelData(0);
-  const rightChannel = channels > 1 ? audioBuffer.getChannelData(1) : leftChannel;
-  
-  // Convert Float32 to Int16
-  const leftSamples = new Int16Array(samples);
-  const rightSamples = new Int16Array(samples);
-  
-  for (let i = 0; i < samples; i++) {
-    // Clamp and convert to 16-bit integer
-    leftSamples[i] = Math.max(-32768, Math.min(32767, Math.round(leftChannel[i] * 32767)));
-    rightSamples[i] = Math.max(-32768, Math.min(32767, Math.round(rightChannel[i] * 32767)));
-  }
-  
-  // Create MP3 encoder
-  // Parameters: channels, sample rate, bitrate (kbps)
-  const mp3encoder = new lamejs.Mp3Encoder(2, sampleRate, 128);
-  
-  // Encode in chunks for memory efficiency
-  const chunkSize = 1152; // Must be multiple of 576 for LAME
-  const mp3Data: Uint8Array[] = [];
-  
-  for (let i = 0; i < samples; i += chunkSize) {
-    const leftChunk = leftSamples.subarray(i, i + chunkSize);
-    const rightChunk = rightSamples.subarray(i, i + chunkSize);
-    
-    const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
-    if (mp3buf.length > 0) {
-      mp3Data.push(new Uint8Array(mp3buf));
-    }
-  }
-  
-  // Flush the encoder
-  const mp3buf = mp3encoder.flush();
-  if (mp3buf.length > 0) {
-    mp3Data.push(new Uint8Array(mp3buf));
-  }
-  
-  // Combine all chunks into a single Uint8Array
-  const totalLength = mp3Data.reduce((acc, chunk) => acc + chunk.length, 0);
-  const mp3Array = new Uint8Array(totalLength);
-  let offset = 0;
-  
-  for (const chunk of mp3Data) {
-    mp3Array.set(chunk, offset);
-    offset += chunk.length;
-  }
+  // Create WAV file
+  const wavBuffer = createWavFile(audioBuffer, numChannels, sampleRate, length);
   
   // Create blob and trigger download
-  const blob = new Blob([mp3Array], { type: 'audio/mp3' });
+  const blob = new Blob([wavBuffer], { type: 'audio/wav' });
   const url = URL.createObjectURL(blob);
   
   const link = document.createElement('a');
   link.href = url;
-  link.download = filename;
+  link.download = filename.replace('.mp3', '.wav');
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   
   // Clean up
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Creates a WAV file from an AudioBuffer
+ */
+function createWavFile(
+  audioBuffer: AudioBuffer,
+  numChannels: number,
+  sampleRate: number,
+  length: number
+): ArrayBuffer {
+  const bytesPerSample = 2; // 16-bit audio
+  const blockAlign = numChannels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = length * blockAlign;
+  const headerSize = 44;
+  const totalSize = headerSize + dataSize;
+  
+  const buffer = new ArrayBuffer(totalSize);
+  const view = new DataView(buffer);
+  
+  // RIFF header
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, totalSize - 8, true);
+  writeString(view, 8, 'WAVE');
+  
+  // fmt sub-chunk
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true); // Sub-chunk size (16 for PCM)
+  view.setUint16(20, 1, true); // Audio format (1 = PCM)
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bytesPerSample * 8, true); // Bits per sample
+  
+  // data sub-chunk
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+  
+  // Write audio data
+  const channels: Float32Array[] = [];
+  for (let i = 0; i < numChannels; i++) {
+    channels.push(audioBuffer.getChannelData(i));
+  }
+  
+  let offset = 44;
+  for (let i = 0; i < length; i++) {
+    for (let ch = 0; ch < numChannels; ch++) {
+      const sample = channels[ch][i];
+      // Convert float [-1, 1] to int16 [-32768, 32767]
+      const intSample = Math.max(-32768, Math.min(32767, Math.round(sample * 32767)));
+      view.setInt16(offset, intSample, true);
+      offset += 2;
+    }
+  }
+  
+  return buffer;
+}
+
+/**
+ * Helper to write a string to a DataView
+ */
+function writeString(view: DataView, offset: number, str: string): void {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
 }
