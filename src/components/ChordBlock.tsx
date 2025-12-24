@@ -1,0 +1,85 @@
+import { Chord, formatChord } from '@/lib/musicTheory';
+import { X, GripVertical } from 'lucide-react';
+
+interface ChordBlockProps {
+  chord: Chord;
+  isPlaying: boolean;
+  onDelete: () => void;
+  isDragging?: boolean;
+}
+
+/**
+ * ChordBlock Component
+ * 
+ * Displays a single chord in the timeline.
+ * Width is proportional to duration (beats).
+ * Shows visual feedback when the chord is currently playing.
+ */
+export function ChordBlock({ chord, isPlaying, onDelete, isDragging }: ChordBlockProps) {
+  // Base width per beat (in rem units)
+  const widthPerBeat = 5;
+  const width = chord.duration * widthPerBeat;
+  
+  return (
+    <div
+      className={`
+        relative flex flex-col items-center justify-center
+        rounded-lg border-2 transition-all duration-200
+        cursor-grab active:cursor-grabbing select-none
+        ${isPlaying 
+          ? 'border-primary bg-primary/20 shadow-lg scale-105' 
+          : 'border-border bg-card hover:border-primary/50 hover:shadow-md'
+        }
+        ${isDragging ? 'opacity-50 scale-95' : ''}
+      `}
+      style={{ 
+        width: `${width}rem`,
+        minWidth: '4rem',
+        height: '5rem',
+      }}
+    >
+      {/* Drag handle indicator */}
+      <div className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground/50">
+        <GripVertical size={14} />
+      </div>
+      
+      {/* Chord name */}
+      <span className={`
+        font-mono font-bold text-lg
+        ${isPlaying ? 'text-primary' : 'text-foreground'}
+      `}>
+        {formatChord(chord)}
+      </span>
+      
+      {/* Duration indicator */}
+      <span className="text-xs text-muted-foreground mt-1">
+        {chord.duration} {chord.duration === 1 ? 'beat' : 'beats'}
+      </span>
+      
+      {/* Delete button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        className="
+          absolute -top-2 -right-2 
+          w-5 h-5 rounded-full 
+          bg-destructive text-destructive-foreground
+          flex items-center justify-center
+          opacity-0 group-hover:opacity-100 hover:opacity-100
+          transition-opacity duration-200
+          hover:scale-110
+        "
+        aria-label="Delete chord"
+      >
+        <X size={12} />
+      </button>
+      
+      {/* Playing indicator animation */}
+      {isPlaying && (
+        <div className="absolute inset-0 rounded-lg animate-pulse bg-primary/10 pointer-events-none" />
+      )}
+    </div>
+  );
+}
