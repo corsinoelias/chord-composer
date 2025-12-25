@@ -385,10 +385,18 @@ export function scheduleProgression(
               );
             }
             
-            // Drums - plays on pattern beats with variety
-            if (drumsState && !drumsState.muted && drumsSound && style.rhythm.drums.includes(beatInPattern)) {
-              const drumType = beatInPattern === 0 ? 'kick' : beatInPattern === 2 ? 'snare' : 'hihat';
-              playDrumHit(ctx, masterGain!, beatTime, drumsSound, drumsState.volume * style.volumes.drums, drumType);
+            // Drums - plays on separate patterns for kick, snare, hihat
+            if (drumsState && !drumsState.muted && drumsSound) {
+              const volume = drumsState.volume * style.volumes.drums;
+              if (style.rhythm.kick.includes(beatInPattern)) {
+                playDrumHit(ctx, masterGain!, beatTime, drumsSound, volume, 'kick');
+              }
+              if (style.rhythm.snare.includes(beatInPattern)) {
+                playDrumHit(ctx, masterGain!, beatTime, drumsSound, volume, 'snare');
+              }
+              if (style.rhythm.hihat.includes(beatInPattern)) {
+                playDrumHit(ctx, masterGain!, beatTime, drumsSound, volume * 0.6, 'hihat');
+              }
             }
             
             // Beat callback
@@ -559,12 +567,12 @@ export async function renderProgressionOffline(
             subOsc.stop(beatTime + beatDuration);
           }
           
-          // Drums with kick/snare/hihat
-          if (drumsState && !drumsState.muted && drumsSound && style.rhythm.drums.includes(beatInPattern)) {
-            const drumType = beatInPattern === 0 ? 'kick' : beatInPattern === 2 ? 'snare' : 'hihat';
+          // Drums - separate kick, snare, hihat
+          if (drumsState && !drumsState.muted && drumsSound) {
             const volume = drumsState.volume * style.volumes.drums;
             
-            if (drumType === 'kick') {
+            // Kick
+            if (style.rhythm.kick.includes(beatInPattern)) {
               const osc = offlineCtx.createOscillator();
               osc.type = 'sine';
               osc.frequency.setValueAtTime(150, beatTime);
@@ -576,7 +584,10 @@ export async function renderProgressionOffline(
               gain.connect(offlineMasterGain);
               osc.start(beatTime);
               osc.stop(beatTime + 0.35);
-            } else if (drumType === 'snare') {
+            }
+            
+            // Snare
+            if (style.rhythm.snare.includes(beatInPattern)) {
               const osc = offlineCtx.createOscillator();
               osc.type = 'triangle';
               osc.frequency.value = 180;
@@ -587,7 +598,10 @@ export async function renderProgressionOffline(
               gain.connect(offlineMasterGain);
               osc.start(beatTime);
               osc.stop(beatTime + 0.15);
-            } else {
+            }
+            
+            // Hi-hat
+            if (style.rhythm.hihat.includes(beatInPattern)) {
               const osc = offlineCtx.createOscillator();
               osc.type = 'square';
               osc.frequency.value = 8000;
@@ -595,7 +609,7 @@ export async function renderProgressionOffline(
               filter.type = 'highpass';
               filter.frequency.value = 7000;
               const gain = offlineCtx.createGain();
-              gain.gain.setValueAtTime(0.06 * volume, beatTime);
+              gain.gain.setValueAtTime(0.04 * volume, beatTime);
               gain.gain.exponentialRampToValueAtTime(0.001, beatTime + 0.05);
               osc.connect(filter);
               filter.connect(gain);
