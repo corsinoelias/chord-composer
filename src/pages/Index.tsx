@@ -20,6 +20,8 @@ const Index = () => {
   const [bpm, setBpm] = useState(120);
   const [selectedStyleId, setSelectedStyleId] = useState('pop1');
   const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
+  const [songTitle, setSongTitle] = useState('My Song');
+  const [transposition, setTransposition] = useState(0); // Semitones
   
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -41,6 +43,7 @@ const Index = () => {
   const bpmRef = useRef(120);
   const metronomeRef = useRef(true);
   const instrumentsRef = useRef<InstrumentState[]>(getDefaultInstrumentStates());
+  const transpositionRef = useRef(0);
   const styleRef = useRef(selectedStyleId);
   const loopingSectionRef = useRef<number | null>(null);
   
@@ -50,6 +53,7 @@ const Index = () => {
   useEffect(() => { instrumentsRef.current = instruments; }, [instruments]);
   useEffect(() => { styleRef.current = selectedStyleId; }, [selectedStyleId]);
   useEffect(() => { loopingSectionRef.current = loopingSectionIndex; }, [loopingSectionIndex]);
+  useEffect(() => { transpositionRef.current = transposition; }, [transposition]);
   
   useEffect(() => {
     return () => { cancelPlaybackRef.current?.(); };
@@ -78,6 +82,7 @@ const Index = () => {
       metronome: metronomeRef.current,
       instruments: instrumentsRef.current,
       style,
+      transposition: transpositionRef.current,
       onChordChange: setCurrentChordIndex,
       onLoopEnd: () => setCurrentChordIndex(0),
     });
@@ -241,7 +246,7 @@ const Index = () => {
 
   useEffect(() => {
     if (isPlaying) handleChangeWhilePlaying();
-  }, [bpm, metronomeEnabled, selectedStyleId, instruments, loopingSectionIndex]);
+  }, [bpm, metronomeEnabled, selectedStyleId, instruments, loopingSectionIndex, transposition]);
 
   const handleExport = useCallback(async () => {
     const hasChords = sections.some(s => s.chords.length > 0);
@@ -252,8 +257,9 @@ const Index = () => {
     
     try {
       const style = getStyleById(selectedStyleId) || MUSICAL_STYLES[0];
-      const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style);
-      await encodeAndDownloadMp3(audioBuffer, 'chord-progression.wav');
+      const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition);
+      const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
+      await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
       toast.success('WAV exported successfully!');
     } catch (error) {
       console.error('Export failed:', error);
@@ -261,7 +267,7 @@ const Index = () => {
     } finally {
       setIsExporting(false);
     }
-  }, [sections, bpm, instruments, selectedStyleId]);
+  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition]);
 
   const hasChords = sections.some(s => s.chords.length > 0);
 
@@ -300,6 +306,8 @@ const Index = () => {
           bpm={bpm}
           metronomeEnabled={metronomeEnabled}
           selectedStyleId={selectedStyleId}
+          songTitle={songTitle}
+          transposition={transposition}
           onPlay={startPlayback}
           onStop={stopPlaybackCompletely}
           onReset={() => { stopPlaybackCompletely(); setCurrentChordIndex(-1); }}
@@ -307,6 +315,8 @@ const Index = () => {
           onBpmChange={setBpm}
           onMetronomeToggle={setMetronomeEnabled}
           onStyleChange={setSelectedStyleId}
+          onSongTitleChange={setSongTitle}
+          onTranspositionChange={setTransposition}
           onOpenInstruments={() => setInstrumentsPanelOpen(true)}
           hasChords={hasChords}
         />
