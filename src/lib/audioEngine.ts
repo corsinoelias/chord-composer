@@ -17,9 +17,11 @@ let masterGain: GainNode | null = null;
 interface AcousticKitSamples {
   kick: AudioBuffer | null;
   snare: AudioBuffer | null;
+  snareStick: AudioBuffer | null;  // Rim/edge hit
   hihat: AudioBuffer | null;
   hihatOpen: AudioBuffer | null;
   hihatFoot: AudioBuffer | null;
+  hihatFoot2: AudioBuffer | null;  // Alternative foot sound
   tom1: AudioBuffer | null;
   tom2: AudioBuffer | null;
   floorTom: AudioBuffer | null;
@@ -30,9 +32,11 @@ interface AcousticKitSamples {
 let acousticKit: AcousticKitSamples = {
   kick: null,
   snare: null,
+  snareStick: null,
   hihat: null,
   hihatOpen: null,
   hihatFoot: null,
+  hihatFoot2: null,
   tom1: null,
   tom2: null,
   floorTom: null,
@@ -49,9 +53,11 @@ async function loadAcousticSamples(ctx: AudioContext): Promise<void> {
   const samplePaths: { key: keyof AcousticKitSamples; path: string }[] = [
     { key: 'kick', path: '/audio/kick.mp3' },
     { key: 'snare', path: '/audio/snare-drum.mp3' },
+    { key: 'snareStick', path: '/audio/snare-stick.mp3' },
     { key: 'hihat', path: '/audio/hihat.mp3' },
     { key: 'hihatOpen', path: '/audio/hihat-open.mp3' },
     { key: 'hihatFoot', path: '/audio/hihat-foot.mp3' },
+    { key: 'hihatFoot2', path: '/audio/hihat-foot-2.mp3' },
     { key: 'tom1', path: '/audio/tom1.mp3' },
     { key: 'tom2', path: '/audio/tom2.mp3' },
     { key: 'floorTom', path: '/audio/floor-tom.mp3' },
@@ -250,7 +256,7 @@ function playDrumHit(
   startTime: number,
   soundType: SoundType,
   volume: number,
-  drumType: 'kick' | 'snare' | 'hihat'
+  drumType: 'kick' | 'snare' | 'snareStick' | 'hihat' | 'hihatFoot' | 'tom1' | 'tom2' | 'floorTom' | 'ride' | 'crash'
 ): void {
   const gainNode = ctx.createGain();
   gainNode.connect(destination);
@@ -322,8 +328,26 @@ function playDrumHit(
       osc.stop(startTime + 0.1);
     }
     
-  } else {
-    // Hi-hat
+  } else if (drumType === 'snareStick') {
+    // Snare rim/edge hit
+    if (useAcousticSamples && acousticKit.snareStick) {
+      playSample(ctx, gainNode, acousticKit.snareStick, startTime, volume * 0.7);
+    } else {
+      // Synthesized rim click
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = 1200;
+      const oscGain = ctx.createGain();
+      oscGain.gain.setValueAtTime(0.12 * volume, startTime);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.04);
+      osc.connect(oscGain);
+      oscGain.connect(gainNode);
+      osc.start(startTime);
+      osc.stop(startTime + 0.05);
+    }
+    
+  } else if (drumType === 'hihat') {
+    // Hi-hat closed (hand)
     if (useAcousticSamples && acousticKit.hihat) {
       playSample(ctx, gainNode, acousticKit.hihat, startTime, volume * 0.5);
     } else {
@@ -351,6 +375,148 @@ function playDrumHit(
       hatGain.connect(gainNode);
       noise.start(startTime);
       noise.stop(startTime + 0.08);
+    }
+    
+  } else if (drumType === 'hihatFoot') {
+    // Hi-hat foot pedal
+    if (useAcousticSamples && acousticKit.hihatFoot2) {
+      playSample(ctx, gainNode, acousticKit.hihatFoot2, startTime, volume * 0.45);
+    } else if (useAcousticSamples && acousticKit.hihatFoot) {
+      playSample(ctx, gainNode, acousticKit.hihatFoot, startTime, volume * 0.45);
+    } else {
+      // Synthesized foot hi-hat (shorter, more muffled)
+      const bufferSize = ctx.sampleRate * 0.08;
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 5000;
+      filter.Q.value = 2;
+      const hatGain = ctx.createGain();
+      hatGain.gain.setValueAtTime(0.06 * volume, startTime);
+      hatGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.04);
+      noise.connect(filter);
+      filter.connect(hatGain);
+      hatGain.connect(gainNode);
+      noise.start(startTime);
+      noise.stop(startTime + 0.06);
+    }
+    
+  } else if (drumType === 'tom1') {
+    // High tom
+    if (useAcousticSamples && acousticKit.tom1) {
+      playSample(ctx, gainNode, acousticKit.tom1, startTime, volume * 0.8);
+    } else {
+      // Synthesized high tom
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(200, startTime);
+      osc.frequency.exponentialRampToValueAtTime(120, startTime + 0.15);
+      const tomGain = ctx.createGain();
+      tomGain.gain.setValueAtTime(0.3 * volume, startTime);
+      tomGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+      osc.connect(tomGain);
+      tomGain.connect(gainNode);
+      osc.start(startTime);
+      osc.stop(startTime + 0.3);
+    }
+    
+  } else if (drumType === 'tom2') {
+    // Mid tom
+    if (useAcousticSamples && acousticKit.tom2) {
+      playSample(ctx, gainNode, acousticKit.tom2, startTime, volume * 0.8);
+    } else {
+      // Synthesized mid tom
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(150, startTime);
+      osc.frequency.exponentialRampToValueAtTime(90, startTime + 0.18);
+      const tomGain = ctx.createGain();
+      tomGain.gain.setValueAtTime(0.3 * volume, startTime);
+      tomGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+      osc.connect(tomGain);
+      tomGain.connect(gainNode);
+      osc.start(startTime);
+      osc.stop(startTime + 0.35);
+    }
+    
+  } else if (drumType === 'floorTom') {
+    // Floor tom
+    if (useAcousticSamples && acousticKit.floorTom) {
+      playSample(ctx, gainNode, acousticKit.floorTom, startTime, volume * 0.85);
+    } else {
+      // Synthesized floor tom
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(100, startTime);
+      osc.frequency.exponentialRampToValueAtTime(60, startTime + 0.2);
+      const tomGain = ctx.createGain();
+      tomGain.gain.setValueAtTime(0.35 * volume, startTime);
+      tomGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
+      osc.connect(tomGain);
+      tomGain.connect(gainNode);
+      osc.start(startTime);
+      osc.stop(startTime + 0.4);
+    }
+    
+  } else if (drumType === 'ride') {
+    // Ride cymbal
+    if (useAcousticSamples && acousticKit.ride) {
+      playSample(ctx, gainNode, acousticKit.ride, startTime, volume * 0.55);
+    } else {
+      // Synthesized ride
+      const bufferSize = ctx.sampleRate * 0.3;
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 5000;
+      filter.Q.value = 0.5;
+      const rideGain = ctx.createGain();
+      rideGain.gain.setValueAtTime(0.06 * volume, startTime);
+      rideGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+      noise.connect(filter);
+      filter.connect(rideGain);
+      rideGain.connect(gainNode);
+      noise.start(startTime);
+      noise.stop(startTime + 0.3);
+    }
+    
+  } else if (drumType === 'crash') {
+    // Crash cymbal
+    if (useAcousticSamples && acousticKit.crash) {
+      playSample(ctx, gainNode, acousticKit.crash, startTime, volume * 0.7);
+    } else {
+      // Synthesized crash
+      const bufferSize = ctx.sampleRate * 0.8;
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const hiFilter = ctx.createBiquadFilter();
+      hiFilter.type = 'highpass';
+      hiFilter.frequency.value = 3000;
+      const crashGain = ctx.createGain();
+      crashGain.gain.setValueAtTime(0.15 * volume, startTime);
+      crashGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.7);
+      noise.connect(hiFilter);
+      hiFilter.connect(crashGain);
+      crashGain.connect(gainNode);
+      noise.start(startTime);
+      noise.stop(startTime + 0.8);
     }
   }
 }
@@ -506,7 +672,7 @@ export function scheduleProgression(
                 );
               }
               
-              // Drums - separate kick, snare, hihat with velocities
+              // Drums - all drum types with velocities
               if (drumsState && isInstrumentAudible(drumsState, instruments) && drumsSound) {
                 const baseVolume = drumsState.volume * style.volumes.drums;
                 
@@ -516,8 +682,29 @@ export function scheduleProgression(
                 if (pattern.snare[slot] > 0) {
                   playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.snare[slot], 'snare');
                 }
+                if (pattern.snareStick[slot] > 0) {
+                  playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.snareStick[slot], 'snareStick');
+                }
                 if (pattern.hihat[slot] > 0) {
                   playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihat[slot] * 0.7, 'hihat');
+                }
+                if (pattern.hihatFoot[slot] > 0) {
+                  playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihatFoot[slot] * 0.6, 'hihatFoot');
+                }
+                if (pattern.tom1[slot] > 0) {
+                  playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.tom1[slot], 'tom1');
+                }
+                if (pattern.tom2[slot] > 0) {
+                  playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.tom2[slot], 'tom2');
+                }
+                if (pattern.floorTom[slot] > 0) {
+                  playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.floorTom[slot], 'floorTom');
+                }
+                if (pattern.ride[slot] > 0) {
+                  playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.ride[slot] * 0.7, 'ride');
+                }
+                if (pattern.crash[slot] > 0) {
+                  playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.crash[slot], 'crash');
                 }
               }
             }
@@ -576,7 +763,15 @@ export async function renderProgressionOffline(
   const samplePaths: { key: keyof AcousticKitSamples; path: string }[] = [
     { key: 'kick', path: '/audio/kick.mp3' },
     { key: 'snare', path: '/audio/snare-drum.mp3' },
+    { key: 'snareStick', path: '/audio/snare-stick.mp3' },
     { key: 'hihat', path: '/audio/hihat.mp3' },
+    { key: 'hihatFoot', path: '/audio/hihat-foot.mp3' },
+    { key: 'hihatFoot2', path: '/audio/hihat-foot-2.mp3' },
+    { key: 'tom1', path: '/audio/tom1.mp3' },
+    { key: 'tom2', path: '/audio/tom2.mp3' },
+    { key: 'floorTom', path: '/audio/floor-tom.mp3' },
+    { key: 'ride', path: '/audio/ride.mp3' },
+    { key: 'crash', path: '/audio/crash.mp3' },
   ];
   
   const tempCtx = new OfflineAudioContext(2, 1, sampleRate);
@@ -788,22 +983,85 @@ export async function renderProgressionOffline(
                   source.connect(gain);
                   gain.connect(offlineMasterGain);
                   source.start(slotTime);
-                } else {
-                  const osc = offlineCtx.createOscillator();
-                  osc.type = 'square';
-                  osc.frequency.value = 8000;
-                  const filter = offlineCtx.createBiquadFilter();
-                  filter.type = 'highpass';
-                  filter.frequency.value = 7000;
-                  const gain = offlineCtx.createGain();
-                  gain.gain.setValueAtTime(0.04 * vol, slotTime);
-                  gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.05);
-                  osc.connect(filter);
-                  filter.connect(gain);
-                  gain.connect(offlineMasterGain);
-                  osc.start(slotTime);
-                  osc.stop(slotTime + 0.06);
                 }
+              }
+              
+              // Snare stick (rim)
+              if (pattern.snareStick[slot] > 0) {
+                const vol = baseVolume * pattern.snareStick[slot];
+                if (drumsSound.id === 'standard' && offlineKit.snareStick) {
+                  const source = offlineCtx.createBufferSource();
+                  source.buffer = offlineKit.snareStick;
+                  const gain = offlineCtx.createGain();
+                  gain.gain.value = vol * 0.7;
+                  source.connect(gain);
+                  gain.connect(offlineMasterGain);
+                  source.start(slotTime);
+                }
+              }
+              
+              // Hi-hat foot
+              if (pattern.hihatFoot[slot] > 0) {
+                const vol = baseVolume * pattern.hihatFoot[slot] * 0.6;
+                const buffer = offlineKit.hihatFoot2 || offlineKit.hihatFoot;
+                if (drumsSound.id === 'standard' && buffer) {
+                  const source = offlineCtx.createBufferSource();
+                  source.buffer = buffer;
+                  const gain = offlineCtx.createGain();
+                  gain.gain.value = vol * 0.45;
+                  source.connect(gain);
+                  gain.connect(offlineMasterGain);
+                  source.start(slotTime);
+                }
+              }
+              
+              // Toms
+              if (pattern.tom1[slot] > 0 && drumsSound.id === 'standard' && offlineKit.tom1) {
+                const source = offlineCtx.createBufferSource();
+                source.buffer = offlineKit.tom1;
+                const gain = offlineCtx.createGain();
+                gain.gain.value = baseVolume * pattern.tom1[slot] * 0.8;
+                source.connect(gain);
+                gain.connect(offlineMasterGain);
+                source.start(slotTime);
+              }
+              if (pattern.tom2[slot] > 0 && drumsSound.id === 'standard' && offlineKit.tom2) {
+                const source = offlineCtx.createBufferSource();
+                source.buffer = offlineKit.tom2;
+                const gain = offlineCtx.createGain();
+                gain.gain.value = baseVolume * pattern.tom2[slot] * 0.8;
+                source.connect(gain);
+                gain.connect(offlineMasterGain);
+                source.start(slotTime);
+              }
+              if (pattern.floorTom[slot] > 0 && drumsSound.id === 'standard' && offlineKit.floorTom) {
+                const source = offlineCtx.createBufferSource();
+                source.buffer = offlineKit.floorTom;
+                const gain = offlineCtx.createGain();
+                gain.gain.value = baseVolume * pattern.floorTom[slot] * 0.85;
+                source.connect(gain);
+                gain.connect(offlineMasterGain);
+                source.start(slotTime);
+              }
+              
+              // Ride & Crash
+              if (pattern.ride[slot] > 0 && drumsSound.id === 'standard' && offlineKit.ride) {
+                const source = offlineCtx.createBufferSource();
+                source.buffer = offlineKit.ride;
+                const gain = offlineCtx.createGain();
+                gain.gain.value = baseVolume * pattern.ride[slot] * 0.55;
+                source.connect(gain);
+                gain.connect(offlineMasterGain);
+                source.start(slotTime);
+              }
+              if (pattern.crash[slot] > 0 && drumsSound.id === 'standard' && offlineKit.crash) {
+                const source = offlineCtx.createBufferSource();
+                source.buffer = offlineKit.crash;
+                const gain = offlineCtx.createGain();
+                gain.gain.value = baseVolume * pattern.crash[slot] * 0.7;
+                source.connect(gain);
+                gain.connect(offlineMasterGain);
+                source.start(slotTime);
               }
             }
           }
