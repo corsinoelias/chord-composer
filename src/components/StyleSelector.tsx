@@ -10,15 +10,14 @@ interface StyleSelectorProps {
 // Group styles by category for the dropdown
 const STYLE_CATEGORIES = [
   { id: 'Rock', label: 'Rock' },
-  { id: 'Pop', label: 'Pop' },
   { id: 'Funk', label: 'Funk' },
+  { id: 'Pop', label: 'Pop' },
+  { id: 'Reggae', label: 'Reggae' },
   { id: 'HipHop', label: 'Hip Hop' },
-  { id: 'Reggaeton', label: 'Reggaetón' },
-  { id: 'Jazz', label: 'Jazz' },
-  { id: 'Ballad', label: 'Balada' },
   { id: 'Disco', label: 'Disco' },
-  { id: 'Trap', label: 'Trap' },
+  { id: 'Blues', label: 'Blues' },
   { id: 'Latin', label: 'Latino' },
+  { id: 'Metal', label: 'Metal' },
 ] as const;
 
 export function StyleSelector({ selectedStyleId, onStyleChange }: StyleSelectorProps) {
