@@ -1,20 +1,25 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Chord, generateChordId } from '@/lib/musicTheory';
 import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
 import { getDefaultInstrumentStates, InstrumentState, isInstrumentAudible } from '@/lib/instruments';
 import { getStyleById, MUSICAL_STYLES } from '@/lib/styles';
 import { getAudioContext, scheduleProgression, renderProgressionOffline, stopPlayback } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
+import { detectKey } from '@/lib/keyDetection';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
 import { AddChordModal } from '@/components/AddChordModal';
 import { InstrumentsPanel } from '@/components/InstrumentsPanel';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Music2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Index = () => {
+  // Song title
+  const [songTitle, setSongTitle] = useState('My Song');
+  
   // Sections state
   const [sections, setSections] = useState<Section[]>([createSection('Section A')]);
   const [bpm, setBpm] = useState(120);
@@ -243,6 +248,12 @@ const Index = () => {
     if (isPlaying) handleChangeWhilePlaying();
   }, [bpm, metronomeEnabled, selectedStyleId, instruments, loopingSectionIndex]);
 
+  // Detect key from all chords
+  const detectedKey = useMemo(() => {
+    const allChords = sections.flatMap(s => s.chords);
+    return detectKey(allChords);
+  }, [sections]);
+
   const handleExport = useCallback(async () => {
     const hasChords = sections.some(s => s.chords.length > 0);
     if (!hasChords) return;
@@ -253,7 +264,9 @@ const Index = () => {
     try {
       const style = getStyleById(selectedStyleId) || MUSICAL_STYLES[0];
       const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style);
-      await encodeAndDownloadMp3(audioBuffer, 'chord-progression.wav');
+      // Use song title for filename, sanitize it
+      const filename = songTitle.replace(/[^a-zA-Z0-9\s-_]/g, '').trim() || 'chord-progression';
+      await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
       toast.success('WAV exported successfully!');
     } catch (error) {
       console.error('Export failed:', error);
@@ -261,7 +274,7 @@ const Index = () => {
     } finally {
       setIsExporting(false);
     }
-  }, [sections, bpm, instruments, selectedStyleId]);
+  }, [sections, bpm, instruments, selectedStyleId, songTitle]);
 
   const hasChords = sections.some(s => s.chords.length > 0);
 
@@ -281,13 +294,22 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Music2 className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold text-foreground">Chord Player</h1>
-              <p className="text-sm text-muted-foreground">Create chord progressions & export</p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                <Music2 className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div className="flex-1">
+                <Input
+                  value={songTitle}
+                  onChange={(e) => setSongTitle(e.target.value)}
+                  className="text-xl font-semibold bg-transparent border-none p-0 h-auto focus-visible:ring-0"
+                  placeholder="Song Title"
+                />
+                <p className="text-sm text-muted-foreground">
+                  {detectedKey.key} {detectedKey.confidence > 0 && `(${detectedKey.confidence}% confidence)`}
+                </p>
+              </div>
             </div>
           </div>
         </div>
