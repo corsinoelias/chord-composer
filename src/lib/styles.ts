@@ -14,7 +14,7 @@
 export interface StylePattern {
   id: string;
   name: string;
-  category: 'Rock' | 'Pop' | 'Funk' | 'HipHop' | 'Reggaeton' | 'Jazz' | 'Ballad' | 'Disco' | 'Trap' | 'Latin';
+  category: 'Rock' | 'Funk' | 'Pop' | 'Reggae' | 'HipHop' | 'Disco' | 'Blues' | 'Latin' | 'Metal';
   bpm: number;
   bpmRange: [number, number];
   description: string;
@@ -115,301 +115,372 @@ export function getRandomFillType(): 'simple' | 'double' | 'triple' | 'syncopate
 }
 
 export const MUSICAL_STYLES: StylePattern[] = [
-  // 1. ROCK BÁSICO (120 BPM)
+  // ============================================
+  // 1. ROCK BÁSICO (Backbeat) - 120 BPM
+  // ============================================
+  // Característica: Backbeat fuerte, impulso constante.
+  // Bombo en 1 y 3, Caja en 2 y 4. Hi-hat en semicorcheas constantes.
+  // Bajo: Notas en tiempos fuertes (1 y 3) o siguiendo el bombo.
+  // Piano: Acordes en tiempos 2 y 4 ("upbeats") o acentuando el backbeat.
   {
     id: 'rock_basic',
     name: 'Rock Básico',
     category: 'Rock',
     bpm: 120,
     bpmRange: [110, 140],
-    description: 'Backbeat fuerte, impulso constante. Clásico patrón de rock con caja en 2 y 4.',
+    description: 'Backbeat fuerte, impulso constante. Bombo en 1 y 3, caja en 2 y 4.',
     rhythm: {
-      // X - - - - - - - X - - - - - - - (beats 1 and 3)
-      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-      // - - - - X - - - - - - - X - - - (beats 2 and 4)
+      // B: X - - - | X - - - | X - - - | X - - - (bombo en cada beat)
+      kick:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+      // C: - - - - | X - - - | - - - - | X - - - (caja en 2 y 4)
       snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // X X X X X X X X X X X X X X X X (all 16ths)
+      // H: x x x x | x x x x | x x x x | x x x x (semicorcheas)
       hihat: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-      // X - - - X - - - X - - - X - - - (quarter notes)
-      bass:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
-      // - - X - - - X - - - X - - - X - (off-beat chords)
-      piano: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+      // B: X - - - | - - X - | X - - - | - - X - (fundamental y quinta)
+      bass:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0],
+      // P: - - - - | X - - - | - - - - | X - - - (acordes en backbeat)
+      piano: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
     },
     fill: {
-      position: 8,
+      position: 12,
       pattern: {
-        snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1], // Redoble ascendente
+        // Fill 2: Con Bombo (Rock) - Patrón alternado Bombo-Caja
+        kick:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
       },
     },
     volumes: { piano: 0.6, bass: 0.8, drums: 0.75 },
   },
 
-  // 2. POP BÁSICO (110 BPM)
-  {
-    id: 'pop_basic',
-    name: 'Pop Básico',
-    category: 'Pop',
-    bpm: 110,
-    bpmRange: [100, 130],
-    description: 'Simple, pegadizo, groove constante. Perfecto para canciones pop modernas.',
-    rhythm: {
-      // X - - - - - X - X - - - - - - - (syncopated)
-      kick:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-      // - - - - X - - - - - - - X - - - (2 and 4)
-      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // - X - X - X - X - X - X - X - X (off-beat 8ths)
-      hihat: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-      // X - - X - - - - X - - X - - - - 
-      bass:  [1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0],
-      // X - - - - - - - X - - - - - - - (1 and 3)
-      piano: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-    },
-    fill: {
-      position: 12,
-      pattern: {
-        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1], // 4 16ths
-      },
-    },
-    volumes: { piano: 0.7, bass: 0.7, drums: 0.65 },
-  },
-
-  // 3. FUNK BÁSICO (100 BPM)
+  // ============================================
+  // 2. FUNK BÁSICO (Groove en 16avos) - 100 BPM
+  // ============================================
+  // Característica: Síncopa, énfasis en el "&" (and).
+  // Groove sincopado, con el bombo "hablando".
+  // Bajo: Riffs sincopados, a menudo "slap".
+  // Piano: Acordes "staccato" (cortos) y rasgueados en semicorcheas.
   {
     id: 'funk_basic',
     name: 'Funk Básico',
     category: 'Funk',
     bpm: 100,
     bpmRange: [90, 115],
-    description: 'Síncopa, énfasis en el "&". Groove funky con bajo sincopado.',
+    description: 'Groove sincopado, énfasis en el "&". Bajo con slap y piano staccato.',
     rhythm: {
-      // X - - - - X - - - - - - X - - -
-      kick:  [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // - - - - X - - - - - - - X - - -
+      // B: X - - X | - - X - | X - - - | - X - - (sincopado)
+      kick:  [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0],
+      // C: - - - - | X - - - | - - - - | X - - - (2 y 4)
       snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // X - X - X - X - X - X - X - X - (8ths)
-      hihat: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
-      // X - X - - X - - X - X - - X - - (syncopated)
-      bass:  [1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0],
-      // - - X - - - X - - - X - - - X - (staccato off-beat)
-      piano: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+      // H: x x x x | x x o x | x x x x | x x o x (cerrado y abierto)
+      hihat: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      // B: X - - X | - X - - | X - X - | - - X - (riff sincopado)
+      bass:  [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0],
+      // P: - X - X | - X - X | - X - X | - X - X (staccato en "e" y "a")
+      piano: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
     },
     fill: {
       position: 8,
       pattern: {
-        snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1], // Syncopated
+        // Fill sincopado para funk
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1],
         kick:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
       },
     },
     volumes: { piano: 0.55, bass: 0.85, drums: 0.7 },
   },
 
-  // 4. HIP HOP BÁSICO (95 BPM)
+  // ============================================
+  // 3. POP/BALADA (Con "Side Stick") - 85 BPM
+  // ============================================
+  // Característica: Más atmosférico, usa el aro de la caja (side stick).
+  // Bombo en 1 y 3. Side stick en 2 y 4. Hi-hat en corcheas (8avos).
+  // Bajo: Notas largas (whole notes o half notes).
+  // Piano: Arpegios suaves o acordes sostenidos.
   {
-    id: 'hiphop_basic',
-    name: 'Hip Hop Básico',
-    category: 'HipHop',
-    bpm: 95,
-    bpmRange: [85, 105],
-    description: 'Bombo pesado, hi-hats rápidos. Boom bap clásico.',
+    id: 'pop_ballad',
+    name: 'Pop/Balada',
+    category: 'Pop',
+    bpm: 85,
+    bpmRange: [70, 100],
+    description: 'Atmosférico con side stick. Arpegios de piano y bajo sostenido.',
     rhythm: {
-      // X - - - - - - - - - X - - - - X
-      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-      // - - - - - - - - X - - - - - - -
-      snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-      // X X X X X X X X X X X X X X X X (16ths)
-      hihat: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-      // X - - - - - - - - - - - - - - - (sustained)
-      bass:  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      // - - - - X - - - - - - - X - - -
-      piano: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-    },
-    fill: {
-      position: 8,
-      pattern: {
-        hihat: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1], // Hi-hat roll
-      },
-    },
-    bassSustain: true,
-    volumes: { piano: 0.5, bass: 0.9, drums: 0.75 },
-  },
-
-  // 5. REGGAETÓN/DEMBOW (90 BPM)
-  {
-    id: 'reggaeton',
-    name: 'Reggaetón',
-    category: 'Reggaeton',
-    bpm: 90,
-    bpmRange: [85, 100],
-    description: 'Ritmo "boom-ch-boom-chick". El clásico dembow latino.',
-    rhythm: {
-      // X - - - - - - - X - - - - - - -
+      // B: X - - - | - - - - | X - - - | - - - - (bombo en 1 y 3)
       kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-      // - - - - X - - - - - - - X - - -
+      // C: - - - - | X - - - | - - - - | X - - - (side stick en 2 y 4)
       snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // - - X - - - X - - - X - - - X - (syncopated)
-      hihat: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
-      // X - - - - - - - X - - - - - - - (follows kick)
-      bass:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-      // - - - - - - X - - - - - - - X - (stabs)
-      piano: [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-    },
-    fill: {
-      position: 8,
-      pattern: {
-        snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1], // Timbal pattern
-      },
-    },
-    volumes: { piano: 0.6, bass: 0.85, drums: 0.8 },
-  },
-
-  // 6. JAZZ SWING (140 BPM)
-  {
-    id: 'jazz_swing',
-    name: 'Jazz Swing',
-    category: 'Jazz',
-    bpm: 140,
-    bpmRange: [120, 160],
-    description: 'Triplet feel, ride pattern. El groove del jazz clásico.',
-    rhythm: {
-      // X - - - - - - - X - - - - - - - (light kick)
-      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-      // - - - - X - X - - - - - X - X - (comping snare)
-      snare: [0, 0, 0, 0, 1, 0, 0.5, 0, 0, 0, 0, 0, 1, 0, 0.5, 0],
-      // X - X X - X X - X X - X X - X X (swing ride pattern)
-      hihat: [1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1],
-      // X - - X - - X - X - - X - - X - (walking bass)
-      bass:  [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0],
-      // - X - - X - - X - X - - X - - X (syncopated comping)
-      piano: [0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1],
-    },
-    fill: {
-      position: 8,
-      pattern: {
-        snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0], // Swing fill on toms
-      },
-    },
-    volumes: { piano: 0.7, bass: 0.7, drums: 0.5 },
-  },
-
-  // 7. BALADA (70 BPM)
-  {
-    id: 'ballad',
-    name: 'Balada',
-    category: 'Ballad',
-    bpm: 70,
-    bpmRange: [55, 85],
-    description: 'Espaciado, énfasis en dinámicas. Suave y emotivo.',
-    rhythm: {
-      // X - - - - - - - X - - - - - - -
-      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-      // - - - - X - - - - - - - X - - -
-      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // X - - - X - - - X - - - X - - - (quarter notes)
-      hihat: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
-      // X - - - - - - - - - - - - - - - (sustained whole note)
+      // H: x - x - | x - x - | x - x - | x - x - (corcheas)
+      hihat: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // B: X - - - | - - - - | - - - - | - - - - (nota sostenida)
       bass:  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      // X - - - - - - - X - - - - - - - (long chords)
+      // P: X - - - | - - - - | X - - - | - - - - (acordes largos/arpegios)
       piano: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
     },
     fill: {
       position: 12,
       pattern: {
-        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5], // Soft roll
-        hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], // Crash
+        // Fill suave para balada
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5],
+        hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], // crash
       },
     },
     bassSustain: true,
-    volumes: { piano: 0.85, bass: 0.5, drums: 0.35 },
+    volumes: { piano: 0.75, bass: 0.6, drums: 0.45 },
   },
 
-  // 8. DISCO (120 BPM)
+  // ============================================
+  // 4. REGGAE (Acento en el "&" del 3er tiempo) - 80 BPM
+  // ============================================
+  // Característica: El anti-backbeat. El acento rítmico (skank) está en la semicorchea débil.
+  // Caja (rimshot) en el 3er tiempo. Bombo sutil en 1 y 3.
+  // Bajo: Líneas melódicas prominentes y con muchos silencios.
+  // Piano/Guitarra: Acorde staccato en el "&" de cada tiempo (skank).
+  {
+    id: 'reggae',
+    name: 'Reggae',
+    category: 'Reggae',
+    bpm: 80,
+    bpmRange: [70, 95],
+    description: 'El skank en el "&". Bajo melódico prominente, acordes staccato.',
+    rhythm: {
+      // B: X - - - | - - - - | X - - - | - - - - (bombo sutil)
+      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      // C: - - - - | - - - - | - - X - | - - - - (rimshot en "&" del 3)
+      snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+      // H: x x x x | x x x x | x x x x | x x x x (semicorcheas o abierto en upbeats)
+      hihat: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      // B: X - - - | - X - - | - - X - | - - - X (línea melódica)
+      bass:  [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      // P: - - X - | - - X - | - - X - | - - X - (skank en cada "&")
+      piano: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        // Fill estilo reggae con rimshot
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1],
+      },
+    },
+    bassSustain: true,
+    volumes: { piano: 0.5, bass: 0.9, drums: 0.55 },
+  },
+
+  // ============================================
+  // 5. HIP-HOP/TRAP (Hi-hats rápidos) - 95 BPM
+  // ============================================
+  // Característica: Bombo pesado, hi-hats rápidos en semicorcheas o tríolos.
+  // Sensación de "flow" y arrastre.
+  // Bajo: Sub-bass siguiendo el patrón del bombo.
+  // Piano: Melodías simples, acordes espaciados o samples.
+  {
+    id: 'hiphop_trap',
+    name: 'Hip-Hop/Trap',
+    category: 'HipHop',
+    bpm: 95,
+    bpmRange: [85, 110],
+    description: 'Bombo pesado 808, hi-hats rápidos. Sub-bass y melodías minimalistas.',
+    rhythm: {
+      // B: X - - - | - - X X | X - - - | - - X - (patrón 808)
+      kick:  [1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0],
+      // C: - - - - | X - - - | - - - - | X - - - (caja/clap en 2 y 4)
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      // H: x x x x | x x x x | x x x x | x x x x (semicorcheas constantes)
+      hihat: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      // B: X - - - | - - X X | X - - - | - - X - (sub-bass = bombo)
+      bass:  [1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0],
+      // P: X - - - | - - - - | - - X - | - - - - (melodías espaciadas)
+      piano: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    },
+    fill: {
+      position: 8,
+      pattern: {
+        // Hi-hat roll típico de trap
+        hihat: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+      },
+    },
+    bassSustain: true,
+    volumes: { piano: 0.5, bass: 0.95, drums: 0.8 },
+  },
+
+  // ============================================
+  // 6. DISCO (Four-on-the-floor) - 120 BPM
+  // ============================================
+  // Característica: Bombo en las 4 negras (four-on-the-floor).
+  // Caja en 2 y 4. Hi-hat en semicorcheas (abierto en "&").
+  // Bajo: Líneas de octavas sincopadas, muy activas.
+  // Piano: Acordes "chic" en los tiempos débiles.
   {
     id: 'disco',
     name: 'Disco',
     category: 'Disco',
     bpm: 120,
     bpmRange: [115, 130],
-    description: 'Bombo 4/4 "four on the floor", hi-hat abierto. Pura energía disco.',
+    description: 'Four-on-the-floor. Bajo en octavas sincopadas, piano en upbeats.',
     rhythm: {
-      // X - - - X - - - X - - - X - - - (four on the floor)
+      // B: X - - - | X - - - | X - - - | X - - - (bombo en 4 negras)
       kick:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
-      // - - - - X - - - - - - - X - - -
+      // C: - - - - | X - - - | - - - - | X - - - (caja en 2 y 4)
       snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // - X - X - X - X - X - X - X - X (open on "&")
-      hihat: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-      // X - - X - - - - X - - X - - - - (octaves)
-      bass:  [1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0],
-      // - - X X - - X X - - X X - - X X (staccato chords)
-      piano: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
+      // H: x x x x | x x x x | x x x x | x x x x (semicorcheas)
+      hihat: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      // B: X - X - | - X - X | X - - X | - X - - (octavas sincopadas)
+      bass:  [1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0],
+      // P: - - X - | - - X - | - - X - | - - X - (acordes "chic" en "&")
+      piano: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
     },
     fill: {
       position: 8,
       pattern: {
-        snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0], // Roll + crash
+        // Fill disco con redoble
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
         hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], // Crash
       },
     },
-    volumes: { piano: 0.65, bass: 0.75, drums: 0.75 },
+    volumes: { piano: 0.65, bass: 0.8, drums: 0.75 },
   },
 
-  // 9. TRAP MODERNO (140 BPM)
+  // ============================================
+  // 7. SHUFFLE/BLUES (Patrón en tríolos) - 100 BPM
+  // ============================================
+  // Característica: Sensación de balanceo ("swing").
+  // Patrón de hi-hat en "ching-chick-a" (feel de tríolos).
+  // Bajo: Walking bass (notas que "caminan" en negras con swing).
+  // Piano: Comping sincopado estilo boogie-woogie.
   {
-    id: 'trap_modern',
-    name: 'Trap Moderno',
-    category: 'Trap',
-    bpm: 140,
-    bpmRange: [130, 160],
-    description: 'Bombo desplazado, hi-hats rápidos con rolls. El sonido del trap actual.',
+    id: 'shuffle_blues',
+    name: 'Shuffle/Blues',
+    category: 'Blues',
+    bpm: 100,
+    bpmRange: [85, 120],
+    description: 'Feel de swing/shuffle. Walking bass y comping estilo boogie.',
     rhythm: {
-      // X - - - - - X - - X - - - - - X (displaced)
-      kick:  [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-      // - - - - - - - - X - - - - - - -
-      snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-      // X x X x X x X x X x X x X x X x (fast with ghosts)
-      hihat: [1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5],
-      // X - - - - - - - - - - - - - - - (sub sustained)
-      bass:  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      // - - - - X - - - - - - - - - - - (minimal melody)
-      piano: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // B: X - - - | - - X - | X - - - | - - X - (bombo con swing)
+      kick:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0],
+      // C: - - - - | X - - - | - - - - | X - - - (caja en 2 y 4)
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      // H: X - x | X - x | (aproximación de shuffle en 16avos)
+      hihat: [1, 0, 0.5, 0, 1, 0, 0.5, 0, 1, 0, 0.5, 0, 1, 0, 0.5, 0],
+      // B: X - - | X - - | X - - | X - - (walking bass en negras)
+      bass:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+      // P: - - - - | X - - - | - - - - | X - - - (comping en backbeat)
+      piano: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
     },
     fill: {
       position: 8,
       pattern: {
-        hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.7, 0.7, 0.8, 0.9, 1, 1], // Crescendo roll
-        kick:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+        // Fill con swing
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0],
       },
     },
-    bassSustain: true,
-    volumes: { piano: 0.45, bass: 0.95, drums: 0.8 },
+    volumes: { piano: 0.7, bass: 0.75, drums: 0.6 },
   },
 
-  // 10. SAMBA BÁSICO (110 BPM)
+  // ============================================
+  // 8. SAMBA - 110 BPM
+  // ============================================
+  // Característica: Polirritmia y sensación de movimiento constante.
+  // Surdo (bombo) en 1 y 3. Mucha actividad en caja/tamborim.
+  // Bajo: Líneas simples que marcan el bajo del surdo.
+  // Piano: Ritmos sincopados en bloque (como el cavaquinho).
   {
-    id: 'samba_basic',
-    name: 'Samba Básico',
+    id: 'samba',
+    name: 'Samba',
     category: 'Latin',
     bpm: 110,
-    bpmRange: [100, 120],
-    description: 'Polirritmia, percusión compleja. El groove brasileño clásico.',
+    bpmRange: [100, 125],
+    description: 'Polirritmia brasileña. Surdo en 1 y 3, tamborim activo.',
     rhythm: {
-      // X - - X - X - - X - - X - X - - (surdo pattern)
-      kick:  [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0],
-      // - X - - X - X - - X - - X - X - (tamborim feel)
-      snare: [0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0],
-      // X - X - X - X - X - X - X - X - (8ths - agogo feel)
-      hihat: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
-      // X - - - X - - - X - - - X - - -
-      bass:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
-      // X - X - X - X - X - X - X - X - (syncopated chords)
-      piano: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // B (Surdo): X - - - | - - - - | X - - - | - - - - (en 1 y 3)
+      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      // C (Tamborim): x x X x | x X x x | x x X x | x X x x (patrón típico)
+      snare: [0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 0.5, 0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 0.5],
+      // H: x x x x | x x x x | x x x x | x x x x
+      hihat: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      // B: X - - - | - - - - | X - - - | - - - - (sigue el surdo)
+      bass:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      // P: x x X x | x X x x | x x X x | x X x x (cavaquinho style)
+      piano: [0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 0.5, 0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 0.5],
     },
     fill: {
       position: 0,
       pattern: {
-        snare: [1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0], // Repique pattern
+        // Repique pattern
+        snare: [1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
       },
     },
     volumes: { piano: 0.6, bass: 0.7, drums: 0.7 },
+  },
+
+  // ============================================
+  // 9. BOSSA NOVA - 130 BPM
+  // ============================================
+  // Característica: Sensación suave y sofisticada.
+  // Patrón de clave en el hi-hat ("bossa nova ride").
+  // Bajo: Líneas que alternan la fundamental y la 5ta o 7ma.
+  // Piano: Acordes complejos (jazz) con ritmo sincopado.
+  {
+    id: 'bossa_nova',
+    name: 'Bossa Nova',
+    category: 'Latin',
+    bpm: 130,
+    bpmRange: [115, 145],
+    description: 'Feel suave y sofisticado. Patrón de clave 3-2, bajo anticipatorio.',
+    rhythm: {
+      // B: X - - - | - - X - | X - - - | - - - - (ligero)
+      kick:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      // C: - - - - | X - x - | - - - - | X - x - (golpe + ghost)
+      snare: [0, 0, 0, 0, 1, 0, 0.5, 0, 0, 0, 0, 0, 1, 0, 0.5, 0],
+      // H: x - x x | - x x - | x - x x | - x x - (clave 3-2)
+      hihat: [1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0],
+      // B: X - - - | - - X - | - - X - | - - - - (fundamental y 5ta)
+      bass:  [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+      // P: - X - X | - - X - | - X - X | X - - - (comping sincopado)
+      piano: [0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        // Fill suave bossa
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.7, 0.5, 0.7],
+      },
+    },
+    volumes: { piano: 0.75, bass: 0.65, drums: 0.45 },
+  },
+
+  // ============================================
+  // 10. METAL (Doble bombo) - 140 BPM
+  // ============================================
+  // Característica: Potencia y velocidad.
+  // Doble bombo en corcheas constantes. Caja en 2 y 4.
+  // Bajo: Siguiendo las líneas del riff, en unísono.
+  // Piano/Guitarra: Power chords o riffs palm-muted en corcheas.
+  {
+    id: 'metal',
+    name: 'Metal',
+    category: 'Metal',
+    bpm: 140,
+    bpmRange: [120, 180],
+    description: 'Doble bombo en corcheas, potencia total. Bajo y guitarra en unísono.',
+    rhythm: {
+      // B: X-X-X-X-|X-X-X-X-|X-X-X-X-|X-X-X-X- (doble bombo en corcheas)
+      kick:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // C: - - - - | X - - - | - - - - | X - - - (caja en 2 y 4)
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      // H: x-x-x-x-|x-x-x-x-|x-x-x-x-|x-x-x-x- (corcheas)
+      hihat: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // B: X - X - | X - X - | X - X - | X - X - (unísono con riff)
+      bass:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // P: X - - - | - - - - | - - - - | - - - - (power chords/pads)
+      piano: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    },
+    fill: {
+      position: 8,
+      pattern: {
+        // Fill de doble bombo
+        kick:  [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      },
+    },
+    volumes: { piano: 0.5, bass: 0.9, drums: 0.85 },
   },
 ];
 
@@ -498,18 +569,10 @@ export function getInstrumentSlots(pattern: number[]): number[] {
 
 /**
  * Legacy: Get drum pattern combining all drum hits
+ * @deprecated Use individual kick/snare/hihat patterns instead
  */
 export function getDrumPattern(style: StylePattern): number[] {
-  const allHits = new Set<number>();
-  style.rhythm.kick.forEach((v, i) => v > 0 && allHits.add(i));
-  style.rhythm.snare.forEach((v, i) => v > 0 && allHits.add(i));
-  style.rhythm.hihat.forEach((v, i) => v > 0 && allHits.add(i));
-  return Array.from(allHits).sort((a, b) => a - b);
-}
-
-/**
- * Legacy: Convert slots to beats
- */
-export function getBeatsFromSlots(slots: number[]): number[] {
-  return slots.map(slot => slotToBeat(slot));
+  return style.rhythm.kick.map((k, i) => 
+    Math.max(k, style.rhythm.snare[i], style.rhythm.hihat[i])
+  );
 }
