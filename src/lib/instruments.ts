@@ -28,6 +28,7 @@ export interface SoundType {
 export interface InstrumentState {
   id: InstrumentType;
   muted: boolean;
+  solo: boolean;
   volume: number; // 0-1
   soundTypeId: string;
 }
@@ -189,7 +190,20 @@ export function getDefaultInstrumentStates(): InstrumentState[] {
   return INSTRUMENTS.map(inst => ({
     id: inst.id,
     muted: false,
+    solo: false,
     volume: 0.7,
     soundTypeId: inst.defaultSoundType,
   }));
+}
+
+/**
+ * Calculate effective mute state considering solo
+ */
+export function isInstrumentAudible(instrument: InstrumentState, allInstruments: InstrumentState[]): boolean {
+  if (instrument.muted) return false;
+  
+  const anySolo = allInstruments.some(i => i.solo);
+  if (anySolo && !instrument.solo) return false;
+  
+  return true;
 }

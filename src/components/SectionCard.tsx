@@ -2,8 +2,8 @@ import { useState, useRef } from 'react';
 import { Section } from '@/lib/sections';
 import { ChordBlock } from './ChordBlock';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Trash2, Copy, ChevronUp, ChevronDown, MoveRight } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Plus, Trash2, Copy, GripVertical, Repeat } from 'lucide-react';
 
 interface SectionCardProps {
   section: Section;
@@ -11,18 +11,25 @@ interface SectionCardProps {
   currentChordIndex: number;
   globalChordOffset: number;
   totalSections: number;
+  isLooping?: boolean;
   onAddChord: () => void;
   onChordClick: (chordIndex: number) => void;
   onChordDelete: (chordIndex: number) => void;
+  onChordDuplicate: (chordIndex: number) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
-  onMoveChordToSection: (chordIndex: number, toSectionIndex: number) => void;
+  onMoveChordToSection: (fromSectionIndex: number, chordIndex: number, toSectionIndex: number) => void;
   onRepeatChange: (repeatCount: number) => void;
+  onNameChange: (name: string) => void;
   onDelete: () => void;
   onDuplicate: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
+  onToggleLoop: () => void;
   isFirst: boolean;
   isLast: boolean;
+  // Section drag & drop
+  onSectionDragStart: (e: React.DragEvent) => void;
+  onSectionDragOver: (e: React.DragEvent) => void;
+  onSectionDrop: (e: React.DragEvent) => void;
+  isSectionDragOver?: boolean;
 }
 
 export function SectionCard({
@@ -31,28 +38,37 @@ export function SectionCard({
   currentChordIndex,
   globalChordOffset,
   totalSections,
+  isLooping,
   onAddChord,
   onChordClick,
   onChordDelete,
+  onChordDuplicate,
   onReorder,
   onMoveChordToSection,
   onRepeatChange,
+  onNameChange,
   onDelete,
   onDuplicate,
-  onMoveUp,
-  onMoveDown,
+  onToggleLoop,
   isFirst,
   isLast,
+  onSectionDragStart,
+  onSectionDragOver,
+  onSectionDrop,
+  isSectionDragOver,
 }: SectionCardProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState(section.name);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.stopPropagation();
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/json', JSON.stringify({ 
+    e.dataTransfer.setData('application/chord', JSON.stringify({ 
       sectionIndex, 
       chordIndex: index 
     }));
@@ -60,13 +76,17 @@ export function SectionCard({
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
     setDragOverIndex(index);
   };
 
   const handleContainerDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragOver(true);
+    // Check if it's a chord drag
+    if (e.dataTransfer.types.includes('application/chord')) {
+      setIsDragOver(true);
+    }
   };
 
   const handleContainerDragLeave = () => {
@@ -78,9 +98,12 @@ export function SectionCard({
     e.stopPropagation();
     
     try {
-      const data = JSON.parse(e.dataTransfer.getData('application/json'));
-      const fromSectionIndex = data.sectionIndex;
-      const fromChordIndex = data.chordIndex;
+      const data = e.dataTransfer.getData('application/chord');
+      if (!data) return;
+      
+      const parsed = JSON.parse(data);
+      const fromSectionIndex = parsed.sectionIndex;
+      const fromChordIndex = parsed.chordIndex;
       
       if (fromSectionIndex === sectionIndex) {
         // Same section reorder
@@ -89,7 +112,7 @@ export function SectionCard({
         }
       } else {
         // Cross-section move
-        onMoveChordToSection(fromChordIndex, sectionIndex);
+        onMoveChordToSection(fromSectionIndex, fromChordIndex, sectionIndex);
       }
     } catch {
       // Fallback for same-section drag
@@ -109,11 +132,19 @@ export function SectionCard({
     setIsDragOver(false);
   };
 
+  const handleNameSubmit = () => {
+    if (editName.trim()) {
+      onNameChange(editName.trim());
+    } else {
+      setEditName(section.name);
+    }
+    setIsEditingName(false);
+  };
+
   // Calculate which chord in this section is playing
   const getLocalPlayingIndex = (): number => {
     if (currentChordIndex < 0) return -1;
     const localIndex = currentChordIndex - globalChordOffset;
-    // Account for repeats - the playing index wraps within section
     const sectionLength = section.chords.length;
     if (sectionLength === 0) return -1;
     const adjustedIndex = localIndex % sectionLength;
@@ -125,31 +156,73 @@ export function SectionCard({
 
   const localPlayingIndex = getLocalPlayingIndex();
 
-  // Generate section names for the move dropdown
-  const otherSections = Array.from({ length: totalSections }, (_, i) => ({
-    index: i,
-    name: String.fromCharCode(65 + i), // A, B, C...
-  })).filter(s => s.index !== sectionIndex);
-
   return (
     <div 
-      className={`bg-card border rounded-xl overflow-hidden transition-colors ${
-        isDragOver ? 'border-primary bg-primary/5' : 'border-border'
+      className={`bg-card border-2 rounded-xl overflow-hidden transition-all ${
+        isSectionDragOver ? 'border-primary border-dashed bg-primary/5' : 
+        isDragOver ? 'border-primary/50 bg-primary/5' : 
+        isLooping ? 'border-primary' :
+        'border-border'
       }`}
       onDragOver={handleContainerDragOver}
       onDragLeave={handleContainerDragLeave}
       onDrop={(e) => handleDrop(e)}
     >
-      {/* Section Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-secondary/30 border-b border-border">
+      {/* Section Header - Draggable */}
+      <div 
+        className="flex items-center justify-between px-4 py-3 bg-secondary/30 border-b border-border cursor-grab active:cursor-grabbing"
+        draggable
+        onDragStart={onSectionDragStart}
+        onDragOver={onSectionDragOver}
+        onDrop={onSectionDrop}
+      >
         <div className="flex items-center gap-3">
-          <span className="font-medium text-foreground">{section.name}</span>
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+          
+          {isEditingName ? (
+            <Input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onBlur={handleNameSubmit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleNameSubmit();
+                if (e.key === 'Escape') {
+                  setEditName(section.name);
+                  setIsEditingName(false);
+                }
+              }}
+              className="h-7 w-32 text-sm"
+              autoFocus
+            />
+          ) : (
+            <span 
+              className="font-medium text-foreground cursor-pointer hover:text-primary"
+              onClick={() => {
+                setEditName(section.name);
+                setIsEditingName(true);
+              }}
+            >
+              {section.name}
+            </span>
+          )}
+          
           <span className="text-xs text-muted-foreground">
             {section.chords.length} {section.chords.length === 1 ? 'chord' : 'chords'}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Loop toggle */}
+          <Button
+            variant={isLooping ? "default" : "ghost"}
+            size="icon"
+            className="h-8 w-8"
+            onClick={onToggleLoop}
+            title="Loop this section"
+          >
+            <Repeat className="h-4 w-4" />
+          </Button>
+
           {/* Repeat Count Badge */}
           <div className="relative">
             <button
@@ -174,25 +247,8 @@ export function SectionCard({
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={onMoveUp}
-              disabled={isFirst}
-            >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onMoveDown}
-              disabled={isLast}
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
               onClick={onDuplicate}
+              title="Duplicate section"
             >
               <Copy className="h-4 w-4" />
             </Button>
@@ -201,6 +257,7 @@ export function SectionCard({
               size="icon"
               className="h-8 w-8 text-destructive hover:text-destructive"
               onClick={onDelete}
+              title="Delete section"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -229,7 +286,7 @@ export function SectionCard({
                 onDrop={(e) => handleDrop(e, index)}
                 onDragEnd={handleDragEnd}
                 className={`
-                  relative group
+                  relative
                   ${dragOverIndex === index && draggedIndex !== index ? 'pl-4' : ''}
                   transition-all duration-200
                 `}
@@ -242,31 +299,11 @@ export function SectionCard({
                     chord={chord}
                     isPlaying={localPlayingIndex === index}
                     onDelete={() => onChordDelete(index)}
+                    onDuplicate={() => onChordDuplicate(index)}
                     isDragging={draggedIndex === index}
                     fixedWidth
                   />
                 </div>
-                
-                {/* Move to section dropdown */}
-                {totalSections > 1 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-secondary border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MoveRight className="h-3 w-3" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      {otherSections.map(s => (
-                        <DropdownMenuItem 
-                          key={s.index}
-                          onClick={() => onMoveChordToSection(index, s.index)}
-                        >
-                          Move to Section {s.name}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
               </div>
             ))}
           </div>
