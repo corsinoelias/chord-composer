@@ -12,11 +12,17 @@ const STYLE_CATEGORIES = [
   { id: 'Rock', label: 'Rock' },
   { id: 'Funk', label: 'Funk' },
   { id: 'Pop', label: 'Pop' },
+  { id: 'Folk', label: 'Folk / Acústico' },
+  { id: 'Country', label: 'Country' },
   { id: 'Reggae', label: 'Reggae' },
   { id: 'HipHop', label: 'Hip Hop' },
+  { id: 'LoFi', label: 'Lo-Fi' },
   { id: 'Disco', label: 'Disco' },
+  { id: 'Soul', label: 'Soul / R&B' },
   { id: 'Blues', label: 'Blues' },
+  { id: 'Jazz', label: 'Jazz' },
   { id: 'Latin', label: 'Latino' },
+  { id: 'Indie', label: 'Indie / Dream Pop' },
   { id: 'Metal', label: 'Metal' },
 ] as const;
 
