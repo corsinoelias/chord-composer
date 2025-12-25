@@ -14,22 +14,62 @@ let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 
 // Sample buffers for acoustic kit
-let acousticSnareBuffer: AudioBuffer | null = null;
+interface AcousticKitSamples {
+  kick: AudioBuffer | null;
+  snare: AudioBuffer | null;
+  hihat: AudioBuffer | null;
+  hihatOpen: AudioBuffer | null;
+  hihatFoot: AudioBuffer | null;
+  tom1: AudioBuffer | null;
+  tom2: AudioBuffer | null;
+  floorTom: AudioBuffer | null;
+  ride: AudioBuffer | null;
+  crash: AudioBuffer | null;
+}
+
+let acousticKit: AcousticKitSamples = {
+  kick: null,
+  snare: null,
+  hihat: null,
+  hihatOpen: null,
+  hihatFoot: null,
+  tom1: null,
+  tom2: null,
+  floorTom: null,
+  ride: null,
+  crash: null,
+};
+
 let sampleLoadPromise: Promise<void> | null = null;
 
 /**
- * Loads the acoustic snare sample
+ * Loads all acoustic kit samples
  */
 async function loadAcousticSamples(ctx: AudioContext): Promise<void> {
-  if (acousticSnareBuffer) return;
-  
-  try {
-    const response = await fetch('/audio/snare-drum.mp3');
-    const arrayBuffer = await response.arrayBuffer();
-    acousticSnareBuffer = await ctx.decodeAudioData(arrayBuffer);
-  } catch (error) {
-    console.warn('Failed to load acoustic snare sample:', error);
-  }
+  const samplePaths: { key: keyof AcousticKitSamples; path: string }[] = [
+    { key: 'kick', path: '/audio/kick.mp3' },
+    { key: 'snare', path: '/audio/snare-drum.mp3' },
+    { key: 'hihat', path: '/audio/hihat.mp3' },
+    { key: 'hihatOpen', path: '/audio/hihat-open.mp3' },
+    { key: 'hihatFoot', path: '/audio/hihat-foot.mp3' },
+    { key: 'tom1', path: '/audio/tom1.mp3' },
+    { key: 'tom2', path: '/audio/tom2.mp3' },
+    { key: 'floorTom', path: '/audio/floor-tom.mp3' },
+    { key: 'ride', path: '/audio/ride.mp3' },
+    { key: 'crash', path: '/audio/crash.mp3' },
+  ];
+
+  await Promise.all(
+    samplePaths.map(async ({ key, path }) => {
+      try {
+        const response = await fetch(path);
+        const arrayBuffer = await response.arrayBuffer();
+        acousticKit[key] = await ctx.decodeAudioData(arrayBuffer);
+      } catch (error) {
+        console.warn(`Failed to load ${key} sample:`, error);
+      }
+    })
+  );
 }
 
 /**
@@ -183,7 +223,26 @@ function playBassNote(
 }
 
 /**
- * Plays a drum hit with noise-based synthesis for realism
+ * Plays a sample buffer
+ */
+function playSample(
+  ctx: AudioContext,
+  destination: AudioNode,
+  buffer: AudioBuffer,
+  startTime: number,
+  volume: number
+): void {
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  const gain = ctx.createGain();
+  gain.gain.value = volume;
+  source.connect(gain);
+  gain.connect(destination);
+  source.start(startTime);
+}
+
+/**
+ * Plays a drum hit with samples for Acoustic Kit or synthesis for others
  */
 function playDrumHit(
   ctx: AudioContext,
@@ -195,74 +254,62 @@ function playDrumHit(
 ): void {
   const gainNode = ctx.createGain();
   gainNode.connect(destination);
+  const useAcousticSamples = soundType.id === 'standard';
   
   if (drumType === 'kick') {
-    // Kick drum: pitched oscillator with fast pitch envelope
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(150, startTime);
-    osc.frequency.exponentialRampToValueAtTime(40, startTime + 0.1);
-    
-    const kickGain = ctx.createGain();
-    kickGain.gain.setValueAtTime(0.4 * volume, startTime);
-    kickGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
-    
-    osc.connect(kickGain);
-    kickGain.connect(gainNode);
-    osc.start(startTime);
-    osc.stop(startTime + 0.35);
-    
-    // Add click transient
-    const click = ctx.createOscillator();
-    click.type = 'triangle';
-    click.frequency.value = 800;
-    const clickGain = ctx.createGain();
-    clickGain.gain.setValueAtTime(0.1 * volume, startTime);
-    clickGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.02);
-    click.connect(clickGain);
-    clickGain.connect(gainNode);
-    click.start(startTime);
-    click.stop(startTime + 0.03);
+    if (useAcousticSamples && acousticKit.kick) {
+      playSample(ctx, gainNode, acousticKit.kick, startTime, volume * 0.9);
+    } else {
+      // Synthesized kick
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(150, startTime);
+      osc.frequency.exponentialRampToValueAtTime(40, startTime + 0.1);
+      const kickGain = ctx.createGain();
+      kickGain.gain.setValueAtTime(0.4 * volume, startTime);
+      kickGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+      osc.connect(kickGain);
+      kickGain.connect(gainNode);
+      osc.start(startTime);
+      osc.stop(startTime + 0.35);
+      
+      const click = ctx.createOscillator();
+      click.type = 'triangle';
+      click.frequency.value = 800;
+      const clickGain = ctx.createGain();
+      clickGain.gain.setValueAtTime(0.1 * volume, startTime);
+      clickGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.02);
+      click.connect(clickGain);
+      clickGain.connect(gainNode);
+      click.start(startTime);
+      click.stop(startTime + 0.03);
+    }
     
   } else if (drumType === 'snare') {
-    // Use sample for Acoustic Kit, synthesize for others
-    if (soundType.id === 'standard' && acousticSnareBuffer) {
-      const source = ctx.createBufferSource();
-      source.buffer = acousticSnareBuffer;
-      
-      const sampleGain = ctx.createGain();
-      sampleGain.gain.value = volume * 0.8;
-      
-      source.connect(sampleGain);
-      sampleGain.connect(gainNode);
-      source.start(startTime);
+    if (useAcousticSamples && acousticKit.snare) {
+      playSample(ctx, gainNode, acousticKit.snare, startTime, volume * 0.8);
     } else {
-      // Snare: noise + pitched component (synthesized)
+      // Synthesized snare
       const bufferSize = ctx.sampleRate * 0.2;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = noiseBuffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
         data[i] = Math.random() * 2 - 1;
       }
-      
       const noise = ctx.createBufferSource();
       noise.buffer = noiseBuffer;
-      
       const noiseFilter = ctx.createBiquadFilter();
       noiseFilter.type = 'highpass';
       noiseFilter.frequency.value = 1000;
-      
       const noiseGain = ctx.createGain();
       noiseGain.gain.setValueAtTime(0.2 * volume, startTime);
       noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
-      
       noise.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
       noiseGain.connect(gainNode);
       noise.start(startTime);
       noise.stop(startTime + 0.2);
       
-      // Body tone
       const osc = ctx.createOscillator();
       osc.type = 'triangle';
       osc.frequency.value = 180;
@@ -276,35 +323,35 @@ function playDrumHit(
     }
     
   } else {
-    // Hi-hat: filtered noise
-    const bufferSize = ctx.sampleRate * 0.1;
-    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
+    // Hi-hat
+    if (useAcousticSamples && acousticKit.hihat) {
+      playSample(ctx, gainNode, acousticKit.hihat, startTime, volume * 0.5);
+    } else {
+      // Synthesized hi-hat
+      const bufferSize = ctx.sampleRate * 0.1;
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const hiFilter = ctx.createBiquadFilter();
+      hiFilter.type = 'highpass';
+      hiFilter.frequency.value = 7000;
+      const loFilter = ctx.createBiquadFilter();
+      loFilter.type = 'lowpass';
+      loFilter.frequency.value = 14000;
+      const hatGain = ctx.createGain();
+      hatGain.gain.setValueAtTime(0.08 * volume, startTime);
+      hatGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.05);
+      noise.connect(hiFilter);
+      hiFilter.connect(loFilter);
+      loFilter.connect(hatGain);
+      hatGain.connect(gainNode);
+      noise.start(startTime);
+      noise.stop(startTime + 0.08);
     }
-    
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuffer;
-    
-    const hiFilter = ctx.createBiquadFilter();
-    hiFilter.type = 'highpass';
-    hiFilter.frequency.value = 7000;
-    
-    const loFilter = ctx.createBiquadFilter();
-    loFilter.type = 'lowpass';
-    loFilter.frequency.value = 14000;
-    
-    const hatGain = ctx.createGain();
-    hatGain.gain.setValueAtTime(0.08 * volume, startTime);
-    hatGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.05);
-    
-    noise.connect(hiFilter);
-    hiFilter.connect(loFilter);
-    loFilter.connect(hatGain);
-    hatGain.connect(gainNode);
-    noise.start(startTime);
-    noise.stop(startTime + 0.08);
   }
 }
 
@@ -524,15 +571,28 @@ export async function renderProgressionOffline(
   // Ensure samples are loaded
   await ensureSamplesLoaded();
   
-  // Load sample into offline context if available
-  let offlineSnareBuffer: AudioBuffer | null = null;
-  if (acousticSnareBuffer) {
-    // Re-decode for offline context at the target sample rate
-    const response = await fetch('/audio/snare-drum.mp3');
-    const arrayBuffer = await response.arrayBuffer();
-    const tempCtx = new OfflineAudioContext(2, 1, sampleRate);
-    offlineSnareBuffer = await tempCtx.decodeAudioData(arrayBuffer);
-  }
+  // Load samples into offline context if available
+  const offlineKit: Partial<AcousticKitSamples> = {};
+  const samplePaths: { key: keyof AcousticKitSamples; path: string }[] = [
+    { key: 'kick', path: '/audio/kick.mp3' },
+    { key: 'snare', path: '/audio/snare-drum.mp3' },
+    { key: 'hihat', path: '/audio/hihat.mp3' },
+  ];
+  
+  const tempCtx = new OfflineAudioContext(2, 1, sampleRate);
+  await Promise.all(
+    samplePaths.map(async ({ key, path }) => {
+      if (acousticKit[key]) {
+        try {
+          const response = await fetch(path);
+          const arrayBuffer = await response.arrayBuffer();
+          offlineKit[key] = await tempCtx.decodeAudioData(arrayBuffer);
+        } catch (error) {
+          console.warn(`Failed to load ${key} for offline:`, error);
+        }
+      }
+    })
+  );
   
   // Calculate total duration
   let totalBeats = 0;
@@ -669,34 +729,41 @@ export async function renderProgressionOffline(
               // Kick
               if (pattern.kick[slot] > 0) {
                 const vol = baseVolume * pattern.kick[slot];
-                const osc = offlineCtx.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(150, slotTime);
-                osc.frequency.exponentialRampToValueAtTime(40, slotTime + 0.1);
-                const gain = offlineCtx.createGain();
-                gain.gain.setValueAtTime(0.4 * vol, slotTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.3);
-                osc.connect(gain);
-                gain.connect(offlineMasterGain);
-                osc.start(slotTime);
-                osc.stop(slotTime + 0.35);
+                if (drumsSound.id === 'standard' && offlineKit.kick) {
+                  const source = offlineCtx.createBufferSource();
+                  source.buffer = offlineKit.kick;
+                  const gain = offlineCtx.createGain();
+                  gain.gain.value = vol * 0.9;
+                  source.connect(gain);
+                  gain.connect(offlineMasterGain);
+                  source.start(slotTime);
+                } else {
+                  const osc = offlineCtx.createOscillator();
+                  osc.type = 'sine';
+                  osc.frequency.setValueAtTime(150, slotTime);
+                  osc.frequency.exponentialRampToValueAtTime(40, slotTime + 0.1);
+                  const gain = offlineCtx.createGain();
+                  gain.gain.setValueAtTime(0.4 * vol, slotTime);
+                  gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.3);
+                  osc.connect(gain);
+                  gain.connect(offlineMasterGain);
+                  osc.start(slotTime);
+                  osc.stop(slotTime + 0.35);
+                }
               }
               
               // Snare
               if (pattern.snare[slot] > 0) {
                 const vol = baseVolume * pattern.snare[slot];
-                
-                // Use sample for Acoustic Kit
-                if (drumsSound.id === 'standard' && offlineSnareBuffer) {
+                if (drumsSound.id === 'standard' && offlineKit.snare) {
                   const source = offlineCtx.createBufferSource();
-                  source.buffer = offlineSnareBuffer;
-                  const sampleGain = offlineCtx.createGain();
-                  sampleGain.gain.value = vol * 0.8;
-                  source.connect(sampleGain);
-                  sampleGain.connect(offlineMasterGain);
+                  source.buffer = offlineKit.snare;
+                  const gain = offlineCtx.createGain();
+                  gain.gain.value = vol * 0.8;
+                  source.connect(gain);
+                  gain.connect(offlineMasterGain);
                   source.start(slotTime);
                 } else {
-                  // Synthesized snare
                   const osc = offlineCtx.createOscillator();
                   osc.type = 'triangle';
                   osc.frequency.value = 180;
@@ -713,20 +780,30 @@ export async function renderProgressionOffline(
               // Hi-hat
               if (pattern.hihat[slot] > 0) {
                 const vol = baseVolume * pattern.hihat[slot] * 0.7;
-                const osc = offlineCtx.createOscillator();
-                osc.type = 'square';
-                osc.frequency.value = 8000;
-                const filter = offlineCtx.createBiquadFilter();
-                filter.type = 'highpass';
-                filter.frequency.value = 7000;
-                const gain = offlineCtx.createGain();
-                gain.gain.setValueAtTime(0.04 * vol, slotTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.05);
-                osc.connect(filter);
-                filter.connect(gain);
-                gain.connect(offlineMasterGain);
-                osc.start(slotTime);
-                osc.stop(slotTime + 0.06);
+                if (drumsSound.id === 'standard' && offlineKit.hihat) {
+                  const source = offlineCtx.createBufferSource();
+                  source.buffer = offlineKit.hihat;
+                  const gain = offlineCtx.createGain();
+                  gain.gain.value = vol * 0.5;
+                  source.connect(gain);
+                  gain.connect(offlineMasterGain);
+                  source.start(slotTime);
+                } else {
+                  const osc = offlineCtx.createOscillator();
+                  osc.type = 'square';
+                  osc.frequency.value = 8000;
+                  const filter = offlineCtx.createBiquadFilter();
+                  filter.type = 'highpass';
+                  filter.frequency.value = 7000;
+                  const gain = offlineCtx.createGain();
+                  gain.gain.setValueAtTime(0.04 * vol, slotTime);
+                  gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.05);
+                  osc.connect(filter);
+                  filter.connect(gain);
+                  gain.connect(offlineMasterGain);
+                  osc.start(slotTime);
+                  osc.stop(slotTime + 0.06);
+                }
               }
             }
           }
