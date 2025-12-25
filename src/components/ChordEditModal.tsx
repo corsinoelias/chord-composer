@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Chord, ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, RootNote, Accidental, ChordQuality } from '@/lib/musicTheory';
@@ -11,18 +11,20 @@ interface ChordEditModalProps {
 }
 
 export function ChordEditModal({ chord, open, onClose, onSave }: ChordEditModalProps) {
-  const [root, setRoot] = useState<RootNote>(chord?.root || 'C');
-  const [accidental, setAccidental] = useState<Accidental>(chord?.accidental || '');
-  const [quality, setQuality] = useState<ChordQuality>(chord?.quality || 'maj');
-  const [duration, setDuration] = useState(chord?.duration || 2);
+  const [root, setRoot] = useState<RootNote>('C');
+  const [accidental, setAccidental] = useState<Accidental>('');
+  const [quality, setQuality] = useState<ChordQuality>('maj');
+  const [duration, setDuration] = useState(2);
 
-  // Sync state when chord changes
-  if (chord && (chord.root !== root || chord.accidental !== accidental || chord.quality !== quality || chord.duration !== duration)) {
-    setRoot(chord.root);
-    setAccidental(chord.accidental);
-    setQuality(chord.quality);
-    setDuration(chord.duration);
-  }
+  // Sync state when chord changes or modal opens
+  useEffect(() => {
+    if (chord && open) {
+      setRoot(chord.root);
+      setAccidental(chord.accidental);
+      setQuality(chord.quality);
+      setDuration(chord.duration);
+    }
+  }, [chord, open]);
 
   const handleSave = () => {
     if (!chord) return;
@@ -57,6 +59,7 @@ export function ChordEditModal({ chord, open, onClose, onSave }: ChordEditModalP
               {ROOT_NOTES.map(note => (
                 <button
                   key={note}
+                  type="button"
                   onClick={() => setRoot(note)}
                   className={`
                     w-9 h-9 rounded-md font-mono font-medium text-sm
@@ -80,6 +83,7 @@ export function ChordEditModal({ chord, open, onClose, onSave }: ChordEditModalP
               {ACCIDENTALS.map(acc => (
                 <button
                   key={acc || 'natural'}
+                  type="button"
                   onClick={() => setAccidental(acc)}
                   className={`
                     w-12 h-9 rounded-md font-mono font-medium text-sm
@@ -103,6 +107,7 @@ export function ChordEditModal({ chord, open, onClose, onSave }: ChordEditModalP
               {CHORD_QUALITIES.map(q => (
                 <button
                   key={q}
+                  type="button"
                   onClick={() => setQuality(q)}
                   className={`
                     px-2 h-8 rounded-md font-mono text-xs
@@ -140,8 +145,8 @@ export function ChordEditModal({ chord, open, onClose, onSave }: ChordEditModalP
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave}>Save Changes</Button>
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="button" onClick={handleSave}>Save Changes</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

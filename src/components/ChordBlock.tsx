@@ -1,10 +1,11 @@
 import { Chord, formatChord } from '@/lib/musicTheory';
-import { X, GripVertical } from 'lucide-react';
+import { X, GripVertical, Copy } from 'lucide-react';
 
 interface ChordBlockProps {
   chord: Chord;
   isPlaying: boolean;
   onDelete: () => void;
+  onDuplicate?: () => void;
   isDragging?: boolean;
   fixedWidth?: boolean;
 }
@@ -15,7 +16,7 @@ interface ChordBlockProps {
  * Displays a single chord in the timeline.
  * Can use fixed width or proportional width based on duration.
  */
-export function ChordBlock({ chord, isPlaying, onDelete, isDragging, fixedWidth = false }: ChordBlockProps) {
+export function ChordBlock({ chord, isPlaying, onDelete, onDuplicate, isDragging, fixedWidth = false }: ChordBlockProps) {
   return (
     <div
       className={`
@@ -71,6 +72,28 @@ export function ChordBlock({ chord, isPlaying, onDelete, isDragging, fixedWidth 
       >
         <X size={12} />
       </button>
+
+      {/* Duplicate button */}
+      {onDuplicate && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDuplicate();
+          }}
+          className="
+            absolute -top-2 right-5 
+            w-5 h-5 rounded-full 
+            bg-secondary text-secondary-foreground border border-border
+            flex items-center justify-center
+            opacity-0 group-hover:opacity-100 hover:opacity-100
+            transition-opacity duration-200
+            hover:scale-110
+          "
+          aria-label="Duplicate chord"
+        >
+          <Copy size={10} />
+        </button>
+      )}
       
       {/* Playing indicator animation */}
       {isPlaying && (
