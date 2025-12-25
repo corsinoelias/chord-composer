@@ -14,7 +14,7 @@
 export interface StylePattern {
   id: string;
   name: string;
-  category: 'Rock' | 'Funk' | 'Pop' | 'Reggae' | 'HipHop' | 'Disco' | 'Blues' | 'Latin' | 'Metal';
+  category: 'Rock' | 'Funk' | 'Pop' | 'Reggae' | 'HipHop' | 'Disco' | 'Blues' | 'Latin' | 'Metal' | 'Folk' | 'Country' | 'Jazz' | 'Soul' | 'Indie' | 'LoFi';
   bpm: number;
   bpmRange: [number, number];
   description: string;
@@ -25,6 +25,7 @@ export interface StylePattern {
     kick: number[];       // Kick drum pattern
     snare: number[];      // Snare/clap pattern
     hihat: number[];      // Hi-hat pattern
+    guitar?: number[];    // Guitar pattern (optional)
   };
   // Fill pattern (played on bar 4 or 8)
   fill: {
@@ -33,6 +34,7 @@ export interface StylePattern {
       kick?: number[];
       snare?: number[];
       hihat?: number[];
+      guitar?: number[];
     };
   };
   // Default volumes (0-1)
@@ -40,6 +42,7 @@ export interface StylePattern {
     piano: number;
     bass: number;
     drums: number;
+    guitar?: number;
   };
   // Bass sustain: if true, bass notes sustain until next note
   bassSustain?: boolean;
@@ -70,8 +73,9 @@ export function applyInteractionRules(
   snare: number[],
   hihat: number[],
   bass: number[],
-  piano: number[]
-): { kick: number[]; snare: number[]; hihat: number[]; bass: number[]; piano: number[] } {
+  piano: number[],
+  guitar?: number[]
+): { kick: number[]; snare: number[]; hihat: number[]; bass: number[]; piano: number[]; guitar?: number[] } {
   const newHihat = [...hihat];
   
   // When snare hits, soften hi-hat
@@ -81,7 +85,7 @@ export function applyInteractionRules(
     }
   }
   
-  return { kick, snare, hihat: newHihat, bass, piano };
+  return { kick, snare, hihat: newHihat, bass, piano, guitar };
 }
 
 /**
@@ -482,6 +486,304 @@ export const MUSICAL_STYLES: StylePattern[] = [
     },
     volumes: { piano: 0.5, bass: 0.9, drums: 0.85 },
   },
+
+  // ============================================
+  // 11. ROCK ACÚSTICO / AMERICANA - 100 BPM
+  // ============================================
+  // Backbeat simple, charles abierto en 2 y 4.
+  // Guitarra: Patrón de "boom-chick". Bajo en 1 y 3, acorde en 2 y 4.
+  {
+    id: 'rock_acoustic',
+    name: 'Rock Acústico',
+    category: 'Folk',
+    bpm: 100,
+    bpmRange: [90, 120],
+    description: 'Americana ligera. Guitarra boom-chick, bajo fundamental.',
+    rhythm: {
+      kick:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      hihat: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+      bass:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      piano: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      // G: X - x - | - X x - (Bajo en X, acorde suave en x)
+      guitar: [1, 0, 0.5, 0, 0, 1, 0.5, 0, 1, 0, 0.5, 0, 0, 1, 0.5, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.7, 0.8, 1],
+      },
+    },
+    bassSustain: true,
+    volumes: { piano: 0.5, bass: 0.7, drums: 0.5, guitar: 0.8 },
+  },
+
+  // ============================================
+  // 12. FOLK / INDIE FOLK - 90 BPM
+  // ============================================
+  // Caja con brush, bombo suave. Guitarra fingerpicking.
+  {
+    id: 'folk_indie',
+    name: 'Folk / Indie',
+    category: 'Folk',
+    bpm: 90,
+    bpmRange: [75, 105],
+    description: 'Escobillas suaves. Guitarra fingerpicking, arpegios.',
+    rhythm: {
+      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0.3, 0, 0.3, 0, 0.3, 0, 0, 0, 0.3, 0, 0.3, 0, 0.3, 0],
+      hihat: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      bass:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      piano: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // G: X - - x | - x - x (Fingerpicking: bajo en 1, agudos intercalados)
+      guitar: [1, 0, 0, 0.5, 0, 0.5, 0, 0.5, 1, 0, 0, 0.5, 0, 0.5, 0, 0.5],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.3, 0.4, 0.5, 0.6],
+      },
+    },
+    bassSustain: true,
+    volumes: { piano: 0.6, bass: 0.6, drums: 0.4, guitar: 0.85 },
+  },
+
+  // ============================================
+  // 13. POP ACÚSTICO - 105 BPM
+  // ============================================
+  // Side stick en 2 y 4, shaker en corcheas. Guitarra rasgueo pop.
+  {
+    id: 'pop_acoustic',
+    name: 'Pop Acústico',
+    category: 'Pop',
+    bpm: 105,
+    bpmRange: [95, 115],
+    description: 'Pop ligero con guitarra. Rasgueo aireado típico.',
+    rhythm: {
+      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      hihat: [0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0],
+      bass:  [1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0],
+      piano: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+      // G: X x X - | X x X - (Rasgueo: Abajo-Arriba-Abajo-Pausa)
+      guitar: [1, 0.5, 1, 0, 1, 0.5, 1, 0, 1, 0.5, 1, 0, 1, 0.5, 1, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1],
+      },
+    },
+    volumes: { piano: 0.55, bass: 0.65, drums: 0.5, guitar: 0.8 },
+  },
+
+  // ============================================
+  // 14. REGGAE ONE DROP - 78 BPM
+  // ============================================
+  // Bombo en 3 (one drop), caja rimshot en 3. Guitarra chuck/dead chord.
+  {
+    id: 'reggae_onedrop',
+    name: 'Reggae One Drop',
+    category: 'Reggae',
+    bpm: 78,
+    bpmRange: [70, 88],
+    description: 'One drop suave. Guitarra chuck percusiva en upbeats.',
+    rhythm: {
+      kick:  [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      hihat: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+      bass:  [1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      piano: [0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0],
+      // G: - - x - | - - x - | - - x - | - - x - (Chuck en cada "&")
+      guitar: [0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1],
+      },
+    },
+    bassSustain: true,
+    volumes: { piano: 0.45, bass: 0.9, drums: 0.5, guitar: 0.7 },
+  },
+
+  // ============================================
+  // 15. BOSSA NOVA LIGERA - 125 BPM
+  // ============================================
+  // Patrón de bossa suave. Guitarra violão brasileño.
+  {
+    id: 'bossa_light',
+    name: 'Bossa Nova Ligera',
+    category: 'Latin',
+    bpm: 125,
+    bpmRange: [115, 140],
+    description: 'Bossa suave y ligera. Guitarra violão espaciada.',
+    rhythm: {
+      kick:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      hihat: [1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0],
+      bass:  [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      piano: [0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0],
+      // G: X - - - | - - x - (Rasgueo espaciado: abajo en 1, arriba en "&" del 2)
+      guitar: [1, 0, 0, 0, 0, 0, 0.6, 0, 1, 0, 0, 0, 0, 0, 0.6, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.6, 0.7, 0.8],
+      },
+    },
+    bassSustain: true,
+    volumes: { piano: 0.6, bass: 0.6, drums: 0.4, guitar: 0.75 },
+  },
+
+  // ============================================
+  // 16. SOUL / R&B (60s) - 95 BPM
+  // ============================================
+  // Train beat suave. Guitarra chicken scratch.
+  {
+    id: 'soul_rnb',
+    name: 'Soul / R&B',
+    category: 'Soul',
+    bpm: 95,
+    bpmRange: [85, 105],
+    description: 'Soul clásico 60s. Guitarra chicken scratch suave.',
+    rhythm: {
+      kick:  [1, 0, 0.5, 0, 1, 0, 0.5, 0, 1, 0, 0.5, 0, 1, 0, 0.5, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      hihat: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+      bass:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      piano: [0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5],
+      // G: - x - x | x - x - (Chicken scratch intercalado)
+      guitar: [0, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0, 0.5, 0, 0.5, 0.5, 0, 0.5, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0.7, 0.8, 1],
+      },
+    },
+    volumes: { piano: 0.6, bass: 0.75, drums: 0.55, guitar: 0.65 },
+  },
+
+  // ============================================
+  // 17. COUNTRY / TWO-STEP - 110 BPM
+  // ============================================
+  // Two-step relajado. Guitarra boom-chick con palm mute.
+  {
+    id: 'country_twostep',
+    name: 'Country Two-Step',
+    category: 'Country',
+    bpm: 110,
+    bpmRange: [100, 125],
+    description: 'Country relajado. Guitarra boom-chick con acento en upstroke.',
+    rhythm: {
+      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      hihat: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      bass:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0],
+      piano: [0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0],
+      // G: x - X - | x - X - (Abajo suave, arriba acentuado)
+      guitar: [0.4, 0, 1, 0, 0.4, 0, 1, 0, 0.4, 0, 1, 0, 0.4, 0, 1, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0.8, 1, 0.8],
+      },
+    },
+    volumes: { piano: 0.5, bass: 0.7, drums: 0.55, guitar: 0.8 },
+  },
+
+  // ============================================
+  // 18. INDIE ROCK / DREAM POP - 115 BPM
+  // ============================================
+  // Beat simple, mucho ride. Guitarra atmosférica con efectos.
+  {
+    id: 'indie_dreampop',
+    name: 'Indie / Dream Pop',
+    category: 'Indie',
+    bpm: 115,
+    bpmRange: [100, 130],
+    description: 'Atmosférico con reverb. Guitarra sostenida, nube de sonido.',
+    rhythm: {
+      kick:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      hihat: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+      bass:  [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0],
+      piano: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // G: X - - - | - - - - (Un rasgueo largo y atmosférico en tiempo 1)
+      guitar: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      },
+    },
+    bassSustain: true,
+    volumes: { piano: 0.7, bass: 0.65, drums: 0.5, guitar: 0.75 },
+  },
+
+  // ============================================
+  // 19. JAZZ LIGERO (Medium Swing) - 130 BPM
+  // ============================================
+  // Swing en ride. Guitarra Freddie Green (chop percusivo).
+  {
+    id: 'jazz_light',
+    name: 'Jazz Ligero',
+    category: 'Jazz',
+    bpm: 130,
+    bpmRange: [115, 150],
+    description: 'Medium swing. Guitarra chop estilo big band.',
+    rhythm: {
+      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0.5, 0, 0, 0, 0, 0, 1, 0, 0.5, 0],
+      // Ride: swing pattern "spang-a-lang"
+      hihat: [1, 0, 0.5, 1, 0, 0.5, 1, 0, 1, 0, 0.5, 1, 0, 0.5, 1, 0],
+      bass:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+      piano: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      // G: X - - | X - - | X - - | X - - (Chop percusivo en cada tiempo)
+      guitar: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+    },
+    fill: {
+      position: 8,
+      pattern: {
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      },
+    },
+    volumes: { piano: 0.65, bass: 0.7, drums: 0.5, guitar: 0.55 },
+  },
+
+  // ============================================
+  // 20. LO-FI HIP-HOP - 85 BPM
+  // ============================================
+  // Beat suave y nostálgico. Guitarra jazz-hop con licks melódicos.
+  {
+    id: 'lofi_hiphop',
+    name: 'Lo-Fi Hip-Hop',
+    category: 'LoFi',
+    bpm: 85,
+    bpmRange: [75, 95],
+    description: 'Nostálgico y relajado. Guitarra con licks jazz-hop.',
+    rhythm: {
+      kick:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      hihat: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+      bass:  [1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      piano: [1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+      // G: - - X X | - X - - (Licks melódicos que responden al piano)
+      guitar: [0, 0, 0.7, 0.7, 0, 0.7, 0, 0, 0, 0, 0, 0, 0.7, 0, 0.7, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.6, 0.7, 0.8],
+      },
+    },
+    bassSustain: true,
+    volumes: { piano: 0.65, bass: 0.75, drums: 0.45, guitar: 0.6 },
+  },
 ];
 
 /**
@@ -509,6 +811,7 @@ export function generateBarPattern(
   hihat: number[];
   bass: number[];
   piano: number[];
+  guitar?: number[];
 } {
   // Start with base patterns
   let kick = [...style.rhythm.kick];
@@ -516,6 +819,7 @@ export function generateBarPattern(
   let hihat = [...style.rhythm.hihat];
   let bass = [...style.rhythm.bass];
   let piano = [...style.rhythm.piano];
+  let guitar = style.rhythm.guitar ? [...style.rhythm.guitar] : undefined;
 
   // Apply fill on phrase endings
   if (shouldApplyFill(barNumber, phraseLength)) {
@@ -542,6 +846,13 @@ export function generateBarPattern(
         }
       }
     }
+    if (style.fill.pattern.guitar && guitar) {
+      for (let i = fillPos; i < 16; i++) {
+        if (style.fill.pattern.guitar[i] !== undefined) {
+          guitar[i] = style.fill.pattern.guitar[i];
+        }
+      }
+    }
   }
 
   // Apply humanization (slight velocity variations)
@@ -555,7 +866,7 @@ export function generateBarPattern(
   }
 
   // Apply interaction rules
-  return applyInteractionRules(kick, snare, hihat, bass, piano);
+  return applyInteractionRules(kick, snare, hihat, bass, piano, guitar);
 }
 
 /**
