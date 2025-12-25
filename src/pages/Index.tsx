@@ -18,7 +18,7 @@ const Index = () => {
   // Sections state
   const [sections, setSections] = useState<Section[]>([createSection('Section A')]);
   const [bpm, setBpm] = useState(120);
-  const [selectedStyleId, setSelectedStyleId] = useState('pop1');
+  const [selectedStyleId, setSelectedStyleId] = useState('rock_basic');
   const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
   const [songTitle, setSongTitle] = useState('My Song');
   const [transposition, setTransposition] = useState(0); // Semitones

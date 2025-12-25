@@ -7,36 +7,55 @@ interface StyleSelectorProps {
   onStyleChange: (styleId: string) => void;
 }
 
+// Group styles by category for the dropdown
+const STYLE_CATEGORIES = [
+  { id: 'Rock', label: 'Rock' },
+  { id: 'Pop', label: 'Pop' },
+  { id: 'Funk', label: 'Funk' },
+  { id: 'HipHop', label: 'Hip Hop' },
+  { id: 'Reggaeton', label: 'Reggaetón' },
+  { id: 'Jazz', label: 'Jazz' },
+  { id: 'Ballad', label: 'Balada' },
+  { id: 'Disco', label: 'Disco' },
+  { id: 'Trap', label: 'Trap' },
+  { id: 'Latin', label: 'Latino' },
+] as const;
+
 export function StyleSelector({ selectedStyleId, onStyleChange }: StyleSelectorProps) {
   const selectedStyle = MUSICAL_STYLES.find(s => s.id === selectedStyleId);
-
-  // Group styles by category
-  const categories = ['Pop', 'Rock', 'Jazz', 'Blues', 'Ballad'] as const;
 
   return (
     <div className="flex items-center gap-2">
       <Music className="w-4 h-4 text-muted-foreground" />
       <Select value={selectedStyleId} onValueChange={onStyleChange}>
-        <SelectTrigger className="w-[140px] h-9 bg-secondary border-border">
-          <SelectValue placeholder="Select style" />
+        <SelectTrigger className="w-[160px] h-9 bg-secondary border-border">
+          <SelectValue placeholder="Seleccionar estilo" />
         </SelectTrigger>
-        <SelectContent className="bg-popover border-border z-50">
-          {categories.map(category => (
-            <div key={category}>
-              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                {category}
+        <SelectContent className="bg-popover border-border z-50 max-h-[400px]">
+          {STYLE_CATEGORIES.map(category => {
+            const stylesInCategory = MUSICAL_STYLES.filter(s => s.category === category.id);
+            if (stylesInCategory.length === 0) return null;
+            
+            return (
+              <div key={category.id}>
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {category.label}
+                </div>
+                {stylesInCategory.map(style => (
+                  <SelectItem key={style.id} value={style.id} className="pl-4">
+                    <div className="flex flex-col">
+                      <span>{style.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{style.bpm} BPM</span>
+                    </div>
+                  </SelectItem>
+                ))}
               </div>
-              {MUSICAL_STYLES.filter(s => s.category === category).map(style => (
-                <SelectItem key={style.id} value={style.id}>
-                  {style.name}
-                </SelectItem>
-              ))}
-            </div>
-          ))}
+            );
+          })}
         </SelectContent>
       </Select>
       {selectedStyle && (
-        <span className="text-xs text-muted-foreground hidden sm:inline">
+        <span className="text-xs text-muted-foreground hidden md:inline max-w-[200px] truncate">
           {selectedStyle.description}
         </span>
       )}
