@@ -2,34 +2,28 @@
  * Audio Engine
  * 
  * This module handles all audio synthesis and playback using the Web Audio API.
- * It creates a simple but pleasant piano-like synthesizer sound using
- * multiple oscillators with envelope shaping.
+ * Supports multiple instruments, style rhythms, and section repeats.
  */
 
 import { Chord, chordToMidiNotes, midiToFrequency } from './musicTheory';
-
-// ADSR envelope parameters for natural sound
-const ATTACK = 0.02;   // Quick attack for percussive feel
-const DECAY = 0.1;     // Short decay
-const SUSTAIN = 0.7;   // Sustain level (0-1)
-const RELEASE = 0.3;   // Release time
+import { InstrumentState, getSoundType, SoundType } from './instruments';
+import { StylePattern } from './styles';
+import { Section } from './sections';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 
 /**
  * Initializes or returns the existing AudioContext
- * Must be called after user interaction (browser autoplay policy)
  */
 export function getAudioContext(): AudioContext {
   if (!audioContext) {
     audioContext = new AudioContext();
     masterGain = audioContext.createGain();
-    masterGain.gain.value = 0.3; // Master volume
+    masterGain.gain.value = 0.5;
     masterGain.connect(audioContext.destination);
   }
   
-  // Resume if suspended (happens on page load in some browsers)
   if (audioContext.state === 'suspended') {
     audioContext.resume();
   }
@@ -38,34 +32,32 @@ export function getAudioContext(): AudioContext {
 }
 
 /**
- * Creates and plays a single note with ADSR envelope
- * Uses a combination of triangle and sine waves for a warmer sound
+ * Creates and plays instrument notes with ADSR envelope
  */
-function playNote(
+function playInstrumentNote(
   ctx: AudioContext,
   destination: AudioNode,
   frequency: number,
   startTime: number,
-  duration: number
+  duration: number,
+  soundType: SoundType,
+  volume: number
 ): void {
-  // Create oscillators for richer sound
   const osc1 = ctx.createOscillator();
   const osc2 = ctx.createOscillator();
   const gainNode = ctx.createGain();
   
-  // Triangle wave for fundamental
-  osc1.type = 'triangle';
-  osc1.frequency.value = frequency;
+  osc1.type = soundType.oscillatorType;
+  osc1.frequency.value = frequency * Math.pow(2, soundType.octaveOffset);
   
-  // Sine wave one octave lower for warmth
+  // Second oscillator for warmth
   osc2.type = 'sine';
-  osc2.frequency.value = frequency / 2;
+  osc2.frequency.value = (frequency * Math.pow(2, soundType.octaveOffset)) / 2;
   
-  // Mix oscillators
   const osc1Gain = ctx.createGain();
   const osc2Gain = ctx.createGain();
-  osc1Gain.gain.value = 0.6;
-  osc2Gain.gain.value = 0.4;
+  osc1Gain.gain.value = 0.7;
+  osc2Gain.gain.value = 0.3;
   
   osc1.connect(osc1Gain);
   osc2.connect(osc2Gain);
@@ -74,47 +66,57 @@ function playNote(
   gainNode.connect(destination);
   
   // ADSR envelope
-  const now = startTime;
-  const noteEnd = now + duration;
+  const { attackTime, decayTime, sustainLevel, releaseTime } = soundType;
+  const noteEnd = startTime + duration;
+  const maxGain = 0.3 * volume;
   
-  gainNode.gain.setValueAtTime(0, now);
-  gainNode.gain.linearRampToValueAtTime(0.3, now + ATTACK);
-  gainNode.gain.linearRampToValueAtTime(0.3 * SUSTAIN, now + ATTACK + DECAY);
-  gainNode.gain.setValueAtTime(0.3 * SUSTAIN, noteEnd - RELEASE);
+  gainNode.gain.setValueAtTime(0, startTime);
+  gainNode.gain.linearRampToValueAtTime(maxGain, startTime + attackTime);
+  gainNode.gain.linearRampToValueAtTime(maxGain * sustainLevel, startTime + attackTime + decayTime);
+  gainNode.gain.setValueAtTime(maxGain * sustainLevel, Math.max(startTime, noteEnd - releaseTime));
   gainNode.gain.linearRampToValueAtTime(0, noteEnd);
   
-  // Start and stop oscillators
-  osc1.start(now);
-  osc2.start(now);
+  osc1.start(startTime);
+  osc2.start(startTime);
   osc1.stop(noteEnd + 0.1);
   osc2.stop(noteEnd + 0.1);
 }
 
 /**
- * Plays a chord at a specific time
- * @param chord - The chord to play
- * @param startTime - AudioContext time to start playing
- * @param bpm - Beats per minute for duration calculation
+ * Plays a drum hit
  */
-export function playChord(
-  chord: Chord,
+function playDrumHit(
+  ctx: AudioContext,
+  destination: AudioNode,
   startTime: number,
-  bpm: number
+  soundType: SoundType,
+  volume: number,
+  isKick: boolean
 ): void {
-  const ctx = getAudioContext();
-  const midiNotes = chordToMidiNotes(chord);
-  const durationInSeconds = (chord.duration * 60) / bpm;
+  const osc = ctx.createOscillator();
+  const gainNode = ctx.createGain();
   
-  // Play each note in the chord
-  midiNotes.forEach(midiNote => {
-    const frequency = midiToFrequency(midiNote);
-    playNote(ctx, masterGain!, frequency, startTime, durationInSeconds);
-  });
+  osc.type = soundType.oscillatorType;
+  osc.frequency.value = isKick ? 60 : 200;
+  
+  // Pitch envelope for drums
+  osc.frequency.setValueAtTime(isKick ? 150 : 400, startTime);
+  osc.frequency.exponentialRampToValueAtTime(isKick ? 60 : 200, startTime + 0.05);
+  
+  osc.connect(gainNode);
+  gainNode.connect(destination);
+  
+  const maxGain = 0.25 * volume;
+  gainNode.gain.setValueAtTime(0, startTime);
+  gainNode.gain.linearRampToValueAtTime(maxGain, startTime + 0.005);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
+  
+  osc.start(startTime);
+  osc.stop(startTime + 0.2);
 }
 
 /**
  * Plays a click/tick sound for the metronome
- * Uses a short high-frequency ping
  */
 function playClick(
   ctx: AudioContext,
@@ -125,14 +127,12 @@ function playClick(
   const osc = ctx.createOscillator();
   const gainNode = ctx.createGain();
   
-  // Higher pitch for downbeat, lower for other beats
   osc.type = 'sine';
   osc.frequency.value = isDownbeat ? 1000 : 800;
   
   osc.connect(gainNode);
   gainNode.connect(destination);
   
-  // Very short envelope for a click sound
   gainNode.gain.setValueAtTime(0, startTime);
   gainNode.gain.linearRampToValueAtTime(0.15, startTime + 0.005);
   gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.05);
@@ -141,78 +141,126 @@ function playClick(
   osc.stop(startTime + 0.06);
 }
 
+export interface PlaybackOptions {
+  loop?: boolean;
+  metronome?: boolean;
+  instruments: InstrumentState[];
+  style: StylePattern;
+  onBeat?: (beat: number) => void;
+  onChordChange?: (index: number) => void;
+  onLoopEnd?: () => void;
+}
+
 /**
- * Schedules playback of an entire chord progression with optional looping
- * Returns the total duration and a cancel function
+ * Schedules playback with instruments, styles, and sections
  */
 export function scheduleProgression(
-  chords: Chord[],
+  sections: Section[],
   bpm: number,
-  onChordChange: (index: number) => void,
-  options: {
-    loop?: boolean;
-    metronome?: boolean;
-    onBeat?: (beat: number) => void;
-    onLoopEnd?: () => void;
-  } = {}
+  options: PlaybackOptions
 ): { duration: number; cancel: () => void } {
-  const { loop = false, metronome = true, onBeat, onLoopEnd } = options;
+  const { loop = false, metronome = true, instruments, style, onBeat, onChordChange, onLoopEnd } = options;
   const ctx = getAudioContext();
   const startTime = ctx.currentTime + 0.1;
   const beatDuration = 60 / bpm;
   
-  let currentTime = startTime;
   const timeouts: number[] = [];
-  let totalBeats = 0;
   let cancelled = false;
   let nextLoopTimeout: number | null = null;
   
+  // Get sound types for each instrument
+  const pianoState = instruments.find(i => i.id === 'piano');
+  const bassState = instruments.find(i => i.id === 'bass');
+  const drumsState = instruments.find(i => i.id === 'drums');
+  
+  const pianoSound = pianoState ? getSoundType('piano', pianoState.soundTypeId) : null;
+  const bassSound = bassState ? getSoundType('bass', bassState.soundTypeId) : null;
+  const drumsSound = drumsState ? getSoundType('drums', drumsState.soundTypeId) : null;
+  
   const scheduleLoop = (loopStartTime: number) => {
-    if (cancelled) return;
+    if (cancelled) return 0;
     
-    currentTime = loopStartTime;
-    totalBeats = 0;
+    let currentTime = loopStartTime;
+    let globalChordIndex = 0;
     
-    chords.forEach((chord, index) => {
-      const chordStartTime = currentTime;
-      const durationInSeconds = (chord.duration * 60) / bpm;
-      
-      // Schedule the chord audio
-      playChord(chord, chordStartTime, bpm);
-      
-      // Schedule click sounds for each beat if metronome is enabled
-      if (metronome) {
-        for (let beat = 0; beat < chord.duration; beat++) {
-          const beatTime = chordStartTime + (beat * beatDuration);
-          const isDownbeat = beat === 0;
-          playClick(ctx, masterGain!, beatTime, isDownbeat);
+    // Process each section with its repeats
+    sections.forEach(section => {
+      for (let repeat = 0; repeat < section.repeatCount; repeat++) {
+        section.chords.forEach((chord) => {
+          const chordStartTime = currentTime;
+          const durationInSeconds = chord.duration * beatDuration;
+          const midiNotes = chordToMidiNotes(chord);
           
-          if (onBeat) {
-            const beatDelayMs = (beatTime - ctx.currentTime) * 1000;
-            const beatTimeout = window.setTimeout(() => {
-              if (!cancelled) onBeat(totalBeats + beat);
-            }, beatDelayMs);
-            timeouts.push(beatTimeout);
+          // Schedule chord change callback
+          if (onChordChange) {
+            const delayMs = (chordStartTime - ctx.currentTime) * 1000;
+            const chordIdx = globalChordIndex;
+            const timeout = window.setTimeout(() => {
+              if (!cancelled) onChordChange(chordIdx);
+            }, Math.max(0, delayMs));
+            timeouts.push(timeout);
           }
-        }
+          
+          // Schedule each beat within the chord
+          for (let beat = 0; beat < chord.duration; beat++) {
+            const beatTime = chordStartTime + (beat * beatDuration);
+            const isDownbeat = beat === 0;
+            const beatInPattern = beat % 4; // For style patterns
+            
+            // Metronome click
+            if (metronome) {
+              playClick(ctx, masterGain!, beatTime, isDownbeat);
+            }
+            
+            // Piano - plays on pattern beats
+            if (pianoState && !pianoState.muted && pianoSound && style.rhythm.piano.includes(beatInPattern)) {
+              midiNotes.forEach(midiNote => {
+                const frequency = midiToFrequency(midiNote);
+                playInstrumentNote(
+                  ctx, masterGain!, frequency, beatTime, 
+                  beatDuration * 0.9, pianoSound, 
+                  pianoState.volume * style.volumes.piano
+                );
+              });
+            }
+            
+            // Bass - plays root note on pattern beats
+            if (bassState && !bassState.muted && bassSound && style.rhythm.bass.includes(beatInPattern)) {
+              const bassNote = midiNotes[0]; // Root note
+              const frequency = midiToFrequency(bassNote);
+              playInstrumentNote(
+                ctx, masterGain!, frequency, beatTime,
+                beatDuration * 0.8, bassSound,
+                bassState.volume * style.volumes.bass
+              );
+            }
+            
+            // Drums - plays on pattern beats
+            if (drumsState && !drumsState.muted && drumsSound && style.rhythm.drums.includes(beatInPattern)) {
+              const isKick = beatInPattern === 0 || beatInPattern === 2;
+              playDrumHit(ctx, masterGain!, beatTime, drumsSound, drumsState.volume * style.volumes.drums, isKick);
+            }
+            
+            // Beat callback
+            if (onBeat) {
+              const beatDelayMs = (beatTime - ctx.currentTime) * 1000;
+              const beatTimeout = window.setTimeout(() => {
+                if (!cancelled) onBeat(beat);
+              }, Math.max(0, beatDelayMs));
+              timeouts.push(beatTimeout);
+            }
+          }
+          
+          currentTime += durationInSeconds;
+          globalChordIndex++;
+        });
       }
-      
-      totalBeats += chord.duration;
-      
-      // Schedule UI update callback for chord change
-      const delayMs = (chordStartTime - ctx.currentTime) * 1000;
-      const timeout = window.setTimeout(() => {
-        if (!cancelled) onChordChange(index);
-      }, delayMs);
-      timeouts.push(timeout);
-      
-      currentTime += durationInSeconds;
     });
     
     const loopDuration = currentTime - loopStartTime;
     
-    // If looping, schedule the next iteration
-    if (loop && !cancelled) {
+    // Schedule next loop
+    if (loop && !cancelled && loopDuration > 0) {
       const loopDelayMs = (currentTime - ctx.currentTime) * 1000;
       nextLoopTimeout = window.setTimeout(() => {
         if (!cancelled) {
@@ -225,7 +273,7 @@ export function scheduleProgression(
     return loopDuration;
   };
   
-  const totalDuration = scheduleLoop(startTime) || 0;
+  const totalDuration = scheduleLoop(startTime);
   
   return {
     duration: totalDuration,
@@ -238,76 +286,125 @@ export function scheduleProgression(
 }
 
 /**
- * Renders a chord progression to an audio buffer using OfflineAudioContext
- * This is used for MP3 export
+ * Renders a chord progression to an audio buffer (for export)
  */
 export async function renderProgressionOffline(
-  chords: Chord[],
+  sections: Section[],
   bpm: number,
+  instruments: InstrumentState[],
+  style: StylePattern,
   sampleRate: number = 44100
 ): Promise<AudioBuffer> {
   // Calculate total duration
-  const totalBeats = chords.reduce((sum, chord) => sum + chord.duration, 0);
-  const totalDuration = (totalBeats * 60) / bpm;
-  const totalSamples = Math.ceil(totalDuration * sampleRate) + sampleRate; // Extra second for release
-  
-  // Create offline context
-  const offlineCtx = new OfflineAudioContext(2, totalSamples, sampleRate);
-  const masterGain = offlineCtx.createGain();
-  masterGain.gain.value = 0.3;
-  masterGain.connect(offlineCtx.destination);
-  
-  let currentTime = 0;
-  
-  // Schedule all chords
-  chords.forEach(chord => {
-    const midiNotes = chordToMidiNotes(chord);
-    const durationInSeconds = (chord.duration * 60) / bpm;
-    
-    midiNotes.forEach(midiNote => {
-      const frequency = midiToFrequency(midiNote);
-      
-      // Create oscillators
-      const osc1 = offlineCtx.createOscillator();
-      const osc2 = offlineCtx.createOscillator();
-      const gainNode = offlineCtx.createGain();
-      
-      osc1.type = 'triangle';
-      osc1.frequency.value = frequency;
-      
-      osc2.type = 'sine';
-      osc2.frequency.value = frequency / 2;
-      
-      const osc1Gain = offlineCtx.createGain();
-      const osc2Gain = offlineCtx.createGain();
-      osc1Gain.gain.value = 0.6;
-      osc2Gain.gain.value = 0.4;
-      
-      osc1.connect(osc1Gain);
-      osc2.connect(osc2Gain);
-      osc1Gain.connect(gainNode);
-      osc2Gain.connect(gainNode);
-      gainNode.connect(masterGain);
-      
-      // ADSR envelope
-      const noteEnd = currentTime + durationInSeconds;
-      
-      gainNode.gain.setValueAtTime(0, currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.3, currentTime + ATTACK);
-      gainNode.gain.linearRampToValueAtTime(0.3 * SUSTAIN, currentTime + ATTACK + DECAY);
-      gainNode.gain.setValueAtTime(0.3 * SUSTAIN, noteEnd - RELEASE);
-      gainNode.gain.linearRampToValueAtTime(0, noteEnd);
-      
-      osc1.start(currentTime);
-      osc2.start(currentTime);
-      osc1.stop(noteEnd + 0.1);
-      osc2.stop(noteEnd + 0.1);
-    });
-    
-    currentTime += durationInSeconds;
+  let totalBeats = 0;
+  sections.forEach(section => {
+    const sectionBeats = section.chords.reduce((sum, chord) => sum + chord.duration, 0);
+    totalBeats += sectionBeats * section.repeatCount;
   });
   
-  // Render the audio
+  const totalDuration = (totalBeats * 60) / bpm;
+  const totalSamples = Math.ceil(totalDuration * sampleRate) + sampleRate;
+  
+  const offlineCtx = new OfflineAudioContext(2, totalSamples, sampleRate);
+  const offlineMasterGain = offlineCtx.createGain();
+  offlineMasterGain.gain.value = 0.5;
+  offlineMasterGain.connect(offlineCtx.destination);
+  
+  const beatDuration = 60 / bpm;
+  let currentTime = 0;
+  
+  const pianoState = instruments.find(i => i.id === 'piano');
+  const bassState = instruments.find(i => i.id === 'bass');
+  const drumsState = instruments.find(i => i.id === 'drums');
+  
+  const pianoSound = pianoState ? getSoundType('piano', pianoState.soundTypeId) : null;
+  const bassSound = bassState ? getSoundType('bass', bassState.soundTypeId) : null;
+  const drumsSound = drumsState ? getSoundType('drums', drumsState.soundTypeId) : null;
+  
+  sections.forEach(section => {
+    for (let repeat = 0; repeat < section.repeatCount; repeat++) {
+      section.chords.forEach(chord => {
+        const midiNotes = chordToMidiNotes(chord);
+        
+        for (let beat = 0; beat < chord.duration; beat++) {
+          const beatTime = currentTime + (beat * beatDuration);
+          const beatInPattern = beat % 4;
+          
+          // Piano
+          if (pianoState && !pianoState.muted && pianoSound && style.rhythm.piano.includes(beatInPattern)) {
+            midiNotes.forEach(midiNote => {
+              const frequency = midiToFrequency(midiNote);
+              const soundType = pianoSound;
+              const volume = pianoState.volume * style.volumes.piano;
+              
+              const osc = offlineCtx.createOscillator();
+              const gain = offlineCtx.createGain();
+              osc.type = soundType.oscillatorType;
+              osc.frequency.value = frequency * Math.pow(2, soundType.octaveOffset);
+              osc.connect(gain);
+              gain.connect(offlineMasterGain);
+              
+              const maxGain = 0.3 * volume;
+              gain.gain.setValueAtTime(0, beatTime);
+              gain.gain.linearRampToValueAtTime(maxGain, beatTime + soundType.attackTime);
+              gain.gain.linearRampToValueAtTime(maxGain * soundType.sustainLevel, beatTime + soundType.attackTime + soundType.decayTime);
+              gain.gain.linearRampToValueAtTime(0, beatTime + beatDuration * 0.9);
+              
+              osc.start(beatTime);
+              osc.stop(beatTime + beatDuration);
+            });
+          }
+          
+          // Bass
+          if (bassState && !bassState.muted && bassSound && style.rhythm.bass.includes(beatInPattern)) {
+            const bassNote = midiNotes[0];
+            const frequency = midiToFrequency(bassNote);
+            const soundType = bassSound;
+            const volume = bassState.volume * style.volumes.bass;
+            
+            const osc = offlineCtx.createOscillator();
+            const gain = offlineCtx.createGain();
+            osc.type = soundType.oscillatorType;
+            osc.frequency.value = frequency * Math.pow(2, soundType.octaveOffset);
+            osc.connect(gain);
+            gain.connect(offlineMasterGain);
+            
+            const maxGain = 0.3 * volume;
+            gain.gain.setValueAtTime(0, beatTime);
+            gain.gain.linearRampToValueAtTime(maxGain, beatTime + soundType.attackTime);
+            gain.gain.linearRampToValueAtTime(0, beatTime + beatDuration * 0.8);
+            
+            osc.start(beatTime);
+            osc.stop(beatTime + beatDuration);
+          }
+          
+          // Drums
+          if (drumsState && !drumsState.muted && drumsSound && style.rhythm.drums.includes(beatInPattern)) {
+            const isKick = beatInPattern === 0 || beatInPattern === 2;
+            const volume = drumsState.volume * style.volumes.drums;
+            
+            const osc = offlineCtx.createOscillator();
+            const gain = offlineCtx.createGain();
+            osc.type = drumsSound.oscillatorType;
+            osc.frequency.setValueAtTime(isKick ? 150 : 400, beatTime);
+            osc.frequency.exponentialRampToValueAtTime(isKick ? 60 : 200, beatTime + 0.05);
+            osc.connect(gain);
+            gain.connect(offlineMasterGain);
+            
+            gain.gain.setValueAtTime(0, beatTime);
+            gain.gain.linearRampToValueAtTime(0.25 * volume, beatTime + 0.005);
+            gain.gain.exponentialRampToValueAtTime(0.001, beatTime + 0.15);
+            
+            osc.start(beatTime);
+            osc.stop(beatTime + 0.2);
+          }
+        }
+        
+        currentTime += chord.duration * beatDuration;
+      });
+    }
+  });
+  
   return await offlineCtx.startRendering();
 }
 

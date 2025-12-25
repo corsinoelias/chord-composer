@@ -1,19 +1,21 @@
 import { useState, useRef } from 'react';
 import { Section } from '@/lib/sections';
-import { Chord, formatChord } from '@/lib/musicTheory';
 import { ChordBlock } from './ChordBlock';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Copy, ChevronUp, ChevronDown } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Plus, Trash2, Copy, ChevronUp, ChevronDown, MoveRight } from 'lucide-react';
 
 interface SectionCardProps {
   section: Section;
   sectionIndex: number;
-  currentChordIndex: number; // Global chord index during playback
-  globalChordOffset: number; // Where this section's chords start in global index
+  currentChordIndex: number;
+  globalChordOffset: number;
+  totalSections: number;
   onAddChord: () => void;
   onChordClick: (chordIndex: number) => void;
   onChordDelete: (chordIndex: number) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
+  onMoveChordToSection: (chordIndex: number, toSectionIndex: number) => void;
   onRepeatChange: (repeatCount: number) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -28,10 +30,12 @@ export function SectionCard({
   sectionIndex,
   currentChordIndex,
   globalChordOffset,
+  totalSections,
   onAddChord,
   onChordClick,
   onChordDelete,
   onReorder,
+  onMoveChordToSection,
   onRepeatChange,
   onDelete,
   onDuplicate,
@@ -42,12 +46,16 @@ export function SectionCard({
 }: SectionCardProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
+    e.dataTransfer.setData('application/json', JSON.stringify({ 
+      sectionIndex, 
+      chordIndex: index 
+    }));
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
@@ -56,35 +64,82 @@ export function SectionCard({
     setDragOverIndex(index);
   };
 
-  const handleDrop = (e: React.DragEvent, toIndex: number) => {
+  const handleContainerDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
-    if (fromIndex !== toIndex) {
-      onReorder(fromIndex, toIndex);
+    setIsDragOver(true);
+  };
+
+  const handleContainerDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent, toIndex?: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      const fromSectionIndex = data.sectionIndex;
+      const fromChordIndex = data.chordIndex;
+      
+      if (fromSectionIndex === sectionIndex) {
+        // Same section reorder
+        if (toIndex !== undefined && fromChordIndex !== toIndex) {
+          onReorder(fromChordIndex, toIndex);
+        }
+      } else {
+        // Cross-section move
+        onMoveChordToSection(fromChordIndex, sectionIndex);
+      }
+    } catch {
+      // Fallback for same-section drag
+      if (toIndex !== undefined && draggedIndex !== null && draggedIndex !== toIndex) {
+        onReorder(draggedIndex, toIndex);
+      }
     }
+    
     setDraggedIndex(null);
     setDragOverIndex(null);
+    setIsDragOver(false);
   };
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
     setDragOverIndex(null);
+    setIsDragOver(false);
   };
 
   // Calculate which chord in this section is playing
   const getLocalPlayingIndex = (): number => {
     if (currentChordIndex < 0) return -1;
     const localIndex = currentChordIndex - globalChordOffset;
-    if (localIndex >= 0 && localIndex < section.chords.length) {
-      return localIndex;
+    // Account for repeats - the playing index wraps within section
+    const sectionLength = section.chords.length;
+    if (sectionLength === 0) return -1;
+    const adjustedIndex = localIndex % sectionLength;
+    if (localIndex >= 0 && localIndex < sectionLength * section.repeatCount) {
+      return adjustedIndex;
     }
     return -1;
   };
 
   const localPlayingIndex = getLocalPlayingIndex();
 
+  // Generate section names for the move dropdown
+  const otherSections = Array.from({ length: totalSections }, (_, i) => ({
+    index: i,
+    name: String.fromCharCode(65 + i), // A, B, C...
+  })).filter(s => s.index !== sectionIndex);
+
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div 
+      className={`bg-card border rounded-xl overflow-hidden transition-colors ${
+        isDragOver ? 'border-primary bg-primary/5' : 'border-border'
+      }`}
+      onDragOver={handleContainerDragOver}
+      onDragLeave={handleContainerDragLeave}
+      onDrop={(e) => handleDrop(e)}
+    >
       {/* Section Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-secondary/30 border-b border-border">
         <div className="flex items-center gap-3">
@@ -156,8 +211,8 @@ export function SectionCard({
       {/* Chords */}
       <div className="p-4">
         {section.chords.length === 0 ? (
-          <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
-            No chords yet. Click + to add.
+          <div className="flex items-center justify-center h-20 text-muted-foreground text-sm border-2 border-dashed border-border rounded-lg">
+            {isDragOver ? 'Drop chord here' : 'No chords yet. Click + to add.'}
           </div>
         ) : (
           <div
@@ -173,9 +228,8 @@ export function SectionCard({
                 onDragLeave={() => setDragOverIndex(null)}
                 onDrop={(e) => handleDrop(e, index)}
                 onDragEnd={handleDragEnd}
-                onClick={() => onChordClick(index)}
                 className={`
-                  relative cursor-pointer
+                  relative group
                   ${dragOverIndex === index && draggedIndex !== index ? 'pl-4' : ''}
                   transition-all duration-200
                 `}
@@ -183,13 +237,36 @@ export function SectionCard({
                 {dragOverIndex === index && draggedIndex !== index && (
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-full" />
                 )}
-                <ChordBlock
-                  chord={chord}
-                  isPlaying={localPlayingIndex === index}
-                  onDelete={() => onChordDelete(index)}
-                  isDragging={draggedIndex === index}
-                  fixedWidth
-                />
+                <div onClick={() => onChordClick(index)}>
+                  <ChordBlock
+                    chord={chord}
+                    isPlaying={localPlayingIndex === index}
+                    onDelete={() => onChordDelete(index)}
+                    isDragging={draggedIndex === index}
+                    fixedWidth
+                  />
+                </div>
+                
+                {/* Move to section dropdown */}
+                {totalSections > 1 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-secondary border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoveRight className="h-3 w-3" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {otherSections.map(s => (
+                        <DropdownMenuItem 
+                          key={s.index}
+                          onClick={() => onMoveChordToSection(index, s.index)}
+                        >
+                          Move to Section {s.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             ))}
           </div>
