@@ -32,9 +32,9 @@ export function getAudioContext(): AudioContext {
 }
 
 /**
- * Creates and plays instrument notes with ADSR envelope
+ * Creates and plays piano notes with harmonic synthesis for realistic sound
  */
-function playInstrumentNote(
+function playPianoNote(
   ctx: AudioContext,
   destination: AudioNode,
   frequency: number,
@@ -43,47 +43,115 @@ function playInstrumentNote(
   soundType: SoundType,
   volume: number
 ): void {
-  const osc1 = ctx.createOscillator();
-  const osc2 = ctx.createOscillator();
   const gainNode = ctx.createGain();
-  
-  osc1.type = soundType.oscillatorType;
-  osc1.frequency.value = frequency * Math.pow(2, soundType.octaveOffset);
-  
-  // Second oscillator for warmth
-  osc2.type = 'sine';
-  osc2.frequency.value = (frequency * Math.pow(2, soundType.octaveOffset)) / 2;
-  
-  const osc1Gain = ctx.createGain();
-  const osc2Gain = ctx.createGain();
-  osc1Gain.gain.value = 0.7;
-  osc2Gain.gain.value = 0.3;
-  
-  osc1.connect(osc1Gain);
-  osc2.connect(osc2Gain);
-  osc1Gain.connect(gainNode);
-  osc2Gain.connect(gainNode);
   gainNode.connect(destination);
+  
+  // Create multiple harmonics for richer piano sound
+  const harmonics = [
+    { freq: 1, amp: 1.0 },
+    { freq: 2, amp: 0.5 },
+    { freq: 3, amp: 0.25 },
+    { freq: 4, amp: 0.15 },
+    { freq: 5, amp: 0.08 },
+    { freq: 6, amp: 0.04 },
+  ];
+  
+  const baseFreq = frequency * Math.pow(2, soundType.octaveOffset);
+  
+  harmonics.forEach(({ freq, amp }) => {
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    
+    osc.type = freq === 1 ? soundType.oscillatorType : 'sine';
+    osc.frequency.value = baseFreq * freq;
+    
+    // Add slight detuning for warmth
+    if (freq > 1) {
+      osc.detune.value = Math.random() * 4 - 2;
+    }
+    
+    oscGain.gain.value = amp * 0.15 * volume;
+    
+    osc.connect(oscGain);
+    oscGain.connect(gainNode);
+    
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.1);
+  });
   
   // ADSR envelope
   const { attackTime, decayTime, sustainLevel, releaseTime } = soundType;
   const noteEnd = startTime + duration;
-  const maxGain = 0.3 * volume;
   
   gainNode.gain.setValueAtTime(0, startTime);
-  gainNode.gain.linearRampToValueAtTime(maxGain, startTime + attackTime);
-  gainNode.gain.linearRampToValueAtTime(maxGain * sustainLevel, startTime + attackTime + decayTime);
-  gainNode.gain.setValueAtTime(maxGain * sustainLevel, Math.max(startTime, noteEnd - releaseTime));
+  gainNode.gain.linearRampToValueAtTime(1, startTime + attackTime);
+  gainNode.gain.linearRampToValueAtTime(sustainLevel, startTime + attackTime + decayTime);
+  gainNode.gain.setValueAtTime(sustainLevel, Math.max(startTime, noteEnd - releaseTime));
   gainNode.gain.linearRampToValueAtTime(0, noteEnd);
-  
-  osc1.start(startTime);
-  osc2.start(startTime);
-  osc1.stop(noteEnd + 0.1);
-  osc2.stop(noteEnd + 0.1);
 }
 
 /**
- * Plays a drum hit
+ * Creates and plays bass notes with sub oscillator for full low end
+ */
+function playBassNote(
+  ctx: AudioContext,
+  destination: AudioNode,
+  frequency: number,
+  startTime: number,
+  duration: number,
+  soundType: SoundType,
+  volume: number
+): void {
+  const gainNode = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+  
+  filter.type = 'lowpass';
+  filter.frequency.value = 800;
+  filter.Q.value = 1;
+  
+  filter.connect(gainNode);
+  gainNode.connect(destination);
+  
+  const baseFreq = frequency * Math.pow(2, soundType.octaveOffset);
+  
+  // Main oscillator
+  const mainOsc = ctx.createOscillator();
+  mainOsc.type = soundType.oscillatorType;
+  mainOsc.frequency.value = baseFreq;
+  
+  // Sub oscillator (one octave down)
+  const subOsc = ctx.createOscillator();
+  subOsc.type = 'sine';
+  subOsc.frequency.value = baseFreq / 2;
+  
+  const mainGain = ctx.createGain();
+  const subGain = ctx.createGain();
+  mainGain.gain.value = 0.2 * volume;
+  subGain.gain.value = 0.15 * volume;
+  
+  mainOsc.connect(mainGain);
+  subOsc.connect(subGain);
+  mainGain.connect(filter);
+  subGain.connect(filter);
+  
+  // ADSR envelope
+  const { attackTime, decayTime, sustainLevel, releaseTime } = soundType;
+  const noteEnd = startTime + duration;
+  
+  gainNode.gain.setValueAtTime(0, startTime);
+  gainNode.gain.linearRampToValueAtTime(1, startTime + attackTime);
+  gainNode.gain.linearRampToValueAtTime(sustainLevel, startTime + attackTime + decayTime);
+  gainNode.gain.setValueAtTime(sustainLevel, Math.max(startTime, noteEnd - releaseTime));
+  gainNode.gain.linearRampToValueAtTime(0, noteEnd);
+  
+  mainOsc.start(startTime);
+  subOsc.start(startTime);
+  mainOsc.stop(noteEnd + 0.1);
+  subOsc.stop(noteEnd + 0.1);
+}
+
+/**
+ * Plays a drum hit with noise-based synthesis for realism
  */
 function playDrumHit(
   ctx: AudioContext,
@@ -91,28 +159,108 @@ function playDrumHit(
   startTime: number,
   soundType: SoundType,
   volume: number,
-  isKick: boolean
+  drumType: 'kick' | 'snare' | 'hihat'
 ): void {
-  const osc = ctx.createOscillator();
   const gainNode = ctx.createGain();
-  
-  osc.type = soundType.oscillatorType;
-  osc.frequency.value = isKick ? 60 : 200;
-  
-  // Pitch envelope for drums
-  osc.frequency.setValueAtTime(isKick ? 150 : 400, startTime);
-  osc.frequency.exponentialRampToValueAtTime(isKick ? 60 : 200, startTime + 0.05);
-  
-  osc.connect(gainNode);
   gainNode.connect(destination);
   
-  const maxGain = 0.25 * volume;
-  gainNode.gain.setValueAtTime(0, startTime);
-  gainNode.gain.linearRampToValueAtTime(maxGain, startTime + 0.005);
-  gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
-  
-  osc.start(startTime);
-  osc.stop(startTime + 0.2);
+  if (drumType === 'kick') {
+    // Kick drum: pitched oscillator with fast pitch envelope
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, startTime);
+    osc.frequency.exponentialRampToValueAtTime(40, startTime + 0.1);
+    
+    const kickGain = ctx.createGain();
+    kickGain.gain.setValueAtTime(0.4 * volume, startTime);
+    kickGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+    
+    osc.connect(kickGain);
+    kickGain.connect(gainNode);
+    osc.start(startTime);
+    osc.stop(startTime + 0.35);
+    
+    // Add click transient
+    const click = ctx.createOscillator();
+    click.type = 'triangle';
+    click.frequency.value = 800;
+    const clickGain = ctx.createGain();
+    clickGain.gain.setValueAtTime(0.1 * volume, startTime);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.02);
+    click.connect(clickGain);
+    clickGain.connect(gainNode);
+    click.start(startTime);
+    click.stop(startTime + 0.03);
+    
+  } else if (drumType === 'snare') {
+    // Snare: noise + pitched component
+    const bufferSize = ctx.sampleRate * 0.2;
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'highpass';
+    noiseFilter.frequency.value = 1000;
+    
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.2 * volume, startTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
+    
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(gainNode);
+    noise.start(startTime);
+    noise.stop(startTime + 0.2);
+    
+    // Body tone
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = 180;
+    const oscGain = ctx.createGain();
+    oscGain.gain.setValueAtTime(0.15 * volume, startTime);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.08);
+    osc.connect(oscGain);
+    oscGain.connect(gainNode);
+    osc.start(startTime);
+    osc.stop(startTime + 0.1);
+    
+  } else {
+    // Hi-hat: filtered noise
+    const bufferSize = ctx.sampleRate * 0.1;
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    
+    const hiFilter = ctx.createBiquadFilter();
+    hiFilter.type = 'highpass';
+    hiFilter.frequency.value = 7000;
+    
+    const loFilter = ctx.createBiquadFilter();
+    loFilter.type = 'lowpass';
+    loFilter.frequency.value = 14000;
+    
+    const hatGain = ctx.createGain();
+    hatGain.gain.setValueAtTime(0.08 * volume, startTime);
+    hatGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.05);
+    
+    noise.connect(hiFilter);
+    hiFilter.connect(loFilter);
+    loFilter.connect(hatGain);
+    hatGain.connect(gainNode);
+    noise.start(startTime);
+    noise.stop(startTime + 0.08);
+  }
 }
 
 /**
@@ -146,6 +294,7 @@ export interface PlaybackOptions {
   metronome?: boolean;
   instruments: InstrumentState[];
   style: StylePattern;
+  transposition?: number;
   onBeat?: (beat: number) => void;
   onChordChange?: (index: number) => void;
   onLoopEnd?: () => void;
@@ -159,7 +308,7 @@ export function scheduleProgression(
   bpm: number,
   options: PlaybackOptions
 ): { duration: number; cancel: () => void } {
-  const { loop = false, metronome = true, instruments, style, onBeat, onChordChange, onLoopEnd } = options;
+  const { loop = false, metronome = true, instruments, style, transposition = 0, onBeat, onChordChange, onLoopEnd } = options;
   const ctx = getAudioContext();
   const startTime = ctx.currentTime + 0.1;
   const beatDuration = 60 / bpm;
@@ -189,7 +338,8 @@ export function scheduleProgression(
         section.chords.forEach((chord) => {
           const chordStartTime = currentTime;
           const durationInSeconds = chord.duration * beatDuration;
-          const midiNotes = chordToMidiNotes(chord);
+          // Apply transposition to MIDI notes
+          const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
           
           // Schedule chord change callback
           if (onChordChange) {
@@ -216,7 +366,7 @@ export function scheduleProgression(
             if (pianoState && !pianoState.muted && pianoSound && style.rhythm.piano.includes(beatInPattern)) {
               midiNotes.forEach(midiNote => {
                 const frequency = midiToFrequency(midiNote);
-                playInstrumentNote(
+                playPianoNote(
                   ctx, masterGain!, frequency, beatTime, 
                   beatDuration * 0.9, pianoSound, 
                   pianoState.volume * style.volumes.piano
@@ -228,17 +378,17 @@ export function scheduleProgression(
             if (bassState && !bassState.muted && bassSound && style.rhythm.bass.includes(beatInPattern)) {
               const bassNote = midiNotes[0]; // Root note
               const frequency = midiToFrequency(bassNote);
-              playInstrumentNote(
+              playBassNote(
                 ctx, masterGain!, frequency, beatTime,
                 beatDuration * 0.8, bassSound,
                 bassState.volume * style.volumes.bass
               );
             }
             
-            // Drums - plays on pattern beats
+            // Drums - plays on pattern beats with variety
             if (drumsState && !drumsState.muted && drumsSound && style.rhythm.drums.includes(beatInPattern)) {
-              const isKick = beatInPattern === 0 || beatInPattern === 2;
-              playDrumHit(ctx, masterGain!, beatTime, drumsSound, drumsState.volume * style.volumes.drums, isKick);
+              const drumType = beatInPattern === 0 ? 'kick' : beatInPattern === 2 ? 'snare' : 'hihat';
+              playDrumHit(ctx, masterGain!, beatTime, drumsSound, drumsState.volume * style.volumes.drums, drumType);
             }
             
             // Beat callback
@@ -293,6 +443,7 @@ export async function renderProgressionOffline(
   bpm: number,
   instruments: InstrumentState[],
   style: StylePattern,
+  transposition: number = 0,
   sampleRate: number = 44100
 ): Promise<AudioBuffer> {
   // Calculate total duration
@@ -324,79 +475,134 @@ export async function renderProgressionOffline(
   sections.forEach(section => {
     for (let repeat = 0; repeat < section.repeatCount; repeat++) {
       section.chords.forEach(chord => {
-        const midiNotes = chordToMidiNotes(chord);
+        // Apply transposition to MIDI notes
+        const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
         
         for (let beat = 0; beat < chord.duration; beat++) {
           const beatTime = currentTime + (beat * beatDuration);
           const beatInPattern = beat % 4;
           
-          // Piano
+          // Piano with harmonics
           if (pianoState && !pianoState.muted && pianoSound && style.rhythm.piano.includes(beatInPattern)) {
             midiNotes.forEach(midiNote => {
               const frequency = midiToFrequency(midiNote);
-              const soundType = pianoSound;
               const volume = pianoState.volume * style.volumes.piano;
+              const baseFreq = frequency * Math.pow(2, pianoSound.octaveOffset);
               
-              const osc = offlineCtx.createOscillator();
-              const gain = offlineCtx.createGain();
-              osc.type = soundType.oscillatorType;
-              osc.frequency.value = frequency * Math.pow(2, soundType.octaveOffset);
-              osc.connect(gain);
-              gain.connect(offlineMasterGain);
+              const harmonics = [
+                { freq: 1, amp: 1.0 },
+                { freq: 2, amp: 0.5 },
+                { freq: 3, amp: 0.25 },
+                { freq: 4, amp: 0.15 },
+              ];
               
-              const maxGain = 0.3 * volume;
-              gain.gain.setValueAtTime(0, beatTime);
-              gain.gain.linearRampToValueAtTime(maxGain, beatTime + soundType.attackTime);
-              gain.gain.linearRampToValueAtTime(maxGain * soundType.sustainLevel, beatTime + soundType.attackTime + soundType.decayTime);
-              gain.gain.linearRampToValueAtTime(0, beatTime + beatDuration * 0.9);
+              const pianoGain = offlineCtx.createGain();
+              pianoGain.connect(offlineMasterGain);
               
-              osc.start(beatTime);
-              osc.stop(beatTime + beatDuration);
+              harmonics.forEach(({ freq, amp }) => {
+                const osc = offlineCtx.createOscillator();
+                const oscGain = offlineCtx.createGain();
+                osc.type = freq === 1 ? pianoSound.oscillatorType : 'sine';
+                osc.frequency.value = baseFreq * freq;
+                oscGain.gain.value = amp * 0.12 * volume;
+                osc.connect(oscGain);
+                oscGain.connect(pianoGain);
+                osc.start(beatTime);
+                osc.stop(beatTime + beatDuration);
+              });
+              
+              pianoGain.gain.setValueAtTime(0, beatTime);
+              pianoGain.gain.linearRampToValueAtTime(1, beatTime + pianoSound.attackTime);
+              pianoGain.gain.linearRampToValueAtTime(pianoSound.sustainLevel, beatTime + pianoSound.attackTime + pianoSound.decayTime);
+              pianoGain.gain.linearRampToValueAtTime(0, beatTime + beatDuration * 0.9);
             });
           }
           
-          // Bass
+          // Bass with sub
           if (bassState && !bassState.muted && bassSound && style.rhythm.bass.includes(beatInPattern)) {
             const bassNote = midiNotes[0];
             const frequency = midiToFrequency(bassNote);
-            const soundType = bassSound;
             const volume = bassState.volume * style.volumes.bass;
+            const baseFreq = frequency * Math.pow(2, bassSound.octaveOffset);
             
-            const osc = offlineCtx.createOscillator();
-            const gain = offlineCtx.createGain();
-            osc.type = soundType.oscillatorType;
-            osc.frequency.value = frequency * Math.pow(2, soundType.octaveOffset);
-            osc.connect(gain);
-            gain.connect(offlineMasterGain);
+            const bassGain = offlineCtx.createGain();
+            const filter = offlineCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 800;
+            filter.connect(bassGain);
+            bassGain.connect(offlineMasterGain);
             
-            const maxGain = 0.3 * volume;
-            gain.gain.setValueAtTime(0, beatTime);
-            gain.gain.linearRampToValueAtTime(maxGain, beatTime + soundType.attackTime);
-            gain.gain.linearRampToValueAtTime(0, beatTime + beatDuration * 0.8);
+            const mainOsc = offlineCtx.createOscillator();
+            mainOsc.type = bassSound.oscillatorType;
+            mainOsc.frequency.value = baseFreq;
+            const mainOscGain = offlineCtx.createGain();
+            mainOscGain.gain.value = 0.2 * volume;
+            mainOsc.connect(mainOscGain);
+            mainOscGain.connect(filter);
             
-            osc.start(beatTime);
-            osc.stop(beatTime + beatDuration);
+            const subOsc = offlineCtx.createOscillator();
+            subOsc.type = 'sine';
+            subOsc.frequency.value = baseFreq / 2;
+            const subOscGain = offlineCtx.createGain();
+            subOscGain.gain.value = 0.15 * volume;
+            subOsc.connect(subOscGain);
+            subOscGain.connect(filter);
+            
+            bassGain.gain.setValueAtTime(0, beatTime);
+            bassGain.gain.linearRampToValueAtTime(1, beatTime + bassSound.attackTime);
+            bassGain.gain.linearRampToValueAtTime(bassSound.sustainLevel, beatTime + bassSound.attackTime + bassSound.decayTime);
+            bassGain.gain.linearRampToValueAtTime(0, beatTime + beatDuration * 0.8);
+            
+            mainOsc.start(beatTime);
+            subOsc.start(beatTime);
+            mainOsc.stop(beatTime + beatDuration);
+            subOsc.stop(beatTime + beatDuration);
           }
           
-          // Drums
+          // Drums with kick/snare/hihat
           if (drumsState && !drumsState.muted && drumsSound && style.rhythm.drums.includes(beatInPattern)) {
-            const isKick = beatInPattern === 0 || beatInPattern === 2;
+            const drumType = beatInPattern === 0 ? 'kick' : beatInPattern === 2 ? 'snare' : 'hihat';
             const volume = drumsState.volume * style.volumes.drums;
             
-            const osc = offlineCtx.createOscillator();
-            const gain = offlineCtx.createGain();
-            osc.type = drumsSound.oscillatorType;
-            osc.frequency.setValueAtTime(isKick ? 150 : 400, beatTime);
-            osc.frequency.exponentialRampToValueAtTime(isKick ? 60 : 200, beatTime + 0.05);
-            osc.connect(gain);
-            gain.connect(offlineMasterGain);
-            
-            gain.gain.setValueAtTime(0, beatTime);
-            gain.gain.linearRampToValueAtTime(0.25 * volume, beatTime + 0.005);
-            gain.gain.exponentialRampToValueAtTime(0.001, beatTime + 0.15);
-            
-            osc.start(beatTime);
-            osc.stop(beatTime + 0.2);
+            if (drumType === 'kick') {
+              const osc = offlineCtx.createOscillator();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(150, beatTime);
+              osc.frequency.exponentialRampToValueAtTime(40, beatTime + 0.1);
+              const gain = offlineCtx.createGain();
+              gain.gain.setValueAtTime(0.4 * volume, beatTime);
+              gain.gain.exponentialRampToValueAtTime(0.001, beatTime + 0.3);
+              osc.connect(gain);
+              gain.connect(offlineMasterGain);
+              osc.start(beatTime);
+              osc.stop(beatTime + 0.35);
+            } else if (drumType === 'snare') {
+              const osc = offlineCtx.createOscillator();
+              osc.type = 'triangle';
+              osc.frequency.value = 180;
+              const gain = offlineCtx.createGain();
+              gain.gain.setValueAtTime(0.2 * volume, beatTime);
+              gain.gain.exponentialRampToValueAtTime(0.001, beatTime + 0.12);
+              osc.connect(gain);
+              gain.connect(offlineMasterGain);
+              osc.start(beatTime);
+              osc.stop(beatTime + 0.15);
+            } else {
+              const osc = offlineCtx.createOscillator();
+              osc.type = 'square';
+              osc.frequency.value = 8000;
+              const filter = offlineCtx.createBiquadFilter();
+              filter.type = 'highpass';
+              filter.frequency.value = 7000;
+              const gain = offlineCtx.createGain();
+              gain.gain.setValueAtTime(0.06 * volume, beatTime);
+              gain.gain.exponentialRampToValueAtTime(0.001, beatTime + 0.05);
+              osc.connect(filter);
+              filter.connect(gain);
+              gain.connect(offlineMasterGain);
+              osc.start(beatTime);
+              osc.stop(beatTime + 0.06);
+            }
           }
         }
         

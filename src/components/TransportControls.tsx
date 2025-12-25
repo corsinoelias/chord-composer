@@ -2,6 +2,7 @@ import { Play, Square, RotateCcw, Download, Loader2, Volume2, VolumeX, Settings2
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { StyleSelector } from './StyleSelector';
 
 interface TransportControlsProps {
@@ -10,6 +11,8 @@ interface TransportControlsProps {
   bpm: number;
   metronomeEnabled: boolean;
   selectedStyleId: string;
+  songTitle: string;
+  transposition: number;
   onPlay: () => void;
   onStop: () => void;
   onReset: () => void;
@@ -17,6 +20,8 @@ interface TransportControlsProps {
   onBpmChange: (bpm: number) => void;
   onMetronomeToggle: (enabled: boolean) => void;
   onStyleChange: (styleId: string) => void;
+  onSongTitleChange: (title: string) => void;
+  onTranspositionChange: (semitones: number) => void;
   onOpenInstruments: () => void;
   hasChords: boolean;
 }
@@ -33,6 +38,8 @@ export function TransportControls({
   bpm,
   metronomeEnabled,
   selectedStyleId,
+  songTitle,
+  transposition,
   onPlay,
   onStop,
   onReset,
@@ -40,11 +47,57 @@ export function TransportControls({
   onBpmChange,
   onMetronomeToggle,
   onStyleChange,
+  onSongTitleChange,
+  onTranspositionChange,
   onOpenInstruments,
   hasChords,
 }: TransportControlsProps) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+    <div className="bg-card border border-border rounded-xl p-4 shadow-sm space-y-4">
+      {/* Song Title */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1">
+          <Label htmlFor="song-title" className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
+            Song Title
+          </Label>
+          <Input
+            id="song-title"
+            value={songTitle}
+            onChange={(e) => onSongTitleChange(e.target.value)}
+            placeholder="My Song"
+            className="bg-background"
+          />
+        </div>
+        <div className="w-32">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
+            Transpose
+          </Label>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onTranspositionChange(transposition - 1)}
+              disabled={transposition <= -12}
+              className="h-9 w-9 p-0"
+            >
+              -
+            </Button>
+            <span className="w-12 text-center font-mono text-sm">
+              {transposition > 0 ? `+${transposition}` : transposition}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onTranspositionChange(transposition + 1)}
+              disabled={transposition >= 12}
+              className="h-9 w-9 p-0"
+            >
+              +
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center gap-4">
         {/* Playback Controls */}
         <div className="flex items-center gap-2">
