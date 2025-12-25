@@ -20,12 +20,19 @@ export interface StylePattern {
   description: string;
   // Rhythm patterns: 16 slots with velocity values (0 = silence, 0.5 = ghost, 1 = accent)
   rhythm: {
-    piano: number[];      // Piano/keys pattern
-    bass: number[];       // Bass pattern
-    kick: number[];       // Kick drum pattern
-    snare: number[];      // Snare/clap pattern
-    hihat: number[];      // Hi-hat pattern
-    guitar?: number[];    // Guitar pattern (optional)
+    piano: number[];        // Piano/keys pattern
+    bass: number[];         // Bass pattern
+    kick: number[];         // Kick drum pattern
+    snare: number[];        // Snare center pattern
+    snareStick?: number[];  // Snare rim/edge pattern (borde)
+    hihat: number[];        // Hi-hat closed pattern (mano)
+    hihatFoot?: number[];   // Hi-hat foot pattern (pie)
+    tom1?: number[];        // Tom 1 (high)
+    tom2?: number[];        // Tom 2 (mid)
+    floorTom?: number[];    // Floor tom (low)
+    ride?: number[];        // Ride cymbal
+    crash?: number[];       // Crash cymbal
+    guitar?: number[];      // Guitar pattern (optional)
   };
   // Fill pattern (played on bar 4 or 8)
   fill: {
@@ -33,7 +40,14 @@ export interface StylePattern {
     pattern: {
       kick?: number[];
       snare?: number[];
+      snareStick?: number[];
       hihat?: number[];
+      hihatFoot?: number[];
+      tom1?: number[];
+      tom2?: number[];
+      floorTom?: number[];
+      ride?: number[];
+      crash?: number[];
       guitar?: number[];
     };
   };
@@ -194,41 +208,132 @@ export const MUSICAL_STYLES: StylePattern[] = [
   },
 
   // ============================================
-  // 3. POP/BALADA (Con "Side Stick") - 85 BPM
+  // 3. BALADA MINIMALISTA (Con borde de caja y hi-hat pie) - 75 BPM
   // ============================================
-  // Característica: Más atmosférico, usa el aro de la caja (side stick).
-  // Bombo en 1 y 3. Side stick en 2 y 4. Hi-hat en corcheas (8avos).
-  // Bajo: Notas largas (whole notes o half notes).
-  // Piano: Arpegios suaves o acordes sostenidos.
+  // Característica: Minimalista y atmosférico. Bombo solo en tiempo 1.
+  // Borde de caja en corcheas, hi-hat con el pie constante.
   {
-    id: 'pop_ballad',
-    name: 'Pop/Balada',
+    id: 'ballad_minimal',
+    name: 'Balada Minimalista',
     category: 'Pop',
-    bpm: 85,
-    bpmRange: [70, 100],
-    description: 'Atmosférico con side stick. Arpegios de piano y bajo sostenido.',
+    bpm: 75,
+    bpmRange: [65, 85],
+    description: 'Minimalista con borde de caja. Bombo solo en tiempo 1, hi-hat con pie.',
     rhythm: {
-      // B: X - - - | - - - - | X - - - | - - - - (bombo en 1 y 3)
-      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-      // C: - - - - | X - - - | - - - - | X - - - (side stick en 2 y 4)
-      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // H: x - x - | x - x - | x - x - | x - x - (corcheas)
-      hihat: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
-      // B: X - - - | - - - - | - - - - | - - - - (nota sostenida)
-      bass:  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      // P: X - - - | - - - - | X - - - | - - - - (acordes largos/arpegios)
-      piano: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      // Bombo: solo un golpe potente en tiempo 1
+      kick:       [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // Snare center: no se usa
+      snare:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // Borde de caja: golpes en cada tiempo (corcheas: 1, 2, 3, 4)
+      snareStick: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // Hi-hat mano: no se toca
+      hihat:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // Hi-hat pie: corcheas constantes (golpes cerrando)
+      hihatFoot:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // Bajo: nota sostenida
+      bass:       [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // Piano: arpegios suaves
+      piano:      [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
     },
     fill: {
-      position: 12,
+      position: 10, // Fill empieza en "&" del tiempo 3
       pattern: {
-        // Fill suave para balada
-        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5],
-        hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], // crash
+        // Fill: FT - T2 - T1 - o (borde) en semicorcheas
+        snareStick: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+        floorTom:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        tom2:       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+        tom1:       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+        hihatFoot:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
       },
     },
     bassSustain: true,
-    volumes: { piano: 0.75, bass: 0.6, drums: 0.45 },
+    volumes: { piano: 0.75, bass: 0.6, drums: 0.5 },
+  },
+
+  // ============================================
+  // 4. BALADA CLÁSICA (Con ride) - 80 BPM
+  // ============================================
+  // Característica: Corazón del ritmo con bombo en 1 y 3, caja en 2 y 4.
+  // Ride en negras, hi-hat con pie constante.
+  {
+    id: 'ballad_classic',
+    name: 'Balada Clásica',
+    category: 'Pop',
+    bpm: 80,
+    bpmRange: [70, 95],
+    description: 'Clásica con ride. Bombo en 1 y 3, caja en 2 y 4, hi-hat con pie.',
+    rhythm: {
+      // Bombo: tiempos 1 y 3
+      kick:       [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      // Caja centro: tiempos 2 y 4
+      snare:      [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      // Hi-hat mano: no se usa
+      hihat:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // Hi-hat pie: corcheas constantes
+      hihatFoot:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // Ride: negras (en cada tiempo)
+      ride:       [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+      // Bajo: nota sostenida
+      bass:       [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // Piano: acordes largos
+      piano:      [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+    },
+    fill: {
+      position: 8, // Fill empieza en tiempo 3
+      pattern: {
+        // Fill: S S S S - T2 - FT FT (corcheas en caja, luego toms)
+        snare:      [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+        tom2:       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+        floorTom:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+        ride:       [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        hihatFoot:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      },
+    },
+    bassSustain: true,
+    volumes: { piano: 0.75, bass: 0.6, drums: 0.5 },
+  },
+
+  // ============================================
+  // 5. BALADA DINÁMICA (Con hi-hat abierto y crash) - 85 BPM
+  // ============================================
+  // Característica: Más impulso con hi-hat abierto para énfasis.
+  // Bombo en 1, 3 y push en "&" del 4. Crash como acento final del fill.
+  {
+    id: 'ballad_dynamic',
+    name: 'Balada Dinámica',
+    category: 'Pop',
+    bpm: 85,
+    bpmRange: [75, 100],
+    description: 'Dinámica con hi-hat abierto y crash. Bombo con push en "&" del 4.',
+    rhythm: {
+      // Bombo: 1, 3 y push en "&" del 4 (slot 14)
+      kick:       [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
+      // Caja centro: tiempos 2 y 4
+      snare:      [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      // Hi-hat mano: corcheas con abierto en "&" del 2 (slot 6)
+      hihat:      [1, 0, 1, 0, 1, 0, 0.7, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // Hi-hat pie: corcheas constantes
+      hihatFoot:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // Bajo: nota sostenida
+      bass:       [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // Piano: acordes largos
+      piano:      [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+    },
+    fill: {
+      position: 6, // Fill más largo, empieza en "&" del 2
+      pattern: {
+        // Fill: S S S S - FT - T2 - T1 T1 - C
+        snare:      [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0],
+        floorTom:   [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        tom2:       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+        tom1:       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0],
+        crash:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        hihat:      [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        hihatFoot:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      },
+    },
+    bassSustain: true,
+    volumes: { piano: 0.75, bass: 0.6, drums: 0.55 },
   },
 
   // ============================================
@@ -808,7 +913,14 @@ export function generateBarPattern(
 ): {
   kick: number[];
   snare: number[];
+  snareStick: number[];
   hihat: number[];
+  hihatFoot: number[];
+  tom1: number[];
+  tom2: number[];
+  floorTom: number[];
+  ride: number[];
+  crash: number[];
   bass: number[];
   piano: number[];
   guitar?: number[];
@@ -816,7 +928,14 @@ export function generateBarPattern(
   // Start with base patterns
   let kick = [...style.rhythm.kick];
   let snare = [...style.rhythm.snare];
+  let snareStick = style.rhythm.snareStick ? [...style.rhythm.snareStick] : new Array(16).fill(0);
   let hihat = [...style.rhythm.hihat];
+  let hihatFoot = style.rhythm.hihatFoot ? [...style.rhythm.hihatFoot] : new Array(16).fill(0);
+  let tom1 = style.rhythm.tom1 ? [...style.rhythm.tom1] : new Array(16).fill(0);
+  let tom2 = style.rhythm.tom2 ? [...style.rhythm.tom2] : new Array(16).fill(0);
+  let floorTom = style.rhythm.floorTom ? [...style.rhythm.floorTom] : new Array(16).fill(0);
+  let ride = style.rhythm.ride ? [...style.rhythm.ride] : new Array(16).fill(0);
+  let crash = style.rhythm.crash ? [...style.rhythm.crash] : new Array(16).fill(0);
   let bass = [...style.rhythm.bass];
   let piano = [...style.rhythm.piano];
   let guitar = style.rhythm.guitar ? [...style.rhythm.guitar] : undefined;
@@ -825,33 +944,28 @@ export function generateBarPattern(
   if (shouldApplyFill(barNumber, phraseLength)) {
     const fillPos = style.fill.position;
     
-    if (style.fill.pattern.kick) {
-      for (let i = fillPos; i < 16; i++) {
-        if (style.fill.pattern.kick[i] !== undefined) {
-          kick[i] = style.fill.pattern.kick[i];
+    const applyFill = (base: number[], fillPattern?: number[]) => {
+      if (fillPattern) {
+        for (let i = fillPos; i < 16; i++) {
+          if (fillPattern[i] !== undefined) {
+            base[i] = fillPattern[i];
+          }
         }
       }
-    }
-    if (style.fill.pattern.snare) {
-      for (let i = fillPos; i < 16; i++) {
-        if (style.fill.pattern.snare[i] !== undefined) {
-          snare[i] = style.fill.pattern.snare[i];
-        }
-      }
-    }
-    if (style.fill.pattern.hihat) {
-      for (let i = fillPos; i < 16; i++) {
-        if (style.fill.pattern.hihat[i] !== undefined) {
-          hihat[i] = style.fill.pattern.hihat[i];
-        }
-      }
-    }
-    if (style.fill.pattern.guitar && guitar) {
-      for (let i = fillPos; i < 16; i++) {
-        if (style.fill.pattern.guitar[i] !== undefined) {
-          guitar[i] = style.fill.pattern.guitar[i];
-        }
-      }
+    };
+    
+    applyFill(kick, style.fill.pattern.kick);
+    applyFill(snare, style.fill.pattern.snare);
+    applyFill(snareStick, style.fill.pattern.snareStick);
+    applyFill(hihat, style.fill.pattern.hihat);
+    applyFill(hihatFoot, style.fill.pattern.hihatFoot);
+    applyFill(tom1, style.fill.pattern.tom1);
+    applyFill(tom2, style.fill.pattern.tom2);
+    applyFill(floorTom, style.fill.pattern.floorTom);
+    applyFill(ride, style.fill.pattern.ride);
+    applyFill(crash, style.fill.pattern.crash);
+    if (guitar) {
+      applyFill(guitar, style.fill.pattern.guitar);
     }
   }
 
@@ -862,11 +976,28 @@ export function generateBarPattern(
     
     kick = humanizeVelocity(kick);
     snare = humanizeVelocity(snare);
+    snareStick = humanizeVelocity(snareStick);
     hihat = humanizeVelocity(hihat);
+    hihatFoot = humanizeVelocity(hihatFoot);
+    tom1 = humanizeVelocity(tom1);
+    tom2 = humanizeVelocity(tom2);
+    floorTom = humanizeVelocity(floorTom);
+    ride = humanizeVelocity(ride);
+    crash = humanizeVelocity(crash);
   }
 
   // Apply interaction rules
-  return applyInteractionRules(kick, snare, hihat, bass, piano, guitar);
+  const result = applyInteractionRules(kick, snare, hihat, bass, piano, guitar);
+  return {
+    ...result,
+    snareStick,
+    hihatFoot,
+    tom1,
+    tom2,
+    floorTom,
+    ride,
+    crash,
+  };
 }
 
 /**
