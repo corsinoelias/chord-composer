@@ -521,6 +521,19 @@ export async function renderProgressionOffline(
   transposition: number = 0,
   sampleRate: number = 44100
 ): Promise<AudioBuffer> {
+  // Ensure samples are loaded
+  await ensureSamplesLoaded();
+  
+  // Load sample into offline context if available
+  let offlineSnareBuffer: AudioBuffer | null = null;
+  if (acousticSnareBuffer) {
+    // Re-decode for offline context at the target sample rate
+    const response = await fetch('/audio/snare-drum.mp3');
+    const arrayBuffer = await response.arrayBuffer();
+    const tempCtx = new OfflineAudioContext(2, 1, sampleRate);
+    offlineSnareBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+  }
+  
   // Calculate total duration
   let totalBeats = 0;
   sections.forEach(section => {
@@ -672,16 +685,29 @@ export async function renderProgressionOffline(
               // Snare
               if (pattern.snare[slot] > 0) {
                 const vol = baseVolume * pattern.snare[slot];
-                const osc = offlineCtx.createOscillator();
-                osc.type = 'triangle';
-                osc.frequency.value = 180;
-                const gain = offlineCtx.createGain();
-                gain.gain.setValueAtTime(0.2 * vol, slotTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.12);
-                osc.connect(gain);
-                gain.connect(offlineMasterGain);
-                osc.start(slotTime);
-                osc.stop(slotTime + 0.15);
+                
+                // Use sample for Acoustic Kit
+                if (drumsSound.id === 'standard' && offlineSnareBuffer) {
+                  const source = offlineCtx.createBufferSource();
+                  source.buffer = offlineSnareBuffer;
+                  const sampleGain = offlineCtx.createGain();
+                  sampleGain.gain.value = vol * 0.8;
+                  source.connect(sampleGain);
+                  sampleGain.connect(offlineMasterGain);
+                  source.start(slotTime);
+                } else {
+                  // Synthesized snare
+                  const osc = offlineCtx.createOscillator();
+                  osc.type = 'triangle';
+                  osc.frequency.value = 180;
+                  const gain = offlineCtx.createGain();
+                  gain.gain.setValueAtTime(0.2 * vol, slotTime);
+                  gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.12);
+                  osc.connect(gain);
+                  gain.connect(offlineMasterGain);
+                  osc.start(slotTime);
+                  osc.stop(slotTime + 0.15);
+                }
               }
               
               // Hi-hat
