@@ -5,18 +5,29 @@
  * Each chord is defined by its root note and quality, which determines the intervals.
  */
 
-// Root notes and their MIDI base values (octave 4)
+// Root notes (natural notes only, accidentals are handled separately)
 export const ROOT_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
 export type RootNote = typeof ROOT_NOTES[number];
 
-// Chord qualities and their intervals from root
-export const CHORD_QUALITIES = ['maj', 'min', 'dim', 'aug', '7', 'maj7', 'min7'] as const;
+// Accidentals for sharp/flat/natural
+export const ACCIDENTALS = ['', '#', 'b'] as const;
+export type Accidental = typeof ACCIDENTALS[number];
+
+// Extended chord qualities
+export const CHORD_QUALITIES = [
+  'maj', 'min', 'dim', 'aug',
+  '7', 'maj7', 'min7', 'dim7',
+  'sus2', 'sus4', 'add9',
+  '9', 'maj9', 'min9',
+  '6', 'min6', 'm7b5'
+] as const;
 export type ChordQuality = typeof CHORD_QUALITIES[number];
 
 // Chord data structure
 export interface Chord {
   id: string;
   root: RootNote;
+  accidental: Accidental;
   quality: ChordQuality;
   duration: number; // in beats
 }
@@ -33,15 +44,24 @@ const NOTE_TO_MIDI: Record<RootNote, number> = {
 };
 
 // Intervals (in semitones) for each chord quality
-// These define the characteristic sound of each chord type
 const QUALITY_INTERVALS: Record<ChordQuality, number[]> = {
-  'maj': [0, 4, 7],           // Major triad: root, major 3rd, perfect 5th
-  'min': [0, 3, 7],           // Minor triad: root, minor 3rd, perfect 5th
-  'dim': [0, 3, 6],           // Diminished: root, minor 3rd, diminished 5th
-  'aug': [0, 4, 8],           // Augmented: root, major 3rd, augmented 5th
-  '7': [0, 4, 7, 10],         // Dominant 7th: major triad + minor 7th
-  'maj7': [0, 4, 7, 11],      // Major 7th: major triad + major 7th
-  'min7': [0, 3, 7, 10],      // Minor 7th: minor triad + minor 7th
+  'maj': [0, 4, 7],
+  'min': [0, 3, 7],
+  'dim': [0, 3, 6],
+  'aug': [0, 4, 8],
+  '7': [0, 4, 7, 10],
+  'maj7': [0, 4, 7, 11],
+  'min7': [0, 3, 7, 10],
+  'dim7': [0, 3, 6, 9],
+  'sus2': [0, 2, 7],
+  'sus4': [0, 5, 7],
+  'add9': [0, 4, 7, 14],
+  '9': [0, 4, 7, 10, 14],
+  'maj9': [0, 4, 7, 11, 14],
+  'min9': [0, 3, 7, 10, 14],
+  '6': [0, 4, 7, 9],
+  'min6': [0, 3, 7, 9],
+  'm7b5': [0, 3, 6, 10],
 };
 
 /**
@@ -51,9 +71,16 @@ const QUALITY_INTERVALS: Record<ChordQuality, number[]> = {
  * @returns Array of MIDI note numbers
  */
 export function chordToMidiNotes(chord: Chord, octave: number = 4): number[] {
-  const rootMidi = NOTE_TO_MIDI[chord.root] + (octave - 4) * 12;
-  const intervals = QUALITY_INTERVALS[chord.quality];
+  let rootMidi = NOTE_TO_MIDI[chord.root] + (octave - 4) * 12;
   
+  // Apply accidental
+  if (chord.accidental === '#') {
+    rootMidi += 1;
+  } else if (chord.accidental === 'b') {
+    rootMidi -= 1;
+  }
+  
+  const intervals = QUALITY_INTERVALS[chord.quality];
   return intervals.map(interval => rootMidi + interval);
 }
 
@@ -70,10 +97,11 @@ export function midiToFrequency(midiNote: number): number {
 /**
  * Formats a chord for display
  * @param chord - The chord to format
- * @returns Display string (e.g., "Cmaj7", "Amin")
+ * @returns Display string (e.g., "C#maj7", "Abmin")
  */
 export function formatChord(chord: Chord): string {
-  return `${chord.root}${chord.quality}`;
+  const accidentalDisplay = chord.accidental === '#' ? '♯' : chord.accidental === 'b' ? '♭' : '';
+  return `${chord.root}${accidentalDisplay}${chord.quality}`;
 }
 
 /**
@@ -88,13 +116,38 @@ export function generateChordId(): string {
  */
 export function createChord(
   root: RootNote = 'C',
+  accidental: Accidental = '',
   quality: ChordQuality = 'maj',
   duration: number = 2
 ): Chord {
   return {
     id: generateChordId(),
     root,
+    accidental,
     quality,
     duration,
   };
 }
+
+/**
+ * Quality display labels
+ */
+export const QUALITY_LABELS: Record<ChordQuality, string> = {
+  'maj': 'Major',
+  'min': 'Minor',
+  'dim': 'Dim',
+  'aug': 'Aug',
+  '7': 'Dom7',
+  'maj7': 'Maj7',
+  'min7': 'Min7',
+  'dim7': 'Dim7',
+  'sus2': 'Sus2',
+  'sus4': 'Sus4',
+  'add9': 'Add9',
+  '9': '9th',
+  'maj9': 'Maj9',
+  'min9': 'Min9',
+  '6': '6th',
+  'min6': 'Min6',
+  'm7b5': 'm7♭5',
+};

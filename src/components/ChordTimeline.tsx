@@ -8,29 +8,19 @@ interface ChordTimelineProps {
   currentChordIndex: number;
   onReorder: (fromIndex: number, toIndex: number) => void;
   onDelete: (index: number) => void;
+  onChordClick?: (index: number) => void;
 }
 
 /**
  * ChordTimeline Component
  * 
- * Displays the chord progression as a horizontal timeline.
+ * Displays the chord progression with fixed-width blocks that wrap.
  * Supports drag-and-drop reordering of chords.
  */
-export function ChordTimeline({ chords, currentChordIndex, onReorder, onDelete }: ChordTimelineProps) {
+export function ChordTimeline({ chords, currentChordIndex, onReorder, onDelete, onChordClick }: ChordTimelineProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Scroll to current chord during playback
-  useEffect(() => {
-    if (currentChordIndex >= 0 && containerRef.current) {
-      const chordElements = containerRef.current.querySelectorAll('[data-chord-block]');
-      const currentElement = chordElements[currentChordIndex] as HTMLElement;
-      if (currentElement) {
-        currentElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-      }
-    }
-  }, [currentChordIndex]);
   
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
@@ -94,8 +84,7 @@ export function ChordTimeline({ chords, currentChordIndex, onReorder, onDelete }
       
       <div
         ref={containerRef}
-        className="flex gap-3 overflow-x-auto pb-3 pt-2 px-1 scrollbar-thin"
-        style={{ scrollbarWidth: 'thin' }}
+        className="flex flex-wrap gap-3 pt-2 px-1"
       >
         {chords.map((chord, index) => (
           <div
@@ -107,8 +96,9 @@ export function ChordTimeline({ chords, currentChordIndex, onReorder, onDelete }
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, index)}
             onDragEnd={handleDragEnd}
+            onClick={() => onChordClick?.(index)}
             className={`
-              group relative shrink-0
+              group relative cursor-pointer
               ${dragOverIndex === index && draggedIndex !== index ? 'pl-4' : ''}
               transition-all duration-200
             `}
@@ -123,6 +113,7 @@ export function ChordTimeline({ chords, currentChordIndex, onReorder, onDelete }
               isPlaying={currentChordIndex === index}
               onDelete={() => onDelete(index)}
               isDragging={draggedIndex === index}
+              fixedWidth
             />
           </div>
         ))}

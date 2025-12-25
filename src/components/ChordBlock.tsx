@@ -6,24 +6,20 @@ interface ChordBlockProps {
   isPlaying: boolean;
   onDelete: () => void;
   isDragging?: boolean;
+  fixedWidth?: boolean;
 }
 
 /**
  * ChordBlock Component
  * 
  * Displays a single chord in the timeline.
- * Width is proportional to duration (beats).
- * Shows visual feedback when the chord is currently playing.
+ * Can use fixed width or proportional width based on duration.
  */
-export function ChordBlock({ chord, isPlaying, onDelete, isDragging }: ChordBlockProps) {
-  // Base width per beat (in rem units)
-  const widthPerBeat = 5;
-  const width = chord.duration * widthPerBeat;
-  
+export function ChordBlock({ chord, isPlaying, onDelete, isDragging, fixedWidth = false }: ChordBlockProps) {
   return (
     <div
       className={`
-        relative flex flex-col items-center justify-center
+        group relative flex flex-col items-center justify-center
         rounded-lg border-2 transition-all duration-200
         cursor-grab active:cursor-grabbing select-none
         ${isPlaying 
@@ -33,7 +29,7 @@ export function ChordBlock({ chord, isPlaying, onDelete, isDragging }: ChordBloc
         ${isDragging ? 'opacity-50 scale-95' : ''}
       `}
       style={{ 
-        width: `${width}rem`,
+        width: fixedWidth ? '5rem' : `${chord.duration * 5}rem`,
         minWidth: '4rem',
         height: '5rem',
       }}

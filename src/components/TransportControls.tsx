@@ -1,18 +1,23 @@
-import { Play, Square, RotateCcw, Download, Loader2, Volume2, VolumeX } from 'lucide-react';
+import { Play, Square, RotateCcw, Download, Loader2, Volume2, VolumeX, Settings2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { StyleSelector } from './StyleSelector';
 
 interface TransportControlsProps {
   isPlaying: boolean;
   isExporting: boolean;
   bpm: number;
   metronomeEnabled: boolean;
+  selectedStyleId: string;
   onPlay: () => void;
   onStop: () => void;
   onReset: () => void;
   onExport: () => void;
   onBpmChange: (bpm: number) => void;
   onMetronomeToggle: (enabled: boolean) => void;
+  onStyleChange: (styleId: string) => void;
+  onOpenInstruments: () => void;
   hasChords: boolean;
 }
 
@@ -27,12 +32,15 @@ export function TransportControls({
   isExporting,
   bpm,
   metronomeEnabled,
+  selectedStyleId,
   onPlay,
   onStop,
   onReset,
   onExport,
   onBpmChange,
   onMetronomeToggle,
+  onStyleChange,
+  onOpenInstruments,
   hasChords,
 }: TransportControlsProps) {
   return (
@@ -93,7 +101,15 @@ export function TransportControls({
             Metronome
           </Label>
         </div>
-        
+
+        {/* Style Selector */}
+        <StyleSelector selectedStyleId={selectedStyleId} onStyleChange={onStyleChange} />
+
+        {/* Instruments Button */}
+        <Button variant="outline" size="sm" onClick={onOpenInstruments} className="gap-2">
+          <Settings2 className="h-4 w-4" />
+          Instruments
+        </Button>
         {/* BPM Control */}
         <div className="flex-1 min-w-[180px] max-w-[280px]">
           <div className="flex items-center justify-between mb-1">
