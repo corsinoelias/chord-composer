@@ -1,183 +1,179 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Chord } from '@/lib/musicTheory';
+import { Section, createSection, expandSectionsToChords, getSectionDisplayName } from '@/lib/sections';
+import { getDefaultInstrumentStates, InstrumentState } from '@/lib/instruments';
 import { getAudioContext, scheduleProgression, renderProgressionOffline, stopPlayback } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { ChordSelector } from '@/components/ChordSelector';
-import { ChordTimeline } from '@/components/ChordTimeline';
+import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
-import { Music2 } from 'lucide-react';
+import { ChordEditModal } from '@/components/ChordEditModal';
+import { InstrumentsPanel } from '@/components/InstrumentsPanel';
+import { Button } from '@/components/ui/button';
+import { Music2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
-/**
- * Chord Player - Main Application
- * 
- * A web-based chord progression editor with audio playback and WAV export.
- * Features continuous looping playback that resets on any modification.
- */
 const Index = () => {
-  // Chord progression state
-  const [chords, setChords] = useState<Chord[]>([]);
+  // Sections state (replaces simple chords array)
+  const [sections, setSections] = useState<Section[]>([createSection('Section A')]);
   const [bpm, setBpm] = useState(120);
+  const [selectedStyleId, setSelectedStyleId] = useState('pop1');
+  const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
   
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentChordIndex, setCurrentChordIndex] = useState(-1);
   const [metronomeEnabled, setMetronomeEnabled] = useState(true);
   
-  // Export state
+  // UI state
   const [isExporting, setIsExporting] = useState(false);
+  const [editingChord, setEditingChord] = useState<{ sectionIndex: number; chordIndex: number; chord: Chord } | null>(null);
+  const [activeSectionIndex, setActiveSectionIndex] = useState(0);
+  const [instrumentsPanelOpen, setInstrumentsPanelOpen] = useState(false);
   
-  // Ref for cleanup and restart
+  // Refs
   const cancelPlaybackRef = useRef<(() => void) | null>(null);
-  const shouldRestartRef = useRef(false);
-  const chordsRef = useRef<Chord[]>([]);
+  const sectionsRef = useRef<Section[]>([]);
   const bpmRef = useRef(120);
   const metronomeRef = useRef(true);
   
-  // Keep refs in sync
-  useEffect(() => {
-    chordsRef.current = chords;
-  }, [chords]);
+  useEffect(() => { sectionsRef.current = sections; }, [sections]);
+  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => { metronomeRef.current = metronomeEnabled; }, [metronomeEnabled]);
   
   useEffect(() => {
-    bpmRef.current = bpm;
-  }, [bpm]);
-  
-  useEffect(() => {
-    metronomeRef.current = metronomeEnabled;
-  }, [metronomeEnabled]);
-  
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (cancelPlaybackRef.current) {
-        cancelPlaybackRef.current();
-      }
-    };
+    return () => { cancelPlaybackRef.current?.(); };
   }, []);
-  
-  // Start looping playback
+
+  const getAllChords = useCallback(() => expandSectionsToChords(sectionsRef.current), []);
+
   const startPlayback = useCallback(() => {
-    if (chordsRef.current.length === 0) return;
+    const allChords = getAllChords();
+    if (allChords.length === 0) return;
     
     getAudioContext();
     setIsPlaying(true);
     setCurrentChordIndex(0);
     
-    const { cancel } = scheduleProgression(
-      chordsRef.current,
-      bpmRef.current,
-      (index) => setCurrentChordIndex(index),
-      {
-        loop: true,
-        metronome: metronomeRef.current,
-        onLoopEnd: () => {
-          // Check if we need to restart with new chords/settings
-          if (shouldRestartRef.current) {
-            shouldRestartRef.current = false;
-            // Will automatically start new loop with updated refs
-          }
-          setCurrentChordIndex(0);
-        }
-      }
-    );
+    const { cancel } = scheduleProgression(allChords, bpmRef.current, setCurrentChordIndex, {
+      loop: true,
+      metronome: metronomeRef.current,
+      onLoopEnd: () => setCurrentChordIndex(0),
+    });
     
     cancelPlaybackRef.current = cancel;
-  }, []);
-  
-  // Stop playback completely
+  }, [getAllChords]);
+
   const stopPlaybackCompletely = useCallback(() => {
-    if (cancelPlaybackRef.current) {
-      cancelPlaybackRef.current();
-      cancelPlaybackRef.current = null;
-    }
+    cancelPlaybackRef.current?.();
+    cancelPlaybackRef.current = null;
     stopPlayback();
     setIsPlaying(false);
     setCurrentChordIndex(-1);
   }, []);
-  
-  // Handle changes during playback - restart from beginning
+
   const handleChangeWhilePlaying = useCallback(() => {
     if (isPlaying) {
       stopPlaybackCompletely();
-      // Small delay to let audio context close, then restart
-      setTimeout(() => {
-        startPlayback();
-      }, 50);
+      setTimeout(() => startPlayback(), 50);
     }
   }, [isPlaying, stopPlaybackCompletely, startPlayback]);
-  
-  // Add a new chord
-  const handleAddChord = useCallback((chord: Chord) => {
-    setChords(prev => [...prev, chord]);
-    toast.success(`Added ${chord.root}${chord.quality}`);
-  }, []);
-  
-  // Effect to restart when chords change during playback
-  useEffect(() => {
-    if (isPlaying && chords.length > 0) {
-      handleChangeWhilePlaying();
-    } else if (isPlaying && chords.length === 0) {
-      stopPlaybackCompletely();
+
+  // Section handlers
+  const handleAddSection = () => {
+    const newSection = createSection(getSectionDisplayName(sections.length));
+    setSections(prev => [...prev, newSection]);
+    setActiveSectionIndex(sections.length);
+  };
+
+  const handleDeleteSection = (index: number) => {
+    if (sections.length === 1) {
+      toast.error('Cannot delete the only section');
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chords]);
-  
-  // Restart on BPM or metronome change during playback
-  useEffect(() => {
-    if (isPlaying) {
-      handleChangeWhilePlaying();
+    setSections(prev => prev.filter((_, i) => i !== index));
+    if (activeSectionIndex >= index && activeSectionIndex > 0) {
+      setActiveSectionIndex(prev => prev - 1);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bpm, metronomeEnabled]);
-  
-  // Delete a chord
-  const handleDeleteChord = useCallback((index: number) => {
-    setChords(prev => {
-      const newChords = [...prev];
-      const removed = newChords.splice(index, 1)[0];
-      toast.info(`Removed ${removed.root}${removed.quality}`);
-      return newChords;
+  };
+
+  const handleDuplicateSection = (index: number) => {
+    const section = sections[index];
+    const newSection = { ...createSection(section.name + ' Copy'), chords: [...section.chords], repeatCount: section.repeatCount };
+    setSections(prev => [...prev.slice(0, index + 1), newSection, ...prev.slice(index + 1)]);
+  };
+
+  const handleMoveSection = (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= sections.length) return;
+    setSections(prev => {
+      const newSections = [...prev];
+      [newSections[index], newSections[newIndex]] = [newSections[newIndex], newSections[index]];
+      return newSections;
     });
-  }, []);
-  
-  // Reorder chords (drag and drop)
-  const handleReorder = useCallback((fromIndex: number, toIndex: number) => {
-    setChords(prev => {
-      const newChords = [...prev];
+  };
+
+  const handleRepeatChange = (sectionIndex: number, repeatCount: number) => {
+    setSections(prev => prev.map((s, i) => i === sectionIndex ? { ...s, repeatCount: Math.max(1, repeatCount) } : s));
+  };
+
+  // Chord handlers
+  const handleAddChord = (chord: Chord) => {
+    setSections(prev => prev.map((s, i) => i === activeSectionIndex ? { ...s, chords: [...s.chords, chord] } : s));
+    toast.success(`Added ${chord.root}${chord.accidental}${chord.quality}`);
+  };
+
+  const handleChordClick = (sectionIndex: number, chordIndex: number) => {
+    const chord = sections[sectionIndex].chords[chordIndex];
+    setEditingChord({ sectionIndex, chordIndex, chord });
+  };
+
+  const handleChordSave = (updatedChord: Chord) => {
+    if (!editingChord) return;
+    setSections(prev => prev.map((s, i) => 
+      i === editingChord.sectionIndex 
+        ? { ...s, chords: s.chords.map((c, j) => j === editingChord.chordIndex ? updatedChord : c) }
+        : s
+    ));
+    setEditingChord(null);
+  };
+
+  const handleChordDelete = (sectionIndex: number, chordIndex: number) => {
+    setSections(prev => prev.map((s, i) => 
+      i === sectionIndex ? { ...s, chords: s.chords.filter((_, j) => j !== chordIndex) } : s
+    ));
+  };
+
+  const handleChordReorder = (sectionIndex: number, fromIndex: number, toIndex: number) => {
+    setSections(prev => prev.map((s, i) => {
+      if (i !== sectionIndex) return s;
+      const newChords = [...s.chords];
       const [removed] = newChords.splice(fromIndex, 1);
       newChords.splice(toIndex, 0, removed);
-      return newChords;
-    });
-  }, []);
-  
-  // Play the progression
-  const handlePlay = useCallback(() => {
-    if (chords.length === 0) return;
-    startPlayback();
-  }, [chords.length, startPlayback]);
-  
-  // Stop playback
-  const handleStop = useCallback(() => {
-    stopPlaybackCompletely();
-  }, [stopPlaybackCompletely]);
-  
-  // Reset to beginning
-  const handleReset = useCallback(() => {
-    handleStop();
-    setCurrentChordIndex(-1);
-  }, [handleStop]);
-  
-  // Export to WAV
+      return { ...s, chords: newChords };
+    }));
+  };
+
+  // Restart on changes
+  useEffect(() => {
+    const allChords = expandSectionsToChords(sections);
+    if (isPlaying && allChords.length > 0) handleChangeWhilePlaying();
+    else if (isPlaying && allChords.length === 0) stopPlaybackCompletely();
+  }, [sections]);
+
+  useEffect(() => {
+    if (isPlaying) handleChangeWhilePlaying();
+  }, [bpm, metronomeEnabled, selectedStyleId]);
+
   const handleExport = useCallback(async () => {
-    if (chords.length === 0) return;
+    const allChords = expandSectionsToChords(sections);
+    if (allChords.length === 0) return;
     
     setIsExporting(true);
     toast.info('Rendering audio...');
     
     try {
-      const audioBuffer = await renderProgressionOffline(chords, bpm);
-      toast.info('Creating WAV file...');
+      const audioBuffer = await renderProgressionOffline(allChords, bpm);
       await encodeAndDownloadMp3(audioBuffer, 'chord-progression.wav');
       toast.success('WAV exported successfully!');
     } catch (error) {
@@ -186,62 +182,98 @@ const Index = () => {
     } finally {
       setIsExporting(false);
     }
-  }, [chords, bpm]);
-  
+  }, [sections, bpm]);
+
+  const hasChords = sections.some(s => s.chords.length > 0);
+
+  // Calculate global chord offset for each section
+  const getGlobalOffset = (sectionIndex: number) => {
+    let offset = 0;
+    for (let i = 0; i < sectionIndex; i++) {
+      offset += sections[i].chords.length * sections[i].repeatCount;
+    }
+    return offset;
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card">
-        <div className="container max-w-5xl mx-auto px-4 py-4">
+        <div className="container max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
               <Music2 className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
               <h1 className="text-xl font-semibold text-foreground">Chord Player</h1>
-              <p className="text-sm text-muted-foreground">Create chord progressions & export to WAV</p>
+              <p className="text-sm text-muted-foreground">Create chord progressions & export</p>
             </div>
           </div>
         </div>
       </header>
       
-      {/* Main Content */}
-      <main className="container max-w-5xl mx-auto px-4 py-6 space-y-6">
-        {/* Transport Controls */}
+      <main className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
         <TransportControls
           isPlaying={isPlaying}
           isExporting={isExporting}
           bpm={bpm}
           metronomeEnabled={metronomeEnabled}
-          onPlay={handlePlay}
-          onStop={handleStop}
-          onReset={handleReset}
+          selectedStyleId={selectedStyleId}
+          onPlay={startPlayback}
+          onStop={stopPlaybackCompletely}
+          onReset={() => { stopPlaybackCompletely(); setCurrentChordIndex(-1); }}
           onExport={handleExport}
           onBpmChange={setBpm}
           onMetronomeToggle={setMetronomeEnabled}
-          hasChords={chords.length > 0}
+          onStyleChange={setSelectedStyleId}
+          onOpenInstruments={() => setInstrumentsPanelOpen(true)}
+          hasChords={hasChords}
         />
-        
-        {/* Timeline */}
-        <ChordTimeline
-          chords={chords}
-          currentChordIndex={currentChordIndex}
-          onReorder={handleReorder}
-          onDelete={handleDeleteChord}
-        />
-        
-        {/* Chord Selector */}
+
+        {/* Sections */}
+        <div className="space-y-4">
+          {sections.map((section, sectionIndex) => (
+            <SectionCard
+              key={section.id}
+              section={section}
+              sectionIndex={sectionIndex}
+              currentChordIndex={currentChordIndex}
+              globalChordOffset={getGlobalOffset(sectionIndex)}
+              onAddChord={() => setActiveSectionIndex(sectionIndex)}
+              onChordClick={(chordIndex) => handleChordClick(sectionIndex, chordIndex)}
+              onChordDelete={(chordIndex) => handleChordDelete(sectionIndex, chordIndex)}
+              onReorder={(from, to) => handleChordReorder(sectionIndex, from, to)}
+              onRepeatChange={(count) => handleRepeatChange(sectionIndex, count)}
+              onDelete={() => handleDeleteSection(sectionIndex)}
+              onDuplicate={() => handleDuplicateSection(sectionIndex)}
+              onMoveUp={() => handleMoveSection(sectionIndex, 'up')}
+              onMoveDown={() => handleMoveSection(sectionIndex, 'down')}
+              isFirst={sectionIndex === 0}
+              isLast={sectionIndex === sections.length - 1}
+            />
+          ))}
+
+          <Button variant="outline" onClick={handleAddSection} className="w-full border-dashed">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Section
+          </Button>
+        </div>
+
         <ChordSelector onAddChord={handleAddChord} />
       </main>
-      
-      {/* Footer */}
-      <footer className="border-t border-border mt-auto">
-        <div className="container max-w-5xl mx-auto px-4 py-4">
-          <p className="text-xs text-muted-foreground text-center">
-            Built with Web Audio API • Drag chords to reorder • Loops continuously • Changes restart playback
-          </p>
-        </div>
-      </footer>
+
+      <ChordEditModal
+        chord={editingChord?.chord || null}
+        open={!!editingChord}
+        onClose={() => setEditingChord(null)}
+        onSave={handleChordSave}
+      />
+
+      <InstrumentsPanel
+        open={instrumentsPanelOpen}
+        onClose={() => setInstrumentsPanelOpen(false)}
+        instruments={instruments}
+        onInstrumentChange={setInstruments}
+      />
     </div>
   );
 };
