@@ -13,6 +13,25 @@ import { Section } from './sections';
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 
+// Sample buffers for acoustic kit
+let acousticSnareBuffer: AudioBuffer | null = null;
+let sampleLoadPromise: Promise<void> | null = null;
+
+/**
+ * Loads the acoustic snare sample
+ */
+async function loadAcousticSamples(ctx: AudioContext): Promise<void> {
+  if (acousticSnareBuffer) return;
+  
+  try {
+    const response = await fetch('/audio/snare-drum.mp3');
+    const arrayBuffer = await response.arrayBuffer();
+    acousticSnareBuffer = await ctx.decodeAudioData(arrayBuffer);
+  } catch (error) {
+    console.warn('Failed to load acoustic snare sample:', error);
+  }
+}
+
 /**
  * Initializes or returns the existing AudioContext
  */
@@ -22,6 +41,9 @@ export function getAudioContext(): AudioContext {
     masterGain = audioContext.createGain();
     masterGain.gain.value = 0.5;
     masterGain.connect(audioContext.destination);
+    
+    // Start loading samples
+    sampleLoadPromise = loadAcousticSamples(audioContext);
   }
   
   if (audioContext.state === 'suspended') {
@@ -29,6 +51,16 @@ export function getAudioContext(): AudioContext {
   }
   
   return audioContext;
+}
+
+/**
+ * Ensures samples are loaded before playback
+ */
+export async function ensureSamplesLoaded(): Promise<void> {
+  getAudioContext();
+  if (sampleLoadPromise) {
+    await sampleLoadPromise;
+  }
 }
 
 /**
@@ -193,42 +225,55 @@ function playDrumHit(
     click.stop(startTime + 0.03);
     
   } else if (drumType === 'snare') {
-    // Snare: noise + pitched component
-    const bufferSize = ctx.sampleRate * 0.2;
-    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
+    // Use sample for Acoustic Kit, synthesize for others
+    if (soundType.id === 'standard' && acousticSnareBuffer) {
+      const source = ctx.createBufferSource();
+      source.buffer = acousticSnareBuffer;
+      
+      const sampleGain = ctx.createGain();
+      sampleGain.gain.value = volume * 0.8;
+      
+      source.connect(sampleGain);
+      sampleGain.connect(gainNode);
+      source.start(startTime);
+    } else {
+      // Snare: noise + pitched component (synthesized)
+      const bufferSize = ctx.sampleRate * 0.2;
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'highpass';
+      noiseFilter.frequency.value = 1000;
+      
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.2 * volume, startTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
+      
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(gainNode);
+      noise.start(startTime);
+      noise.stop(startTime + 0.2);
+      
+      // Body tone
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = 180;
+      const oscGain = ctx.createGain();
+      oscGain.gain.setValueAtTime(0.15 * volume, startTime);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.08);
+      osc.connect(oscGain);
+      oscGain.connect(gainNode);
+      osc.start(startTime);
+      osc.stop(startTime + 0.1);
     }
-    
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuffer;
-    
-    const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = 'highpass';
-    noiseFilter.frequency.value = 1000;
-    
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.2 * volume, startTime);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
-    
-    noise.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    noiseGain.connect(gainNode);
-    noise.start(startTime);
-    noise.stop(startTime + 0.2);
-    
-    // Body tone
-    const osc = ctx.createOscillator();
-    osc.type = 'triangle';
-    osc.frequency.value = 180;
-    const oscGain = ctx.createGain();
-    oscGain.gain.setValueAtTime(0.15 * volume, startTime);
-    oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.08);
-    osc.connect(oscGain);
-    oscGain.connect(gainNode);
-    osc.start(startTime);
-    osc.stop(startTime + 0.1);
     
   } else {
     // Hi-hat: filtered noise
