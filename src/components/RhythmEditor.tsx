@@ -434,15 +434,21 @@ export function RhythmEditor({
   };
 
   const removeInstrument = (key: InstrumentKey) => {
-    if (['kick', 'snare', 'hihat', 'bass', 'piano'].includes(key)) {
-      toast.error('Cannot remove core instruments');
-      return;
-    }
-    
     setActiveInstruments(prev => {
       const next = new Set(prev);
       next.delete(key);
       return next;
+    });
+    // Also clear the pattern data
+    setEditedStyle(prev => {
+      const newStyle = cloneStyle(prev);
+      if (newStyle.rhythm[key]) {
+        delete newStyle.rhythm[key];
+      }
+      if (newStyle.fill.pattern[key]) {
+        delete newStyle.fill.pattern[key];
+      }
+      return newStyle;
     });
   };
 
@@ -970,17 +976,15 @@ export function RhythmEditor({
                         >
                           <RotateCcw className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                         </Button>
-                        {!['kick', 'snare', 'hihat', 'bass', 'piano'].includes(instrument.key) && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-4 w-4 sm:h-6 sm:w-6 text-destructive hover:text-destructive hidden sm:flex"
-                            onClick={() => removeInstrument(instrument.key)}
-                            title="Remove instrument"
-                          >
-                            <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4 sm:h-6 sm:w-6 text-destructive hover:text-destructive hidden sm:flex"
+                          onClick={() => removeInstrument(instrument.key)}
+                          title="Remove instrument"
+                        >
+                          <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                        </Button>
                       </div>
                     </div>
                   );
