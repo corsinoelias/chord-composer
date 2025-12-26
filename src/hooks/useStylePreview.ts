@@ -5,7 +5,7 @@
 
 import { useRef, useCallback, useState } from 'react';
 import { StylePattern } from '@/lib/styles';
-import { getAudioContext, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
+import { ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 
 export function useStylePreview() {
@@ -26,12 +26,14 @@ export function useStylePreview() {
     setPreviewingStyleId(null);
   }, []);
 
-  const previewStyle = useCallback((style: StylePattern) => {
+  const previewStyle = useCallback(async (style: StylePattern) => {
     // Stop any existing preview
     stopPreview();
     
     setPreviewingStyleId(style.id);
-    getAudioContext();
+    
+    // Ensure samples are loaded before starting preview
+    await ensureSamplesLoaded();
 
     // Create a test section with a single chord
     const testSection = {
