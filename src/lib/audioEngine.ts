@@ -558,6 +558,7 @@ export interface PlaybackOptions {
   onLoopEnd?: () => void;
   onStep?: (step: number) => void; // Called on each 16th note step (0-15)
   getStyle?: () => StylePattern;   // Dynamic style getter for live updates
+  forceFill?: boolean;             // Force fill pattern for every bar (for rhythm editor preview)
 }
 
 /**
@@ -578,7 +579,8 @@ export function scheduleProgression(
     onChordChange, 
     onLoopEnd,
     onStep,
-    getStyle
+    getStyle,
+    forceFill = false
   } = options;
   
   const ctx = getAudioContext();
@@ -655,7 +657,9 @@ export function scheduleProgression(
             const barStartTime = chordStartTime + (bar * 4 * beatDuration);
             
             // Generate pattern for this bar (with fills on bar 4, 8, etc.)
-            const pattern = generateBarPattern(currentStyle, barNumber, 4, true);
+            // If forceFill is true, use barNumber=4 to always trigger fill
+            const effectiveBarNumber = forceFill ? 4 : barNumber;
+            const pattern = generateBarPattern(currentStyle, effectiveBarNumber, 4, true);
             
             // Schedule each 16th note slot
             for (let slot = 0; slot < 16; slot++) {

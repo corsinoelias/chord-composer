@@ -1,14 +1,31 @@
+import { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { MUSICAL_STYLES, StylePattern } from '@/lib/styles';
-import { Music } from 'lucide-react';
+import { getCustomStyles, deleteCustomStyle } from '@/lib/customStyles';
+import { Music, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface StyleSelectorProps {
   selectedStyleId: string;
   onStyleChange: (styleId: string) => void;
+  onCreateNew?: () => void;
+  customStyles?: StylePattern[];
 }
 
 // Group styles by category for the dropdown
 const STYLE_CATEGORIES = [
+  { id: 'Custom', label: '⭐ My Rhythms' },
   { id: 'Rock', label: 'Rock' },
   { id: 'Funk', label: 'Funk' },
   { id: 'Pop', label: 'Pop' },
@@ -26,44 +43,125 @@ const STYLE_CATEGORIES = [
   { id: 'Metal', label: 'Metal' },
 ] as const;
 
-export function StyleSelector({ selectedStyleId, onStyleChange }: StyleSelectorProps) {
-  const selectedStyle = MUSICAL_STYLES.find(s => s.id === selectedStyleId);
+export function StyleSelector({ selectedStyleId, onStyleChange, onCreateNew, customStyles = [] }: StyleSelectorProps) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [styleToDelete, setStyleToDelete] = useState<string | null>(null);
+  
+  // Combine built-in and custom styles
+  const allStyles = [...MUSICAL_STYLES, ...customStyles];
+  const selectedStyle = allStyles.find(s => s.id === selectedStyleId);
+
+  const handleDeleteClick = (e: React.MouseEvent, styleId: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setStyleToDelete(styleId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (styleToDelete) {
+      deleteCustomStyle(styleToDelete);
+      toast.success('Rhythm deleted');
+      // If the deleted style was selected, switch to first available
+      if (selectedStyleId === styleToDelete) {
+        onStyleChange(MUSICAL_STYLES[0].id);
+      }
+      // Force re-render by triggering state change
+      window.dispatchEvent(new Event('customStylesChanged'));
+    }
+    setDeleteDialogOpen(false);
+    setStyleToDelete(null);
+  };
 
   return (
-    <div className="flex items-center gap-2">
-      <Music className="w-4 h-4 text-muted-foreground" />
-      <Select value={selectedStyleId} onValueChange={onStyleChange}>
-        <SelectTrigger className="w-[160px] h-9 bg-secondary border-border">
-          <SelectValue placeholder="Seleccionar estilo" />
-        </SelectTrigger>
-        <SelectContent className="bg-popover border-border z-50 max-h-[400px]">
-          {STYLE_CATEGORIES.map(category => {
-            const stylesInCategory = MUSICAL_STYLES.filter(s => s.category === category.id);
-            if (stylesInCategory.length === 0) return null;
-            
-            return (
-              <div key={category.id}>
-                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  {category.label}
-                </div>
-                {stylesInCategory.map(style => (
-                  <SelectItem key={style.id} value={style.id} className="pl-4">
-                    <div className="flex flex-col">
-                      <span>{style.name}</span>
-                      <span className="text-[10px] text-muted-foreground">{style.bpm} BPM</span>
+    <>
+      <div className="flex items-center gap-2">
+        <Music className="w-4 h-4 text-muted-foreground" />
+        <Select value={selectedStyleId} onValueChange={onStyleChange}>
+          <SelectTrigger className="w-[180px] h-9 bg-secondary border-border">
+            <SelectValue placeholder="Seleccionar estilo" />
+          </SelectTrigger>
+          <SelectContent className="bg-popover border-border z-50 max-h-[400px]">
+            {STYLE_CATEGORIES.map(category => {
+              // For custom category, use customStyles prop
+              const stylesInCategory = category.id === 'Custom' 
+                ? customStyles
+                : MUSICAL_STYLES.filter(s => s.category === category.id);
+              
+              if (stylesInCategory.length === 0 && category.id !== 'Custom') return null;
+              
+              return (
+                <div key={category.id}>
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                    <span>{category.label}</span>
+                    {category.id === 'Custom' && onCreateNew && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-5 w-5"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          onCreateNew();
+                        }}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                  {stylesInCategory.length === 0 && category.id === 'Custom' && (
+                    <div className="px-4 py-2 text-xs text-muted-foreground italic">
+                      No custom rhythms yet
                     </div>
-                  </SelectItem>
-                ))}
-              </div>
-            );
-          })}
-        </SelectContent>
-      </Select>
-      {selectedStyle && (
-        <span className="text-xs text-muted-foreground hidden md:inline max-w-[200px] truncate">
-          {selectedStyle.description}
-        </span>
-      )}
-    </div>
+                  )}
+                  {stylesInCategory.map(style => (
+                    <SelectItem 
+                      key={style.id} 
+                      value={style.id} 
+                      className="pl-4 pr-8 relative group"
+                    >
+                      <div className="flex flex-col">
+                        <span>{style.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{style.bpm} BPM</span>
+                      </div>
+                      {category.id === 'Custom' && (
+                        <button
+                          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/20 rounded"
+                          onClick={(e) => handleDeleteClick(e, style.id)}
+                        >
+                          <Trash2 className="w-3 h-3 text-destructive" />
+                        </button>
+                      )}
+                    </SelectItem>
+                  ))}
+                </div>
+              );
+            })}
+          </SelectContent>
+        </Select>
+        {selectedStyle && (
+          <span className="text-xs text-muted-foreground hidden md:inline max-w-[200px] truncate">
+            {selectedStyle.description}
+          </span>
+        )}
+      </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Rhythm?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The custom rhythm will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
