@@ -110,6 +110,9 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
   
   const playbackRef = useRef<{ cancel: () => void } | null>(null);
   const editedStyleRef = useRef<StylePattern>(editedStyle);
+  const isInitializedRef = useRef(false);
+  const stepAnimationRef = useRef<number | null>(null);
+  const loopStartTimeRef = useRef<number>(0);
   
   // Keep ref in sync for live audio reading
   useEffect(() => {
@@ -118,8 +121,17 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
     onStyleChange?.(editedStyle);
   }, [editedStyle, onStyleChange]);
 
-  // Initialize from style prop
+  // Initialize from style prop - only when first opening or style changes
   useEffect(() => {
+    if (!open) {
+      isInitializedRef.current = false;
+      return;
+    }
+    
+    // Only initialize once when opening
+    if (isInitializedRef.current) return;
+    isInitializedRef.current = true;
+    
     if (style) {
       const cloned = cloneStyle(style);
       setEditedStyle(cloned);
@@ -156,10 +168,50 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
     }
   }, [open]);
 
+  // Animate playhead using requestAnimationFrame for smooth movement
+  const updatePlayhead = useCallback(() => {
+    if (!isPlaying) return;
+    
+    const ctx = getAudioContext();
+    const bpm = editedStyleRef.current.bpm;
+    const slotDuration = (60 / bpm / 4); // Duration of one 16th note in seconds
+    const barDuration = slotDuration * 16;
+    
+    const elapsed = ctx.currentTime - loopStartTimeRef.current;
+    const loopPosition = elapsed % barDuration;
+    const step = Math.floor(loopPosition / slotDuration) % 16;
+    
+    setCurrentStep(step);
+    
+    stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
+  }, [isPlaying]);
+
+  // Start/stop playhead animation
+  useEffect(() => {
+    if (isPlaying) {
+      stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
+    } else {
+      if (stepAnimationRef.current) {
+        cancelAnimationFrame(stepAnimationRef.current);
+        stepAnimationRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (stepAnimationRef.current) {
+        cancelAnimationFrame(stepAnimationRef.current);
+      }
+    };
+  }, [isPlaying, updatePlayhead]);
+
   const stopPatternPlayback = useCallback(() => {
     if (playbackRef.current) {
       playbackRef.current.cancel();
       playbackRef.current = null;
+    }
+    if (stepAnimationRef.current) {
+      cancelAnimationFrame(stepAnimationRef.current);
+      stepAnimationRef.current = null;
     }
     stopPlayback();
     setIsPlaying(false);
@@ -169,7 +221,8 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
   const startPatternPlayback = useCallback(() => {
     stopPatternPlayback();
     
-    getAudioContext();
+    const ctx = getAudioContext();
+    loopStartTimeRef.current = ctx.currentTime + 0.1;
     setIsPlaying(true);
     
     // Create a test section with a single chord using this pattern
@@ -190,11 +243,9 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
       transposition: 0,
       onChordChange: () => {},
       onLoopEnd: () => {
-        setCurrentStep(-1);
-      },
-      // Live step sync - this is called on each 16th note
-      onStep: (step) => {
-        setCurrentStep(step);
+        // Reset loop start time for playhead calculation
+        const ctx = getAudioContext();
+        loopStartTimeRef.current = ctx.currentTime + 0.05;
       },
       // Live style getter - audio engine reads this on each loop
       getStyle: () => editedStyleRef.current,
@@ -322,6 +373,10 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
     setEditedStyle(prev => ({ ...prev, bpm: clampedBpm }));
   };
 
+  const handleFillToggle = (checked: boolean) => {
+    setShowFill(checked);
+  };
+
   const getVelocityColor = (value: number): string => {
     const idx = VELOCITY_LEVELS.findIndex(v => Math.abs(v - value) < 0.1);
     return VELOCITY_COLORS[idx === -1 ? 0 : idx];
@@ -410,7 +465,7 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
             <div className="flex items-center gap-2">
               <Switch
                 checked={showFill}
-                onCheckedChange={setShowFill}
+                onCheckedChange={handleFillToggle}
                 id="fill-toggle"
               />
               <Label htmlFor="fill-toggle" className="text-sm cursor-pointer">
