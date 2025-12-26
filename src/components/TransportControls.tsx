@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StyleSelector } from './StyleSelector';
 
+import { StylePattern } from '@/lib/styles';
+
 interface TransportControlsProps {
   isPlaying: boolean;
   isExporting: boolean;
@@ -13,6 +15,7 @@ interface TransportControlsProps {
   selectedStyleId: string;
   songTitle: string;
   transposition: number;
+  customStyles?: StylePattern[];
   onPlay: () => void;
   onStop: () => void;
   onReset: () => void;
@@ -24,6 +27,7 @@ interface TransportControlsProps {
   onTranspositionChange: (semitones: number) => void;
   onOpenInstruments: () => void;
   onOpenRhythmEditor: () => void;
+  onCreateNewRhythm?: () => void;
   hasChords: boolean;
 }
 
@@ -41,6 +45,7 @@ export function TransportControls({
   selectedStyleId,
   songTitle,
   transposition,
+  customStyles = [],
   onPlay,
   onStop,
   onReset,
@@ -52,6 +57,7 @@ export function TransportControls({
   onTranspositionChange,
   onOpenInstruments,
   onOpenRhythmEditor,
+  onCreateNewRhythm,
   hasChords,
 }: TransportControlsProps) {
   return (

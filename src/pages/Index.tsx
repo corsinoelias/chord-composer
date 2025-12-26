@@ -3,6 +3,7 @@ import { Chord, generateChordId } from '@/lib/musicTheory';
 import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
 import { getDefaultInstrumentStates, InstrumentState, isInstrumentAudible } from '@/lib/instruments';
 import { getStyleById, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
+import { getCustomStyles, saveCustomStyle } from '@/lib/customStyles';
 import { getAudioContext, scheduleProgression, renderProgressionOffline, stopPlayback } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { SectionCard } from '@/components/SectionCard';
@@ -10,6 +11,7 @@ import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
 import { AddChordModal } from '@/components/AddChordModal';
 import { RhythmEditor } from '@/components/RhythmEditor';
+import { CreateRhythmModal } from '@/components/CreateRhythmModal';
 import { InstrumentsPanel } from '@/components/InstrumentsPanel';
 import { Button } from '@/components/ui/button';
 import { Music2, Plus } from 'lucide-react';
@@ -39,6 +41,9 @@ const Index = () => {
   const [addChordSection, setAddChordSection] = useState<{ index: number; name: string } | null>(null);
   const [instrumentsPanelOpen, setInstrumentsPanelOpen] = useState(false);
   const [rhythmEditorOpen, setRhythmEditorOpen] = useState(false);
+  const [createRhythmModalOpen, setCreateRhythmModalOpen] = useState(false);
+  const [editingNewStyle, setEditingNewStyle] = useState<StylePattern | null>(null);
+  const [customStyles, setCustomStyles] = useState<StylePattern[]>(getCustomStyles());
   const [draggedSectionIndex, setDraggedSectionIndex] = useState<number | null>(null);
   const [dragOverSectionIndex, setDragOverSectionIndex] = useState<number | null>(null);
   
@@ -64,6 +69,15 @@ const Index = () => {
   
   useEffect(() => {
     return () => { cancelPlaybackRef.current?.(); };
+  }, []);
+
+  // Listen for custom styles changes
+  useEffect(() => {
+    const handleCustomStylesChanged = () => {
+      setCustomStyles(getCustomStyles());
+    };
+    window.addEventListener('customStylesChanged', handleCustomStylesChanged);
+    return () => window.removeEventListener('customStylesChanged', handleCustomStylesChanged);
   }, []);
 
   const startPlayback = useCallback(() => {
@@ -394,18 +408,33 @@ const Index = () => {
         open={rhythmEditorOpen}
         onClose={() => {
           setRhythmEditorOpen(false);
-          // Clear live edits when closing without saving
+          setEditingNewStyle(null);
           setLiveEditedStyle(null);
         }}
-        style={liveEditedStyle || getStyleById(selectedStyleId) || MUSICAL_STYLES[0]}
+        style={editingNewStyle || liveEditedStyle || getStyleById(selectedStyleId) || MUSICAL_STYLES[0]}
+        isNewStyle={!!editingNewStyle}
         onStyleChange={setLiveEditedStyle}
         onSave={(savedStyle) => {
+          saveCustomStyle(savedStyle);
+          setCustomStyles(getCustomStyles());
           setLiveEditedStyle(savedStyle);
-          // Optionally update the selected style ID if it's a known style
-          const existingStyle = MUSICAL_STYLES.find(s => s.id === savedStyle.id);
-          if (existingStyle) {
-            setSelectedStyleId(savedStyle.id);
-          }
+          setSelectedStyleId(savedStyle.id);
+          setEditingNewStyle(null);
+        }}
+      />
+
+      <CreateRhythmModal
+        open={createRhythmModalOpen}
+        onClose={() => setCreateRhythmModalOpen(false)}
+        onCreateEmpty={(newStyle) => {
+          setCreateRhythmModalOpen(false);
+          setEditingNewStyle(newStyle);
+          setRhythmEditorOpen(true);
+        }}
+        onCreateFromTemplate={(newStyle) => {
+          setCreateRhythmModalOpen(false);
+          setEditingNewStyle(newStyle);
+          setRhythmEditorOpen(true);
         }}
       />
     </div>

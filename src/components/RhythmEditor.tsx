@@ -25,6 +25,7 @@ import {
 import { StylePattern, MUSICAL_STYLES } from '@/lib/styles';
 import { getAudioContext, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
+import { saveCustomStyle } from '@/lib/customStyles';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -50,7 +51,8 @@ type InstrumentKey = typeof ALL_INSTRUMENTS[number]['key'];
 interface RhythmEditorProps {
   open: boolean;
   onClose: () => void;
-  style: StylePattern | null;
+  style: StylePattern;
+  isNewStyle?: boolean; // Indicates this is a new custom style being created
   onSave?: (style: StylePattern) => void;
   onStyleChange?: (style: StylePattern) => void; // Live update callback
 }
@@ -64,36 +66,9 @@ const VELOCITY_COLORS = [
   'bg-chart-4',
 ];
 
-// Beat subdivisions for 16th notes
-const BEAT_SUBDIVISIONS = ['1', 'e', '&', 'a'];
-
 // Create empty pattern
 function createEmptyPattern(): number[] {
   return new Array(16).fill(0);
-}
-
-// Create empty style template
-function createEmptyStyle(): StylePattern {
-  return {
-    id: `custom_${Date.now()}`,
-    name: 'New Rhythm',
-    category: 'Pop',
-    bpm: 120,
-    bpmRange: [80, 160],
-    description: 'Custom rhythm pattern',
-    rhythm: {
-      kick: createEmptyPattern(),
-      snare: createEmptyPattern(),
-      hihat: createEmptyPattern(),
-      bass: createEmptyPattern(),
-      piano: createEmptyPattern(),
-    },
-    fill: {
-      position: 12,
-      pattern: {},
-    },
-    volumes: { piano: 0.7, bass: 0.8, drums: 0.75 },
-  };
 }
 
 // Deep clone a style
@@ -101,8 +76,8 @@ function cloneStyle(style: StylePattern): StylePattern {
   return JSON.parse(JSON.stringify(style));
 }
 
-export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: RhythmEditorProps) {
-  const [editedStyle, setEditedStyle] = useState<StylePattern>(createEmptyStyle());
+export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyleChange }: RhythmEditorProps) {
+  const [editedStyle, setEditedStyle] = useState<StylePattern>(cloneStyle(style));
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
   const [showFill, setShowFill] = useState(false);
@@ -110,16 +85,21 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
   
   const playbackRef = useRef<{ cancel: () => void } | null>(null);
   const editedStyleRef = useRef<StylePattern>(editedStyle);
+  const showFillRef = useRef(showFill);
   const isInitializedRef = useRef(false);
   const stepAnimationRef = useRef<number | null>(null);
   const loopStartTimeRef = useRef<number>(0);
   
-  // Keep ref in sync for live audio reading
+  // Keep refs in sync for live audio reading
   useEffect(() => {
     editedStyleRef.current = editedStyle;
     // Notify parent of live changes (for main playback sync)
     onStyleChange?.(editedStyle);
   }, [editedStyle, onStyleChange]);
+
+  useEffect(() => {
+    showFillRef.current = showFill;
+  }, [showFill]);
 
   // Initialize from style prop - only when first opening or style changes
   useEffect(() => {
@@ -132,31 +112,25 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
     if (isInitializedRef.current) return;
     isInitializedRef.current = true;
     
-    if (style) {
-      const cloned = cloneStyle(style);
-      setEditedStyle(cloned);
-      editedStyleRef.current = cloned;
-      
-      // Determine active instruments
-      const active = new Set<InstrumentKey>();
-      Object.entries(cloned.rhythm).forEach(([key, pattern]) => {
-        if (pattern && pattern.some((v: number) => v > 0)) {
-          active.add(key as InstrumentKey);
-        }
-      });
-      // Always show basic instruments
-      active.add('kick');
-      active.add('snare');
-      active.add('hihat');
-      active.add('bass');
-      active.add('piano');
-      setActiveInstruments(active);
-    } else {
-      const empty = createEmptyStyle();
-      setEditedStyle(empty);
-      editedStyleRef.current = empty;
-      setActiveInstruments(new Set(['kick', 'snare', 'hihat', 'bass', 'piano']));
-    }
+    const cloned = cloneStyle(style);
+    setEditedStyle(cloned);
+    editedStyleRef.current = cloned;
+    
+    // Determine active instruments
+    const active = new Set<InstrumentKey>();
+    Object.entries(cloned.rhythm).forEach(([key, pattern]) => {
+      if (pattern && pattern.some((v: number) => v > 0)) {
+        active.add(key as InstrumentKey);
+      }
+    });
+    // Always show basic instruments
+    active.add('kick');
+    active.add('snare');
+    active.add('hihat');
+    active.add('bass');
+    active.add('piano');
+    setActiveInstruments(active);
+    
     setShowFill(false);
     setCurrentStep(-1);
   }, [style, open]);
@@ -249,10 +223,19 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
       },
       // Live style getter - audio engine reads this on each loop
       getStyle: () => editedStyleRef.current,
+      // Pass whether to force fill pattern
+      forceFill: showFillRef.current,
     });
     
     playbackRef.current = { cancel };
   }, [stopPatternPlayback]);
+
+  // Restart playback when showFill changes while playing
+  useEffect(() => {
+    if (isPlaying) {
+      startPatternPlayback();
+    }
+  }, [showFill]);
 
   const togglePlayback = useCallback(() => {
     if (isPlaying) {
@@ -361,10 +344,15 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
   };
 
   const handleSave = () => {
+    // Save to localStorage if it's a custom style
+    if (editedStyle.id.startsWith('custom_')) {
+      saveCustomStyle(editedStyle);
+    }
+    
     if (onSave) {
       onSave(editedStyle);
-      toast.success('Rhythm saved!');
     }
+    toast.success(`Rhythm "${editedStyle.name}" saved!`);
     onClose();
   };
 
@@ -391,7 +379,7 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
         <DialogHeader className="p-4 pb-2 border-b border-border">
           <DialogTitle className="flex items-center gap-2">
             <Drum className="w-5 h-5" />
-            Rhythm Editor
+            {isNewStyle ? 'Create New Rhythm' : 'Edit Rhythm'}
             {isPlaying && (
               <span className="ml-2 text-xs font-normal text-primary animate-pulse">● LIVE</span>
             )}
@@ -536,31 +524,27 @@ export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: Rh
           {/* Grid Area */}
           <ScrollArea className="flex-1 max-h-[400px]">
             <div className="p-4">
-              {/* Beat Markers - Aligned with grid */}
+              {/* Beat Markers - Aligned with grid: 1, 2, 3, 4 */}
               <div className="flex mb-2">
                 {/* Spacer for instrument labels */}
                 <div className="w-28 shrink-0" />
                 
-                {/* Beat columns */}
+                {/* Beat columns - showing 1, 2, 3, 4 aligned above each beat's first cell */}
                 <div className="flex-1 flex">
                   {[1, 2, 3, 4].map(beat => (
-                    <div key={beat} className="flex-1">
-                      <div className="text-center mb-1">
-                        <span className="text-xs font-medium text-muted-foreground">Beat {beat}</span>
+                    <div key={beat} className="flex-1 flex">
+                      <div className="flex-1 text-center">
+                        <span className={cn(
+                          "text-sm font-bold",
+                          "text-foreground"
+                        )}>
+                          {beat}
+                        </span>
                       </div>
-                      <div className="flex">
-                        {BEAT_SUBDIVISIONS.map((sub, i) => (
-                          <div 
-                            key={i} 
-                            className={cn(
-                              "flex-1 text-center text-[10px]",
-                              i === 0 ? "text-foreground font-medium" : "text-muted-foreground/60"
-                            )}
-                          >
-                            {sub}
-                          </div>
-                        ))}
-                      </div>
+                      {/* Empty space for the other 3 subdivisions */}
+                      <div className="flex-1" />
+                      <div className="flex-1" />
+                      <div className="flex-1" />
                     </div>
                   ))}
                 </div>
