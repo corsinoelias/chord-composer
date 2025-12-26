@@ -135,11 +135,12 @@ export function RhythmEditor({
   const loopStartTimeRef = useRef<number>(0);
   
   const isSyncedWithMain = isMainPlaying && !isLocalPlaying;
-  const isPlaying = isLocalPlaying || (isMainPlaying && !showFill);
+  const isPlaying = isLocalPlaying || isMainPlaying;
   
-  const displayStep = isSyncedWithMain && mainPlayheadStep !== undefined 
-    ? mainPlayheadStep 
-    : currentStep;
+  // Keep playhead visible: use main if synced, local if local playing, or -1 if nothing
+  const displayStep = isLocalPlaying 
+    ? currentStep 
+    : (isSyncedWithMain && mainPlayheadStep !== undefined ? mainPlayheadStep : currentStep);
   
   // Check if editing a built-in style
   const isEditingBuiltIn = !isCustomStyle(style.id) && !isNewStyle;
