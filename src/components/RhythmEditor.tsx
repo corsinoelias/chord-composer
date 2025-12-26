@@ -230,10 +230,24 @@ export function RhythmEditor({
 
   useEffect(() => {
     if (!open) {
-      stopLocalPlayback();
+      // Only stop local playback resources, don't call stopPlayback() if main is playing
+      if (playbackRef.current) {
+        playbackRef.current.cancel();
+        playbackRef.current = null;
+      }
+      if (stepAnimationRef.current) {
+        cancelAnimationFrame(stepAnimationRef.current);
+        stepAnimationRef.current = null;
+      }
+      // Only stop global audio if we were doing local playback, not if main was playing
+      if (isLocalPlaying) {
+        stopPlayback();
+      }
+      setIsLocalPlaying(false);
+      setCurrentStep(-1);
       stopPreview();
     }
-  }, [open, stopPreview]);
+  }, [open, stopPreview, isLocalPlaying]);
 
   const updatePlayhead = useCallback(() => {
     if (!isLocalPlaying) return;
