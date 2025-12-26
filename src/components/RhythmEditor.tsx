@@ -660,17 +660,18 @@ export function RhythmEditor({
                 />
               </div>
               
-              {/* BPM */}
-              <div className="flex items-center gap-2">
-                <Label className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">BPM:</Label>
-                <Input
-                  type="number"
-                  value={editedStyle.bpm}
-                  onChange={e => handleBpmChange(parseInt(e.target.value) || 120)}
-                  className="w-16 sm:w-20 h-8 text-sm"
+              {/* BPM Slider */}
+              <div className="flex items-center gap-2 min-w-[140px] sm:min-w-[180px]">
+                <Label className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                  <span className="hidden sm:inline">BPM: </span>{editedStyle.bpm}
+                </Label>
+                <input
+                  type="range"
                   min={40}
                   max={200}
-                  placeholder="BPM"
+                  value={editedStyle.bpm}
+                  onChange={e => handleBpmChange(parseInt(e.target.value))}
+                  className="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
                 />
               </div>
               
