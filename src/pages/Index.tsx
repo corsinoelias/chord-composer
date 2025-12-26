@@ -430,13 +430,10 @@ const Index = () => {
         isNewStyle={!!editingNewStyle}
         onStyleChange={setLiveEditedStyle}
         onSave={(savedStyle) => {
-          // Save custom styles to localStorage
-          if (savedStyle.id.startsWith('custom_')) {
-            saveCustomStyle(savedStyle);
-            setCustomStyles(getCustomStyles());
-            // Emit event to update other components
-            window.dispatchEvent(new Event('customStylesChanged'));
-          }
+          // Update custom styles from localStorage
+          setCustomStyles(getCustomStyles());
+          // Emit event to update other components
+          window.dispatchEvent(new Event('customStylesChanged'));
           setLiveEditedStyle(null);
           setSelectedStyleId(savedStyle.id);
           setEditingNewStyle(null);
