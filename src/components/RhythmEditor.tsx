@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { StylePattern, MUSICAL_STYLES } from '@/lib/styles';
 import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
+import { audioEvents } from '@/lib/audioEvents';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
 import { useStylePreview } from '@/hooks/useStylePreview';
@@ -241,7 +242,7 @@ export function RhythmEditor({
       }
       // Only stop global audio if we were doing local playback, not if main was playing
       if (isLocalPlaying) {
-        stopPlayback();
+        stopPlayback('local');
       }
       setIsLocalPlaying(false);
       setCurrentStep(-1);
@@ -292,10 +293,24 @@ export function RhythmEditor({
       cancelAnimationFrame(stepAnimationRef.current);
       stepAnimationRef.current = null;
     }
-    stopPlayback();
+    stopPlayback('local');
     setIsLocalPlaying(false);
     setCurrentStep(-1);
   }, []);
+
+  // Listen for playback stopped events from main
+  useEffect(() => {
+    const unsubscribe = audioEvents.on('playback:stopped', ({ source }) => {
+      if (source === 'main') {
+        // Main playback was stopped, but we might still want local state
+        // Just update the local playing state if we were synced
+        if (!isLocalPlaying) {
+          setCurrentStep(-1);
+        }
+      }
+    });
+    return unsubscribe;
+  }, [isLocalPlaying]);
 
   const startLocalPlayback = useCallback(async () => {
     if (isMainPlaying && onToggleMainPlayback) {
