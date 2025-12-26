@@ -24,7 +24,8 @@ const Index = () => {
   const [selectedStyleId, setSelectedStyleId] = useState('rock_basic');
   const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
   const [songTitle, setSongTitle] = useState('My Song');
-  const [transposition, setTransposition] = useState(0); // Semitones
+  const [transposition, setTransposition] = useState(0);
+  const [currentPlayheadStep, setCurrentPlayheadStep] = useState(-1);
   
   // Live edited style (for rhythm editor live mode)
   const [liveEditedStyle, setLiveEditedStyle] = useState<StylePattern | null>(null);
@@ -108,7 +109,7 @@ const Index = () => {
       transposition: transpositionRef.current,
       onChordChange: setCurrentChordIndex,
       onLoopEnd: () => setCurrentChordIndex(0),
-      // Live style getter for real-time updates from rhythm editor
+      onStepChange: setCurrentPlayheadStep, // Track current step for rhythm editor sync
       getStyle: () => liveEditedStyleRef.current || getStyleById(styleRef.current, customStylesRef.current) || MUSICAL_STYLES[0],
     });
     
@@ -121,6 +122,7 @@ const Index = () => {
     stopPlayback();
     setIsPlaying(false);
     setCurrentChordIndex(-1);
+    setCurrentPlayheadStep(-1);
   }, []);
 
   const handleChangeWhilePlaying = useCallback(() => {
@@ -427,12 +429,35 @@ const Index = () => {
           setLiveEditedStyle(null);
         }}
         style={editingNewStyle || getStyleById(selectedStyleId, customStyles) || MUSICAL_STYLES[0]}
+        allStyles={[...customStyles, ...MUSICAL_STYLES]}
         isNewStyle={!!editingNewStyle}
+        isMainPlaying={isPlaying}
+        mainPlayheadStep={currentPlayheadStep}
         onStyleChange={setLiveEditedStyle}
-        onSave={(savedStyle) => {
-          // Update custom styles from localStorage
+        onStyleSelect={(styleId) => {
+          // User selected a different style from the dropdown
+          setSelectedStyleId(styleId);
+          setEditingNewStyle(null);
+          setLiveEditedStyle(null);
+        }}
+        onDelete={(styleId) => {
+          // Refresh custom styles after deletion
           setCustomStyles(getCustomStyles());
-          // Emit event to update other components
+          window.dispatchEvent(new Event('customStylesChanged'));
+          // If deleted the current style, switch to first available
+          if (selectedStyleId === styleId) {
+            setSelectedStyleId(MUSICAL_STYLES[0].id);
+          }
+        }}
+        onToggleMainPlayback={() => {
+          if (isPlaying) {
+            stopPlaybackCompletely();
+          } else {
+            startPlayback();
+          }
+        }}
+        onSave={(savedStyle) => {
+          setCustomStyles(getCustomStyles());
           window.dispatchEvent(new Event('customStylesChanged'));
           setLiveEditedStyle(null);
           setSelectedStyleId(savedStyle.id);

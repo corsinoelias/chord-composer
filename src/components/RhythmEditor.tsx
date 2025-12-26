@@ -20,14 +20,33 @@ import {
   Drum,
   Piano,
   Guitar,
-  Music
+  Music,
+  ChevronDown
 } from 'lucide-react';
 import { StylePattern, MUSICAL_STYLES } from '@/lib/styles';
-import { getAudioContext, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
+import { getAudioContext, scheduleProgression, stopPlayback, isCurrentlyPlaying } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
-import { saveCustomStyle } from '@/lib/customStyles';
+import { saveCustomStyle, deleteCustomStyle, getCustomStyles } from '@/lib/customStyles';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // All possible instruments in the editor
 const ALL_INSTRUMENTS = [
@@ -52,9 +71,15 @@ interface RhythmEditorProps {
   open: boolean;
   onClose: () => void;
   style: StylePattern;
-  isNewStyle?: boolean; // Indicates this is a new custom style being created
+  allStyles: StylePattern[]; // All available styles (built-in + custom)
+  isNewStyle?: boolean;
+  isMainPlaying?: boolean; // Is the main player currently playing?
+  mainPlayheadStep?: number; // Current step from main player
   onSave?: (style: StylePattern) => void;
-  onStyleChange?: (style: StylePattern) => void; // Live update callback
+  onStyleChange?: (style: StylePattern) => void;
+  onStyleSelect?: (styleId: string) => void; // Called when user selects a different style
+  onDelete?: (styleId: string) => void; // Called when user deletes a custom style
+  onToggleMainPlayback?: () => void; // Toggle main playback from editor
 }
 
 const VELOCITY_LEVELS = [0, 0.3, 0.5, 0.7, 1];
@@ -76,12 +101,27 @@ function cloneStyle(style: StylePattern): StylePattern {
   return JSON.parse(JSON.stringify(style));
 }
 
-export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyleChange }: RhythmEditorProps) {
+export function RhythmEditor({ 
+  open, 
+  onClose, 
+  style, 
+  allStyles,
+  isNewStyle, 
+  isMainPlaying,
+  mainPlayheadStep,
+  onSave, 
+  onStyleChange,
+  onStyleSelect,
+  onDelete,
+  onToggleMainPlayback,
+}: RhythmEditorProps) {
   const [editedStyle, setEditedStyle] = useState<StylePattern>(cloneStyle(style));
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLocalPlaying, setIsLocalPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
   const [showFill, setShowFill] = useState(false);
   const [activeInstruments, setActiveInstruments] = useState<Set<InstrumentKey>>(new Set());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [styleToDelete, setStyleToDelete] = useState<StylePattern | null>(null);
   
   const playbackRef = useRef<{ cancel: () => void } | null>(null);
   const editedStyleRef = useRef<StylePattern>(editedStyle);
@@ -90,10 +130,18 @@ export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyle
   const stepAnimationRef = useRef<number | null>(null);
   const loopStartTimeRef = useRef<number>(0);
   
+  // Determine if we're synced with main playback
+  const isSyncedWithMain = isMainPlaying && !isLocalPlaying;
+  const isPlaying = isLocalPlaying || (isMainPlaying && !showFill);
+  
+  // Get display step - from main when synced, from local when local playing
+  const displayStep = isSyncedWithMain && mainPlayheadStep !== undefined 
+    ? mainPlayheadStep 
+    : currentStep;
+  
   // Keep refs in sync for live audio reading
   useEffect(() => {
     editedStyleRef.current = editedStyle;
-    // Notify parent of live changes (for main playback sync)
     onStyleChange?.(editedStyle);
   }, [editedStyle, onStyleChange]);
 
@@ -135,20 +183,43 @@ export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyle
     setCurrentStep(-1);
   }, [style, open]);
 
+  // Re-initialize when style changes (via dropdown selection)
+  useEffect(() => {
+    if (open && isInitializedRef.current) {
+      const cloned = cloneStyle(style);
+      setEditedStyle(cloned);
+      editedStyleRef.current = cloned;
+      
+      // Update active instruments
+      const active = new Set<InstrumentKey>();
+      Object.entries(cloned.rhythm).forEach(([key, pattern]) => {
+        if (pattern && pattern.some((v: number) => v > 0)) {
+          active.add(key as InstrumentKey);
+        }
+      });
+      active.add('kick');
+      active.add('snare');
+      active.add('hihat');
+      active.add('bass');
+      active.add('piano');
+      setActiveInstruments(active);
+    }
+  }, [style.id]);
+
   // Cleanup on close
   useEffect(() => {
     if (!open) {
-      stopPatternPlayback();
+      stopLocalPlayback();
     }
   }, [open]);
 
-  // Animate playhead using requestAnimationFrame for smooth movement
+  // Animate playhead using requestAnimationFrame for smooth movement (only for local playback)
   const updatePlayhead = useCallback(() => {
-    if (!isPlaying) return;
+    if (!isLocalPlaying) return;
     
     const ctx = getAudioContext();
     const bpm = editedStyleRef.current.bpm;
-    const slotDuration = (60 / bpm / 4); // Duration of one 16th note in seconds
+    const slotDuration = (60 / bpm / 4);
     const barDuration = slotDuration * 16;
     
     const elapsed = ctx.currentTime - loopStartTimeRef.current;
@@ -158,11 +229,11 @@ export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyle
     setCurrentStep(step);
     
     stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
-  }, [isPlaying]);
+  }, [isLocalPlaying]);
 
-  // Start/stop playhead animation
+  // Start/stop playhead animation for local playback
   useEffect(() => {
-    if (isPlaying) {
+    if (isLocalPlaying) {
       stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
     } else {
       if (stepAnimationRef.current) {
@@ -176,9 +247,9 @@ export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyle
         cancelAnimationFrame(stepAnimationRef.current);
       }
     };
-  }, [isPlaying, updatePlayhead]);
+  }, [isLocalPlaying, updatePlayhead]);
 
-  const stopPatternPlayback = useCallback(() => {
+  const stopLocalPlayback = useCallback(() => {
     if (playbackRef.current) {
       playbackRef.current.cancel();
       playbackRef.current = null;
@@ -188,16 +259,21 @@ export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyle
       stepAnimationRef.current = null;
     }
     stopPlayback();
-    setIsPlaying(false);
+    setIsLocalPlaying(false);
     setCurrentStep(-1);
   }, []);
 
-  const startPatternPlayback = useCallback(() => {
-    stopPatternPlayback();
+  const startLocalPlayback = useCallback(() => {
+    // Stop main playback if running
+    if (isMainPlaying && onToggleMainPlayback) {
+      onToggleMainPlayback();
+    }
+    
+    stopLocalPlayback();
     
     const ctx = getAudioContext();
     loopStartTimeRef.current = ctx.currentTime + 0.1;
-    setIsPlaying(true);
+    setIsLocalPlaying(true);
     
     // Create a test section with a single chord using this pattern
     const testSection = {
@@ -217,33 +293,44 @@ export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyle
       transposition: 0,
       onChordChange: () => {},
       onLoopEnd: () => {
-        // Reset loop start time for playhead calculation
         const ctx = getAudioContext();
         loopStartTimeRef.current = ctx.currentTime + 0.05;
       },
-      // Live style getter - audio engine reads this on each loop
       getStyle: () => editedStyleRef.current,
-      // Pass whether to force fill pattern
       forceFill: showFillRef.current,
     });
     
     playbackRef.current = { cancel };
-  }, [stopPatternPlayback]);
+  }, [stopLocalPlayback, isMainPlaying, onToggleMainPlayback]);
 
-  // Restart playback when showFill changes while playing
+  // Restart local playback when showFill changes while locally playing
   useEffect(() => {
-    if (isPlaying) {
-      startPatternPlayback();
+    if (isLocalPlaying) {
+      startLocalPlayback();
     }
   }, [showFill]);
 
   const togglePlayback = useCallback(() => {
-    if (isPlaying) {
-      stopPatternPlayback();
+    if (showFill) {
+      // In fill mode, always use local playback to preview the fill
+      if (isLocalPlaying) {
+        stopLocalPlayback();
+      } else {
+        startLocalPlayback();
+      }
     } else {
-      startPatternPlayback();
+      // In main pattern mode, toggle main playback for sync
+      if (isLocalPlaying) {
+        stopLocalPlayback();
+      } else if (isMainPlaying) {
+        // Stop main playback
+        onToggleMainPlayback?.();
+      } else {
+        // Start main playback to sync
+        onToggleMainPlayback?.();
+      }
     }
-  }, [isPlaying, startPatternPlayback, stopPatternPlayback]);
+  }, [isLocalPlaying, isMainPlaying, showFill, startLocalPlayback, stopLocalPlayback, onToggleMainPlayback]);
 
   // Handle cell click - cycle through velocities
   const handleCellClick = (instrument: InstrumentKey, step: number, isFill: boolean) => {
@@ -382,80 +469,174 @@ export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyle
   const availableInstruments = ALL_INSTRUMENTS.filter(i => !activeInstruments.has(i.key));
   const sortedActiveInstruments = ALL_INSTRUMENTS.filter(i => activeInstruments.has(i.key));
 
+  // Group styles by category
+  const customStylesList = allStyles.filter(s => s.id.startsWith('custom_'));
+  const builtInStyles = allStyles.filter(s => !s.id.startsWith('custom_'));
+  const stylesByCategory = builtInStyles.reduce((acc, s) => {
+    if (!acc[s.category]) acc[s.category] = [];
+    acc[s.category].push(s);
+    return acc;
+  }, {} as Record<string, StylePattern[]>);
+
+  const handleDeleteStyle = (styleToDelete: StylePattern) => {
+    setStyleToDelete(styleToDelete);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (styleToDelete) {
+      deleteCustomStyle(styleToDelete.id);
+      onDelete?.(styleToDelete.id);
+      toast.success(`Rhythm "${styleToDelete.name}" deleted`);
+      // If we deleted the current style, switch to first available
+      if (editedStyle.id === styleToDelete.id) {
+        const firstStyle = allStyles.find(s => s.id !== styleToDelete.id) || MUSICAL_STYLES[0];
+        onStyleSelect?.(firstStyle.id);
+      }
+    }
+    setDeleteDialogOpen(false);
+    setStyleToDelete(null);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={() => { stopPatternPlayback(); onClose(); }}>
-      <DialogContent className="max-w-5xl max-h-[90vh] p-0 gap-0">
-        <DialogHeader className="p-4 pb-2 border-b border-border">
-          <DialogTitle className="flex items-center gap-2">
-            <Drum className="w-5 h-5" />
-            {isNewStyle ? 'Create New Rhythm' : 'Edit Rhythm'}
-            {isPlaying && (
-              <span className="ml-2 text-xs font-normal text-primary animate-pulse">● LIVE</span>
-            )}
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="flex flex-col h-full">
-          {/* Top Controls */}
-          <div className="p-4 border-b border-border bg-card/50 flex flex-wrap items-center gap-4">
-            {/* Style Name */}
-            <div className="flex items-center gap-2">
-              <Label className="text-sm text-muted-foreground">Name:</Label>
-              <Input
-                value={editedStyle.name}
-                onChange={e => setEditedStyle(prev => ({ ...prev, name: e.target.value }))}
-                className="w-40 h-8"
-              />
-            </div>
-            
-            {/* BPM */}
-            <div className="flex items-center gap-2">
-              <Label className="text-sm text-muted-foreground">BPM:</Label>
-              <Input
-                type="number"
-                value={editedStyle.bpm}
-                onChange={e => handleBpmChange(parseInt(e.target.value) || 120)}
-                className="w-20 h-8"
-                min={40}
-                max={200}
-              />
-            </div>
-            
-            {/* Category */}
-            <div className="flex items-center gap-2">
-              <Label className="text-sm text-muted-foreground">Category:</Label>
-              <Select 
-                value={editedStyle.category} 
-                onValueChange={(value: StylePattern['category']) => setEditedStyle(prev => ({ ...prev, category: value }))}
-              >
-                <SelectTrigger className="w-28 h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {['Rock', 'Funk', 'Pop', 'Reggae', 'HipHop', 'Disco', 'Blues', 'Latin', 'Metal', 'Folk', 'Country', 'Jazz', 'Soul', 'Indie', 'LoFi'].map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Playback Controls */}
-            <div className="flex items-center gap-2 ml-auto">
-              <Button
-                variant={isPlaying ? 'destructive' : 'default'}
-                size="sm"
-                onClick={togglePlayback}
-              >
-                {isPlaying ? <Square className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />}
-                {isPlaying ? 'Stop' : 'Play'}
-              </Button>
+    <>
+      <Dialog open={open} onOpenChange={() => { stopLocalPlayback(); onClose(); }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] p-0 gap-0">
+          <DialogHeader className="p-4 pb-2 border-b border-border">
+            <DialogTitle className="flex items-center gap-3">
+              <Drum className="w-5 h-5" />
               
-              <Button variant="outline" size="sm" onClick={handleSave}>
-                <Save className="w-4 h-4 mr-1" />
-                Save
-              </Button>
+              {/* Rhythm Selector Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2 min-w-[200px] justify-between">
+                    <span className="truncate">{editedStyle.name}</span>
+                    <ChevronDown className="w-4 h-4 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64 max-h-[400px] overflow-y-auto">
+                  {/* Custom Styles */}
+                  {customStylesList.length > 0 && (
+                    <>
+                      <DropdownMenuLabel className="text-primary">⭐ My Rhythms</DropdownMenuLabel>
+                      {customStylesList.map(s => (
+                        <DropdownMenuItem
+                          key={s.id}
+                          className={cn(
+                            "flex items-center justify-between cursor-pointer",
+                            s.id === editedStyle.id && "bg-accent"
+                          )}
+                          onClick={() => onStyleSelect?.(s.id)}
+                        >
+                          <span className="truncate">{s.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 shrink-0 ml-2 text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteStyle(s);
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  
+                  {/* Built-in Styles by Category */}
+                  {Object.entries(stylesByCategory).map(([category, styles]) => (
+                    <div key={category}>
+                      <DropdownMenuLabel>{category}</DropdownMenuLabel>
+                      {styles.map(s => (
+                        <DropdownMenuItem
+                          key={s.id}
+                          className={cn(
+                            "cursor-pointer",
+                            s.id === editedStyle.id && "bg-accent"
+                          )}
+                          onClick={() => onStyleSelect?.(s.id)}
+                        >
+                          {s.name}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                    </div>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              {(isPlaying || isMainPlaying) && (
+                <span className="text-xs font-normal text-primary animate-pulse">
+                  ● {showFill ? 'FILL PREVIEW' : isSyncedWithMain ? 'SYNCED' : 'LIVE'}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex flex-col h-full">
+            {/* Top Controls */}
+            <div className="p-4 border-b border-border bg-card/50 flex flex-wrap items-center gap-4">
+              {/* Style Name (editable) */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Name:</Label>
+                <Input
+                  value={editedStyle.name}
+                  onChange={e => setEditedStyle(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-40 h-8"
+                />
+              </div>
+              
+              {/* BPM */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">BPM:</Label>
+                <Input
+                  type="number"
+                  value={editedStyle.bpm}
+                  onChange={e => handleBpmChange(parseInt(e.target.value) || 120)}
+                  className="w-20 h-8"
+                  min={40}
+                  max={200}
+                />
+              </div>
+              
+              {/* Category */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Category:</Label>
+                <Select 
+                  value={editedStyle.category} 
+                  onValueChange={(value: StylePattern['category']) => setEditedStyle(prev => ({ ...prev, category: value }))}
+                >
+                  <SelectTrigger className="w-28 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['Rock', 'Funk', 'Pop', 'Reggae', 'HipHop', 'Disco', 'Blues', 'Latin', 'Metal', 'Folk', 'Country', 'Jazz', 'Soul', 'Indie', 'LoFi'].map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Playback Controls */}
+              <div className="flex items-center gap-2 ml-auto">
+                <Button
+                  variant={(isLocalPlaying || isMainPlaying) ? 'destructive' : 'default'}
+                  size="sm"
+                  onClick={togglePlayback}
+                >
+                  {(isLocalPlaying || isMainPlaying) ? <Square className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />}
+                  {(isLocalPlaying || isMainPlaying) ? 'Stop' : (showFill ? 'Preview Fill' : 'Play')}
+                </Button>
+                
+                <Button variant="outline" size="sm" onClick={handleSave}>
+                  <Save className="w-4 h-4 mr-1" />
+                  Save
+                </Button>
+              </div>
             </div>
-          </div>
           
           {/* Main/Fill Toggle */}
           <div className="p-3 border-b border-border bg-muted/30 flex items-center gap-4">
@@ -586,7 +767,7 @@ export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyle
                               const step = beatIdx * 4 + subIdx;
                               const value = pattern[step];
                               const isDownbeat = subIdx === 0;
-                              const isCurrentStep = currentStep === step && isPlaying;
+                              const isCurrentStep = displayStep === step && (isLocalPlaying || isMainPlaying);
                               
                               return (
                                 <button
@@ -694,5 +875,24 @@ export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyle
         </div>
       </DialogContent>
     </Dialog>
+    
+    {/* Delete Confirmation Dialog */}
+    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Rhythm</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete "{styleToDelete?.name}"? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>
   );
 }
