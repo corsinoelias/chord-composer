@@ -9,6 +9,7 @@ import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
 import { AddChordModal } from '@/components/AddChordModal';
+import { RhythmEditor } from '@/components/RhythmEditor';
 import { InstrumentsPanel } from '@/components/InstrumentsPanel';
 import { Button } from '@/components/ui/button';
 import { Music2, Plus } from 'lucide-react';
@@ -34,6 +35,7 @@ const Index = () => {
   const [editingChord, setEditingChord] = useState<{ sectionIndex: number; chordIndex: number; chord: Chord } | null>(null);
   const [addChordSection, setAddChordSection] = useState<{ index: number; name: string } | null>(null);
   const [instrumentsPanelOpen, setInstrumentsPanelOpen] = useState(false);
+  const [rhythmEditorOpen, setRhythmEditorOpen] = useState(false);
   const [draggedSectionIndex, setDraggedSectionIndex] = useState<number | null>(null);
   const [dragOverSectionIndex, setDragOverSectionIndex] = useState<number | null>(null);
   
@@ -318,6 +320,7 @@ const Index = () => {
           onSongTitleChange={setSongTitle}
           onTranspositionChange={setTransposition}
           onOpenInstruments={() => setInstrumentsPanelOpen(true)}
+          onOpenRhythmEditor={() => setRhythmEditorOpen(true)}
           hasChords={hasChords}
         />
 
@@ -378,6 +381,12 @@ const Index = () => {
         onClose={() => setInstrumentsPanelOpen(false)}
         instruments={instruments}
         onInstrumentChange={setInstruments}
+      />
+
+      <RhythmEditor
+        open={rhythmEditorOpen}
+        onClose={() => setRhythmEditorOpen(false)}
+        style={getStyleById(selectedStyleId) || MUSICAL_STYLES[0]}
       />
     </div>
   );

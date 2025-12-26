@@ -1,4 +1,4 @@
-import { Play, Square, RotateCcw, Download, Loader2, Volume2, VolumeX, Settings2 } from 'lucide-react';
+import { Play, Square, RotateCcw, Download, Loader2, Volume2, VolumeX, Settings2, Grid3X3 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ interface TransportControlsProps {
   onSongTitleChange: (title: string) => void;
   onTranspositionChange: (semitones: number) => void;
   onOpenInstruments: () => void;
+  onOpenRhythmEditor: () => void;
   hasChords: boolean;
 }
 
@@ -50,6 +51,7 @@ export function TransportControls({
   onSongTitleChange,
   onTranspositionChange,
   onOpenInstruments,
+  onOpenRhythmEditor,
   hasChords,
 }: TransportControlsProps) {
   return (
@@ -162,6 +164,12 @@ export function TransportControls({
         <Button variant="outline" size="sm" onClick={onOpenInstruments} className="gap-2">
           <Settings2 className="h-4 w-4" />
           Instruments
+        </Button>
+        
+        {/* Rhythm Editor Button */}
+        <Button variant="outline" size="sm" onClick={onOpenRhythmEditor} className="gap-2">
+          <Grid3X3 className="h-4 w-4" />
+          Rhythm Editor
         </Button>
         {/* BPM Control */}
         <div className="flex-1 min-w-[180px] max-w-[280px]">
