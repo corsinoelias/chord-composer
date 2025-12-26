@@ -356,8 +356,14 @@ const Index = () => {
           onStop={stopPlaybackCompletely}
           onReset={() => { stopPlaybackCompletely(); setCurrentChordIndex(-1); }}
           onExport={handleExport}
-          onBpmChange={setBpm}
-          onMetronomeToggle={setMetronomeEnabled}
+          onBpmChange={(newBpm) => {
+            setBpm(newBpm);
+            handleChangeWhilePlaying();
+          }}
+          onMetronomeToggle={(enabled) => {
+            setMetronomeEnabled(enabled);
+            handleChangeWhilePlaying();
+          }}
           onStyleChange={(id) => {
             setSelectedStyleId(id);
             setLiveEditedStyle(null); // Clear live edits when switching styles
