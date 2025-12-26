@@ -2,8 +2,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Chord, generateChordId } from '@/lib/musicTheory';
 import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
 import { getDefaultInstrumentStates, InstrumentState, isInstrumentAudible } from '@/lib/instruments';
-import { getStyleById, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
-import { getCustomStyles, saveCustomStyle } from '@/lib/customStyles';
+import { getStyleById, getStyleByIdWithOverrides, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
+import { getCustomStyles, saveCustomStyle, getStyleOverride } from '@/lib/customStyles';
 import { getAudioContext, scheduleProgression, renderProgressionOffline, stopPlayback } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { SectionCard } from '@/components/SectionCard';
@@ -99,7 +99,7 @@ const Index = () => {
     setIsPlaying(true);
     setCurrentChordIndex(0);
     
-    const style = liveEditedStyleRef.current || getStyleById(styleRef.current, customStylesRef.current) || MUSICAL_STYLES[0];
+    const style = liveEditedStyleRef.current || getStyleByIdWithOverrides(styleRef.current, customStylesRef.current, getStyleOverride) || MUSICAL_STYLES[0];
     
     const { cancel } = scheduleProgression(sectionsToPlay, bpmRef.current, {
       loop: true,
@@ -110,7 +110,7 @@ const Index = () => {
       onChordChange: setCurrentChordIndex,
       onLoopEnd: () => setCurrentChordIndex(0),
       onStepChange: setCurrentPlayheadStep, // Track current step for rhythm editor sync
-      getStyle: () => liveEditedStyleRef.current || getStyleById(styleRef.current, customStylesRef.current) || MUSICAL_STYLES[0],
+      getStyle: () => liveEditedStyleRef.current || getStyleByIdWithOverrides(styleRef.current, customStylesRef.current, getStyleOverride) || MUSICAL_STYLES[0],
     });
     
     cancelPlaybackRef.current = cancel;
@@ -283,7 +283,7 @@ const Index = () => {
     toast.info('Rendering audio...');
     
     try {
-      const style = liveEditedStyle || getStyleById(selectedStyleId, customStyles) || MUSICAL_STYLES[0];
+      const style = liveEditedStyle || getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0];
       const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition);
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
       await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
@@ -428,7 +428,7 @@ const Index = () => {
           setEditingNewStyle(null);
           setLiveEditedStyle(null);
         }}
-        style={editingNewStyle || getStyleById(selectedStyleId, customStyles) || MUSICAL_STYLES[0]}
+        style={editingNewStyle || getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0]}
         allStyles={[...customStyles, ...MUSICAL_STYLES]}
         isNewStyle={!!editingNewStyle}
         isMainPlaying={isPlaying}
