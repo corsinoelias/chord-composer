@@ -20,6 +20,7 @@ interface StyleSelectorProps {
   selectedStyleId: string;
   onStyleChange: (styleId: string) => void;
   onCreateNew?: () => void;
+  onEditStyle?: (styleId: string) => void;
   customStyles?: StylePattern[];
 }
 
@@ -43,7 +44,7 @@ const STYLE_CATEGORIES = [
   { id: 'Metal', label: 'Metal' },
 ] as const;
 
-export function StyleSelector({ selectedStyleId, onStyleChange, onCreateNew, customStyles = [] }: StyleSelectorProps) {
+export function StyleSelector({ selectedStyleId, onStyleChange, onCreateNew, onEditStyle, customStyles = [] }: StyleSelectorProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [styleToDelete, setStyleToDelete] = useState<string | null>(null);
   

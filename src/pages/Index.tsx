@@ -57,6 +57,7 @@ const Index = () => {
   const styleRef = useRef(selectedStyleId);
   const loopingSectionRef = useRef<number | null>(null);
   const liveEditedStyleRef = useRef<StylePattern | null>(null);
+  const customStylesRef = useRef<StylePattern[]>([]);
   
   useEffect(() => { sectionsRef.current = sections; }, [sections]);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
@@ -66,6 +67,7 @@ const Index = () => {
   useEffect(() => { loopingSectionRef.current = loopingSectionIndex; }, [loopingSectionIndex]);
   useEffect(() => { transpositionRef.current = transposition; }, [transposition]);
   useEffect(() => { liveEditedStyleRef.current = liveEditedStyle; }, [liveEditedStyle]);
+  useEffect(() => { customStylesRef.current = customStyles; }, [customStyles]);
   
   useEffect(() => {
     return () => { cancelPlaybackRef.current?.(); };
@@ -96,7 +98,7 @@ const Index = () => {
     setIsPlaying(true);
     setCurrentChordIndex(0);
     
-    const style = liveEditedStyleRef.current || getStyleById(styleRef.current) || MUSICAL_STYLES[0];
+    const style = liveEditedStyleRef.current || getStyleById(styleRef.current, customStylesRef.current) || MUSICAL_STYLES[0];
     
     const { cancel } = scheduleProgression(sectionsToPlay, bpmRef.current, {
       loop: true,
@@ -107,7 +109,7 @@ const Index = () => {
       onChordChange: setCurrentChordIndex,
       onLoopEnd: () => setCurrentChordIndex(0),
       // Live style getter for real-time updates from rhythm editor
-      getStyle: () => liveEditedStyleRef.current || getStyleById(styleRef.current) || MUSICAL_STYLES[0],
+      getStyle: () => liveEditedStyleRef.current || getStyleById(styleRef.current, customStylesRef.current) || MUSICAL_STYLES[0],
     });
     
     cancelPlaybackRef.current = cancel;
@@ -279,7 +281,7 @@ const Index = () => {
     toast.info('Rendering audio...');
     
     try {
-      const style = liveEditedStyle || getStyleById(selectedStyleId) || MUSICAL_STYLES[0];
+      const style = liveEditedStyle || getStyleById(selectedStyleId, customStyles) || MUSICAL_STYLES[0];
       const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition);
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
       await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
@@ -331,17 +333,30 @@ const Index = () => {
           selectedStyleId={selectedStyleId}
           songTitle={songTitle}
           transposition={transposition}
+          customStyles={customStyles}
           onPlay={startPlayback}
           onStop={stopPlaybackCompletely}
           onReset={() => { stopPlaybackCompletely(); setCurrentChordIndex(-1); }}
           onExport={handleExport}
           onBpmChange={setBpm}
           onMetronomeToggle={setMetronomeEnabled}
-          onStyleChange={setSelectedStyleId}
+          onStyleChange={(id) => {
+            setSelectedStyleId(id);
+            setLiveEditedStyle(null); // Clear live edits when switching styles
+          }}
           onSongTitleChange={setSongTitle}
           onTranspositionChange={setTransposition}
           onOpenInstruments={() => setInstrumentsPanelOpen(true)}
-          onOpenRhythmEditor={() => setRhythmEditorOpen(true)}
+          onOpenRhythmEditor={() => {
+            // Edit the currently selected rhythm
+            const currentStyle = [...customStyles, ...MUSICAL_STYLES].find(s => s.id === selectedStyleId);
+            if (currentStyle) {
+              setLiveEditedStyle(null);
+              setEditingNewStyle(null);
+              setRhythmEditorOpen(true);
+            }
+          }}
+          onCreateNewRhythm={() => setCreateRhythmModalOpen(true)}
           hasChords={hasChords}
         />
 
@@ -411,15 +426,21 @@ const Index = () => {
           setEditingNewStyle(null);
           setLiveEditedStyle(null);
         }}
-        style={editingNewStyle || liveEditedStyle || getStyleById(selectedStyleId) || MUSICAL_STYLES[0]}
+        style={editingNewStyle || getStyleById(selectedStyleId, customStyles) || MUSICAL_STYLES[0]}
         isNewStyle={!!editingNewStyle}
         onStyleChange={setLiveEditedStyle}
         onSave={(savedStyle) => {
-          saveCustomStyle(savedStyle);
-          setCustomStyles(getCustomStyles());
-          setLiveEditedStyle(savedStyle);
+          // Save custom styles to localStorage
+          if (savedStyle.id.startsWith('custom_')) {
+            saveCustomStyle(savedStyle);
+            setCustomStyles(getCustomStyles());
+            // Emit event to update other components
+            window.dispatchEvent(new Event('customStylesChanged'));
+          }
+          setLiveEditedStyle(null);
           setSelectedStyleId(savedStyle.id);
           setEditingNewStyle(null);
+          setRhythmEditorOpen(false);
         }}
       />
 
