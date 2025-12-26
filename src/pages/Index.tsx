@@ -18,10 +18,18 @@ import { Music2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Index = () => {
-  // Sections state
-  const [sections, setSections] = useState<Section[]>([createSection('Section A')]);
-  const [bpm, setBpm] = useState(120);
-  const [selectedStyleId, setSelectedStyleId] = useState('rock_basic');
+  // Sections state - default chords: G, D, Em, C (all 4 beats)
+  const [sections, setSections] = useState<Section[]>([{
+    ...createSection('Section A'),
+    chords: [
+      { id: generateChordId(), root: 'G', accidental: '', quality: 'maj', duration: 4 },
+      { id: generateChordId(), root: 'D', accidental: '', quality: 'maj', duration: 4 },
+      { id: generateChordId(), root: 'E', accidental: '', quality: 'min', duration: 4 },
+      { id: generateChordId(), root: 'C', accidental: '', quality: 'maj', duration: 4 },
+    ]
+  }]);
+  const [bpm, setBpm] = useState(100);
+  const [selectedStyleId, setSelectedStyleId] = useState('funk_basic');
   const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
   const [songTitle, setSongTitle] = useState('My Song');
   const [transposition, setTransposition] = useState(0);
@@ -223,6 +231,12 @@ const Index = () => {
   };
 
   const handleChordDelete = (sectionIndex: number, chordIndex: number) => {
+    // Count total chords across all sections
+    const totalChords = sections.reduce((sum, s) => sum + s.chords.length, 0);
+    if (totalChords <= 1) {
+      toast.error('Cannot delete the last chord');
+      return;
+    }
     setSections(prev => prev.map((s, i) => 
       i === sectionIndex ? { ...s, chords: s.chords.filter((_, j) => j !== chordIndex) } : s
     ));
