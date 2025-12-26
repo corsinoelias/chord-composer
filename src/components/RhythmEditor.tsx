@@ -21,12 +21,14 @@ import {
   Piano,
   Guitar,
   Music,
-  ChevronDown
+  ChevronDown,
+  RotateCw
 } from 'lucide-react';
 import { StylePattern, MUSICAL_STYLES } from '@/lib/styles';
-import { getAudioContext, scheduleProgression, stopPlayback, isCurrentlyPlaying } from '@/lib/audioEngine';
+import { getAudioContext, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
-import { saveCustomStyle, deleteCustomStyle, getCustomStyles } from '@/lib/customStyles';
+import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
+import { useStylePreview } from '@/hooks/useStylePreview';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
@@ -73,13 +75,13 @@ interface RhythmEditorProps {
   style: StylePattern;
   allStyles: StylePattern[]; // All available styles (built-in + custom)
   isNewStyle?: boolean;
-  isMainPlaying?: boolean; // Is the main player currently playing?
-  mainPlayheadStep?: number; // Current step from main player
+  isMainPlaying?: boolean;
+  mainPlayheadStep?: number;
   onSave?: (style: StylePattern) => void;
   onStyleChange?: (style: StylePattern) => void;
-  onStyleSelect?: (styleId: string) => void; // Called when user selects a different style
-  onDelete?: (styleId: string) => void; // Called when user deletes a custom style
-  onToggleMainPlayback?: () => void; // Toggle main playback from editor
+  onStyleSelect?: (styleId: string) => void;
+  onDelete?: (styleId: string) => void;
+  onToggleMainPlayback?: () => void;
 }
 
 const VELOCITY_LEVELS = [0, 0.3, 0.5, 0.7, 1];
@@ -91,12 +93,10 @@ const VELOCITY_COLORS = [
   'bg-chart-4',
 ];
 
-// Create empty pattern
 function createEmptyPattern(): number[] {
   return new Array(16).fill(0);
 }
 
-// Deep clone a style
 function cloneStyle(style: StylePattern): StylePattern {
   return JSON.parse(JSON.stringify(style));
 }
@@ -116,12 +116,16 @@ export function RhythmEditor({
   onToggleMainPlayback,
 }: RhythmEditorProps) {
   const [editedStyle, setEditedStyle] = useState<StylePattern>(cloneStyle(style));
+  const [originalStyleName, setOriginalStyleName] = useState(style.name); // For dropdown display
   const [isLocalPlaying, setIsLocalPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
   const [showFill, setShowFill] = useState(false);
   const [activeInstruments, setActiveInstruments] = useState<Set<InstrumentKey>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [styleToDelete, setStyleToDelete] = useState<StylePattern | null>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  
+  const { previewStyle, stopPreview, previewingStyleId } = useStylePreview();
   
   const playbackRef = useRef<{ cancel: () => void } | null>(null);
   const editedStyleRef = useRef<StylePattern>(editedStyle);
@@ -130,16 +134,17 @@ export function RhythmEditor({
   const stepAnimationRef = useRef<number | null>(null);
   const loopStartTimeRef = useRef<number>(0);
   
-  // Determine if we're synced with main playback
   const isSyncedWithMain = isMainPlaying && !isLocalPlaying;
   const isPlaying = isLocalPlaying || (isMainPlaying && !showFill);
   
-  // Get display step - from main when synced, from local when local playing
   const displayStep = isSyncedWithMain && mainPlayheadStep !== undefined 
     ? mainPlayheadStep 
     : currentStep;
   
-  // Keep refs in sync for live audio reading
+  // Check if editing a built-in style
+  const isEditingBuiltIn = !isCustomStyle(style.id) && !isNewStyle;
+  const hasOverride = isEditingBuiltIn && hasStyleOverride(style.id);
+  
   useEffect(() => {
     editedStyleRef.current = editedStyle;
     onStyleChange?.(editedStyle);
@@ -149,29 +154,36 @@ export function RhythmEditor({
     showFillRef.current = showFill;
   }, [showFill]);
 
-  // Initialize from style prop - only when first opening or style changes
+  // Initialize from style prop
   useEffect(() => {
     if (!open) {
       isInitializedRef.current = false;
       return;
     }
     
-    // Only initialize once when opening
     if (isInitializedRef.current) return;
     isInitializedRef.current = true;
     
-    const cloned = cloneStyle(style);
+    // For built-in styles, check if there's an override
+    let styleToLoad = style;
+    if (!isCustomStyle(style.id) && !isNewStyle) {
+      const override = getStyleOverride(style.id);
+      if (override) {
+        styleToLoad = override;
+      }
+    }
+    
+    const cloned = cloneStyle(styleToLoad);
     setEditedStyle(cloned);
+    setOriginalStyleName(style.name); // Keep original name for dropdown
     editedStyleRef.current = cloned;
     
-    // Determine active instruments
     const active = new Set<InstrumentKey>();
     Object.entries(cloned.rhythm).forEach(([key, pattern]) => {
       if (pattern && pattern.some((v: number) => v > 0)) {
         active.add(key as InstrumentKey);
       }
     });
-    // Always show basic instruments
     active.add('kick');
     active.add('snare');
     active.add('hihat');
@@ -181,16 +193,25 @@ export function RhythmEditor({
     
     setShowFill(false);
     setCurrentStep(-1);
-  }, [style, open]);
+  }, [style, open, isNewStyle]);
 
-  // Re-initialize when style changes (via dropdown selection)
+  // Re-initialize when style changes via dropdown
   useEffect(() => {
     if (open && isInitializedRef.current) {
-      const cloned = cloneStyle(style);
+      // For built-in styles, check if there's an override
+      let styleToLoad = style;
+      if (!isCustomStyle(style.id)) {
+        const override = getStyleOverride(style.id);
+        if (override) {
+          styleToLoad = override;
+        }
+      }
+      
+      const cloned = cloneStyle(styleToLoad);
       setEditedStyle(cloned);
+      setOriginalStyleName(style.name);
       editedStyleRef.current = cloned;
       
-      // Update active instruments
       const active = new Set<InstrumentKey>();
       Object.entries(cloned.rhythm).forEach(([key, pattern]) => {
         if (pattern && pattern.some((v: number) => v > 0)) {
@@ -206,14 +227,13 @@ export function RhythmEditor({
     }
   }, [style.id]);
 
-  // Cleanup on close
   useEffect(() => {
     if (!open) {
       stopLocalPlayback();
+      stopPreview();
     }
-  }, [open]);
+  }, [open, stopPreview]);
 
-  // Animate playhead using requestAnimationFrame for smooth movement (only for local playback)
   const updatePlayhead = useCallback(() => {
     if (!isLocalPlaying) return;
     
@@ -231,7 +251,6 @@ export function RhythmEditor({
     stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
   }, [isLocalPlaying]);
 
-  // Start/stop playhead animation for local playback
   useEffect(() => {
     if (isLocalPlaying) {
       stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
@@ -264,7 +283,6 @@ export function RhythmEditor({
   }, []);
 
   const startLocalPlayback = useCallback(() => {
-    // Stop main playback if running
     if (isMainPlaying && onToggleMainPlayback) {
       onToggleMainPlayback();
     }
@@ -275,7 +293,6 @@ export function RhythmEditor({
     loopStartTimeRef.current = ctx.currentTime + 0.1;
     setIsLocalPlaying(true);
     
-    // Create a test section with a single chord using this pattern
     const testSection = {
       id: 'test',
       name: 'Test',
@@ -303,7 +320,6 @@ export function RhythmEditor({
     playbackRef.current = { cancel };
   }, [stopLocalPlayback, isMainPlaying, onToggleMainPlayback]);
 
-  // Restart local playback when showFill changes while locally playing
   useEffect(() => {
     if (isLocalPlaying) {
       startLocalPlayback();
@@ -311,12 +327,9 @@ export function RhythmEditor({
   }, [showFill]);
 
   const togglePlayback = useCallback(() => {
-    // Always use local playback in the editor for immediate feedback
-    // This ensures the user can hear the rhythm even without chords placed
     if (isLocalPlaying) {
       stopLocalPlayback();
     } else {
-      // Stop main playback if running to avoid conflicts
       if (isMainPlaying && onToggleMainPlayback) {
         onToggleMainPlayback();
       }
@@ -324,7 +337,6 @@ export function RhythmEditor({
     }
   }, [isLocalPlaying, isMainPlaying, startLocalPlayback, stopLocalPlayback, onToggleMainPlayback]);
 
-  // Handle cell click - cycle through velocities
   const handleCellClick = (instrument: InstrumentKey, step: number, isFill: boolean) => {
     setEditedStyle(prev => {
       const newStyle = cloneStyle(prev);
@@ -351,7 +363,6 @@ export function RhythmEditor({
     });
   };
 
-  // Handle cell right-click - clear
   const handleCellRightClick = (e: React.MouseEvent, instrument: InstrumentKey, step: number, isFill: boolean) => {
     e.preventDefault();
     setEditedStyle(prev => {
@@ -383,7 +394,6 @@ export function RhythmEditor({
   };
 
   const removeInstrument = (key: InstrumentKey) => {
-    // Don't remove core instruments
     if (['kick', 'snare', 'hihat', 'bass', 'piano'].includes(key)) {
       toast.error('Cannot remove core instruments');
       return;
@@ -422,26 +432,68 @@ export function RhythmEditor({
     toast.success('Pattern copied to fill');
   };
 
-  const handleSave = () => {
+  // Handle save - show dialog for built-in styles
+  const handleSaveClick = () => {
+    if (isEditingBuiltIn && !hasOverride) {
+      // First time editing a built-in - show options
+      setSaveDialogOpen(true);
+    } else {
+      // Custom style or already has override - save directly
+      handleSave('direct');
+    }
+  };
+
+  const handleSave = (mode: 'override' | 'new' | 'direct') => {
     let styleToSave = editedStyle;
     
-    // If editing a built-in style, create a custom copy
-    if (!editedStyle.id.startsWith('custom_')) {
+    if (mode === 'override') {
+      // Save as override (keeps original ID reference)
+      saveStyleOverride(style.id, editedStyle);
+      toast.success(`Saved changes to "${editedStyle.name}"`);
+      onSave?.(editedStyle);
+    } else if (mode === 'new') {
+      // Save as new custom style
       styleToSave = {
         ...editedStyle,
-        id: `custom_${Date.now()}`,
+        id: generateCustomStyleId(),
         name: editedStyle.name === style.name ? `${editedStyle.name} (Custom)` : editedStyle.name,
       };
+      saveCustomStyle(styleToSave);
+      toast.success(`Created new rhythm "${styleToSave.name}"`);
+      onSave?.(styleToSave);
+    } else {
+      // Direct save (for custom styles or existing overrides)
+      if (isCustomStyle(editedStyle.id)) {
+        saveCustomStyle(editedStyle);
+        toast.success(`Saved "${editedStyle.name}"`);
+      } else if (hasOverride) {
+        saveStyleOverride(style.id, editedStyle);
+        toast.success(`Saved changes to "${editedStyle.name}"`);
+      } else {
+        // New style
+        saveCustomStyle(editedStyle);
+        toast.success(`Saved "${editedStyle.name}"`);
+      }
+      onSave?.(editedStyle);
     }
     
-    // Save to localStorage
-    saveCustomStyle(styleToSave);
-    
-    if (onSave) {
-      onSave(styleToSave);
-    }
-    toast.success(`Rhythm "${styleToSave.name}" saved!`);
+    setSaveDialogOpen(false);
     onClose();
+  };
+
+  const handleResetToOriginal = () => {
+    if (isEditingBuiltIn && hasOverride) {
+      deleteStyleOverride(style.id);
+      // Reload original style
+      const original = MUSICAL_STYLES.find(s => s.id === style.id);
+      if (original) {
+        const cloned = cloneStyle(original);
+        setEditedStyle(cloned);
+        editedStyleRef.current = cloned;
+        toast.success('Reset to original rhythm');
+        window.dispatchEvent(new Event('customStylesChanged'));
+      }
+    }
   };
 
   const handleBpmChange = (newBpm: number) => {
@@ -461,9 +513,9 @@ export function RhythmEditor({
   const availableInstruments = ALL_INSTRUMENTS.filter(i => !activeInstruments.has(i.key));
   const sortedActiveInstruments = ALL_INSTRUMENTS.filter(i => activeInstruments.has(i.key));
 
-  // Group styles by category
-  const customStylesList = allStyles.filter(s => s.id.startsWith('custom_'));
-  const builtInStyles = allStyles.filter(s => !s.id.startsWith('custom_'));
+  // Group styles for dropdown - use original names for display
+  const customStylesList = allStyles.filter(s => isCustomStyle(s.id));
+  const builtInStyles = allStyles.filter(s => !isCustomStyle(s.id));
   const stylesByCategory = builtInStyles.reduce((acc, s) => {
     if (!acc[s.category]) acc[s.category] = [];
     acc[s.category].push(s);
@@ -480,7 +532,6 @@ export function RhythmEditor({
       deleteCustomStyle(styleToDelete.id);
       onDelete?.(styleToDelete.id);
       toast.success(`Rhythm "${styleToDelete.name}" deleted`);
-      // If we deleted the current style, switch to first available
       if (editedStyle.id === styleToDelete.id) {
         const firstStyle = allStyles.find(s => s.id !== styleToDelete.id) || MUSICAL_STYLES[0];
         onStyleSelect?.(firstStyle.id);
@@ -490,23 +541,42 @@ export function RhythmEditor({
     setStyleToDelete(null);
   };
 
+  const handlePreviewStyle = (e: React.MouseEvent, s: StylePattern) => {
+    e.stopPropagation();
+    if (previewingStyleId === s.id) {
+      stopPreview();
+    } else {
+      stopLocalPlayback();
+      previewStyle(s);
+    }
+  };
+
+  const handleSelectStyle = (styleId: string) => {
+    stopPreview();
+    stopLocalPlayback();
+    onStyleSelect?.(styleId);
+  };
+
   return (
     <>
-      <Dialog open={open} onOpenChange={() => { stopLocalPlayback(); onClose(); }}>
+      <Dialog open={open} onOpenChange={() => { stopLocalPlayback(); stopPreview(); onClose(); }}>
         <DialogContent className="max-w-5xl max-h-[90vh] p-0 gap-0">
           <DialogHeader className="p-4 pb-2 border-b border-border">
             <DialogTitle className="flex items-center gap-3">
               <Drum className="w-5 h-5" />
               
-              {/* Rhythm Selector Dropdown */}
+              {/* Rhythm Selector Dropdown - shows ORIGINAL name */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="gap-2 min-w-[200px] justify-between">
-                    <span className="truncate">{editedStyle.name}</span>
+                    <span className="truncate flex items-center gap-1">
+                      {hasOverride && <span className="text-primary">★</span>}
+                      {originalStyleName}
+                    </span>
                     <ChevronDown className="w-4 h-4 shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-64 max-h-[400px] overflow-y-auto">
+                <DropdownMenuContent className="w-72 max-h-[400px] overflow-y-auto">
                   {/* Custom Styles */}
                   {customStylesList.length > 0 && (
                     <>
@@ -515,23 +585,40 @@ export function RhythmEditor({
                         <DropdownMenuItem
                           key={s.id}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer",
-                            s.id === editedStyle.id && "bg-accent"
+                            "flex items-center justify-between cursor-pointer pr-2",
+                            s.id === style.id && "bg-accent"
                           )}
-                          onClick={() => onStyleSelect?.(s.id)}
+                          onClick={() => handleSelectStyle(s.id)}
                         >
-                          <span className="truncate">{s.name}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 shrink-0 ml-2 text-destructive hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteStyle(s);
-                            }}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                          <span className="truncate flex-1">{s.name}</span>
+                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                "h-6 w-6",
+                                previewingStyleId === s.id && "bg-primary/20"
+                              )}
+                              onClick={(e) => handlePreviewStyle(e, s)}
+                            >
+                              {previewingStyleId === s.id ? (
+                                <Square className="w-3 h-3" />
+                              ) : (
+                                <Volume2 className="w-3 h-3" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteStyle(s);
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </DropdownMenuItem>
                       ))}
                       <DropdownMenuSeparator />
@@ -542,18 +629,39 @@ export function RhythmEditor({
                   {Object.entries(stylesByCategory).map(([category, styles]) => (
                     <div key={category}>
                       <DropdownMenuLabel>{category}</DropdownMenuLabel>
-                      {styles.map(s => (
-                        <DropdownMenuItem
-                          key={s.id}
-                          className={cn(
-                            "cursor-pointer",
-                            s.id === editedStyle.id && "bg-accent"
-                          )}
-                          onClick={() => onStyleSelect?.(s.id)}
-                        >
-                          {s.name}
-                        </DropdownMenuItem>
-                      ))}
+                      {styles.map(s => {
+                        const hasOvr = hasStyleOverride(s.id);
+                        return (
+                          <DropdownMenuItem
+                            key={s.id}
+                            className={cn(
+                              "cursor-pointer flex items-center justify-between pr-2",
+                              s.id === style.id && "bg-accent"
+                            )}
+                            onClick={() => handleSelectStyle(s.id)}
+                          >
+                            <span className="truncate flex-1 flex items-center gap-1">
+                              {hasOvr && <span className="text-primary text-xs">★</span>}
+                              {s.name}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                "h-6 w-6 shrink-0 ml-2",
+                                previewingStyleId === s.id && "bg-primary/20"
+                              )}
+                              onClick={(e) => handlePreviewStyle(e, s)}
+                            >
+                              {previewingStyleId === s.id ? (
+                                <Square className="w-3 h-3" />
+                              ) : (
+                                <Volume2 className="w-3 h-3" />
+                              )}
+                            </Button>
+                          </DropdownMenuItem>
+                        );
+                      })}
                       <DropdownMenuSeparator />
                     </div>
                   ))}
@@ -563,6 +671,12 @@ export function RhythmEditor({
               {(isPlaying || isMainPlaying) && (
                 <span className="text-xs font-normal text-primary animate-pulse">
                   ● {showFill ? 'FILL PREVIEW' : isSyncedWithMain ? 'SYNCED' : 'LIVE'}
+                </span>
+              )}
+              
+              {previewingStyleId && (
+                <span className="text-xs font-normal text-chart-4 animate-pulse">
+                  🔊 Previewing...
                 </span>
               )}
             </DialogTitle>
@@ -612,8 +726,21 @@ export function RhythmEditor({
                 </Select>
               </div>
               
-              {/* Playback Controls */}
+              {/* Playback & Save Controls */}
               <div className="flex items-center gap-2 ml-auto">
+                {/* Reset to Original button (only for overridden built-ins) */}
+                {isEditingBuiltIn && hasOverride && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetToOriginal}
+                    className="gap-1"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                    Reset
+                  </Button>
+                )}
+                
                 <Button
                   variant={(isLocalPlaying || isMainPlaying) ? 'destructive' : 'default'}
                   size="sm"
@@ -623,7 +750,7 @@ export function RhythmEditor({
                   {(isLocalPlaying || isMainPlaying) ? 'Stop' : (showFill ? 'Preview Fill' : 'Play')}
                 </Button>
                 
-                <Button variant="outline" size="sm" onClick={handleSave}>
+                <Button variant="outline" size="sm" onClick={handleSaveClick}>
                   <Save className="w-4 h-4 mr-1" />
                   Save
                 </Button>
@@ -706,32 +833,21 @@ export function RhythmEditor({
           {/* Grid Area */}
           <ScrollArea className="flex-1 max-h-[400px]">
             <div className="p-4">
-              {/* Beat Markers - Aligned with grid: 1, 2, 3, 4 */}
+              {/* Beat Markers */}
               <div className="flex mb-2">
-                {/* Spacer for instrument labels */}
                 <div className="w-28 shrink-0" />
-                
-                {/* Beat columns - showing 1, 2, 3, 4 aligned above each beat's first cell */}
                 <div className="flex-1 flex">
                   {[1, 2, 3, 4].map(beat => (
                     <div key={beat} className="flex-1 flex">
                       <div className="flex-1 text-center">
-                        <span className={cn(
-                          "text-sm font-bold",
-                          "text-foreground"
-                        )}>
-                          {beat}
-                        </span>
+                        <span className="text-sm font-bold text-foreground">{beat}</span>
                       </div>
-                      {/* Empty space for the other 3 subdivisions */}
                       <div className="flex-1" />
                       <div className="flex-1" />
                       <div className="flex-1" />
                     </div>
                   ))}
                 </div>
-                
-                {/* Spacer for row actions */}
                 <div className="w-16 shrink-0" />
               </div>
               
@@ -745,13 +861,11 @@ export function RhythmEditor({
                   
                   return (
                     <div key={instrument.key} className="flex items-center gap-2">
-                      {/* Instrument Label */}
                       <div className="w-24 flex items-center gap-1 shrink-0">
                         <Icon className="w-3 h-3 text-muted-foreground" />
                         <span className="text-xs font-medium truncate">{instrument.label}</span>
                       </div>
                       
-                      {/* Grid Cells - 16 columns aligned with beats */}
                       <div className="flex-1 flex">
                         {[0, 1, 2, 3].map(beatIdx => (
                           <div key={beatIdx} className="flex-1 flex gap-0.5 px-0.5">
@@ -786,7 +900,6 @@ export function RhythmEditor({
                         ))}
                       </div>
                       
-                      {/* Row Actions */}
                       <div className="flex items-center gap-1 shrink-0 w-16">
                         <Button
                           variant="ghost"
@@ -885,6 +998,32 @@ export function RhythmEditor({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  </>
+    
+    {/* Save Options Dialog (for built-in styles) */}
+    <AlertDialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Save Changes</AlertDialogTitle>
+          <AlertDialogDescription>
+            You're editing a built-in rhythm. How would you like to save your changes?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <Button 
+            variant="outline"
+            onClick={() => handleSave('new')}
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Save as New
+          </Button>
+          <AlertDialogAction onClick={() => handleSave('override')}>
+            <Save className="w-4 h-4 mr-1" />
+            Save Override
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

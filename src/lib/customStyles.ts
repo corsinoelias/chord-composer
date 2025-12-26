@@ -6,6 +6,7 @@
 import { StylePattern } from './styles';
 
 const STORAGE_KEY = 'custom_rhythm_styles';
+const OVERRIDES_KEY = 'style_overrides';
 
 /**
  * Get all custom styles from localStorage
@@ -58,4 +59,58 @@ export function isCustomStyle(styleId: string): boolean {
  */
 export function generateCustomStyleId(): string {
   return `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// ==================== OVERRIDES SYSTEM ====================
+
+export interface StyleOverride {
+  originalId: string;
+  customStyle: StylePattern;
+}
+
+/**
+ * Get all style overrides from localStorage
+ */
+export function getStyleOverrides(): Record<string, StylePattern> {
+  try {
+    const stored = localStorage.getItem(OVERRIDES_KEY);
+    if (!stored) return {};
+    return JSON.parse(stored);
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Get override for a specific original style
+ */
+export function getStyleOverride(originalId: string): StylePattern | null {
+  const overrides = getStyleOverrides();
+  return overrides[originalId] || null;
+}
+
+/**
+ * Save an override for an original style
+ */
+export function saveStyleOverride(originalId: string, style: StylePattern): void {
+  const overrides = getStyleOverrides();
+  overrides[originalId] = style;
+  localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
+}
+
+/**
+ * Delete an override (reset to original)
+ */
+export function deleteStyleOverride(originalId: string): void {
+  const overrides = getStyleOverrides();
+  delete overrides[originalId];
+  localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
+}
+
+/**
+ * Check if an original style has an override
+ */
+export function hasStyleOverride(originalId: string): boolean {
+  const overrides = getStyleOverrides();
+  return originalId in overrides;
 }

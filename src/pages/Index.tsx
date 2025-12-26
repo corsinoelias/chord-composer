@@ -469,6 +469,7 @@ const Index = () => {
       <CreateRhythmModal
         open={createRhythmModalOpen}
         onClose={() => setCreateRhythmModalOpen(false)}
+        customStyles={customStyles}
         onCreateEmpty={(newStyle) => {
           setCreateRhythmModalOpen(false);
           setEditingNewStyle(newStyle);
