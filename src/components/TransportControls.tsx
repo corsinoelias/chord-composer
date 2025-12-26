@@ -163,19 +163,24 @@ export function TransportControls({
           </div>
 
           {/* Metronome */}
-          <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-secondary/50">
-            {metronomeEnabled ? (
-              <Volume2 size={14} className="text-muted-foreground" />
-            ) : (
-              <VolumeX size={14} className="text-muted-foreground" />
-            )}
-            <Switch
-              id="metronome"
-              checked={metronomeEnabled}
-              onCheckedChange={onMetronomeToggle}
-              disabled={isExporting}
-              className="scale-90"
-            />
+          <div className="flex flex-col items-center gap-1">
+            <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+              Metronome
+            </Label>
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-secondary/50">
+              {metronomeEnabled ? (
+                <Volume2 size={14} className="text-muted-foreground" />
+              ) : (
+                <VolumeX size={14} className="text-muted-foreground" />
+              )}
+              <Switch
+                id="metronome"
+                checked={metronomeEnabled}
+                onCheckedChange={onMetronomeToggle}
+                disabled={isExporting}
+                className="scale-90"
+              />
+            </div>
           </div>
 
           {/* Export */}
