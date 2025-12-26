@@ -635,8 +635,8 @@ export function scheduleProgression(
             const beatTime = chordStartTime + (beat * beatDuration);
             const isDownbeat = beat === 0;
             
-            if (metronome) {
-              playClick(ctx, masterGain!, beatTime, isDownbeat);
+            if (metronome && masterGain) {
+              playClick(ctx, masterGain, beatTime, isDownbeat);
             }
             
             if (onBeat) {
