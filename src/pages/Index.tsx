@@ -4,8 +4,9 @@ import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
 import { getDefaultInstrumentStates, InstrumentState, isInstrumentAudible } from '@/lib/instruments';
 import { getStyleById, getStyleByIdWithOverrides, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
 import { getCustomStyles, saveCustomStyle, getStyleOverride } from '@/lib/customStyles';
-import { ensureSamplesLoaded, scheduleProgression, renderProgressionOffline, stopPlayback, onPlaybackStopped } from '@/lib/audioEngine';
+import { renderProgressionOffline } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
+import { usePlayback } from '@/contexts/PlaybackContext';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
@@ -18,6 +19,9 @@ import { Music2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Index = () => {
+  const { state: playbackState, play, stop: stopPlayback, updatePlaybackOptions } = usePlayback();
+  const { isPlaying, currentChordIndex, currentStep: currentPlayheadStep } = playbackState;
+
   // Sections state - default chords: G, D, Em, C (all 4 beats)
   const [sections, setSections] = useState<Section[]>([{
     ...createSection('Section A'),
@@ -33,16 +37,11 @@ const Index = () => {
   const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
   const [songTitle, setSongTitle] = useState('My Song');
   const [transposition, setTransposition] = useState(0);
-  const [currentPlayheadStep, setCurrentPlayheadStep] = useState(-1);
+  const [metronomeEnabled, setMetronomeEnabled] = useState(true);
+  const [loopingSectionIndex, setLoopingSectionIndex] = useState<number | null>(null);
   
   // Live edited style (for rhythm editor live mode)
   const [liveEditedStyle, setLiveEditedStyle] = useState<StylePattern | null>(null);
-  
-  // Playback state
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentChordIndex, setCurrentChordIndex] = useState(-1);
-  const [metronomeEnabled, setMetronomeEnabled] = useState(true);
-  const [loopingSectionIndex, setLoopingSectionIndex] = useState<number | null>(null);
   
   // UI state
   const [isExporting, setIsExporting] = useState(false);
@@ -56,10 +55,9 @@ const Index = () => {
   const [draggedSectionIndex, setDraggedSectionIndex] = useState<number | null>(null);
   const [dragOverSectionIndex, setDragOverSectionIndex] = useState<number | null>(null);
   
-  // Refs
-  const cancelPlaybackRef = useRef<(() => void) | null>(null);
+  // Refs for current values (used in callbacks)
   const sectionsRef = useRef<Section[]>([]);
-  const bpmRef = useRef(120);
+  const bpmRef = useRef(100);
   const metronomeRef = useRef(true);
   const instrumentsRef = useRef<InstrumentState[]>(getDefaultInstrumentStates());
   const transpositionRef = useRef(0);
@@ -77,19 +75,14 @@ const Index = () => {
   useEffect(() => { transpositionRef.current = transposition; }, [transposition]);
   useEffect(() => { liveEditedStyleRef.current = liveEditedStyle; }, [liveEditedStyle]);
   useEffect(() => { customStylesRef.current = customStyles; }, [customStyles]);
-  
+
+  // Listen for custom styles changes
   useEffect(() => {
-    // Register callback to sync UI when audio engine stops playback
-    onPlaybackStopped(() => {
-      setIsPlaying(false);
-      setCurrentChordIndex(-1);
-      setCurrentPlayheadStep(-1);
-    });
-    
-    return () => {
-      cancelPlaybackRef.current?.();
-      onPlaybackStopped(null); // Cleanup callback
+    const handleCustomStylesChanged = () => {
+      setCustomStyles(getCustomStyles());
     };
+    window.addEventListener('customStylesChanged', handleCustomStylesChanged);
+    return () => window.removeEventListener('customStylesChanged', handleCustomStylesChanged);
   }, []);
 
   // Listen for custom styles changes
@@ -113,37 +106,21 @@ const Index = () => {
     const hasChords = sectionsToPlay.some(s => s.chords.length > 0);
     if (!hasChords) return;
     
-    // Ensure samples are loaded before starting playback
-    await ensureSamplesLoaded();
-    
-    setIsPlaying(true);
-    setCurrentChordIndex(0);
-    
-    const style = liveEditedStyleRef.current || getStyleByIdWithOverrides(styleRef.current, customStylesRef.current, getStyleOverride) || MUSICAL_STYLES[0];
-    
-    const { cancel } = scheduleProgression(sectionsToPlay, bpmRef.current, {
-      loop: true,
+    await play(sectionsToPlay, {
+      bpm: bpmRef.current,
       metronome: metronomeRef.current,
       instruments: instrumentsRef.current,
-      style,
+      styleId: styleRef.current,
       transposition: transpositionRef.current,
-      onChordChange: setCurrentChordIndex,
-      onLoopEnd: () => setCurrentChordIndex(0),
-      onStepChange: setCurrentPlayheadStep, // Track current step for rhythm editor sync
-      getStyle: () => liveEditedStyleRef.current || getStyleByIdWithOverrides(styleRef.current, customStylesRef.current, getStyleOverride) || MUSICAL_STYLES[0],
+      liveEditedStyle: liveEditedStyleRef.current,
+      customStyles: customStylesRef.current,
+      loopingSectionIndex: loopIdx,
     });
-    
-    cancelPlaybackRef.current = cancel;
-  }, []);
+  }, [play]);
 
   const stopPlaybackCompletely = useCallback(() => {
-    cancelPlaybackRef.current?.();
-    cancelPlaybackRef.current = null;
     stopPlayback();
-    setIsPlaying(false);
-    setCurrentChordIndex(-1);
-    setCurrentPlayheadStep(-1);
-  }, []);
+  }, [stopPlayback]);
 
   const handleChangeWhilePlaying = useCallback(() => {
     if (isPlaying) {
@@ -364,7 +341,7 @@ const Index = () => {
           customStyles={customStyles}
           onPlay={startPlayback}
           onStop={stopPlaybackCompletely}
-          onReset={() => { stopPlaybackCompletely(); setCurrentChordIndex(-1); }}
+          onReset={() => { stopPlaybackCompletely(); }}
           onExport={handleExport}
           onBpmChange={(newBpm) => {
             setBpm(newBpm);
@@ -463,8 +440,6 @@ const Index = () => {
         style={editingNewStyle || getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0]}
         allStyles={[...customStyles, ...MUSICAL_STYLES]}
         isNewStyle={!!editingNewStyle}
-        isMainPlaying={isPlaying}
-        mainPlayheadStep={currentPlayheadStep}
         onStyleChange={setLiveEditedStyle}
         onStyleSelect={(styleId) => {
           // User selected a different style from the dropdown
@@ -479,13 +454,6 @@ const Index = () => {
           // If deleted the current style, switch to first available
           if (selectedStyleId === styleId) {
             setSelectedStyleId(MUSICAL_STYLES[0].id);
-          }
-        }}
-        onToggleMainPlayback={() => {
-          if (isPlaying) {
-            stopPlaybackCompletely();
-          } else {
-            startPlayback();
           }
         }}
         onSave={(savedStyle) => {
