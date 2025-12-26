@@ -52,6 +52,7 @@ interface RhythmEditorProps {
   onClose: () => void;
   style: StylePattern | null;
   onSave?: (style: StylePattern) => void;
+  onStyleChange?: (style: StylePattern) => void; // Live update callback
 }
 
 const VELOCITY_LEVELS = [0, 0.3, 0.5, 0.7, 1];
@@ -62,6 +63,9 @@ const VELOCITY_COLORS = [
   'bg-chart-4/80',
   'bg-chart-4',
 ];
+
+// Beat subdivisions for 16th notes
+const BEAT_SUBDIVISIONS = ['1', 'e', '&', 'a'];
 
 // Create empty pattern
 function createEmptyPattern(): number[] {
@@ -97,7 +101,7 @@ function cloneStyle(style: StylePattern): StylePattern {
   return JSON.parse(JSON.stringify(style));
 }
 
-export function RhythmEditor({ open, onClose, style, onSave }: RhythmEditorProps) {
+export function RhythmEditor({ open, onClose, style, onSave, onStyleChange }: RhythmEditorProps) {
   const [editedStyle, setEditedStyle] = useState<StylePattern>(createEmptyStyle());
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
@@ -105,14 +109,21 @@ export function RhythmEditor({ open, onClose, style, onSave }: RhythmEditorProps
   const [activeInstruments, setActiveInstruments] = useState<Set<InstrumentKey>>(new Set());
   
   const playbackRef = useRef<{ cancel: () => void } | null>(null);
-  const stepIntervalRef = useRef<number | null>(null);
-  const startTimeRef = useRef<number>(0);
+  const editedStyleRef = useRef<StylePattern>(editedStyle);
+  
+  // Keep ref in sync for live audio reading
+  useEffect(() => {
+    editedStyleRef.current = editedStyle;
+    // Notify parent of live changes (for main playback sync)
+    onStyleChange?.(editedStyle);
+  }, [editedStyle, onStyleChange]);
 
   // Initialize from style prop
   useEffect(() => {
     if (style) {
       const cloned = cloneStyle(style);
       setEditedStyle(cloned);
+      editedStyleRef.current = cloned;
       
       // Determine active instruments
       const active = new Set<InstrumentKey>();
@@ -129,7 +140,9 @@ export function RhythmEditor({ open, onClose, style, onSave }: RhythmEditorProps
       active.add('piano');
       setActiveInstruments(active);
     } else {
-      setEditedStyle(createEmptyStyle());
+      const empty = createEmptyStyle();
+      setEditedStyle(empty);
+      editedStyleRef.current = empty;
       setActiveInstruments(new Set(['kick', 'snare', 'hihat', 'bass', 'piano']));
     }
     setShowFill(false);
@@ -148,10 +161,6 @@ export function RhythmEditor({ open, onClose, style, onSave }: RhythmEditorProps
       playbackRef.current.cancel();
       playbackRef.current = null;
     }
-    if (stepIntervalRef.current) {
-      clearInterval(stepIntervalRef.current);
-      stepIntervalRef.current = null;
-    }
     stopPlayback();
     setIsPlaying(false);
     setCurrentStep(-1);
@@ -162,10 +171,6 @@ export function RhythmEditor({ open, onClose, style, onSave }: RhythmEditorProps
     
     getAudioContext();
     setIsPlaying(true);
-    startTimeRef.current = performance.now();
-    
-    // Calculate step duration in ms
-    const stepDuration = (60 / editedStyle.bpm / 4) * 1000; // 16th note duration
     
     // Create a test section with a single chord using this pattern
     const testSection = {
@@ -177,27 +182,26 @@ export function RhythmEditor({ open, onClose, style, onSave }: RhythmEditorProps
     
     const instruments = getDefaultInstrumentStates();
     
-    const { cancel } = scheduleProgression([testSection], editedStyle.bpm, {
+    const { cancel } = scheduleProgression([testSection], editedStyleRef.current.bpm, {
       loop: true,
       metronome: false,
       instruments,
-      style: editedStyle,
+      style: editedStyleRef.current,
       transposition: 0,
       onChordChange: () => {},
       onLoopEnd: () => {
-        startTimeRef.current = performance.now();
+        setCurrentStep(-1);
       },
+      // Live step sync - this is called on each 16th note
+      onStep: (step) => {
+        setCurrentStep(step);
+      },
+      // Live style getter - audio engine reads this on each loop
+      getStyle: () => editedStyleRef.current,
     });
     
     playbackRef.current = { cancel };
-    
-    // Visual playhead update
-    stepIntervalRef.current = window.setInterval(() => {
-      const elapsed = performance.now() - startTimeRef.current;
-      const step = Math.floor(elapsed / stepDuration) % 16;
-      setCurrentStep(step);
-    }, stepDuration / 2);
-  }, [editedStyle, stopPatternPlayback]);
+  }, [stopPatternPlayback]);
 
   const togglePlayback = useCallback(() => {
     if (isPlaying) {
@@ -313,6 +317,11 @@ export function RhythmEditor({ open, onClose, style, onSave }: RhythmEditorProps
     onClose();
   };
 
+  const handleBpmChange = (newBpm: number) => {
+    const clampedBpm = Math.max(40, Math.min(200, newBpm));
+    setEditedStyle(prev => ({ ...prev, bpm: clampedBpm }));
+  };
+
   const getVelocityColor = (value: number): string => {
     const idx = VELOCITY_LEVELS.findIndex(v => Math.abs(v - value) < 0.1);
     return VELOCITY_COLORS[idx === -1 ? 0 : idx];
@@ -328,6 +337,9 @@ export function RhythmEditor({ open, onClose, style, onSave }: RhythmEditorProps
           <DialogTitle className="flex items-center gap-2">
             <Drum className="w-5 h-5" />
             Rhythm Editor
+            {isPlaying && (
+              <span className="ml-2 text-xs font-normal text-primary animate-pulse">● LIVE</span>
+            )}
           </DialogTitle>
         </DialogHeader>
         
@@ -350,10 +362,7 @@ export function RhythmEditor({ open, onClose, style, onSave }: RhythmEditorProps
               <Input
                 type="number"
                 value={editedStyle.bpm}
-                onChange={e => {
-                  const newBpm = Math.max(40, Math.min(200, parseInt(e.target.value) || 120));
-                  setEditedStyle(prev => ({ ...prev, bpm: newBpm }));
-                }}
+                onChange={e => handleBpmChange(parseInt(e.target.value) || 120)}
                 className="w-20 h-8"
                 min={40}
                 max={200}
@@ -472,18 +481,37 @@ export function RhythmEditor({ open, onClose, style, onSave }: RhythmEditorProps
           {/* Grid Area */}
           <ScrollArea className="flex-1 max-h-[400px]">
             <div className="p-4">
-              {/* Beat Markers */}
-              <div className="flex mb-2 ml-28">
-                {[1, 2, 3, 4].map(beat => (
-                  <div key={beat} className="flex-1 text-center">
-                    <span className="text-xs font-medium text-muted-foreground">Beat {beat}</span>
-                    <div className="flex justify-between px-1">
-                      {['1', 'e', '&', 'a'].map((sub, i) => (
-                        <span key={i} className="text-[10px] text-muted-foreground/60 w-8 text-center">{sub}</span>
-                      ))}
+              {/* Beat Markers - Aligned with grid */}
+              <div className="flex mb-2">
+                {/* Spacer for instrument labels */}
+                <div className="w-28 shrink-0" />
+                
+                {/* Beat columns */}
+                <div className="flex-1 flex">
+                  {[1, 2, 3, 4].map(beat => (
+                    <div key={beat} className="flex-1">
+                      <div className="text-center mb-1">
+                        <span className="text-xs font-medium text-muted-foreground">Beat {beat}</span>
+                      </div>
+                      <div className="flex">
+                        {BEAT_SUBDIVISIONS.map((sub, i) => (
+                          <div 
+                            key={i} 
+                            className={cn(
+                              "flex-1 text-center text-[10px]",
+                              i === 0 ? "text-foreground font-medium" : "text-muted-foreground/60"
+                            )}
+                          >
+                            {sub}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                
+                {/* Spacer for row actions */}
+                <div className="w-16 shrink-0" />
               </div>
               
               {/* Grid Rows */}
@@ -502,37 +530,43 @@ export function RhythmEditor({ open, onClose, style, onSave }: RhythmEditorProps
                         <span className="text-xs font-medium truncate">{instrument.label}</span>
                       </div>
                       
-                      {/* Grid Cells */}
-                      <div className="flex gap-0.5 flex-1">
-                        {pattern.map((value, step) => {
-                          const isDownbeat = step % 4 === 0;
-                          const isCurrentStep = currentStep === step && isPlaying;
-                          
-                          return (
-                            <button
-                              key={step}
-                              onClick={() => handleCellClick(instrument.key, step, showFill)}
-                              onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
-                              className={cn(
-                                "w-8 h-8 rounded-sm border transition-all relative",
-                                isDownbeat ? "border-border" : "border-border/50",
-                                isCurrentStep && "ring-2 ring-primary ring-offset-1",
-                                getVelocityColor(value),
-                                value > 0 ? "border-chart-4/50" : ""
-                              )}
-                            >
-                              {value > 0 && (
-                                <span className="text-[9px] font-medium text-foreground/70">
-                                  {Math.round(value * 100)}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
+                      {/* Grid Cells - 16 columns aligned with beats */}
+                      <div className="flex-1 flex">
+                        {[0, 1, 2, 3].map(beatIdx => (
+                          <div key={beatIdx} className="flex-1 flex gap-0.5 px-0.5">
+                            {[0, 1, 2, 3].map(subIdx => {
+                              const step = beatIdx * 4 + subIdx;
+                              const value = pattern[step];
+                              const isDownbeat = subIdx === 0;
+                              const isCurrentStep = currentStep === step && isPlaying;
+                              
+                              return (
+                                <button
+                                  key={step}
+                                  onClick={() => handleCellClick(instrument.key, step, showFill)}
+                                  onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
+                                  className={cn(
+                                    "flex-1 aspect-square rounded-sm border transition-all relative flex items-center justify-center min-w-[24px] max-w-[32px]",
+                                    isDownbeat ? "border-border" : "border-border/40",
+                                    isCurrentStep && "ring-2 ring-primary ring-offset-1 ring-offset-background",
+                                    getVelocityColor(value),
+                                    value > 0 ? "border-chart-4/50" : ""
+                                  )}
+                                >
+                                  {value > 0 && (
+                                    <span className="text-[9px] font-medium text-foreground/80">
+                                      {Math.round(value * 100)}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
                       </div>
                       
                       {/* Row Actions */}
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0 w-16">
                         <Button
                           variant="ghost"
                           size="icon"
