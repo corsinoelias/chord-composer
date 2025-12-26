@@ -9,11 +9,18 @@ import { Chord, chordToMidiNotes, midiToFrequency } from './musicTheory';
 import { InstrumentState, getSoundType, SoundType, isInstrumentAudible } from './instruments';
 import { StylePattern, generateBarPattern } from './styles';
 import { Section } from './sections';
-import { audioEvents } from './audioEvents';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let currentlyPlaying = false;
+let playbackStoppedCallback: (() => void) | null = null;
+
+/**
+ * Register a callback to be notified when playback stops
+ */
+export function onPlaybackStopped(callback: (() => void) | null): void {
+  playbackStoppedCallback = callback;
+}
 
 /**
  * Check if audio is currently playing
@@ -660,7 +667,6 @@ export function scheduleProgression(
     // Check if we've finished all bars
     if (currentBarIndex >= barList.length) {
       if (loop) {
-        audioEvents.emit('playback:loop-end');
         onLoopEnd?.();
         currentBarIndex = 0;
         lastChordIndex = -1;
@@ -686,14 +692,13 @@ export function scheduleProgression(
     // Schedule chord change callback (only on first bar of chord)
     if (barInChord === 0 && globalChordIndex !== lastChordIndex) {
       lastChordIndex = globalChordIndex;
-      const delayMs = Math.max(0, (barStartTime - ctx.currentTime) * 1000);
-      const timeout = window.setTimeout(() => {
-        if (!cancelled) {
-          audioEvents.emit('playback:chord-changed', { chordIndex: globalChordIndex });
-          onChordChange?.(globalChordIndex);
-        }
-      }, delayMs);
-      timeouts.push(timeout);
+      if (onChordChange) {
+        const delayMs = Math.max(0, (barStartTime - ctx.currentTime) * 1000);
+        const timeout = window.setTimeout(() => {
+          if (!cancelled) onChordChange(globalChordIndex);
+        }, delayMs);
+        timeouts.push(timeout);
+      }
     }
     
     // Schedule metronome clicks for this bar
@@ -721,16 +726,22 @@ export function scheduleProgression(
     for (let slot = 0; slot < 16; slot++) {
       const slotTime = barStartTime + (slot * slotDuration);
       
-      // Schedule step change callback for playhead sync + emit event
-      const stepDelayMs = Math.max(0, (slotTime - ctx.currentTime) * 1000);
-      const stepTimeout = window.setTimeout(() => {
-        if (!cancelled) {
-          audioEvents.emit('playback:step', { step: slot, bar: currentBarIndex });
-          onStepChange?.(slot);
-          onStep?.(slot);
-        }
-      }, stepDelayMs);
-      timeouts.push(stepTimeout);
+      // Schedule step change callback for playhead sync
+      if (onStepChange) {
+        const stepDelayMs = Math.max(0, (slotTime - ctx.currentTime) * 1000);
+        const stepTimeout = window.setTimeout(() => {
+          if (!cancelled) onStepChange(slot);
+        }, stepDelayMs);
+        timeouts.push(stepTimeout);
+      }
+      
+      if (onStep) {
+        const stepDelayMs = Math.max(0, (slotTime - ctx.currentTime) * 1000);
+        const stepTimeout = window.setTimeout(() => {
+          if (!cancelled) onStep(slot);
+        }, stepDelayMs);
+        timeouts.push(stepTimeout);
+      }
       
       // Piano - uses velocity from pattern
       const pianoVelocity = pattern.piano[slot];
@@ -811,8 +822,6 @@ export function scheduleProgression(
   const totalDuration = barList.length * barDuration;
   
   // Start scheduling
-  currentlyPlaying = true;
-  audioEvents.emit('playback:started', { source: 'main' });
   scheduleBar(startTime);
   
   return {
@@ -1159,13 +1168,15 @@ export async function renderProgressionOffline(
 /**
  * Stops all audio playback
  */
-export function stopPlayback(source: 'main' | 'local' = 'main'): void {
+export function stopPlayback(): void {
   if (audioContext) {
     audioContext.close();
     audioContext = null;
     masterGain = null;
   }
   currentlyPlaying = false;
-  // Emit event to notify all subscribers
-  audioEvents.emit('playback:stopped', { source });
+  // Notify the UI that playback has stopped
+  if (playbackStoppedCallback) {
+    playbackStoppedCallback();
+  }
 }
