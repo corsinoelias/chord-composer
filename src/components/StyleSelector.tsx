@@ -133,7 +133,6 @@ export function StyleSelector({
           })}
           </SelectContent>
         </Select>
-        {selectedStyle}
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
