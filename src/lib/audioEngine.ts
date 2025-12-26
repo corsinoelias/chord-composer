@@ -13,6 +13,14 @@ import { Section } from './sections';
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let currentlyPlaying = false;
+let playbackStoppedCallback: (() => void) | null = null;
+
+/**
+ * Register a callback to be notified when playback stops
+ */
+export function onPlaybackStopped(callback: (() => void) | null): void {
+  playbackStoppedCallback = callback;
+}
 
 /**
  * Check if audio is currently playing
@@ -1165,5 +1173,10 @@ export function stopPlayback(): void {
     audioContext.close();
     audioContext = null;
     masterGain = null;
+  }
+  currentlyPlaying = false;
+  // Notify the UI that playback has stopped
+  if (playbackStoppedCallback) {
+    playbackStoppedCallback();
   }
 }

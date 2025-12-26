@@ -4,7 +4,7 @@ import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
 import { getDefaultInstrumentStates, InstrumentState, isInstrumentAudible } from '@/lib/instruments';
 import { getStyleById, getStyleByIdWithOverrides, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
 import { getCustomStyles, saveCustomStyle, getStyleOverride } from '@/lib/customStyles';
-import { ensureSamplesLoaded, scheduleProgression, renderProgressionOffline, stopPlayback } from '@/lib/audioEngine';
+import { ensureSamplesLoaded, scheduleProgression, renderProgressionOffline, stopPlayback, onPlaybackStopped } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
@@ -79,7 +79,17 @@ const Index = () => {
   useEffect(() => { customStylesRef.current = customStyles; }, [customStyles]);
   
   useEffect(() => {
-    return () => { cancelPlaybackRef.current?.(); };
+    // Register callback to sync UI when audio engine stops playback
+    onPlaybackStopped(() => {
+      setIsPlaying(false);
+      setCurrentChordIndex(-1);
+      setCurrentPlayheadStep(-1);
+    });
+    
+    return () => {
+      cancelPlaybackRef.current?.();
+      onPlaybackStopped(null); // Cleanup callback
+    };
   }, []);
 
   // Listen for custom styles changes
