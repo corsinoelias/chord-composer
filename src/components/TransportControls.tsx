@@ -1,4 +1,4 @@
-import { Play, Square, RotateCcw, Download, Loader2, Volume2, VolumeX, Settings2, Grid3X3 } from 'lucide-react';
+import { Play, Square, RotateCcw, Download, Loader2, Volume2, VolumeX, Settings2, Grid3X3, Plus } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -164,7 +164,12 @@ export function TransportControls({
         </div>
 
         {/* Style Selector */}
-        <StyleSelector selectedStyleId={selectedStyleId} onStyleChange={onStyleChange} />
+        <StyleSelector 
+          selectedStyleId={selectedStyleId} 
+          onStyleChange={onStyleChange}
+          customStyles={customStyles}
+          onCreateNew={onCreateNewRhythm}
+        />
 
         {/* Instruments Button */}
         <Button variant="outline" size="sm" onClick={onOpenInstruments} className="gap-2">
@@ -172,11 +177,19 @@ export function TransportControls({
           Instruments
         </Button>
         
-        {/* Rhythm Editor Button */}
+        {/* Edit Rhythm Button */}
         <Button variant="outline" size="sm" onClick={onOpenRhythmEditor} className="gap-2">
           <Grid3X3 className="h-4 w-4" />
-          Rhythm Editor
+          Edit Rhythm
         </Button>
+        
+        {/* Create New Rhythm Button */}
+        {onCreateNewRhythm && (
+          <Button variant="ghost" size="sm" onClick={onCreateNewRhythm} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Rhythm
+          </Button>
+        )}
         {/* BPM Control */}
         <div className="flex-1 min-w-[180px] max-w-[280px]">
           <div className="flex items-center justify-between mb-1">

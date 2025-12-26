@@ -893,9 +893,11 @@ export const MUSICAL_STYLES: StylePattern[] = [
 
 /**
  * Get style by ID
+ * Optionally pass custom styles to also search in them
  */
-export function getStyleById(id: string): StylePattern | undefined {
-  return MUSICAL_STYLES.find(s => s.id === id);
+export function getStyleById(id: string, customStyles: StylePattern[] = []): StylePattern | undefined {
+  // First check custom styles, then built-in
+  return customStyles.find(s => s.id === id) || MUSICAL_STYLES.find(s => s.id === id);
 }
 
 /**
