@@ -311,26 +311,18 @@ export function RhythmEditor({
   }, [showFill]);
 
   const togglePlayback = useCallback(() => {
-    if (showFill) {
-      // In fill mode, always use local playback to preview the fill
-      if (isLocalPlaying) {
-        stopLocalPlayback();
-      } else {
-        startLocalPlayback();
-      }
+    // Always use local playback in the editor for immediate feedback
+    // This ensures the user can hear the rhythm even without chords placed
+    if (isLocalPlaying) {
+      stopLocalPlayback();
     } else {
-      // In main pattern mode, toggle main playback for sync
-      if (isLocalPlaying) {
-        stopLocalPlayback();
-      } else if (isMainPlaying) {
-        // Stop main playback
-        onToggleMainPlayback?.();
-      } else {
-        // Start main playback to sync
-        onToggleMainPlayback?.();
+      // Stop main playback if running to avoid conflicts
+      if (isMainPlaying && onToggleMainPlayback) {
+        onToggleMainPlayback();
       }
+      startLocalPlayback();
     }
-  }, [isLocalPlaying, isMainPlaying, showFill, startLocalPlayback, stopLocalPlayback, onToggleMainPlayback]);
+  }, [isLocalPlaying, isMainPlaying, startLocalPlayback, stopLocalPlayback, onToggleMainPlayback]);
 
   // Handle cell click - cycle through velocities
   const handleCellClick = (instrument: InstrumentKey, step: number, isFill: boolean) => {
