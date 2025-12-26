@@ -7,6 +7,7 @@ import { getCustomStyles, saveCustomStyle, getStyleOverride } from '@/lib/custom
 import { renderProgressionOffline } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { usePlayback } from '@/contexts/PlaybackContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
@@ -14,6 +15,7 @@ import { AddChordModal } from '@/components/AddChordModal';
 import { RhythmEditor } from '@/components/RhythmEditor';
 import { CreateRhythmModal } from '@/components/CreateRhythmModal';
 import { InstrumentsPanel } from '@/components/InstrumentsPanel';
+import { LanguageSelector } from '@/components/LanguageSelector';
 import { Button } from '@/components/ui/button';
 import { Music2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -189,6 +191,10 @@ const Index = () => {
     }
   };
 
+  const handleSectionDragLeave = () => {
+    setDragOverSectionIndex(null);
+  };
+
   const handleSectionDrop = (e: React.DragEvent, toIndex: number) => {
     e.preventDefault();
     const fromIndex = parseInt(e.dataTransfer.getData('application/section'));
@@ -328,10 +334,11 @@ const Index = () => {
             <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
               <Music2 className="w-5 h-5 text-primary-foreground" />
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-xl font-semibold text-foreground">Chord Player</h1>
-              <p className="text-sm text-muted-foreground">Create chord progressions & export</p>
+              <p className="text-sm text-muted-foreground">Crea progresiones de acordes y exporta</p>
             </div>
+            <LanguageSelector />
           </div>
         </div>
       </header>
@@ -404,6 +411,7 @@ const Index = () => {
               isLast={sectionIndex === sections.length - 1}
               onSectionDragStart={(e) => handleSectionDragStart(e, sectionIndex)}
               onSectionDragOver={(e) => handleSectionDragOver(e, sectionIndex)}
+              onSectionDragLeave={handleSectionDragLeave}
               onSectionDrop={(e) => handleSectionDrop(e, sectionIndex)}
               isSectionDragOver={dragOverSectionIndex === sectionIndex && draggedSectionIndex !== sectionIndex}
             />

@@ -4,6 +4,7 @@ import { ChordBlock } from './ChordBlock';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Copy, GripVertical, Repeat } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface SectionCardProps {
   section: Section;
@@ -28,6 +29,7 @@ interface SectionCardProps {
   // Section drag & drop
   onSectionDragStart: (e: React.DragEvent) => void;
   onSectionDragOver: (e: React.DragEvent) => void;
+  onSectionDragLeave: () => void;
   onSectionDrop: (e: React.DragEvent) => void;
   isSectionDragOver?: boolean;
 }
@@ -54,9 +56,11 @@ export function SectionCard({
   isLast,
   onSectionDragStart,
   onSectionDragOver,
+  onSectionDragLeave,
   onSectionDrop,
   isSectionDragOver,
 }: SectionCardProps) {
+  const { t } = useLanguage();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -107,8 +111,12 @@ export function SectionCard({
       
       if (fromSectionIndex === sectionIndex) {
         // Same section reorder
-        if (toIndex !== undefined && fromChordIndex !== toIndex) {
-          onReorder(fromChordIndex, toIndex);
+        // If toIndex is undefined (dropped on container), move to end
+        const targetIndex = toIndex !== undefined ? toIndex : section.chords.length;
+        if (fromChordIndex !== targetIndex) {
+          // Adjust target if moving from before to after
+          const adjustedTarget = fromChordIndex < targetIndex ? targetIndex : targetIndex;
+          onReorder(fromChordIndex, adjustedTarget);
         }
       } else {
         // Cross-section move
@@ -119,6 +127,37 @@ export function SectionCard({
       if (toIndex !== undefined && draggedIndex !== null && draggedIndex !== toIndex) {
         onReorder(draggedIndex, toIndex);
       }
+    }
+    
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    setIsDragOver(false);
+  };
+
+  // Handle drop at end of chord list
+  const handleDropAtEnd = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      const data = e.dataTransfer.getData('application/chord');
+      if (!data) return;
+      
+      const parsed = JSON.parse(data);
+      const fromSectionIndex = parsed.sectionIndex;
+      const fromChordIndex = parsed.chordIndex;
+      
+      if (fromSectionIndex === sectionIndex) {
+        // Same section - move to end
+        if (fromChordIndex !== section.chords.length - 1) {
+          onReorder(fromChordIndex, section.chords.length - 1);
+        }
+      } else {
+        // Cross-section move
+        onMoveChordToSection(fromSectionIndex, fromChordIndex, sectionIndex);
+      }
+    } catch {
+      // ignore
     }
     
     setDraggedIndex(null);
@@ -174,6 +213,7 @@ export function SectionCard({
         draggable
         onDragStart={onSectionDragStart}
         onDragOver={onSectionDragOver}
+        onDragLeave={onSectionDragLeave}
         onDrop={onSectionDrop}
       >
         <div className="flex items-center gap-3">
@@ -207,7 +247,7 @@ export function SectionCard({
           )}
           
           <span className="text-xs text-muted-foreground">
-            {section.chords.length} {section.chords.length === 1 ? 'chord' : 'chords'}
+            {section.chords.length} {section.chords.length === 1 ? t('chord') : t('chords')}
           </span>
         </div>
 
@@ -218,7 +258,7 @@ export function SectionCard({
             size="icon"
             className="h-8 w-8"
             onClick={onToggleLoop}
-            title="Loop this section"
+            title={t('loopSection')}
           >
             <Repeat className="h-4 w-4" />
           </Button>
@@ -248,7 +288,7 @@ export function SectionCard({
               size="icon"
               className="h-8 w-8"
               onClick={onDuplicate}
-              title="Duplicate section"
+              title={t('duplicateSection')}
             >
               <Copy className="h-4 w-4" />
             </Button>
@@ -257,7 +297,7 @@ export function SectionCard({
               size="icon"
               className="h-8 w-8 text-destructive hover:text-destructive"
               onClick={onDelete}
-              title="Delete section"
+              title={t('deleteSection')}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -269,7 +309,7 @@ export function SectionCard({
       <div className="p-4">
         {section.chords.length === 0 ? (
           <div className="flex items-center justify-center h-20 text-muted-foreground text-sm border-2 border-dashed border-border rounded-lg">
-            {isDragOver ? 'Drop chord here' : 'No chords yet. Click + to add.'}
+            {isDragOver ? t('dropChordHere') : t('noChords')}
           </div>
         ) : (
           <div
@@ -306,6 +346,22 @@ export function SectionCard({
                 </div>
               </div>
             ))}
+            
+            {/* Drop zone at end */}
+            <div
+              className={`
+                w-16 h-[72px] rounded-lg border-2 border-dashed flex items-center justify-center
+                transition-all duration-200
+                ${isDragOver ? 'border-primary bg-primary/10' : 'border-transparent'}
+              `}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragOver(true);
+              }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={handleDropAtEnd}
+            />
           </div>
         )}
 
@@ -317,7 +373,7 @@ export function SectionCard({
           className="mt-3 border-dashed"
         >
           <Plus className="h-4 w-4 mr-1" />
-          Add Chord
+          {t('addChord')}
         </Button>
       </div>
     </div>
