@@ -5,17 +5,7 @@ import { MUSICAL_STYLES, StylePattern } from '@/lib/styles';
 import { getCustomStyles, deleteCustomStyle } from '@/lib/customStyles';
 import { Music, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 interface StyleSelectorProps {
   selectedStyleId: string;
   onStyleChange: (styleId: string) => void;
@@ -25,40 +15,74 @@ interface StyleSelectorProps {
 }
 
 // Group styles by category for the dropdown
-const STYLE_CATEGORIES = [
-  { id: 'Custom', label: '⭐ My Rhythms' },
-  { id: 'Rock', label: 'Rock' },
-  { id: 'Funk', label: 'Funk' },
-  { id: 'Pop', label: 'Pop' },
-  { id: 'Folk', label: 'Folk / Acústico' },
-  { id: 'Country', label: 'Country' },
-  { id: 'Reggae', label: 'Reggae' },
-  { id: 'HipHop', label: 'Hip Hop' },
-  { id: 'LoFi', label: 'Lo-Fi' },
-  { id: 'Disco', label: 'Disco' },
-  { id: 'Soul', label: 'Soul / R&B' },
-  { id: 'Blues', label: 'Blues' },
-  { id: 'Jazz', label: 'Jazz' },
-  { id: 'Latin', label: 'Latino' },
-  { id: 'Indie', label: 'Indie / Dream Pop' },
-  { id: 'Metal', label: 'Metal' },
-] as const;
-
-export function StyleSelector({ selectedStyleId, onStyleChange, onCreateNew, onEditStyle, customStyles = [] }: StyleSelectorProps) {
+const STYLE_CATEGORIES = [{
+  id: 'Custom',
+  label: '⭐ My Rhythms'
+}, {
+  id: 'Rock',
+  label: 'Rock'
+}, {
+  id: 'Funk',
+  label: 'Funk'
+}, {
+  id: 'Pop',
+  label: 'Pop'
+}, {
+  id: 'Folk',
+  label: 'Folk / Acústico'
+}, {
+  id: 'Country',
+  label: 'Country'
+}, {
+  id: 'Reggae',
+  label: 'Reggae'
+}, {
+  id: 'HipHop',
+  label: 'Hip Hop'
+}, {
+  id: 'LoFi',
+  label: 'Lo-Fi'
+}, {
+  id: 'Disco',
+  label: 'Disco'
+}, {
+  id: 'Soul',
+  label: 'Soul / R&B'
+}, {
+  id: 'Blues',
+  label: 'Blues'
+}, {
+  id: 'Jazz',
+  label: 'Jazz'
+}, {
+  id: 'Latin',
+  label: 'Latino'
+}, {
+  id: 'Indie',
+  label: 'Indie / Dream Pop'
+}, {
+  id: 'Metal',
+  label: 'Metal'
+}] as const;
+export function StyleSelector({
+  selectedStyleId,
+  onStyleChange,
+  onCreateNew,
+  onEditStyle,
+  customStyles = []
+}: StyleSelectorProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [styleToDelete, setStyleToDelete] = useState<string | null>(null);
-  
+
   // Combine built-in and custom styles
   const allStyles = [...MUSICAL_STYLES, ...customStyles];
   const selectedStyle = allStyles.find(s => s.id === selectedStyleId);
-
   const handleDeleteClick = (e: React.MouseEvent, styleId: string) => {
     e.stopPropagation();
     e.preventDefault();
     setStyleToDelete(styleId);
     setDeleteDialogOpen(true);
   };
-
   const confirmDelete = () => {
     if (styleToDelete) {
       deleteCustomStyle(styleToDelete);
@@ -73,9 +97,7 @@ export function StyleSelector({ selectedStyleId, onStyleChange, onCreateNew, onE
     setDeleteDialogOpen(false);
     setStyleToDelete(null);
   };
-
-  return (
-    <>
+  return <>
       <div className="flex items-center gap-2">
         <Music className="w-4 h-4 text-muted-foreground" />
         <Select value={selectedStyleId} onValueChange={onStyleChange}>
@@ -84,59 +106,34 @@ export function StyleSelector({ selectedStyleId, onStyleChange, onCreateNew, onE
           </SelectTrigger>
           <SelectContent className="bg-popover border-border z-50 max-h-[400px]">
             {STYLE_CATEGORIES.map(category => {
-              // For custom category, use customStyles prop
-              const stylesInCategory = category.id === 'Custom' 
-                ? customStyles
-                : MUSICAL_STYLES.filter(s => s.category === category.id);
-              
-              if (stylesInCategory.length === 0 && category.id !== 'Custom') return null;
-              
-              return (
-                <div key={category.id}>
+            // For custom category, use customStyles prop
+            const stylesInCategory = category.id === 'Custom' ? customStyles : MUSICAL_STYLES.filter(s => s.category === category.id);
+            if (stylesInCategory.length === 0 && category.id !== 'Custom') return null;
+            return <div key={category.id}>
                   <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
                     <span>{category.label}</span>
-                    {category.id === 'Custom' && onCreateNew && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-5 w-5"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          onCreateNew();
-                        }}
-                      >
+                    {category.id === 'Custom' && onCreateNew && <Button variant="ghost" size="icon" className="h-5 w-5" onClick={e => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onCreateNew();
+                }}>
                         <Plus className="w-3 h-3" />
-                      </Button>
-                    )}
+                      </Button>}
                   </div>
-                  {stylesInCategory.length === 0 && category.id === 'Custom' && (
-                    <div className="px-4 py-2 text-xs text-muted-foreground italic">
+                  {stylesInCategory.length === 0 && category.id === 'Custom' && <div className="px-4 py-2 text-xs text-muted-foreground italic">
                       No custom rhythms yet
-                    </div>
-                  )}
-                  {stylesInCategory.map(style => (
-                    <SelectItem 
-                      key={style.id} 
-                      value={style.id} 
-                      className="pl-4"
-                    >
+                    </div>}
+                  {stylesInCategory.map(style => <SelectItem key={style.id} value={style.id} className="pl-4">
                       <div className="flex flex-col">
                         <span>{style.name}</span>
                         <span className="text-[10px] text-muted-foreground">{style.bpm} BPM</span>
                       </div>
-                    </SelectItem>
-                  ))}
-                </div>
-              );
-            })}
+                    </SelectItem>)}
+                </div>;
+          })}
           </SelectContent>
         </Select>
-        {selectedStyle && (
-          <span className="text-xs text-muted-foreground hidden md:inline max-w-[200px] truncate">
-            {selectedStyle.description}
-          </span>
-        )}
+        {selectedStyle}
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -155,6 +152,5 @@ export function StyleSelector({ selectedStyleId, onStyleChange, onCreateNew, onE
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
-  );
+    </>;
 }
