@@ -569,7 +569,7 @@ export function RhythmEditor({
   return (
     <>
       <Dialog open={open} onOpenChange={() => { stopLocalPlayback(); stopPreview(); onClose(); }}>
-        <DialogContent className="max-w-5xl max-h-[90vh] p-0 gap-0">
+        <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] p-0 gap-0 overflow-hidden">
           <DialogHeader className="p-4 pb-2 border-b border-border">
             <DialogTitle className="flex items-center gap-3">
               <Drum className="w-5 h-5" />
@@ -650,32 +650,34 @@ export function RhythmEditor({
           
           <div className="flex flex-col h-full">
             {/* Top Controls */}
-            <div className="p-4 border-b border-border bg-card/50 flex flex-wrap items-center gap-4">
+            <div className="p-2 sm:p-4 border-b border-border bg-card/50 flex flex-wrap items-center gap-2 sm:gap-4">
               {/* Style Name (editable) */}
               <div className="flex items-center gap-2">
-                <Label className="text-sm text-muted-foreground">Name:</Label>
+                <Label className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">Name:</Label>
                 <Input
                   value={editedStyle.name}
                   onChange={e => setEditedStyle(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-40 h-8"
+                  className="w-28 sm:w-40 h-8 text-sm"
+                  placeholder="Name"
                 />
               </div>
               
               {/* BPM */}
               <div className="flex items-center gap-2">
-                <Label className="text-sm text-muted-foreground">BPM:</Label>
+                <Label className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">BPM:</Label>
                 <Input
                   type="number"
                   value={editedStyle.bpm}
                   onChange={e => handleBpmChange(parseInt(e.target.value) || 120)}
-                  className="w-20 h-8"
+                  className="w-16 sm:w-20 h-8 text-sm"
                   min={40}
                   max={200}
+                  placeholder="BPM"
                 />
               </div>
               
-              {/* Category */}
-              <div className="flex items-center gap-2">
+              {/* Category - hidden on mobile */}
+              <div className="hidden sm:flex items-center gap-2">
                 <Label className="text-sm text-muted-foreground">Category:</Label>
                 <Select 
                   value={editedStyle.category} 
@@ -693,17 +695,17 @@ export function RhythmEditor({
               </div>
               
               {/* Playback & Save Controls */}
-              <div className="flex items-center gap-2 ml-auto">
+              <div className="flex items-center gap-1 sm:gap-2 ml-auto">
                 {/* Reset to Original button (only for overridden built-ins) */}
                 {isEditingBuiltIn && hasOverride && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleResetToOriginal}
-                    className="gap-1"
+                    className="gap-1 px-2 sm:px-3"
                   >
                     <RotateCw className="w-4 h-4" />
-                    Reset
+                    <span className="hidden sm:inline">Reset</span>
                   </Button>
                 )}
                 
@@ -711,9 +713,10 @@ export function RhythmEditor({
                   variant={(isLocalPlaying || isMainPlaying) ? 'destructive' : 'default'}
                   size="sm"
                   onClick={togglePlayback}
+                  className="px-2 sm:px-3"
                 >
-                  {(isLocalPlaying || isMainPlaying) ? <Square className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />}
-                  {(isLocalPlaying || isMainPlaying) ? 'Stop' : (showFill ? 'Preview Fill' : 'Play')}
+                  {(isLocalPlaying || isMainPlaying) ? <Square className="w-4 h-4 sm:mr-1" /> : <Play className="w-4 h-4 sm:mr-1" />}
+                  <span className="hidden sm:inline">{(isLocalPlaying || isMainPlaying) ? 'Stop' : (showFill ? 'Preview Fill' : 'Play')}</span>
                 </Button>
                 
                 {/* Delete button - only for custom styles */}
@@ -722,41 +725,42 @@ export function RhythmEditor({
                     variant="destructive"
                     size="sm"
                     onClick={() => handleDeleteStyle(editedStyle)}
+                    className="px-2 sm:px-3"
                   >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
+                    <Trash2 className="w-4 h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Delete</span>
                   </Button>
                 )}
                 
-                <Button variant="outline" size="sm" onClick={handleSaveClick}>
-                  <Save className="w-4 h-4 mr-1" />
-                  Save
+                <Button variant="outline" size="sm" onClick={handleSaveClick} className="px-2 sm:px-3">
+                  <Save className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Save</span>
                 </Button>
               </div>
             </div>
           
           {/* Main/Fill Toggle */}
-          <div className="p-3 border-b border-border bg-muted/30 flex items-center gap-4">
+          <div className="p-2 sm:p-3 border-b border-border bg-muted/30 flex flex-wrap items-center gap-2 sm:gap-4">
             <div className="flex items-center gap-2">
               <Switch
                 checked={showFill}
                 onCheckedChange={handleFillToggle}
                 id="fill-toggle"
               />
-              <Label htmlFor="fill-toggle" className="text-sm cursor-pointer">
-                {showFill ? 'Editing Fill Pattern' : 'Editing Main Pattern'}
+              <Label htmlFor="fill-toggle" className="text-xs sm:text-sm cursor-pointer">
+                {showFill ? 'Fill' : 'Main'}
               </Label>
             </div>
             
             {showFill && (
               <>
                 <div className="flex items-center gap-2">
-                  <Label className="text-sm text-muted-foreground">Fill Position:</Label>
+                  <Label className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">Fill Position:</Label>
                   <Select 
                     value={editedStyle.fill.position.toString()} 
                     onValueChange={v => setEditedStyle(prev => ({ ...prev, fill: { ...prev.fill, position: parseInt(v) } }))}
                   >
-                    <SelectTrigger className="w-24 h-8">
+                    <SelectTrigger className="w-20 sm:w-24 h-8 text-xs sm:text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -768,40 +772,40 @@ export function RhythmEditor({
                   </Select>
                 </div>
                 
-                <Button variant="ghost" size="sm" onClick={copyMainToFill}>
-                  <Copy className="w-4 h-4 mr-1" />
-                  Copy Main Pattern
+                <Button variant="ghost" size="sm" onClick={copyMainToFill} className="px-2 sm:px-3">
+                  <Copy className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Copy Main</span>
                 </Button>
               </>
             )}
             
-            {/* Volume Controls */}
-            <div className="flex items-center gap-4 ml-auto">
-              <div className="flex items-center gap-2">
-                <Volume2 className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Drums:</span>
+            {/* Volume Controls - stacked on mobile */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 ml-auto">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <Volume2 className="w-4 h-4 text-muted-foreground hidden sm:block" />
+                <span className="text-[10px] sm:text-xs text-muted-foreground">Dr:</span>
                 <Slider
                   value={[editedStyle.volumes.drums * 100]}
                   onValueChange={([v]) => setEditedStyle(prev => ({ ...prev, volumes: { ...prev.volumes, drums: v / 100 } }))}
-                  className="w-16"
+                  className="w-12 sm:w-16"
                   max={100}
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Bass:</span>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <span className="text-[10px] sm:text-xs text-muted-foreground">Ba:</span>
                 <Slider
                   value={[editedStyle.volumes.bass * 100]}
                   onValueChange={([v]) => setEditedStyle(prev => ({ ...prev, volumes: { ...prev.volumes, bass: v / 100 } }))}
-                  className="w-16"
+                  className="w-12 sm:w-16"
                   max={100}
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Piano:</span>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <span className="text-[10px] sm:text-xs text-muted-foreground">Pi:</span>
                 <Slider
                   value={[editedStyle.volumes.piano * 100]}
                   onValueChange={([v]) => setEditedStyle(prev => ({ ...prev, volumes: { ...prev.volumes, piano: v / 100 } }))}
-                  className="w-16"
+                  className="w-12 sm:w-16"
                   max={100}
                 />
               </div>
@@ -809,16 +813,16 @@ export function RhythmEditor({
           </div>
           
           {/* Grid Area */}
-          <ScrollArea className="flex-1 max-h-[400px]">
-            <div className="p-4">
+          <ScrollArea className="flex-1 max-h-[50vh] sm:max-h-[400px]">
+            <div className="p-2 sm:p-4 overflow-x-auto">
               {/* Beat Markers */}
-              <div className="flex mb-2">
-                <div className="w-28 shrink-0" />
+              <div className="flex mb-2 min-w-[400px]">
+                <div className="w-16 sm:w-28 shrink-0" />
                 <div className="flex-1 flex">
                   {[1, 2, 3, 4].map(beat => (
                     <div key={beat} className="flex-1 flex">
                       <div className="flex-1 text-center">
-                        <span className="text-sm font-bold text-foreground">{beat}</span>
+                        <span className="text-xs sm:text-sm font-bold text-foreground">{beat}</span>
                       </div>
                       <div className="flex-1" />
                       <div className="flex-1" />
@@ -826,11 +830,11 @@ export function RhythmEditor({
                     </div>
                   ))}
                 </div>
-                <div className="w-16 shrink-0" />
+                <div className="w-10 sm:w-16 shrink-0" />
               </div>
               
               {/* Grid Rows */}
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-[400px]">
                 {sortedActiveInstruments.map(instrument => {
                   const pattern = showFill 
                     ? editedStyle.fill.pattern[instrument.key] || createEmptyPattern()
@@ -838,10 +842,10 @@ export function RhythmEditor({
                   const Icon = instrument.icon;
                   
                   return (
-                    <div key={instrument.key} className="flex items-center gap-2">
-                      <div className="w-24 flex items-center gap-1 shrink-0">
-                        <Icon className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs font-medium truncate">{instrument.label}</span>
+                    <div key={instrument.key} className="flex items-center gap-1 sm:gap-2">
+                      <div className="w-16 sm:w-24 flex items-center gap-1 shrink-0">
+                        <Icon className="w-3 h-3 text-muted-foreground hidden sm:block" />
+                        <span className="text-[10px] sm:text-xs font-medium truncate">{instrument.label}</span>
                       </div>
                       
                       <div className="flex-1 flex">
@@ -859,7 +863,7 @@ export function RhythmEditor({
                                   onClick={() => handleCellClick(instrument.key, step, showFill)}
                                   onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
                                   className={cn(
-                                    "flex-1 aspect-square rounded-sm border transition-all relative flex items-center justify-center min-w-[24px] max-w-[32px]",
+                                    "flex-1 aspect-square rounded-sm border transition-all relative flex items-center justify-center min-w-[18px] sm:min-w-[24px] max-w-[32px]",
                                     isDownbeat ? "border-border" : "border-border/40",
                                     isCurrentStep && "ring-2 ring-primary ring-offset-1 ring-offset-background",
                                     getVelocityColor(value),
@@ -878,11 +882,11 @@ export function RhythmEditor({
                         ))}
                       </div>
                       
-                      <div className="flex items-center gap-1 shrink-0 w-16">
+                      <div className="flex items-center gap-1 shrink-0 w-10 sm:w-16">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6"
+                          className="h-5 w-5 sm:h-6 sm:w-6"
                           onClick={() => clearPattern(instrument.key, showFill)}
                           title="Clear pattern"
                         >
@@ -892,7 +896,7 @@ export function RhythmEditor({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            className="h-5 w-5 sm:h-6 sm:w-6 text-destructive hover:text-destructive"
                             onClick={() => removeInstrument(instrument.key)}
                             title="Remove instrument"
                           >
