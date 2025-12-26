@@ -344,15 +344,24 @@ export function RhythmEditor({ open, onClose, style, isNewStyle, onSave, onStyle
   };
 
   const handleSave = () => {
-    // Save to localStorage if it's a custom style
-    if (editedStyle.id.startsWith('custom_')) {
-      saveCustomStyle(editedStyle);
+    let styleToSave = editedStyle;
+    
+    // If editing a built-in style, create a custom copy
+    if (!editedStyle.id.startsWith('custom_')) {
+      styleToSave = {
+        ...editedStyle,
+        id: `custom_${Date.now()}`,
+        name: editedStyle.name === style.name ? `${editedStyle.name} (Custom)` : editedStyle.name,
+      };
     }
     
+    // Save to localStorage
+    saveCustomStyle(styleToSave);
+    
     if (onSave) {
-      onSave(editedStyle);
+      onSave(styleToSave);
     }
-    toast.success(`Rhythm "${editedStyle.name}" saved!`);
+    toast.success(`Rhythm "${styleToSave.name}" saved!`);
     onClose();
   };
 
