@@ -4,15 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Music } from 'lucide-react';
+import { Plus, Music, Volume2, Square } from 'lucide-react';
 import { StylePattern, MUSICAL_STYLES } from '@/lib/styles';
 import { generateCustomStyleId } from '@/lib/customStyles';
+import { useStylePreview } from '@/hooks/useStylePreview';
+import { cn } from '@/lib/utils';
 
 interface CreateRhythmModalProps {
   open: boolean;
   onClose: () => void;
   onCreateEmpty: (style: StylePattern) => void;
   onCreateFromTemplate: (style: StylePattern) => void;
+  customStyles?: StylePattern[];
 }
 
 const CATEGORIES = ['Rock', 'Funk', 'Pop', 'Reggae', 'HipHop', 'Disco', 'Blues', 'Latin', 'Metal', 'Folk', 'Country', 'Jazz', 'Soul', 'Indie', 'LoFi'] as const;
@@ -44,19 +47,33 @@ function createEmptyStyle(name: string, category: string, bpm: number): StylePat
   };
 }
 
-export function CreateRhythmModal({ open, onClose, onCreateEmpty, onCreateFromTemplate }: CreateRhythmModalProps) {
+export function CreateRhythmModal({ open, onClose, onCreateEmpty, onCreateFromTemplate, customStyles = [] }: CreateRhythmModalProps) {
   const [name, setName] = useState('New Rhythm');
   const [category, setCategory] = useState<string>('Pop');
   const [bpm, setBpm] = useState(120);
   const [templateId, setTemplateId] = useState<string>('');
   const [mode, setMode] = useState<'empty' | 'template'>('empty');
+  
+  const { previewStyle, stopPreview, previewingStyleId } = useStylePreview();
+
+  // Combine built-in and custom styles for templates
+  const allTemplates = [...customStyles, ...MUSICAL_STYLES];
+  
+  // Group templates by category
+  const customTemplates = customStyles;
+  const builtInByCategory = MUSICAL_STYLES.reduce((acc, s) => {
+    if (!acc[s.category]) acc[s.category] = [];
+    acc[s.category].push(s);
+    return acc;
+  }, {} as Record<string, StylePattern[]>);
 
   const handleCreate = () => {
+    stopPreview();
     if (mode === 'empty') {
       const newStyle = createEmptyStyle(name, category, bpm);
       onCreateEmpty(newStyle);
     } else if (templateId) {
-      const template = MUSICAL_STYLES.find(s => s.id === templateId);
+      const template = allTemplates.find(s => s.id === templateId);
       if (template) {
         const newStyle: StylePattern = {
           ...JSON.parse(JSON.stringify(template)),
@@ -76,8 +93,23 @@ export function CreateRhythmModal({ open, onClose, onCreateEmpty, onCreateFromTe
     setMode('empty');
   };
 
+  const handleClose = () => {
+    stopPreview();
+    onClose();
+  };
+
+  const handlePreview = (e: React.MouseEvent, style: StylePattern) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (previewingStyleId === style.id) {
+      stopPreview();
+    } else {
+      previewStyle(style);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={() => onClose()}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -158,22 +190,80 @@ export function CreateRhythmModal({ open, onClose, onCreateEmpty, onCreateFromTe
                   <SelectValue placeholder="Select a template..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
-                  {MUSICAL_STYLES.map(style => (
-                    <SelectItem key={style.id} value={style.id}>
-                      <div className="flex flex-col">
-                        <span>{style.name}</span>
-                        <span className="text-xs text-muted-foreground">{style.category} - {style.bpm} BPM</span>
+                  {/* Custom styles first */}
+                  {customTemplates.length > 0 && (
+                    <div className="mb-2">
+                      <div className="px-2 py-1.5 text-xs font-semibold text-primary uppercase tracking-wider">
+                        ⭐ My Rhythms
                       </div>
-                    </SelectItem>
+                      {customTemplates.map(style => (
+                        <SelectItem key={style.id} value={style.id} className="relative group">
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex flex-col">
+                              <span>{style.name}</span>
+                              <span className="text-xs text-muted-foreground">{style.category} - {style.bpm} BPM</span>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Built-in styles by category */}
+                  {Object.entries(builtInByCategory).map(([cat, styles]) => (
+                    <div key={cat} className="mb-2">
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        {cat}
+                      </div>
+                      {styles.map(style => (
+                        <SelectItem key={style.id} value={style.id}>
+                          <div className="flex flex-col">
+                            <span>{style.name}</span>
+                            <span className="text-xs text-muted-foreground">{style.bpm} BPM</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </div>
                   ))}
                 </SelectContent>
               </Select>
+              
+              {/* Preview button for selected template */}
+              {templateId && (
+                <div className="flex items-center gap-2 mt-2">
+                  {(() => {
+                    const selectedTemplate = allTemplates.find(s => s.id === templateId);
+                    if (!selectedTemplate) return null;
+                    const isPreviewing = previewingStyleId === templateId;
+                    return (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => handlePreview(e, selectedTemplate)}
+                        className={cn("gap-2", isPreviewing && "bg-primary/10")}
+                      >
+                        {isPreviewing ? (
+                          <>
+                            <Square className="w-3 h-3" />
+                            Stop Preview
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="w-3 h-3" />
+                            Preview "{selectedTemplate.name}"
+                          </>
+                        )}
+                      </Button>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
           <Button 
