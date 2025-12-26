@@ -29,6 +29,7 @@ import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
 import { useStylePreview } from '@/hooks/useStylePreview';
+import { usePlayback } from '@/contexts/PlaybackContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
@@ -75,13 +76,10 @@ interface RhythmEditorProps {
   style: StylePattern;
   allStyles: StylePattern[]; // All available styles (built-in + custom)
   isNewStyle?: boolean;
-  isMainPlaying?: boolean;
-  mainPlayheadStep?: number;
   onSave?: (style: StylePattern) => void;
   onStyleChange?: (style: StylePattern) => void;
   onStyleSelect?: (styleId: string) => void;
   onDelete?: (styleId: string) => void;
-  onToggleMainPlayback?: () => void;
 }
 
 const VELOCITY_LEVELS = [0, 0.3, 0.5, 0.7, 1];
@@ -107,14 +105,15 @@ export function RhythmEditor({
   style, 
   allStyles,
   isNewStyle, 
-  isMainPlaying,
-  mainPlayheadStep,
   onSave, 
   onStyleChange,
   onStyleSelect,
   onDelete,
-  onToggleMainPlayback,
 }: RhythmEditorProps) {
+  // Use centralized playback state
+  const { state: playbackState, stop: stopMainPlayback } = usePlayback();
+  const { isPlaying: isMainPlaying, currentStep: mainPlayheadStep } = playbackState;
+  
   const [editedStyle, setEditedStyle] = useState<StylePattern>(cloneStyle(style));
   const [originalStyleName, setOriginalStyleName] = useState(style.name); // For dropdown display
   const [isLocalPlaying, setIsLocalPlaying] = useState(false);
@@ -298,8 +297,9 @@ export function RhythmEditor({
   }, []);
 
   const startLocalPlayback = useCallback(async () => {
-    if (isMainPlaying && onToggleMainPlayback) {
-      onToggleMainPlayback();
+    // Stop main playback if it's running
+    if (isMainPlaying) {
+      stopMainPlayback();
     }
     
     stopLocalPlayback();
@@ -331,7 +331,7 @@ export function RhythmEditor({
     });
     
     playbackRef.current = { cancel };
-  }, [stopLocalPlayback, isMainPlaying, onToggleMainPlayback]);
+  }, [stopLocalPlayback, isMainPlaying, stopMainPlayback]);
 
   useEffect(() => {
     if (isLocalPlaying) {
@@ -346,15 +346,15 @@ export function RhythmEditor({
       return;
     }
     
-    // If main is playing (synced mode), toggle main playback to stop
-    if (isMainPlaying && onToggleMainPlayback) {
-      onToggleMainPlayback();
+    // If main is playing (synced mode), stop main playback
+    if (isMainPlaying) {
+      stopMainPlayback();
       return;
     }
     
     // Nothing is playing, start local playback
     startLocalPlayback();
-  }, [isLocalPlaying, isMainPlaying, startLocalPlayback, stopLocalPlayback, onToggleMainPlayback]);
+  }, [isLocalPlaying, isMainPlaying, startLocalPlayback, stopLocalPlayback, stopMainPlayback]);
 
   const handleCellClick = (instrument: InstrumentKey, step: number, isFill: boolean) => {
     setEditedStyle(prev => {
