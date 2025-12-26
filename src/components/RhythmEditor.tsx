@@ -340,14 +340,20 @@ export function RhythmEditor({
   }, [showFill]);
 
   const togglePlayback = useCallback(() => {
+    // If local is playing, stop it
     if (isLocalPlaying) {
       stopLocalPlayback();
-    } else {
-      if (isMainPlaying && onToggleMainPlayback) {
-        onToggleMainPlayback();
-      }
-      startLocalPlayback();
+      return;
     }
+    
+    // If main is playing (synced mode), toggle main playback to stop
+    if (isMainPlaying && onToggleMainPlayback) {
+      onToggleMainPlayback();
+      return;
+    }
+    
+    // Nothing is playing, start local playback
+    startLocalPlayback();
   }, [isLocalPlaying, isMainPlaying, startLocalPlayback, stopLocalPlayback, onToggleMainPlayback]);
 
   const handleCellClick = (instrument: InstrumentKey, step: number, isFill: boolean) => {
