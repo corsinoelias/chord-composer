@@ -123,6 +123,11 @@ export function RhythmEditor({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [styleToDelete, setStyleToDelete] = useState<StylePattern | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Track the original style state to compare for changes
+  const originalStyleRef = useRef<string>('');
   
   const { previewStyle, stopPreview, previewingStyleId } = useStylePreview();
   
@@ -147,6 +152,11 @@ export function RhythmEditor({
   
   useEffect(() => {
     editedStyleRef.current = editedStyle;
+    // Check if there are unsaved changes by comparing with original
+    if (originalStyleRef.current) {
+      const currentJson = JSON.stringify(editedStyle);
+      setHasUnsavedChanges(currentJson !== originalStyleRef.current);
+    }
     onStyleChange?.(editedStyle);
   }, [editedStyle, onStyleChange]);
 
@@ -177,6 +187,8 @@ export function RhythmEditor({
     setEditedStyle(cloned);
     setOriginalStyleName(style.name); // Keep original name for dropdown
     editedStyleRef.current = cloned;
+    originalStyleRef.current = JSON.stringify(cloned); // Store original for change detection
+    setHasUnsavedChanges(false);
     
     const active = new Set<InstrumentKey>();
     Object.entries(cloned.rhythm).forEach(([key, pattern]) => {
@@ -211,6 +223,8 @@ export function RhythmEditor({
       setEditedStyle(cloned);
       setOriginalStyleName(style.name);
       editedStyleRef.current = cloned;
+      originalStyleRef.current = JSON.stringify(cloned); // Store original for change detection
+      setHasUnsavedChanges(false);
       
       const active = new Set<InstrumentKey>();
       Object.entries(cloned.rhythm).forEach(([key, pattern]) => {
@@ -504,6 +518,8 @@ export function RhythmEditor({
     }
     
     setSaveDialogOpen(false);
+    setHasUnsavedChanges(false); // Mark as saved so close doesn't show confirmation
+    originalStyleRef.current = JSON.stringify(styleToSave); // Update original reference
     onClose();
   };
 
@@ -516,6 +532,8 @@ export function RhythmEditor({
         const cloned = cloneStyle(original);
         setEditedStyle(cloned);
         editedStyleRef.current = cloned;
+        originalStyleRef.current = JSON.stringify(cloned);
+        setHasUnsavedChanges(false);
         toast.success('Reset to original rhythm');
         window.dispatchEvent(new Event('customStylesChanged'));
       }
@@ -605,9 +623,29 @@ export function RhythmEditor({
     onStyleSelect?.(styleId);
   };
 
+  // Handle close attempt - show confirmation if there are unsaved changes
+  const handleCloseAttempt = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setDiscardDialogOpen(true);
+    } else {
+      if (isLocalPlaying) stopLocalPlayback();
+      stopPreview();
+      onClose();
+    }
+  }, [hasUnsavedChanges, isLocalPlaying, stopLocalPlayback, stopPreview, onClose]);
+
+  // Confirm discard changes
+  const handleDiscardChanges = useCallback(() => {
+    setDiscardDialogOpen(false);
+    if (isLocalPlaying) stopLocalPlayback();
+    stopPreview();
+    setHasUnsavedChanges(false);
+    onClose();
+  }, [isLocalPlaying, stopLocalPlayback, stopPreview, onClose]);
+
   return (
     <>
-      <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) { if (isLocalPlaying) stopLocalPlayback(); stopPreview(); onClose(); } }}>
+      <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) handleCloseAttempt(); }}>
         <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] p-0 gap-0 overflow-hidden">
           <DialogHeader className="p-4 pb-2 border-b border-border">
             <DialogTitle className="flex items-center gap-3">
@@ -1042,6 +1080,24 @@ export function RhythmEditor({
           <AlertDialogAction onClick={() => handleSave('override')}>
             <Save className="w-4 h-4 mr-1" />
             Save Override
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    
+    {/* Discard Changes Confirmation Dialog */}
+    <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+          <AlertDialogDescription>
+            You have unsaved changes. Are you sure you want to close and discard them?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDiscardChanges} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Discard Changes
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
