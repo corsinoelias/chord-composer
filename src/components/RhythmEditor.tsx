@@ -585,40 +585,12 @@ export function RhythmEditor({
                         <DropdownMenuItem
                           key={s.id}
                           className={cn(
-                            "flex items-center justify-between cursor-pointer pr-2",
+                            "cursor-pointer",
                             s.id === style.id && "bg-accent"
                           )}
                           onClick={() => handleSelectStyle(s.id)}
                         >
-                          <span className="truncate flex-1">{s.name}</span>
-                          <div className="flex items-center gap-1 shrink-0 ml-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={cn(
-                                "h-6 w-6",
-                                previewingStyleId === s.id && "bg-primary/20"
-                              )}
-                              onClick={(e) => handlePreviewStyle(e, s)}
-                            >
-                              {previewingStyleId === s.id ? (
-                                <Square className="w-3 h-3" />
-                              ) : (
-                                <Volume2 className="w-3 h-3" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-destructive hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteStyle(s);
-                              }}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
+                          <span className="truncate">{s.name}</span>
                         </DropdownMenuItem>
                       ))}
                       <DropdownMenuSeparator />
@@ -635,30 +607,15 @@ export function RhythmEditor({
                           <DropdownMenuItem
                             key={s.id}
                             className={cn(
-                              "cursor-pointer flex items-center justify-between pr-2",
+                              "cursor-pointer",
                               s.id === style.id && "bg-accent"
                             )}
                             onClick={() => handleSelectStyle(s.id)}
                           >
-                            <span className="truncate flex-1 flex items-center gap-1">
+                            <span className="truncate flex items-center gap-1">
                               {hasOvr && <span className="text-primary text-xs">★</span>}
                               {s.name}
                             </span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={cn(
-                                "h-6 w-6 shrink-0 ml-2",
-                                previewingStyleId === s.id && "bg-primary/20"
-                              )}
-                              onClick={(e) => handlePreviewStyle(e, s)}
-                            >
-                              {previewingStyleId === s.id ? (
-                                <Square className="w-3 h-3" />
-                              ) : (
-                                <Volume2 className="w-3 h-3" />
-                              )}
-                            </Button>
                           </DropdownMenuItem>
                         );
                       })}
@@ -749,6 +706,19 @@ export function RhythmEditor({
                   {(isLocalPlaying || isMainPlaying) ? <Square className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />}
                   {(isLocalPlaying || isMainPlaying) ? 'Stop' : (showFill ? 'Preview Fill' : 'Play')}
                 </Button>
+                
+                {/* Delete button - only for custom styles */}
+                {isCustomStyle(editedStyle.id) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDeleteStyle(editedStyle)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
+                  </Button>
+                )}
                 
                 <Button variant="outline" size="sm" onClick={handleSaveClick}>
                   <Save className="w-4 h-4 mr-1" />
