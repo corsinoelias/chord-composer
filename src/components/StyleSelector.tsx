@@ -119,20 +119,12 @@ export function StyleSelector({ selectedStyleId, onStyleChange, onCreateNew, onE
                     <SelectItem 
                       key={style.id} 
                       value={style.id} 
-                      className="pl-4 pr-8 relative group"
+                      className="pl-4"
                     >
                       <div className="flex flex-col">
                         <span>{style.name}</span>
                         <span className="text-[10px] text-muted-foreground">{style.bpm} BPM</span>
                       </div>
-                      {category.id === 'Custom' && (
-                        <button
-                          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/20 rounded"
-                          onClick={(e) => handleDeleteClick(e, style.id)}
-                        >
-                          <Trash2 className="w-3 h-3 text-destructive" />
-                        </button>
-                      )}
                     </SelectItem>
                   ))}
                 </div>
