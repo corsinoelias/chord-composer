@@ -813,11 +813,11 @@ export function RhythmEditor({
           </div>
           
           {/* Grid Area */}
-          <ScrollArea className="flex-1 max-h-[50vh] sm:max-h-[400px]">
-            <div className="p-2 sm:p-4 overflow-x-auto">
+          <div className="flex-1 max-h-[50vh] sm:max-h-[400px] overflow-auto">
+            <div className="p-2 sm:p-4 min-w-[340px]">
               {/* Beat Markers */}
-              <div className="flex mb-2 min-w-[400px]">
-                <div className="w-16 sm:w-28 shrink-0" />
+              <div className="flex mb-2">
+                <div className="w-12 sm:w-28 shrink-0" />
                 <div className="flex-1 flex">
                   {[1, 2, 3, 4].map(beat => (
                     <div key={beat} className="flex-1 flex">
@@ -830,11 +830,11 @@ export function RhythmEditor({
                     </div>
                   ))}
                 </div>
-                <div className="w-10 sm:w-16 shrink-0" />
+                <div className="w-6 sm:w-16 shrink-0" />
               </div>
               
               {/* Grid Rows */}
-              <div className="space-y-1 min-w-[400px]">
+              <div className="space-y-0.5 sm:space-y-1">
                 {sortedActiveInstruments.map(instrument => {
                   const pattern = showFill 
                     ? editedStyle.fill.pattern[instrument.key] || createEmptyPattern()
@@ -842,15 +842,15 @@ export function RhythmEditor({
                   const Icon = instrument.icon;
                   
                   return (
-                    <div key={instrument.key} className="flex items-center gap-1 sm:gap-2">
-                      <div className="w-16 sm:w-24 flex items-center gap-1 shrink-0">
-                        <Icon className="w-3 h-3 text-muted-foreground hidden sm:block" />
-                        <span className="text-[10px] sm:text-xs font-medium truncate">{instrument.label}</span>
+                    <div key={instrument.key} className="flex items-center gap-0.5 sm:gap-2">
+                      <div className="w-12 sm:w-24 flex items-center gap-0.5 shrink-0 overflow-hidden">
+                        <Icon className="w-3 h-3 text-muted-foreground hidden sm:block shrink-0" />
+                        <span className="text-[8px] sm:text-xs font-medium truncate">{instrument.label}</span>
                       </div>
                       
                       <div className="flex-1 flex">
                         {[0, 1, 2, 3].map(beatIdx => (
-                          <div key={beatIdx} className="flex-1 flex gap-0.5 px-0.5">
+                          <div key={beatIdx} className="flex-1 flex gap-px sm:gap-0.5 px-px sm:px-0.5">
                             {[0, 1, 2, 3].map(subIdx => {
                               const step = beatIdx * 4 + subIdx;
                               const value = pattern[step];
@@ -863,15 +863,15 @@ export function RhythmEditor({
                                   onClick={() => handleCellClick(instrument.key, step, showFill)}
                                   onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
                                   className={cn(
-                                    "flex-1 aspect-square rounded-sm border transition-all relative flex items-center justify-center min-w-[18px] sm:min-w-[24px] max-w-[32px]",
+                                    "flex-1 aspect-square rounded-[2px] sm:rounded-sm border transition-all relative flex items-center justify-center min-w-[14px] sm:min-w-[24px] max-w-[32px]",
                                     isDownbeat ? "border-border" : "border-border/40",
-                                    isCurrentStep && "ring-2 ring-primary ring-offset-1 ring-offset-background",
+                                    isCurrentStep && "ring-1 sm:ring-2 ring-primary ring-offset-0 sm:ring-offset-1 ring-offset-background",
                                     getVelocityColor(value),
                                     value > 0 ? "border-chart-4/50" : ""
                                   )}
                                 >
                                   {value > 0 && (
-                                    <span className="text-[9px] font-medium text-foreground/80">
+                                    <span className="text-[7px] sm:text-[9px] font-medium text-foreground/80">
                                       {Math.round(value * 100)}
                                     </span>
                                   )}
@@ -882,25 +882,25 @@ export function RhythmEditor({
                         ))}
                       </div>
                       
-                      <div className="flex items-center gap-1 shrink-0 w-10 sm:w-16">
+                      <div className="flex items-center shrink-0 w-6 sm:w-16">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-5 w-5 sm:h-6 sm:w-6"
+                          className="h-4 w-4 sm:h-6 sm:w-6"
                           onClick={() => clearPattern(instrument.key, showFill)}
                           title="Clear pattern"
                         >
-                          <RotateCcw className="w-3 h-3" />
+                          <RotateCcw className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                         </Button>
                         {!['kick', 'snare', 'hihat', 'bass', 'piano'].includes(instrument.key) && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-5 w-5 sm:h-6 sm:w-6 text-destructive hover:text-destructive"
+                            className="h-4 w-4 sm:h-6 sm:w-6 text-destructive hover:text-destructive hidden sm:flex"
                             onClick={() => removeInstrument(instrument.key)}
                             title="Remove instrument"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                           </Button>
                         )}
                       </div>
@@ -911,27 +911,27 @@ export function RhythmEditor({
               
               {/* Add Instrument */}
               {availableInstruments.length > 0 && (
-                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-border">
-                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                    <span className="text-xs text-muted-foreground">Add:</span>
+                <div className="mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-border">
+                  <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">Add:</span>
                     {availableInstruments.map(instrument => (
                       <Button
                         key={instrument.key}
                         variant="outline"
                         size="sm"
                         onClick={() => addInstrument(instrument.key)}
-                        className="h-6 sm:h-7 text-[10px] sm:text-xs px-1.5 sm:px-2"
+                        className="h-5 sm:h-7 text-[9px] sm:text-xs px-1 sm:px-2"
                       >
-                        <Plus className="w-3 h-3 sm:mr-1" />
+                        <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3 sm:mr-1" />
                         <span className="hidden sm:inline">{instrument.label}</span>
-                        <span className="sm:hidden">{instrument.label.slice(0, 4)}</span>
+                        <span className="sm:hidden">{instrument.label.length > 5 ? instrument.label.slice(0, 3) : instrument.label}</span>
                       </Button>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
           
           {/* Footer / Legend */}
           <div className="p-2 sm:p-3 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:justify-between">
