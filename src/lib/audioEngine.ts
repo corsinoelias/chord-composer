@@ -556,6 +556,8 @@ export interface PlaybackOptions {
   onBeat?: (beat: number) => void;
   onChordChange?: (index: number) => void;
   onLoopEnd?: () => void;
+  onStep?: (step: number) => void; // Called on each 16th note step (0-15)
+  getStyle?: () => StylePattern;   // Dynamic style getter for live updates
 }
 
 /**
@@ -566,7 +568,19 @@ export function scheduleProgression(
   bpm: number,
   options: PlaybackOptions
 ): { duration: number; cancel: () => void } {
-  const { loop = false, metronome = true, instruments, style, transposition = 0, onBeat, onChordChange, onLoopEnd } = options;
+  const { 
+    loop = false, 
+    metronome = true, 
+    instruments, 
+    style, 
+    transposition = 0, 
+    onBeat, 
+    onChordChange, 
+    onLoopEnd,
+    onStep,
+    getStyle
+  } = options;
+  
   const ctx = getAudioContext();
   const startTime = ctx.currentTime + 0.1;
   const beatDuration = 60 / bpm;
@@ -590,9 +604,13 @@ export function scheduleProgression(
   const scheduleLoop = (loopStartTime: number) => {
     if (cancelled) return 0;
     
+    // Get current style (supports live updates)
+    const currentStyle = getStyle ? getStyle() : style;
+    
     let currentTime = loopStartTime;
     let globalChordIndex = 0;
     let barNumber = 0;
+    let globalSlot = 0;
     
     // Process each section with its repeats
     sections.forEach(section => {
@@ -637,7 +655,7 @@ export function scheduleProgression(
             const barStartTime = chordStartTime + (bar * 4 * beatDuration);
             
             // Generate pattern for this bar (with fills on bar 4, 8, etc.)
-            const pattern = generateBarPattern(style, barNumber, 4, true);
+            const pattern = generateBarPattern(currentStyle, barNumber, 4, true);
             
             // Schedule each 16th note slot
             for (let slot = 0; slot < 16; slot++) {
@@ -645,6 +663,18 @@ export function scheduleProgression(
               
               // Skip if slot is beyond chord duration
               if (slotTime >= chordStartTime + durationInSeconds) break;
+              
+              // Schedule step callback for playhead sync
+              if (onStep) {
+                const stepDelayMs = (slotTime - ctx.currentTime) * 1000;
+                const stepIdx = slot;
+                const stepTimeout = window.setTimeout(() => {
+                  if (!cancelled) onStep(stepIdx);
+                }, Math.max(0, stepDelayMs));
+                timeouts.push(stepTimeout);
+              }
+              
+              globalSlot++;
               
               // Piano - uses velocity from pattern
               const pianoVelocity = pattern.piano[slot];
@@ -654,7 +684,7 @@ export function scheduleProgression(
                   playPianoNote(
                     ctx, masterGain!, frequency, slotTime, 
                     slotDuration * 3, pianoSound, 
-                    pianoState.volume * style.volumes.piano * pianoVelocity
+                    pianoState.volume * currentStyle.volumes.piano * pianoVelocity
                   );
                 });
               }
@@ -664,17 +694,17 @@ export function scheduleProgression(
               if (bassState && isInstrumentAudible(bassState, instruments) && bassSound && bassVelocity > 0) {
                 const bassNote = midiNotes[0];
                 const frequency = midiToFrequency(bassNote);
-                const noteDuration = style.bassSustain ? beatDuration * 2 : slotDuration * 2;
+                const noteDuration = currentStyle.bassSustain ? beatDuration * 2 : slotDuration * 2;
                 playBassNote(
                   ctx, masterGain!, frequency, slotTime,
                   noteDuration, bassSound,
-                  bassState.volume * style.volumes.bass * bassVelocity
+                  bassState.volume * currentStyle.volumes.bass * bassVelocity
                 );
               }
               
               // Drums - all drum types with velocities
               if (drumsState && isInstrumentAudible(drumsState, instruments) && drumsSound) {
-                const baseVolume = drumsState.volume * style.volumes.drums;
+                const baseVolume = drumsState.volume * currentStyle.volumes.drums;
                 
                 if (pattern.kick[slot] > 0) {
                   playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.kick[slot], 'kick');
