@@ -283,6 +283,8 @@ export function RhythmEditor({
   }, [isLocalPlaying, updatePlayhead]);
 
   const stopLocalPlayback = useCallback(() => {
+    const hadLocalPlayback = isLocalPlaying || !!playbackRef.current;
+
     if (playbackRef.current) {
       playbackRef.current.cancel();
       playbackRef.current = null;
@@ -291,10 +293,15 @@ export function RhythmEditor({
       cancelAnimationFrame(stepAnimationRef.current);
       stepAnimationRef.current = null;
     }
-    stopPlayback();
-    setIsLocalPlaying(false);
-    setCurrentStep(-1);
-  }, []);
+
+    // IMPORTANT: Only stop the global audio engine if we were actually running LOCAL playback.
+    // Otherwise (e.g. main playback is running), calling stopPlayback() would silence the whole app.
+    if (hadLocalPlayback) {
+      stopPlayback();
+      setIsLocalPlaying(false);
+      setCurrentStep(-1);
+    }
+  }, [isLocalPlaying]);
 
   const startLocalPlayback = useCallback(async () => {
     // Stop main playback if it's running
@@ -583,6 +590,10 @@ export function RhythmEditor({
     if (previewingStyleId === s.id) {
       stopPreview();
     } else {
+      // Preview should be exclusive: stop main playback to avoid conflicts
+      if (isMainPlaying) {
+        stopMainPlayback();
+      }
       stopLocalPlayback();
       previewStyle(s);
     }
@@ -596,7 +607,7 @@ export function RhythmEditor({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={() => { stopLocalPlayback(); stopPreview(); onClose(); }}>
+      <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) { if (isLocalPlaying) stopLocalPlayback(); stopPreview(); onClose(); } }}>
         <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] p-0 gap-0 overflow-hidden">
           <DialogHeader className="p-4 pb-2 border-b border-border">
             <DialogTitle className="flex items-center gap-3">

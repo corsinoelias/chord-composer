@@ -14,6 +14,8 @@ export function useStylePreview() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const stopPreview = useCallback(() => {
+    const hadPreview = !!previewRef.current || !!timeoutRef.current;
+
     if (previewRef.current) {
       previewRef.current.cancel();
       previewRef.current = null;
@@ -22,7 +24,13 @@ export function useStylePreview() {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    stopPlayback();
+
+    // IMPORTANT: Only stop the global audio engine if we actually started a preview.
+    // Otherwise this would silence the main playback just because the modal closed.
+    if (hadPreview) {
+      stopPlayback();
+    }
+
     setPreviewingStyleId(null);
   }, []);
 
