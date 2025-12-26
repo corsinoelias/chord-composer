@@ -894,9 +894,17 @@ export const MUSICAL_STYLES: StylePattern[] = [
 /**
  * Get style by ID
  * Optionally pass custom styles to also search in them
+ * Also checks for overrides of built-in styles
  */
 export function getStyleById(id: string, customStyles: StylePattern[] = []): StylePattern | undefined {
-  // First check custom styles, then built-in
+  // Import override function dynamically to avoid circular dependency
+  const { getStyleOverride } = require('./customStyles');
+  
+  // First check if there's an override for this built-in style
+  const override = getStyleOverride(id);
+  if (override) return override;
+  
+  // Then check custom styles, then built-in
   return customStyles.find(s => s.id === id) || MUSICAL_STYLES.find(s => s.id === id);
 }
 

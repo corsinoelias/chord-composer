@@ -514,8 +514,16 @@ export function RhythmEditor({
   const sortedActiveInstruments = ALL_INSTRUMENTS.filter(i => activeInstruments.has(i.key));
 
   // Group styles for dropdown - use original names for display
-  const customStylesList = allStyles.filter(s => isCustomStyle(s.id));
-  const builtInStyles = allStyles.filter(s => !isCustomStyle(s.id));
+  // Filter out duplicates by using a Map keyed by style ID
+  const seenIds = new Set<string>();
+  const uniqueStyles = allStyles.filter(s => {
+    if (seenIds.has(s.id)) return false;
+    seenIds.add(s.id);
+    return true;
+  });
+  
+  const customStylesList = uniqueStyles.filter(s => isCustomStyle(s.id));
+  const builtInStyles = uniqueStyles.filter(s => !isCustomStyle(s.id));
   const stylesByCategory = builtInStyles.reduce((acc, s) => {
     if (!acc[s.category]) acc[s.category] = [];
     acc[s.category].push(s);
@@ -710,9 +718,8 @@ export function RhythmEditor({
                 {/* Delete button - only for custom styles */}
                 {isCustomStyle(editedStyle.id) && (
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={() => handleDeleteStyle(editedStyle)}
                   >
                     <Trash2 className="w-4 h-4 mr-1" />
