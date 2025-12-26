@@ -911,19 +911,20 @@ export function RhythmEditor({
               
               {/* Add Instrument */}
               {availableInstruments.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-border">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-muted-foreground">Add instrument:</span>
+                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-border">
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                    <span className="text-xs text-muted-foreground">Add:</span>
                     {availableInstruments.map(instrument => (
                       <Button
                         key={instrument.key}
                         variant="outline"
                         size="sm"
                         onClick={() => addInstrument(instrument.key)}
-                        className="h-7 text-xs"
+                        className="h-6 sm:h-7 text-[10px] sm:text-xs px-1.5 sm:px-2"
                       >
-                        <Plus className="w-3 h-3 mr-1" />
-                        {instrument.label}
+                        <Plus className="w-3 h-3 sm:mr-1" />
+                        <span className="hidden sm:inline">{instrument.label}</span>
+                        <span className="sm:hidden">{instrument.label.slice(0, 4)}</span>
                       </Button>
                     ))}
                   </div>
@@ -933,30 +934,29 @@ export function RhythmEditor({
           </ScrollArea>
           
           {/* Footer / Legend */}
-          <div className="p-3 border-t border-border bg-muted/30 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <span className="text-xs text-muted-foreground">Click: cycle velocity | Right-click: clear</span>
-              <Separator orientation="vertical" className="h-4" />
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Velocity:</span>
+          <div className="p-2 sm:p-3 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Click: cycle | Right-click: clear</span>
+              <Separator orientation="vertical" className="h-4 hidden sm:block" />
+              <div className="flex items-center gap-1 sm:gap-2">
+                <span className="text-[10px] sm:text-xs text-muted-foreground">Vel:</span>
                 {VELOCITY_LEVELS.slice(1).map((v, i) => (
-                  <div key={i} className="flex items-center gap-1">
-                    <div className={cn("w-4 h-4 rounded", VELOCITY_COLORS[i + 1])} />
-                    <span className="text-[10px] text-muted-foreground">{Math.round(v * 100)}%</span>
+                  <div key={i} className="flex items-center gap-0.5 sm:gap-1">
+                    <div className={cn("w-3 h-3 sm:w-4 sm:h-4 rounded", VELOCITY_COLORS[i + 1])} />
+                    <span className="text-[8px] sm:text-[10px] text-muted-foreground">{Math.round(v * 100)}</span>
                   </div>
                 ))}
               </div>
             </div>
             
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={editedStyle.bassSustain || false}
-                  onCheckedChange={v => setEditedStyle(prev => ({ ...prev, bassSustain: v }))}
-                  id="bass-sustain"
-                />
-                <Label htmlFor="bass-sustain" className="text-xs cursor-pointer">Bass Sustain</Label>
-              </div>
+              <Switch
+                checked={editedStyle.bassSustain || false}
+                onCheckedChange={v => setEditedStyle(prev => ({ ...prev, bassSustain: v }))}
+                id="bass-sustain"
+                className="scale-90 sm:scale-100"
+              />
+              <Label htmlFor="bass-sustain" className="text-[10px] sm:text-xs cursor-pointer">Bass Sustain</Label>
             </div>
           </div>
         </div>
