@@ -152,14 +152,6 @@ export function TransportControls({
               {isPlaying ? <Square size={18} /> : <Play size={18} className="ml-0.5" />}
             </button>
             
-            <button
-              onClick={onReset}
-              disabled={!hasChords || isPlaying || isExporting}
-              className="w-9 h-9 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center transition-all duration-200 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Reset"
-            >
-              <RotateCcw size={14} />
-            </button>
           </div>
 
           {/* Metronome */}
