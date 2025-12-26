@@ -76,6 +76,13 @@ const Index = () => {
   useEffect(() => { liveEditedStyleRef.current = liveEditedStyle; }, [liveEditedStyle]);
   useEffect(() => { customStylesRef.current = customStyles; }, [customStyles]);
 
+  // Update playback options when liveEditedStyle changes during playback
+  useEffect(() => {
+    if (isPlaying && liveEditedStyle) {
+      updatePlaybackOptions({ liveEditedStyle });
+    }
+  }, [liveEditedStyle, isPlaying, updatePlaybackOptions]);
+
   // Listen for custom styles changes
   useEffect(() => {
     const handleCustomStylesChanged = () => {
