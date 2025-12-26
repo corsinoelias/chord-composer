@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
@@ -230,7 +230,7 @@ export function RhythmEditor({
 
   useEffect(() => {
     if (!open) {
-      // Only stop local playback resources when closing
+      // Only stop local playback resources, don't call stopPlayback() if main is playing
       if (playbackRef.current) {
         playbackRef.current.cancel();
         playbackRef.current = null;
@@ -239,14 +239,13 @@ export function RhythmEditor({
         cancelAnimationFrame(stepAnimationRef.current);
         stepAnimationRef.current = null;
       }
-      // Only stop local playback audio, NOT main playback
+      // Only stop global audio if we were doing local playback, not if main was playing
       if (isLocalPlaying) {
         stopPlayback();
       }
       setIsLocalPlaying(false);
       setCurrentStep(-1);
       stopPreview();
-      // Main playback continues! No stopPlayback() call for main
     }
   }, [open, stopPreview, isLocalPlaying]);
 
@@ -595,21 +594,12 @@ export function RhythmEditor({
     onStyleSelect?.(styleId);
   };
 
-  const handleClose = () => {
-    // Only stop local playback, let main continue
-    if (isLocalPlaying) {
-      stopLocalPlayback();
-    }
-    stopPreview();
-    onClose();
-  };
-
   return (
     <>
-      <Sheet open={open} onOpenChange={handleClose}>
-        <SheetContent side="right" className="w-[95vw] sm:w-[80vw] sm:max-w-4xl p-0 gap-0 overflow-hidden">
-          <SheetHeader className="p-4 pb-2 border-b border-border">
-            <SheetTitle className="flex items-center gap-3">
+      <Dialog open={open} onOpenChange={() => { stopLocalPlayback(); stopPreview(); onClose(); }}>
+        <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] p-0 gap-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-2 border-b border-border">
+            <DialogTitle className="flex items-center gap-3">
               <Drum className="w-5 h-5" />
               
               {/* Rhythm Selector Dropdown - shows ORIGINAL name */}
@@ -683,8 +673,8 @@ export function RhythmEditor({
                   🔊 Previewing...
                 </span>
               )}
-            </SheetTitle>
-          </SheetHeader>
+            </DialogTitle>
+          </DialogHeader>
           
           <div className="flex flex-col h-full">
             {/* Top Controls */}
@@ -999,8 +989,8 @@ export function RhythmEditor({
             </div>
           </div>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
     
     {/* Delete Confirmation Dialog */}
     <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
