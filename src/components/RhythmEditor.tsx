@@ -517,7 +517,17 @@ export function RhythmEditor({
 
   const handleBpmChange = (newBpm: number) => {
     const clampedBpm = Math.max(40, Math.min(200, newBpm));
-    setEditedStyle(prev => ({ ...prev, bpm: clampedBpm }));
+    setEditedStyle(prev => {
+      const updated = { ...prev, bpm: clampedBpm };
+      editedStyleRef.current = updated;
+      return updated;
+    });
+    
+    // If local playback is active, restart it with the new BPM
+    if (isLocalPlaying) {
+      // Use setTimeout to let the state update propagate
+      setTimeout(() => startLocalPlayback(), 0);
+    }
   };
 
   const handleFillToggle = (checked: boolean) => {
