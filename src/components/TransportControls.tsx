@@ -61,192 +61,171 @@ export function TransportControls({
   hasChords,
 }: TransportControlsProps) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 shadow-sm space-y-4">
-      {/* Song Title */}
-      <div className="flex items-center gap-4">
-        <div className="flex-1">
-          <Label htmlFor="song-title" className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
-            Song Title
-          </Label>
-          <Input
-            id="song-title"
-            value={songTitle}
-            onChange={(e) => onSongTitleChange(e.target.value)}
-            placeholder="My Song"
-            className="bg-background"
-          />
-        </div>
-        <div className="w-32">
-          <Label className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
-            Transpose
-          </Label>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onTranspositionChange(transposition - 1)}
-              disabled={transposition <= -12}
-              className="h-9 w-9 p-0"
-            >
-              -
-            </Button>
-            <span className="w-12 text-center font-mono text-sm">
-              {transposition > 0 ? `+${transposition}` : transposition}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onTranspositionChange(transposition + 1)}
-              disabled={transposition >= 12}
-              className="h-9 w-9 p-0"
-            >
-              +
-            </Button>
+    <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4">
+        {/* Left: Song Info */}
+        <div className="flex flex-wrap items-end gap-4">
+          {/* Song Title */}
+          <div className="flex-1 min-w-[200px]">
+            <Label htmlFor="song-title" className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
+              Song Title
+            </Label>
+            <Input
+              id="song-title"
+              value={songTitle}
+              onChange={(e) => onSongTitleChange(e.target.value)}
+              placeholder="My Song"
+              className="bg-background"
+            />
           </div>
+          
+          {/* Transpose */}
+          <div>
+            <Label className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
+              Transpose
+            </Label>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onTranspositionChange(transposition - 1)}
+                disabled={transposition <= -12}
+                className="h-9 w-9 p-0"
+              >
+                -
+              </Button>
+              <span className="w-10 text-center font-mono text-sm">
+                {transposition > 0 ? `+${transposition}` : transposition}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onTranspositionChange(transposition + 1)}
+                disabled={transposition >= 12}
+                className="h-9 w-9 p-0"
+              >
+                +
+              </Button>
+            </div>
+          </div>
+
+          {/* BPM Control */}
+          <div className="min-w-[160px] max-w-[200px]">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                Tempo
+              </label>
+              <span className="font-mono text-sm font-medium">
+                {bpm} BPM
+              </span>
+            </div>
+            <input
+              type="range"
+              min={40}
+              max={200}
+              value={bpm}
+              onChange={(e) => onBpmChange(parseInt(e.target.value))}
+              disabled={isExporting}
+              className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
+        </div>
+
+        {/* Right: Playback & Export */}
+        <div className="flex items-end gap-3">
+          {/* Playback Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={isPlaying ? onStop : onPlay}
+              disabled={!hasChords || isExporting}
+              className={`
+                w-11 h-11 rounded-full flex items-center justify-center
+                transition-all duration-200 shadow-md hover:shadow-lg
+                disabled:opacity-50 disabled:cursor-not-allowed
+                ${isPlaying 
+                  ? 'bg-destructive text-destructive-foreground hover:opacity-90' 
+                  : 'bg-primary text-primary-foreground hover:opacity-90'
+                }
+              `}
+              aria-label={isPlaying ? 'Stop' : 'Play'}
+            >
+              {isPlaying ? <Square size={18} /> : <Play size={18} className="ml-0.5" />}
+            </button>
+            
+            <button
+              onClick={onReset}
+              disabled={!hasChords || isPlaying || isExporting}
+              className="w-9 h-9 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center transition-all duration-200 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Reset"
+            >
+              <RotateCcw size={14} />
+            </button>
+          </div>
+
+          {/* Metronome */}
+          <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-secondary/50">
+            {metronomeEnabled ? (
+              <Volume2 size={14} className="text-muted-foreground" />
+            ) : (
+              <VolumeX size={14} className="text-muted-foreground" />
+            )}
+            <Switch
+              id="metronome"
+              checked={metronomeEnabled}
+              onCheckedChange={onMetronomeToggle}
+              disabled={isExporting}
+              className="scale-90"
+            />
+          </div>
+
+          {/* Export */}
+          <Button
+            onClick={onExport}
+            disabled={!hasChords || isPlaying || isExporting}
+            className="h-10 gap-2"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download size={16} />
+                Export
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
-        {/* Playback Controls */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={isPlaying ? onStop : onPlay}
-            disabled={!hasChords || isExporting}
-            className={`
-              w-12 h-12 rounded-full
-              flex items-center justify-center
-              transition-all duration-200
-              disabled:opacity-50 disabled:cursor-not-allowed
-              ${isPlaying 
-                ? 'bg-destructive text-destructive-foreground hover:opacity-90' 
-                : 'bg-primary text-primary-foreground hover:opacity-90'
-              }
-              shadow-md hover:shadow-lg
-            `}
-            aria-label={isPlaying ? 'Stop' : 'Play'}
-          >
-            {isPlaying ? <Square size={20} /> : <Play size={20} className="ml-0.5" />}
-          </button>
-          
-          <button
-            onClick={onReset}
-            disabled={!hasChords || isPlaying || isExporting}
-            className="
-              w-10 h-10 rounded-full
-              bg-secondary text-secondary-foreground
-              flex items-center justify-center
-              transition-all duration-200
-              hover:bg-accent
-              disabled:opacity-50 disabled:cursor-not-allowed
-            "
-            aria-label="Reset"
-          >
-            <RotateCcw size={16} />
-          </button>
-        </div>
-        
-        {/* Metronome Toggle */}
-        <div className="flex items-center gap-2">
-          {metronomeEnabled ? (
-            <Volume2 size={16} className="text-muted-foreground" />
-          ) : (
-            <VolumeX size={16} className="text-muted-foreground" />
-          )}
-          <Switch
-            id="metronome"
-            checked={metronomeEnabled}
-            onCheckedChange={onMetronomeToggle}
-            disabled={isExporting}
-          />
-          <Label htmlFor="metronome" className="text-sm text-muted-foreground cursor-pointer">
-            Metronome
-          </Label>
-        </div>
-
-        {/* Style Selector */}
+      {/* Bottom row: Style & Rhythm controls */}
+      <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-border">
         <StyleSelector 
           selectedStyleId={selectedStyleId} 
           onStyleChange={onStyleChange}
           customStyles={customStyles}
           onCreateNew={onCreateNewRhythm}
         />
-
-        {/* Instruments Button */}
-        <Button variant="outline" size="sm" onClick={onOpenInstruments} className="gap-2">
-          <Settings2 className="h-4 w-4" />
+        
+        <div className="h-6 w-px bg-border mx-1" />
+        
+        <Button variant="outline" size="sm" onClick={onOpenInstruments} className="gap-1.5 h-8">
+          <Settings2 className="h-3.5 w-3.5" />
           Instruments
         </Button>
         
-        {/* Edit Rhythm Button */}
-        <Button variant="outline" size="sm" onClick={onOpenRhythmEditor} className="gap-2">
-          <Grid3X3 className="h-4 w-4" />
+        <Button variant="outline" size="sm" onClick={onOpenRhythmEditor} className="gap-1.5 h-8">
+          <Grid3X3 className="h-3.5 w-3.5" />
           Edit Rhythm
         </Button>
         
-        {/* Create New Rhythm Button */}
         {onCreateNewRhythm && (
-          <Button variant="ghost" size="sm" onClick={onCreateNewRhythm} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Rhythm
+          <Button variant="ghost" size="sm" onClick={onCreateNewRhythm} className="gap-1.5 h-8">
+            <Plus className="h-3.5 w-3.5" />
+            New
           </Button>
         )}
-        {/* BPM Control */}
-        <div className="flex-1 min-w-[180px] max-w-[280px]">
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">
-              Tempo
-            </label>
-            <span className="font-mono text-sm font-medium">
-              {bpm} BPM
-            </span>
-          </div>
-          <input
-            type="range"
-            min={40}
-            max={200}
-            value={bpm}
-            onChange={(e) => onBpmChange(parseInt(e.target.value))}
-            disabled={isExporting}
-            className="
-              w-full h-2 bg-secondary rounded-lg 
-              appearance-none cursor-pointer accent-primary
-              disabled:opacity-50 disabled:cursor-not-allowed
-            "
-          />
-          <div className="flex justify-between text-xs text-muted-foreground mt-1">
-            <span>40</span>
-            <span>200</span>
-          </div>
-        </div>
-        
-        {/* Export Button */}
-        <button
-          onClick={onExport}
-          disabled={!hasChords || isPlaying || isExporting}
-          className="
-            h-10 px-5 rounded-lg
-            bg-primary text-primary-foreground
-            font-medium text-sm
-            flex items-center gap-2
-            transition-all duration-200
-            hover:opacity-90
-            disabled:opacity-50 disabled:cursor-not-allowed
-            shadow-sm
-            ml-auto
-          "
-        >
-          {isExporting ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              Exporting...
-            </>
-          ) : (
-            <>
-              <Download size={16} />
-              Export WAV
-            </>
-          )}
-        </button>
       </div>
     </div>
   );
