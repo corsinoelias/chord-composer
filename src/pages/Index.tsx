@@ -78,7 +78,7 @@ const Index = () => {
 
   // Update playback options when liveEditedStyle changes during playback
   useEffect(() => {
-    if (isPlaying && liveEditedStyle) {
+    if (isPlaying) {
       updatePlaybackOptions({ liveEditedStyle });
     }
   }, [liveEditedStyle, isPlaying, updatePlaybackOptions]);
