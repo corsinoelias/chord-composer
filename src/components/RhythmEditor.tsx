@@ -25,7 +25,7 @@ import {
   RotateCw
 } from 'lucide-react';
 import { StylePattern, MUSICAL_STYLES } from '@/lib/styles';
-import { getAudioContext, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
+import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
 import { useStylePreview } from '@/hooks/useStylePreview';
@@ -283,15 +283,16 @@ export function RhythmEditor({
     setCurrentStep(-1);
   }, []);
 
-  const startLocalPlayback = useCallback(() => {
+  const startLocalPlayback = useCallback(async () => {
     if (isMainPlaying && onToggleMainPlayback) {
       onToggleMainPlayback();
     }
     
     stopLocalPlayback();
     
-    const ctx = getAudioContext();
-    loopStartTimeRef.current = ctx.currentTime + 0.1;
+    // Ensure samples are loaded before starting playback
+    await ensureSamplesLoaded();
+    
     setIsLocalPlaying(true);
     
     const testSection = {
@@ -310,10 +311,7 @@ export function RhythmEditor({
       style: editedStyleRef.current,
       transposition: 0,
       onChordChange: () => {},
-      onLoopEnd: () => {
-        const ctx = getAudioContext();
-        loopStartTimeRef.current = ctx.currentTime + 0.05;
-      },
+      onLoopEnd: () => {},
       getStyle: () => editedStyleRef.current,
       forceFill: showFillRef.current,
     });

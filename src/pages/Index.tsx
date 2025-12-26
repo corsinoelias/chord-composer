@@ -4,7 +4,7 @@ import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
 import { getDefaultInstrumentStates, InstrumentState, isInstrumentAudible } from '@/lib/instruments';
 import { getStyleById, getStyleByIdWithOverrides, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
 import { getCustomStyles, saveCustomStyle, getStyleOverride } from '@/lib/customStyles';
-import { getAudioContext, scheduleProgression, renderProgressionOffline, stopPlayback } from '@/lib/audioEngine';
+import { ensureSamplesLoaded, scheduleProgression, renderProgressionOffline, stopPlayback } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
@@ -91,7 +91,7 @@ const Index = () => {
     return () => window.removeEventListener('customStylesChanged', handleCustomStylesChanged);
   }, []);
 
-  const startPlayback = useCallback(() => {
+  const startPlayback = useCallback(async () => {
     const currentSections = sectionsRef.current;
     const loopIdx = loopingSectionRef.current;
     
@@ -103,7 +103,9 @@ const Index = () => {
     const hasChords = sectionsToPlay.some(s => s.chords.length > 0);
     if (!hasChords) return;
     
-    getAudioContext();
+    // Ensure samples are loaded before starting playback
+    await ensureSamplesLoaded();
+    
     setIsPlaying(true);
     setCurrentChordIndex(0);
     
