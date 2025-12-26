@@ -1,10 +1,9 @@
-import { Play, Square, Download, Loader2, Volume2, VolumeX, Settings2, Grid3X3, Plus } from 'lucide-react';
+import { Play, Square, RotateCcw, Download, Loader2, Volume2, VolumeX, Settings2, Grid3X3, Plus } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StyleSelector } from './StyleSelector';
-import { useLanguage } from '@/contexts/LanguageContext';
 
 import { StylePattern } from '@/lib/styles';
 
@@ -49,6 +48,7 @@ export function TransportControls({
   customStyles = [],
   onPlay,
   onStop,
+  onReset,
   onExport,
   onBpmChange,
   onMetronomeToggle,
@@ -60,79 +60,29 @@ export function TransportControls({
   onCreateNewRhythm,
   hasChords,
 }: TransportControlsProps) {
-  const { t } = useLanguage();
-
   return (
     <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
-      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-4 items-end">
-        {/* Play Button - First */}
-        <div className="flex items-center justify-center lg:justify-start">
-          <button
-            onClick={isPlaying ? onStop : onPlay}
-            disabled={!hasChords || isExporting}
-            className={`
-              w-14 h-14 rounded-full flex items-center justify-center
-              transition-all duration-200 shadow-md hover:shadow-lg
-              disabled:opacity-50 disabled:cursor-not-allowed
-              ${isPlaying 
-                ? 'bg-destructive text-destructive-foreground hover:opacity-90' 
-                : 'bg-primary text-primary-foreground hover:opacity-90'
-              }
-            `}
-            aria-label={isPlaying ? t('stop') : t('play')}
-          >
-            {isPlaying ? <Square size={22} /> : <Play size={22} className="ml-0.5" />}
-          </button>
-        </div>
-
-        {/* Middle: Controls */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4">
+        {/* Left: Song Info */}
         <div className="flex flex-wrap items-end gap-4">
-          {/* BPM Control */}
-          <div className="min-w-[160px] max-w-[200px]">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-muted-foreground uppercase tracking-wide">
-                {t('tempo')}
-              </label>
-              <span className="font-mono text-sm font-medium">
-                {bpm} BPM
-              </span>
-            </div>
-            <input
-              type="range"
-              min={40}
-              max={200}
-              value={bpm}
-              onChange={(e) => onBpmChange(parseInt(e.target.value))}
-              disabled={isExporting}
-              className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          </div>
-
-          {/* Metronome */}
-          <div className="flex flex-col items-center gap-1">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-              {t('metronome')}
+          {/* Song Title */}
+          <div className="flex-1 min-w-[200px]">
+            <Label htmlFor="song-title" className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
+              Song Title
             </Label>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-secondary/50">
-              {metronomeEnabled ? (
-                <Volume2 size={14} className="text-muted-foreground" />
-              ) : (
-                <VolumeX size={14} className="text-muted-foreground" />
-              )}
-              <Switch
-                id="metronome"
-                checked={metronomeEnabled}
-                onCheckedChange={onMetronomeToggle}
-                disabled={isExporting}
-                className="scale-90"
-              />
-            </div>
+            <Input
+              id="song-title"
+              value={songTitle}
+              onChange={(e) => onSongTitleChange(e.target.value)}
+              placeholder="My Song"
+              className="bg-background"
+            />
           </div>
           
           {/* Transpose */}
           <div>
             <Label className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
-              {t('transpose')}
+              Transpose
             </Label>
             <div className="flex items-center gap-1">
               <Button
@@ -159,23 +109,73 @@ export function TransportControls({
             </div>
           </div>
 
-          {/* Song Title */}
-          <div className="flex-1 min-w-[150px] max-w-[250px]">
-            <Label htmlFor="song-title" className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
-              {t('songTitle')}
-            </Label>
-            <Input
-              id="song-title"
-              value={songTitle}
-              onChange={(e) => onSongTitleChange(e.target.value)}
-              placeholder="My Song"
-              className="bg-background"
+          {/* BPM Control */}
+          <div className="min-w-[160px] max-w-[200px]">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                Tempo
+              </label>
+              <span className="font-mono text-sm font-medium">
+                {bpm} BPM
+              </span>
+            </div>
+            <input
+              type="range"
+              min={40}
+              max={200}
+              value={bpm}
+              onChange={(e) => onBpmChange(parseInt(e.target.value))}
+              disabled={isExporting}
+              className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
         </div>
 
-        {/* Right: Export */}
-        <div className="flex items-end">
+        {/* Right: Playback & Export */}
+        <div className="flex items-end gap-3">
+          {/* Playback Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={isPlaying ? onStop : onPlay}
+              disabled={!hasChords || isExporting}
+              className={`
+                w-11 h-11 rounded-full flex items-center justify-center
+                transition-all duration-200 shadow-md hover:shadow-lg
+                disabled:opacity-50 disabled:cursor-not-allowed
+                ${isPlaying 
+                  ? 'bg-destructive text-destructive-foreground hover:opacity-90' 
+                  : 'bg-primary text-primary-foreground hover:opacity-90'
+                }
+              `}
+              aria-label={isPlaying ? 'Stop' : 'Play'}
+            >
+              {isPlaying ? <Square size={18} /> : <Play size={18} className="ml-0.5" />}
+            </button>
+            
+          </div>
+
+          {/* Metronome */}
+          <div className="flex flex-col items-center gap-1">
+            <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+              Metronome
+            </Label>
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-secondary/50">
+              {metronomeEnabled ? (
+                <Volume2 size={14} className="text-muted-foreground" />
+              ) : (
+                <VolumeX size={14} className="text-muted-foreground" />
+              )}
+              <Switch
+                id="metronome"
+                checked={metronomeEnabled}
+                onCheckedChange={onMetronomeToggle}
+                disabled={isExporting}
+                className="scale-90"
+              />
+            </div>
+          </div>
+
+          {/* Export */}
           <Button
             onClick={onExport}
             disabled={!hasChords || isPlaying || isExporting}
@@ -184,12 +184,12 @@ export function TransportControls({
             {isExporting ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                {t('exporting')}
+                Exporting...
               </>
             ) : (
               <>
                 <Download size={16} />
-                {t('export')}
+                Export
               </>
             )}
           </Button>
@@ -209,18 +209,18 @@ export function TransportControls({
         
         <Button variant="outline" size="sm" onClick={onOpenInstruments} className="gap-1.5 h-8">
           <Settings2 className="h-3.5 w-3.5" />
-          {t('instruments')}
+          Instruments
         </Button>
         
         <Button variant="outline" size="sm" onClick={onOpenRhythmEditor} className="gap-1.5 h-8">
           <Grid3X3 className="h-3.5 w-3.5" />
-          {t('editRhythm')}
+          Edit Rhythm
         </Button>
         
         {onCreateNewRhythm && (
           <Button variant="ghost" size="sm" onClick={onCreateNewRhythm} className="gap-1.5 h-8">
             <Plus className="h-3.5 w-3.5" />
-            {t('newRhythm')}
+            New
           </Button>
         )}
       </div>
