@@ -12,6 +12,14 @@ import { Section } from './sections';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
+let currentlyPlaying = false;
+
+/**
+ * Check if audio is currently playing
+ */
+export function isCurrentlyPlaying(): boolean {
+  return currentlyPlaying;
+}
 
 // Sample buffers for acoustic kit
 interface AcousticKitSamples {
@@ -556,9 +564,10 @@ export interface PlaybackOptions {
   onBeat?: (beat: number) => void;
   onChordChange?: (index: number) => void;
   onLoopEnd?: () => void;
-  onStep?: (step: number) => void; // Called on each 16th note step (0-15)
-  getStyle?: () => StylePattern;   // Dynamic style getter for live updates
-  forceFill?: boolean;             // Force fill pattern for every bar (for rhythm editor preview)
+  onStep?: (step: number) => void;
+  onStepChange?: (step: number) => void; // Called continuously for playhead sync
+  getStyle?: () => StylePattern;
+  forceFill?: boolean;
 }
 
 /**
@@ -579,6 +588,7 @@ export function scheduleProgression(
     onChordChange, 
     onLoopEnd,
     onStep,
+    onStepChange,
     getStyle,
     forceFill = false
   } = options;
@@ -668,6 +678,14 @@ export function scheduleProgression(
               // Skip if slot is beyond chord duration
               if (slotTime >= chordStartTime + durationInSeconds) break;
               
+              // Schedule step change callback for playhead sync
+              if (onStepChange) {
+                const stepDelayMs = (slotTime - ctx.currentTime) * 1000;
+                const stepTimeout = window.setTimeout(() => {
+                  if (!cancelled) onStepChange(slot);
+                }, Math.max(0, stepDelayMs));
+                timeouts.push(stepTimeout);
+              }
               // Schedule step callback for playhead sync
               if (onStep) {
                 const stepDelayMs = (slotTime - ctx.currentTime) * 1000;
