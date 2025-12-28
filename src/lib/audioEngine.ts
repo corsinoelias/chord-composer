@@ -621,79 +621,85 @@ export function scheduleProgression(
   const bassSound = bassState ? getSoundType('bass', bassState.soundTypeId) : null;
   const drumsSound = drumsState ? getSoundType('drums', drumsState.soundTypeId) : null;
   
-  // Build a flat list of bars with chord info
-  interface BarInfo {
+  // Build a flat list of chord segments with their slot counts
+  // Each chord gets exactly as many slots as its duration in beats * 4 (16th notes per beat)
+  interface ChordSegment {
     chord: Chord;
-    barInChord: number;
-    totalBarsInChord: number;
+    slotCount: number; // Number of 16th note slots for this chord
     globalChordIndex: number;
-    globalBarNumber: number;
+    beatOffset: number; // Beat offset within the full progression for bar numbering
   }
   
-  const buildBarList = (): BarInfo[] => {
-    const bars: BarInfo[] = [];
+  const buildChordSegments = (): ChordSegment[] => {
+    const segments: ChordSegment[] = [];
     let globalChordIndex = 0;
-    let globalBarNumber = 0;
+    let beatOffset = 0;
     
     sections.forEach(section => {
       for (let repeat = 0; repeat < section.repeatCount; repeat++) {
         section.chords.forEach((chord) => {
-          const barsInChord = Math.ceil(chord.duration / 4);
-          for (let bar = 0; bar < barsInChord; bar++) {
-            globalBarNumber++;
-            bars.push({
-              chord,
-              barInChord: bar,
-              totalBarsInChord: barsInChord,
-              globalChordIndex,
-              globalBarNumber
-            });
-          }
+          // Each beat = 4 slots (16th notes)
+          const slotCount = chord.duration * 4;
+          segments.push({
+            chord,
+            slotCount,
+            globalChordIndex,
+            beatOffset
+          });
+          beatOffset += chord.duration;
           globalChordIndex++;
         });
       }
     });
     
-    return bars;
+    return segments;
   };
   
-  const barList = buildBarList();
-  let currentBarIndex = 0;
+  const chordSegments = buildChordSegments();
+  let currentSegmentIndex = 0;
+  let slotWithinSegment = 0;
+  let globalSlotIndex = 0;
   let lastChordIndex = -1;
   
-  const scheduleBar = (barStartTime: number) => {
+  // Calculate total slots
+  const totalSlots = chordSegments.reduce((sum, seg) => sum + seg.slotCount, 0);
+  
+  // Schedule a batch of slots (one chord segment at a time for efficiency)
+  const scheduleSegment = (segmentStartTime: number) => {
     if (cancelled) return;
     
-    // Check if we've finished all bars
-    if (currentBarIndex >= barList.length) {
+    // Check if we've finished all segments
+    if (currentSegmentIndex >= chordSegments.length) {
       if (loop) {
         onLoopEnd?.();
-        currentBarIndex = 0;
+        currentSegmentIndex = 0;
+        slotWithinSegment = 0;
+        globalSlotIndex = 0;
         lastChordIndex = -1;
         // Schedule next loop iteration
-        const delayMs = Math.max(0, (barStartTime - ctx.currentTime) * 1000);
+        const delayMs = Math.max(0, (segmentStartTime - ctx.currentTime) * 1000);
         nextBarTimeout = window.setTimeout(() => {
           if (!cancelled) {
-            scheduleBar(ctx.currentTime + 0.05);
+            scheduleSegment(ctx.currentTime + 0.05);
           }
         }, delayMs);
       }
       return;
     }
     
-    const barInfo = barList[currentBarIndex];
-    const { chord, barInChord, globalChordIndex, globalBarNumber } = barInfo;
+    const segment = chordSegments[currentSegmentIndex];
+    const { chord, slotCount, globalChordIndex, beatOffset } = segment;
     
-    // Get current style - this is called per-bar for immediate updates!
+    // Get current style
     const currentStyle = getStyle ? getStyle() : style;
     
     const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
     
-    // Schedule chord change callback (only on first bar of chord)
-    if (barInChord === 0 && globalChordIndex !== lastChordIndex) {
+    // Schedule chord change callback (only at start of chord)
+    if (globalChordIndex !== lastChordIndex) {
       lastChordIndex = globalChordIndex;
       if (onChordChange) {
-        const delayMs = Math.max(0, (barStartTime - ctx.currentTime) * 1000);
+        const delayMs = Math.max(0, (segmentStartTime - ctx.currentTime) * 1000);
         const timeout = window.setTimeout(() => {
           if (!cancelled) onChordChange(globalChordIndex);
         }, delayMs);
@@ -701,36 +707,30 @@ export function scheduleProgression(
       }
     }
     
-    // Schedule metronome clicks for this bar
-    if (metronome && masterGain) {
-      for (let beat = 0; beat < 4; beat++) {
-        const beatTime = barStartTime + (beat * beatDuration);
-        const isDownbeat = beat === 0 && barInChord === 0;
-        playClick(ctx, masterGain, beatTime, isDownbeat);
-        
-        if (onBeat) {
-          const beatDelayMs = Math.max(0, (beatTime - ctx.currentTime) * 1000);
-          const beatTimeout = window.setTimeout(() => {
-            if (!cancelled) onBeat(beat);
-          }, beatDelayMs);
-          timeouts.push(beatTimeout);
-        }
-      }
-    }
+    // Calculate which bar pattern slot to use (0-15 within a 16-slot pattern)
+    // This creates proper musical phrasing even for shorter chords
+    const segmentDuration = slotCount * slotDuration;
     
-    // Generate pattern for this bar
-    const effectiveBarNumber = forceFill ? 4 : globalBarNumber;
+    // Calculate bar number for fill logic based on beat position
+    const barNumber = Math.floor(beatOffset / 4) + 1;
+    const effectiveBarNumber = forceFill ? 4 : barNumber;
+    
+    // Generate a full bar pattern - we'll use the slots we need from it
     const pattern = generateBarPattern(currentStyle, effectiveBarNumber, 4, true);
     
-    // Schedule each 16th note slot
-    for (let slot = 0; slot < 16; slot++) {
-      const slotTime = barStartTime + (slot * slotDuration);
+    // Schedule each slot in this chord segment
+    for (let i = 0; i < slotCount; i++) {
+      const slotTime = segmentStartTime + (i * slotDuration);
+      
+      // Calculate which slot in the 16-slot pattern to use
+      // This allows patterns to wrap correctly for longer chords
+      const patternSlot = (globalSlotIndex + i) % 16;
       
       // Schedule step change callback for playhead sync
       if (onStepChange) {
         const stepDelayMs = Math.max(0, (slotTime - ctx.currentTime) * 1000);
         const stepTimeout = window.setTimeout(() => {
-          if (!cancelled) onStepChange(slot);
+          if (!cancelled) onStepChange(patternSlot);
         }, stepDelayMs);
         timeouts.push(stepTimeout);
       }
@@ -738,13 +738,28 @@ export function scheduleProgression(
       if (onStep) {
         const stepDelayMs = Math.max(0, (slotTime - ctx.currentTime) * 1000);
         const stepTimeout = window.setTimeout(() => {
-          if (!cancelled) onStep(slot);
+          if (!cancelled) onStep(patternSlot);
         }, stepDelayMs);
         timeouts.push(stepTimeout);
       }
       
+      // Schedule metronome on beat boundaries (every 4 slots)
+      if (metronome && masterGain && patternSlot % 4 === 0) {
+        const beatInBar = Math.floor(patternSlot / 4);
+        const isDownbeat = patternSlot === 0;
+        playClick(ctx, masterGain, slotTime, isDownbeat);
+        
+        if (onBeat) {
+          const beatDelayMs = Math.max(0, (slotTime - ctx.currentTime) * 1000);
+          const beatTimeout = window.setTimeout(() => {
+            if (!cancelled) onBeat(beatInBar);
+          }, beatDelayMs);
+          timeouts.push(beatTimeout);
+        }
+      }
+      
       // Piano - uses velocity from pattern
-      const pianoVelocity = pattern.piano[slot];
+      const pianoVelocity = pattern.piano[patternSlot];
       if (pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound && pianoVelocity > 0) {
         midiNotes.forEach(midiNote => {
           const frequency = midiToFrequency(midiNote);
@@ -757,7 +772,7 @@ export function scheduleProgression(
       }
       
       // Bass - uses velocity from pattern
-      const bassVelocity = pattern.bass[slot];
+      const bassVelocity = pattern.bass[patternSlot];
       if (bassState && isInstrumentAudible(bassState, instruments) && bassSound && bassVelocity > 0) {
         const bassNote = midiNotes[0];
         const frequency = midiToFrequency(bassNote);
@@ -773,56 +788,59 @@ export function scheduleProgression(
       if (drumsState && isInstrumentAudible(drumsState, instruments) && drumsSound) {
         const baseVolume = drumsState.volume * currentStyle.volumes.drums;
         
-        if (pattern.kick[slot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.kick[slot], 'kick');
+        if (pattern.kick[patternSlot] > 0) {
+          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.kick[patternSlot], 'kick');
         }
-        if (pattern.snare[slot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.snare[slot], 'snare');
+        if (pattern.snare[patternSlot] > 0) {
+          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.snare[patternSlot], 'snare');
         }
-        if (pattern.snareStick[slot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.snareStick[slot], 'snareStick');
+        if (pattern.snareStick[patternSlot] > 0) {
+          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.snareStick[patternSlot], 'snareStick');
         }
-        if (pattern.hihat[slot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihat[slot] * 0.7, 'hihat');
+        if (pattern.hihat[patternSlot] > 0) {
+          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihat[patternSlot] * 0.7, 'hihat');
         }
-        if (pattern.hihatFoot[slot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihatFoot[slot] * 0.6, 'hihatFoot');
+        if (pattern.hihatFoot[patternSlot] > 0) {
+          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihatFoot[patternSlot] * 0.6, 'hihatFoot');
         }
-        if (pattern.tom1[slot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.tom1[slot], 'tom1');
+        if (pattern.tom1[patternSlot] > 0) {
+          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.tom1[patternSlot], 'tom1');
         }
-        if (pattern.tom2[slot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.tom2[slot], 'tom2');
+        if (pattern.tom2[patternSlot] > 0) {
+          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.tom2[patternSlot], 'tom2');
         }
-        if (pattern.floorTom[slot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.floorTom[slot], 'floorTom');
+        if (pattern.floorTom[patternSlot] > 0) {
+          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.floorTom[patternSlot], 'floorTom');
         }
-        if (pattern.ride[slot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.ride[slot] * 0.7, 'ride');
+        if (pattern.ride[patternSlot] > 0) {
+          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.ride[patternSlot] * 0.7, 'ride');
         }
-        if (pattern.crash[slot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.crash[slot], 'crash');
+        if (pattern.crash[patternSlot] > 0) {
+          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.crash[patternSlot], 'crash');
         }
       }
     }
     
-    // Schedule next bar
-    currentBarIndex++;
-    const nextBarTime = barStartTime + barDuration;
-    const delayMs = Math.max(0, (nextBarTime - ctx.currentTime - 0.1) * 1000); // Schedule slightly ahead
+    // Update global slot index
+    globalSlotIndex += slotCount;
+    
+    // Schedule next segment
+    currentSegmentIndex++;
+    const nextSegmentTime = segmentStartTime + segmentDuration;
+    const delayMs = Math.max(0, (nextSegmentTime - ctx.currentTime - 0.1) * 1000);
     
     nextBarTimeout = window.setTimeout(() => {
       if (!cancelled) {
-        scheduleBar(nextBarTime);
+        scheduleSegment(nextSegmentTime);
       }
     }, delayMs);
   };
   
   // Calculate total duration for return value
-  const totalDuration = barList.length * barDuration;
+  const totalDuration = totalSlots * slotDuration;
   
   // Start scheduling
-  scheduleBar(startTime);
+  scheduleSegment(startTime);
   
   return {
     duration: totalDuration,
@@ -906,257 +924,263 @@ export async function renderProgressionOffline(
   const drumsSound = drumsState ? getSoundType('drums', drumsState.soundTypeId) : null;
   
   const slotDuration = beatDuration / 4;
-  let barNumber = 0;
+  let globalSlotIndex = 0;
+  let beatOffset = 0;
   
   sections.forEach(section => {
     for (let repeat = 0; repeat < section.repeatCount; repeat++) {
       section.chords.forEach(chord => {
         const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
         const chordStartTime = currentTime;
-        const durationInSeconds = chord.duration * beatDuration;
         
-        // Process in 16th note slots
-        const barsInChord = Math.ceil(chord.duration / 4);
-        for (let bar = 0; bar < barsInChord; bar++) {
-          barNumber++;
-          const barStartTime = chordStartTime + (bar * 4 * beatDuration);
+        // Calculate exact slot count based on chord duration
+        const slotCount = chord.duration * 4; // 4 slots per beat
+        
+        // Calculate bar number for fill logic
+        const barNumber = Math.floor(beatOffset / 4) + 1;
+        
+        // Generate pattern using bar number
+        const pattern = generateBarPattern(style, barNumber, 4, true);
+        
+        // Process each slot in this chord
+        for (let i = 0; i < slotCount; i++) {
+          const slotTime = chordStartTime + (i * slotDuration);
           
-          const pattern = generateBarPattern(style, barNumber, 4, true);
+          // Use pattern slot based on global position (wraps every 16 slots)
+          const patternSlot = (globalSlotIndex + i) % 16;
           
-          for (let slot = 0; slot < 16; slot++) {
-            const slotTime = barStartTime + (slot * slotDuration);
-            if (slotTime >= chordStartTime + durationInSeconds) break;
-            
-            // Piano
-            const pianoVelocity = pattern.piano[slot];
-            if (pianoState && !pianoState.muted && pianoSound && pianoVelocity > 0) {
-              midiNotes.forEach(midiNote => {
-                const frequency = midiToFrequency(midiNote);
-                const volume = pianoState.volume * style.volumes.piano * pianoVelocity;
-                const baseFreq = frequency * Math.pow(2, pianoSound.octaveOffset);
-                
-                const harmonics = [
-                  { freq: 1, amp: 1.0 },
-                  { freq: 2, amp: 0.5 },
-                  { freq: 3, amp: 0.25 },
-                  { freq: 4, amp: 0.15 },
-                ];
-                
-                const pianoGain = offlineCtx.createGain();
-                pianoGain.connect(offlineMasterGain);
-                
-                harmonics.forEach(({ freq, amp }) => {
-                  const osc = offlineCtx.createOscillator();
-                  const oscGain = offlineCtx.createGain();
-                  osc.type = freq === 1 ? pianoSound.oscillatorType : 'sine';
-                  osc.frequency.value = baseFreq * freq;
-                  oscGain.gain.value = amp * 0.12 * volume;
-                  osc.connect(oscGain);
-                  oscGain.connect(pianoGain);
-                  osc.start(slotTime);
-                  osc.stop(slotTime + slotDuration * 3);
-                });
-                
-                pianoGain.gain.setValueAtTime(0, slotTime);
-                pianoGain.gain.linearRampToValueAtTime(1, slotTime + pianoSound.attackTime);
-                pianoGain.gain.linearRampToValueAtTime(pianoSound.sustainLevel, slotTime + pianoSound.attackTime + pianoSound.decayTime);
-                pianoGain.gain.linearRampToValueAtTime(0, slotTime + slotDuration * 3);
+          // Piano
+          const pianoVelocity = pattern.piano[patternSlot];
+          if (pianoState && !pianoState.muted && pianoSound && pianoVelocity > 0) {
+            midiNotes.forEach(midiNote => {
+              const frequency = midiToFrequency(midiNote);
+              const volume = pianoState.volume * style.volumes.piano * pianoVelocity;
+              const baseFreq = frequency * Math.pow(2, pianoSound.octaveOffset);
+              
+              const harmonics = [
+                { freq: 1, amp: 1.0 },
+                { freq: 2, amp: 0.5 },
+                { freq: 3, amp: 0.25 },
+                { freq: 4, amp: 0.15 },
+              ];
+              
+              const pianoGain = offlineCtx.createGain();
+              pianoGain.connect(offlineMasterGain);
+              
+              harmonics.forEach(({ freq, amp }) => {
+                const osc = offlineCtx.createOscillator();
+                const oscGain = offlineCtx.createGain();
+                osc.type = freq === 1 ? pianoSound.oscillatorType : 'sine';
+                osc.frequency.value = baseFreq * freq;
+                oscGain.gain.value = amp * 0.12 * volume;
+                osc.connect(oscGain);
+                oscGain.connect(pianoGain);
+                osc.start(slotTime);
+                osc.stop(slotTime + slotDuration * 3);
               });
+              
+              pianoGain.gain.setValueAtTime(0, slotTime);
+              pianoGain.gain.linearRampToValueAtTime(1, slotTime + pianoSound.attackTime);
+              pianoGain.gain.linearRampToValueAtTime(pianoSound.sustainLevel, slotTime + pianoSound.attackTime + pianoSound.decayTime);
+              pianoGain.gain.linearRampToValueAtTime(0, slotTime + slotDuration * 3);
+            });
+          }
+          
+          // Bass
+          const bassVelocity = pattern.bass[patternSlot];
+          if (bassState && !bassState.muted && bassSound && bassVelocity > 0) {
+            const bassNote = midiNotes[0];
+            const frequency = midiToFrequency(bassNote);
+            const volume = bassState.volume * style.volumes.bass * bassVelocity;
+            const baseFreq = frequency * Math.pow(2, bassSound.octaveOffset);
+            const noteDuration = style.bassSustain ? beatDuration * 2 : slotDuration * 2;
+            
+            const bassGain = offlineCtx.createGain();
+            const filter = offlineCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 800;
+            filter.connect(bassGain);
+            bassGain.connect(offlineMasterGain);
+            
+            const mainOsc = offlineCtx.createOscillator();
+            mainOsc.type = bassSound.oscillatorType;
+            mainOsc.frequency.value = baseFreq;
+            const mainOscGain = offlineCtx.createGain();
+            mainOscGain.gain.value = 0.2 * volume;
+            mainOsc.connect(mainOscGain);
+            mainOscGain.connect(filter);
+            
+            const subOsc = offlineCtx.createOscillator();
+            subOsc.type = 'sine';
+            subOsc.frequency.value = baseFreq / 2;
+            const subOscGain = offlineCtx.createGain();
+            subOscGain.gain.value = 0.15 * volume;
+            subOsc.connect(subOscGain);
+            subOscGain.connect(filter);
+            
+            bassGain.gain.setValueAtTime(0, slotTime);
+            bassGain.gain.linearRampToValueAtTime(1, slotTime + bassSound.attackTime);
+            bassGain.gain.linearRampToValueAtTime(bassSound.sustainLevel, slotTime + bassSound.attackTime + bassSound.decayTime);
+            bassGain.gain.linearRampToValueAtTime(0, slotTime + noteDuration);
+            
+            mainOsc.start(slotTime);
+            subOsc.start(slotTime);
+            mainOsc.stop(slotTime + noteDuration + 0.1);
+            subOsc.stop(slotTime + noteDuration + 0.1);
+          }
+          
+          // Drums
+          if (drumsState && !drumsState.muted && drumsSound) {
+            const baseVolume = drumsState.volume * style.volumes.drums;
+            
+            // Kick
+            if (pattern.kick[patternSlot] > 0) {
+              const vol = baseVolume * pattern.kick[patternSlot];
+              if (drumsSound.id === 'standard' && offlineKit.kick) {
+                const source = offlineCtx.createBufferSource();
+                source.buffer = offlineKit.kick;
+                const gain = offlineCtx.createGain();
+                gain.gain.value = vol * 0.9;
+                source.connect(gain);
+                gain.connect(offlineMasterGain);
+                source.start(slotTime);
+              } else {
+                const osc = offlineCtx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, slotTime);
+                osc.frequency.exponentialRampToValueAtTime(40, slotTime + 0.1);
+                const gain = offlineCtx.createGain();
+                gain.gain.setValueAtTime(0.4 * vol, slotTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.3);
+                osc.connect(gain);
+                gain.connect(offlineMasterGain);
+                osc.start(slotTime);
+                osc.stop(slotTime + 0.35);
+              }
             }
             
-            // Bass
-            const bassVelocity = pattern.bass[slot];
-            if (bassState && !bassState.muted && bassSound && bassVelocity > 0) {
-              const bassNote = midiNotes[0];
-              const frequency = midiToFrequency(bassNote);
-              const volume = bassState.volume * style.volumes.bass * bassVelocity;
-              const baseFreq = frequency * Math.pow(2, bassSound.octaveOffset);
-              const noteDuration = style.bassSustain ? beatDuration * 2 : slotDuration * 2;
-              
-              const bassGain = offlineCtx.createGain();
-              const filter = offlineCtx.createBiquadFilter();
-              filter.type = 'lowpass';
-              filter.frequency.value = 800;
-              filter.connect(bassGain);
-              bassGain.connect(offlineMasterGain);
-              
-              const mainOsc = offlineCtx.createOscillator();
-              mainOsc.type = bassSound.oscillatorType;
-              mainOsc.frequency.value = baseFreq;
-              const mainOscGain = offlineCtx.createGain();
-              mainOscGain.gain.value = 0.2 * volume;
-              mainOsc.connect(mainOscGain);
-              mainOscGain.connect(filter);
-              
-              const subOsc = offlineCtx.createOscillator();
-              subOsc.type = 'sine';
-              subOsc.frequency.value = baseFreq / 2;
-              const subOscGain = offlineCtx.createGain();
-              subOscGain.gain.value = 0.15 * volume;
-              subOsc.connect(subOscGain);
-              subOscGain.connect(filter);
-              
-              bassGain.gain.setValueAtTime(0, slotTime);
-              bassGain.gain.linearRampToValueAtTime(1, slotTime + bassSound.attackTime);
-              bassGain.gain.linearRampToValueAtTime(bassSound.sustainLevel, slotTime + bassSound.attackTime + bassSound.decayTime);
-              bassGain.gain.linearRampToValueAtTime(0, slotTime + noteDuration);
-              
-              mainOsc.start(slotTime);
-              subOsc.start(slotTime);
-              mainOsc.stop(slotTime + noteDuration + 0.1);
-              subOsc.stop(slotTime + noteDuration + 0.1);
+            // Snare
+            if (pattern.snare[patternSlot] > 0) {
+              const vol = baseVolume * pattern.snare[patternSlot];
+              if (drumsSound.id === 'standard' && offlineKit.snare) {
+                const source = offlineCtx.createBufferSource();
+                source.buffer = offlineKit.snare;
+                const gain = offlineCtx.createGain();
+                gain.gain.value = vol * 0.8;
+                source.connect(gain);
+                gain.connect(offlineMasterGain);
+                source.start(slotTime);
+              } else {
+                const osc = offlineCtx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.value = 180;
+                const gain = offlineCtx.createGain();
+                gain.gain.setValueAtTime(0.2 * vol, slotTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.12);
+                osc.connect(gain);
+                gain.connect(offlineMasterGain);
+                osc.start(slotTime);
+                osc.stop(slotTime + 0.15);
+              }
             }
             
-            // Drums
-            if (drumsState && !drumsState.muted && drumsSound) {
-              const baseVolume = drumsState.volume * style.volumes.drums;
-              
-              // Kick
-              if (pattern.kick[slot] > 0) {
-                const vol = baseVolume * pattern.kick[slot];
-                if (drumsSound.id === 'standard' && offlineKit.kick) {
-                  const source = offlineCtx.createBufferSource();
-                  source.buffer = offlineKit.kick;
-                  const gain = offlineCtx.createGain();
-                  gain.gain.value = vol * 0.9;
-                  source.connect(gain);
-                  gain.connect(offlineMasterGain);
-                  source.start(slotTime);
-                } else {
-                  const osc = offlineCtx.createOscillator();
-                  osc.type = 'sine';
-                  osc.frequency.setValueAtTime(150, slotTime);
-                  osc.frequency.exponentialRampToValueAtTime(40, slotTime + 0.1);
-                  const gain = offlineCtx.createGain();
-                  gain.gain.setValueAtTime(0.4 * vol, slotTime);
-                  gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.3);
-                  osc.connect(gain);
-                  gain.connect(offlineMasterGain);
-                  osc.start(slotTime);
-                  osc.stop(slotTime + 0.35);
-                }
-              }
-              
-              // Snare
-              if (pattern.snare[slot] > 0) {
-                const vol = baseVolume * pattern.snare[slot];
-                if (drumsSound.id === 'standard' && offlineKit.snare) {
-                  const source = offlineCtx.createBufferSource();
-                  source.buffer = offlineKit.snare;
-                  const gain = offlineCtx.createGain();
-                  gain.gain.value = vol * 0.8;
-                  source.connect(gain);
-                  gain.connect(offlineMasterGain);
-                  source.start(slotTime);
-                } else {
-                  const osc = offlineCtx.createOscillator();
-                  osc.type = 'triangle';
-                  osc.frequency.value = 180;
-                  const gain = offlineCtx.createGain();
-                  gain.gain.setValueAtTime(0.2 * vol, slotTime);
-                  gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.12);
-                  osc.connect(gain);
-                  gain.connect(offlineMasterGain);
-                  osc.start(slotTime);
-                  osc.stop(slotTime + 0.15);
-                }
-              }
-              
-              // Hi-hat
-              if (pattern.hihat[slot] > 0) {
-                const vol = baseVolume * pattern.hihat[slot] * 0.7;
-                if (drumsSound.id === 'standard' && offlineKit.hihat) {
-                  const source = offlineCtx.createBufferSource();
-                  source.buffer = offlineKit.hihat;
-                  const gain = offlineCtx.createGain();
-                  gain.gain.value = vol * 0.5;
-                  source.connect(gain);
-                  gain.connect(offlineMasterGain);
-                  source.start(slotTime);
-                }
-              }
-              
-              // Snare stick (rim)
-              if (pattern.snareStick[slot] > 0) {
-                const vol = baseVolume * pattern.snareStick[slot];
-                if (drumsSound.id === 'standard' && offlineKit.snareStick) {
-                  const source = offlineCtx.createBufferSource();
-                  source.buffer = offlineKit.snareStick;
-                  const gain = offlineCtx.createGain();
-                  gain.gain.value = vol * 0.7;
-                  source.connect(gain);
-                  gain.connect(offlineMasterGain);
-                  source.start(slotTime);
-                }
-              }
-              
-              // Hi-hat foot
-              if (pattern.hihatFoot[slot] > 0) {
-                const vol = baseVolume * pattern.hihatFoot[slot] * 0.6;
-                const buffer = offlineKit.hihatFoot2 || offlineKit.hihatFoot;
-                if (drumsSound.id === 'standard' && buffer) {
-                  const source = offlineCtx.createBufferSource();
-                  source.buffer = buffer;
-                  const gain = offlineCtx.createGain();
-                  gain.gain.value = vol * 0.45;
-                  source.connect(gain);
-                  gain.connect(offlineMasterGain);
-                  source.start(slotTime);
-                }
-              }
-              
-              // Toms
-              if (pattern.tom1[slot] > 0 && drumsSound.id === 'standard' && offlineKit.tom1) {
+            // Hi-hat
+            if (pattern.hihat[patternSlot] > 0) {
+              const vol = baseVolume * pattern.hihat[patternSlot] * 0.7;
+              if (drumsSound.id === 'standard' && offlineKit.hihat) {
                 const source = offlineCtx.createBufferSource();
-                source.buffer = offlineKit.tom1;
+                source.buffer = offlineKit.hihat;
                 const gain = offlineCtx.createGain();
-                gain.gain.value = baseVolume * pattern.tom1[slot] * 0.8;
+                gain.gain.value = vol * 0.5;
                 source.connect(gain);
                 gain.connect(offlineMasterGain);
                 source.start(slotTime);
               }
-              if (pattern.tom2[slot] > 0 && drumsSound.id === 'standard' && offlineKit.tom2) {
+            }
+            
+            // Snare stick (rim)
+            if (pattern.snareStick[patternSlot] > 0) {
+              const vol = baseVolume * pattern.snareStick[patternSlot];
+              if (drumsSound.id === 'standard' && offlineKit.snareStick) {
                 const source = offlineCtx.createBufferSource();
-                source.buffer = offlineKit.tom2;
+                source.buffer = offlineKit.snareStick;
                 const gain = offlineCtx.createGain();
-                gain.gain.value = baseVolume * pattern.tom2[slot] * 0.8;
+                gain.gain.value = vol * 0.7;
                 source.connect(gain);
                 gain.connect(offlineMasterGain);
                 source.start(slotTime);
               }
-              if (pattern.floorTom[slot] > 0 && drumsSound.id === 'standard' && offlineKit.floorTom) {
+            }
+            
+            // Hi-hat foot
+            if (pattern.hihatFoot[patternSlot] > 0) {
+              const vol = baseVolume * pattern.hihatFoot[patternSlot] * 0.6;
+              const buffer = offlineKit.hihatFoot2 || offlineKit.hihatFoot;
+              if (drumsSound.id === 'standard' && buffer) {
                 const source = offlineCtx.createBufferSource();
-                source.buffer = offlineKit.floorTom;
+                source.buffer = buffer;
                 const gain = offlineCtx.createGain();
-                gain.gain.value = baseVolume * pattern.floorTom[slot] * 0.85;
+                gain.gain.value = vol * 0.45;
                 source.connect(gain);
                 gain.connect(offlineMasterGain);
                 source.start(slotTime);
               }
-              
-              // Ride & Crash
-              if (pattern.ride[slot] > 0 && drumsSound.id === 'standard' && offlineKit.ride) {
-                const source = offlineCtx.createBufferSource();
-                source.buffer = offlineKit.ride;
-                const gain = offlineCtx.createGain();
-                gain.gain.value = baseVolume * pattern.ride[slot] * 0.55;
-                source.connect(gain);
-                gain.connect(offlineMasterGain);
-                source.start(slotTime);
-              }
-              if (pattern.crash[slot] > 0 && drumsSound.id === 'standard' && offlineKit.crash) {
-                const source = offlineCtx.createBufferSource();
-                source.buffer = offlineKit.crash;
-                const gain = offlineCtx.createGain();
-                gain.gain.value = baseVolume * pattern.crash[slot] * 0.7;
-                source.connect(gain);
-                gain.connect(offlineMasterGain);
-                source.start(slotTime);
-              }
+            }
+            
+            // Toms
+            if (pattern.tom1[patternSlot] > 0 && drumsSound.id === 'standard' && offlineKit.tom1) {
+              const source = offlineCtx.createBufferSource();
+              source.buffer = offlineKit.tom1;
+              const gain = offlineCtx.createGain();
+              gain.gain.value = baseVolume * pattern.tom1[patternSlot] * 0.8;
+              source.connect(gain);
+              gain.connect(offlineMasterGain);
+              source.start(slotTime);
+            }
+            if (pattern.tom2[patternSlot] > 0 && drumsSound.id === 'standard' && offlineKit.tom2) {
+              const source = offlineCtx.createBufferSource();
+              source.buffer = offlineKit.tom2;
+              const gain = offlineCtx.createGain();
+              gain.gain.value = baseVolume * pattern.tom2[patternSlot] * 0.8;
+              source.connect(gain);
+              gain.connect(offlineMasterGain);
+              source.start(slotTime);
+            }
+            if (pattern.floorTom[patternSlot] > 0 && drumsSound.id === 'standard' && offlineKit.floorTom) {
+              const source = offlineCtx.createBufferSource();
+              source.buffer = offlineKit.floorTom;
+              const gain = offlineCtx.createGain();
+              gain.gain.value = baseVolume * pattern.floorTom[patternSlot] * 0.85;
+              source.connect(gain);
+              gain.connect(offlineMasterGain);
+              source.start(slotTime);
+            }
+            
+            // Ride & Crash
+            if (pattern.ride[patternSlot] > 0 && drumsSound.id === 'standard' && offlineKit.ride) {
+              const source = offlineCtx.createBufferSource();
+              source.buffer = offlineKit.ride;
+              const gain = offlineCtx.createGain();
+              gain.gain.value = baseVolume * pattern.ride[patternSlot] * 0.55;
+              source.connect(gain);
+              gain.connect(offlineMasterGain);
+              source.start(slotTime);
+            }
+            if (pattern.crash[patternSlot] > 0 && drumsSound.id === 'standard' && offlineKit.crash) {
+              const source = offlineCtx.createBufferSource();
+              source.buffer = offlineKit.crash;
+              const gain = offlineCtx.createGain();
+              gain.gain.value = baseVolume * pattern.crash[patternSlot] * 0.7;
+              source.connect(gain);
+              gain.connect(offlineMasterGain);
+              source.start(slotTime);
             }
           }
         }
         
+        // Update counters
+        globalSlotIndex += slotCount;
+        beatOffset += chord.duration;
         currentTime += chord.duration * beatDuration;
       });
     }
