@@ -657,8 +657,7 @@ export function scheduleProgression(
   
   const chordSegments = buildChordSegments();
   let currentSegmentIndex = 0;
-  let slotWithinSegment = 0;
-  let globalSlotIndex = 0;
+  let globalSlotIndex = 0; // Continuous slot counter for rhythm pattern (0-15, wrapping)
   let lastChordIndex = -1;
   
   // Calculate total slots
@@ -673,7 +672,6 @@ export function scheduleProgression(
       if (loop) {
         onLoopEnd?.();
         currentSegmentIndex = 0;
-        slotWithinSegment = 0;
         globalSlotIndex = 0;
         lastChordIndex = -1;
         // Schedule next loop iteration
@@ -707,24 +705,36 @@ export function scheduleProgression(
       }
     }
     
-    // Calculate which bar pattern slot to use (0-15 within a 16-slot pattern)
-    // This creates proper musical phrasing even for shorter chords
+    // Calculate segment duration for scheduling
     const segmentDuration = slotCount * slotDuration;
     
-    // Calculate bar number for fill logic based on beat position
-    const barNumber = Math.floor(beatOffset / 4) + 1;
-    const effectiveBarNumber = forceFill ? 4 : barNumber;
+    // Cache for patterns by bar number to avoid regenerating each slot
+    const patternCache: Map<number, ReturnType<typeof generateBarPattern>> = new Map();
     
-    // Generate a full bar pattern - we'll use the slots we need from it
-    const pattern = generateBarPattern(currentStyle, effectiveBarNumber, 4, true);
+    const getPatternForBar = (barNum: number) => {
+      if (!patternCache.has(barNum)) {
+        patternCache.set(barNum, generateBarPattern(currentStyle, barNum, 4, true));
+      }
+      return patternCache.get(barNum)!;
+    };
     
     // Schedule each slot in this chord segment
     for (let i = 0; i < slotCount; i++) {
       const slotTime = segmentStartTime + (i * slotDuration);
       
-      // Calculate which slot in the 16-slot pattern to use
-      // This allows patterns to wrap correctly for longer chords
-      const patternSlot = (globalSlotIndex + i) % 16;
+      // CRITICAL: patternSlot is based on GLOBAL position, not chord position
+      // The rhythm pattern runs continuously regardless of chord changes
+      const currentGlobalSlot = globalSlotIndex + i;
+      const patternSlot = currentGlobalSlot % 16;
+      
+      // Calculate bar number for fill logic based on GLOBAL slot position
+      // This ensures fills happen at musically correct times (every 4 bars)
+      // Bar changes every 16 slots (1 bar = 4 beats = 16 sixteenth notes)
+      const barNumber = Math.floor(currentGlobalSlot / 16) + 1;
+      const effectiveBarNumber = forceFill ? 4 : barNumber;
+      
+      // Get cached pattern for this bar
+      const pattern = getPatternForBar(effectiveBarNumber);
       
       // Schedule step change callback for playhead sync
       if (onStepChange) {
@@ -925,7 +935,16 @@ export async function renderProgressionOffline(
   
   const slotDuration = beatDuration / 4;
   let globalSlotIndex = 0;
-  let beatOffset = 0;
+  
+  // Cache for patterns by bar number
+  const patternCache: Map<number, ReturnType<typeof generateBarPattern>> = new Map();
+  
+  const getPatternForBar = (barNum: number) => {
+    if (!patternCache.has(barNum)) {
+      patternCache.set(barNum, generateBarPattern(style, barNum, 4, true));
+    }
+    return patternCache.get(barNum)!;
+  };
   
   sections.forEach(section => {
     for (let repeat = 0; repeat < section.repeatCount; repeat++) {
@@ -936,18 +955,20 @@ export async function renderProgressionOffline(
         // Calculate exact slot count based on chord duration
         const slotCount = chord.duration * 4; // 4 slots per beat
         
-        // Calculate bar number for fill logic
-        const barNumber = Math.floor(beatOffset / 4) + 1;
-        
-        // Generate pattern using bar number
-        const pattern = generateBarPattern(style, barNumber, 4, true);
-        
         // Process each slot in this chord
         for (let i = 0; i < slotCount; i++) {
           const slotTime = chordStartTime + (i * slotDuration);
           
-          // Use pattern slot based on global position (wraps every 16 slots)
-          const patternSlot = (globalSlotIndex + i) % 16;
+          // CRITICAL: patternSlot and barNumber are based on GLOBAL position
+          // The rhythm pattern runs continuously regardless of chord changes
+          const currentGlobalSlot = globalSlotIndex + i;
+          const patternSlot = currentGlobalSlot % 16;
+          
+          // Bar changes every 16 slots (1 bar = 4 beats = 16 sixteenth notes)
+          const barNumber = Math.floor(currentGlobalSlot / 16) + 1;
+          
+          // Get cached pattern for this bar
+          const pattern = getPatternForBar(barNumber);
           
           // Piano
           const pianoVelocity = pattern.piano[patternSlot];
@@ -1180,7 +1201,6 @@ export async function renderProgressionOffline(
         
         // Update counters
         globalSlotIndex += slotCount;
-        beatOffset += chord.duration;
         currentTime += chord.duration * beatDuration;
       });
     }
