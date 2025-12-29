@@ -12,7 +12,6 @@ import {
   DragOverlay,
   CollisionDetection,
   pointerWithin,
-  getFirstCollision,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -118,6 +117,21 @@ const Index = () => {
       },
     })
   );
+
+  const collisionDetectionStrategy: CollisionDetection = useCallback((args) => {
+    const activeId = args.active.id as string;
+
+    // For chords: prefer pointer-based detection so the user can drop into "empty space"
+    // (e.g. after the last chord when the layout wraps).
+    if (activeId.startsWith('chord-')) {
+      const pointerCollisions = pointerWithin(args);
+      if (pointerCollisions.length > 0) return pointerCollisions;
+      return rectIntersection(args);
+    }
+
+    // For sections: keep classic sortable behavior.
+    return closestCenter(args);
+  }, []);
 
   // Update playback options when liveEditedStyle changes during playback
   useEffect(() => {
@@ -348,25 +362,18 @@ const Index = () => {
           handleChordMove(fromSectionIndex, fromChordIndex, toSectionIndex, toChordIndex);
         }
       } else if (overId.startsWith('section-drop-')) {
-        // Dropping on section drop zone
+        // Dropping on a section container (works for empty space / end-of-line after wrapping)
         const toSectionIndex = parseInt(overId.replace('section-drop-', ''), 10);
-        if (fromSectionIndex !== toSectionIndex) {
-          // Move to end of target section
-          const toChordIndex = sections[toSectionIndex].chords.length;
-          handleChordMove(fromSectionIndex, fromChordIndex, toSectionIndex, toChordIndex);
-        }
-      } else if (overId.startsWith('chord-end-')) {
-        // Dropping on end zone of a section (after last chord)
-        const toSectionIndex = parseInt(overId.replace('chord-end-', ''), 10);
         const toChordIndex = sections[toSectionIndex].chords.length;
-        
+
         if (fromSectionIndex === toSectionIndex) {
-          // Same section - move to end
-          if (fromChordIndex !== toChordIndex - 1) {
-            handleChordReorder(fromSectionIndex, fromChordIndex, toChordIndex - 1);
+          // Same section: move to end
+          const lastIndex = toChordIndex - 1;
+          if (lastIndex >= 0 && fromChordIndex !== lastIndex) {
+            handleChordReorder(fromSectionIndex, fromChordIndex, lastIndex);
           }
         } else {
-          // Cross-section move to end
+          // Cross-section: move to end
           handleChordMove(fromSectionIndex, fromChordIndex, toSectionIndex, toChordIndex);
         }
       }
@@ -508,7 +515,7 @@ const Index = () => {
         {/* Sections - unified DndContext for both sections and chords */}
         <DndContext
           sensors={sensors}
-          collisionDetection={rectIntersection}
+          collisionDetection={collisionDetectionStrategy}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
