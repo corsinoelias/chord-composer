@@ -37,21 +37,11 @@ export const INSTRUMENTS: InstrumentConfig[] = [
   {
     id: 'piano',
     name: 'Piano',
-    defaultSoundType: 'salamander',
+    defaultSoundType: 'acoustic',
     soundTypes: [
       {
-        id: 'salamander',
-        name: '🎹 Salamander Grand (Realista)',
-        oscillatorType: 'triangle',
-        octaveOffset: 0,
-        attackTime: 0.01,
-        decayTime: 0.15,
-        sustainLevel: 0.6,
-        releaseTime: 0.4,
-      },
-      {
         id: 'acoustic',
-        name: 'Acoustic Grand (Synth)',
+        name: 'Acoustic Grand',
         oscillatorType: 'triangle',
         octaveOffset: 0,
         attackTime: 0.01,

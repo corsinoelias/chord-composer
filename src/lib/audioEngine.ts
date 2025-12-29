@@ -9,7 +9,6 @@ import { Chord, chordToMidiNotes, midiToFrequency } from './musicTheory';
 import { InstrumentState, getSoundType, SoundType, isInstrumentAudible } from './instruments';
 import { StylePattern, generateBarPattern } from './styles';
 import { Section } from './sections';
-import { loadToneSamplers, isToneReady, playTonePianoNote, startTone } from './toneEngine';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
@@ -123,14 +122,6 @@ export async function ensureSamplesLoaded(): Promise<void> {
   getAudioContext();
   if (sampleLoadPromise) {
     await sampleLoadPromise;
-  }
-  
-  // Also load Tone.js Salamander piano samples
-  try {
-    await startTone();
-    await loadToneSamplers();
-  } catch (err) {
-    console.warn('Failed to load Tone.js samplers, falling back to synth:', err);
   }
 }
 
@@ -780,29 +771,14 @@ export function scheduleProgression(
       // Piano - uses velocity from pattern
       const pianoVelocity = pattern.piano[patternSlot];
       if (pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound && pianoVelocity > 0) {
-        const useTonePiano = pianoState.soundTypeId === 'salamander' && isToneReady();
-        
-        if (useTonePiano) {
-          // Use Tone.js Salamander Grand Piano
-          midiNotes.forEach(midiNote => {
-            playTonePianoNote(
-              midiNote,
-              slotDuration * 3,
-              slotTime,
-              pianoState.volume * currentStyle.volumes.piano * pianoVelocity
-            );
-          });
-        } else {
-          // Fallback to synth piano
-          midiNotes.forEach(midiNote => {
-            const frequency = midiToFrequency(midiNote);
-            playPianoNote(
-              ctx, masterGain!, frequency, slotTime, 
-              slotDuration * 3, pianoSound, 
-              pianoState.volume * currentStyle.volumes.piano * pianoVelocity
-            );
-          });
-        }
+        midiNotes.forEach(midiNote => {
+          const frequency = midiToFrequency(midiNote);
+          playPianoNote(
+            ctx, masterGain!, frequency, slotTime, 
+            slotDuration * 3, pianoSound, 
+            pianoState.volume * currentStyle.volumes.piano * pianoVelocity
+          );
+        });
       }
       
       // Bass - uses velocity from pattern
