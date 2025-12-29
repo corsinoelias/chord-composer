@@ -771,14 +771,9 @@ export function scheduleProgression(
     // Calculate segment duration for scheduling
     const segmentDuration = slotCount * slotDuration;
     
-    // Cache for patterns by bar number to avoid regenerating each slot
-    const patternCache: Map<number, ReturnType<typeof generateBarPattern>> = new Map();
-    
+    // NO cache - always regenerate pattern to pick up live edits immediately
     const getPatternForBar = (barNum: number) => {
-      if (!patternCache.has(barNum)) {
-        patternCache.set(barNum, generateBarPattern(currentStyle, barNum, 4, true, forceFill));
-      }
-      return patternCache.get(barNum)!;
+      return generateBarPattern(currentStyle, barNum, 4, true, forceFill);
     };
     
     // Schedule each slot in this chord segment
