@@ -16,16 +16,13 @@ export interface InstrumentConfig {
 export interface SoundType {
   id: string;
   name: string;
-  // Oscillator configuration (for synth sounds)
+  // Oscillator configuration
   oscillatorType: OscillatorType;
   octaveOffset: number;
   attackTime: number;
   decayTime: number;
   sustainLevel: number;
   releaseTime: number;
-  // Sampler configuration (for realistic sounds)
-  useSampler?: boolean;
-  samplerType?: 'piano' | 'bass' | 'tr808' | 'tr909';
 }
 
 export interface InstrumentState {
@@ -40,23 +37,11 @@ export const INSTRUMENTS: InstrumentConfig[] = [
   {
     id: 'piano',
     name: 'Piano',
-    defaultSoundType: 'sampled',
+    defaultSoundType: 'acoustic',
     soundTypes: [
       {
-        id: 'sampled',
-        name: '🎹 Grand Piano (Sampled)',
-        oscillatorType: 'triangle',
-        octaveOffset: 0,
-        attackTime: 0.01,
-        decayTime: 0.15,
-        sustainLevel: 0.6,
-        releaseTime: 0.4,
-        useSampler: true,
-        samplerType: 'piano',
-      },
-      {
         id: 'acoustic',
-        name: 'Acoustic Grand (Synth)',
+        name: 'Acoustic Grand',
         oscillatorType: 'triangle',
         octaveOffset: 0,
         attackTime: 0.01,
@@ -66,7 +51,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'bright',
-        name: 'Bright Piano (Synth)',
+        name: 'Bright Piano',
         oscillatorType: 'sawtooth',
         octaveOffset: 0,
         attackTime: 0.005,
@@ -76,7 +61,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'electric',
-        name: 'Electric Piano (Synth)',
+        name: 'Electric Piano',
         oscillatorType: 'sine',
         octaveOffset: 0,
         attackTime: 0.01,
@@ -86,7 +71,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'soft',
-        name: 'Soft Piano (Synth)',
+        name: 'Soft Piano',
         oscillatorType: 'sine',
         octaveOffset: 0,
         attackTime: 0.03,
@@ -96,7 +81,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'upright',
-        name: 'Upright Piano (Synth)',
+        name: 'Upright Piano',
         oscillatorType: 'triangle',
         octaveOffset: 0,
         attackTime: 0.015,
@@ -106,7 +91,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'honkytonk',
-        name: 'Honky Tonk (Synth)',
+        name: 'Honky Tonk',
         oscillatorType: 'sawtooth',
         octaveOffset: 0,
         attackTime: 0.008,
@@ -119,23 +104,11 @@ export const INSTRUMENTS: InstrumentConfig[] = [
   {
     id: 'bass',
     name: 'Bass',
-    defaultSoundType: 'sampled',
+    defaultSoundType: 'electric',
     soundTypes: [
       {
-        id: 'sampled',
-        name: '🎸 Acoustic Bass (Sampled)',
-        oscillatorType: 'triangle',
-        octaveOffset: -2,
-        attackTime: 0.015,
-        decayTime: 0.12,
-        sustainLevel: 0.75,
-        releaseTime: 0.25,
-        useSampler: true,
-        samplerType: 'bass',
-      },
-      {
         id: 'electric',
-        name: 'Electric Fingerstyle (Synth)',
+        name: 'Electric Fingerstyle',
         oscillatorType: 'triangle',
         octaveOffset: -2,
         attackTime: 0.015,
@@ -145,7 +118,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'picked',
-        name: 'Picked Bass (Synth)',
+        name: 'Picked Bass',
         oscillatorType: 'sawtooth',
         octaveOffset: -2,
         attackTime: 0.008,
@@ -165,7 +138,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'acoustic',
-        name: 'Acoustic Upright (Synth)',
+        name: 'Acoustic Upright',
         oscillatorType: 'sine',
         octaveOffset: -2,
         attackTime: 0.025,
@@ -175,7 +148,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'sub',
-        name: 'Deep Sub (Synth)',
+        name: 'Deep Sub',
         oscillatorType: 'sine',
         octaveOffset: -3,
         attackTime: 0.02,
@@ -185,7 +158,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'slap',
-        name: 'Slap Bass (Synth)',
+        name: 'Slap Bass',
         oscillatorType: 'square',
         octaveOffset: -2,
         attackTime: 0.005,
@@ -211,32 +184,8 @@ export const INSTRUMENTS: InstrumentConfig[] = [
         releaseTime: 0.1,
       },
       {
-        id: 'tr808',
-        name: '🥁 TR-808 (Sampled)',
-        oscillatorType: 'triangle',
-        octaveOffset: 0,
-        attackTime: 0.001,
-        decayTime: 0.12,
-        sustainLevel: 0.1,
-        releaseTime: 0.1,
-        useSampler: true,
-        samplerType: 'tr808',
-      },
-      {
-        id: 'tr909',
-        name: '🥁 TR-909 (Sampled)',
-        oscillatorType: 'triangle',
-        octaveOffset: 0,
-        attackTime: 0.001,
-        decayTime: 0.12,
-        sustainLevel: 0.1,
-        releaseTime: 0.1,
-        useSampler: true,
-        samplerType: 'tr909',
-      },
-      {
         id: 'rock',
-        name: 'Rock Kit (Synth)',
+        name: 'Rock Kit',
         oscillatorType: 'sawtooth',
         octaveOffset: 0,
         attackTime: 0.001,
@@ -246,7 +195,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'electronic',
-        name: 'Electronic 808 (Synth)',
+        name: 'Electronic 808',
         oscillatorType: 'square',
         octaveOffset: 0,
         attackTime: 0.001,
@@ -256,7 +205,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'jazz',
-        name: 'Jazz Brushes (Synth)',
+        name: 'Jazz Brushes',
         oscillatorType: 'sine',
         octaveOffset: 0,
         attackTime: 0.01,
@@ -266,7 +215,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       },
       {
         id: 'tight',
-        name: 'Tight Pop (Synth)',
+        name: 'Tight Pop',
         oscillatorType: 'triangle',
         octaveOffset: 0,
         attackTime: 0.001,
