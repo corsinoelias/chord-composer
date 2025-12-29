@@ -92,12 +92,13 @@ const Index = () => {
   const liveEditedStyleRef = useRef<StylePattern | null>(null);
   const customStylesRef = useRef<StylePattern[]>([]);
   
-  useEffect(() => { sectionsRef.current = sections; }, [sections]);
+  // Sync refs immediately (not in useEffect) to avoid race conditions
+  sectionsRef.current = sections;
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
   useEffect(() => { metronomeRef.current = metronomeEnabled; }, [metronomeEnabled]);
   useEffect(() => { instrumentsRef.current = instruments; }, [instruments]);
   useEffect(() => { styleRef.current = selectedStyleId; }, [selectedStyleId]);
-  useEffect(() => { loopingSectionRef.current = loopingSectionIndex; }, [loopingSectionIndex]);
+  loopingSectionRef.current = loopingSectionIndex;
   useEffect(() => { transpositionRef.current = transposition; }, [transposition]);
   useEffect(() => { liveEditedStyleRef.current = liveEditedStyle; }, [liveEditedStyle]);
   useEffect(() => { customStylesRef.current = customStyles; }, [customStyles]);
@@ -152,12 +153,18 @@ const Index = () => {
     const currentSections = sectionsRef.current;
     const loopIdx = loopingSectionRef.current;
     
+    // Validate loopIdx is within bounds
+    if (loopIdx !== null && (loopIdx < 0 || loopIdx >= currentSections.length)) {
+      console.warn('Invalid looping section index:', loopIdx);
+      return;
+    }
+    
     // If looping a section, only play that section
     const sectionsToPlay = loopIdx !== null 
       ? [currentSections[loopIdx]] 
       : currentSections;
     
-    const hasChords = sectionsToPlay.some(s => s.chords.length > 0);
+    const hasChords = sectionsToPlay.some(s => s?.chords?.length > 0);
     if (!hasChords) return;
     
     await play(sectionsToPlay, {
