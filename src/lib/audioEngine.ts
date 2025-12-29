@@ -60,6 +60,14 @@ let acousticKit: AcousticKitSamples = {
   crash: null,
 };
 
+// Piano sample buffers (samples 1-88 = MIDI notes 21-108)
+interface PianoSamples {
+  [midiNote: number]: AudioBuffer | null;
+}
+
+let pianoSamples: PianoSamples = {};
+let pianoSamplesLoaded = false;
+
 let sampleLoadPromise: Promise<void> | null = null;
 
 /**
@@ -95,6 +103,38 @@ async function loadAcousticSamples(ctx: AudioContext): Promise<void> {
 }
 
 /**
+ * Loads all piano samples (1.mp3 to 88.mp3 = MIDI notes 21-108)
+ */
+async function loadPianoSamples(ctx: AudioContext): Promise<void> {
+  const loadPromises: Promise<void>[] = [];
+  
+  for (let i = 1; i <= 88; i++) {
+    const midiNote = i + 20; // 1.mp3 = MIDI 21 (A0), 88.mp3 = MIDI 108 (C8)
+    loadPromises.push(
+      (async () => {
+        try {
+          const response = await fetch(`/audio/piano/${i}.mp3`);
+          if (!response.ok) {
+            console.warn(`Piano sample ${i}.mp3 not found`);
+            pianoSamples[midiNote] = null;
+            return;
+          }
+          const arrayBuffer = await response.arrayBuffer();
+          pianoSamples[midiNote] = await ctx.decodeAudioData(arrayBuffer);
+        } catch (error) {
+          console.warn(`Failed to load piano sample ${i}.mp3:`, error);
+          pianoSamples[midiNote] = null;
+        }
+      })()
+    );
+  }
+  
+  await Promise.all(loadPromises);
+  pianoSamplesLoaded = true;
+  console.log('Piano samples loaded');
+}
+
+/**
  * Initializes or returns the existing AudioContext
  */
 export function getAudioContext(): AudioContext {
@@ -104,8 +144,11 @@ export function getAudioContext(): AudioContext {
     masterGain.gain.value = 0.5;
     masterGain.connect(audioContext.destination);
     
-    // Start loading samples
-    sampleLoadPromise = loadAcousticSamples(audioContext);
+    // Start loading samples (drums and piano)
+    sampleLoadPromise = Promise.all([
+      loadAcousticSamples(audioContext),
+      loadPianoSamples(audioContext)
+    ]).then(() => {});
   }
   
   if (audioContext.state === 'suspended') {
@@ -189,9 +232,50 @@ export function playChordPreview(chord: Chord, volume: number = 0.5): void {
 }
 
 /**
+ * Plays a piano sample with envelope
+ */
+function playPianoSample(
+  ctx: AudioContext,
+  destination: AudioNode,
+  midiNote: number,
+  startTime: number,
+  duration: number,
+  volume: number
+): void {
+  const sample = pianoSamples[midiNote];
+  
+  if (!sample) {
+    // Fallback to synthesis if sample not available
+    const frequency = midiToFrequency(midiNote);
+    const fallbackSoundType = getSoundType('piano', 'acoustic');
+    if (fallbackSoundType) {
+      playPianoNoteSynth(ctx, destination, frequency, startTime, duration, fallbackSoundType, volume);
+    }
+    return;
+  }
+  
+  const source = ctx.createBufferSource();
+  const gainNode = ctx.createGain();
+  
+  source.buffer = sample;
+  source.connect(gainNode);
+  gainNode.connect(destination);
+  
+  // Envelope with gradual release
+  gainNode.gain.setValueAtTime(volume * 0.8, startTime);
+  
+  const releaseStart = startTime + Math.max(0, duration - 0.1);
+  gainNode.gain.setValueAtTime(volume * 0.8, releaseStart);
+  gainNode.gain.linearRampToValueAtTime(0, startTime + duration + 0.3);
+  
+  source.start(startTime);
+  source.stop(startTime + Math.max(duration + 0.4, sample.duration));
+}
+
+/**
  * Creates and plays piano notes with harmonic synthesis for realistic sound
  */
-function playPianoNote(
+function playPianoNoteSynth(
   ctx: AudioContext,
   destination: AudioNode,
   frequency: number,
@@ -245,6 +329,26 @@ function playPianoNote(
   gainNode.gain.linearRampToValueAtTime(sustainLevel, startTime + attackTime + decayTime);
   gainNode.gain.setValueAtTime(sustainLevel, Math.max(startTime, noteEnd - releaseTime));
   gainNode.gain.linearRampToValueAtTime(0, noteEnd);
+}
+
+/**
+ * Main piano note function - uses samples or synthesis based on sound type
+ */
+function playPianoNote(
+  ctx: AudioContext,
+  destination: AudioNode,
+  frequency: number,
+  startTime: number,
+  duration: number,
+  soundType: SoundType,
+  volume: number,
+  midiNote?: number
+): void {
+  if (soundType.useSamples && midiNote !== undefined) {
+    playPianoSample(ctx, destination, midiNote, startTime, duration, volume);
+  } else {
+    playPianoNoteSynth(ctx, destination, frequency, startTime, duration, soundType, volume);
+  }
 }
 
 /**
@@ -849,7 +953,8 @@ export function scheduleProgression(
           playPianoNote(
             ctx, masterGain!, frequency, slotTime, 
             slotDuration * 3, pianoSound, 
-            pianoState.volume * currentStyle.volumes.piano * pianoVelocity
+            pianoState.volume * currentStyle.volumes.piano * pianoVelocity,
+            midiNote
           );
         });
       }
@@ -1043,40 +1148,64 @@ export async function renderProgressionOffline(
           // Get cached pattern for this bar
           const pattern = getPatternForBar(barNumber);
           
-          // Piano
+          // Piano - use samples if available for sampled sound type
           const pianoVelocity = pattern.piano[patternSlot];
           if (pianoState && !pianoState.muted && pianoSound && pianoVelocity > 0) {
             midiNotes.forEach(midiNote => {
               const frequency = midiToFrequency(midiNote);
               const volume = pianoState.volume * style.volumes.piano * pianoVelocity;
-              const baseFreq = frequency * Math.pow(2, pianoSound.octaveOffset);
               
-              const harmonics = [
-                { freq: 1, amp: 1.0 },
-                { freq: 2, amp: 0.5 },
-                { freq: 3, amp: 0.25 },
-                { freq: 4, amp: 0.15 },
-              ];
-              
-              const pianoGain = offlineCtx.createGain();
-              pianoGain.connect(offlineMasterGain);
-              
-              harmonics.forEach(({ freq, amp }) => {
-                const osc = offlineCtx.createOscillator();
-                const oscGain = offlineCtx.createGain();
-                osc.type = freq === 1 ? pianoSound.oscillatorType : 'sine';
-                osc.frequency.value = baseFreq * freq;
-                oscGain.gain.value = amp * 0.12 * volume;
-                osc.connect(oscGain);
-                oscGain.connect(pianoGain);
-                osc.start(slotTime);
-                osc.stop(slotTime + slotDuration * 3);
-              });
-              
-              pianoGain.gain.setValueAtTime(0, slotTime);
-              pianoGain.gain.linearRampToValueAtTime(1, slotTime + pianoSound.attackTime);
-              pianoGain.gain.linearRampToValueAtTime(pianoSound.sustainLevel, slotTime + pianoSound.attackTime + pianoSound.decayTime);
-              pianoGain.gain.linearRampToValueAtTime(0, slotTime + slotDuration * 3);
+              // Check if we should use samples
+              if (pianoSound.useSamples && pianoSamples[midiNote]) {
+                // Use sampled piano
+                const sample = pianoSamples[midiNote]!;
+                const source = offlineCtx.createBufferSource();
+                const gainNode = offlineCtx.createGain();
+                
+                source.buffer = sample;
+                source.connect(gainNode);
+                gainNode.connect(offlineMasterGain);
+                
+                // Envelope with gradual release
+                const noteDuration = slotDuration * 3;
+                gainNode.gain.setValueAtTime(volume * 0.8, slotTime);
+                const releaseStart = slotTime + Math.max(0, noteDuration - 0.1);
+                gainNode.gain.setValueAtTime(volume * 0.8, releaseStart);
+                gainNode.gain.linearRampToValueAtTime(0, slotTime + noteDuration + 0.3);
+                
+                source.start(slotTime);
+                source.stop(slotTime + Math.max(noteDuration + 0.4, sample.duration));
+              } else {
+                // Use synthesized piano
+                const baseFreq = frequency * Math.pow(2, pianoSound.octaveOffset);
+                
+                const harmonics = [
+                  { freq: 1, amp: 1.0 },
+                  { freq: 2, amp: 0.5 },
+                  { freq: 3, amp: 0.25 },
+                  { freq: 4, amp: 0.15 },
+                ];
+                
+                const pianoGain = offlineCtx.createGain();
+                pianoGain.connect(offlineMasterGain);
+                
+                harmonics.forEach(({ freq, amp }) => {
+                  const osc = offlineCtx.createOscillator();
+                  const oscGain = offlineCtx.createGain();
+                  osc.type = freq === 1 ? pianoSound.oscillatorType : 'sine';
+                  osc.frequency.value = baseFreq * freq;
+                  oscGain.gain.value = amp * 0.12 * volume;
+                  osc.connect(oscGain);
+                  oscGain.connect(pianoGain);
+                  osc.start(slotTime);
+                  osc.stop(slotTime + slotDuration * 3);
+                });
+                
+                pianoGain.gain.setValueAtTime(0, slotTime);
+                pianoGain.gain.linearRampToValueAtTime(1, slotTime + pianoSound.attackTime);
+                pianoGain.gain.linearRampToValueAtTime(pianoSound.sustainLevel, slotTime + pianoSound.attackTime + pianoSound.decayTime);
+                pianoGain.gain.linearRampToValueAtTime(0, slotTime + slotDuration * 3);
+              }
             });
           }
           
