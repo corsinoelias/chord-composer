@@ -86,10 +86,28 @@ export function SectionCard({
 
   const canMoveUp = sectionIndex > 0;
   const canMoveDown = sectionIndex < totalSections - 1;
+  const showReorderButtons = totalSections > 1;
+
+  // Haptic feedback helper
+  const triggerHaptic = () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
+  };
+
+  const handleMoveUp = () => {
+    triggerHaptic();
+    onMoveUp();
+  };
+
+  const handleMoveDown = () => {
+    triggerHaptic();
+    onMoveDown();
+  };
 
   return (
     <div 
-      className={`bg-card border-2 rounded-xl overflow-hidden transition-all duration-200 ${
+      className={`bg-card border-2 rounded-xl overflow-hidden transition-all duration-300 ${
         isLooping ? 'border-primary' :
         isOver ? 'border-primary/50 bg-primary/5' :
         'border-border'
@@ -100,29 +118,31 @@ export function SectionCard({
         className="flex items-center justify-between px-4 py-3 bg-secondary/30 border-b border-border select-none"
       >
         <div className="flex items-center gap-2">
-          {/* Move Up/Down Buttons */}
-          <div className="flex flex-col -my-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-8 rounded-b-none"
-              onClick={onMoveUp}
-              disabled={!canMoveUp}
-              title="Move section up"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-8 rounded-t-none"
-              onClick={onMoveDown}
-              disabled={!canMoveDown}
-              title="Move section down"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* Move Up/Down Buttons - only show when multiple sections */}
+          {showReorderButtons && (
+            <div className="flex flex-col -my-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-8 rounded-b-none"
+                onClick={handleMoveUp}
+                disabled={!canMoveUp}
+                title="Move section up"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-8 rounded-t-none"
+                onClick={handleMoveDown}
+                disabled={!canMoveDown}
+                title="Move section down"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           
           {isEditingName ? (
             <Input

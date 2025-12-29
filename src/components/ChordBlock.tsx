@@ -53,7 +53,7 @@ export function ChordBlock({ chord, isPlaying, onDelete, onDuplicate, isDragging
         {chord.duration} {chord.duration === 1 ? 'beat' : 'beats'}
       </span>
       
-      {/* Delete button */}
+      {/* Delete button - hidden on mobile */}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -67,13 +67,14 @@ export function ChordBlock({ chord, isPlaying, onDelete, onDuplicate, isDragging
           opacity-0 group-hover:opacity-100 hover:opacity-100
           transition-opacity duration-200
           hover:scale-110
+          hidden sm:flex
         "
         aria-label="Delete chord"
       >
         <X size={12} />
       </button>
 
-      {/* Duplicate button */}
+      {/* Duplicate button - hidden on mobile */}
       {onDuplicate && (
         <button
           onClick={(e) => {
@@ -88,6 +89,7 @@ export function ChordBlock({ chord, isPlaying, onDelete, onDuplicate, isDragging
             opacity-0 group-hover:opacity-100 hover:opacity-100
             transition-opacity duration-200
             hover:scale-110
+            hidden sm:flex
           "
           aria-label="Duplicate chord"
         >

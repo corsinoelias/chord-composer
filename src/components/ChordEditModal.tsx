@@ -2,15 +2,18 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Chord, ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, RootNote, Accidental, ChordQuality } from '@/lib/musicTheory';
+import { Trash2, Copy } from 'lucide-react';
 
 interface ChordEditModalProps {
   chord: Chord | null;
   open: boolean;
   onClose: () => void;
   onSave: (chord: Chord) => void;
+  onDelete?: () => void;
+  onDuplicate?: () => void;
 }
 
-export function ChordEditModal({ chord, open, onClose, onSave }: ChordEditModalProps) {
+export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDuplicate }: ChordEditModalProps) {
   const [root, setRoot] = useState<RootNote>('C');
   const [accidental, setAccidental] = useState<Accidental>('');
   const [quality, setQuality] = useState<ChordQuality>('maj');
@@ -144,9 +147,41 @@ export function ChordEditModal({ chord, open, onClose, onSave }: ChordEditModalP
           </div>
         </div>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="button" onClick={handleSave}>Save Changes</Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
+            {onDelete && (
+              <Button 
+                type="button" 
+                variant="destructive" 
+                size="icon"
+                onClick={() => {
+                  onDelete();
+                  onClose();
+                }}
+                title="Delete chord"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            {onDuplicate && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="icon"
+                onClick={() => {
+                  onDuplicate();
+                  onClose();
+                }}
+                title="Duplicate chord"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1 sm:flex-none">Cancel</Button>
+            <Button type="button" onClick={handleSave} className="flex-1 sm:flex-none">Save</Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
