@@ -152,22 +152,22 @@ const Index = () => {
   const startPlayback = useCallback(async () => {
     const currentSections = sectionsRef.current;
     const loopIdx = loopingSectionRef.current;
-    
+
     // Validate loopIdx is within bounds
     if (loopIdx !== null && (loopIdx < 0 || loopIdx >= currentSections.length)) {
       console.warn('Invalid looping section index:', loopIdx);
       return;
     }
-    
-    // If looping a section, only play that section
-    const sectionsToPlay = loopIdx !== null 
-      ? [currentSections[loopIdx]] 
-      : currentSections;
-    
-    const hasChords = sectionsToPlay.some(s => s?.chords?.length > 0);
+
+    // Check if we actually have chords to play (respect loop selection)
+    const hasChords = loopIdx !== null
+      ? (currentSections[loopIdx]?.chords?.length ?? 0) > 0
+      : currentSections.some(s => (s?.chords?.length ?? 0) > 0);
+
     if (!hasChords) return;
-    
-    await play(sectionsToPlay, {
+
+    // IMPORTANT: always pass the full sections array; PlaybackContext will apply loopingSectionIndex.
+    await play(currentSections, {
       bpm: bpmRef.current,
       metronome: metronomeRef.current,
       instruments: instrumentsRef.current,
@@ -222,7 +222,11 @@ const Index = () => {
   };
 
   const handleToggleSectionLoop = (index: number) => {
-    setLoopingSectionIndex(prev => prev === index ? null : index);
+    setLoopingSectionIndex(prev => {
+      const next = prev === index ? null : index;
+      loopingSectionRef.current = next;
+      return next;
+    });
   };
 
   const handleRepeatChange = (sectionIndex: number, repeatCount: number) => {
