@@ -8,7 +8,7 @@ import { Section } from '@/lib/sections';
 import { InstrumentState, getDefaultInstrumentStates } from '@/lib/instruments';
 import { StylePattern, MUSICAL_STYLES, getStyleByIdWithOverrides } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
-import { ensureSamplesLoaded, scheduleProgression, stopPlayback as stopAudioPlayback } from '@/lib/audioEngine';
+import { ensureSamplesLoaded, scheduleProgression, stopPlayback as stopAudioPlayback, preloadAudio } from '@/lib/audioEngine';
 
 interface PlaybackState {
   isPlaying: boolean;
@@ -65,6 +65,31 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const cancelRef = useRef<(() => void) | null>(null);
   const optionsRef = useRef<PlayOptions | null>(null);
   const sectionsRef = useRef<Section[]>([]);
+  const audioPreloaded = useRef(false);
+
+  // Pre-load audio on first user interaction for faster first playback
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      if (!audioPreloaded.current) {
+        audioPreloaded.current = true;
+        preloadAudio().catch(console.warn);
+        // Remove listeners after first interaction
+        window.removeEventListener('click', handleFirstInteraction);
+        window.removeEventListener('touchstart', handleFirstInteraction);
+        window.removeEventListener('keydown', handleFirstInteraction);
+      }
+    };
+
+    window.addEventListener('click', handleFirstInteraction);
+    window.addEventListener('touchstart', handleFirstInteraction);
+    window.addEventListener('keydown', handleFirstInteraction);
+
+    return () => {
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+      window.removeEventListener('keydown', handleFirstInteraction);
+    };
+  }, []);
 
   const stop = useCallback(() => {
     if (cancelRef.current) {
