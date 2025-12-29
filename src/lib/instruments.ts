@@ -23,6 +23,8 @@ export interface SoundType {
   decayTime: number;
   sustainLevel: number;
   releaseTime: number;
+  // Optional: use samples instead of synthesis
+  useSamples?: boolean;
 }
 
 export interface InstrumentState {
@@ -37,8 +39,19 @@ export const INSTRUMENTS: InstrumentConfig[] = [
   {
     id: 'piano',
     name: 'Piano',
-    defaultSoundType: 'electric',
+    defaultSoundType: 'sampled',
     soundTypes: [
+      {
+        id: 'sampled',
+        name: 'Grand Piano (Sampled)',
+        oscillatorType: 'sine', // Not used when useSamples is true
+        octaveOffset: 0,
+        attackTime: 0.01,
+        decayTime: 0.2,
+        sustainLevel: 0.7,
+        releaseTime: 0.5,
+        useSamples: true,
+      },
       {
         id: 'acoustic',
         name: 'Acoustic Grand',
