@@ -88,11 +88,10 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     optionsRef.current = options;
 
     const loopIdx = options.loopingSectionIndex;
-    const sectionsToPlay = loopIdx !== null && loopIdx !== undefined
-      ? [sections[loopIdx]]
-      : sections;
+    const loopSection = (loopIdx !== null && loopIdx !== undefined) ? sections[loopIdx] : undefined;
+    const sectionsToPlay = loopSection ? [loopSection] : sections;
 
-    const hasChords = sectionsToPlay.some(s => s.chords.length > 0);
+    const hasChords = sectionsToPlay.some(s => (s?.chords?.length ?? 0) > 0);
     if (!hasChords) return;
 
     await ensureSamplesLoaded();
