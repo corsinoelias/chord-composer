@@ -7,55 +7,52 @@ import {
 import { Section } from '@/lib/sections';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, Copy, GripVertical, Repeat } from 'lucide-react';
+import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Repeat } from 'lucide-react';
 import { SortableChord } from './SortableChord';
 
-
-interface SectionCardContentProps {
+interface SectionCardProps {
   section: Section;
   sectionIndex: number;
   currentChordIndex: number;
   globalChordOffset: number;
   totalSections: number;
   isLooping?: boolean;
-  isDragging?: boolean;
-  dragHandleProps?: Record<string, unknown>;
   onAddChord: () => void;
   onChordClick: (chordIndex: number) => void;
   onChordDelete: (chordIndex: number) => void;
   onChordDuplicate: (chordIndex: number) => void;
-  onChordReorder: (fromIndex: number, toIndex: number) => void;
   onRepeatChange: (repeatCount: number) => void;
   onNameChange: (name: string) => void;
   onDelete: () => void;
   onDuplicate: () => void;
   onToggleLoop: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }
 
-export function SectionCardContent({
+export function SectionCard({
   section,
   sectionIndex,
   currentChordIndex,
   globalChordOffset,
   totalSections,
   isLooping,
-  isDragging,
-  dragHandleProps,
   onAddChord,
   onChordClick,
   onChordDelete,
   onChordDuplicate,
-  onChordReorder,
   onRepeatChange,
   onNameChange,
   onDelete,
   onDuplicate,
   onToggleLoop,
-}: SectionCardContentProps) {
+  onMoveUp,
+  onMoveDown,
+}: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
 
-  // Droppable zone for the section (for cross-section drops)
+  // Droppable zone for the section (for cross-section chord drops)
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: `section-drop-${sectionIndex}`,
   });
@@ -87,10 +84,12 @@ export function SectionCardContent({
   // Generate unique chord IDs that include section index
   const chordIds = section.chords.map(c => `chord-${sectionIndex}-${c.id}`);
 
+  const canMoveUp = sectionIndex > 0;
+  const canMoveDown = sectionIndex < totalSections - 1;
+
   return (
     <div 
       className={`bg-card border-2 rounded-xl overflow-hidden transition-all duration-200 ${
-        isDragging ? 'border-primary shadow-lg scale-[1.02]' :
         isLooping ? 'border-primary' :
         isOver ? 'border-primary/50 bg-primary/5' :
         'border-border'
@@ -101,11 +100,28 @@ export function SectionCardContent({
         className="flex items-center justify-between px-4 py-3 bg-secondary/30 border-b border-border select-none"
       >
         <div className="flex items-center gap-2">
-          <div 
-            {...dragHandleProps}
-            className="flex items-center justify-center w-10 h-10 -ml-2 rounded-lg cursor-grab active:cursor-grabbing hover:bg-accent/50 active:bg-accent transition-colors touch-none select-none"
-          >
-            <GripVertical className="h-5 w-5 text-muted-foreground" />
+          {/* Move Up/Down Buttons */}
+          <div className="flex flex-col -my-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-8 rounded-b-none"
+              onClick={onMoveUp}
+              disabled={!canMoveUp}
+              title="Move section up"
+            >
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-8 rounded-t-none"
+              onClick={onMoveDown}
+              disabled={!canMoveDown}
+              title="Move section down"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
           </div>
           
           {isEditingName ? (
