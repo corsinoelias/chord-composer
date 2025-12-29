@@ -116,6 +116,21 @@ export function getAudioContext(): AudioContext {
 }
 
 /**
+ * Pre-initializes the audio system for faster first playback
+ * Call this early (e.g., on first user interaction) to warm up the audio
+ */
+export async function preloadAudio(): Promise<void> {
+  const ctx = getAudioContext();
+  if (sampleLoadPromise) {
+    await sampleLoadPromise;
+  }
+  // Ensure context is running
+  if (ctx.state === 'suspended') {
+    await ctx.resume();
+  }
+}
+
+/**
  * Ensures samples are loaded before playback
  */
 export async function ensureSamplesLoaded(): Promise<void> {
