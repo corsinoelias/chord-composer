@@ -949,9 +949,8 @@ export function RhythmEditor({
               {/* Grid Rows */}
               <div className="space-y-0.5 sm:space-y-1">
                 {sortedActiveInstruments.map(instrument => {
-                  const pattern = showFill 
-                    ? editedStyle.fill.pattern[instrument.key] || createEmptyPattern()
-                    : editedStyle.rhythm[instrument.key] || createEmptyPattern();
+                  const basePattern = editedStyle.rhythm[instrument.key] || createEmptyPattern();
+                  const fillPattern = editedStyle.fill.pattern[instrument.key];
                   const Icon = instrument.icon;
                   
                   return (
@@ -969,16 +968,23 @@ export function RhythmEditor({
                           >
                             {[0, 1, 2, 3].map(subIdx => {
                               const step = beatIdx * 4 + subIdx;
-                              const value = pattern[step];
                               const isDownbeat = subIdx === 0;
                               const isCurrentStep = displayStep === step && (isLocalPlaying || isMainPlaying);
-                              // In Fill mode: highlight cells that will actually play (from fill position onwards)
-                              const isActiveInFill = showFill && step >= editedStyle.fill.position;
-                              const isInactiveInFill = showFill && step < editedStyle.fill.position;
+
+                              const isInFillZone = step >= editedStyle.fill.position;
+                              const value = showFill
+                                ? (isInFillZone ? (fillPattern?.[step] ?? 0) : basePattern[step])
+                                : basePattern[step];
+
+                              // In Fill mode: lock steps before the fill start (they come from the Main pattern)
+                              const isLockedInFill = showFill && !isInFillZone;
+                              const isActiveInFill = showFill && isInFillZone;
+                              const isInactiveInFill = showFill && !isInFillZone;
                               
                               return (
                                 <button
                                   key={step}
+                                  disabled={isLockedInFill}
                                   onClick={() => handleCellClick(instrument.key, step, showFill)}
                                   onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
                                   className={cn(
@@ -989,8 +995,8 @@ export function RhythmEditor({
                                     value > 0 ? "border-chart-4/50" : "",
                                     // Fill mode: highlight active zone with subtle glow
                                     isActiveInFill && "ring-1 ring-chart-4/50",
-                                    // Fill mode: dim inactive zone
-                                    isInactiveInFill && "opacity-30"
+                                    // Fill mode: dim + lock the main zone
+                                    isInactiveInFill && "opacity-50 cursor-not-allowed"
                                   )}
                                 >
                                   {value > 0 && (

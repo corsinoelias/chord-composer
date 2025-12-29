@@ -776,7 +776,7 @@ export function scheduleProgression(
     
     const getPatternForBar = (barNum: number) => {
       if (!patternCache.has(barNum)) {
-        patternCache.set(barNum, generateBarPattern(currentStyle, barNum, 4, true));
+        patternCache.set(barNum, generateBarPattern(currentStyle, barNum, 4, true, forceFill));
       }
       return patternCache.get(barNum)!;
     };
