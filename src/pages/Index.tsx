@@ -1,13 +1,27 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { Chord, generateChordId } from '@/lib/musicTheory';
 import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
-import { getDefaultInstrumentStates, InstrumentState, isInstrumentAudible } from '@/lib/instruments';
+import { getDefaultInstrumentStates, InstrumentState } from '@/lib/instruments';
 import { getStyleById, getStyleByIdWithOverrides, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
-import { getCustomStyles, saveCustomStyle, getStyleOverride } from '@/lib/customStyles';
+import { getCustomStyles, getStyleOverride } from '@/lib/customStyles';
 import { renderProgressionOffline } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { usePlayback } from '@/contexts/PlaybackContext';
-import { SectionCard } from '@/components/SectionCard';
+import { SortableSection } from '@/components/SortableSection';
 import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
 import { AddChordModal } from '@/components/AddChordModal';
@@ -33,7 +47,15 @@ const Index = () => {
     ]
   }]);
   const [bpm, setBpm] = useState(100);
-  const [selectedStyleId, setSelectedStyleId] = useState('pop_1');
+  const [customStyles, setCustomStyles] = useState<StylePattern[]>(getCustomStyles());
+  
+  // Determine initial style (prefer pop_1 if exists, fallback to rock_basic)
+  const getInitialStyleId = () => {
+    const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
+    return allStyles.find(s => s.id === 'pop_1')?.id || 'rock_basic';
+  };
+  
+  const [selectedStyleId, setSelectedStyleId] = useState(getInitialStyleId);
   const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
   const [songTitle, setSongTitle] = useState('My Song');
   const [transposition, setTransposition] = useState(0);
@@ -51,18 +73,7 @@ const Index = () => {
   const [rhythmEditorOpen, setRhythmEditorOpen] = useState(false);
   const [createRhythmModalOpen, setCreateRhythmModalOpen] = useState(false);
   const [editingNewStyle, setEditingNewStyle] = useState<StylePattern | null>(null);
-  const [customStyles, setCustomStyles] = useState<StylePattern[]>(getCustomStyles());
-  const [sectionDragState, setSectionDragState] = useState<{
-    isDragging: boolean;
-    draggedIndex: number | null;
-    dropTargetIndex: number | null;
-    dropPosition: 'before' | 'after' | null;
-  }>({
-    isDragging: false,
-    draggedIndex: null,
-    dropTargetIndex: null,
-    dropPosition: null,
-  });
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   
   // Refs for current values (used in callbacks)
   const sectionsRef = useRef<Section[]>([]);
@@ -74,7 +85,6 @@ const Index = () => {
   const loopingSectionRef = useRef<number | null>(null);
   const liveEditedStyleRef = useRef<StylePattern | null>(null);
   const customStylesRef = useRef<StylePattern[]>([]);
-  const sectionRectsRef = useRef<Map<number, DOMRect>>(new Map());
   
   useEffect(() => { sectionsRef.current = sections; }, [sections]);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
@@ -86,21 +96,27 @@ const Index = () => {
   useEffect(() => { liveEditedStyleRef.current = liveEditedStyle; }, [liveEditedStyle]);
   useEffect(() => { customStylesRef.current = customStyles; }, [customStyles]);
 
+  // Sensors for section drag & drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 10,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  );
+
   // Update playback options when liveEditedStyle changes during playback
   useEffect(() => {
     if (isPlaying) {
       updatePlaybackOptions({ liveEditedStyle });
     }
   }, [liveEditedStyle, isPlaying, updatePlaybackOptions]);
-
-  // Listen for custom styles changes
-  useEffect(() => {
-    const handleCustomStylesChanged = () => {
-      setCustomStyles(getCustomStyles());
-    };
-    window.addEventListener('customStylesChanged', handleCustomStylesChanged);
-    return () => window.removeEventListener('customStylesChanged', handleCustomStylesChanged);
-  }, []);
 
   // Listen for custom styles changes
   useEffect(() => {
@@ -185,110 +201,36 @@ const Index = () => {
     setSections(prev => prev.map((s, i) => i === sectionIndex ? { ...s, repeatCount: Math.max(1, repeatCount) } : s));
   };
 
-  // Section drag & drop with improved UX
-  const handleSectionDragStart = useCallback((index: number, element: HTMLElement) => {
-    // Store all section rects for drop detection
-    const sectionsContainer = element.closest('.space-y-4');
-    if (sectionsContainer) {
-      sectionRectsRef.current.clear();
-      Array.from(sectionsContainer.children).forEach((child, i) => {
-        if (child instanceof HTMLElement && i < sections.length) {
-          sectionRectsRef.current.set(i, child.getBoundingClientRect());
+  // Section drag & drop
+  const handleSectionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = sections.findIndex(s => s.id === active.id);
+      const newIndex = sections.findIndex(s => s.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setSections(prev => {
+          const newSections = [...prev];
+          const [removed] = newSections.splice(oldIndex, 1);
+          newSections.splice(newIndex, 0, removed);
+          return newSections;
+        });
+        
+        // Update looping section index if needed
+        if (loopingSectionIndex !== null) {
+          if (loopingSectionIndex === oldIndex) {
+            setLoopingSectionIndex(newIndex);
+          } else if (oldIndex < loopingSectionIndex && newIndex >= loopingSectionIndex) {
+            setLoopingSectionIndex(loopingSectionIndex - 1);
+          } else if (oldIndex > loopingSectionIndex && newIndex <= loopingSectionIndex) {
+            setLoopingSectionIndex(loopingSectionIndex + 1);
+          }
         }
-      });
-    }
-    
-    setSectionDragState({
-      isDragging: true,
-      draggedIndex: index,
-      dropTargetIndex: null,
-      dropPosition: null,
-    });
-  }, [sections.length]);
-
-  // Handle drag over for sections (calculate drop position)
-  const handleSectionDragOverGlobal = useCallback((e: React.DragEvent) => {
-    if (!sectionDragState.isDragging) return;
-    e.preventDefault();
-    
-    const y = e.clientY;
-    let closestIndex = -1;
-    let closestDistance = Infinity;
-    let position: 'before' | 'after' = 'before';
-
-    sectionRectsRef.current.forEach((rect, index) => {
-      const midY = rect.top + rect.height / 2;
-      const distance = Math.abs(y - midY);
-      
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = index;
-        position = y < midY ? 'before' : 'after';
-      }
-    });
-
-    if (closestIndex !== -1) {
-      setSectionDragState(prev => ({
-        ...prev,
-        dropTargetIndex: closestIndex,
-        dropPosition: position,
-      }));
-    }
-  }, [sectionDragState.isDragging]);
-
-  const handleSectionReorder = useCallback((fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex) return;
-    
-    setSections(prev => {
-      const newSections = [...prev];
-      const [removed] = newSections.splice(fromIndex, 1);
-      newSections.splice(toIndex, 0, removed);
-      return newSections;
-    });
-    
-    // Update looping section index if needed
-    if (loopingSectionIndex !== null) {
-      if (loopingSectionIndex === fromIndex) {
-        setLoopingSectionIndex(toIndex);
-      } else if (fromIndex < loopingSectionIndex && toIndex >= loopingSectionIndex) {
-        setLoopingSectionIndex(loopingSectionIndex - 1);
-      } else if (fromIndex > loopingSectionIndex && toIndex <= loopingSectionIndex) {
-        setLoopingSectionIndex(loopingSectionIndex + 1);
       }
     }
-  }, [loopingSectionIndex]);
-
-  const handleSectionDropGlobal = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    
-    if (sectionDragState.draggedIndex !== null && sectionDragState.dropTargetIndex !== null) {
-      let toIndex = sectionDragState.dropTargetIndex;
-      
-      if (sectionDragState.dropPosition === 'after') {
-        toIndex++;
-      }
-      
-      // Adjust for removal
-      if (sectionDragState.draggedIndex < toIndex) {
-        toIndex--;
-      }
-      
-      if (sectionDragState.draggedIndex !== toIndex) {
-        handleSectionReorder(sectionDragState.draggedIndex, toIndex);
-      }
-    }
-    
-    handleSectionDragEnd();
-  }, [sectionDragState, handleSectionReorder]);
-  
-  const handleSectionDragEnd = useCallback(() => {
-    setSectionDragState({
-      isDragging: false,
-      draggedIndex: null,
-      dropTargetIndex: null,
-      dropPosition: null,
-    });
-  }, []);
+  };
 
   // Chord handlers
   const handleAddChord = (chord: Chord) => {
@@ -344,22 +286,6 @@ const Index = () => {
     }));
   };
 
-  // Cross-section chord move
-  const handleMoveChordToSection = (fromSectionIndex: number, chordIndex: number, toSectionIndex: number) => {
-    if (fromSectionIndex === toSectionIndex) return;
-    
-    const chord = sections[fromSectionIndex].chords[chordIndex];
-    setSections(prev => prev.map((s, i) => {
-      if (i === fromSectionIndex) {
-        return { ...s, chords: s.chords.filter((_, j) => j !== chordIndex) };
-      }
-      if (i === toSectionIndex) {
-        return { ...s, chords: [...s.chords, chord] };
-      }
-      return s;
-    }));
-  };
-
   // Restart on changes
   useEffect(() => {
     const hasChords = sections.some(s => s.chords.length > 0);
@@ -406,6 +332,8 @@ const Index = () => {
     return offset;
   };
 
+  const sectionIds = sections.map(s => s.id);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -446,13 +374,12 @@ const Index = () => {
           }}
           onStyleChange={(id) => {
             setSelectedStyleId(id);
-            setLiveEditedStyle(null); // Clear live edits when switching styles
+            setLiveEditedStyle(null);
           }}
           onSongTitleChange={setSongTitle}
           onTranspositionChange={setTransposition}
           onOpenInstruments={() => setInstrumentsPanelOpen(true)}
           onOpenRhythmEditor={() => {
-            // Edit the currently selected rhythm
             const currentStyle = [...customStyles, ...MUSICAL_STYLES].find(s => s.id === selectedStyleId);
             if (currentStyle) {
               setLiveEditedStyle(null);
@@ -465,48 +392,43 @@ const Index = () => {
         />
 
         {/* Sections */}
-        <div 
-          className="space-y-4"
-          onDragOver={handleSectionDragOverGlobal}
-          onDrop={handleSectionDropGlobal}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={(event) => setActiveDragId(event.active.id as string)}
+          onDragEnd={handleSectionDragEnd}
         >
-          {sections.map((section, sectionIndex) => (
-            <SectionCard
-              key={section.id}
-              section={section}
-              sectionIndex={sectionIndex}
-              currentChordIndex={loopingSectionIndex === sectionIndex || loopingSectionIndex === null ? currentChordIndex : -1}
-              globalChordOffset={getGlobalOffset(sectionIndex)}
-              totalSections={sections.length}
-              isLooping={loopingSectionIndex === sectionIndex}
-              onAddChord={() => setAddChordSection({ index: sectionIndex, name: section.name })}
-              onChordClick={(chordIndex) => handleChordClick(sectionIndex, chordIndex)}
-              onChordDelete={(chordIndex) => handleChordDelete(sectionIndex, chordIndex)}
-              onChordDuplicate={(chordIndex) => handleChordDuplicate(sectionIndex, chordIndex)}
-              onReorder={(from, to) => handleChordReorder(sectionIndex, from, to)}
-              onMoveChordToSection={handleMoveChordToSection}
-              onRepeatChange={(count) => handleRepeatChange(sectionIndex, count)}
-              onNameChange={(name) => handleSectionNameChange(sectionIndex, name)}
-              onDelete={() => handleDeleteSection(sectionIndex)}
-              onDuplicate={() => handleDuplicateSection(sectionIndex)}
-              onToggleLoop={() => handleToggleSectionLoop(sectionIndex)}
-              isFirst={sectionIndex === 0}
-              isLast={sectionIndex === sections.length - 1}
-              onSectionReorder={handleSectionReorder}
-              isSectionDragging={sectionDragState.isDragging}
-              sectionDraggedIndex={sectionDragState.draggedIndex}
-              sectionDropTargetIndex={sectionDragState.dropTargetIndex}
-              sectionDropPosition={sectionDragState.dropPosition}
-              onSectionDragStart={handleSectionDragStart}
-              onSectionDragEnd={handleSectionDragEnd}
-            />
-          ))}
+          <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
+            <div className="space-y-4">
+              {sections.map((section, sectionIndex) => (
+                <SortableSection
+                  key={section.id}
+                  section={section}
+                  sectionIndex={sectionIndex}
+                  currentChordIndex={loopingSectionIndex === sectionIndex || loopingSectionIndex === null ? currentChordIndex : -1}
+                  globalChordOffset={getGlobalOffset(sectionIndex)}
+                  totalSections={sections.length}
+                  isLooping={loopingSectionIndex === sectionIndex}
+                  onAddChord={() => setAddChordSection({ index: sectionIndex, name: section.name })}
+                  onChordClick={(chordIndex) => handleChordClick(sectionIndex, chordIndex)}
+                  onChordDelete={(chordIndex) => handleChordDelete(sectionIndex, chordIndex)}
+                  onChordDuplicate={(chordIndex) => handleChordDuplicate(sectionIndex, chordIndex)}
+                  onChordReorder={(from, to) => handleChordReorder(sectionIndex, from, to)}
+                  onRepeatChange={(count) => handleRepeatChange(sectionIndex, count)}
+                  onNameChange={(name) => handleSectionNameChange(sectionIndex, name)}
+                  onDelete={() => handleDeleteSection(sectionIndex)}
+                  onDuplicate={() => handleDuplicateSection(sectionIndex)}
+                  onToggleLoop={() => handleToggleSectionLoop(sectionIndex)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
 
-          <Button variant="outline" onClick={handleAddSection} className="w-full border-dashed">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Section
-          </Button>
-        </div>
+        <Button variant="outline" onClick={handleAddSection} className="w-full border-dashed">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Section
+        </Button>
       </main>
 
       <ChordEditModal
@@ -542,16 +464,13 @@ const Index = () => {
         isNewStyle={!!editingNewStyle}
         onStyleChange={setLiveEditedStyle}
         onStyleSelect={(styleId) => {
-          // User selected a different style from the dropdown
           setSelectedStyleId(styleId);
           setEditingNewStyle(null);
           setLiveEditedStyle(null);
         }}
         onDelete={(styleId) => {
-          // Refresh custom styles after deletion
           setCustomStyles(getCustomStyles());
           window.dispatchEvent(new Event('customStylesChanged'));
-          // If deleted the current style, switch to first available
           if (selectedStyleId === styleId) {
             setSelectedStyleId(MUSICAL_STYLES[0].id);
           }
