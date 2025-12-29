@@ -15,8 +15,7 @@ import {
 } from '@dnd-kit/core';
 import {
   SortableContext,
-  verticalListSortingStrategy,
-  arrayMove,
+  rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { Chord, generateChordId } from '@/lib/musicTheory';
 import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
@@ -26,7 +25,7 @@ import { getCustomStyles, getStyleOverride } from '@/lib/customStyles';
 import { renderProgressionOffline } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { usePlayback } from '@/contexts/PlaybackContext';
-import { SortableSection } from '@/components/SortableSection';
+import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
 import { AddChordModal } from '@/components/AddChordModal';
@@ -380,31 +379,7 @@ const Index = () => {
       return;
     }
     
-    // Handle section drag
-    if (activeId !== overId && !overId.startsWith('chord-') && !overId.startsWith('section-drop-')) {
-      const oldIndex = sections.findIndex(s => s.id === activeId);
-      const newIndex = sections.findIndex(s => s.id === overId);
-      
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setSections(prev => {
-          const newSections = [...prev];
-          const [removed] = newSections.splice(oldIndex, 1);
-          newSections.splice(newIndex, 0, removed);
-          return newSections;
-        });
-        
-        // Update looping section index if needed
-        if (loopingSectionIndex !== null) {
-          if (loopingSectionIndex === oldIndex) {
-            setLoopingSectionIndex(newIndex);
-          } else if (oldIndex < loopingSectionIndex && newIndex >= loopingSectionIndex) {
-            setLoopingSectionIndex(loopingSectionIndex - 1);
-          } else if (oldIndex > loopingSectionIndex && newIndex <= loopingSectionIndex) {
-            setLoopingSectionIndex(loopingSectionIndex + 1);
-          }
-        }
-      }
-    }
+    // Section drag is no longer handled here (using buttons instead)
   };
 
   // Restart on changes
@@ -453,7 +428,34 @@ const Index = () => {
     return offset;
   };
 
-  const sectionIds = sections.map(s => s.id);
+  // Handler for moving sections up/down
+  const handleMoveSection = (fromIndex: number, direction: 'up' | 'down') => {
+    const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= sections.length) return;
+    
+    setSections(prev => {
+      const newSections = [...prev];
+      const [removed] = newSections.splice(fromIndex, 1);
+      newSections.splice(toIndex, 0, removed);
+      return newSections;
+    });
+    
+    // Update looping section index if needed
+    if (loopingSectionIndex !== null) {
+      if (loopingSectionIndex === fromIndex) {
+        setLoopingSectionIndex(toIndex);
+      } else if (fromIndex < loopingSectionIndex && toIndex >= loopingSectionIndex) {
+        setLoopingSectionIndex(loopingSectionIndex - 1);
+      } else if (fromIndex > loopingSectionIndex && toIndex <= loopingSectionIndex) {
+        setLoopingSectionIndex(loopingSectionIndex + 1);
+      }
+    }
+  };
+
+  // Generate chord IDs for all sections (for DndContext)
+  const allChordIds = sections.flatMap((section, sectionIndex) => 
+    section.chords.map(c => `chord-${sectionIndex}-${c.id}`)
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -512,17 +514,17 @@ const Index = () => {
           hasChords={hasChords}
         />
 
-        {/* Sections - unified DndContext for both sections and chords */}
+        {/* Sections - DndContext only for chord drag & drop */}
         <DndContext
           sensors={sensors}
           collisionDetection={collisionDetectionStrategy}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
+          <SortableContext items={allChordIds} strategy={rectSortingStrategy}>
             <div className="space-y-4">
               {sections.map((section, sectionIndex) => (
-                <SortableSection
+                <SectionCard
                   key={section.id}
                   section={section}
                   sectionIndex={sectionIndex}
@@ -534,12 +536,13 @@ const Index = () => {
                   onChordClick={(chordIndex) => handleChordClick(sectionIndex, chordIndex)}
                   onChordDelete={(chordIndex) => handleChordDelete(sectionIndex, chordIndex)}
                   onChordDuplicate={(chordIndex) => handleChordDuplicate(sectionIndex, chordIndex)}
-                  onChordReorder={(from, to) => handleChordReorder(sectionIndex, from, to)}
                   onRepeatChange={(count) => handleRepeatChange(sectionIndex, count)}
                   onNameChange={(name) => handleSectionNameChange(sectionIndex, name)}
                   onDelete={() => handleDeleteSection(sectionIndex)}
                   onDuplicate={() => handleDuplicateSection(sectionIndex)}
                   onToggleLoop={() => handleToggleSectionLoop(sectionIndex)}
+                  onMoveUp={() => handleMoveSection(sectionIndex, 'up')}
+                  onMoveDown={() => handleMoveSection(sectionIndex, 'down')}
                 />
               ))}
             </div>
