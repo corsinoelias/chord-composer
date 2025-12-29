@@ -57,7 +57,7 @@ export function SortableSection({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="touch-none">
+    <div ref={setNodeRef} style={style}>
       <SectionCardContent
         section={section}
         sectionIndex={sectionIndex}
