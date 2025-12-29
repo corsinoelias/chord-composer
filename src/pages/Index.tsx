@@ -528,11 +528,9 @@ const Index = () => {
           onExport={handleExport}
           onBpmChange={(newBpm) => {
             setBpm(newBpm);
-            handleChangeWhilePlaying();
           }}
           onMetronomeToggle={(enabled) => {
             setMetronomeEnabled(enabled);
-            handleChangeWhilePlaying();
           }}
           onStyleChange={(id) => {
             setSelectedStyleId(id);
