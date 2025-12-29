@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { MUSICAL_STYLES, StylePattern } from '@/lib/styles';
-import { getCustomStyles, deleteCustomStyle } from '@/lib/customStyles';
+import { getCustomStyles, deleteCustomStyle, getStyleOverride } from '@/lib/customStyles';
 import { Music, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -74,8 +74,12 @@ export function StyleSelector({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [styleToDelete, setStyleToDelete] = useState<string | null>(null);
 
-  // Combine built-in and custom styles
-  const allStyles = [...MUSICAL_STYLES, ...customStyles];
+  // Combine built-in and custom styles, applying overrides to get correct names
+  const builtInWithOverrides = MUSICAL_STYLES.map(s => {
+    const override = getStyleOverride(s.id);
+    return override || s;
+  });
+  const allStyles = [...builtInWithOverrides, ...customStyles];
   const selectedStyle = allStyles.find(s => s.id === selectedStyleId);
   const handleDeleteClick = (e: React.MouseEvent, styleId: string) => {
     e.stopPropagation();
@@ -106,8 +110,10 @@ export function StyleSelector({
           </SelectTrigger>
           <SelectContent className="bg-popover border-border z-50 max-h-[400px]">
             {STYLE_CATEGORIES.map(category => {
-            // For custom category, use customStyles prop
-            const stylesInCategory = category.id === 'Custom' ? customStyles : MUSICAL_STYLES.filter(s => s.category === category.id);
+            // For custom category, use customStyles prop; for built-in, apply overrides
+            const stylesInCategory = category.id === 'Custom' 
+              ? customStyles 
+              : builtInWithOverrides.filter(s => s.category === category.id);
             if (stylesInCategory.length === 0 && category.id !== 'Custom') return null;
             return <div key={category.id}>
                   <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
