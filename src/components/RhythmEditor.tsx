@@ -136,6 +136,8 @@ export function RhythmEditor({
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isContextPreview, setIsContextPreview] = useState(false); // Preview Main → Fill
+  const [contextPreviewBar, setContextPreviewBar] = useState(0); // Which bar we're on (0-2 = main, 3 = fill)
   
   // Track the original style state to compare for changes
   const originalStyleRef = useRef<string>('');
@@ -328,11 +330,16 @@ export function RhythmEditor({
     }
   }, [isLocalPlaying]);
 
-  const startLocalPlayback = useCallback(async () => {
+  const startLocalPlayback = useCallback(async (preserveTime = false) => {
     // Stop main playback if it's running
     if (isMainPlaying) {
       stopMainPlayback();
     }
+    
+    // Save current position if preserving time
+    const ctx = getAudioContext();
+    const savedLoopStart = preserveTime ? loopStartTimeRef.current : 0;
+    const wasPlaying = isLocalPlaying;
     
     stopLocalPlayback();
     
@@ -340,6 +347,13 @@ export function RhythmEditor({
     await ensureSamplesLoaded();
     
     setIsLocalPlaying(true);
+    
+    // Restore timing or start fresh
+    if (preserveTime && wasPlaying && savedLoopStart > 0) {
+      loopStartTimeRef.current = savedLoopStart;
+    } else {
+      loopStartTimeRef.current = ctx.currentTime;
+    }
     
     const testSection = {
       id: 'test',
@@ -363,11 +377,12 @@ export function RhythmEditor({
     });
     
     playbackRef.current = { cancel };
-  }, [stopLocalPlayback, isMainPlaying, stopMainPlayback]);
+  }, [stopLocalPlayback, isMainPlaying, stopMainPlayback, isLocalPlaying]);
 
+  // Restart playback when showFill changes (preserve timing)
   useEffect(() => {
     if (isLocalPlaying) {
-      startLocalPlayback();
+      startLocalPlayback(true);
     }
   }, [showFill]);
 
@@ -482,6 +497,64 @@ export function RhythmEditor({
     });
     toast.success('Pattern copied to fill');
   };
+
+  // Preview fill in context: 3 bars of main + 1 bar with fill
+  const startContextPreview = useCallback(async () => {
+    if (isContextPreview) {
+      stopLocalPlayback();
+      setIsContextPreview(false);
+      setContextPreviewBar(0);
+      return;
+    }
+
+    // Stop any existing playback
+    if (isMainPlaying) stopMainPlayback();
+    stopLocalPlayback();
+    
+    await ensureSamplesLoaded();
+    
+    setIsContextPreview(true);
+    setContextPreviewBar(0);
+    setIsLocalPlaying(true);
+    
+    const ctx = getAudioContext();
+    loopStartTimeRef.current = ctx.currentTime;
+    
+    // Create 4 sections: 3 main + 1 fill (last bar triggers fill)
+    const testChord = { id: '1', root: 'C' as const, accidental: '' as const, quality: 'maj' as const, duration: 4 };
+    const sections = [
+      { id: 'main1', name: 'Main 1', chords: [testChord], repeatCount: 1 },
+      { id: 'main2', name: 'Main 2', chords: [testChord], repeatCount: 1 },
+      { id: 'main3', name: 'Main 3', chords: [testChord], repeatCount: 1 },
+      { id: 'fill', name: 'Fill', chords: [testChord], repeatCount: 1 },
+    ];
+    
+    const instruments = getDefaultInstrumentStates();
+    let currentBar = 0;
+    
+    const { cancel } = scheduleProgression(sections, editedStyleRef.current.bpm, {
+      loop: false, // Don't loop - play once through
+      metronome: false,
+      instruments,
+      style: editedStyleRef.current,
+      transposition: 0,
+      onChordChange: () => {
+        currentBar++;
+        setContextPreviewBar(currentBar);
+      },
+      onLoopEnd: () => {
+        // Preview complete
+        setIsContextPreview(false);
+        setIsLocalPlaying(false);
+        setContextPreviewBar(0);
+        setCurrentStep(-1);
+      },
+      getStyle: () => editedStyleRef.current,
+      forceFill: false, // Let the natural fill trigger on last bar
+    });
+    
+    playbackRef.current = { cancel };
+  }, [isContextPreview, isMainPlaying, stopMainPlayback, stopLocalPlayback]);
 
   // Handle save - show dialog for built-in styles
   const handleSaveClick = () => {
@@ -737,7 +810,7 @@ export function RhythmEditor({
               
               {(isPlaying || isMainPlaying) && (
                 <span className="text-xs font-normal text-primary animate-pulse">
-                  ● {showFill ? 'FILL PREVIEW' : isSyncedWithMain ? 'SYNCED' : 'LIVE'}
+                  ● {isContextPreview ? `CONTEXT ${contextPreviewBar < 3 ? 'MAIN' : 'FILL'} (${contextPreviewBar + 1}/4)` : showFill ? 'FILL PREVIEW' : isSyncedWithMain ? 'SYNCED' : 'LIVE'}
                 </span>
               )}
               
@@ -877,6 +950,24 @@ export function RhythmEditor({
                 <Button variant="ghost" size="sm" onClick={copyMainToFill} className="px-2 sm:px-3">
                   <Copy className="w-4 h-4 sm:mr-1" />
                   <span className="hidden sm:inline">Copy Main</span>
+                </Button>
+                
+                <Separator orientation="vertical" className="h-6 hidden sm:block" />
+                
+                <Button 
+                  variant={isContextPreview ? "destructive" : "outline"} 
+                  size="sm" 
+                  onClick={startContextPreview}
+                  className="px-2 sm:px-3"
+                  title="Preview: 3 bars of Main → 1 bar with Fill"
+                >
+                  <Play className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">
+                    {isContextPreview ? `Bar ${contextPreviewBar + 1}/4` : 'Context Preview'}
+                  </span>
+                  <span className="sm:hidden">
+                    {isContextPreview ? `${contextPreviewBar + 1}/4` : 'Ctx'}
+                  </span>
                 </Button>
               </>
             )}
