@@ -3,12 +3,22 @@
  * 
  * This module handles all audio synthesis and playback using the Web Audio API.
  * Supports multiple instruments with 16-slot rhythm patterns (16th note resolution).
+ * Now with smplr integration for realistic sampled instruments.
  */
 
 import { Chord, chordToMidiNotes, midiToFrequency } from './musicTheory';
 import { InstrumentState, getSoundType, SoundType, isInstrumentAudible } from './instruments';
 import { StylePattern, generateBarPattern } from './styles';
 import { Section } from './sections';
+import { 
+  initSamplers, 
+  playSampledPiano, 
+  playSampledBass, 
+  playSampledDrum, 
+  stopAllSamplers,
+  areSamplersLoaded,
+  DrumMachineType 
+} from './samplerEngine';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
@@ -119,9 +129,16 @@ export function getAudioContext(): AudioContext {
  * Ensures samples are loaded before playback
  */
 export async function ensureSamplesLoaded(): Promise<void> {
-  getAudioContext();
+  const ctx = getAudioContext();
+  
+  // Load acoustic drum samples
   if (sampleLoadPromise) {
     await sampleLoadPromise;
+  }
+  
+  // Also load smplr samplers for realistic instruments
+  if (!areSamplersLoaded()) {
+    await initSamplers(ctx);
   }
 }
 
@@ -771,62 +788,90 @@ export function scheduleProgression(
       // Piano - uses velocity from pattern
       const pianoVelocity = pattern.piano[patternSlot];
       if (pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound && pianoVelocity > 0) {
-        midiNotes.forEach(midiNote => {
-          const frequency = midiToFrequency(midiNote);
-          playPianoNote(
-            ctx, masterGain!, frequency, slotTime, 
-            slotDuration * 3, pianoSound, 
-            pianoState.volume * currentStyle.volumes.piano * pianoVelocity
-          );
-        });
+        const volume = pianoState.volume * currentStyle.volumes.piano * pianoVelocity;
+        
+        if (pianoSound.useSampler && pianoSound.samplerType === 'piano') {
+          // Use smplr SplendidGrandPiano for realistic sound
+          midiNotes.forEach(midiNote => {
+            playSampledPiano(midiNote + transposition, slotTime, slotDuration * 3, volume);
+          });
+        } else {
+          // Use synth
+          midiNotes.forEach(midiNote => {
+            const frequency = midiToFrequency(midiNote);
+            playPianoNote(
+              ctx, masterGain!, frequency, slotTime, 
+              slotDuration * 3, pianoSound, 
+              volume
+            );
+          });
+        }
       }
       
       // Bass - uses velocity from pattern
       const bassVelocity = pattern.bass[patternSlot];
       if (bassState && isInstrumentAudible(bassState, instruments) && bassSound && bassVelocity > 0) {
         const bassNote = midiNotes[0];
-        const frequency = midiToFrequency(bassNote);
         const noteDuration = currentStyle.bassSustain ? beatDuration * 2 : slotDuration * 2;
-        playBassNote(
-          ctx, masterGain!, frequency, slotTime,
-          noteDuration, bassSound,
-          bassState.volume * currentStyle.volumes.bass * bassVelocity
-        );
+        const volume = bassState.volume * currentStyle.volumes.bass * bassVelocity;
+        
+        if (bassSound.useSampler && bassSound.samplerType === 'bass') {
+          // Use smplr Soundfont acoustic bass
+          playSampledBass(bassNote + transposition - 24, slotTime, noteDuration, volume);
+        } else {
+          // Use synth
+          const frequency = midiToFrequency(bassNote);
+          playBassNote(
+            ctx, masterGain!, frequency, slotTime,
+            noteDuration, bassSound,
+            volume
+          );
+        }
       }
       
       // Drums - all drum types with velocities
       if (drumsState && isInstrumentAudible(drumsState, instruments) && drumsSound) {
         const baseVolume = drumsState.volume * currentStyle.volumes.drums;
+        const useSampledDrums = drumsSound.useSampler && (drumsSound.samplerType === 'tr808' || drumsSound.samplerType === 'tr909');
+        const machineType: DrumMachineType = drumsSound.samplerType === 'tr909' ? 'tr909' : 'tr808';
+        
+        const playDrum = (drumType: 'kick' | 'snare' | 'snareStick' | 'hihat' | 'hihatFoot' | 'tom1' | 'tom2' | 'floorTom' | 'ride' | 'crash', velocity: number) => {
+          if (useSampledDrums) {
+            playSampledDrum(drumType, slotTime, velocity, machineType);
+          } else {
+            playDrumHit(ctx, masterGain!, slotTime, drumsSound, velocity, drumType);
+          }
+        };
         
         if (pattern.kick[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.kick[patternSlot], 'kick');
+          playDrum('kick', baseVolume * pattern.kick[patternSlot]);
         }
         if (pattern.snare[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.snare[patternSlot], 'snare');
+          playDrum('snare', baseVolume * pattern.snare[patternSlot]);
         }
         if (pattern.snareStick[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.snareStick[patternSlot], 'snareStick');
+          playDrum('snareStick', baseVolume * pattern.snareStick[patternSlot]);
         }
         if (pattern.hihat[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihat[patternSlot] * 0.7, 'hihat');
+          playDrum('hihat', baseVolume * pattern.hihat[patternSlot] * 0.7);
         }
         if (pattern.hihatFoot[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihatFoot[patternSlot] * 0.6, 'hihatFoot');
+          playDrum('hihatFoot', baseVolume * pattern.hihatFoot[patternSlot] * 0.6);
         }
         if (pattern.tom1[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.tom1[patternSlot], 'tom1');
+          playDrum('tom1', baseVolume * pattern.tom1[patternSlot]);
         }
         if (pattern.tom2[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.tom2[patternSlot], 'tom2');
+          playDrum('tom2', baseVolume * pattern.tom2[patternSlot]);
         }
         if (pattern.floorTom[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.floorTom[patternSlot], 'floorTom');
+          playDrum('floorTom', baseVolume * pattern.floorTom[patternSlot]);
         }
         if (pattern.ride[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.ride[patternSlot] * 0.7, 'ride');
+          playDrum('ride', baseVolume * pattern.ride[patternSlot] * 0.7);
         }
         if (pattern.crash[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.crash[patternSlot], 'crash');
+          playDrum('crash', baseVolume * pattern.crash[patternSlot]);
         }
       }
     }
@@ -1213,6 +1258,9 @@ export async function renderProgressionOffline(
  * Stops all audio playback
  */
 export function stopPlayback(): void {
+  // Stop smplr samplers
+  stopAllSamplers();
+  
   if (audioContext) {
     audioContext.close();
     audioContext = null;
