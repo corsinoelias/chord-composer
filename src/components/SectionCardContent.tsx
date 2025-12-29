@@ -100,12 +100,12 @@ export function SectionCardContent({
       <div 
         className="flex items-center justify-between px-4 py-3 bg-secondary/30 border-b border-border select-none"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div 
             {...dragHandleProps}
-            className="cursor-grab hover:text-primary transition-colors touch-none select-none"
+            className="flex items-center justify-center w-10 h-10 -ml-2 rounded-lg cursor-grab active:cursor-grabbing hover:bg-accent/50 active:bg-accent transition-colors touch-none select-none"
           >
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
+            <GripVertical className="h-5 w-5 text-muted-foreground" />
           </div>
           
           {isEditingName ? (
