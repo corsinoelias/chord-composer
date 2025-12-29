@@ -22,7 +22,7 @@ import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
 import { getDefaultInstrumentStates, InstrumentState } from '@/lib/instruments';
 import { getStyleById, getStyleByIdWithOverrides, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
 import { getCustomStyles, getStyleOverride } from '@/lib/customStyles';
-import { renderProgressionOffline } from '@/lib/audioEngine';
+import { renderProgressionOffline, playChordPreview } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { SectionCard } from '@/components/SectionCard';
@@ -243,8 +243,24 @@ const Index = () => {
 
   const handleChordClick = (sectionIndex: number, chordIndex: number) => {
     const chord = sections[sectionIndex].chords[chordIndex];
+    // Play preview when not playing
+    if (!isPlaying) {
+      playChordPreview(chord);
+    }
     setEditingChord({ sectionIndex, chordIndex, chord });
   };
+
+  const handleChordPreview = useCallback((partialChord: Partial<Chord>) => {
+    if (isPlaying) return;
+    const chord: Chord = {
+      id: 'preview',
+      root: partialChord.root || 'C',
+      accidental: partialChord.accidental || '',
+      quality: partialChord.quality || 'maj',
+      duration: partialChord.duration || 2,
+    };
+    playChordPreview(chord);
+  }, [isPlaying]);
 
   const handleChordSave = (updatedChord: Chord) => {
     if (!editingChord) return;
@@ -589,6 +605,7 @@ const Index = () => {
         onSave={handleChordSave}
         onDelete={editingChord ? () => handleChordDelete(editingChord.sectionIndex, editingChord.chordIndex) : undefined}
         onDuplicate={editingChord ? () => handleChordDuplicate(editingChord.sectionIndex, editingChord.chordIndex) : undefined}
+        onPreview={handleChordPreview}
       />
 
       <AddChordModal

@@ -11,13 +11,18 @@ interface ChordEditModalProps {
   onSave: (chord: Chord) => void;
   onDelete?: () => void;
   onDuplicate?: () => void;
+  onPreview?: (chord: Partial<Chord>) => void;
 }
 
-export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDuplicate }: ChordEditModalProps) {
+export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDuplicate, onPreview }: ChordEditModalProps) {
   const [root, setRoot] = useState<RootNote>('C');
   const [accidental, setAccidental] = useState<Accidental>('');
   const [quality, setQuality] = useState<ChordQuality>('maj');
   const [duration, setDuration] = useState(2);
+
+  const triggerPreview = (newRoot: RootNote, newAccidental: Accidental, newQuality: ChordQuality) => {
+    onPreview?.({ root: newRoot, accidental: newAccidental, quality: newQuality });
+  };
 
   // Sync state when chord changes or modal opens
   useEffect(() => {
@@ -63,7 +68,10 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
                 <button
                   key={note}
                   type="button"
-                  onClick={() => setRoot(note)}
+                  onClick={() => {
+                    setRoot(note);
+                    triggerPreview(note, accidental, quality);
+                  }}
                   className={`
                     w-9 h-9 rounded-md font-mono font-medium text-sm
                     transition-all duration-150
@@ -87,7 +95,10 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
                 <button
                   key={acc || 'natural'}
                   type="button"
-                  onClick={() => setAccidental(acc)}
+                  onClick={() => {
+                    setAccidental(acc);
+                    triggerPreview(root, acc, quality);
+                  }}
                   className={`
                     w-12 h-9 rounded-md font-mono font-medium text-sm
                     transition-all duration-150
@@ -111,7 +122,10 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
                 <button
                   key={q}
                   type="button"
-                  onClick={() => setQuality(q)}
+                  onClick={() => {
+                    setQuality(q);
+                    triggerPreview(root, accidental, q);
+                  }}
                   className={`
                     px-2 h-8 rounded-md font-mono text-xs
                     transition-all duration-150

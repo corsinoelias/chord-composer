@@ -126,6 +126,54 @@ export async function ensureSamplesLoaded(): Promise<void> {
 }
 
 /**
+ * Plays a chord preview - single chord playback for editing feedback
+ */
+export function playChordPreview(chord: Chord, volume: number = 0.5): void {
+  const ctx = getAudioContext();
+  if (!masterGain) return;
+  
+  const midiNotes = chordToMidiNotes(chord, 4);
+  const now = ctx.currentTime;
+  const duration = 0.5; // Short preview duration
+  
+  midiNotes.forEach(midiNote => {
+    const frequency = midiToFrequency(midiNote);
+    
+    const gainNode = ctx.createGain();
+    gainNode.connect(masterGain!);
+    
+    // Simple piano-like sound for preview
+    const harmonics = [
+      { freq: 1, amp: 1.0 },
+      { freq: 2, amp: 0.4 },
+      { freq: 3, amp: 0.2 },
+    ];
+    
+    harmonics.forEach(({ freq, amp }) => {
+      const osc = ctx.createOscillator();
+      const oscGain = ctx.createGain();
+      
+      osc.type = freq === 1 ? 'triangle' : 'sine';
+      osc.frequency.value = frequency * freq;
+      oscGain.gain.value = amp * 0.12 * volume;
+      
+      osc.connect(oscGain);
+      oscGain.connect(gainNode);
+      
+      osc.start(now);
+      osc.stop(now + duration + 0.1);
+    });
+    
+    // Quick ADSR for preview
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(1, now + 0.02);
+    gainNode.gain.linearRampToValueAtTime(0.7, now + 0.1);
+    gainNode.gain.setValueAtTime(0.7, now + duration - 0.1);
+    gainNode.gain.linearRampToValueAtTime(0, now + duration);
+  });
+}
+
+/**
  * Creates and plays piano notes with harmonic synthesis for realistic sound
  */
 function playPianoNote(
