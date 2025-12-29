@@ -2,15 +2,17 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
-  pointerWithin,
+  rectIntersection,
   PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
   DragStartEvent,
-  DragOverEvent,
   DragOverlay,
+  CollisionDetection,
+  pointerWithin,
+  getFirstCollision,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -506,7 +508,7 @@ const Index = () => {
         {/* Sections - unified DndContext for both sections and chords */}
         <DndContext
           sensors={sensors}
-          collisionDetection={pointerWithin}
+          collisionDetection={rectIntersection}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >

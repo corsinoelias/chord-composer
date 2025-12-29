@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import {
   SortableContext,
-  horizontalListSortingStrategy,
+  rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { Section } from '@/lib/sections';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Copy, GripVertical, Repeat } from 'lucide-react';
 import { SortableChord } from './SortableChord';
 
-// Invisible drop zone at the end of chord list
+// Drop zone at the end of chord list
 function EndDropZone({ sectionIndex }: { sectionIndex: number }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `chord-end-${sectionIndex}`,
@@ -19,10 +19,14 @@ function EndDropZone({ sectionIndex }: { sectionIndex: number }) {
   return (
     <div
       ref={setNodeRef}
-      className={`w-8 min-h-[80px] rounded-lg transition-all duration-150 ${
-        isOver ? 'bg-primary/20 border-2 border-dashed border-primary' : ''
+      className={`flex items-center justify-center min-w-[60px] min-h-[80px] rounded-lg border-2 border-dashed transition-all duration-150 ${
+        isOver 
+          ? 'bg-primary/20 border-primary text-primary' 
+          : 'border-muted-foreground/30 text-muted-foreground/50'
       }`}
-    />
+    >
+      <Plus className="h-5 w-5" />
+    </div>
   );
 }
 
@@ -219,7 +223,7 @@ export function SectionCardContent({
             {isOver ? 'Drop chord here' : 'No chords yet. Click + to add.'}
           </div>
         ) : (
-          <SortableContext items={chordIds} strategy={horizontalListSortingStrategy}>
+          <SortableContext items={chordIds} strategy={rectSortingStrategy}>
             <div className="flex flex-wrap gap-3 items-stretch">
               {section.chords.map((chord, index) => (
                 <SortableChord
