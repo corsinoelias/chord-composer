@@ -965,8 +965,10 @@ export function generateBarPattern(
     const fillPos = style.fill.position;
     
     const applyFill = (base: number[], fillPattern?: number[]) => {
-      // In strictFill mode (used by the Fill editor preview), missing patterns are treated as silence.
-      if (!fillPattern && !strictFill) return;
+      // In strictFill mode (Fill editor preview): ALWAYS apply the fill pattern.
+      // Missing fill patterns become silence (all zeros).
+      // In normal mode: only apply if there's an explicit fill pattern.
+      if (!strictFill && !fillPattern) return;
 
       for (let i = fillPos; i < 16; i++) {
         base[i] = fillPattern?.[i] ?? 0;
