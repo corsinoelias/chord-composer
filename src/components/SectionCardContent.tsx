@@ -10,6 +10,22 @@ import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Copy, GripVertical, Repeat } from 'lucide-react';
 import { SortableChord } from './SortableChord';
 
+// Invisible drop zone at the end of chord list
+function EndDropZone({ sectionIndex }: { sectionIndex: number }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `chord-end-${sectionIndex}`,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`w-8 min-h-[80px] rounded-lg transition-all duration-150 ${
+        isOver ? 'bg-primary/20 border-2 border-dashed border-primary' : ''
+      }`}
+    />
+  );
+}
+
 interface SectionCardContentProps {
   section: Section;
   sectionIndex: number;
@@ -204,7 +220,7 @@ export function SectionCardContent({
           </div>
         ) : (
           <SortableContext items={chordIds} strategy={horizontalListSortingStrategy}>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 items-stretch">
               {section.chords.map((chord, index) => (
                 <SortableChord
                   key={chord.id}
@@ -217,6 +233,8 @@ export function SectionCardContent({
                   onDuplicate={() => onChordDuplicate(index)}
                 />
               ))}
+              {/* Drop zone at the end for dropping after last chord */}
+              <EndDropZone sectionIndex={sectionIndex} />
             </div>
           </SortableContext>
         )}

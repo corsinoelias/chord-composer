@@ -353,6 +353,20 @@ const Index = () => {
           const toChordIndex = sections[toSectionIndex].chords.length;
           handleChordMove(fromSectionIndex, fromChordIndex, toSectionIndex, toChordIndex);
         }
+      } else if (overId.startsWith('chord-end-')) {
+        // Dropping on end zone of a section (after last chord)
+        const toSectionIndex = parseInt(overId.replace('chord-end-', ''), 10);
+        const toChordIndex = sections[toSectionIndex].chords.length;
+        
+        if (fromSectionIndex === toSectionIndex) {
+          // Same section - move to end
+          if (fromChordIndex !== toChordIndex - 1) {
+            handleChordReorder(fromSectionIndex, fromChordIndex, toChordIndex - 1);
+          }
+        } else {
+          // Cross-section move to end
+          handleChordMove(fromSectionIndex, fromChordIndex, toSectionIndex, toChordIndex);
+        }
       }
       return;
     }
