@@ -131,6 +131,7 @@ export function RhythmEditor({
   const [styleToDelete, setStyleToDelete] = useState<StylePattern | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Track the original style state to compare for changes
@@ -491,13 +492,13 @@ export function RhythmEditor({
     toast.success('Pattern copied to fill');
   };
 
-  // Handle save - show dialog for built-in styles
+  // Handle save - always show dialog for built-in styles
   const handleSaveClick = () => {
-    if (isEditingBuiltIn && !hasOverride) {
-      // First time editing a built-in - show options
+    if (isEditingBuiltIn) {
+      // Always show options for built-in styles
       setSaveDialogOpen(true);
     } else {
-      // Custom style or already has override - save directly
+      // Custom style - save directly
       handleSave('direct');
     }
   };
@@ -542,21 +543,16 @@ export function RhythmEditor({
     onClose();
   };
 
-  const handleResetToOriginal = () => {
-    if (isEditingBuiltIn && hasOverride) {
-      deleteStyleOverride(style.id);
-      // Reload original style
-      const original = MUSICAL_STYLES.find(s => s.id === style.id);
-      if (original) {
-        const cloned = cloneStyle(original);
-        setEditedStyle(cloned);
-        editedStyleRef.current = cloned;
-        originalStyleRef.current = JSON.stringify(cloned);
-        setHasUnsavedChanges(false);
-        toast.success('Reset to original rhythm');
-        window.dispatchEvent(new Event('customStylesChanged'));
-      }
-    }
+  // Reset to last saved state (not original built-in)
+  const handleResetToSaved = () => {
+    if (!originalStyleRef.current) return;
+    
+    const savedState = JSON.parse(originalStyleRef.current) as StylePattern;
+    setEditedStyle(savedState);
+    editedStyleRef.current = savedState;
+    setHasUnsavedChanges(false);
+    setResetDialogOpen(false);
+    toast.success('Changes discarded');
   };
 
   const handleBpmChange = (newBpm: number) => {
@@ -804,16 +800,16 @@ export function RhythmEditor({
               
               {/* Playback & Save Controls */}
               <div className="flex items-center gap-1 sm:gap-2 ml-auto">
-                {/* Reset to Original button (only for overridden built-ins) */}
-                {isEditingBuiltIn && hasOverride && (
+                {/* Discard Changes button (only when there are unsaved changes) */}
+                {hasUnsavedChanges && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleResetToOriginal}
+                    onClick={() => setResetDialogOpen(true)}
                     className="gap-1 px-2 sm:px-3"
                   >
-                    <RotateCw className="w-4 h-4" />
-                    <span className="hidden sm:inline">Reset</span>
+                    <RotateCcw className="w-4 h-4" />
+                    <span className="hidden sm:inline">Discard</span>
                   </Button>
                 )}
                 
@@ -1139,7 +1135,25 @@ export function RhythmEditor({
       </AlertDialogContent>
     </AlertDialog>
     
-    {/* Discard Changes Confirmation Dialog */}
+    {/* Reset/Discard Changes Confirmation Dialog */}
+    <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Discard Changes?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will revert all unsaved changes. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+          <AlertDialogAction onClick={handleResetToSaved} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Discard Changes
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    
+    {/* Discard Changes Confirmation Dialog (for closing) */}
     <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
