@@ -148,6 +148,10 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       onLoopEnd: () => setState(prev => ({ ...prev, currentChordIndex: 0 })),
       onStepChange: (step) => setState(prev => ({ ...prev, currentStep: step })),
       getStyle,
+      // Dynamic getters for real-time updates without restart
+      getMetronome: () => optionsRef.current?.metronome ?? true,
+      getInstruments: () => optionsRef.current?.instruments ?? options.instruments,
+      getTransposition: () => optionsRef.current?.transposition ?? 0,
     });
 
     cancelRef.current = cancel;
