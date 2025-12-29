@@ -576,6 +576,8 @@ const Index = () => {
         open={!!editingChord}
         onClose={() => setEditingChord(null)}
         onSave={handleChordSave}
+        onDelete={editingChord ? () => handleChordDelete(editingChord.sectionIndex, editingChord.chordIndex) : undefined}
+        onDuplicate={editingChord ? () => handleChordDuplicate(editingChord.sectionIndex, editingChord.chordIndex) : undefined}
       />
 
       <AddChordModal
