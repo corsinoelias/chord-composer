@@ -639,6 +639,10 @@ export interface PlaybackOptions {
   onStepChange?: (step: number) => void; // Called continuously for playhead sync
   getStyle?: () => StylePattern;
   forceFill?: boolean;
+  // Dynamic getters for real-time parameter changes without restart
+  getMetronome?: () => boolean;
+  getInstruments?: () => InstrumentState[];
+  getTransposition?: () => number;
 }
 
 /**
@@ -653,16 +657,19 @@ export function scheduleProgression(
   const { 
     loop = false, 
     metronome = true, 
-    instruments, 
+    instruments: initialInstruments, 
     style, 
-    transposition = 0, 
+    transposition: initialTransposition = 0, 
     onBeat, 
     onChordChange, 
     onLoopEnd,
     onStep,
     onStepChange,
     getStyle,
-    forceFill = false
+    forceFill = false,
+    getMetronome,
+    getInstruments,
+    getTransposition
   } = options;
   
   const ctx = getAudioContext();
@@ -675,14 +682,10 @@ export function scheduleProgression(
   let cancelled = false;
   let nextBarTimeout: number | null = null;
   
-  // Get sound types for each instrument
-  const pianoState = instruments.find(i => i.id === 'piano');
-  const bassState = instruments.find(i => i.id === 'bass');
-  const drumsState = instruments.find(i => i.id === 'drums');
-  
-  const pianoSound = pianoState ? getSoundType('piano', pianoState.soundTypeId) : null;
-  const bassSound = bassState ? getSoundType('bass', bassState.soundTypeId) : null;
-  const drumsSound = drumsState ? getSoundType('drums', drumsState.soundTypeId) : null;
+  // Get sound types for each instrument (initial values, will be read dynamically in scheduleSegment)
+  const getInstrumentStates = () => getInstruments ? getInstruments() : initialInstruments;
+  const getCurrentTransposition = () => getTransposition ? getTransposition() : initialTransposition;
+  const isMetronomeEnabled = () => getMetronome ? getMetronome() : metronome;
   
   // Build a flat list of chord segments with their slot counts
   // Each chord gets exactly as many slots as its duration in beats * 4 (16th notes per beat)
@@ -751,8 +754,20 @@ export function scheduleProgression(
     const segment = chordSegments[currentSegmentIndex];
     const { chord, slotCount, globalChordIndex, beatOffset } = segment;
     
-    // Get current style
+    // Get current style and dynamic parameters
     const currentStyle = getStyle ? getStyle() : style;
+    const instruments = getInstrumentStates();
+    const transposition = getCurrentTransposition();
+    const metronomeOn = isMetronomeEnabled();
+    
+    // Get sound types dynamically for current instrument settings
+    const pianoState = instruments.find(i => i.id === 'piano');
+    const bassState = instruments.find(i => i.id === 'bass');
+    const drumsState = instruments.find(i => i.id === 'drums');
+    
+    const pianoSound = pianoState ? getSoundType('piano', pianoState.soundTypeId) : null;
+    const bassSound = bassState ? getSoundType('bass', bassState.soundTypeId) : null;
+    const drumsSound = drumsState ? getSoundType('drums', drumsState.soundTypeId) : null;
     
     const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
     
@@ -811,8 +826,8 @@ export function scheduleProgression(
         timeouts.push(stepTimeout);
       }
       
-      // Schedule metronome on beat boundaries (every 4 slots)
-      if (metronome && masterGain && patternSlot % 4 === 0) {
+      // Schedule metronome on beat boundaries (every 4 slots) - read dynamically
+      if (metronomeOn && masterGain && patternSlot % 4 === 0) {
         const beatInBar = Math.floor(patternSlot / 4);
         const isDownbeat = patternSlot === 0;
         playClick(ctx, masterGain, slotTime, isDownbeat);

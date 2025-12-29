@@ -416,9 +416,21 @@ const Index = () => {
     else if (isPlaying && !hasChords) stopPlaybackCompletely();
   }, [sections]);
 
+  // Changes that REQUIRE restart (structure changes)
   useEffect(() => {
     if (isPlaying) handleChangeWhilePlaying();
-  }, [bpm, metronomeEnabled, selectedStyleId, instruments, loopingSectionIndex, transposition]);
+  }, [bpm, selectedStyleId, loopingSectionIndex]);
+
+  // Changes that DO NOT require restart (update options dynamically)
+  useEffect(() => {
+    if (isPlaying) {
+      updatePlaybackOptions({ 
+        metronome: metronomeEnabled,
+        instruments,
+        transposition 
+      });
+    }
+  }, [metronomeEnabled, instruments, transposition, isPlaying, updatePlaybackOptions]);
 
   const handleExport = useCallback(async () => {
     const hasChords = sections.some(s => s.chords.length > 0);
