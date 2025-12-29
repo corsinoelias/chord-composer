@@ -63,17 +63,17 @@ export function SectionCardContent({
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
 
-  // Sensors for chord drag & drop
+  // Sensors for chord drag & drop with improved touch support
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200,
-        tolerance: 5,
+        delay: 150,
+        tolerance: 8,
       },
     })
   );
@@ -131,7 +131,7 @@ export function SectionCardContent({
         <div className="flex items-center gap-3">
           <div 
             {...dragHandleProps}
-            className="cursor-grab hover:text-primary transition-colors touch-manipulation"
+            className="cursor-grab hover:text-primary transition-colors touch-none select-none"
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>

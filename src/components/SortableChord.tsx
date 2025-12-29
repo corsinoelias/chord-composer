@@ -36,14 +36,21 @@ export function SortableChord({
     zIndex: isDragging ? 10 : 'auto',
   };
 
+  const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
+    // Only trigger click if not dragging
+    if (!isDragging) {
+      onClick();
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      onClick={onClick}
-      className="cursor-pointer touch-manipulation"
+      onClick={handleClick}
+      className="cursor-pointer touch-none select-none"
     >
       <ChordBlock
         chord={chord}
