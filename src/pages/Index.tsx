@@ -33,7 +33,7 @@ const Index = () => {
     ]
   }]);
   const [bpm, setBpm] = useState(100);
-  const [selectedStyleId, setSelectedStyleId] = useState('funk_basic');
+  const [selectedStyleId, setSelectedStyleId] = useState('pop_1');
   const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
   const [songTitle, setSongTitle] = useState('My Song');
   const [transposition, setTransposition] = useState(0);
@@ -175,16 +175,31 @@ const Index = () => {
     setSections(prev => prev.map((s, i) => i === sectionIndex ? { ...s, repeatCount: Math.max(1, repeatCount) } : s));
   };
 
-  // Section drag & drop
+  // Section drag & drop with improved UX
+  const sectionDragImageRef = useRef<HTMLDivElement | null>(null);
+  
   const handleSectionDragStart = (e: React.DragEvent, index: number) => {
     setDraggedSectionIndex(index);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('application/section', index.toString());
+    
+    // Create custom drag image
+    const section = sections[index];
+    const dragImage = document.createElement('div');
+    dragImage.className = 'bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg font-medium text-sm';
+    dragImage.textContent = `${section.name} (${section.chords.length} chords)`;
+    dragImage.style.position = 'absolute';
+    dragImage.style.top = '-1000px';
+    dragImage.style.left = '-1000px';
+    document.body.appendChild(dragImage);
+    sectionDragImageRef.current = dragImage;
+    e.dataTransfer.setDragImage(dragImage, 50, 20);
   };
 
   const handleSectionDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (e.dataTransfer.types.includes('application/section')) {
+      e.dataTransfer.dropEffect = 'move';
       setDragOverSectionIndex(index);
     }
   };
@@ -199,9 +214,29 @@ const Index = () => {
         newSections.splice(toIndex, 0, removed);
         return newSections;
       });
+      
+      // Update looping section index if needed
+      if (loopingSectionIndex !== null) {
+        if (loopingSectionIndex === fromIndex) {
+          setLoopingSectionIndex(toIndex);
+        } else if (fromIndex < loopingSectionIndex && toIndex >= loopingSectionIndex) {
+          setLoopingSectionIndex(loopingSectionIndex - 1);
+        } else if (fromIndex > loopingSectionIndex && toIndex <= loopingSectionIndex) {
+          setLoopingSectionIndex(loopingSectionIndex + 1);
+        }
+      }
     }
+    handleSectionDragEnd();
+  };
+  
+  const handleSectionDragEnd = () => {
     setDraggedSectionIndex(null);
     setDragOverSectionIndex(null);
+    // Clean up drag image
+    if (sectionDragImageRef.current) {
+      document.body.removeChild(sectionDragImageRef.current);
+      sectionDragImageRef.current = null;
+    }
   };
 
   // Chord handlers
