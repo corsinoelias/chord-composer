@@ -37,7 +37,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
   {
     id: 'piano',
     name: 'Piano',
-    defaultSoundType: 'acoustic',
+    defaultSoundType: 'electric',
     soundTypes: [
       {
         id: 'acoustic',
@@ -109,12 +109,12 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       {
         id: 'electric',
         name: 'Electric Fingerstyle',
-        oscillatorType: 'triangle',
+        oscillatorType: 'sine',
         octaveOffset: -2,
-        attackTime: 0.015,
-        decayTime: 0.12,
-        sustainLevel: 0.75,
-        releaseTime: 0.25,
+        attackTime: 0.02,
+        decayTime: 0.15,
+        sustainLevel: 0.6,
+        releaseTime: 0.3,
       },
       {
         id: 'picked',
