@@ -5,6 +5,7 @@ import { ChordBlock } from './ChordBlock';
 
 interface SortableChordProps {
   chord: Chord;
+  chordId: string; // Unique ID including section index
   index: number;
   isPlaying: boolean;
   onClick: () => void;
@@ -14,6 +15,7 @@ interface SortableChordProps {
 
 export function SortableChord({
   chord,
+  chordId,
   index,
   isPlaying,
   onClick,
@@ -27,12 +29,12 @@ export function SortableChord({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: chord.id });
+  } = useSortable({ id: chordId });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.3 : 1,
     zIndex: isDragging ? 10 : 'auto',
   };
 
