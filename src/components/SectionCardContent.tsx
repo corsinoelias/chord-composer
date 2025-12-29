@@ -1,17 +1,8 @@
 import { useState } from 'react';
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
+import { useDroppable } from '@dnd-kit/core';
 import {
   SortableContext,
   horizontalListSortingStrategy,
-  arrayMove,
 } from '@dnd-kit/sortable';
 import { Section } from '@/lib/sections';
 import { Button } from '@/components/ui/button';
@@ -63,20 +54,10 @@ export function SectionCardContent({
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
 
-  // Sensors for chord drag & drop with improved touch support
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 150,
-        tolerance: 8,
-      },
-    })
-  );
+  // Droppable zone for the section (for cross-section drops)
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: `section-drop-${sectionIndex}`,
+  });
 
   const handleNameSubmit = () => {
     if (editName.trim()) {
@@ -102,31 +83,21 @@ export function SectionCardContent({
 
   const localPlayingIndex = getLocalPlayingIndex();
 
-  const handleChordDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (over && active.id !== over.id) {
-      const oldIndex = section.chords.findIndex(c => c.id === active.id);
-      const newIndex = section.chords.findIndex(c => c.id === over.id);
-      if (oldIndex !== -1 && newIndex !== -1) {
-        onChordReorder(oldIndex, newIndex);
-      }
-    }
-  };
-
-  const chordIds = section.chords.map(c => c.id);
+  // Generate unique chord IDs that include section index
+  const chordIds = section.chords.map(c => `chord-${sectionIndex}-${c.id}`);
 
   return (
     <div 
       className={`bg-card border-2 rounded-xl overflow-hidden transition-all duration-200 ${
         isDragging ? 'border-primary shadow-lg scale-[1.02]' :
         isLooping ? 'border-primary' :
+        isOver ? 'border-primary/50 bg-primary/5' :
         'border-border'
       }`}
     >
       {/* Section Header */}
       <div 
-        className={`flex items-center justify-between px-4 py-3 bg-secondary/30 border-b border-border select-none`}
+        className="flex items-center justify-between px-4 py-3 bg-secondary/30 border-b border-border select-none"
       >
         <div className="flex items-center gap-3">
           <div 
@@ -224,33 +195,30 @@ export function SectionCardContent({
       </div>
 
       {/* Chords */}
-      <div className="p-4">
+      <div ref={setDroppableRef} className="p-4">
         {section.chords.length === 0 ? (
-          <div className="flex items-center justify-center h-20 text-muted-foreground text-sm border-2 border-dashed rounded-lg border-border">
-            No chords yet. Click + to add.
+          <div className={`flex items-center justify-center h-20 text-muted-foreground text-sm border-2 border-dashed rounded-lg transition-colors ${
+            isOver ? 'border-primary bg-primary/10' : 'border-border'
+          }`}>
+            {isOver ? 'Drop chord here' : 'No chords yet. Click + to add.'}
           </div>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleChordDragEnd}
-          >
-            <SortableContext items={chordIds} strategy={horizontalListSortingStrategy}>
-              <div className="flex flex-wrap gap-3">
-                {section.chords.map((chord, index) => (
-                  <SortableChord
-                    key={chord.id}
-                    chord={chord}
-                    index={index}
-                    isPlaying={localPlayingIndex === index}
-                    onClick={() => onChordClick(index)}
-                    onDelete={() => onChordDelete(index)}
-                    onDuplicate={() => onChordDuplicate(index)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          <SortableContext items={chordIds} strategy={horizontalListSortingStrategy}>
+            <div className="flex flex-wrap gap-3">
+              {section.chords.map((chord, index) => (
+                <SortableChord
+                  key={chord.id}
+                  chord={chord}
+                  chordId={`chord-${sectionIndex}-${chord.id}`}
+                  index={index}
+                  isPlaying={localPlayingIndex === index}
+                  onClick={() => onChordClick(index)}
+                  onDelete={() => onChordDelete(index)}
+                  onDuplicate={() => onChordDuplicate(index)}
+                />
+              ))}
+            </div>
+          </SortableContext>
         )}
 
         {/* Add Chord Button */}

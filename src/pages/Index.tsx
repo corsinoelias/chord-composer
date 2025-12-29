@@ -2,16 +2,20 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
+  pointerWithin,
   PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverEvent,
   DragOverlay,
 } from '@dnd-kit/core';
 import {
   SortableContext,
   verticalListSortingStrategy,
+  arrayMove,
 } from '@dnd-kit/sortable';
 import { Chord, generateChordId } from '@/lib/musicTheory';
 import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
@@ -28,6 +32,7 @@ import { AddChordModal } from '@/components/AddChordModal';
 import { RhythmEditor } from '@/components/RhythmEditor';
 import { CreateRhythmModal } from '@/components/CreateRhythmModal';
 import { InstrumentsPanel } from '@/components/InstrumentsPanel';
+import { ChordBlock } from '@/components/ChordBlock';
 import { Button } from '@/components/ui/button';
 import { Music2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -74,6 +79,7 @@ const Index = () => {
   const [createRhythmModalOpen, setCreateRhythmModalOpen] = useState(false);
   const [editingNewStyle, setEditingNewStyle] = useState<StylePattern | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeChord, setActiveChord] = useState<{ chord: Chord; sectionIndex: number } | null>(null);
   
   // Refs for current values (used in callbacks)
   const sectionsRef = useRef<Section[]>([]);
@@ -201,36 +207,6 @@ const Index = () => {
     setSections(prev => prev.map((s, i) => i === sectionIndex ? { ...s, repeatCount: Math.max(1, repeatCount) } : s));
   };
 
-  // Section drag & drop
-  const handleSectionDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveDragId(null);
-    
-    if (over && active.id !== over.id) {
-      const oldIndex = sections.findIndex(s => s.id === active.id);
-      const newIndex = sections.findIndex(s => s.id === over.id);
-      
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setSections(prev => {
-          const newSections = [...prev];
-          const [removed] = newSections.splice(oldIndex, 1);
-          newSections.splice(newIndex, 0, removed);
-          return newSections;
-        });
-        
-        // Update looping section index if needed
-        if (loopingSectionIndex !== null) {
-          if (loopingSectionIndex === oldIndex) {
-            setLoopingSectionIndex(newIndex);
-          } else if (oldIndex < loopingSectionIndex && newIndex >= loopingSectionIndex) {
-            setLoopingSectionIndex(loopingSectionIndex - 1);
-          } else if (oldIndex > loopingSectionIndex && newIndex <= loopingSectionIndex) {
-            setLoopingSectionIndex(loopingSectionIndex + 1);
-          }
-        }
-      }
-    }
-  };
 
   // Chord handlers
   const handleAddChord = (chord: Chord) => {
@@ -284,6 +260,128 @@ const Index = () => {
       newChords.splice(toIndex, 0, removed);
       return { ...s, chords: newChords };
     }));
+  };
+
+  // Move chord between sections
+  const handleChordMove = (fromSectionIndex: number, fromChordIndex: number, toSectionIndex: number, toChordIndex: number) => {
+    setSections(prev => {
+      const newSections = [...prev];
+      const chord = { ...newSections[fromSectionIndex].chords[fromChordIndex] };
+      
+      // Remove from source section
+      newSections[fromSectionIndex] = {
+        ...newSections[fromSectionIndex],
+        chords: newSections[fromSectionIndex].chords.filter((_, i) => i !== fromChordIndex)
+      };
+      
+      // Add to target section
+      const targetChords = [...newSections[toSectionIndex].chords];
+      targetChords.splice(toChordIndex, 0, chord);
+      newSections[toSectionIndex] = {
+        ...newSections[toSectionIndex],
+        chords: targetChords
+      };
+      
+      return newSections;
+    });
+  };
+
+  // Unified drag handlers for sections and chords
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const activeId = active.id as string;
+    
+    // Check if it's a chord (format: chord-{sectionIndex}-{chordId})
+    if (activeId.startsWith('chord-')) {
+      const parts = activeId.split('-');
+      const sectionIndex = parseInt(parts[1], 10);
+      const chordId = parts.slice(2).join('-');
+      const chord = sections[sectionIndex]?.chords.find(c => c.id === chordId);
+      if (chord) {
+        setActiveChord({ chord, sectionIndex });
+      }
+    } else {
+      // It's a section drag
+      setActiveDragId(activeId);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    setActiveChord(null);
+    setActiveDragId(null);
+    
+    if (!over) return;
+    
+    const activeId = active.id as string;
+    const overId = over.id as string;
+    
+    // Handle chord drag
+    if (activeId.startsWith('chord-')) {
+      const activeParts = activeId.split('-');
+      const fromSectionIndex = parseInt(activeParts[1], 10);
+      const activeChordId = activeParts.slice(2).join('-');
+      
+      // Find the chord index in source section
+      const fromChordIndex = sections[fromSectionIndex].chords.findIndex(c => c.id === activeChordId);
+      if (fromChordIndex === -1) return;
+      
+      if (overId.startsWith('chord-')) {
+        // Dropping on another chord
+        const overParts = overId.split('-');
+        const toSectionIndex = parseInt(overParts[1], 10);
+        const overChordId = overParts.slice(2).join('-');
+        const toChordIndex = sections[toSectionIndex].chords.findIndex(c => c.id === overChordId);
+        
+        if (toChordIndex === -1) return;
+        
+        if (fromSectionIndex === toSectionIndex) {
+          // Same section reorder
+          if (fromChordIndex !== toChordIndex) {
+            handleChordReorder(fromSectionIndex, fromChordIndex, toChordIndex);
+          }
+        } else {
+          // Cross-section move
+          handleChordMove(fromSectionIndex, fromChordIndex, toSectionIndex, toChordIndex);
+        }
+      } else if (overId.startsWith('section-drop-')) {
+        // Dropping on section drop zone
+        const toSectionIndex = parseInt(overId.replace('section-drop-', ''), 10);
+        if (fromSectionIndex !== toSectionIndex) {
+          // Move to end of target section
+          const toChordIndex = sections[toSectionIndex].chords.length;
+          handleChordMove(fromSectionIndex, fromChordIndex, toSectionIndex, toChordIndex);
+        }
+      }
+      return;
+    }
+    
+    // Handle section drag
+    if (activeId !== overId && !overId.startsWith('chord-') && !overId.startsWith('section-drop-')) {
+      const oldIndex = sections.findIndex(s => s.id === activeId);
+      const newIndex = sections.findIndex(s => s.id === overId);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setSections(prev => {
+          const newSections = [...prev];
+          const [removed] = newSections.splice(oldIndex, 1);
+          newSections.splice(newIndex, 0, removed);
+          return newSections;
+        });
+        
+        // Update looping section index if needed
+        if (loopingSectionIndex !== null) {
+          if (loopingSectionIndex === oldIndex) {
+            setLoopingSectionIndex(newIndex);
+          } else if (oldIndex < loopingSectionIndex && newIndex >= loopingSectionIndex) {
+            setLoopingSectionIndex(loopingSectionIndex - 1);
+          } else if (oldIndex > loopingSectionIndex && newIndex <= loopingSectionIndex) {
+            setLoopingSectionIndex(loopingSectionIndex + 1);
+          }
+        }
+      }
+    }
   };
 
   // Restart on changes
@@ -391,12 +489,12 @@ const Index = () => {
           hasChords={hasChords}
         />
 
-        {/* Sections */}
+        {/* Sections - unified DndContext for both sections and chords */}
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={(event) => setActiveDragId(event.active.id as string)}
-          onDragEnd={handleSectionDragEnd}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
         >
           <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
             <div className="space-y-4">
@@ -423,6 +521,22 @@ const Index = () => {
               ))}
             </div>
           </SortableContext>
+          
+          {/* Drag overlay for chord being dragged */}
+          <DragOverlay>
+            {activeChord && (
+              <div className="opacity-90">
+                <ChordBlock
+                  chord={activeChord.chord}
+                  isPlaying={false}
+                  onDelete={() => {}}
+                  onDuplicate={() => {}}
+                  isDragging
+                  fixedWidth
+                />
+              </div>
+            )}
+          </DragOverlay>
         </DndContext>
 
         <Button variant="outline" onClick={handleAddSection} className="w-full border-dashed">
