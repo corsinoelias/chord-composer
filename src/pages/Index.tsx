@@ -52,8 +52,17 @@ const Index = () => {
   const [createRhythmModalOpen, setCreateRhythmModalOpen] = useState(false);
   const [editingNewStyle, setEditingNewStyle] = useState<StylePattern | null>(null);
   const [customStyles, setCustomStyles] = useState<StylePattern[]>(getCustomStyles());
-  const [draggedSectionIndex, setDraggedSectionIndex] = useState<number | null>(null);
-  const [dragOverSectionIndex, setDragOverSectionIndex] = useState<number | null>(null);
+  const [sectionDragState, setSectionDragState] = useState<{
+    isDragging: boolean;
+    draggedIndex: number | null;
+    dropTargetIndex: number | null;
+    dropPosition: 'before' | 'after' | null;
+  }>({
+    isDragging: false,
+    draggedIndex: null,
+    dropTargetIndex: null,
+    dropPosition: null,
+  });
   
   // Refs for current values (used in callbacks)
   const sectionsRef = useRef<Section[]>([]);
@@ -65,6 +74,7 @@ const Index = () => {
   const loopingSectionRef = useRef<number | null>(null);
   const liveEditedStyleRef = useRef<StylePattern | null>(null);
   const customStylesRef = useRef<StylePattern[]>([]);
+  const sectionRectsRef = useRef<Map<number, DOMRect>>(new Map());
   
   useEffect(() => { sectionsRef.current = sections; }, [sections]);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
@@ -176,68 +186,109 @@ const Index = () => {
   };
 
   // Section drag & drop with improved UX
-  const sectionDragImageRef = useRef<HTMLDivElement | null>(null);
-  
-  const handleSectionDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedSectionIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/section', index.toString());
-    
-    // Create custom drag image
-    const section = sections[index];
-    const dragImage = document.createElement('div');
-    dragImage.className = 'bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg font-medium text-sm';
-    dragImage.textContent = `${section.name} (${section.chords.length} chords)`;
-    dragImage.style.position = 'absolute';
-    dragImage.style.top = '-1000px';
-    dragImage.style.left = '-1000px';
-    document.body.appendChild(dragImage);
-    sectionDragImageRef.current = dragImage;
-    e.dataTransfer.setDragImage(dragImage, 50, 20);
-  };
-
-  const handleSectionDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (e.dataTransfer.types.includes('application/section')) {
-      e.dataTransfer.dropEffect = 'move';
-      setDragOverSectionIndex(index);
-    }
-  };
-
-  const handleSectionDrop = (e: React.DragEvent, toIndex: number) => {
-    e.preventDefault();
-    const fromIndex = parseInt(e.dataTransfer.getData('application/section'));
-    if (!isNaN(fromIndex) && fromIndex !== toIndex) {
-      setSections(prev => {
-        const newSections = [...prev];
-        const [removed] = newSections.splice(fromIndex, 1);
-        newSections.splice(toIndex, 0, removed);
-        return newSections;
-      });
-      
-      // Update looping section index if needed
-      if (loopingSectionIndex !== null) {
-        if (loopingSectionIndex === fromIndex) {
-          setLoopingSectionIndex(toIndex);
-        } else if (fromIndex < loopingSectionIndex && toIndex >= loopingSectionIndex) {
-          setLoopingSectionIndex(loopingSectionIndex - 1);
-        } else if (fromIndex > loopingSectionIndex && toIndex <= loopingSectionIndex) {
-          setLoopingSectionIndex(loopingSectionIndex + 1);
+  const handleSectionDragStart = useCallback((index: number, element: HTMLElement) => {
+    // Store all section rects for drop detection
+    const sectionsContainer = element.closest('.space-y-4');
+    if (sectionsContainer) {
+      sectionRectsRef.current.clear();
+      Array.from(sectionsContainer.children).forEach((child, i) => {
+        if (child instanceof HTMLElement && i < sections.length) {
+          sectionRectsRef.current.set(i, child.getBoundingClientRect());
         }
+      });
+    }
+    
+    setSectionDragState({
+      isDragging: true,
+      draggedIndex: index,
+      dropTargetIndex: null,
+      dropPosition: null,
+    });
+  }, [sections.length]);
+
+  // Handle drag over for sections (calculate drop position)
+  const handleSectionDragOverGlobal = useCallback((e: React.DragEvent) => {
+    if (!sectionDragState.isDragging) return;
+    e.preventDefault();
+    
+    const y = e.clientY;
+    let closestIndex = -1;
+    let closestDistance = Infinity;
+    let position: 'before' | 'after' = 'before';
+
+    sectionRectsRef.current.forEach((rect, index) => {
+      const midY = rect.top + rect.height / 2;
+      const distance = Math.abs(y - midY);
+      
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+        position = y < midY ? 'before' : 'after';
+      }
+    });
+
+    if (closestIndex !== -1) {
+      setSectionDragState(prev => ({
+        ...prev,
+        dropTargetIndex: closestIndex,
+        dropPosition: position,
+      }));
+    }
+  }, [sectionDragState.isDragging]);
+
+  const handleSectionReorder = useCallback((fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    
+    setSections(prev => {
+      const newSections = [...prev];
+      const [removed] = newSections.splice(fromIndex, 1);
+      newSections.splice(toIndex, 0, removed);
+      return newSections;
+    });
+    
+    // Update looping section index if needed
+    if (loopingSectionIndex !== null) {
+      if (loopingSectionIndex === fromIndex) {
+        setLoopingSectionIndex(toIndex);
+      } else if (fromIndex < loopingSectionIndex && toIndex >= loopingSectionIndex) {
+        setLoopingSectionIndex(loopingSectionIndex - 1);
+      } else if (fromIndex > loopingSectionIndex && toIndex <= loopingSectionIndex) {
+        setLoopingSectionIndex(loopingSectionIndex + 1);
       }
     }
-    handleSectionDragEnd();
-  };
-  
-  const handleSectionDragEnd = () => {
-    setDraggedSectionIndex(null);
-    setDragOverSectionIndex(null);
-    // Clean up drag image
-    if (sectionDragImageRef.current) {
-      document.body.removeChild(sectionDragImageRef.current);
-      sectionDragImageRef.current = null;
+  }, [loopingSectionIndex]);
+
+  const handleSectionDropGlobal = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    
+    if (sectionDragState.draggedIndex !== null && sectionDragState.dropTargetIndex !== null) {
+      let toIndex = sectionDragState.dropTargetIndex;
+      
+      if (sectionDragState.dropPosition === 'after') {
+        toIndex++;
+      }
+      
+      // Adjust for removal
+      if (sectionDragState.draggedIndex < toIndex) {
+        toIndex--;
+      }
+      
+      if (sectionDragState.draggedIndex !== toIndex) {
+        handleSectionReorder(sectionDragState.draggedIndex, toIndex);
+      }
     }
-  };
+    
+    handleSectionDragEnd();
+  }, [sectionDragState, handleSectionReorder]);
+  
+  const handleSectionDragEnd = useCallback(() => {
+    setSectionDragState({
+      isDragging: false,
+      draggedIndex: null,
+      dropTargetIndex: null,
+      dropPosition: null,
+    });
+  }, []);
 
   // Chord handlers
   const handleAddChord = (chord: Chord) => {
@@ -414,7 +465,11 @@ const Index = () => {
         />
 
         {/* Sections */}
-        <div className="space-y-4">
+        <div 
+          className="space-y-4"
+          onDragOver={handleSectionDragOverGlobal}
+          onDrop={handleSectionDropGlobal}
+        >
           {sections.map((section, sectionIndex) => (
             <SectionCard
               key={section.id}
@@ -437,10 +492,13 @@ const Index = () => {
               onToggleLoop={() => handleToggleSectionLoop(sectionIndex)}
               isFirst={sectionIndex === 0}
               isLast={sectionIndex === sections.length - 1}
-              onSectionDragStart={(e) => handleSectionDragStart(e, sectionIndex)}
-              onSectionDragOver={(e) => handleSectionDragOver(e, sectionIndex)}
-              onSectionDrop={(e) => handleSectionDrop(e, sectionIndex)}
-              isSectionDragOver={dragOverSectionIndex === sectionIndex && draggedSectionIndex !== sectionIndex}
+              onSectionReorder={handleSectionReorder}
+              isSectionDragging={sectionDragState.isDragging}
+              sectionDraggedIndex={sectionDragState.draggedIndex}
+              sectionDropTargetIndex={sectionDragState.dropTargetIndex}
+              sectionDropPosition={sectionDragState.dropPosition}
+              onSectionDragStart={handleSectionDragStart}
+              onSectionDragEnd={handleSectionDragEnd}
             />
           ))}
 
