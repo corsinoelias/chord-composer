@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Copy, GripVertical, Repeat } from 'lucide-react';
 import { SortableChord } from './SortableChord';
 
-// Drop zone at the end of chord list
+// Invisible drop zone at the end of chord list
 function EndDropZone({ sectionIndex }: { sectionIndex: number }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `chord-end-${sectionIndex}`,
@@ -19,14 +19,10 @@ function EndDropZone({ sectionIndex }: { sectionIndex: number }) {
   return (
     <div
       ref={setNodeRef}
-      className={`flex items-center justify-center min-w-[60px] min-h-[80px] rounded-lg border-2 border-dashed transition-all duration-150 ${
-        isOver 
-          ? 'bg-primary/20 border-primary text-primary' 
-          : 'border-muted-foreground/30 text-muted-foreground/50'
+      className={`w-4 min-h-[60px] rounded transition-colors ${
+        isOver ? 'bg-primary/30' : ''
       }`}
-    >
-      <Plus className="h-5 w-5" />
-    </div>
+    />
   );
 }
 
