@@ -861,7 +861,8 @@ export function RhythmEditor({
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 ml-auto">
               <div className="flex items-center gap-1 sm:gap-2">
                 <Volume2 className="w-4 h-4 text-muted-foreground hidden sm:block" />
-                <span className="text-[10px] sm:text-xs text-muted-foreground">Dr:</span>
+                <span className="text-[10px] text-muted-foreground sm:hidden">Dr:</span>
+                <span className="hidden sm:inline text-xs text-muted-foreground">Drums</span>
                 <Slider
                   value={[editedStyle.volumes.drums * 100]}
                   onValueChange={([v]) => setEditedStyle(prev => ({ ...prev, volumes: { ...prev.volumes, drums: v / 100 } }))}
@@ -870,7 +871,8 @@ export function RhythmEditor({
                 />
               </div>
               <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-[10px] sm:text-xs text-muted-foreground">Ba:</span>
+                <span className="text-[10px] text-muted-foreground sm:hidden">Ba:</span>
+                <span className="hidden sm:inline text-xs text-muted-foreground">Bass</span>
                 <Slider
                   value={[editedStyle.volumes.bass * 100]}
                   onValueChange={([v]) => setEditedStyle(prev => ({ ...prev, volumes: { ...prev.volumes, bass: v / 100 } }))}
@@ -879,7 +881,8 @@ export function RhythmEditor({
                 />
               </div>
               <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-[10px] sm:text-xs text-muted-foreground">Pi:</span>
+                <span className="text-[10px] text-muted-foreground sm:hidden">Pi:</span>
+                <span className="hidden sm:inline text-xs text-muted-foreground">Piano</span>
                 <Slider
                   value={[editedStyle.volumes.piano * 100]}
                   onValueChange={([v]) => setEditedStyle(prev => ({ ...prev, volumes: { ...prev.volumes, piano: v / 100 } }))}
