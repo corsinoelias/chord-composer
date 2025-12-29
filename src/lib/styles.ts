@@ -965,10 +965,10 @@ export function generateBarPattern(
     
     const applyFill = (base: number[], fillPattern?: number[]) => {
       if (fillPattern) {
+        // Replace ALL steps from fillPos onwards with the fill pattern
+        // This ensures unmarked cells (0) also silence the base pattern
         for (let i = fillPos; i < 16; i++) {
-          if (fillPattern[i] !== undefined) {
-            base[i] = fillPattern[i];
-          }
+          base[i] = fillPattern[i] ?? 0;
         }
       }
     };
