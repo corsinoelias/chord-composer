@@ -12,6 +12,7 @@ import { Section } from './sections';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
+let limiter: DynamicsCompressorNode | null = null;
 let currentlyPlaying = false;
 let playbackStoppedCallback: (() => void) | null = null;
 
@@ -100,9 +101,21 @@ async function loadAcousticSamples(ctx: AudioContext): Promise<void> {
 export function getAudioContext(): AudioContext {
   if (!audioContext) {
     audioContext = new AudioContext();
+    
+    // Create limiter (compressor) to prevent clipping
+    limiter = audioContext.createDynamicsCompressor();
+    limiter.threshold.value = -6;  // Start compressing at -6dB
+    limiter.knee.value = 3;        // Smooth transition
+    limiter.ratio.value = 12;      // Strong compression (almost limiting)
+    limiter.attack.value = 0.001;  // Fast attack
+    limiter.release.value = 0.1;   // Moderate release
+    
     masterGain = audioContext.createGain();
-    masterGain.gain.value = 0.5;
-    masterGain.connect(audioContext.destination);
+    masterGain.gain.value = 0.4;  // Reduced from 0.5 to prevent clipping
+    
+    // Route: masterGain -> limiter -> destination
+    masterGain.connect(limiter);
+    limiter.connect(audioContext.destination);
     
     // Start loading samples
     sampleLoadPromise = loadAcousticSamples(audioContext);
@@ -170,7 +183,7 @@ export function playChordPreview(chord: Chord, volume: number = 0.5): void {
       
       osc.type = freq === 1 ? 'triangle' : 'sine';
       osc.frequency.value = frequency * freq;
-      oscGain.gain.value = amp * 0.12 * volume;
+    oscGain.gain.value = amp * 0.08 * volume; // Reduced for preview too
       
       osc.connect(oscGain);
       oscGain.connect(gainNode);
@@ -227,7 +240,7 @@ function playPianoNote(
       osc.detune.value = Math.random() * 4 - 2;
     }
     
-    oscGain.gain.value = amp * 0.15 * volume;
+    oscGain.gain.value = amp * 0.08 * volume; // Reduced from 0.15 to prevent distortion
     
     osc.connect(oscGain);
     oscGain.connect(gainNode);
@@ -283,8 +296,8 @@ function playBassNote(
   
   const mainGain = ctx.createGain();
   const subGain = ctx.createGain();
-  mainGain.gain.value = 0.2 * volume;
-  subGain.gain.value = 0.15 * volume;
+  mainGain.gain.value = 0.12 * volume; // Reduced from 0.2 to prevent distortion
+  subGain.gain.value = 0.08 * volume;  // Reduced from 0.15 to prevent distortion
   
   mainOsc.connect(mainGain);
   subOsc.connect(subGain);
