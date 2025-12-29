@@ -91,6 +91,12 @@ const VELOCITY_COLORS = [
   'bg-chart-4',
 ];
 
+// All drum instrument keys for Fill mode
+const DRUM_INSTRUMENT_KEYS: InstrumentKey[] = [
+  'kick', 'snare', 'snareStick', 'hihat', 'hihatFoot', 
+  'tom1', 'tom2', 'floorTom', 'ride', 'crash'
+];
+
 function createEmptyPattern(): number[] {
   return new Array(16).fill(0);
 }
@@ -120,6 +126,7 @@ export function RhythmEditor({
   const [currentStep, setCurrentStep] = useState(-1);
   const [showFill, setShowFill] = useState(false);
   const [activeInstruments, setActiveInstruments] = useState<Set<InstrumentKey>>(new Set());
+  const [savedNonFillInstruments, setSavedNonFillInstruments] = useState<Set<InstrumentKey> | null>(null); // Save state before Fill mode
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [styleToDelete, setStyleToDelete] = useState<StylePattern | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -267,14 +274,18 @@ export function RhythmEditor({
     
     const ctx = getAudioContext();
     const bpm = editedStyleRef.current.bpm;
-    const slotDuration = (60 / bpm / 4);
+    const slotDuration = (60 / bpm / 4); // Duration of 1 sixteenth note
     const barDuration = slotDuration * 16;
     
+    // Calculate precise position within the bar
     const elapsed = ctx.currentTime - loopStartTimeRef.current;
     const loopPosition = elapsed % barDuration;
+    
+    // Calculate step and ensure it's always 0-15
     const step = Math.floor(loopPosition / slotDuration) % 16;
     
-    setCurrentStep(step);
+    // Only update if step changed to reduce re-renders
+    setCurrentStep(prev => prev !== step ? step : prev);
     
     stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
   }, [isLocalPlaying]);
@@ -328,7 +339,12 @@ export function RhythmEditor({
     // Ensure samples are loaded before starting playback
     await ensureSamplesLoaded();
     
+    // Initialize loop start time for accurate playhead sync
+    const ctx = getAudioContext();
+    loopStartTimeRef.current = ctx.currentTime;
+    
     setIsLocalPlaying(true);
+    setCurrentStep(0); // Start at step 0
     
     const testSection = {
       id: 'test',
@@ -346,7 +362,10 @@ export function RhythmEditor({
       style: editedStyleRef.current,
       transposition: 0,
       onChordChange: () => {},
-      onLoopEnd: () => {},
+      onLoopEnd: () => {
+        // Reset loop start time on each loop for precise sync
+        loopStartTimeRef.current = ctx.currentTime;
+      },
       getStyle: () => editedStyleRef.current,
       forceFill: showFillRef.current,
     });
@@ -556,6 +575,17 @@ export function RhythmEditor({
   };
 
   const handleFillToggle = (checked: boolean) => {
+    if (checked) {
+      // Entering Fill mode: save current instruments and switch to all drums only
+      setSavedNonFillInstruments(new Set(activeInstruments));
+      setActiveInstruments(new Set(DRUM_INSTRUMENT_KEYS));
+    } else {
+      // Exiting Fill mode: restore previous instruments
+      if (savedNonFillInstruments) {
+        setActiveInstruments(savedNonFillInstruments);
+        setSavedNonFillInstruments(null);
+      }
+    }
     setShowFill(checked);
   };
 
@@ -896,23 +926,66 @@ export function RhythmEditor({
           {/* Grid Area */}
           <div className="flex-1 max-h-[50vh] sm:max-h-[400px] overflow-auto">
             <div className="p-2 sm:p-4 min-w-[340px]">
-              {/* Beat Markers */}
+              {/* Beat Markers with Fill Zone Indicator */}
               <div className="flex mb-2">
                 <div className="w-12 sm:w-28 shrink-0" />
                 <div className="flex-1 flex">
-                  {[1, 2, 3, 4].map(beat => (
-                    <div key={beat} className="flex-1 flex">
-                      <div className="flex-1 text-center">
-                        <span className="text-xs sm:text-sm font-bold text-foreground">{beat}</span>
+                  {[1, 2, 3, 4].map(beat => {
+                    const beatStartStep = (beat - 1) * 4;
+                    const fillStart = editedStyle.fill.position;
+                    const isInFillZone = !showFill && beatStartStep >= fillStart;
+                    const isFillStart = beatStartStep === fillStart;
+                    
+                    return (
+                      <div key={beat} className="flex-1 flex relative">
+                        {/* Fill zone indicator overlay (shown when NOT in Fill mode) */}
+                        {!showFill && beatStartStep >= fillStart && (
+                          <div className="absolute inset-0 bg-chart-4/10 rounded-sm pointer-events-none" />
+                        )}
+                        {/* Fill start marker */}
+                        {!showFill && isFillStart && (
+                          <div className="absolute -top-1 left-0 right-0 h-0.5 bg-chart-4 rounded-full" />
+                        )}
+                        <div className="flex-1 text-center relative z-10">
+                          <span className={cn(
+                            "text-xs sm:text-sm font-bold",
+                            !showFill && isInFillZone ? "text-chart-4" : "text-foreground"
+                          )}>
+                            {beat}
+                            {!showFill && isFillStart && (
+                              <span className="text-[8px] sm:text-[10px] ml-0.5 text-chart-4">▶</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex-1" />
+                        <div className="flex-1" />
+                        <div className="flex-1" />
                       </div>
-                      <div className="flex-1" />
-                      <div className="flex-1" />
-                      <div className="flex-1" />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="w-6 sm:w-16 shrink-0" />
               </div>
+              
+              {/* Fill Zone Label */}
+              {!showFill && (
+                <div className="flex mb-1 items-center">
+                  <div className="w-12 sm:w-28 shrink-0" />
+                  <div className="flex-1 flex">
+                    <div 
+                      className="text-[9px] sm:text-[10px] text-chart-4 font-medium flex items-center gap-1"
+                      style={{ 
+                        marginLeft: `${(editedStyle.fill.position / 16) * 100}%`,
+                        width: `${((16 - editedStyle.fill.position) / 16) * 100}%`
+                      }}
+                    >
+                      <span className="hidden sm:inline">← Fill reemplaza aquí</span>
+                      <span className="sm:hidden">← Fill</span>
+                    </div>
+                  </div>
+                  <div className="w-6 sm:w-16 shrink-0" />
+                </div>
+              )}
               
               {/* Grid Rows */}
               <div className="space-y-0.5 sm:space-y-1">
@@ -930,13 +1003,28 @@ export function RhythmEditor({
                       </div>
                       
                       <div className="flex-1 flex">
-                        {[0, 1, 2, 3].map(beatIdx => (
-                          <div key={beatIdx} className="flex-1 flex gap-px sm:gap-0.5 px-px sm:px-0.5">
+                        {[0, 1, 2, 3].map(beatIdx => {
+                          const beatStartStep = beatIdx * 4;
+                          const isInFillZone = !showFill && beatStartStep >= editedStyle.fill.position;
+                          
+                          return (
+                          <div 
+                            key={beatIdx} 
+                            className={cn(
+                              "flex-1 flex gap-px sm:gap-0.5 px-px sm:px-0.5 relative",
+                              isInFillZone && "bg-chart-4/5 rounded-sm"
+                            )}
+                          >
+                            {/* Fill zone left border on first cell of fill zone */}
+                            {!showFill && beatStartStep === editedStyle.fill.position && (
+                              <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-chart-4 rounded-full z-10" />
+                            )}
                             {[0, 1, 2, 3].map(subIdx => {
                               const step = beatIdx * 4 + subIdx;
                               const value = pattern[step];
                               const isDownbeat = subIdx === 0;
                               const isCurrentStep = displayStep === step && (isLocalPlaying || isMainPlaying);
+                              const isStepInFillZone = !showFill && step >= editedStyle.fill.position;
                               
                               return (
                                 <button
@@ -948,7 +1036,9 @@ export function RhythmEditor({
                                     isDownbeat ? "border-border" : "border-border/40",
                                     isCurrentStep && "ring-1 sm:ring-2 ring-primary ring-offset-0 sm:ring-offset-1 ring-offset-background",
                                     getVelocityColor(value),
-                                    value > 0 ? "border-chart-4/50" : ""
+                                    value > 0 ? "border-chart-4/50" : "",
+                                    // Fill zone visual - dashed overlay for cells that will be replaced
+                                    isStepInFillZone && value > 0 && "opacity-60"
                                   )}
                                 >
                                   {value > 0 && (
@@ -956,11 +1046,18 @@ export function RhythmEditor({
                                       {Math.round(value * 100)}
                                     </span>
                                   )}
+                                  {/* Small fill indicator dot */}
+                                  {isStepInFillZone && !value && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                      <div className="w-1 h-1 rounded-full bg-chart-4/30" />
+                                    </div>
+                                  )}
                                 </button>
                               );
                             })}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                       
                       <div className="flex items-center shrink-0 w-6 sm:w-16">
