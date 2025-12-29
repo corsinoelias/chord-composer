@@ -990,13 +990,14 @@ export function RhythmEditor({
                                   className={cn(
                                     "flex-1 aspect-square rounded-[2px] sm:rounded-sm border transition-all relative flex items-center justify-center min-w-[14px] sm:min-w-[24px] max-w-[32px]",
                                     isDownbeat ? "border-border" : "border-border/40",
-                                    isCurrentStep && "ring-1 sm:ring-2 ring-primary ring-offset-0 sm:ring-offset-1 ring-offset-background",
                                     getVelocityColor(value),
                                     value > 0 ? "border-chart-4/50" : "",
-                                    // Fill mode: highlight active zone with subtle glow
-                                    isActiveInFill && "ring-1 ring-chart-4/50",
-                                    // Fill mode: dim + lock the main zone
-                                    isInactiveInFill && "opacity-50 cursor-not-allowed"
+                                    // Fill mode: dim + lock the main zone (use border instead of ring)
+                                    isInactiveInFill && "opacity-40 cursor-not-allowed",
+                                    // Fill mode: highlight active zone with colored border
+                                    isActiveInFill && !isCurrentStep && "border-chart-4",
+                                    // Playhead indicator - ALWAYS on top with higher priority
+                                    isCurrentStep && "ring-2 ring-primary ring-offset-1 ring-offset-background z-10"
                                   )}
                                 >
                                   {value > 0 && (
