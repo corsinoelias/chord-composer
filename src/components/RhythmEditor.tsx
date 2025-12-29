@@ -51,33 +51,22 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-// Drum instruments - optimized order for fills (percussive first, then cymbals)
-const DRUM_INSTRUMENTS = [
+// All possible instruments in the editor
+const ALL_INSTRUMENTS = [
   { key: 'kick', label: 'Kick', category: 'drums', icon: Drum },
   { key: 'snare', label: 'Snare', category: 'drums', icon: Drum },
   { key: 'snareStick', label: 'Snare Stick', category: 'drums', icon: Drum },
+  { key: 'hihat', label: 'Hi-Hat', category: 'drums', icon: Drum },
+  { key: 'hihatFoot', label: 'Hi-Hat Foot', category: 'drums', icon: Drum },
   { key: 'tom1', label: 'Tom 1', category: 'drums', icon: Drum },
   { key: 'tom2', label: 'Tom 2', category: 'drums', icon: Drum },
   { key: 'floorTom', label: 'Floor Tom', category: 'drums', icon: Drum },
-  { key: 'hihat', label: 'Hi-Hat', category: 'drums', icon: Drum },
-  { key: 'hihatFoot', label: 'Hi-Hat Foot', category: 'drums', icon: Drum },
   { key: 'ride', label: 'Ride', category: 'drums', icon: Drum },
   { key: 'crash', label: 'Crash', category: 'drums', icon: Drum },
-] as const;
-
-// Melodic instruments
-const MELODIC_INSTRUMENTS = [
   { key: 'bass', label: 'Bass', category: 'bass', icon: Music },
   { key: 'piano', label: 'Piano', category: 'piano', icon: Piano },
   { key: 'guitar', label: 'Guitar', category: 'guitar', icon: Guitar },
 ] as const;
-
-// All possible instruments in the editor
-const ALL_INSTRUMENTS = [...DRUM_INSTRUMENTS, ...MELODIC_INSTRUMENTS] as const;
-
-// Keys for type safety
-const DRUM_KEYS = DRUM_INSTRUMENTS.map(i => i.key);
-const MELODIC_KEYS = MELODIC_INSTRUMENTS.map(i => i.key);
 
 type InstrumentKey = typeof ALL_INSTRUMENTS[number]['key'];
 
@@ -136,8 +125,6 @@ export function RhythmEditor({
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [isContextPreview, setIsContextPreview] = useState(false); // Preview Main → Fill
-  const [contextPreviewBar, setContextPreviewBar] = useState(0); // Which bar we're on (0-2 = main, 3 = fill)
   
   // Track the original style state to compare for changes
   const originalStyleRef = useRef<string>('');
@@ -330,16 +317,11 @@ export function RhythmEditor({
     }
   }, [isLocalPlaying]);
 
-  const startLocalPlayback = useCallback(async (preserveTime = false) => {
+  const startLocalPlayback = useCallback(async () => {
     // Stop main playback if it's running
     if (isMainPlaying) {
       stopMainPlayback();
     }
-    
-    // Save current position if preserving time
-    const ctx = getAudioContext();
-    const savedLoopStart = preserveTime ? loopStartTimeRef.current : 0;
-    const wasPlaying = isLocalPlaying;
     
     stopLocalPlayback();
     
@@ -347,13 +329,6 @@ export function RhythmEditor({
     await ensureSamplesLoaded();
     
     setIsLocalPlaying(true);
-    
-    // Restore timing or start fresh
-    if (preserveTime && wasPlaying && savedLoopStart > 0) {
-      loopStartTimeRef.current = savedLoopStart;
-    } else {
-      loopStartTimeRef.current = ctx.currentTime;
-    }
     
     const testSection = {
       id: 'test',
@@ -377,12 +352,11 @@ export function RhythmEditor({
     });
     
     playbackRef.current = { cancel };
-  }, [stopLocalPlayback, isMainPlaying, stopMainPlayback, isLocalPlaying]);
+  }, [stopLocalPlayback, isMainPlaying, stopMainPlayback]);
 
-  // Restart playback when showFill changes (preserve timing)
   useEffect(() => {
     if (isLocalPlaying) {
-      startLocalPlayback(true);
+      startLocalPlayback();
     }
   }, [showFill]);
 
@@ -498,64 +472,6 @@ export function RhythmEditor({
     toast.success('Pattern copied to fill');
   };
 
-  // Preview fill in context: 3 bars of main + 1 bar with fill
-  const startContextPreview = useCallback(async () => {
-    if (isContextPreview) {
-      stopLocalPlayback();
-      setIsContextPreview(false);
-      setContextPreviewBar(0);
-      return;
-    }
-
-    // Stop any existing playback
-    if (isMainPlaying) stopMainPlayback();
-    stopLocalPlayback();
-    
-    await ensureSamplesLoaded();
-    
-    setIsContextPreview(true);
-    setContextPreviewBar(0);
-    setIsLocalPlaying(true);
-    
-    const ctx = getAudioContext();
-    loopStartTimeRef.current = ctx.currentTime;
-    
-    // Create 4 sections: 3 main + 1 fill (last bar triggers fill)
-    const testChord = { id: '1', root: 'C' as const, accidental: '' as const, quality: 'maj' as const, duration: 4 };
-    const sections = [
-      { id: 'main1', name: 'Main 1', chords: [testChord], repeatCount: 1 },
-      { id: 'main2', name: 'Main 2', chords: [testChord], repeatCount: 1 },
-      { id: 'main3', name: 'Main 3', chords: [testChord], repeatCount: 1 },
-      { id: 'fill', name: 'Fill', chords: [testChord], repeatCount: 1 },
-    ];
-    
-    const instruments = getDefaultInstrumentStates();
-    let currentBar = 0;
-    
-    const { cancel } = scheduleProgression(sections, editedStyleRef.current.bpm, {
-      loop: false, // Don't loop - play once through
-      metronome: false,
-      instruments,
-      style: editedStyleRef.current,
-      transposition: 0,
-      onChordChange: () => {
-        currentBar++;
-        setContextPreviewBar(currentBar);
-      },
-      onLoopEnd: () => {
-        // Preview complete
-        setIsContextPreview(false);
-        setIsLocalPlaying(false);
-        setContextPreviewBar(0);
-        setCurrentStep(-1);
-      },
-      getStyle: () => editedStyleRef.current,
-      forceFill: false, // Let the natural fill trigger on last bar
-    });
-    
-    playbackRef.current = { cancel };
-  }, [isContextPreview, isMainPlaying, stopMainPlayback, stopLocalPlayback]);
-
   // Handle save - show dialog for built-in styles
   const handleSaveClick = () => {
     if (isEditingBuiltIn && !hasOverride) {
@@ -648,21 +564,8 @@ export function RhythmEditor({
     return VELOCITY_COLORS[idx === -1 ? 0 : idx];
   };
 
-  // In Fill mode: show ALL drum instruments, melodic instruments are optional
-  // In Main mode: show only active instruments
-  const activeDrums = showFill 
-    ? DRUM_INSTRUMENTS // All drums in fill mode
-    : DRUM_INSTRUMENTS.filter(i => activeInstruments.has(i.key));
-  
-  const activeMelodic = MELODIC_INSTRUMENTS.filter(i => activeInstruments.has(i.key));
-  
-  // Available instruments to add (only melodics in fill mode, or all non-active in main mode)
-  const availableInstruments = showFill
-    ? MELODIC_INSTRUMENTS.filter(i => !activeInstruments.has(i.key))
-    : ALL_INSTRUMENTS.filter(i => !activeInstruments.has(i.key));
-  
-  // Combined sorted list for rendering
-  const sortedActiveInstruments = [...activeDrums, ...activeMelodic];
+  const availableInstruments = ALL_INSTRUMENTS.filter(i => !activeInstruments.has(i.key));
+  const sortedActiveInstruments = ALL_INSTRUMENTS.filter(i => activeInstruments.has(i.key));
 
   // Group styles for dropdown - use original names for display
   // Filter out duplicates by using a Map keyed by style ID
@@ -810,7 +713,7 @@ export function RhythmEditor({
               
               {(isPlaying || isMainPlaying) && (
                 <span className="text-xs font-normal text-primary animate-pulse">
-                  ● {isContextPreview ? `CONTEXT ${contextPreviewBar < 3 ? 'MAIN' : 'FILL'} (${contextPreviewBar + 1}/4)` : showFill ? 'FILL PREVIEW' : isSyncedWithMain ? 'SYNCED' : 'LIVE'}
+                  ● {showFill ? 'FILL PREVIEW' : isSyncedWithMain ? 'SYNCED' : 'LIVE'}
                 </span>
               )}
               
@@ -951,24 +854,6 @@ export function RhythmEditor({
                   <Copy className="w-4 h-4 sm:mr-1" />
                   <span className="hidden sm:inline">Copy Main</span>
                 </Button>
-                
-                <Separator orientation="vertical" className="h-6 hidden sm:block" />
-                
-                <Button 
-                  variant={isContextPreview ? "destructive" : "outline"} 
-                  size="sm" 
-                  onClick={startContextPreview}
-                  className="px-2 sm:px-3"
-                  title="Preview: 3 bars of Main → 1 bar with Fill"
-                >
-                  <Play className="w-4 h-4 sm:mr-1" />
-                  <span className="hidden sm:inline">
-                    {isContextPreview ? `Bar ${contextPreviewBar + 1}/4` : 'Context Preview'}
-                  </span>
-                  <span className="sm:hidden">
-                    {isContextPreview ? `${contextPreviewBar + 1}/4` : 'Ctx'}
-                  </span>
-                </Button>
               </>
             )}
             
@@ -1029,20 +914,13 @@ export function RhythmEditor({
                 <div className="w-6 sm:w-16 shrink-0" />
               </div>
               
-              {/* Drum Instruments Section */}
+              {/* Grid Rows */}
               <div className="space-y-0.5 sm:space-y-1">
-                {showFill && (
-                  <div className="flex items-center gap-2 py-1 px-2 bg-muted/50 rounded text-xs text-muted-foreground mb-1">
-                    <Drum className="w-3 h-3" />
-                    <span>Drums</span>
-                  </div>
-                )}
-                {activeDrums.map(instrument => {
+                {sortedActiveInstruments.map(instrument => {
                   const pattern = showFill 
                     ? editedStyle.fill.pattern[instrument.key] || createEmptyPattern()
                     : editedStyle.rhythm[instrument.key] || createEmptyPattern();
                   const Icon = instrument.icon;
-                  const fillPosition = editedStyle.fill.position;
                   
                   return (
                     <div key={instrument.key} className="flex items-center gap-0.5 sm:gap-2">
@@ -1059,7 +937,6 @@ export function RhythmEditor({
                               const value = pattern[step];
                               const isDownbeat = subIdx === 0;
                               const isCurrentStep = displayStep === step && (isLocalPlaying || isMainPlaying);
-                              const isFillZone = showFill && step >= fillPosition;
                               
                               return (
                                 <button
@@ -1071,8 +948,7 @@ export function RhythmEditor({
                                     isDownbeat ? "border-border" : "border-border/40",
                                     isCurrentStep && "ring-1 sm:ring-2 ring-primary ring-offset-0 sm:ring-offset-1 ring-offset-background",
                                     getVelocityColor(value),
-                                    value > 0 ? "border-chart-4/50" : "",
-                                    isFillZone && "ring-1 ring-primary/30"
+                                    value > 0 ? "border-chart-4/50" : ""
                                   )}
                                 >
                                   {value > 0 && (
@@ -1097,99 +973,7 @@ export function RhythmEditor({
                         >
                           <RotateCcw className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                         </Button>
-                        {!showFill && !['kick', 'snare', 'hihat'].includes(instrument.key) && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-4 w-4 sm:h-6 sm:w-6 text-destructive hover:text-destructive hidden sm:flex"
-                            onClick={() => removeInstrument(instrument.key)}
-                            title="Remove instrument"
-                          >
-                            <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {/* Separator between drums and melodic */}
-              {activeMelodic.length > 0 && (
-                <div className="my-2 sm:my-3">
-                  <Separator className="bg-border/60" />
-                  {showFill && (
-                    <div className="flex items-center gap-2 py-1 px-2 bg-muted/30 rounded text-xs text-muted-foreground mt-1">
-                      <Music className="w-3 h-3" />
-                      <span>Melodic (optional)</span>
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Melodic Instruments Section */}
-              <div className="space-y-0.5 sm:space-y-1">
-                {activeMelodic.map(instrument => {
-                  const pattern = showFill 
-                    ? editedStyle.fill.pattern[instrument.key] || createEmptyPattern()
-                    : editedStyle.rhythm[instrument.key] || createEmptyPattern();
-                  const Icon = instrument.icon;
-                  const fillPosition = editedStyle.fill.position;
-                  
-                  return (
-                    <div key={instrument.key} className="flex items-center gap-0.5 sm:gap-2">
-                      <div className="w-12 sm:w-24 flex items-center gap-0.5 shrink-0 overflow-hidden">
-                        <Icon className="w-3 h-3 text-muted-foreground hidden sm:block shrink-0" />
-                        <span className="text-[8px] sm:text-xs font-medium truncate">{instrument.label}</span>
-                      </div>
-                      
-                      <div className="flex-1 flex">
-                        {[0, 1, 2, 3].map(beatIdx => (
-                          <div key={beatIdx} className="flex-1 flex gap-px sm:gap-0.5 px-px sm:px-0.5">
-                            {[0, 1, 2, 3].map(subIdx => {
-                              const step = beatIdx * 4 + subIdx;
-                              const value = pattern[step];
-                              const isDownbeat = subIdx === 0;
-                              const isCurrentStep = displayStep === step && (isLocalPlaying || isMainPlaying);
-                              const isFillZone = showFill && step >= fillPosition;
-                              
-                              return (
-                                <button
-                                  key={step}
-                                  onClick={() => handleCellClick(instrument.key, step, showFill)}
-                                  onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
-                                  className={cn(
-                                    "flex-1 aspect-square rounded-[2px] sm:rounded-sm border transition-all relative flex items-center justify-center min-w-[14px] sm:min-w-[24px] max-w-[32px]",
-                                    isDownbeat ? "border-border" : "border-border/40",
-                                    isCurrentStep && "ring-1 sm:ring-2 ring-primary ring-offset-0 sm:ring-offset-1 ring-offset-background",
-                                    getVelocityColor(value),
-                                    value > 0 ? "border-chart-4/50" : "",
-                                    isFillZone && "ring-1 ring-primary/30"
-                                  )}
-                                >
-                                  {value > 0 && (
-                                    <span className="text-[7px] sm:text-[9px] font-medium text-foreground/80">
-                                      {Math.round(value * 100)}
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <div className="flex items-center shrink-0 w-6 sm:w-16">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-4 w-4 sm:h-6 sm:w-6"
-                          onClick={() => clearPattern(instrument.key, showFill)}
-                          title="Clear pattern"
-                        >
-                          <RotateCcw className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                        </Button>
-                        {!['bass', 'piano'].includes(instrument.key) && (
+                        {!['kick', 'snare', 'hihat', 'bass', 'piano'].includes(instrument.key) && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -1210,9 +994,7 @@ export function RhythmEditor({
               {availableInstruments.length > 0 && (
                 <div className="mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-border">
                   <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground">
-                      {showFill ? 'Add melodic:' : 'Add:'}
-                    </span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">Add:</span>
                     {availableInstruments.map(instrument => (
                       <Button
                         key={instrument.key}
