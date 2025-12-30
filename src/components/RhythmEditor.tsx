@@ -25,7 +25,7 @@ import {
   ChevronDown,
   RotateCw
 } from 'lucide-react';
-import { StylePattern, MUSICAL_STYLES } from '@/lib/styles';
+import { StylePattern, MUSICAL_STYLES, ArpeggioCell, ArpeggioType, ArpeggioSpeed } from '@/lib/styles';
 import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
@@ -442,23 +442,102 @@ export function RhythmEditor({
     
     setEditedStyle(prev => {
       const newStyle = cloneStyle(prev);
+      const defaultArpeggio: ArpeggioCell = { type: 'up', speed: 'normal' };
       
       if (isFill) {
         if (!newStyle.fill.arpeggios) {
           newStyle.fill.arpeggios = {};
         }
         if (!newStyle.fill.arpeggios[instrument]) {
-          newStyle.fill.arpeggios[instrument] = new Array(16).fill(false);
+          newStyle.fill.arpeggios[instrument] = new Array(16).fill(null);
         }
-        newStyle.fill.arpeggios[instrument]![step] = isArpeggio;
+        newStyle.fill.arpeggios[instrument]![step] = isArpeggio ? defaultArpeggio : null;
       } else {
         if (!newStyle.arpeggios) {
           newStyle.arpeggios = {};
         }
         if (!newStyle.arpeggios[instrument]) {
-          newStyle.arpeggios[instrument] = new Array(16).fill(false);
+          newStyle.arpeggios[instrument] = new Array(16).fill(null);
         }
-        newStyle.arpeggios[instrument]![step] = isArpeggio;
+        newStyle.arpeggios[instrument]![step] = isArpeggio ? defaultArpeggio : null;
+      }
+      
+      return newStyle;
+    });
+  };
+
+  const handleArpeggioTypeChange = (type: ArpeggioType) => {
+    if (!velocityPopover) return;
+    const { instrument, step, isFill } = velocityPopover;
+    
+    if (instrument !== 'piano' && instrument !== 'guitar') return;
+    
+    setEditedStyle(prev => {
+      const newStyle = cloneStyle(prev);
+      
+      const getCurrentArpeggio = (): ArpeggioCell | null => {
+        if (isFill) {
+          return newStyle.fill.arpeggios?.[instrument]?.[step] ?? null;
+        }
+        return newStyle.arpeggios?.[instrument]?.[step] ?? null;
+      };
+      
+      const current = getCurrentArpeggio();
+      if (!current) return prev;
+      
+      const updated: ArpeggioCell = { ...current, type };
+      
+      if (isFill) {
+        if (!newStyle.fill.arpeggios) newStyle.fill.arpeggios = {};
+        if (!newStyle.fill.arpeggios[instrument]) {
+          newStyle.fill.arpeggios[instrument] = new Array(16).fill(null);
+        }
+        newStyle.fill.arpeggios[instrument]![step] = updated;
+      } else {
+        if (!newStyle.arpeggios) newStyle.arpeggios = {};
+        if (!newStyle.arpeggios[instrument]) {
+          newStyle.arpeggios[instrument] = new Array(16).fill(null);
+        }
+        newStyle.arpeggios[instrument]![step] = updated;
+      }
+      
+      return newStyle;
+    });
+  };
+
+  const handleArpeggioSpeedChange = (speed: ArpeggioSpeed) => {
+    if (!velocityPopover) return;
+    const { instrument, step, isFill } = velocityPopover;
+    
+    if (instrument !== 'piano' && instrument !== 'guitar') return;
+    
+    setEditedStyle(prev => {
+      const newStyle = cloneStyle(prev);
+      
+      const getCurrentArpeggio = (): ArpeggioCell | null => {
+        if (isFill) {
+          return newStyle.fill.arpeggios?.[instrument]?.[step] ?? null;
+        }
+        return newStyle.arpeggios?.[instrument]?.[step] ?? null;
+      };
+      
+      const current = getCurrentArpeggio();
+      if (!current) return prev;
+      
+      const updated: ArpeggioCell = { ...current, speed };
+      
+      if (isFill) {
+        if (!newStyle.fill.arpeggios) newStyle.fill.arpeggios = {};
+        if (!newStyle.fill.arpeggios[instrument]) {
+          newStyle.fill.arpeggios[instrument] = new Array(16).fill(null);
+        }
+        newStyle.fill.arpeggios[instrument]![step] = updated;
+      } else {
+        if (!newStyle.arpeggios) newStyle.arpeggios = {};
+        if (!newStyle.arpeggios[instrument]) {
+          newStyle.arpeggios[instrument] = new Array(16).fill(null);
+        }
+        newStyle.arpeggios[instrument]![step] = updated;
       }
       
       return newStyle;
@@ -1017,11 +1096,12 @@ export function RhythmEditor({
                               // Check if this cell is an arpeggio (only for piano/guitar)
                               const supportsArpeggio = instrument.key === 'piano' || instrument.key === 'guitar';
                               const arpeggioKey = instrument.key as 'piano' | 'guitar';
-                              const isArpeggio = supportsArpeggio && (
-                                showFill 
-                                  ? editedStyle.fill.arpeggios?.[arpeggioKey]?.[step] ?? false
-                                  : editedStyle.arpeggios?.[arpeggioKey]?.[step] ?? false
-                              );
+                              const arpeggioCell: ArpeggioCell | null = supportsArpeggio 
+                                ? (showFill 
+                                    ? editedStyle.fill.arpeggios?.[arpeggioKey]?.[step] ?? null
+                                    : editedStyle.arpeggios?.[arpeggioKey]?.[step] ?? null)
+                                : null;
+                              const isArpeggio = arpeggioCell !== null;
 
                               // In Fill mode: lock steps before the fill start (they come from the Main pattern)
                               const isLockedInFill = showFill && !isInFillZone;
@@ -1066,7 +1146,12 @@ export function RhythmEditor({
                                     >
                                       {value > 0 && (
                                         <span className="text-[7px] sm:text-[9px] font-medium text-foreground/80">
-                                          {isArpeggio ? '♪' : Math.round(value * 100)}
+                                          {isArpeggio 
+                                            ? (arpeggioCell?.type === 'up' ? '↑' 
+                                              : arpeggioCell?.type === 'down' ? '↓'
+                                              : arpeggioCell?.type === 'updown' ? '↕'
+                                              : '⟳')
+                                            : Math.round(value * 100)}
                                         </span>
                                       )}
                                     </button>
@@ -1119,6 +1204,60 @@ export function RhythmEditor({
                                               className="scale-90"
                                             />
                                           </div>
+                                          
+                                          {/* Arpeggio options - only show when arpeggio is enabled */}
+                                          {isArpeggio && arpeggioCell && (
+                                            <div className="space-y-2 pt-1">
+                                              {/* Type selector */}
+                                              <div className="flex items-center justify-between gap-2">
+                                                <Label className="text-[10px] text-muted-foreground">Tipo</Label>
+                                                <div className="flex gap-1">
+                                                  {([
+                                                    { value: 'up', label: '↑', title: 'Ascendente' },
+                                                    { value: 'down', label: '↓', title: 'Descendente' },
+                                                    { value: 'updown', label: '↕', title: 'Ida-vuelta' },
+                                                    { value: 'random', label: '⟳', title: 'Aleatorio' },
+                                                  ] as const).map(opt => (
+                                                    <Button
+                                                      key={opt.value}
+                                                      variant={arpeggioCell.type === opt.value ? "default" : "outline"}
+                                                      size="sm"
+                                                      className="h-6 w-6 p-0 text-xs"
+                                                      onClick={() => handleArpeggioTypeChange(opt.value)}
+                                                      title={opt.title}
+                                                    >
+                                                      {opt.label}
+                                                    </Button>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                              
+                                              {/* Speed selector */}
+                                              <div className="flex items-center justify-between gap-2">
+                                                <Label className="text-[10px] text-muted-foreground">Velocidad</Label>
+                                                <div className="flex gap-1">
+                                                  {([
+                                                    { value: 'slow', label: '1x', title: 'Lento' },
+                                                    { value: 'normal', label: '2x', title: 'Normal' },
+                                                    { value: 'fast', label: '4x', title: 'Rápido' },
+                                                    { value: 'veryfast', label: '8x', title: 'Muy rápido' },
+                                                  ] as const).map(opt => (
+                                                    <Button
+                                                      key={opt.value}
+                                                      variant={arpeggioCell.speed === opt.value ? "default" : "outline"}
+                                                      size="sm"
+                                                      className="h-6 px-1.5 text-[10px]"
+                                                      onClick={() => handleArpeggioSpeedChange(opt.value)}
+                                                      title={opt.title}
+                                                    >
+                                                      {opt.label}
+                                                    </Button>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )}
+                                          
                                           <p className="text-[10px] text-muted-foreground">
                                             Las notas suenan secuencialmente en vez de juntas
                                           </p>

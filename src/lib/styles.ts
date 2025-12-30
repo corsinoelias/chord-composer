@@ -11,6 +11,15 @@
  * X = Strong hit (1.0), x = Ghost note (0.5), - = Silence (0)
  */
 
+// Arpeggio types and settings
+export type ArpeggioType = 'up' | 'down' | 'updown' | 'random';
+export type ArpeggioSpeed = 'slow' | 'normal' | 'fast' | 'veryfast';
+
+export interface ArpeggioCell {
+  type: ArpeggioType;
+  speed: ArpeggioSpeed;
+}
+
 export interface StylePattern {
   id: string;
   name: string;
@@ -34,10 +43,10 @@ export interface StylePattern {
     crash?: number[];       // Crash cymbal
     guitar?: number[];      // Guitar pattern (optional)
   };
-  // Arpeggio markers: true = play as arpeggio, false/undefined = play as chord
+  // Arpeggio settings per slot
   arpeggios?: {
-    piano?: boolean[];      // 16 slots, true = arpeggio on that slot
-    guitar?: boolean[];     // 16 slots, true = arpeggio on that slot
+    piano?: (ArpeggioCell | null)[];   // 16 slots, null = no arpeggio
+    guitar?: (ArpeggioCell | null)[];  // 16 slots, null = no arpeggio
   };
   // Fill pattern (played on bar 4 or 8)
   fill: {
@@ -56,8 +65,8 @@ export interface StylePattern {
       guitar?: number[];
     };
     arpeggios?: {
-      piano?: boolean[];
-      guitar?: boolean[];
+      piano?: (ArpeggioCell | null)[];
+      guitar?: (ArpeggioCell | null)[];
     };
   };
   // Default volumes (0-1)
