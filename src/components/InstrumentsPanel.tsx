@@ -17,6 +17,7 @@ const instrumentIcons = {
   piano: Piano,
   bass: Guitar,
   drums: Drum,
+  guitar: Guitar,
 };
 
 export function InstrumentsPanel({ open, onClose, instruments, onInstrumentChange }: InstrumentsPanelProps) {

@@ -68,6 +68,20 @@ interface PianoSamples {
 let pianoSamples: PianoSamples = {};
 let pianoSamplesLoaded = false;
 
+// Guitar sample buffers (organized by sample path/type)
+interface GuitarSamples {
+  [samplePath: string]: {
+    [noteKey: string]: AudioBuffer | null;
+  };
+}
+
+let guitarSamples: GuitarSamples = {
+  'guitar-acoustic': {},
+  'guitar-electric': {},
+  'guitar-nylon': {},
+};
+let guitarSamplesLoaded = false;
+
 let sampleLoadPromise: Promise<void> | null = null;
 
 /**
@@ -135,6 +149,52 @@ async function loadPianoSamples(ctx: AudioContext): Promise<void> {
 }
 
 /**
+ * Loads guitar samples for all types (acoustic, electric, nylon)
+ */
+async function loadGuitarSamples(ctx: AudioContext): Promise<void> {
+  const guitarTypes = [
+    {
+      path: 'guitar-acoustic',
+      notes: ['A2', 'A3', 'A4', 'As2', 'As3', 'As4', 'B2', 'B3', 'B4', 'C3', 'C4', 'C5', 'Cs3', 'Cs4', 'D3', 'D4', 'Ds3', 'Ds4', 'E2', 'E3', 'E4', 'F3', 'F4', 'Fs3', 'Fs4', 'G3', 'G4', 'Gs3', 'Gs4']
+    },
+    {
+      path: 'guitar-electric',
+      notes: ['A2', 'A3', 'A4', 'A5', 'C3', 'C4', 'C5', 'C6', 'Cs2', 'Ds3', 'Ds4', 'Ds5', 'E2', 'Fs2', 'Fs3', 'Fs4', 'Fs5']
+    },
+    {
+      path: 'guitar-nylon',
+      notes: ['A2', 'A3', 'A4', 'As2', 'As3', 'As4', 'B2', 'B3', 'B4', 'C3', 'C4', 'C5', 'Cs3', 'Cs4', 'D3', 'D4', 'Ds3', 'Ds4', 'E2', 'E3', 'E4', 'F3', 'F4', 'Fs3', 'Fs4', 'G3', 'G4', 'Gs3', 'Gs4']
+    }
+  ];
+  
+  const loadPromises: Promise<void>[] = [];
+  
+  for (const guitarType of guitarTypes) {
+    for (const noteKey of guitarType.notes) {
+      loadPromises.push(
+        (async () => {
+          try {
+            const response = await fetch(`/audio/${guitarType.path}/${noteKey}.mp3`);
+            if (!response.ok) {
+              guitarSamples[guitarType.path][noteKey] = null;
+              return;
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            guitarSamples[guitarType.path][noteKey] = await ctx.decodeAudioData(arrayBuffer);
+          } catch (error) {
+            guitarSamples[guitarType.path][noteKey] = null;
+          }
+        })()
+      );
+    }
+  }
+  
+  await Promise.all(loadPromises);
+  guitarSamplesLoaded = true;
+  console.log('Guitar samples loaded');
+}
+
+/**
  * Initializes or returns the existing AudioContext
  */
 export function getAudioContext(): AudioContext {
@@ -144,10 +204,11 @@ export function getAudioContext(): AudioContext {
     masterGain.gain.value = 0.5;
     masterGain.connect(audioContext.destination);
     
-    // Start loading samples (drums and piano)
+    // Start loading samples (drums, piano, and guitar)
     sampleLoadPromise = Promise.all([
       loadAcousticSamples(audioContext),
-      loadPianoSamples(audioContext)
+      loadPianoSamples(audioContext),
+      loadGuitarSamples(audioContext)
     ]).then(() => {});
   }
   
@@ -348,6 +409,162 @@ function playPianoNote(
     playPianoSample(ctx, destination, midiNote, startTime, duration, volume);
   } else {
     playPianoNoteSynth(ctx, destination, frequency, startTime, duration, soundType, volume);
+  }
+}
+
+/**
+ * Converts MIDI note number to note key string (e.g., 40 -> 'E2', 60 -> 'C4')
+ */
+function midiToNoteKey(midiNote: number): string {
+  const notes = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B'];
+  const octave = Math.floor(midiNote / 12) - 1;
+  const noteIndex = midiNote % 12;
+  return notes[noteIndex] + octave;
+}
+
+/**
+ * Finds the closest available guitar sample and returns pitch adjustment
+ */
+function findClosestGuitarSample(
+  samplePath: string,
+  midiNote: number
+): { noteKey: string; pitchAdjust: number } | null {
+  const samples = guitarSamples[samplePath];
+  if (!samples) return null;
+  
+  const targetKey = midiToNoteKey(midiNote);
+  
+  // Check exact match first
+  if (samples[targetKey]) {
+    return { noteKey: targetKey, pitchAdjust: 0 };
+  }
+  
+  // Search for closest sample (within +/- 6 semitones)
+  for (let offset = 1; offset <= 6; offset++) {
+    const lowerKey = midiToNoteKey(midiNote - offset);
+    const upperKey = midiToNoteKey(midiNote + offset);
+    
+    if (samples[lowerKey]) {
+      return { noteKey: lowerKey, pitchAdjust: offset };
+    }
+    if (samples[upperKey]) {
+      return { noteKey: upperKey, pitchAdjust: -offset };
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Plays a guitar sample with pitch adjustment and envelope
+ */
+function playGuitarSample(
+  ctx: AudioContext,
+  destination: AudioNode,
+  midiNote: number,
+  startTime: number,
+  duration: number,
+  volume: number,
+  samplePath: string
+): void {
+  const match = findClosestGuitarSample(samplePath, midiNote);
+  
+  if (!match) {
+    // Fallback to synthesis
+    const frequency = midiToFrequency(midiNote);
+    playGuitarSynth(ctx, destination, frequency, startTime, duration, volume);
+    return;
+  }
+  
+  const sample = guitarSamples[samplePath][match.noteKey];
+  if (!sample) return;
+  
+  const source = ctx.createBufferSource();
+  const gainNode = ctx.createGain();
+  
+  source.buffer = sample;
+  
+  // Adjust playback rate for pitch shifting
+  if (match.pitchAdjust !== 0) {
+    source.playbackRate.value = Math.pow(2, match.pitchAdjust / 12);
+  }
+  
+  source.connect(gainNode);
+  gainNode.connect(destination);
+  
+  // Natural guitar envelope
+  gainNode.gain.setValueAtTime(volume * 0.8, startTime);
+  
+  const releaseStart = startTime + Math.max(0, duration - 0.15);
+  gainNode.gain.setValueAtTime(volume * 0.8, releaseStart);
+  gainNode.gain.linearRampToValueAtTime(0, startTime + duration + 0.2);
+  
+  source.start(startTime);
+  source.stop(startTime + Math.max(duration + 0.3, sample.duration / (source.playbackRate.value || 1)));
+}
+
+/**
+ * Synthesized guitar fallback
+ */
+function playGuitarSynth(
+  ctx: AudioContext,
+  destination: AudioNode,
+  frequency: number,
+  startTime: number,
+  duration: number,
+  volume: number
+): void {
+  const gainNode = ctx.createGain();
+  gainNode.connect(destination);
+  
+  // Create guitar-like harmonics
+  const harmonics = [
+    { freq: 1, amp: 1.0 },
+    { freq: 2, amp: 0.5 },
+    { freq: 3, amp: 0.3 },
+    { freq: 4, amp: 0.15 },
+  ];
+  
+  harmonics.forEach(({ freq, amp }) => {
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    
+    osc.type = freq === 1 ? 'triangle' : 'sine';
+    osc.frequency.value = frequency * freq;
+    oscGain.gain.value = amp * 0.12 * volume;
+    
+    osc.connect(oscGain);
+    oscGain.connect(gainNode);
+    
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.1);
+  });
+  
+  // Guitar envelope (quick attack, gradual decay)
+  gainNode.gain.setValueAtTime(0, startTime);
+  gainNode.gain.linearRampToValueAtTime(1, startTime + 0.01);
+  gainNode.gain.linearRampToValueAtTime(0.6, startTime + 0.1);
+  gainNode.gain.setValueAtTime(0.6, startTime + duration - 0.1);
+  gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+}
+
+/**
+ * Main guitar note function - uses samples or synthesis based on sound type
+ */
+function playGuitarNote(
+  ctx: AudioContext,
+  destination: AudioNode,
+  frequency: number,
+  startTime: number,
+  duration: number,
+  soundType: SoundType,
+  volume: number,
+  midiNote?: number
+): void {
+  if (soundType.useSamples && soundType.samplePath && midiNote !== undefined) {
+    playGuitarSample(ctx, destination, midiNote, startTime, duration, volume, soundType.samplePath);
+  } else {
+    playGuitarSynth(ctx, destination, frequency, startTime, duration, volume);
   }
 }
 
@@ -868,10 +1085,12 @@ export function scheduleProgression(
     const pianoState = instruments.find(i => i.id === 'piano');
     const bassState = instruments.find(i => i.id === 'bass');
     const drumsState = instruments.find(i => i.id === 'drums');
+    const guitarState = instruments.find(i => i.id === 'guitar');
     
     const pianoSound = pianoState ? getSoundType('piano', pianoState.soundTypeId) : null;
     const bassSound = bassState ? getSoundType('bass', bassState.soundTypeId) : null;
     const drumsSound = drumsState ? getSoundType('drums', drumsState.soundTypeId) : null;
+    const guitarSound = guitarState ? getSoundType('guitar', guitarState.soundTypeId) : null;
     
     const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
     
@@ -1007,6 +1226,20 @@ export function scheduleProgression(
           playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.crash[patternSlot], 'crash');
         }
       }
+      
+      // Guitar - uses piano pattern as default (or guitar pattern if defined)
+      const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? pattern.piano[patternSlot];
+      if (guitarState && isInstrumentAudible(guitarState, instruments) && guitarSound && guitarVelocity > 0) {
+        midiNotes.forEach(midiNote => {
+          const frequency = midiToFrequency(midiNote);
+          playGuitarNote(
+            ctx, masterGain!, frequency, slotTime,
+            slotDuration * 3, guitarSound,
+            guitarState.volume * (currentStyle.volumes.guitar ?? currentStyle.volumes.piano) * guitarVelocity,
+            midiNote
+          );
+        });
+      }
     }
     
     // Update global slot index
@@ -1106,10 +1339,12 @@ export async function renderProgressionOffline(
   const pianoState = instruments.find(i => i.id === 'piano');
   const bassState = instruments.find(i => i.id === 'bass');
   const drumsState = instruments.find(i => i.id === 'drums');
+  const guitarState = instruments.find(i => i.id === 'guitar');
   
   const pianoSound = pianoState ? getSoundType('piano', pianoState.soundTypeId) : null;
   const bassSound = bassState ? getSoundType('bass', bassState.soundTypeId) : null;
   const drumsSound = drumsState ? getSoundType('drums', drumsState.soundTypeId) : null;
+  const guitarSound = guitarState ? getSoundType('guitar', guitarState.soundTypeId) : null;
   
   const slotDuration = beatDuration / 4;
   let globalSlotIndex = 0;
@@ -1398,6 +1633,84 @@ export async function renderProgressionOffline(
               gain.connect(offlineMasterGain);
               source.start(slotTime);
             }
+          }
+          
+          // Guitar - use samples if available
+          const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? pattern.piano[patternSlot];
+          if (guitarState && !guitarState.muted && guitarSound && guitarVelocity > 0) {
+            const guitarVolume = guitarState.volume * (style.volumes.guitar ?? style.volumes.piano) * guitarVelocity;
+            
+            midiNotes.forEach(midiNote => {
+              const samplePath = guitarSound.samplePath;
+              
+              if (guitarSound.useSamples && samplePath && guitarSamples[samplePath]) {
+                // Find closest sample
+                const match = findClosestGuitarSample(samplePath, midiNote);
+                
+                if (match && guitarSamples[samplePath][match.noteKey]) {
+                  const sample = guitarSamples[samplePath][match.noteKey]!;
+                  const source = offlineCtx.createBufferSource();
+                  const gainNode = offlineCtx.createGain();
+                  
+                  source.buffer = sample;
+                  
+                  // Adjust playback rate for pitch shifting
+                  if (match.pitchAdjust !== 0) {
+                    source.playbackRate.value = Math.pow(2, match.pitchAdjust / 12);
+                  }
+                  
+                  source.connect(gainNode);
+                  gainNode.connect(offlineMasterGain);
+                  
+                  // Natural guitar envelope
+                  const noteDuration = slotDuration * 3;
+                  gainNode.gain.setValueAtTime(guitarVolume * 0.8, slotTime);
+                  
+                  const releaseStart = slotTime + Math.max(0, noteDuration - 0.15);
+                  gainNode.gain.setValueAtTime(guitarVolume * 0.8, releaseStart);
+                  gainNode.gain.linearRampToValueAtTime(0, slotTime + noteDuration + 0.2);
+                  
+                  source.start(slotTime);
+                  source.stop(slotTime + Math.max(noteDuration + 0.3, sample.duration / (source.playbackRate.value || 1)));
+                }
+              } else {
+                // Use synthesized guitar
+                const frequency = midiToFrequency(midiNote);
+                const baseFreq = frequency;
+                
+                const gainNode = offlineCtx.createGain();
+                gainNode.connect(offlineMasterGain);
+                
+                const harmonics = [
+                  { freq: 1, amp: 1.0 },
+                  { freq: 2, amp: 0.5 },
+                  { freq: 3, amp: 0.3 },
+                ];
+                
+                harmonics.forEach(({ freq, amp }) => {
+                  const osc = offlineCtx.createOscillator();
+                  const oscGain = offlineCtx.createGain();
+                  
+                  osc.type = freq === 1 ? 'triangle' : 'sine';
+                  osc.frequency.value = baseFreq * freq;
+                  oscGain.gain.value = amp * 0.12 * guitarVolume;
+                  
+                  osc.connect(oscGain);
+                  oscGain.connect(gainNode);
+                  
+                  const noteDuration = slotDuration * 3;
+                  osc.start(slotTime);
+                  osc.stop(slotTime + noteDuration + 0.1);
+                });
+                
+                const noteDuration = slotDuration * 3;
+                gainNode.gain.setValueAtTime(0, slotTime);
+                gainNode.gain.linearRampToValueAtTime(1, slotTime + 0.01);
+                gainNode.gain.linearRampToValueAtTime(0.6, slotTime + 0.1);
+                gainNode.gain.setValueAtTime(0.6, slotTime + noteDuration - 0.1);
+                gainNode.gain.linearRampToValueAtTime(0, slotTime + noteDuration);
+              }
+            });
           }
         }
         

@@ -4,7 +4,7 @@
  * Defines available instruments and their sound types
  */
 
-export type InstrumentType = 'piano' | 'bass' | 'drums';
+export type InstrumentType = 'piano' | 'bass' | 'drums' | 'guitar';
 
 export interface InstrumentConfig {
   id: InstrumentType;
@@ -25,6 +25,8 @@ export interface SoundType {
   releaseTime: number;
   // Optional: use samples instead of synthesis
   useSamples?: boolean;
+  // Optional: sample folder path (e.g., 'guitar-acoustic')
+  samplePath?: string;
 }
 
 export interface InstrumentState {
@@ -235,6 +237,49 @@ export const INSTRUMENTS: InstrumentConfig[] = [
         decayTime: 0.06,
         sustainLevel: 0.08,
         releaseTime: 0.06,
+      },
+    ],
+  },
+  {
+    id: 'guitar',
+    name: 'Guitar',
+    defaultSoundType: 'acoustic',
+    soundTypes: [
+      {
+        id: 'acoustic',
+        name: 'Acoustic Steel',
+        oscillatorType: 'triangle',
+        octaveOffset: 0,
+        attackTime: 0.01,
+        decayTime: 0.15,
+        sustainLevel: 0.6,
+        releaseTime: 0.3,
+        useSamples: true,
+        samplePath: 'guitar-acoustic',
+      },
+      {
+        id: 'electric',
+        name: 'Electric Clean',
+        oscillatorType: 'sawtooth',
+        octaveOffset: 0,
+        attackTime: 0.005,
+        decayTime: 0.1,
+        sustainLevel: 0.7,
+        releaseTime: 0.2,
+        useSamples: true,
+        samplePath: 'guitar-electric',
+      },
+      {
+        id: 'nylon',
+        name: 'Classical Nylon',
+        oscillatorType: 'sine',
+        octaveOffset: 0,
+        attackTime: 0.015,
+        decayTime: 0.2,
+        sustainLevel: 0.5,
+        releaseTime: 0.4,
+        useSamples: true,
+        samplePath: 'guitar-nylon',
       },
     ],
   },
