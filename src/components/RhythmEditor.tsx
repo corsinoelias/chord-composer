@@ -209,6 +209,7 @@ export function RhythmEditor({
     active.add('hihat');
     active.add('bass');
     active.add('piano');
+    active.add('guitar');
     setActiveInstruments(active);
     
     setShowFill(false);
@@ -245,6 +246,7 @@ export function RhythmEditor({
       active.add('hihat');
       active.add('bass');
       active.add('piano');
+      active.add('guitar');
       setActiveInstruments(active);
     }
   }, [style.id]);
@@ -454,7 +456,7 @@ export function RhythmEditor({
   };
 
   const removeInstrument = (key: InstrumentKey) => {
-    if (['kick', 'snare', 'hihat', 'bass', 'piano'].includes(key)) {
+    if (['kick', 'snare', 'hihat', 'bass', 'piano', 'guitar'].includes(key)) {
       toast.error('Cannot remove core instruments');
       return;
     }
