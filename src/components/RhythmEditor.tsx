@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
   Play, 
   Square, 
@@ -133,6 +134,11 @@ export function RhythmEditor({
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [velocityPopover, setVelocityPopover] = useState<{
+    instrument: InstrumentKey;
+    step: number;
+    isFill: boolean;
+  } | null>(null);
   
   // Track the original style state to compare for changes
   const originalStyleRef = useRef<string>('');
@@ -400,6 +406,14 @@ export function RhythmEditor({
   }, [isLocalPlaying, isMainPlaying, startLocalPlayback, stopLocalPlayback, stopMainPlayback]);
 
   const handleCellClick = (instrument: InstrumentKey, step: number, isFill: boolean) => {
+    // Open velocity popover for this cell
+    setVelocityPopover({ instrument, step, isFill });
+  };
+
+  const handleVelocityChange = (value: number) => {
+    if (!velocityPopover) return;
+    const { instrument, step, isFill } = velocityPopover;
+    
     setEditedStyle(prev => {
       const newStyle = cloneStyle(prev);
       
@@ -407,18 +421,12 @@ export function RhythmEditor({
         if (!newStyle.fill.pattern[instrument]) {
           newStyle.fill.pattern[instrument] = createEmptyPattern();
         }
-        const currentValue = newStyle.fill.pattern[instrument]![step];
-        const currentIdx = VELOCITY_LEVELS.indexOf(currentValue);
-        const nextIdx = (currentIdx + 1) % VELOCITY_LEVELS.length;
-        newStyle.fill.pattern[instrument]![step] = VELOCITY_LEVELS[nextIdx];
+        newStyle.fill.pattern[instrument]![step] = value;
       } else {
         if (!newStyle.rhythm[instrument]) {
           newStyle.rhythm[instrument] = createEmptyPattern();
         }
-        const currentValue = newStyle.rhythm[instrument]![step];
-        const currentIdx = VELOCITY_LEVELS.findIndex(v => Math.abs(v - currentValue) < 0.1);
-        const nextIdx = ((currentIdx === -1 ? 0 : currentIdx) + 1) % VELOCITY_LEVELS.length;
-        newStyle.rhythm[instrument]![step] = VELOCITY_LEVELS[nextIdx];
+        newStyle.rhythm[instrument]![step] = value;
       }
       
       return newStyle;
@@ -979,33 +987,83 @@ export function RhythmEditor({
                               const isActiveInFill = showFill && isInFillZone;
                               const isInactiveInFill = showFill && !isInFillZone;
                               
+                              const isPopoverOpen = velocityPopover?.instrument === instrument.key && 
+                                                  velocityPopover?.step === step && 
+                                                  velocityPopover?.isFill === showFill;
+                              
                               return (
-                                <button
-                                  key={step}
-                                  disabled={isLockedInFill}
-                                  onClick={() => handleCellClick(instrument.key, step, showFill)}
-                                  onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
-                                  className={cn(
-                                    "flex-1 aspect-square rounded-[2px] sm:rounded-sm border transition-all relative flex items-center justify-center min-w-[14px] sm:min-w-[24px] max-w-[32px]",
-                                    isDownbeat ? "border-border" : "border-border/40",
-                                    // Fill mode: locked zone gets muted background
-                                    isInactiveInFill && "opacity-40 cursor-not-allowed bg-muted/50",
-                                    // Fill mode: active zone gets highlighted background
-                                    isActiveInFill && value === 0 && "bg-chart-4/10",
-                                    isActiveInFill && "border-chart-4/60",
-                                    // Normal velocity colors (override fill bg when has value)
-                                    getVelocityColor(value),
-                                    value > 0 ? "border-chart-4/50" : "",
-                                    // Playhead indicator - ALWAYS on top with higher priority
-                                    isCurrentStep && "ring-2 ring-primary ring-offset-1 ring-offset-background z-10"
-                                  )}
+                                <Popover 
+                                  key={step} 
+                                  open={isPopoverOpen} 
+                                  onOpenChange={(open) => {
+                                    if (!open) setVelocityPopover(null);
+                                  }}
                                 >
-                                  {value > 0 && (
-                                    <span className="text-[7px] sm:text-[9px] font-medium text-foreground/80">
-                                      {Math.round(value * 100)}
-                                    </span>
-                                  )}
-                                </button>
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      disabled={isLockedInFill}
+                                      onClick={() => handleCellClick(instrument.key, step, showFill)}
+                                      onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
+                                      className={cn(
+                                        "flex-1 aspect-square rounded-[2px] sm:rounded-sm border transition-all relative flex items-center justify-center min-w-[14px] sm:min-w-[24px] max-w-[32px]",
+                                        isDownbeat ? "border-border" : "border-border/40",
+                                        // Fill mode: locked zone gets muted background
+                                        isInactiveInFill && "opacity-40 cursor-not-allowed bg-muted/50",
+                                        // Fill mode: active zone gets highlighted background
+                                        isActiveInFill && value === 0 && "bg-chart-4/10",
+                                        isActiveInFill && "border-chart-4/60",
+                                        // Normal velocity colors (override fill bg when has value)
+                                        getVelocityColor(value),
+                                        value > 0 ? "border-chart-4/50" : "",
+                                        // Popover open indicator
+                                        isPopoverOpen && "ring-2 ring-primary",
+                                        // Playhead indicator - ALWAYS on top with higher priority
+                                        isCurrentStep && "ring-2 ring-primary ring-offset-1 ring-offset-background z-10"
+                                      )}
+                                    >
+                                      {value > 0 && (
+                                        <span className="text-[7px] sm:text-[9px] font-medium text-foreground/80">
+                                          {Math.round(value * 100)}
+                                        </span>
+                                      )}
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent 
+                                    className="w-48 p-3" 
+                                    side="top"
+                                    onInteractOutside={() => setVelocityPopover(null)}
+                                  >
+                                    <div className="space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <Label className="text-xs font-medium">Velocity</Label>
+                                        <span className="text-xs text-muted-foreground font-mono">
+                                          {Math.round(value * 100)}%
+                                        </span>
+                                      </div>
+                                      <Slider
+                                        value={[value * 100]}
+                                        onValueChange={([v]) => handleVelocityChange(v / 100)}
+                                        min={0}
+                                        max={100}
+                                        step={5}
+                                        className="w-full"
+                                      />
+                                      <div className="flex gap-1">
+                                        {[0, 30, 50, 70, 100].map(preset => (
+                                          <Button
+                                            key={preset}
+                                            variant={Math.round(value * 100) === preset ? "default" : "outline"}
+                                            size="sm"
+                                            className="flex-1 h-6 text-[10px] px-1"
+                                            onClick={() => handleVelocityChange(preset / 100)}
+                                          >
+                                            {preset}
+                                          </Button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
                               );
                             })}
                           </div>
@@ -1066,7 +1124,7 @@ export function RhythmEditor({
           {/* Footer / Legend */}
           <div className="p-2 sm:p-3 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:justify-between">
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Click: cycle | Right-click: clear</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Click: ajustar velocidad | Right-click: borrar</span>
               <Separator orientation="vertical" className="h-4 hidden sm:block" />
               <div className="flex items-center gap-1 sm:gap-2">
                 <span className="text-[10px] sm:text-xs text-muted-foreground">Vel:</span>

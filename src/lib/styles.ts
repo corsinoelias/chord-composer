@@ -158,6 +158,8 @@ export const MUSICAL_STYLES: StylePattern[] = [
       bass:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0],
       // P: - - - - | X - - - | - - - - | X - - - (acordes en backbeat)
       piano: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      // G: X - - - | X - - - | X - - - | X - - - (power chords en cada tiempo)
+      guitar: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
     },
     fill: {
       position: 12,
@@ -167,7 +169,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
       },
     },
-    volumes: { piano: 0.6, bass: 0.8, drums: 0.75 },
+    volumes: { piano: 0.6, bass: 0.8, drums: 0.75, guitar: 0.7 },
   },
 
   // ============================================
@@ -195,6 +197,8 @@ export const MUSICAL_STYLES: StylePattern[] = [
       bass:  [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0],
       // P: - X - X | - X - X | - X - X | - X - X (staccato en "e" y "a")
       piano: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+      // G: - x X - | x - X - | - x X - | x - X - (scratchy funk guitar)
+      guitar: [0, 0.5, 1, 0, 0.5, 0, 1, 0, 0, 0.5, 1, 0, 0.5, 0, 1, 0],
     },
     fill: {
       position: 8,
@@ -204,7 +208,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         kick:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
       },
     },
-    volumes: { piano: 0.55, bass: 0.85, drums: 0.7 },
+    volumes: { piano: 0.55, bass: 0.85, drums: 0.7, guitar: 0.65 },
   },
 
   // ============================================
@@ -361,6 +365,8 @@ export const MUSICAL_STYLES: StylePattern[] = [
       bass:  [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
       // P: - - X - | - - X - | - - X - | - - X - (skank en cada "&")
       piano: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+      // G: - - X - | - - X - | - - X - | - - X - (skank reggae clásico)
+      guitar: [0, 0, 0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 0],
     },
     fill: {
       position: 12,
@@ -370,7 +376,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     bassSustain: true,
-    volumes: { piano: 0.5, bass: 0.9, drums: 0.55 },
+    volumes: { piano: 0.5, bass: 0.9, drums: 0.55, guitar: 0.7 },
   },
 
   // ============================================
@@ -398,6 +404,8 @@ export const MUSICAL_STYLES: StylePattern[] = [
       bass:  [1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0],
       // P: X - - - | - - - - | - - X - | - - - - (melodías espaciadas)
       piano: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+      // G: - - X - | - - - - | - - - X | - - - - (licks trap espaciados)
+      guitar: [0, 0, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0],
     },
     fill: {
       position: 8,
@@ -407,7 +415,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     bassSustain: true,
-    volumes: { piano: 0.5, bass: 0.95, drums: 0.8 },
+    volumes: { piano: 0.5, bass: 0.95, drums: 0.8, guitar: 0.5 },
   },
 
   // ============================================
@@ -435,6 +443,8 @@ export const MUSICAL_STYLES: StylePattern[] = [
       bass:  [1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0],
       // P: - - X - | - - X - | - - X - | - - X - (acordes "chic" en "&")
       piano: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+      // G: - X - X | - X - X | - X - X | - X - X (wah-wah funk disco)
+      guitar: [0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7],
     },
     fill: {
       position: 8,
@@ -444,7 +454,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], // Crash
       },
     },
-    volumes: { piano: 0.65, bass: 0.8, drums: 0.75 },
+    volumes: { piano: 0.65, bass: 0.8, drums: 0.75, guitar: 0.6 },
   },
 
   // ============================================
@@ -472,6 +482,8 @@ export const MUSICAL_STYLES: StylePattern[] = [
       bass:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
       // P: - - - - | X - - - | - - - - | X - - - (comping en backbeat)
       piano: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      // G: X - x - | X - x - | X - x - | X - x - (shuffle blues licks)
+      guitar: [1, 0, 0.5, 0, 1, 0, 0.5, 0, 1, 0, 0.5, 0, 1, 0, 0.5, 0],
     },
     fill: {
       position: 8,
@@ -480,7 +492,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         snare: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0],
       },
     },
-    volumes: { piano: 0.7, bass: 0.75, drums: 0.6 },
+    volumes: { piano: 0.7, bass: 0.75, drums: 0.6, guitar: 0.7 },
   },
 
   // ============================================
@@ -580,6 +592,8 @@ export const MUSICAL_STYLES: StylePattern[] = [
       bass:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
       // P: X - - - | - - - - | - - - - | - - - - (power chords/pads)
       piano: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // G: X - X - | X - X - | X - X - | X - X - (palm mute riffs)
+      guitar: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
     },
     fill: {
       position: 8,
@@ -589,7 +603,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       },
     },
-    volumes: { piano: 0.5, bass: 0.9, drums: 0.85 },
+    volumes: { piano: 0.5, bass: 0.9, drums: 0.85, guitar: 0.85 },
   },
 
   // ============================================
