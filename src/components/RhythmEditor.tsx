@@ -433,6 +433,38 @@ export function RhythmEditor({
     });
   };
 
+  const handleArpeggioToggle = (isArpeggio: boolean) => {
+    if (!velocityPopover) return;
+    const { instrument, step, isFill } = velocityPopover;
+    
+    // Only piano and guitar support arpeggios
+    if (instrument !== 'piano' && instrument !== 'guitar') return;
+    
+    setEditedStyle(prev => {
+      const newStyle = cloneStyle(prev);
+      
+      if (isFill) {
+        if (!newStyle.fill.arpeggios) {
+          newStyle.fill.arpeggios = {};
+        }
+        if (!newStyle.fill.arpeggios[instrument]) {
+          newStyle.fill.arpeggios[instrument] = new Array(16).fill(false);
+        }
+        newStyle.fill.arpeggios[instrument]![step] = isArpeggio;
+      } else {
+        if (!newStyle.arpeggios) {
+          newStyle.arpeggios = {};
+        }
+        if (!newStyle.arpeggios[instrument]) {
+          newStyle.arpeggios[instrument] = new Array(16).fill(false);
+        }
+        newStyle.arpeggios[instrument]![step] = isArpeggio;
+      }
+      
+      return newStyle;
+    });
+  };
+
   const handleCellRightClick = (e: React.MouseEvent, instrument: InstrumentKey, step: number, isFill: boolean) => {
     e.preventDefault();
     setEditedStyle(prev => {
@@ -982,6 +1014,15 @@ export function RhythmEditor({
                                 ? (isInFillZone ? (fillPattern?.[step] ?? 0) : basePattern[step])
                                 : basePattern[step];
 
+                              // Check if this cell is an arpeggio (only for piano/guitar)
+                              const supportsArpeggio = instrument.key === 'piano' || instrument.key === 'guitar';
+                              const arpeggioKey = instrument.key as 'piano' | 'guitar';
+                              const isArpeggio = supportsArpeggio && (
+                                showFill 
+                                  ? editedStyle.fill.arpeggios?.[arpeggioKey]?.[step] ?? false
+                                  : editedStyle.arpeggios?.[arpeggioKey]?.[step] ?? false
+                              );
+
                               // In Fill mode: lock steps before the fill start (they come from the Main pattern)
                               const isLockedInFill = showFill && !isInFillZone;
                               const isActiveInFill = showFill && isInFillZone;
@@ -1015,6 +1056,8 @@ export function RhythmEditor({
                                         // Normal velocity colors (override fill bg when has value)
                                         getVelocityColor(value),
                                         value > 0 ? "border-chart-4/50" : "",
+                                        // Arpeggio indicator - dashed border
+                                        isArpeggio && value > 0 && "border-dashed border-2 border-primary",
                                         // Popover open indicator
                                         isPopoverOpen && "ring-2 ring-primary",
                                         // Playhead indicator - ALWAYS on top with higher priority
@@ -1023,13 +1066,13 @@ export function RhythmEditor({
                                     >
                                       {value > 0 && (
                                         <span className="text-[7px] sm:text-[9px] font-medium text-foreground/80">
-                                          {Math.round(value * 100)}
+                                          {isArpeggio ? '♪' : Math.round(value * 100)}
                                         </span>
                                       )}
                                     </button>
                                   </PopoverTrigger>
                                   <PopoverContent 
-                                    className="w-48 p-3" 
+                                    className="w-52 p-3" 
                                     side="top"
                                     onInteractOutside={() => setVelocityPopover(null)}
                                   >
@@ -1061,6 +1104,26 @@ export function RhythmEditor({
                                           </Button>
                                         ))}
                                       </div>
+                                      
+                                      {/* Arpeggio toggle - only for piano and guitar */}
+                                      {supportsArpeggio && value > 0 && (
+                                        <>
+                                          <Separator />
+                                          <div className="flex items-center justify-between">
+                                            <Label className="text-xs font-medium flex items-center gap-1">
+                                              <span>♪</span> Arpegio
+                                            </Label>
+                                            <Switch
+                                              checked={isArpeggio}
+                                              onCheckedChange={handleArpeggioToggle}
+                                              className="scale-90"
+                                            />
+                                          </div>
+                                          <p className="text-[10px] text-muted-foreground">
+                                            Las notas suenan secuencialmente en vez de juntas
+                                          </p>
+                                        </>
+                                      )}
                                     </div>
                                   </PopoverContent>
                                 </Popover>
@@ -1124,7 +1187,7 @@ export function RhythmEditor({
           {/* Footer / Legend */}
           <div className="p-2 sm:p-3 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:justify-between">
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Click: ajustar velocidad | Right-click: borrar</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Click: velocidad | ♪: arpegio</span>
               <Separator orientation="vertical" className="h-4 hidden sm:block" />
               <div className="flex items-center gap-1 sm:gap-2">
                 <span className="text-[10px] sm:text-xs text-muted-foreground">Vel:</span>

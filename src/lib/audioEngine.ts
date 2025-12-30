@@ -1167,15 +1167,34 @@ export function scheduleProgression(
       // Piano - uses velocity from pattern
       const pianoVelocity = pattern.piano[patternSlot];
       if (pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound && pianoVelocity > 0) {
-        midiNotes.forEach(midiNote => {
-          const frequency = midiToFrequency(midiNote);
-          playPianoNote(
-            ctx, masterGain!, frequency, slotTime, 
-            slotDuration * 3, pianoSound, 
-            pianoState.volume * currentStyle.volumes.piano * pianoVelocity,
-            midiNote
-          );
-        });
+        // Check if this slot is an arpeggio
+        const isPianoArpeggio = currentStyle.arpeggios?.piano?.[patternSlot] ?? false;
+        
+        if (isPianoArpeggio && midiNotes.length > 1) {
+          // Play notes sequentially as arpeggio
+          const arpeggioNoteDuration = slotDuration / midiNotes.length;
+          midiNotes.forEach((midiNote, noteIndex) => {
+            const frequency = midiToFrequency(midiNote);
+            const noteTime = slotTime + (noteIndex * arpeggioNoteDuration);
+            playPianoNote(
+              ctx, masterGain!, frequency, noteTime, 
+              slotDuration * 2, pianoSound, 
+              pianoState.volume * currentStyle.volumes.piano * pianoVelocity,
+              midiNote
+            );
+          });
+        } else {
+          // Play all notes together as chord
+          midiNotes.forEach(midiNote => {
+            const frequency = midiToFrequency(midiNote);
+            playPianoNote(
+              ctx, masterGain!, frequency, slotTime, 
+              slotDuration * 3, pianoSound, 
+              pianoState.volume * currentStyle.volumes.piano * pianoVelocity,
+              midiNote
+            );
+          });
+        }
       }
       
       // Bass - uses velocity from pattern
@@ -1230,15 +1249,34 @@ export function scheduleProgression(
       // Guitar - uses its own pattern (no fallback to piano)
       const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? 0;
       if (guitarState && isInstrumentAudible(guitarState, instruments) && guitarSound && guitarVelocity > 0) {
-        midiNotes.forEach(midiNote => {
-          const frequency = midiToFrequency(midiNote);
-          playGuitarNote(
-            ctx, masterGain!, frequency, slotTime,
-            slotDuration * 3, guitarSound,
-            guitarState.volume * (currentStyle.volumes.guitar ?? currentStyle.volumes.piano) * guitarVelocity,
-            midiNote
-          );
-        });
+        // Check if this slot is an arpeggio
+        const isGuitarArpeggio = currentStyle.arpeggios?.guitar?.[patternSlot] ?? false;
+        
+        if (isGuitarArpeggio && midiNotes.length > 1) {
+          // Play notes sequentially as arpeggio
+          const arpeggioNoteDuration = slotDuration / midiNotes.length;
+          midiNotes.forEach((midiNote, noteIndex) => {
+            const frequency = midiToFrequency(midiNote);
+            const noteTime = slotTime + (noteIndex * arpeggioNoteDuration);
+            playGuitarNote(
+              ctx, masterGain!, frequency, noteTime,
+              slotDuration * 2, guitarSound,
+              guitarState.volume * (currentStyle.volumes.guitar ?? currentStyle.volumes.piano) * guitarVelocity,
+              midiNote
+            );
+          });
+        } else {
+          // Play all notes together as chord
+          midiNotes.forEach(midiNote => {
+            const frequency = midiToFrequency(midiNote);
+            playGuitarNote(
+              ctx, masterGain!, frequency, slotTime,
+              slotDuration * 3, guitarSound,
+              guitarState.volume * (currentStyle.volumes.guitar ?? currentStyle.volumes.piano) * guitarVelocity,
+              midiNote
+            );
+          });
+        }
       }
     }
     

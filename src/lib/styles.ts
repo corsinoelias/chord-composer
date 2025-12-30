@@ -34,6 +34,11 @@ export interface StylePattern {
     crash?: number[];       // Crash cymbal
     guitar?: number[];      // Guitar pattern (optional)
   };
+  // Arpeggio markers: true = play as arpeggio, false/undefined = play as chord
+  arpeggios?: {
+    piano?: boolean[];      // 16 slots, true = arpeggio on that slot
+    guitar?: boolean[];     // 16 slots, true = arpeggio on that slot
+  };
   // Fill pattern (played on bar 4 or 8)
   fill: {
     position: number;     // Starting slot (usually 12 for last beat)
@@ -49,6 +54,10 @@ export interface StylePattern {
       ride?: number[];
       crash?: number[];
       guitar?: number[];
+    };
+    arpeggios?: {
+      piano?: boolean[];
+      guitar?: boolean[];
     };
   };
   // Default volumes (0-1)
