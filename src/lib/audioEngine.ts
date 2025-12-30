@@ -1227,8 +1227,8 @@ export function scheduleProgression(
         }
       }
       
-      // Guitar - uses piano pattern as default (or guitar pattern if defined)
-      const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? pattern.piano[patternSlot];
+      // Guitar - uses its own pattern (no fallback to piano)
+      const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? 0;
       if (guitarState && isInstrumentAudible(guitarState, instruments) && guitarSound && guitarVelocity > 0) {
         midiNotes.forEach(midiNote => {
           const frequency = midiToFrequency(midiNote);
@@ -1635,8 +1635,8 @@ export async function renderProgressionOffline(
             }
           }
           
-          // Guitar - use samples if available
-          const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? pattern.piano[patternSlot];
+          // Guitar - use its own pattern (no fallback to piano)
+          const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? 0;
           if (guitarState && !guitarState.muted && guitarSound && guitarVelocity > 0) {
             const guitarVolume = guitarState.volume * (style.volumes.guitar ?? style.volumes.piano) * guitarVelocity;
             
