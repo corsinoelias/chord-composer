@@ -7,7 +7,7 @@
 
 import { Chord, chordToMidiNotes, midiToFrequency } from './musicTheory';
 import { InstrumentState, getSoundType, SoundType, isInstrumentAudible } from './instruments';
-import { StylePattern, generateBarPattern } from './styles';
+import { StylePattern, generateBarPattern, ArpeggioCell, ArpeggioType, ArpeggioSpeed } from './styles';
 import { Section } from './sections';
 
 let audioContext: AudioContext | null = null;
@@ -947,6 +947,48 @@ function playClick(
   osc.stop(startTime + 0.06);
 }
 
+/**
+ * Applies arpeggio ordering to notes based on type
+ */
+function applyArpeggioOrder(midiNotes: number[], type: ArpeggioType): number[] {
+  const sorted = [...midiNotes].sort((a, b) => a - b); // Low to high
+  
+  switch (type) {
+    case 'up':
+      return sorted;
+    case 'down':
+      return sorted.reverse();
+    case 'updown':
+      // Up then down, without repeating the top note
+      if (sorted.length <= 2) return sorted;
+      const down = sorted.slice(0, -1).reverse();
+      return [...sorted, ...down];
+    case 'random':
+      // Fisher-Yates shuffle
+      const shuffled = [...sorted];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    default:
+      return sorted;
+  }
+}
+
+/**
+ * Gets the number of notes to play per slot based on arpeggio speed
+ */
+function getArpeggioNotesPerSlot(speed: ArpeggioSpeed): number {
+  switch (speed) {
+    case 'slow': return 2;
+    case 'normal': return 4;
+    case 'fast': return 8;
+    case 'veryfast': return 16;
+    default: return 4;
+  }
+}
+
 export interface PlaybackOptions {
   loop?: boolean;
   metronome?: boolean;
@@ -1168,21 +1210,27 @@ export function scheduleProgression(
       const pianoVelocity = pattern.piano[patternSlot];
       if (pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound && pianoVelocity > 0) {
         // Check if this slot is an arpeggio
-        const isPianoArpeggio = currentStyle.arpeggios?.piano?.[patternSlot] ?? false;
+        const pianoArpeggio = currentStyle.arpeggios?.piano?.[patternSlot] ?? null;
         
-        if (isPianoArpeggio && midiNotes.length > 1) {
-          // Play notes sequentially as arpeggio
-          const arpeggioNoteDuration = slotDuration / midiNotes.length;
-          midiNotes.forEach((midiNote, noteIndex) => {
+        if (pianoArpeggio && midiNotes.length > 1) {
+          // Apply arpeggio type ordering
+          const orderedNotes = applyArpeggioOrder(midiNotes, pianoArpeggio.type);
+          const notesPerSlot = getArpeggioNotesPerSlot(pianoArpeggio.speed);
+          const arpeggioNoteDuration = slotDuration / notesPerSlot;
+          
+          // Repeat notes to fill the slot duration based on speed
+          for (let i = 0; i < notesPerSlot; i++) {
+            const noteIndex = i % orderedNotes.length;
+            const midiNote = orderedNotes[noteIndex];
             const frequency = midiToFrequency(midiNote);
-            const noteTime = slotTime + (noteIndex * arpeggioNoteDuration);
+            const noteTime = slotTime + (i * arpeggioNoteDuration);
             playPianoNote(
               ctx, masterGain!, frequency, noteTime, 
-              slotDuration * 2, pianoSound, 
+              arpeggioNoteDuration * 1.5, pianoSound, 
               pianoState.volume * currentStyle.volumes.piano * pianoVelocity,
               midiNote
             );
-          });
+          }
         } else {
           // Play all notes together as chord
           midiNotes.forEach(midiNote => {
@@ -1250,21 +1298,27 @@ export function scheduleProgression(
       const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? 0;
       if (guitarState && isInstrumentAudible(guitarState, instruments) && guitarSound && guitarVelocity > 0) {
         // Check if this slot is an arpeggio
-        const isGuitarArpeggio = currentStyle.arpeggios?.guitar?.[patternSlot] ?? false;
+        const guitarArpeggio = currentStyle.arpeggios?.guitar?.[patternSlot] ?? null;
         
-        if (isGuitarArpeggio && midiNotes.length > 1) {
-          // Play notes sequentially as arpeggio
-          const arpeggioNoteDuration = slotDuration / midiNotes.length;
-          midiNotes.forEach((midiNote, noteIndex) => {
+        if (guitarArpeggio && midiNotes.length > 1) {
+          // Apply arpeggio type ordering
+          const orderedNotes = applyArpeggioOrder(midiNotes, guitarArpeggio.type);
+          const notesPerSlot = getArpeggioNotesPerSlot(guitarArpeggio.speed);
+          const arpeggioNoteDuration = slotDuration / notesPerSlot;
+          
+          // Repeat notes to fill the slot duration based on speed
+          for (let i = 0; i < notesPerSlot; i++) {
+            const noteIndex = i % orderedNotes.length;
+            const midiNote = orderedNotes[noteIndex];
             const frequency = midiToFrequency(midiNote);
-            const noteTime = slotTime + (noteIndex * arpeggioNoteDuration);
+            const noteTime = slotTime + (i * arpeggioNoteDuration);
             playGuitarNote(
               ctx, masterGain!, frequency, noteTime,
-              slotDuration * 2, guitarSound,
+              arpeggioNoteDuration * 1.5, guitarSound,
               guitarState.volume * (currentStyle.volumes.guitar ?? currentStyle.volumes.piano) * guitarVelocity,
               midiNote
             );
-          });
+          }
         } else {
           // Play all notes together as chord
           midiNotes.forEach(midiNote => {
@@ -1424,7 +1478,10 @@ export async function renderProgressionOffline(
           // Piano - use samples if available for sampled sound type
           const pianoVelocity = pattern.piano[patternSlot];
           if (pianoState && !pianoState.muted && pianoSound && pianoVelocity > 0) {
-            midiNotes.forEach(midiNote => {
+            // Check for arpeggio
+            const pianoArpeggio = style.arpeggios?.piano?.[patternSlot] ?? null;
+            
+            const playOfflinePianoNote = (midiNote: number, noteTime: number, noteDuration: number) => {
               const frequency = midiToFrequency(midiNote);
               const volume = pianoState.volume * style.volumes.piano * pianoVelocity;
               
@@ -1440,14 +1497,13 @@ export async function renderProgressionOffline(
                 gainNode.connect(offlineMasterGain);
                 
                 // Envelope with gradual release
-                const noteDuration = slotDuration * 3;
-                gainNode.gain.setValueAtTime(volume * 0.8, slotTime);
-                const releaseStart = slotTime + Math.max(0, noteDuration - 0.1);
+                gainNode.gain.setValueAtTime(volume * 0.8, noteTime);
+                const releaseStart = noteTime + Math.max(0, noteDuration - 0.1);
                 gainNode.gain.setValueAtTime(volume * 0.8, releaseStart);
-                gainNode.gain.linearRampToValueAtTime(0, slotTime + noteDuration + 0.3);
+                gainNode.gain.linearRampToValueAtTime(0, noteTime + noteDuration + 0.3);
                 
-                source.start(slotTime);
-                source.stop(slotTime + Math.max(noteDuration + 0.4, sample.duration));
+                source.start(noteTime);
+                source.stop(noteTime + Math.max(noteDuration + 0.4, sample.duration));
               } else {
                 // Use synthesized piano
                 const baseFreq = frequency * Math.pow(2, pianoSound.octaveOffset);
@@ -1470,16 +1526,34 @@ export async function renderProgressionOffline(
                   oscGain.gain.value = amp * 0.12 * volume;
                   osc.connect(oscGain);
                   oscGain.connect(pianoGain);
-                  osc.start(slotTime);
-                  osc.stop(slotTime + slotDuration * 3);
+                  osc.start(noteTime);
+                  osc.stop(noteTime + noteDuration);
                 });
                 
-                pianoGain.gain.setValueAtTime(0, slotTime);
-                pianoGain.gain.linearRampToValueAtTime(1, slotTime + pianoSound.attackTime);
-                pianoGain.gain.linearRampToValueAtTime(pianoSound.sustainLevel, slotTime + pianoSound.attackTime + pianoSound.decayTime);
-                pianoGain.gain.linearRampToValueAtTime(0, slotTime + slotDuration * 3);
+                pianoGain.gain.setValueAtTime(0, noteTime);
+                pianoGain.gain.linearRampToValueAtTime(1, noteTime + pianoSound.attackTime);
+                pianoGain.gain.linearRampToValueAtTime(pianoSound.sustainLevel, noteTime + pianoSound.attackTime + pianoSound.decayTime);
+                pianoGain.gain.linearRampToValueAtTime(0, noteTime + noteDuration);
               }
-            });
+            };
+            
+            if (pianoArpeggio && midiNotes.length > 1) {
+              // Apply arpeggio ordering and speed
+              const orderedNotes = applyArpeggioOrder(midiNotes, pianoArpeggio.type);
+              const notesPerSlot = getArpeggioNotesPerSlot(pianoArpeggio.speed);
+              const arpeggioNoteDuration = slotDuration / notesPerSlot;
+              
+              for (let j = 0; j < notesPerSlot; j++) {
+                const noteIndex = j % orderedNotes.length;
+                const noteTime = slotTime + (j * arpeggioNoteDuration);
+                playOfflinePianoNote(orderedNotes[noteIndex], noteTime, arpeggioNoteDuration * 1.5);
+              }
+            } else {
+              // Play all notes together as chord
+              midiNotes.forEach(midiNote => {
+                playOfflinePianoNote(midiNote, slotTime, slotDuration * 3);
+              });
+            }
           }
           
           // Bass
