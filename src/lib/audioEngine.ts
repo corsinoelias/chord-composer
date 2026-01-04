@@ -36,6 +36,8 @@ interface AcousticKitSamples {
   snareStick: AudioBuffer | null;  // Rim/edge hit
   hihat: AudioBuffer | null;
   hihatOpen: AudioBuffer | null;
+  hihatOpen2: AudioBuffer | null;  // Alternative open hi-hat
+  hihatOpen3: AudioBuffer | null;  // Third open hi-hat variation
   hihatFoot: AudioBuffer | null;
   hihatFoot2: AudioBuffer | null;  // Alternative foot sound
   tom1: AudioBuffer | null;
@@ -51,6 +53,8 @@ let acousticKit: AcousticKitSamples = {
   snareStick: null,
   hihat: null,
   hihatOpen: null,
+  hihatOpen2: null,
+  hihatOpen3: null,
   hihatFoot: null,
   hihatFoot2: null,
   tom1: null,
@@ -94,6 +98,8 @@ async function loadAcousticSamples(ctx: AudioContext): Promise<void> {
     { key: 'snareStick', path: '/audio/snare-stick.mp3' },
     { key: 'hihat', path: '/audio/hihat.mp3' },
     { key: 'hihatOpen', path: '/audio/hihat-open.mp3' },
+    { key: 'hihatOpen2', path: '/audio/hihat-open-2.mp3' },
+    { key: 'hihatOpen3', path: '/audio/hihat-open-3.mp3' },
     { key: 'hihatFoot', path: '/audio/hihat-foot.mp3' },
     { key: 'hihatFoot2', path: '/audio/hihat-foot-2.mp3' },
     { key: 'tom1', path: '/audio/tom1.mp3' },
@@ -201,7 +207,7 @@ export function getAudioContext(): AudioContext {
   if (!audioContext) {
     audioContext = new AudioContext();
     masterGain = audioContext.createGain();
-    masterGain.gain.value = 0.5;
+    masterGain.gain.value = 0.85;
     masterGain.connect(audioContext.destination);
     
     // Start loading samples (drums, piano, and guitar)
@@ -664,7 +670,7 @@ function playDrumHit(
   
   if (drumType === 'kick') {
     if (useAcousticSamples && acousticKit.kick) {
-      playSample(ctx, gainNode, acousticKit.kick, startTime, volume * 0.9);
+      playSample(ctx, gainNode, acousticKit.kick, startTime, volume * 1.1);
     } else {
       // Synthesized kick
       const osc = ctx.createOscillator();
@@ -672,7 +678,7 @@ function playDrumHit(
       osc.frequency.setValueAtTime(150, startTime);
       osc.frequency.exponentialRampToValueAtTime(40, startTime + 0.1);
       const kickGain = ctx.createGain();
-      kickGain.gain.setValueAtTime(0.4 * volume, startTime);
+      kickGain.gain.setValueAtTime(0.5 * volume, startTime);
       kickGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
       osc.connect(kickGain);
       kickGain.connect(gainNode);
@@ -683,7 +689,7 @@ function playDrumHit(
       click.type = 'triangle';
       click.frequency.value = 800;
       const clickGain = ctx.createGain();
-      clickGain.gain.setValueAtTime(0.1 * volume, startTime);
+      clickGain.gain.setValueAtTime(0.15 * volume, startTime);
       clickGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.02);
       click.connect(clickGain);
       clickGain.connect(gainNode);
@@ -693,7 +699,7 @@ function playDrumHit(
     
   } else if (drumType === 'snare') {
     if (useAcousticSamples && acousticKit.snare) {
-      playSample(ctx, gainNode, acousticKit.snare, startTime, volume * 0.8);
+      playSample(ctx, gainNode, acousticKit.snare, startTime, volume * 1.0);
     } else {
       // Synthesized snare
       const bufferSize = ctx.sampleRate * 0.2;
@@ -749,7 +755,7 @@ function playDrumHit(
   } else if (drumType === 'hihat') {
     // Hi-hat closed (hand)
     if (useAcousticSamples && acousticKit.hihat) {
-      playSample(ctx, gainNode, acousticKit.hihat, startTime, volume * 0.5);
+      playSample(ctx, gainNode, acousticKit.hihat, startTime, volume * 0.7);
     } else {
       // Synthesized hi-hat
       const bufferSize = ctx.sampleRate * 0.1;
@@ -767,7 +773,7 @@ function playDrumHit(
       loFilter.type = 'lowpass';
       loFilter.frequency.value = 14000;
       const hatGain = ctx.createGain();
-      hatGain.gain.setValueAtTime(0.08 * volume, startTime);
+      hatGain.gain.setValueAtTime(0.12 * volume, startTime);
       hatGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.05);
       noise.connect(hiFilter);
       hiFilter.connect(loFilter);
@@ -780,9 +786,9 @@ function playDrumHit(
   } else if (drumType === 'hihatFoot') {
     // Hi-hat foot pedal
     if (useAcousticSamples && acousticKit.hihatFoot2) {
-      playSample(ctx, gainNode, acousticKit.hihatFoot2, startTime, volume * 0.45);
+      playSample(ctx, gainNode, acousticKit.hihatFoot2, startTime, volume * 0.6);
     } else if (useAcousticSamples && acousticKit.hihatFoot) {
-      playSample(ctx, gainNode, acousticKit.hihatFoot, startTime, volume * 0.45);
+      playSample(ctx, gainNode, acousticKit.hihatFoot, startTime, volume * 0.6);
     } else {
       // Synthesized foot hi-hat (shorter, more muffled)
       const bufferSize = ctx.sampleRate * 0.08;
@@ -798,7 +804,7 @@ function playDrumHit(
       filter.frequency.value = 5000;
       filter.Q.value = 2;
       const hatGain = ctx.createGain();
-      hatGain.gain.setValueAtTime(0.06 * volume, startTime);
+      hatGain.gain.setValueAtTime(0.1 * volume, startTime);
       hatGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.04);
       noise.connect(filter);
       filter.connect(hatGain);
@@ -810,7 +816,7 @@ function playDrumHit(
   } else if (drumType === 'tom1') {
     // High tom
     if (useAcousticSamples && acousticKit.tom1) {
-      playSample(ctx, gainNode, acousticKit.tom1, startTime, volume * 0.8);
+      playSample(ctx, gainNode, acousticKit.tom1, startTime, volume * 1.0);
     } else {
       // Synthesized high tom
       const osc = ctx.createOscillator();
@@ -818,7 +824,7 @@ function playDrumHit(
       osc.frequency.setValueAtTime(200, startTime);
       osc.frequency.exponentialRampToValueAtTime(120, startTime + 0.15);
       const tomGain = ctx.createGain();
-      tomGain.gain.setValueAtTime(0.3 * volume, startTime);
+      tomGain.gain.setValueAtTime(0.4 * volume, startTime);
       tomGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
       osc.connect(tomGain);
       tomGain.connect(gainNode);
@@ -829,7 +835,7 @@ function playDrumHit(
   } else if (drumType === 'tom2') {
     // Mid tom
     if (useAcousticSamples && acousticKit.tom2) {
-      playSample(ctx, gainNode, acousticKit.tom2, startTime, volume * 0.8);
+      playSample(ctx, gainNode, acousticKit.tom2, startTime, volume * 1.0);
     } else {
       // Synthesized mid tom
       const osc = ctx.createOscillator();
@@ -837,7 +843,7 @@ function playDrumHit(
       osc.frequency.setValueAtTime(150, startTime);
       osc.frequency.exponentialRampToValueAtTime(90, startTime + 0.18);
       const tomGain = ctx.createGain();
-      tomGain.gain.setValueAtTime(0.3 * volume, startTime);
+      tomGain.gain.setValueAtTime(0.4 * volume, startTime);
       tomGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
       osc.connect(tomGain);
       tomGain.connect(gainNode);
@@ -848,7 +854,7 @@ function playDrumHit(
   } else if (drumType === 'floorTom') {
     // Floor tom
     if (useAcousticSamples && acousticKit.floorTom) {
-      playSample(ctx, gainNode, acousticKit.floorTom, startTime, volume * 0.85);
+      playSample(ctx, gainNode, acousticKit.floorTom, startTime, volume * 1.0);
     } else {
       // Synthesized floor tom
       const osc = ctx.createOscillator();
@@ -856,7 +862,7 @@ function playDrumHit(
       osc.frequency.setValueAtTime(100, startTime);
       osc.frequency.exponentialRampToValueAtTime(60, startTime + 0.2);
       const tomGain = ctx.createGain();
-      tomGain.gain.setValueAtTime(0.35 * volume, startTime);
+      tomGain.gain.setValueAtTime(0.45 * volume, startTime);
       tomGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
       osc.connect(tomGain);
       tomGain.connect(gainNode);
@@ -867,7 +873,7 @@ function playDrumHit(
   } else if (drumType === 'ride') {
     // Ride cymbal
     if (useAcousticSamples && acousticKit.ride) {
-      playSample(ctx, gainNode, acousticKit.ride, startTime, volume * 0.55);
+      playSample(ctx, gainNode, acousticKit.ride, startTime, volume * 0.75);
     } else {
       // Synthesized ride
       const bufferSize = ctx.sampleRate * 0.3;
@@ -883,7 +889,7 @@ function playDrumHit(
       filter.frequency.value = 5000;
       filter.Q.value = 0.5;
       const rideGain = ctx.createGain();
-      rideGain.gain.setValueAtTime(0.06 * volume, startTime);
+      rideGain.gain.setValueAtTime(0.1 * volume, startTime);
       rideGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
       noise.connect(filter);
       filter.connect(rideGain);
@@ -895,7 +901,7 @@ function playDrumHit(
   } else if (drumType === 'crash') {
     // Crash cymbal
     if (useAcousticSamples && acousticKit.crash) {
-      playSample(ctx, gainNode, acousticKit.crash, startTime, volume * 0.7);
+      playSample(ctx, gainNode, acousticKit.crash, startTime, volume * 0.9);
     } else {
       // Synthesized crash
       const bufferSize = ctx.sampleRate * 0.8;
@@ -1422,7 +1428,7 @@ export async function renderProgressionOffline(
   
   const offlineCtx = new OfflineAudioContext(2, totalSamples, sampleRate);
   const offlineMasterGain = offlineCtx.createGain();
-  offlineMasterGain.gain.value = 0.5;
+  offlineMasterGain.gain.value = 0.85;
   offlineMasterGain.connect(offlineCtx.destination);
   
   const beatDuration = 60 / bpm;
