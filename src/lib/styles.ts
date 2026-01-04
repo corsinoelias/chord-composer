@@ -35,6 +35,7 @@ export interface StylePattern {
     snare: number[];        // Snare center pattern
     snareStick?: number[];  // Snare rim/edge pattern (borde)
     hihat: number[];        // Hi-hat closed pattern (mano)
+    hihatOpen?: number[];   // Hi-hat open pattern
     hihatFoot?: number[];   // Hi-hat foot pattern (pie)
     tom1?: number[];        // Tom 1 (high)
     tom2?: number[];        // Tom 2 (mid)
@@ -56,6 +57,7 @@ export interface StylePattern {
       snare?: number[];
       snareStick?: number[];
       hihat?: number[];
+      hihatOpen?: number[];
       hihatFoot?: number[];
       tom1?: number[];
       tom2?: number[];
@@ -967,6 +969,7 @@ export function generateBarPattern(
   snare: number[];
   snareStick: number[];
   hihat: number[];
+  hihatOpen: number[];
   hihatFoot: number[];
   tom1: number[];
   tom2: number[];
@@ -982,6 +985,7 @@ export function generateBarPattern(
   let snare = [...style.rhythm.snare];
   let snareStick = style.rhythm.snareStick ? [...style.rhythm.snareStick] : new Array(16).fill(0);
   let hihat = [...style.rhythm.hihat];
+  let hihatOpen = style.rhythm.hihatOpen ? [...style.rhythm.hihatOpen] : new Array(16).fill(0);
   let hihatFoot = style.rhythm.hihatFoot ? [...style.rhythm.hihatFoot] : new Array(16).fill(0);
   let tom1 = style.rhythm.tom1 ? [...style.rhythm.tom1] : new Array(16).fill(0);
   let tom2 = style.rhythm.tom2 ? [...style.rhythm.tom2] : new Array(16).fill(0);
@@ -1011,6 +1015,7 @@ export function generateBarPattern(
     applyFill(snare, style.fill.pattern.snare);
     applyFill(snareStick, style.fill.pattern.snareStick);
     applyFill(hihat, style.fill.pattern.hihat);
+    applyFill(hihatOpen, style.fill.pattern.hihatOpen);
     applyFill(hihatFoot, style.fill.pattern.hihatFoot);
     applyFill(tom1, style.fill.pattern.tom1);
     applyFill(tom2, style.fill.pattern.tom2);
@@ -1031,6 +1036,7 @@ export function generateBarPattern(
     snare = humanizeVelocity(snare);
     snareStick = humanizeVelocity(snareStick);
     hihat = humanizeVelocity(hihat);
+    hihatOpen = humanizeVelocity(hihatOpen);
     hihatFoot = humanizeVelocity(hihatFoot);
     tom1 = humanizeVelocity(tom1);
     tom2 = humanizeVelocity(tom2);
@@ -1044,6 +1050,7 @@ export function generateBarPattern(
   return {
     ...result,
     snareStick,
+    hihatOpen,
     hihatFoot,
     tom1,
     tom2,

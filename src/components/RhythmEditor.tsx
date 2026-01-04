@@ -58,6 +58,7 @@ const ALL_INSTRUMENTS = [
   { key: 'snare', label: 'Snare', category: 'drums', icon: Drum },
   { key: 'snareStick', label: 'Snare Stick', category: 'drums', icon: Drum },
   { key: 'hihat', label: 'Hi-Hat', category: 'drums', icon: Drum },
+  { key: 'hihatOpen', label: 'Hi-Hat Open', category: 'drums', icon: Drum },
   { key: 'hihatFoot', label: 'Hi-Hat Foot', category: 'drums', icon: Drum },
   { key: 'tom1', label: 'Tom 1', category: 'drums', icon: Drum },
   { key: 'tom2', label: 'Tom 2', category: 'drums', icon: Drum },
@@ -94,7 +95,7 @@ const VELOCITY_COLORS = [
 
 // All drum instrument keys for Fill mode
 const DRUM_INSTRUMENT_KEYS: InstrumentKey[] = [
-  'kick', 'snare', 'snareStick', 'hihat', 'hihatFoot', 
+  'kick', 'snare', 'snareStick', 'hihat', 'hihatOpen', 'hihatFoot', 
   'tom1', 'tom2', 'floorTom', 'ride', 'crash'
 ];
 

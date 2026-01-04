@@ -207,7 +207,7 @@ export function getAudioContext(): AudioContext {
   if (!audioContext) {
     audioContext = new AudioContext();
     masterGain = audioContext.createGain();
-    masterGain.gain.value = 0.85;
+    masterGain.gain.value = 1.0;
     masterGain.connect(audioContext.destination);
     
     // Start loading samples (drums, piano, and guitar)
@@ -662,7 +662,7 @@ function playDrumHit(
   startTime: number,
   soundType: SoundType,
   volume: number,
-  drumType: 'kick' | 'snare' | 'snareStick' | 'hihat' | 'hihatFoot' | 'tom1' | 'tom2' | 'floorTom' | 'ride' | 'crash'
+  drumType: 'kick' | 'snare' | 'snareStick' | 'hihat' | 'hihatOpen' | 'hihatFoot' | 'tom1' | 'tom2' | 'floorTom' | 'ride' | 'crash'
 ): void {
   const gainNode = ctx.createGain();
   gainNode.connect(destination);
@@ -781,6 +781,41 @@ function playDrumHit(
       hatGain.connect(gainNode);
       noise.start(startTime);
       noise.stop(startTime + 0.08);
+    }
+    
+  } else if (drumType === 'hihatOpen') {
+    // Hi-hat open - use one of the open samples with random variation
+    if (useAcousticSamples) {
+      const openSamples = [acousticKit.hihatOpen, acousticKit.hihatOpen2, acousticKit.hihatOpen3].filter(s => s !== null);
+      if (openSamples.length > 0) {
+        const sample = openSamples[Math.floor(Math.random() * openSamples.length)];
+        playSample(ctx, gainNode, sample!, startTime, volume * 0.75);
+      }
+    } else {
+      // Synthesized open hi-hat (longer, more sustain)
+      const bufferSize = ctx.sampleRate * 0.3;
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const hiFilter = ctx.createBiquadFilter();
+      hiFilter.type = 'highpass';
+      hiFilter.frequency.value = 6000;
+      const loFilter = ctx.createBiquadFilter();
+      loFilter.type = 'lowpass';
+      loFilter.frequency.value = 15000;
+      const hatGain = ctx.createGain();
+      hatGain.gain.setValueAtTime(0.15 * volume, startTime);
+      hatGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+      noise.connect(hiFilter);
+      hiFilter.connect(loFilter);
+      loFilter.connect(hatGain);
+      hatGain.connect(gainNode);
+      noise.start(startTime);
+      noise.stop(startTime + 0.3);
     }
     
   } else if (drumType === 'hihatFoot') {
@@ -1280,6 +1315,9 @@ export function scheduleProgression(
         if (pattern.hihat[patternSlot] > 0) {
           playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihat[patternSlot] * 0.7, 'hihat');
         }
+        if (pattern.hihatOpen[patternSlot] > 0) {
+          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihatOpen[patternSlot] * 0.8, 'hihatOpen');
+        }
         if (pattern.hihatFoot[patternSlot] > 0) {
           playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihatFoot[patternSlot] * 0.6, 'hihatFoot');
         }
@@ -1428,7 +1466,7 @@ export async function renderProgressionOffline(
   
   const offlineCtx = new OfflineAudioContext(2, totalSamples, sampleRate);
   const offlineMasterGain = offlineCtx.createGain();
-  offlineMasterGain.gain.value = 0.85;
+  offlineMasterGain.gain.value = 1.0;
   offlineMasterGain.connect(offlineCtx.destination);
   
   const beatDuration = 60 / bpm;
