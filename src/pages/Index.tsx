@@ -45,9 +45,9 @@ const Index = () => {
   const [sections, setSections] = useState<Section[]>([{
     ...createSection('Section A'),
     chords: [
-      { id: generateChordId(), root: 'G', accidental: '', quality: 'maj', duration: 4 },
-      { id: generateChordId(), root: 'D', accidental: '', quality: 'maj', duration: 4 },
       { id: generateChordId(), root: 'E', accidental: '', quality: 'min', duration: 4 },
+      { id: generateChordId(), root: 'D', accidental: '', quality: 'maj', duration: 4 },
+      { id: generateChordId(), root: 'B', accidental: '', quality: 'min', duration: 4 },
       { id: generateChordId(), root: 'C', accidental: '', quality: 'maj', duration: 4 },
     ]
   }]);

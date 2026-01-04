@@ -1194,7 +1194,7 @@ export function scheduleProgression(
     
     // NO cache - always regenerate pattern to pick up live edits immediately
     const getPatternForBar = (barNum: number) => {
-      return generateBarPattern(currentStyle, barNum, 4, true, forceFill);
+      return generateBarPattern(currentStyle, barNum, 4, false, forceFill);
     };
     
     // Schedule each slot in this chord segment
@@ -1490,7 +1490,7 @@ export async function renderProgressionOffline(
   
   const getPatternForBar = (barNum: number) => {
     if (!patternCache.has(barNum)) {
-      patternCache.set(barNum, generateBarPattern(style, barNum, 4, true));
+      patternCache.set(barNum, generateBarPattern(style, barNum, 4, false));
     }
     return patternCache.get(barNum)!;
   };

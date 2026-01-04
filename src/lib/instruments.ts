@@ -119,7 +119,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
   {
     id: 'bass',
     name: 'Bass',
-    defaultSoundType: 'electric',
+    defaultSoundType: 'synth',
     soundTypes: [
       {
         id: 'electric',
@@ -243,7 +243,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
   {
     id: 'guitar',
     name: 'Guitar',
-    defaultSoundType: 'acoustic',
+    defaultSoundType: 'electric',
     soundTypes: [
       {
         id: 'acoustic',
