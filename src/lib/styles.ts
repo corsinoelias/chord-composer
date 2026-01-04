@@ -160,7 +160,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
   // Característica: Más impulso con hi-hat abierto para énfasis.
   // Bombo en 1, 3 y push en "&" del 4. Crash como acento final del fill.
   {
-    id: 'Pop 1',
+    id: 'pop_1',
     name: 'Pop 1',
     category: 'Pop',
     bpm: 85,

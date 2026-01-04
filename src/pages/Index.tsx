@@ -57,7 +57,7 @@ const Index = () => {
   // Determine initial style (prefer pop_1 if exists, fallback to rock_basic)
   const getInitialStyleId = () => {
     const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
-    return allStyles.find(s => s.id === 'pop_1')?.id || 'rock_basic';
+    return allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic';
   };
   
   const [selectedStyleId, setSelectedStyleId] = useState(getInitialStyleId);
