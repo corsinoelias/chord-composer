@@ -208,6 +208,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
     },
     bassSustain: false,
     volumes: { piano: 0.75, bass: 2, drums: 2 },
+    instrumentSounds: { piano: 'sampled', bass: 'synth', drums: 'standard', guitar: 'acoustic' },
   },
 
   // ============================================
@@ -251,6 +252,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
     },
     bassSustain: true,
     volumes: { piano: 0.75, bass: 2, drums: 2 },
+    instrumentSounds: { piano: 'sampled', bass: 'synth', drums: 'standard', guitar: 'acoustic' },
   },
 
   // ============================================
@@ -293,6 +295,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.75, bass: 2, drums: 2, guitar: 0.7 },
+    instrumentSounds: { piano: 'sampled', bass: 'electric', drums: 'standard', guitar: 'electric' },
   },
 
   // ============================================
@@ -332,6 +335,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
     },
     bassSustain: false,
     volumes: { piano: 0.75, bass: 2, drums: 2, guitar: 0.7 },
+    instrumentSounds: { piano: 'synth', bass: 'synth', drums: 'standard', guitar: 'electric' },
   },
 
   // ============================================
@@ -372,6 +376,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.65, bass: 2, drums: 2, guitar: 0.6 },
+    instrumentSounds: { piano: 'synth', bass: 'synth', drums: 'standard', guitar: 'electric' },
   },
 
   // ============================================
@@ -411,6 +416,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 2, drums: 2, guitar: 0.7 },
+    instrumentSounds: { piano: 'sampled', bass: 'electric', drums: 'standard', guitar: 'electric' },
   },
 
   // ============================================
@@ -448,6 +454,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.75, bass: 2, drums: 2, guitar: 1 },
+    instrumentSounds: { piano: 'sampled', bass: 'synth', drums: 'standard', guitar: 'nylon' },
   },
 
   // ============================================
@@ -490,6 +497,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.5, bass: 2, drums: 2, guitar: 0.85 },
+    instrumentSounds: { piano: 'synth', bass: 'electric', drums: 'standard', guitar: 'electric' },
   },
 
   // ============================================
@@ -524,6 +532,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
     },
     bassSustain: true,
     volumes: { piano: 0.6, bass: 2, drums: 2, guitar: 0.85 },
+    instrumentSounds: { piano: 'sampled', bass: 'synth', drums: 'standard', guitar: 'acoustic' },
   },
 
 
@@ -557,6 +566,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
     },
     bassSustain: true,
     volumes: { piano: 1.5, bass: 2, drums: 2, guitar: 0.75 },
+    instrumentSounds: { piano: 'sampled', bass: 'synth', drums: 'standard', guitar: 'acoustic' },
   },
 
   // ============================================
@@ -587,6 +597,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 1, bass: 2, drums: 2, guitar: 0.65 },
+    instrumentSounds: { piano: 'sampled', bass: 'synth', drums: 'standard', guitar: 'electric' },
   },
 
   // ============================================
@@ -616,6 +627,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 1, bass: 1.5, drums: 2, guitar: 0.8 },
+    instrumentSounds: { piano: 'sampled', bass: 'synth', drums: 'standard', guitar: 'acoustic' },
   },
   // ============================================
   // 21. JAZZ LIGERO (Medium Swing) - 130 BPM
@@ -646,6 +658,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.65, bass: 2, drums: 2, guitar: 0.55 },
+    instrumentSounds: { piano: 'sampled', bass: 'synth', drums: 'standard', guitar: 'nylon' },
   },
 ];
 
