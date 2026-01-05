@@ -250,7 +250,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         hihatFoot:  [0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0, 0, 0, 0, 0, 0],
       },
     },
-    bassSustain: true,
+    bassSustain: false,
     volumes: { piano: 0.75, bass: 2, drums: 2 },
     instrumentSounds: { piano: 'sampled', bass: 'synth', drums: 'standard', guitar: 'acoustic' },
   },
@@ -295,7 +295,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.75, bass: 2, drums: 2, guitar: 0.7 },
-    instrumentSounds: { piano: 'sampled', bass: 'electric', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'sampled', bass: 'synth', drums: 'standard', guitar: 'electric' },
   },
 
   // ============================================
@@ -416,7 +416,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 2, drums: 2, guitar: 0.7 },
-    instrumentSounds: { piano: 'sampled', bass: 'electric', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'sampled', bass: 'synth', drums: 'standard', guitar: 'electric' },
   },
 
   // ============================================
@@ -497,7 +497,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.5, bass: 2, drums: 2, guitar: 0.85 },
-    instrumentSounds: { piano: 'synth', bass: 'electric', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'synth', bass: 'synth', drums: 'standard', guitar: 'electric' },
   },
 
   // ============================================
