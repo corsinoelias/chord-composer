@@ -20,6 +20,14 @@ export interface ArpeggioCell {
   speed: ArpeggioSpeed;
 }
 
+// Instrument sound configuration for a style
+export interface InstrumentSounds {
+  piano?: string;   // Sound type ID (e.g., 'sampled', 'acoustic', 'bright')
+  bass?: string;    // Sound type ID (e.g., 'electric', 'synth', 'picked')
+  drums?: string;   // Sound type ID (e.g., 'standard', 'rock', 'electronic')
+  guitar?: string;  // Sound type ID (e.g., 'acoustic', 'electric', 'nylon')
+}
+
 export interface StylePattern {
   id: string;
   name: string;
@@ -78,6 +86,8 @@ export interface StylePattern {
     drums: number;
     guitar?: number;
   };
+  // Instrument sound types for this style
+  instrumentSounds?: InstrumentSounds;
   // Bass sustain: if true, bass notes sustain until next note
   bassSustain?: boolean;
 }

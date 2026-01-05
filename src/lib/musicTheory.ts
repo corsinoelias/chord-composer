@@ -13,13 +13,26 @@ export type RootNote = typeof ROOT_NOTES[number];
 export const ACCIDENTALS = ['', '#', 'b'] as const;
 export type Accidental = typeof ACCIDENTALS[number];
 
-// Extended chord qualities
+// Extended chord qualities - complete set
 export const CHORD_QUALITIES = [
+  // Triads
   'maj', 'min', 'dim', 'aug',
-  '7', 'maj7', 'min7', 'dim7',
-  'sus2', 'sus4', 'add9',
-  '9', 'maj9', 'min9',
-  '6', 'min6', 'm7b5'
+  // Suspended
+  'sus2', 'sus4',
+  // Sixth
+  '6', 'min6',
+  // Seventh
+  '7', 'maj7', 'min7', 'dim7', 'aug7', 'minMaj7', 'm7b5',
+  // Ninth
+  'add9', '9', 'maj9', 'min9', '7b9', '7#9',
+  // Eleventh
+  '11', 'maj11', 'min11', 'add11',
+  // Thirteenth
+  '13', 'maj13', 'min13',
+  // Altered/Extended
+  '7#5', '7b5', '9#5', '9b5',
+  // Power chord
+  '5',
 ] as const;
 export type ChordQuality = typeof CHORD_QUALITIES[number];
 
@@ -45,23 +58,48 @@ const NOTE_TO_MIDI: Record<RootNote, number> = {
 
 // Intervals (in semitones) for each chord quality
 const QUALITY_INTERVALS: Record<ChordQuality, number[]> = {
+  // Triads
   'maj': [0, 4, 7],
   'min': [0, 3, 7],
   'dim': [0, 3, 6],
   'aug': [0, 4, 8],
+  // Suspended
+  'sus2': [0, 2, 7],
+  'sus4': [0, 5, 7],
+  // Sixth
+  '6': [0, 4, 7, 9],
+  'min6': [0, 3, 7, 9],
+  // Seventh
   '7': [0, 4, 7, 10],
   'maj7': [0, 4, 7, 11],
   'min7': [0, 3, 7, 10],
   'dim7': [0, 3, 6, 9],
-  'sus2': [0, 2, 7],
-  'sus4': [0, 5, 7],
+  'aug7': [0, 4, 8, 10],
+  'minMaj7': [0, 3, 7, 11],
+  'm7b5': [0, 3, 6, 10],
+  // Ninth
   'add9': [0, 4, 7, 14],
   '9': [0, 4, 7, 10, 14],
   'maj9': [0, 4, 7, 11, 14],
   'min9': [0, 3, 7, 10, 14],
-  '6': [0, 4, 7, 9],
-  'min6': [0, 3, 7, 9],
-  'm7b5': [0, 3, 6, 10],
+  '7b9': [0, 4, 7, 10, 13],
+  '7#9': [0, 4, 7, 10, 15],
+  // Eleventh
+  '11': [0, 4, 7, 10, 14, 17],
+  'maj11': [0, 4, 7, 11, 14, 17],
+  'min11': [0, 3, 7, 10, 14, 17],
+  'add11': [0, 4, 7, 17],
+  // Thirteenth
+  '13': [0, 4, 7, 10, 14, 21],
+  'maj13': [0, 4, 7, 11, 14, 21],
+  'min13': [0, 3, 7, 10, 14, 21],
+  // Altered
+  '7#5': [0, 4, 8, 10],
+  '7b5': [0, 4, 6, 10],
+  '9#5': [0, 4, 8, 10, 14],
+  '9b5': [0, 4, 6, 10, 14],
+  // Power chord
+  '5': [0, 7],
 };
 
 /**
@@ -133,21 +171,46 @@ export function createChord(
  * Quality display labels
  */
 export const QUALITY_LABELS: Record<ChordQuality, string> = {
+  // Triads
   'maj': 'Major',
   'min': 'Minor',
   'dim': 'Dim',
   'aug': 'Aug',
+  // Suspended
+  'sus2': 'Sus2',
+  'sus4': 'Sus4',
+  // Sixth
+  '6': '6th',
+  'min6': 'Min6',
+  // Seventh
   '7': 'Dom7',
   'maj7': 'Maj7',
   'min7': 'Min7',
   'dim7': 'Dim7',
-  'sus2': 'Sus2',
-  'sus4': 'Sus4',
+  'aug7': 'Aug7',
+  'minMaj7': 'minMaj7',
+  'm7b5': 'm7♭5',
+  // Ninth
   'add9': 'Add9',
   '9': '9th',
   'maj9': 'Maj9',
   'min9': 'Min9',
-  '6': '6th',
-  'min6': 'Min6',
-  'm7b5': 'm7♭5',
+  '7b9': '7♭9',
+  '7#9': '7♯9',
+  // Eleventh
+  '11': '11th',
+  'maj11': 'Maj11',
+  'min11': 'Min11',
+  'add11': 'Add11',
+  // Thirteenth
+  '13': '13th',
+  'maj13': 'Maj13',
+  'min13': 'Min13',
+  // Altered
+  '7#5': '7♯5',
+  '7b5': '7♭5',
+  '9#5': '9♯5',
+  '9b5': '9♭5',
+  // Power chord
+  '5': 'Power5',
 };

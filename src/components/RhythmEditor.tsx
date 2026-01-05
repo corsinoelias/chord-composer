@@ -25,9 +25,9 @@ import {
   ChevronDown,
   RotateCw
 } from 'lucide-react';
-import { StylePattern, MUSICAL_STYLES, ArpeggioCell, ArpeggioType, ArpeggioSpeed } from '@/lib/styles';
+import { StylePattern, MUSICAL_STYLES, ArpeggioCell, ArpeggioType, ArpeggioSpeed, InstrumentSounds } from '@/lib/styles';
 import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
-import { getDefaultInstrumentStates } from '@/lib/instruments';
+import { getDefaultInstrumentStates, INSTRUMENTS, InstrumentType } from '@/lib/instruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
 import { useStylePreview } from '@/hooks/useStylePreview';
 import { usePlayback } from '@/contexts/PlaybackContext';
@@ -1037,6 +1037,42 @@ export function RhythmEditor({
                   className="w-12 sm:w-16"
                   max={100}
                 />
+              </div>
+              
+              {/* Instrument Sound Selectors */}
+              <Separator orientation="vertical" className="h-4 mx-2 hidden sm:block" />
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                {(['piano', 'bass', 'drums', 'guitar'] as InstrumentType[]).map(instType => {
+                  const config = INSTRUMENTS.find(i => i.id === instType);
+                  if (!config) return null;
+                  const currentSoundId = editedStyle.instrumentSounds?.[instType] || config.defaultSoundType;
+                  return (
+                    <div key={instType} className="flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground capitalize">{instType[0].toUpperCase()}:</span>
+                      <Select
+                        value={currentSoundId}
+                        onValueChange={(soundId) => setEditedStyle(prev => ({
+                          ...prev,
+                          instrumentSounds: {
+                            ...prev.instrumentSounds,
+                            [instType]: soundId,
+                          }
+                        }))}
+                      >
+                        <SelectTrigger className="h-6 w-20 sm:w-24 text-[10px] sm:text-xs px-1.5">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {config.soundTypes.map(sound => (
+                            <SelectItem key={sound.id} value={sound.id} className="text-xs">
+                              {sound.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

@@ -1164,16 +1164,23 @@ export function scheduleProgression(
     const transposition = getCurrentTransposition();
     const metronomeOn = isMetronomeEnabled();
     
-    // Get sound types dynamically for current instrument settings
+    // Get sound types - prefer style's instrumentSounds, fallback to global instrument settings
     const pianoState = instruments.find(i => i.id === 'piano');
     const bassState = instruments.find(i => i.id === 'bass');
     const drumsState = instruments.find(i => i.id === 'drums');
     const guitarState = instruments.find(i => i.id === 'guitar');
     
-    const pianoSound = pianoState ? getSoundType('piano', pianoState.soundTypeId) : null;
-    const bassSound = bassState ? getSoundType('bass', bassState.soundTypeId) : null;
-    const drumsSound = drumsState ? getSoundType('drums', drumsState.soundTypeId) : null;
-    const guitarSound = guitarState ? getSoundType('guitar', guitarState.soundTypeId) : null;
+    // If style has instrumentSounds, use those; otherwise use the instrument panel settings
+    const styleSounds = currentStyle.instrumentSounds || {};
+    const pianoSoundId = styleSounds.piano || (pianoState?.soundTypeId ?? 'sampled');
+    const bassSoundId = styleSounds.bass || (bassState?.soundTypeId ?? 'synth');
+    const drumsSoundId = styleSounds.drums || (drumsState?.soundTypeId ?? 'standard');
+    const guitarSoundId = styleSounds.guitar || (guitarState?.soundTypeId ?? 'electric');
+    
+    const pianoSound = getSoundType('piano', pianoSoundId);
+    const bassSound = getSoundType('bass', bassSoundId);
+    const drumsSound = getSoundType('drums', drumsSoundId);
+    const guitarSound = getSoundType('guitar', guitarSoundId);
     
     const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
     
