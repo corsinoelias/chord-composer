@@ -22,7 +22,7 @@ import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
 import { getDefaultInstrumentStates, InstrumentState } from '@/lib/instruments';
 import { getStyleById, getStyleByIdWithOverrides, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
 import { getCustomStyles, getStyleOverride } from '@/lib/customStyles';
-import { renderProgressionOffline, playChordPreview } from '@/lib/audioEngine';
+import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAudio } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { SectionCard } from '@/components/SectionCard';
@@ -165,6 +165,16 @@ const Index = () => {
       : currentSections.some(s => (s?.chords?.length ?? 0) > 0);
 
     if (!hasChords) return;
+
+    // If samples not loaded, show loading toast and wait
+    if (!areSamplesLoaded()) {
+      toast.info('Loading audio samples...');
+      try {
+        await preloadAudio();
+      } catch (err) {
+        console.warn('Preload warning:', err);
+      }
+    }
 
     // IMPORTANT: always pass the full sections array; PlaybackContext will apply loopingSectionIndex.
     await play(currentSections, {

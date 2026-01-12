@@ -14,6 +14,8 @@ let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let currentlyPlaying = false;
 let playbackStoppedCallback: (() => void) | null = null;
+let playbackMutex = false; // Prevent multiple simultaneous playback instances
+let sampleLoadingComplete = false; // Track if initial load completed
 
 /**
  * Register a callback to be notified when playback stops
@@ -87,6 +89,32 @@ let guitarSamples: GuitarSamples = {
 let guitarSamplesLoaded = false;
 
 let sampleLoadPromise: Promise<void> | null = null;
+
+/**
+ * Check if samples are fully loaded
+ */
+export function areSamplesLoaded(): boolean {
+  return sampleLoadingComplete;
+}
+
+/**
+ * Acquire playback mutex - returns true if acquired, false if already playing
+ */
+export function acquirePlaybackMutex(): boolean {
+  if (playbackMutex) {
+    console.warn('Playback already in progress, ignoring new play request');
+    return false;
+  }
+  playbackMutex = true;
+  return true;
+}
+
+/**
+ * Release playback mutex
+ */
+export function releasePlaybackMutex(): void {
+  playbackMutex = false;
+}
 
 /**
  * Loads all acoustic kit samples
@@ -215,11 +243,19 @@ export function getAudioContext(): AudioContext {
       loadAcousticSamples(audioContext),
       loadPianoSamples(audioContext),
       loadGuitarSamples(audioContext)
-    ]).then(() => {});
+    ]).then(() => {
+      sampleLoadingComplete = true;
+      console.log('All samples loaded and ready');
+    }).catch(err => {
+      console.error('Sample loading failed:', err);
+      // Mark as complete even on error to prevent infinite waiting
+      sampleLoadingComplete = true;
+    });
   }
   
+  // Always try to resume if suspended (mobile browsers suspend by default)
   if (audioContext.state === 'suspended') {
-    audioContext.resume();
+    audioContext.resume().catch(console.warn);
   }
   
   return audioContext;
@@ -231,9 +267,19 @@ export function getAudioContext(): AudioContext {
  */
 export async function preloadAudio(): Promise<void> {
   const ctx = getAudioContext();
+  
+  // Wait for samples with timeout to prevent infinite waiting
   if (sampleLoadPromise) {
-    await sampleLoadPromise;
+    try {
+      await Promise.race([
+        sampleLoadPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Sample load timeout')), 15000))
+      ]);
+    } catch (err) {
+      console.warn('Sample preload warning:', err);
+    }
   }
+  
   // Ensure context is running
   if (ctx.state === 'suspended') {
     await ctx.resume();
@@ -241,12 +287,25 @@ export async function preloadAudio(): Promise<void> {
 }
 
 /**
- * Ensures samples are loaded before playback
+ * Ensures samples are loaded before playback with timeout
  */
 export async function ensureSamplesLoaded(): Promise<void> {
-  getAudioContext();
-  if (sampleLoadPromise) {
-    await sampleLoadPromise;
+  const ctx = getAudioContext();
+  
+  // Resume if suspended (critical for mobile)
+  if (ctx.state === 'suspended') {
+    await ctx.resume();
+  }
+  
+  if (sampleLoadPromise && !sampleLoadingComplete) {
+    try {
+      await Promise.race([
+        sampleLoadPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+      ]);
+    } catch (err) {
+      console.warn('Sample loading timeout, proceeding with synthesis fallback');
+    }
   }
 }
 
@@ -1891,12 +1950,25 @@ export async function renderProgressionOffline(
  * Stops all audio playback
  */
 export function stopPlayback(): void {
+  // Release mutex first
+  releasePlaybackMutex();
+  
   if (audioContext) {
-    audioContext.close();
-    audioContext = null;
-    masterGain = null;
+    // Don't close context - just disconnect and stop. Closing causes issues on reload.
+    try {
+      audioContext.suspend();
+    } catch (e) {
+      // Ignore suspension errors
+    }
   }
+  
   currentlyPlaying = false;
+  
+  // Clear Media Session
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.playbackState = 'none';
+  }
+  
   // Notify the UI that playback has stopped
   if (playbackStoppedCallback) {
     playbackStoppedCallback();
