@@ -1,6 +1,7 @@
 /**
  * Centralized Playback State Context
  * Single source of truth for all playback-related state
+ * Includes Media Session API for background playback on mobile
  */
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
@@ -8,7 +9,15 @@ import { Section } from '@/lib/sections';
 import { InstrumentState, getDefaultInstrumentStates } from '@/lib/instruments';
 import { StylePattern, MUSICAL_STYLES, getStyleByIdWithOverrides } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
-import { ensureSamplesLoaded, scheduleProgression, stopPlayback as stopAudioPlayback, preloadAudio } from '@/lib/audioEngine';
+import { 
+  ensureSamplesLoaded, 
+  scheduleProgression, 
+  stopPlayback as stopAudioPlayback, 
+  preloadAudio,
+  acquirePlaybackMutex,
+  releasePlaybackMutex,
+  areSamplesLoaded
+} from '@/lib/audioEngine';
 
 interface PlaybackState {
   isPlaying: boolean;
@@ -91,6 +100,33 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Handle visibility change to keep audio playing in background
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && state.isPlaying) {
+        // Page is hidden (screen off or tab hidden) - try to keep audio alive
+        // The Web Audio API should continue but we need to ensure AudioContext is running
+        import('@/lib/audioEngine').then(({ getAudioContext }) => {
+          const ctx = getAudioContext();
+          if (ctx.state === 'suspended') {
+            ctx.resume().catch(console.warn);
+          }
+        });
+      } else if (!document.hidden && state.isPlaying) {
+        // Page is visible again - ensure audio context is running
+        import('@/lib/audioEngine').then(({ getAudioContext }) => {
+          const ctx = getAudioContext();
+          if (ctx.state === 'suspended') {
+            ctx.resume().catch(console.warn);
+          }
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [state.isPlaying]);
+
   const stop = useCallback(() => {
     if (cancelRef.current) {
       cancelRef.current();
@@ -105,9 +141,53 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  // Setup Media Session for background playback on mobile
+  const setupMediaSession = useCallback((songTitle: string = 'Chord Progression') => {
+    if (!('mediaSession' in navigator)) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: songTitle,
+      artist: 'Chord Player',
+      album: 'Practice Session',
+    });
+
+    navigator.mediaSession.playbackState = 'playing';
+
+    navigator.mediaSession.setActionHandler('play', () => {
+      // Resume is handled by AudioContext resume
+      const ctx = new AudioContext();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+    });
+
+    navigator.mediaSession.setActionHandler('pause', () => {
+      stop();
+    });
+
+    navigator.mediaSession.setActionHandler('stop', () => {
+      stop();
+    });
+  }, [stop]);
+
   const play = useCallback(async (sections: Section[], options: PlayOptions) => {
+    // Acquire mutex to prevent multiple instances
+    if (!acquirePlaybackMutex()) {
+      console.log('Playback already in progress, stopping first...');
+      stop();
+      // Small delay to allow cleanup
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (!acquirePlaybackMutex()) {
+        console.error('Could not acquire playback mutex');
+        return;
+      }
+    }
+
     // Stop any existing playback first
-    stop();
+    if (cancelRef.current) {
+      cancelRef.current();
+      cancelRef.current = null;
+    }
     
     sectionsRef.current = sections;
     optionsRef.current = options;
@@ -117,9 +197,16 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     const sectionsToPlay = loopSection ? [loopSection] : sections;
 
     const hasChords = sectionsToPlay.some(s => (s?.chords?.length ?? 0) > 0);
-    if (!hasChords) return;
+    if (!hasChords) {
+      releasePlaybackMutex();
+      return;
+    }
 
-    await ensureSamplesLoaded();
+    try {
+      await ensureSamplesLoaded();
+    } catch (err) {
+      console.warn('Sample loading issue, proceeding anyway:', err);
+    }
 
     setState(prev => ({
       ...prev,
@@ -128,6 +215,9 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       bpm: options.bpm,
       metronomeEnabled: options.metronome,
     }));
+
+    // Setup Media Session for background playback
+    setupMediaSession('Chord Progression');
 
     const getStyle = () => {
       const opts = optionsRef.current;
@@ -155,7 +245,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     });
 
     cancelRef.current = cancel;
-  }, [stop]);
+  }, [stop, setupMediaSession]);
 
   const setBpm = useCallback((bpm: number) => {
     setState(prev => ({ ...prev, bpm }));
