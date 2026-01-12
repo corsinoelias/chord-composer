@@ -237,27 +237,33 @@ export function getAudioContext(): AudioContext {
     masterGain = audioContext.createGain();
     masterGain.gain.value = 1.0;
     masterGain.connect(audioContext.destination);
-    
-    // Start loading samples (drums, piano, and guitar)
-    sampleLoadPromise = Promise.all([
-      loadAcousticSamples(audioContext),
-      loadPianoSamples(audioContext),
-      loadGuitarSamples(audioContext)
-    ]).then(() => {
-      sampleLoadingComplete = true;
-      console.log('All samples loaded and ready');
-    }).catch(err => {
-      console.error('Sample loading failed:', err);
-      // Mark as complete even on error to prevent infinite waiting
-      sampleLoadingComplete = true;
-    });
+
+    // Only load samples once per app lifecycle; buffers can be reused across contexts.
+    if (!sampleLoadingComplete) {
+      sampleLoadPromise = Promise.all([
+        loadAcousticSamples(audioContext),
+        loadPianoSamples(audioContext),
+        loadGuitarSamples(audioContext),
+      ])
+        .then(() => {
+          sampleLoadingComplete = true;
+          console.log('All samples loaded and ready');
+        })
+        .catch((err) => {
+          console.error('Sample loading failed:', err);
+          // Mark as complete even on error to prevent infinite waiting
+          sampleLoadingComplete = true;
+        });
+    } else {
+      sampleLoadPromise = Promise.resolve();
+    }
   }
-  
+
   // Always try to resume if suspended (mobile browsers suspend by default)
   if (audioContext.state === 'suspended') {
     audioContext.resume().catch(console.warn);
   }
-  
+
   return audioContext;
 }
 
@@ -1952,23 +1958,26 @@ export async function renderProgressionOffline(
 export function stopPlayback(): void {
   // Release mutex first
   releasePlaybackMutex();
-  
+
+  // Closing the context is the most reliable way to prevent previously-scheduled
+  // WebAudio events from "coming back" and overlapping on the next Play.
   if (audioContext) {
-    // Don't close context - just disconnect and stop. Closing causes issues on reload.
     try {
-      audioContext.suspend();
+      audioContext.close().catch(() => {});
     } catch (e) {
-      // Ignore suspension errors
+      // Ignore close errors
     }
+    audioContext = null;
+    masterGain = null;
   }
-  
+
   currentlyPlaying = false;
-  
+
   // Clear Media Session
   if ('mediaSession' in navigator) {
     navigator.mediaSession.playbackState = 'none';
   }
-  
+
   // Notify the UI that playback has stopped
   if (playbackStoppedCallback) {
     playbackStoppedCallback();

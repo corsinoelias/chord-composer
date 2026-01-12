@@ -9,14 +9,14 @@ import { Section } from '@/lib/sections';
 import { InstrumentState, getDefaultInstrumentStates } from '@/lib/instruments';
 import { StylePattern, MUSICAL_STYLES, getStyleByIdWithOverrides } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
-import { 
-  ensureSamplesLoaded, 
-  scheduleProgression, 
-  stopPlayback as stopAudioPlayback, 
+import {
+  ensureSamplesLoaded,
+  scheduleProgression,
+  stopPlayback as stopAudioPlayback,
   preloadAudio,
   acquirePlaybackMutex,
   releasePlaybackMutex,
-  areSamplesLoaded
+  getAudioContext,
 } from '@/lib/audioEngine';
 
 interface PlaybackState {
@@ -103,23 +103,13 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   // Handle visibility change to keep audio playing in background
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && state.isPlaying) {
-        // Page is hidden (screen off or tab hidden) - try to keep audio alive
-        // The Web Audio API should continue but we need to ensure AudioContext is running
-        import('@/lib/audioEngine').then(({ getAudioContext }) => {
-          const ctx = getAudioContext();
-          if (ctx.state === 'suspended') {
-            ctx.resume().catch(console.warn);
-          }
-        });
-      } else if (!document.hidden && state.isPlaying) {
-        // Page is visible again - ensure audio context is running
-        import('@/lib/audioEngine').then(({ getAudioContext }) => {
-          const ctx = getAudioContext();
-          if (ctx.state === 'suspended') {
-            ctx.resume().catch(console.warn);
-          }
-        });
+      if (!state.isPlaying) return;
+
+      // When the page becomes hidden/visible, some mobile browsers suspend WebAudio.
+      // Try to keep the existing AudioContext running.
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(console.warn);
       }
     };
 
@@ -153,11 +143,14 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
 
     navigator.mediaSession.playbackState = 'playing';
 
-    navigator.mediaSession.setActionHandler('play', () => {
-      // Resume is handled by AudioContext resume
-      const ctx = new AudioContext();
-      if (ctx.state === 'suspended') {
-        ctx.resume();
+    navigator.mediaSession.setActionHandler('play', async () => {
+      try {
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
+        }
+      } catch (e) {
+        console.warn('MediaSession play handler failed:', e);
       }
     });
 
