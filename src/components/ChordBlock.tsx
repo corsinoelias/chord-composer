@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Chord, formatChord } from '@/lib/musicTheory';
 import { X, GripVertical, Copy } from 'lucide-react';
 
@@ -15,8 +16,9 @@ interface ChordBlockProps {
  * 
  * Displays a single chord in the timeline.
  * Can use fixed width or proportional width based on duration.
+ * Memoized to prevent unnecessary re-renders.
  */
-export function ChordBlock({ chord, isPlaying, onDelete, onDuplicate, isDragging, fixedWidth = false }: ChordBlockProps) {
+export const ChordBlock = memo(function ChordBlock({ chord, isPlaying, onDelete, onDuplicate, isDragging, fixedWidth = false }: ChordBlockProps) {
   return (
     <div
       className={`
@@ -103,4 +105,4 @@ export function ChordBlock({ chord, isPlaying, onDelete, onDuplicate, isDragging
       )}
     </div>
   );
-}
+});

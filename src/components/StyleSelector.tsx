@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, memo, useMemo, useCallback } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { MUSICAL_STYLES, StylePattern } from '@/lib/styles';
@@ -6,6 +6,7 @@ import { getCustomStyles, deleteCustomStyle, getStyleOverride } from '@/lib/cust
 import { Music, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 interface StyleSelectorProps {
   selectedStyleId: string;
   onStyleChange: (styleId: string) => void;
@@ -64,7 +65,8 @@ const STYLE_CATEGORIES = [{
   id: 'Metal',
   label: 'Metal'
 }] as const;
-export function StyleSelector({
+
+export const StyleSelector = memo(function StyleSelector({
   selectedStyleId,
   onStyleChange,
   onCreateNew,
@@ -74,20 +76,25 @@ export function StyleSelector({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [styleToDelete, setStyleToDelete] = useState<string | null>(null);
 
-  // Combine built-in and custom styles, applying overrides to get correct names
-  const builtInWithOverrides = MUSICAL_STYLES.map(s => {
-    const override = getStyleOverride(s.id);
-    return override || s;
-  });
-  const allStyles = [...builtInWithOverrides, ...customStyles];
-  const selectedStyle = allStyles.find(s => s.id === selectedStyleId);
-  const handleDeleteClick = (e: React.MouseEvent, styleId: string) => {
+  // Memoize built-in styles with overrides to prevent recalculation
+  const builtInWithOverrides = useMemo(() => {
+    return MUSICAL_STYLES.map(s => {
+      const override = getStyleOverride(s.id);
+      return override || s;
+    });
+  }, []);
+
+  const allStyles = useMemo(() => [...builtInWithOverrides, ...customStyles], [builtInWithOverrides, customStyles]);
+  const selectedStyle = useMemo(() => allStyles.find(s => s.id === selectedStyleId), [allStyles, selectedStyleId]);
+
+  const handleDeleteClick = useCallback((e: React.MouseEvent, styleId: string) => {
     e.stopPropagation();
     e.preventDefault();
     setStyleToDelete(styleId);
     setDeleteDialogOpen(true);
-  };
-  const confirmDelete = () => {
+  }, []);
+
+  const confirmDelete = useCallback(() => {
     if (styleToDelete) {
       deleteCustomStyle(styleToDelete);
       toast.success('Rhythm deleted');
@@ -100,7 +107,7 @@ export function StyleSelector({
     }
     setDeleteDialogOpen(false);
     setStyleToDelete(null);
-  };
+  }, [styleToDelete, selectedStyleId, onStyleChange]);
   return <>
       <div className="flex items-center gap-2">
         <Music className="w-4 h-4 text-muted-foreground" />
@@ -158,4 +165,4 @@ export function StyleSelector({
         </AlertDialogContent>
       </AlertDialog>
     </>;
-}
+});

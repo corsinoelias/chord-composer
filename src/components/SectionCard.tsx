@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo, useCallback, useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -30,7 +30,7 @@ interface SectionCardProps {
   onMoveDown: () => void;
 }
 
-export function SectionCard({
+export const SectionCard = memo(function SectionCard({
   section,
   sectionIndex,
   currentChordIndex,
@@ -271,4 +271,4 @@ export function SectionCard({
       </div>
     </div>
   );
-}
+});
