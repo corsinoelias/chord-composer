@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Play, Square, RotateCcw, Download, Loader2, Volume2, VolumeX, Settings2, Grid3X3, Plus } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -36,8 +37,9 @@ interface TransportControlsProps {
  * 
  * Provides playback controls (Play, Stop, Reset), tempo adjustment,
  * metronome toggle, and export functionality.
+ * Memoized to prevent unnecessary re-renders.
  */
-export function TransportControls({
+export const TransportControls = memo(function TransportControls({
   isPlaying,
   isExporting,
   bpm,
@@ -226,4 +228,4 @@ export function TransportControls({
       </div>
     </div>
   );
-}
+});

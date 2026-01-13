@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -20,11 +20,12 @@ import {
 import { Chord, generateChordId } from '@/lib/musicTheory';
 import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
 import { getDefaultInstrumentStates, InstrumentState } from '@/lib/instruments';
-import { getStyleById, getStyleByIdWithOverrides, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
+import { getStyleByIdWithOverrides, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
 import { getCustomStyles, getStyleOverride } from '@/lib/customStyles';
 import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAudio } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { usePlayback } from '@/contexts/PlaybackContext';
+import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
@@ -102,6 +103,20 @@ const Index = () => {
   useEffect(() => { transpositionRef.current = transposition; }, [transposition]);
   useEffect(() => { liveEditedStyleRef.current = liveEditedStyle; }, [liveEditedStyle]);
   useEffect(() => { customStylesRef.current = customStyles; }, [customStyles]);
+
+  // Memoize current style to avoid recalculating on every render
+  const currentStyle = useMemo(() => {
+    if (liveEditedStyle) return liveEditedStyle;
+    return getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0];
+  }, [selectedStyleId, customStyles, liveEditedStyle]);
+
+  // Sync instruments with current style when style changes
+  useStyleInstruments({
+    style: currentStyle,
+    instruments,
+    onInstrumentsChange: setInstruments,
+    enabled: true,
+  });
 
   // Sensors for section drag & drop
   const sensors = useSensors(
@@ -640,6 +655,7 @@ const Index = () => {
         onClose={() => setInstrumentsPanelOpen(false)}
         instruments={instruments}
         onInstrumentChange={setInstruments}
+        currentStyle={currentStyle}
       />
 
       <RhythmEditor
@@ -649,7 +665,7 @@ const Index = () => {
           setEditingNewStyle(null);
           setLiveEditedStyle(null);
         }}
-        style={editingNewStyle || getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0]}
+        style={editingNewStyle || currentStyle}
         allStyles={[...customStyles, ...MUSICAL_STYLES]}
         isNewStyle={!!editingNewStyle}
         onStyleChange={setLiveEditedStyle}
