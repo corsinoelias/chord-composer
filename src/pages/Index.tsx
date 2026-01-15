@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   DndContext,
   closestCenter,
@@ -26,6 +27,8 @@ import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAu
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
+import { Song, createSong } from '@/lib/songs';
+import { getSongById, saveSong } from '@/lib/songStorage';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
@@ -35,27 +38,39 @@ import { CreateRhythmModal } from '@/components/CreateRhythmModal';
 import { InstrumentsPanel } from '@/components/InstrumentsPanel';
 import { ChordBlock } from '@/components/ChordBlock';
 import { Button } from '@/components/ui/button';
-import { Music2, Plus } from 'lucide-react';
+import { Music2, Plus, ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Index = () => {
+  const { songId } = useParams<{ songId?: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { state: playbackState, play, stop: stopPlayback, updatePlaybackOptions } = usePlayback();
   const { isPlaying, currentChordIndex, currentStep: currentPlayheadStep } = playbackState;
 
-  // Sections state - default chords: G, D, Em, C (all 4 beats)
+  // Song loading state
+  const [currentSongId, setCurrentSongId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Default chords for new songs
+  const defaultChords: Chord[] = [
+    { id: generateChordId(), root: 'E', accidental: '', quality: 'min', duration: 4 },
+    { id: generateChordId(), root: 'D', accidental: '', quality: 'maj', duration: 4 },
+    { id: generateChordId(), root: 'B', accidental: '', quality: 'min', duration: 4 },
+    { id: generateChordId(), root: 'C', accidental: '', quality: 'maj', duration: 4 },
+  ];
+
+  // Sections state
   const [sections, setSections] = useState<Section[]>([{
     ...createSection('Section A'),
-    chords: [
-      { id: generateChordId(), root: 'E', accidental: '', quality: 'min', duration: 4 },
-      { id: generateChordId(), root: 'D', accidental: '', quality: 'maj', duration: 4 },
-      { id: generateChordId(), root: 'B', accidental: '', quality: 'min', duration: 4 },
-      { id: generateChordId(), root: 'C', accidental: '', quality: 'maj', duration: 4 },
-    ]
+    chords: defaultChords
   }]);
   const [bpm, setBpm] = useState(100);
   const [customStyles, setCustomStyles] = useState<StylePattern[]>(getCustomStyles());
   
-  // Determine initial style (prefer pop_1 if exists, fallback to rock_basic)
+  // Determine initial style (prefer merengue if exists, fallback to rock_basic)
   const getInitialStyleId = () => {
     const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
     return allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic';
@@ -155,7 +170,108 @@ const Index = () => {
     }
   }, [liveEditedStyle, isPlaying, updatePlaybackOptions]);
 
-  // Listen for custom styles changes
+  // Load song from URL param
+  useEffect(() => {
+    if (songId && songId !== currentSongId) {
+      const song = getSongById(songId);
+      if (song) {
+        setSections(song.sections.length > 0 ? song.sections : [{
+          ...createSection('Section A'),
+          chords: defaultChords
+        }]);
+        setBpm(song.bpm);
+        setSelectedStyleId(song.styleId);
+        setTransposition(song.transposition);
+        setMetronomeEnabled(song.metronomeEnabled);
+        setSongTitle(song.title);
+        if (song.instrumentSettings.length > 0) {
+          setInstruments(song.instrumentSettings);
+        }
+        setCurrentSongId(song.id);
+        setLastSavedAt(new Date(song.updatedAt));
+      } else {
+        toast.error('Song not found');
+        navigate('/');
+      }
+    } else if (!songId && !currentSongId) {
+      // New song - create and save immediately
+      const newSong = createSong('My Song');
+      newSong.sections = sections;
+      newSong.bpm = bpm;
+      newSong.styleId = selectedStyleId;
+      newSong.transposition = transposition;
+      newSong.metronomeEnabled = metronomeEnabled;
+      newSong.instrumentSettings = instruments;
+      saveSong(newSong);
+      setCurrentSongId(newSong.id);
+      setLastSavedAt(new Date());
+      // Update URL without adding to history
+      navigate(`/editor/${newSong.id}`, { replace: true });
+    }
+  }, [songId]);
+
+  // Auto-save with debounce
+  useEffect(() => {
+    if (!currentSongId) return;
+
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    setIsSaving(true);
+
+    // Debounce save by 1.5 seconds
+    saveTimeoutRef.current = setTimeout(() => {
+      const song: Song = {
+        id: currentSongId,
+        title: songTitle,
+        createdAt: new Date().toISOString(), // Will be overwritten if exists
+        updatedAt: new Date().toISOString(),
+        sections,
+        bpm,
+        styleId: selectedStyleId,
+        transposition,
+        instrumentSettings: instruments,
+        metronomeEnabled,
+      };
+      
+      // Get existing song to preserve createdAt
+      const existing = getSongById(currentSongId);
+      if (existing) {
+        song.createdAt = existing.createdAt;
+      }
+      
+      saveSong(song);
+      setLastSavedAt(new Date());
+      setIsSaving(false);
+    }, 1500);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled]);
+
+  // Handle export from Songs page
+  useEffect(() => {
+    if (searchParams.get('export') === 'true' && currentSongId) {
+      // Remove export param from URL
+      navigate(`/editor/${currentSongId}`, { replace: true });
+      // Trigger export after a short delay to let everything load
+      setTimeout(() => {
+        handleExport();
+      }, 500);
+    }
+  }, [currentSongId, searchParams]);
+
+  const handleBackToSongs = useCallback(() => {
+    stopPlayback();
+    navigate('/');
+  }, [navigate, stopPlayback]);
+
+
   useEffect(() => {
     const handleCustomStylesChanged = () => {
       setCustomStyles(getCustomStyles());
@@ -525,13 +641,32 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Music2 className="w-5 h-5 text-primary-foreground" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="mr-1">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                <Music2 className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-foreground">Chord Player</h1>
+                <p className="text-sm text-muted-foreground">Create chord progressions & export</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-semibold text-foreground">Chord Player</h1>
-              <p className="text-sm text-muted-foreground">Create chord progressions & export</p>
+            
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {isSaving ? (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Saving...
+                </span>
+              ) : lastSavedAt ? (
+                <span className="flex items-center gap-1">
+                  <Check className="h-3 w-3" />
+                  Saved
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
