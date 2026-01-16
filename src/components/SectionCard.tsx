@@ -1,4 +1,4 @@
-import { useState, memo, useCallback, useMemo } from 'react';
+import { useState, memo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -7,7 +7,8 @@ import {
 import { Section } from '@/lib/sections';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Repeat } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Repeat, Pencil } from 'lucide-react';
 import { SortableChord } from './SortableChord';
 
 interface SectionCardProps {
@@ -30,6 +31,16 @@ interface SectionCardProps {
   onMoveDown: () => void;
 }
 
+// Section color palette based on index
+const SECTION_COLORS = [
+  '262 83%', // Purple (primary)
+  '172 66%', // Teal
+  '43 96%',  // Amber
+  '340 75%', // Pink
+  '220 70%', // Blue
+  '142 71%', // Green
+];
+
 export const SectionCard = memo(function SectionCard({
   section,
   sectionIndex,
@@ -51,6 +62,9 @@ export const SectionCard = memo(function SectionCard({
 }: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
+
+  // Get section accent color
+  const colorHsl = SECTION_COLORS[sectionIndex % SECTION_COLORS.length];
 
   // Droppable zone for the section (for cross-section chord drops)
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
@@ -106,169 +120,220 @@ export const SectionCard = memo(function SectionCard({
   };
 
   return (
-    <div 
-      className={`bg-card border-2 rounded-xl overflow-hidden transition-all duration-300 ${
-        isLooping ? 'border-primary' :
-        isOver ? 'border-primary/50 bg-primary/5' :
-        'border-border'
-      }`}
-    >
-      {/* Section Header */}
+    <TooltipProvider delayDuration={300}>
       <div 
-        className="flex items-center justify-between px-4 py-3 bg-secondary/30 border-b border-border select-none"
+        className={`bg-card rounded-2xl overflow-hidden transition-all duration-300 shadow-sm hover:shadow-md ${
+          isLooping ? 'ring-2 ring-offset-2 ring-offset-background' :
+          isOver ? 'ring-2 ring-offset-2 ring-offset-background ring-primary/50' :
+          ''
+        }`}
+        style={{
+          borderLeft: `4px solid hsl(${colorHsl} ${isLooping ? '55%' : '50%'})`,
+          ...(isLooping ? { '--tw-ring-color': `hsl(${colorHsl} 55%)` } as React.CSSProperties : {}),
+        }}
       >
-        <div className="flex items-center gap-2">
-          {/* Move Up/Down Buttons - only show when multiple sections */}
-          {showReorderButtons && (
-            <div className="flex flex-col -my-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-8 rounded-b-none"
-                onClick={handleMoveUp}
-                disabled={!canMoveUp}
-                title="Move section up"
-              >
-                <ChevronUp className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-8 rounded-t-none"
-                onClick={handleMoveDown}
-                disabled={!canMoveDown}
-                title="Move section down"
-              >
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-          
-          {isEditingName ? (
-            <Input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              onBlur={handleNameSubmit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleNameSubmit();
-                if (e.key === 'Escape') {
+        {/* Section Header */}
+        <div 
+          className="flex items-center justify-between px-4 py-3 border-b border-border/50 select-none"
+          style={{ 
+            background: `linear-gradient(90deg, hsl(${colorHsl} 50% / 0.08) 0%, transparent 100%)` 
+          }}
+        >
+          <div className="flex items-center gap-2">
+            {/* Move Up/Down Buttons - only show when multiple sections */}
+            {showReorderButtons && (
+              <div className="flex flex-col -my-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-7 rounded-b-none opacity-60 hover:opacity-100"
+                      onClick={handleMoveUp}
+                      disabled={!canMoveUp}
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Move section up</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-7 rounded-t-none opacity-60 hover:opacity-100"
+                      onClick={handleMoveDown}
+                      disabled={!canMoveDown}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Move section down</TooltipContent>
+                </Tooltip>
+              </div>
+            )}
+            
+            {isEditingName ? (
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onBlur={handleNameSubmit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleNameSubmit();
+                  if (e.key === 'Escape') {
+                    setEditName(section.name);
+                    setIsEditingName(false);
+                  }
+                }}
+                className="h-7 w-32 text-sm font-medium"
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <button 
+                className="flex items-center gap-1.5 font-semibold text-foreground hover:text-primary transition-colors group"
+                onClick={() => {
                   setEditName(section.name);
-                  setIsEditingName(false);
-                }
-              }}
-              className="h-7 w-32 text-sm"
-              autoFocus
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <span 
-              className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
-              onClick={() => {
-                setEditName(section.name);
-                setIsEditingName(true);
-              }}
-            >
-              {section.name}
-            </span>
-          )}
-          
-          <span className="text-xs text-muted-foreground">
-            {section.chords.length} {section.chords.length === 1 ? 'chord' : 'chords'}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Loop toggle */}
-          <Button
-            variant={isLooping ? "default" : "ghost"}
-            size="icon"
-            className="h-8 w-8"
-            onClick={onToggleLoop}
-            title="Loop this section"
-          >
-            <Repeat className="h-4 w-4" />
-          </Button>
-
-          {/* Repeat Count Badge */}
-          <div className="relative">
-            <button
-              onClick={() => onRepeatChange(section.repeatCount === 1 ? 2 : section.repeatCount + 1)}
-              className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center text-sm font-medium text-foreground hover:bg-accent transition-colors"
-            >
-              x{section.repeatCount}
-            </button>
-            {section.repeatCount > 1 && (
-              <button
-                onClick={() => onRepeatChange(section.repeatCount - 1)}
-                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center hover:opacity-80"
+                  setIsEditingName(true);
+                }}
               >
-                -
+                <span>{section.name}</span>
+                <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
               </button>
             )}
+            
+            <span 
+              className="text-xs font-medium px-2 py-0.5 rounded-full"
+              style={{ 
+                backgroundColor: `hsl(${colorHsl} 50% / 0.15)`,
+                color: `hsl(${colorHsl} 45%)`
+              }}
+            >
+              {section.chords.length} {section.chords.length === 1 ? 'chord' : 'chords'}
+            </span>
           </div>
 
-          {/* Section Actions */}
-          <div className="flex items-center gap-1 ml-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onDuplicate}
-              title="Duplicate section"
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive"
-              onClick={onDelete}
-              title="Delete section"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center gap-1.5">
+            {/* Loop toggle */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={isLooping ? "default" : "ghost"}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={onToggleLoop}
+                  style={isLooping ? { backgroundColor: `hsl(${colorHsl} 50%)` } : {}}
+                >
+                  <Repeat className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{isLooping ? 'Stop looping this section' : 'Loop this section'}</TooltipContent>
+            </Tooltip>
+
+            {/* Repeat Count Badge */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="relative">
+                  <button
+                    onClick={() => onRepeatChange(section.repeatCount === 1 ? 2 : section.repeatCount + 1)}
+                    className="w-9 h-9 rounded-full bg-background border border-border flex items-center justify-center text-sm font-bold text-foreground hover:border-primary transition-colors"
+                  >
+                    ×{section.repeatCount}
+                  </button>
+                  {section.repeatCount > 1 && (
+                    <button
+                      onClick={() => onRepeatChange(section.repeatCount - 1)}
+                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center hover:scale-110 transition-transform"
+                    >
+                      -
+                    </button>
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>Repeat count (click to increase)</TooltipContent>
+            </Tooltip>
+
+            {/* Section Actions */}
+            <div className="flex items-center gap-0.5 ml-1 pl-1.5 border-l border-border/50">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-60 hover:opacity-100"
+                    onClick={onDuplicate}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Duplicate section</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-60 hover:opacity-100 text-destructive hover:text-destructive"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete section</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Chords */}
-      <div ref={setDroppableRef} className="p-4">
-        {section.chords.length === 0 ? (
-          <div className={`flex items-center justify-center h-20 text-muted-foreground text-sm border-2 border-dashed rounded-lg transition-colors ${
-            isOver ? 'border-primary bg-primary/10' : 'border-border'
-          }`}>
-            {isOver ? 'Drop chord here' : 'No chords yet. Click + to add.'}
-          </div>
-        ) : (
-          <SortableContext items={chordIds} strategy={rectSortingStrategy}>
-            <div className="flex flex-wrap gap-3 items-stretch">
-              {section.chords.map((chord, index) => (
-                <SortableChord
-                  key={chord.id}
-                  chord={chord}
-                  chordId={`chord-${sectionIndex}-${chord.id}`}
-                  index={index}
-                  isPlaying={localPlayingIndex === index}
-                  onClick={() => onChordClick(index)}
-                  onDelete={() => onChordDelete(index)}
-                  onDuplicate={() => onChordDuplicate(index)}
-                />
-              ))}
+        {/* Chords */}
+        <div ref={setDroppableRef} className="p-4">
+          {section.chords.length === 0 ? (
+            <div 
+              className={`flex flex-col items-center justify-center h-24 text-muted-foreground text-sm border-2 border-dashed rounded-xl transition-all ${
+                isOver ? 'border-primary bg-primary/5 scale-[1.01]' : 'border-border/70'
+              }`}
+            >
+              {isOver ? (
+                <span className="text-primary font-medium">Drop chord here</span>
+              ) : (
+                <>
+                  <span className="mb-1">No chords yet</span>
+                  <span className="text-xs opacity-70">Click the button below to add your first chord</span>
+                </>
+              )}
             </div>
-          </SortableContext>
-        )}
+          ) : (
+            <SortableContext items={chordIds} strategy={rectSortingStrategy}>
+              <div className="flex flex-wrap gap-3 items-stretch">
+                {section.chords.map((chord, index) => (
+                  <SortableChord
+                    key={chord.id}
+                    chord={chord}
+                    chordId={`chord-${sectionIndex}-${chord.id}`}
+                    index={index}
+                    isPlaying={localPlayingIndex === index}
+                    onClick={() => onChordClick(index)}
+                    onDelete={() => onChordDelete(index)}
+                    onDuplicate={() => onChordDuplicate(index)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          )}
 
-        {/* Add Chord Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onAddChord}
-          className="mt-3 border-dashed"
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Add Chord
-        </Button>
+          {/* Add Chord Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAddChord}
+            className="mt-4 border-dashed hover:border-solid hover:border-primary hover:bg-primary/5 transition-all"
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add Chord
+          </Button>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 });

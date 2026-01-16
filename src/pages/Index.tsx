@@ -37,11 +37,15 @@ import { RhythmEditor } from '@/components/RhythmEditor';
 import { CreateRhythmModal } from '@/components/CreateRhythmModal';
 import { InstrumentsPanel } from '@/components/InstrumentsPanel';
 import { ChordBlock } from '@/components/ChordBlock';
+import { ProgressBar } from '@/components/ProgressBar';
+import { WelcomeOverlay } from '@/components/WelcomeOverlay';
 import { Button } from '@/components/ui/button';
 import { Music2, Plus, ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 
 const Index = () => {
+  const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
   const { songId } = useParams<{ songId?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -672,7 +676,15 @@ const Index = () => {
         </div>
       </header>
       
-      <main className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <main className="container max-w-6xl mx-auto px-4 py-6 space-y-4">
+        {/* Progress bar when playing */}
+        <ProgressBar
+          sections={sections}
+          currentChordIndex={currentChordIndex}
+          isPlaying={isPlaying}
+          loopingSectionIndex={loopingSectionIndex}
+        />
+
         <TransportControls
           isPlaying={isPlaying}
           isExporting={isExporting}
@@ -767,6 +779,11 @@ const Index = () => {
           Add Section
         </Button>
       </main>
+
+      <ChordEditModal
+
+      {/* Welcome Overlay for first-time users */}
+      {showOnboarding && <WelcomeOverlay onDismiss={dismissOnboarding} />}
 
       <ChordEditModal
         chord={editingChord?.chord || null}
