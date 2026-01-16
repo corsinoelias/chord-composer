@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Song } from '@/lib/songs';
 import { getSongs, deleteSong, duplicateSong } from '@/lib/songStorage';
@@ -18,12 +18,21 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Music2, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 
 const Songs = () => {
   const navigate = useNavigate();
+  const { isFirstTime } = useFirstTimeUser();
   const [songs, setSongs] = useState<Song[]>(() => getSongs());
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<Song | null>(null);
+
+  // First-time users go directly to editor
+  useEffect(() => {
+    if (isFirstTime && songs.length === 0) {
+      navigate('/editor', { replace: true });
+    }
+  }, [isFirstTime, songs.length, navigate]);
 
   const refreshSongs = useCallback(() => {
     setSongs(getSongs());

@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Music, MoreVertical, Play, Copy, Trash2, Download } from 'lucide-react';
+import { Music, MoreVertical, Play, Copy, Trash2, Download, Clock, Music2 } from 'lucide-react';
 
 interface SongCardProps {
   song: Song;
@@ -18,6 +18,25 @@ interface SongCardProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
+}
+
+// Gradient colors for song cards based on song id hash
+const CARD_GRADIENTS = [
+  'from-violet-500/10 to-purple-500/5',
+  'from-cyan-500/10 to-teal-500/5',
+  'from-amber-500/10 to-orange-500/5',
+  'from-pink-500/10 to-rose-500/5',
+  'from-blue-500/10 to-indigo-500/5',
+  'from-emerald-500/10 to-green-500/5',
+];
+
+function getGradientIndex(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash) % CARD_GRADIENTS.length;
 }
 
 export const SongCard = memo(function SongCard({
@@ -30,14 +49,19 @@ export const SongCard = memo(function SongCard({
   const duration = getSongDuration(song);
   const chordsPreview = getChordsPreview(song);
   const totalChords = song.sections.reduce((sum, s) => sum + s.chords.length, 0);
+  const gradientClass = CARD_GRADIENTS[getGradientIndex(song.id)];
   
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     
-    if (diffDays === 0) return 'Today';
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
     
@@ -46,18 +70,24 @@ export const SongCard = memo(function SongCard({
 
   return (
     <Card 
-      className="group cursor-pointer hover:border-primary/50 transition-colors"
+      className="group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden border-border/50"
       onClick={onOpen}
     >
+      {/* Gradient header */}
+      <div className={`h-2 bg-gradient-to-r ${gradientClass}`} />
+      
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Music className="w-5 h-5 text-primary" />
+            <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradientClass} flex items-center justify-center flex-shrink-0 border border-border/30`}>
+              <Music2 className="w-5 h-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-medium text-foreground truncate">{song.title}</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                {song.title}
+              </h3>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
                 {formatDate(song.updatedAt)}
               </p>
             </div>
@@ -65,7 +95,11 @@ export const SongCard = memo(function SongCard({
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -83,7 +117,7 @@ export const SongCard = memo(function SongCard({
                 Export MP3
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onDelete} className="text-destructive">
+              <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
               </DropdownMenuItem>
@@ -91,8 +125,9 @@ export const SongCard = memo(function SongCard({
           </DropdownMenu>
         </div>
         
+        {/* Stats row */}
         <div className="mt-3 flex items-center gap-2 flex-wrap">
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-xs font-medium bg-primary/10 text-primary border-0">
             {song.bpm} BPM
           </Badge>
           <Badge variant="outline" className="text-xs">
@@ -101,11 +136,17 @@ export const SongCard = memo(function SongCard({
           <Badge variant="outline" className="text-xs">
             {formatDuration(duration)}
           </Badge>
+          <Badge variant="outline" className="text-xs">
+            {song.sections.length} {song.sections.length === 1 ? 'section' : 'sections'}
+          </Badge>
         </div>
         
-        <p className="mt-2 text-sm text-muted-foreground truncate">
-          {chordsPreview}
-        </p>
+        {/* Chord preview */}
+        <div className="mt-3 p-2 rounded-lg bg-secondary/30 border border-border/30">
+          <p className="text-sm text-muted-foreground font-mono truncate">
+            {chordsPreview}
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
