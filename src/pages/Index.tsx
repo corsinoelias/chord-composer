@@ -780,8 +780,6 @@ const Index = () => {
         </Button>
       </main>
 
-      <ChordEditModal
-
       {/* Welcome Overlay for first-time users */}
       {showOnboarding && <WelcomeOverlay onDismiss={dismissOnboarding} />}
 
