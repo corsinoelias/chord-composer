@@ -39,10 +39,15 @@ import { InstrumentsPanel } from '@/components/InstrumentsPanel';
 import { ChordBlock } from '@/components/ChordBlock';
 import { ProgressBar } from '@/components/ProgressBar';
 import { WelcomeOverlay } from '@/components/WelcomeOverlay';
+import { BeatIndicator } from '@/components/BeatIndicator';
+import { CountdownOverlay } from '@/components/CountdownOverlay';
+import { ProgressionTemplatesModal } from '@/components/ProgressionTemplatesModal';
+import { ShortcutsHelp } from '@/components/ShortcutsHelp';
 import { Button } from '@/components/ui/button';
-import { Music2, Plus, ArrowLeft, Check, Loader2 } from 'lucide-react';
+import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 const Index = () => {
   const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
@@ -100,6 +105,8 @@ const Index = () => {
   const [editingNewStyle, setEditingNewStyle] = useState<StylePattern | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [activeChord, setActiveChord] = useState<{ chord: Chord; sectionIndex: number } | null>(null);
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
   
   // Refs for current values (used in callbacks)
   const sectionsRef = useRef<Section[]>([]);
@@ -636,10 +643,52 @@ const Index = () => {
     }
   };
 
+  // Handler for loading a progression template
+  const handleLoadTemplate = (chords: Chord[]) => {
+    // Replace first section's chords with template
+    setSections(prev => {
+      const newSections = [...prev];
+      if (newSections.length > 0) {
+        newSections[0] = {
+          ...newSections[0],
+          chords,
+        };
+      }
+      return newSections;
+    });
+    toast.success('Progression template loaded!');
+  };
+
+  // Countdown playback - starts countdown then plays
+  const handlePlayWithCountdown = useCallback(() => {
+    if (!hasChords || isExporting) return;
+    setShowCountdown(true);
+  }, [hasChords, isExporting]);
+
+  const handleCountdownComplete = useCallback(() => {
+    setShowCountdown(false);
+    startPlayback();
+  }, [startPlayback]);
+
+  const handleCountdownCancel = useCallback(() => {
+    setShowCountdown(false);
+  }, []);
+
   // Generate chord IDs for all sections (for DndContext)
   const allChordIds = sections.flatMap((section, sectionIndex) => 
     section.chords.map(c => `chord-${sectionIndex}-${c.id}`)
   );
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    isPlaying,
+    bpm,
+    onPlay: hasChords ? handlePlayWithCountdown : () => {},
+    onStop: stopPlaybackCompletely,
+    onBpmChange: setBpm,
+    onMetronomeToggle: () => setMetronomeEnabled(prev => !prev),
+    enabled: !showCountdown && !templatesModalOpen && !editingChord && !addChordSection,
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -659,18 +708,44 @@ const Index = () => {
               </div>
             </div>
             
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              {isSaving ? (
-                <span className="flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Saving...
-                </span>
-              ) : lastSavedAt ? (
-                <span className="flex items-center gap-1">
-                  <Check className="h-3 w-3" />
-                  Saved
-                </span>
-              ) : null}
+            <div className="flex items-center gap-3">
+              {/* Beat indicator */}
+              {isPlaying && (
+                <BeatIndicator
+                  currentStep={currentPlayheadStep}
+                  isPlaying={isPlaying}
+                  bpm={bpm}
+                />
+              )}
+              
+              {/* Templates button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTemplatesModalOpen(true)}
+                className="gap-1.5"
+              >
+                <FileMusic className="h-4 w-4" />
+                <span className="hidden sm:inline">Templates</span>
+              </Button>
+              
+              {/* Shortcuts help */}
+              <ShortcutsHelp />
+              
+              {/* Save status */}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {isSaving ? (
+                  <span className="flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span className="hidden sm:inline">Saving...</span>
+                  </span>
+                ) : lastSavedAt ? (
+                  <span className="flex items-center gap-1">
+                    <Check className="h-3 w-3 text-green-500" />
+                    <span className="hidden sm:inline">Saved</span>
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
@@ -856,6 +931,22 @@ const Index = () => {
           setRhythmEditorOpen(true);
         }}
       />
+
+      {/* Progression Templates Modal */}
+      <ProgressionTemplatesModal
+        open={templatesModalOpen}
+        onOpenChange={setTemplatesModalOpen}
+        onSelect={handleLoadTemplate}
+      />
+
+      {/* Countdown Overlay */}
+      {showCountdown && (
+        <CountdownOverlay
+          bpm={bpm}
+          onComplete={handleCountdownComplete}
+          onCancel={handleCountdownCancel}
+        />
+      )}
     </div>
   );
 };

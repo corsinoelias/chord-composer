@@ -32,6 +32,7 @@ interface TransportControlsProps {
   onOpenRhythmEditor: () => void;
   onCreateNewRhythm?: () => void;
   hasChords: boolean;
+  currentStep?: number; // Current 16th note step for beat indicator
 }
 
 export const TransportControls = memo(function TransportControls({
