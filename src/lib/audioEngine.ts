@@ -12,10 +12,28 @@ import { Section } from './sections';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
+let analyserNode: AnalyserNode | null = null;
 let currentlyPlaying = false;
 let playbackStoppedCallback: (() => void) | null = null;
 let playbackMutex = false; // Prevent multiple simultaneous playback instances
 let sampleLoadingComplete = false; // Track if initial load completed
+
+/**
+ * Get the analyser node for visualization
+ */
+export function getAnalyserNode(): AnalyserNode | null {
+  return analyserNode;
+}
+
+/**
+ * Get audio timing info for synchronization
+ */
+export function getAudioTiming(): { currentTime: number; isPlaying: boolean } {
+  return {
+    currentTime: audioContext?.currentTime ?? 0,
+    isPlaying: currentlyPlaying
+  };
+}
 
 /**
  * Register a callback to be notified when playback stops
@@ -236,7 +254,15 @@ export function getAudioContext(): AudioContext {
     audioContext = new AudioContext();
     masterGain = audioContext.createGain();
     masterGain.gain.value = 1.0;
-    masterGain.connect(audioContext.destination);
+    
+    // Create analyser node for waveform visualization
+    analyserNode = audioContext.createAnalyser();
+    analyserNode.fftSize = 256;
+    analyserNode.smoothingTimeConstant = 0.8;
+    
+    // Connect: masterGain -> analyser -> destination
+    masterGain.connect(analyserNode);
+    analyserNode.connect(audioContext.destination);
 
     // Only load samples once per app lifecycle; buffers can be reused across contexts.
     if (!sampleLoadingComplete) {
@@ -1040,17 +1066,20 @@ function playClick(
   const gainNode = ctx.createGain();
   
   osc.type = 'sine';
-  osc.frequency.value = isDownbeat ? 1000 : 800;
+  // Downbeat: higher pitch & louder, other beats: lower pitch
+  osc.frequency.value = isDownbeat ? 1200 : 900;
   
   osc.connect(gainNode);
   gainNode.connect(destination);
   
+  // Increased volume: 0.5 for downbeat, 0.35 for other beats (was 0.15)
+  const peakVolume = isDownbeat ? 0.5 : 0.35;
   gainNode.gain.setValueAtTime(0, startTime);
-  gainNode.gain.linearRampToValueAtTime(0.15, startTime + 0.005);
-  gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.05);
+  gainNode.gain.linearRampToValueAtTime(peakVolume, startTime + 0.005);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.08);
   
   osc.start(startTime);
-  osc.stop(startTime + 0.06);
+  osc.stop(startTime + 0.1);
 }
 
 /**
