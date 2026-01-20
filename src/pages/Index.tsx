@@ -43,8 +43,11 @@ import { BeatIndicator } from '@/components/BeatIndicator';
 import { CountdownOverlay } from '@/components/CountdownOverlay';
 import { ProgressionTemplatesModal } from '@/components/ProgressionTemplatesModal';
 import { ShortcutsHelp } from '@/components/ShortcutsHelp';
+import { WaveformVisualizer } from '@/components/WaveformVisualizer';
+import { MixingConsole } from '@/components/MixingConsole';
+import { ChordSuggestions } from '@/components/ChordSuggestions';
 import { Button } from '@/components/ui/button';
-import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic } from 'lucide-react';
+import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -107,6 +110,7 @@ const Index = () => {
   const [activeChord, setActiveChord] = useState<{ chord: Chord; sectionIndex: number } | null>(null);
   const [showCountdown, setShowCountdown] = useState(false);
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
+  const [mixingConsoleOpen, setMixingConsoleOpen] = useState(false);
   
   // Refs for current values (used in callbacks)
   const sectionsRef = useRef<Section[]>([]);
@@ -709,6 +713,13 @@ const Index = () => {
             </div>
             
             <div className="flex items-center gap-3">
+              {/* Waveform Visualizer */}
+              {isPlaying && (
+                <div className="h-8 w-24 hidden sm:block">
+                  <WaveformVisualizer isPlaying={isPlaying} barCount={16} />
+                </div>
+              )}
+              
               {/* Beat indicator */}
               {isPlaying && (
                 <BeatIndicator
@@ -717,6 +728,17 @@ const Index = () => {
                   bpm={bpm}
                 />
               )}
+              
+              {/* Mixing Console button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMixingConsoleOpen(true)}
+                className="gap-1.5"
+              >
+                <Sliders className="h-4 w-4" />
+                <span className="hidden sm:inline">Mix</span>
+              </Button>
               
               {/* Templates button */}
               <Button
@@ -729,6 +751,21 @@ const Index = () => {
                 <span className="hidden sm:inline">Templates</span>
               </Button>
               
+              {/* Chord Suggestions */}
+              <ChordSuggestions
+                currentChords={sections.flatMap(s => s.chords)}
+                styleId={selectedStyleId}
+                onAddChord={(chord) => {
+                  if (sections.length > 0) {
+                    const newSections = [...sections];
+                    newSections[0] = {
+                      ...newSections[0],
+                      chords: [...newSections[0].chords, chord]
+                    };
+                    setSections(newSections);
+                  }
+                }}
+              />
               {/* Shortcuts help */}
               <ShortcutsHelp />
               
@@ -947,6 +984,12 @@ const Index = () => {
           onCancel={handleCountdownCancel}
         />
       )}
+
+      {/* Mixing Console */}
+      <MixingConsole
+        open={mixingConsoleOpen}
+        onOpenChange={setMixingConsoleOpen}
+      />
     </div>
   );
 };
