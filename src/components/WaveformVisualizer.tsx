@@ -16,6 +16,24 @@ interface WaveformVisualizerProps {
   color?: string;
 }
 
+// Helper to resolve CSS variable colors to actual HSL values
+function resolveColor(color: string): string {
+  if (color.includes('var(--')) {
+    // Extract the variable name
+    const match = color.match(/var\(--([^)]+)\)/);
+    if (match) {
+      const varName = match[1];
+      const root = document.documentElement;
+      const computed = getComputedStyle(root).getPropertyValue(`--${varName}`).trim();
+      if (computed) {
+        // Return as hsl() with the computed value
+        return `hsl(${computed})`;
+      }
+    }
+  }
+  return color;
+}
+
 export const WaveformVisualizer = memo(function WaveformVisualizer({
   isPlaying,
   className = '',
@@ -26,6 +44,9 @@ export const WaveformVisualizer = memo(function WaveformVisualizer({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
+  
+  // Resolve the color once
+  const resolvedColor = resolveColor(color);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -86,11 +107,11 @@ export const WaveformVisualizer = memo(function WaveformVisualizer({
       ctx.clearRect(0, 0, rect.width, rect.height);
 
       if (variant === 'bars') {
-        drawBars(ctx, dataArray, rect, barCount, color);
+        drawBars(ctx, dataArray, rect, barCount, resolvedColor);
       } else if (variant === 'wave') {
-        drawWave(ctx, dataArray, rect, color);
+        drawWave(ctx, dataArray, rect, resolvedColor);
       } else if (variant === 'circle') {
-        drawCircle(ctx, dataArray, rect, barCount, color);
+        drawCircle(ctx, dataArray, rect, barCount, resolvedColor);
       }
     };
 
@@ -139,10 +160,12 @@ function drawBars(
     
     const x = i * barWidth;
     
-    // Create gradient for each bar
+    // Create gradient for each bar - color is already resolved
     const gradient = ctx.createLinearGradient(x, centerY - barHeight / 2, x, centerY + barHeight / 2);
     gradient.addColorStop(0, color);
-    gradient.addColorStop(0.5, color.replace(')', ' / 0.8)').replace('hsl', 'hsla'));
+    // Create semi-transparent version for middle
+    const semiTransparent = color.replace('hsl(', 'hsla(').replace(')', ', 0.8)');
+    gradient.addColorStop(0.5, semiTransparent);
     gradient.addColorStop(1, color);
     
     ctx.fillStyle = gradient;
@@ -244,8 +267,8 @@ function drawCircle(
   }
   ctx.globalAlpha = 1;
   
-  // Draw center circle
-  ctx.fillStyle = color.replace(')', ' / 0.2)').replace('hsl', 'hsla');
+  // Draw center circle - color is already resolved
+  ctx.fillStyle = color.replace('hsl(', 'hsla(').replace(')', ', 0.2)');
   ctx.beginPath();
   ctx.arc(centerX, centerY, baseRadius * 0.8, 0, Math.PI * 2);
   ctx.fill();
