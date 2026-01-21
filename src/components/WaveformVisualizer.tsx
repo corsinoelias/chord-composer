@@ -16,22 +16,40 @@ interface WaveformVisualizerProps {
   color?: string;
 }
 
-// Helper to resolve CSS variable colors to actual HSL values
-function resolveColor(color: string): string {
+// Helper to resolve CSS variable colors to Canvas-compatible format
+function resolveColor(color: string): { hsl: string; hsla: (alpha: number) => string } {
+  let h = 262, s = 83, l = 58; // defaults
+  
   if (color.includes('var(--')) {
-    // Extract the variable name
     const match = color.match(/var\(--([^)]+)\)/);
     if (match) {
       const varName = match[1];
       const root = document.documentElement;
       const computed = getComputedStyle(root).getPropertyValue(`--${varName}`).trim();
       if (computed) {
-        // Return as hsl() with the computed value
-        return `hsl(${computed})`;
+        // Parse space-separated HSL values like "262 83% 58%"
+        const parts = computed.split(/\s+/);
+        if (parts.length >= 3) {
+          h = parseFloat(parts[0]);
+          s = parseFloat(parts[1]);
+          l = parseFloat(parts[2]);
+        }
       }
     }
+  } else {
+    // Try to parse existing hsl format
+    const hslMatch = color.match(/hsl\((\d+),?\s*(\d+)%?,?\s*(\d+)%?\)/);
+    if (hslMatch) {
+      h = parseFloat(hslMatch[1]);
+      s = parseFloat(hslMatch[2]);
+      l = parseFloat(hslMatch[3]);
+    }
   }
-  return color;
+  
+  return {
+    hsl: `hsl(${h}, ${s}%, ${l}%)`,
+    hsla: (alpha: number) => `hsla(${h}, ${s}%, ${l}%, ${alpha})`
+  };
 }
 
 export const WaveformVisualizer = memo(function WaveformVisualizer({
@@ -135,12 +153,14 @@ export const WaveformVisualizer = memo(function WaveformVisualizer({
   );
 });
 
+type ResolvedColor = { hsl: string; hsla: (alpha: number) => string };
+
 function drawBars(
   ctx: CanvasRenderingContext2D,
   dataArray: Uint8Array,
   rect: DOMRect,
   barCount: number,
-  color: string
+  color: ResolvedColor
 ) {
   const barWidth = rect.width / barCount;
   const centerY = rect.height / 2;
@@ -160,13 +180,11 @@ function drawBars(
     
     const x = i * barWidth;
     
-    // Create gradient for each bar - color is already resolved
+    // Create gradient for each bar
     const gradient = ctx.createLinearGradient(x, centerY - barHeight / 2, x, centerY + barHeight / 2);
-    gradient.addColorStop(0, color);
-    // Create semi-transparent version for middle
-    const semiTransparent = color.replace('hsl(', 'hsla(').replace(')', ', 0.8)');
-    gradient.addColorStop(0.5, semiTransparent);
-    gradient.addColorStop(1, color);
+    gradient.addColorStop(0, color.hsl);
+    gradient.addColorStop(0.5, color.hsla(0.8));
+    gradient.addColorStop(1, color.hsl);
     
     ctx.fillStyle = gradient;
     ctx.beginPath();
@@ -179,13 +197,13 @@ function drawWave(
   ctx: CanvasRenderingContext2D,
   dataArray: Uint8Array,
   rect: DOMRect,
-  color: string
+  color: ResolvedColor
 ) {
   const centerY = rect.height / 2;
   const maxAmplitude = rect.height * 0.4;
   
   ctx.beginPath();
-  ctx.strokeStyle = color;
+  ctx.strokeStyle = color.hsl;
   ctx.lineWidth = 2;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -233,7 +251,7 @@ function drawCircle(
   dataArray: Uint8Array,
   rect: DOMRect,
   barCount: number,
-  color: string
+  color: ResolvedColor
 ) {
   const centerX = rect.width / 2;
   const centerY = rect.height / 2;
@@ -243,7 +261,7 @@ function drawCircle(
   const step = Math.floor(dataArray.length / barCount);
   const angleStep = (Math.PI * 2) / barCount;
   
-  ctx.strokeStyle = color;
+  ctx.strokeStyle = color.hsl;
   ctx.lineWidth = 3;
   ctx.lineCap = 'round';
   
@@ -267,8 +285,8 @@ function drawCircle(
   }
   ctx.globalAlpha = 1;
   
-  // Draw center circle - color is already resolved
-  ctx.fillStyle = color.replace('hsl(', 'hsla(').replace(')', ', 0.2)');
+  // Draw center circle
+  ctx.fillStyle = color.hsla(0.2);
   ctx.beginPath();
   ctx.arc(centerX, centerY, baseRadius * 0.8, 0, Math.PI * 2);
   ctx.fill();
