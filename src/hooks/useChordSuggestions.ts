@@ -1,15 +1,27 @@
 /**
  * Hook for AI-powered chord suggestions
- * Uses Lovable AI to suggest chords based on music theory
+ * Uses music theory and common progressions to suggest chords
  */
 
 import { useState, useCallback } from 'react';
 import { Chord } from '@/lib/musicTheory';
+import { 
+  getProgressionsForStyle, 
+  progressionToChords, 
+  getRandomProgression,
+  ChordProgression 
+} from '@/lib/chordProgressions';
 
 export interface ChordSuggestion {
   chord: Chord;
   reason: string;
   confidence: number;
+}
+
+export interface ProgressionSuggestion {
+  name: string;
+  chords: Chord[];
+  genre: string;
 }
 
 interface UseChordSuggestionsReturn {
@@ -18,6 +30,7 @@ interface UseChordSuggestionsReturn {
   error: string | null;
   getSuggestions: (currentChords: Chord[], styleId: string, key?: string) => Promise<void>;
   clearSuggestions: () => void;
+  generateProgression: (styleId: string) => ProgressionSuggestion | null;
 }
 
 // Music theory based suggestions (fallback when AI is not available)
@@ -133,8 +146,7 @@ export function useChordSuggestions(): UseChordSuggestionsReturn {
     setError(null);
 
     try {
-      // For now, use music theory based suggestions
-      // In the future, this will call the AI edge function
+      // Use music theory based suggestions
       const theorySuggestions = getMusicTheorySuggestions(currentChords, styleId);
       
       // Simulate a small delay for better UX
@@ -156,11 +168,23 @@ export function useChordSuggestions(): UseChordSuggestionsReturn {
     setError(null);
   }, []);
 
+  const generateProgression = useCallback((styleId: string): ProgressionSuggestion | null => {
+    const result = getRandomProgression(styleId);
+    if (!result) return null;
+    
+    return {
+      name: result.progression.name,
+      chords: progressionToChords(result.progression),
+      genre: result.genre,
+    };
+  }, []);
+
   return {
     suggestions,
     isLoading,
     error,
     getSuggestions,
     clearSuggestions,
+    generateProgression,
   };
 }
