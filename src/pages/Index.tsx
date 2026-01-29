@@ -765,6 +765,16 @@ const Index = () => {
                     setSections(newSections);
                   }
                 }}
+                onSetProgression={(chords) => {
+                  if (sections.length > 0) {
+                    const newSections = [...sections];
+                    newSections[0] = {
+                      ...newSections[0],
+                      chords: chords
+                    };
+                    setSections(newSections);
+                  }
+                }}
               />
               {/* Shortcuts help */}
               <ShortcutsHelp />
