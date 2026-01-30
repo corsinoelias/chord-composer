@@ -1055,6 +1055,7 @@ function playDrumHit(
 
 /**
  * Plays a click/tick sound for the metronome
+ * Uses a separate gain node connected directly to destination for priority over instruments
  */
 function playClick(
   ctx: AudioContext,
@@ -1069,17 +1070,20 @@ function playClick(
   // Downbeat: higher pitch & louder, other beats: lower pitch
   osc.frequency.value = isDownbeat ? 1200 : 900;
   
+  // Connect directly to ctx.destination to bypass master gain compression
+  // This ensures metronome is always audible above instruments
   osc.connect(gainNode);
-  gainNode.connect(destination);
+  gainNode.connect(ctx.destination);
   
-  // Increased volume: 0.5 for downbeat, 0.35 for other beats (was 0.15)
-  const peakVolume = isDownbeat ? 0.5 : 0.35;
+  // Louder volume: 0.7 for downbeat, 0.5 for other beats
+  // Connecting directly to destination means this won't be affected by master gain
+  const peakVolume = isDownbeat ? 0.7 : 0.5;
   gainNode.gain.setValueAtTime(0, startTime);
   gainNode.gain.linearRampToValueAtTime(peakVolume, startTime + 0.005);
-  gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.08);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1);
   
   osc.start(startTime);
-  osc.stop(startTime + 0.1);
+  osc.stop(startTime + 0.12);
 }
 
 /**

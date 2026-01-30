@@ -21,29 +21,43 @@ export function CountdownOverlay({ bpm, onComplete, onCancel }: CountdownOverlay
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Play metronome click
+  // Play metronome click - louder and using proper audio scheduling
   const playClick = useCallback((isDownbeat: boolean) => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = getAudioContext();
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = getAudioContext();
+      }
+      
+      const ctx = audioContextRef.current;
+      
+      // Resume context if suspended (required for user interaction)
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      
+      const now = ctx.currentTime;
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      // Higher pitch for better audibility: 1200Hz for downbeat, 900Hz for others
+      osc.frequency.value = isDownbeat ? 1200 : 900;
+      
+      // Louder volume: 0.6 for downbeat, 0.45 for others
+      const volume = isDownbeat ? 0.6 : 0.45;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(volume, now + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } catch (err) {
+      console.warn('Countdown click failed:', err);
     }
-    
-    const ctx = audioContextRef.current;
-    const now = ctx.currentTime;
-    
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
-    osc.type = 'sine';
-    osc.frequency.value = isDownbeat ? 1000 : 800;
-    
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-    
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    osc.start(now);
-    osc.stop(now + 0.1);
   }, []);
 
   useEffect(() => {
