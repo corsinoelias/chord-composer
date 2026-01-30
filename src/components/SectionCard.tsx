@@ -5,11 +5,13 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { Section } from '@/lib/sections';
+import { Chord } from '@/lib/musicTheory';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Repeat, Pencil } from 'lucide-react';
 import { SortableChord } from './SortableChord';
+import { ChordSuggestions } from './ChordSuggestions';
 
 interface SectionCardProps {
   section: Section;
@@ -18,6 +20,7 @@ interface SectionCardProps {
   globalChordOffset: number;
   totalSections: number;
   isLooping?: boolean;
+  styleId: string;
   onAddChord: () => void;
   onChordClick: (chordIndex: number) => void;
   onChordDelete: (chordIndex: number) => void;
@@ -29,6 +32,7 @@ interface SectionCardProps {
   onToggleLoop: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  onSetProgression: (chords: Chord[]) => void;
 }
 
 // Section color palette based on index
@@ -48,6 +52,7 @@ export const SectionCard = memo(function SectionCard({
   globalChordOffset,
   totalSections,
   isLooping,
+  styleId,
   onAddChord,
   onChordClick,
   onChordDelete,
@@ -59,6 +64,7 @@ export const SectionCard = memo(function SectionCard({
   onToggleLoop,
   onMoveUp,
   onMoveDown,
+  onSetProgression,
 }: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
@@ -322,16 +328,24 @@ export const SectionCard = memo(function SectionCard({
             </SortableContext>
           )}
 
-          {/* Add Chord Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onAddChord}
-            className="mt-4 border-dashed hover:border-solid hover:border-primary hover:bg-primary/5 transition-all"
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add Chord
-          </Button>
+          {/* Section Action Buttons */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onAddChord}
+              className="border-dashed hover:border-solid hover:border-primary hover:bg-primary/5 transition-all"
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              Add Chord
+            </Button>
+            
+            {/* Chord Suggestions per section */}
+            <ChordSuggestions
+              styleId={styleId}
+              onSetProgression={onSetProgression}
+            />
+          </div>
         </div>
       </div>
     </TooltipProvider>

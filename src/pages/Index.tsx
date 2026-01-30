@@ -45,7 +45,6 @@ import { ProgressionTemplatesModal } from '@/components/ProgressionTemplatesModa
 import { ShortcutsHelp } from '@/components/ShortcutsHelp';
 import { WaveformVisualizer } from '@/components/WaveformVisualizer';
 import { MixingConsole } from '@/components/MixingConsole';
-import { ChordSuggestions } from '@/components/ChordSuggestions';
 import { Button } from '@/components/ui/button';
 import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'lucide-react';
 import { toast } from 'sonner';
@@ -751,31 +750,6 @@ const Index = () => {
                 <span className="hidden sm:inline">Templates</span>
               </Button>
               
-              {/* Chord Suggestions */}
-              <ChordSuggestions
-                currentChords={sections.flatMap(s => s.chords)}
-                styleId={selectedStyleId}
-                onAddChord={(chord) => {
-                  if (sections.length > 0) {
-                    const newSections = [...sections];
-                    newSections[0] = {
-                      ...newSections[0],
-                      chords: [...newSections[0].chords, chord]
-                    };
-                    setSections(newSections);
-                  }
-                }}
-                onSetProgression={(chords) => {
-                  if (sections.length > 0) {
-                    const newSections = [...sections];
-                    newSections[0] = {
-                      ...newSections[0],
-                      chords: chords
-                    };
-                    setSections(newSections);
-                  }
-                }}
-              />
               {/* Shortcuts help */}
               <ShortcutsHelp />
               
@@ -863,6 +837,7 @@ const Index = () => {
                   globalChordOffset={getGlobalOffset(sectionIndex)}
                   totalSections={sections.length}
                   isLooping={loopingSectionIndex === sectionIndex}
+                  styleId={selectedStyleId}
                   onAddChord={() => setAddChordSection({ index: sectionIndex, name: section.name })}
                   onChordClick={(chordIndex) => handleChordClick(sectionIndex, chordIndex)}
                   onChordDelete={(chordIndex) => handleChordDelete(sectionIndex, chordIndex)}
@@ -874,6 +849,14 @@ const Index = () => {
                   onToggleLoop={() => handleToggleSectionLoop(sectionIndex)}
                   onMoveUp={() => handleMoveSection(sectionIndex, 'up')}
                   onMoveDown={() => handleMoveSection(sectionIndex, 'down')}
+                  onSetProgression={(chords) => {
+                    const newSections = [...sections];
+                    newSections[sectionIndex] = {
+                      ...newSections[sectionIndex],
+                      chords: chords
+                    };
+                    setSections(newSections);
+                  }}
                 />
               ))}
             </div>
