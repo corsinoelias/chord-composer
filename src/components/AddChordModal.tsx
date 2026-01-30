@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, RootNote, Accidental, ChordQuality, createChord, Chord } from '@/lib/musicTheory';
+import { ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, RootNote, Accidental, ChordQuality, createChord, Chord, chordToMidiNotes, midiToFrequency } from '@/lib/musicTheory';
+import { getAudioContext } from '@/lib/audioEngine';
 
 interface AddChordModalProps {
   open: boolean;
@@ -15,6 +16,61 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
   const [accidental, setAccidental] = useState<Accidental>('');
   const [quality, setQuality] = useState<ChordQuality>('maj');
   const [duration, setDuration] = useState(2);
+
+  // Play a preview sound when chord changes
+  const playChordPreview = useCallback((r: RootNote, acc: Accidental, q: ChordQuality) => {
+    try {
+      const ctx = getAudioContext();
+      
+      // Resume if suspended
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      
+      const tempChord: Chord = { id: 'preview', root: r, accidental: acc, quality: q, duration: 2 };
+      const midiNotes = chordToMidiNotes(tempChord, 0);
+      
+      const now = ctx.currentTime;
+      const masterGain = ctx.createGain();
+      masterGain.gain.value = 0.25;
+      masterGain.connect(ctx.destination);
+      
+      midiNotes.forEach(midiNote => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.type = 'triangle';
+        osc.frequency.value = midiToFrequency(midiNote);
+        
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.12, now + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        
+        osc.connect(gain);
+        gain.connect(masterGain);
+        
+        osc.start(now);
+        osc.stop(now + 0.5);
+      });
+    } catch (err) {
+      console.warn('Chord preview failed:', err);
+    }
+  }, []);
+
+  const handleRootChange = (note: RootNote) => {
+    setRoot(note);
+    playChordPreview(note, accidental, quality);
+  };
+
+  const handleAccidentalChange = (acc: Accidental) => {
+    setAccidental(acc);
+    playChordPreview(root, acc, quality);
+  };
+
+  const handleQualityChange = (q: ChordQuality) => {
+    setQuality(q);
+    playChordPreview(root, accidental, q);
+  };
 
   const handleAdd = () => {
     const newChord = createChord(root, accidental, quality, duration);
@@ -50,7 +106,7 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
               {ROOT_NOTES.map(note => (
                 <button
                   key={note}
-                  onClick={() => setRoot(note)}
+                  onClick={() => handleRootChange(note)}
                   className={`
                     w-9 h-9 rounded-md font-mono font-medium text-sm
                     transition-all duration-150
@@ -73,7 +129,7 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
               {ACCIDENTALS.map(acc => (
                 <button
                   key={acc || 'natural'}
-                  onClick={() => setAccidental(acc)}
+                  onClick={() => handleAccidentalChange(acc)}
                   className={`
                     w-12 h-9 rounded-md font-mono font-medium text-sm
                     transition-all duration-150
@@ -96,7 +152,7 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
               {CHORD_QUALITIES.map(q => (
                 <button
                   key={q}
-                  onClick={() => setQuality(q)}
+                  onClick={() => handleQualityChange(q)}
                   className={`
                     px-2 h-8 rounded-md font-mono text-xs
                     transition-all duration-150

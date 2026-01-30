@@ -57,13 +57,20 @@ export const ChordSuggestions = memo(function ChordSuggestions({
     setIsPreviewPlaying(true);
     setPreviewingChords(chords);
     
-    const ctx = getAudioContext();
-    const masterGain = ctx.createGain();
-    masterGain.gain.value = 0.3;
-    masterGain.connect(ctx.destination);
-    
-    const now = ctx.currentTime;
-    const chordDuration = 0.6; // 600ms per chord for preview
+    try {
+      const ctx = getAudioContext();
+      
+      // Resume audio context if suspended (required for user interaction)
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      
+      const masterGain = ctx.createGain();
+      masterGain.gain.value = 0.3;
+      masterGain.connect(ctx.destination);
+      
+      const now = ctx.currentTime;
+      const chordDuration = 0.6; // 600ms per chord for preview
     
     chords.forEach((chord, index) => {
       const startTime = now + (index * chordDuration);
@@ -90,13 +97,18 @@ export const ChordSuggestions = memo(function ChordSuggestions({
       });
     });
     
-    // Auto-stop after all chords finish
-    const totalDuration = chords.length * chordDuration * 1000;
-    const timeout = setTimeout(() => {
+      // Auto-stop after all chords finish
+      const totalDuration = chords.length * chordDuration * 1000;
+      const timeout = setTimeout(() => {
+        setIsPreviewPlaying(false);
+        setPreviewingChords(null);
+      }, totalDuration + 100);
+      previewTimeoutRef.current.push(timeout as unknown as NodeJS.Timeout);
+    } catch (err) {
+      console.warn('Preview playback failed:', err);
       setIsPreviewPlaying(false);
       setPreviewingChords(null);
-    }, totalDuration + 100);
-    previewTimeoutRef.current.push(timeout as unknown as NodeJS.Timeout);
+    }
   }, [stopPreview]);
 
   const handleOpen = (open: boolean) => {
