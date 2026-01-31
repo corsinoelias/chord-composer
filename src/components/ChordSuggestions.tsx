@@ -66,36 +66,38 @@ export const ChordSuggestions = memo(function ChordSuggestions({
       }
       
       const masterGain = ctx.createGain();
-      masterGain.gain.value = 0.3;
+      masterGain.gain.value = 0.25;
       masterGain.connect(ctx.destination);
       
       const now = ctx.currentTime;
-      const chordDuration = 0.6; // 600ms per chord for preview
+      const chordDuration = 0.5; // 500ms per chord for preview
     
-    chords.forEach((chord, index) => {
-      const startTime = now + (index * chordDuration);
-      const midiNotes = chordToMidiNotes(chord, 0);
-      
-      midiNotes.forEach(midiNote => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+      chords.forEach((chord, index) => {
+        const startTime = now + (index * chordDuration);
+        const midiNotes = chordToMidiNotes(chord, 0);
         
-        osc.type = 'triangle';
-        osc.frequency.value = midiToFrequency(midiNote);
-        
-        gain.gain.setValueAtTime(0, startTime);
-        gain.gain.linearRampToValueAtTime(0.15, startTime + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.01, startTime + chordDuration - 0.05);
-        
-        osc.connect(gain);
-        gain.connect(masterGain);
-        
-        osc.start(startTime);
-        osc.stop(startTime + chordDuration);
-        
-        oscillatorsRef.current.push(osc);
+        midiNotes.forEach(midiNote => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          
+          // Use triangle wave for piano-like tone (same as AddChordModal)
+          osc.type = 'triangle';
+          osc.frequency.value = midiToFrequency(midiNote);
+          
+          // Piano-like envelope: quick attack, smooth decay (matching AddChordModal)
+          gain.gain.setValueAtTime(0, startTime);
+          gain.gain.linearRampToValueAtTime(0.12, startTime + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+          
+          osc.connect(gain);
+          gain.connect(masterGain);
+          
+          osc.start(startTime);
+          osc.stop(startTime + 0.5);
+          
+          oscillatorsRef.current.push(osc);
+        });
       });
-    });
     
       // Auto-stop after all chords finish
       const totalDuration = chords.length * chordDuration * 1000;
