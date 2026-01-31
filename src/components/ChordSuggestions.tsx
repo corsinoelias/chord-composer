@@ -49,7 +49,7 @@ export const ChordSuggestions = memo(function ChordSuggestions({
     setPreviewingChords(null);
   }, []);
 
-  const playPreview = useCallback((chords: Chord[]) => {
+  const playPreview = useCallback(async (chords: Chord[]) => {
     stopPreview();
     
     if (chords.length === 0) return;
@@ -60,9 +60,9 @@ export const ChordSuggestions = memo(function ChordSuggestions({
     try {
       const ctx = getAudioContext();
       
-      // Resume audio context if suspended (required for user interaction)
+      // Resume audio context if suspended - MUST await this!
       if (ctx.state === 'suspended') {
-        ctx.resume();
+        await ctx.resume();
       }
       
       const masterGain = ctx.createGain();

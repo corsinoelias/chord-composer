@@ -22,7 +22,7 @@ export function CountdownOverlay({ bpm, onComplete, onCancel }: CountdownOverlay
   const audioContextRef = useRef<AudioContext | null>(null);
 
   // Play metronome click - louder and using proper audio scheduling
-  const playClick = useCallback((isDownbeat: boolean) => {
+  const playClick = useCallback(async (isDownbeat: boolean) => {
     try {
       if (!audioContextRef.current) {
         audioContextRef.current = getAudioContext();
@@ -30,9 +30,9 @@ export function CountdownOverlay({ bpm, onComplete, onCancel }: CountdownOverlay
       
       const ctx = audioContextRef.current;
       
-      // Resume context if suspended (required for user interaction)
+      // Resume context if suspended - MUST await this!
       if (ctx.state === 'suspended') {
-        ctx.resume();
+        await ctx.resume();
       }
       
       const now = ctx.currentTime;
@@ -61,31 +61,41 @@ export function CountdownOverlay({ bpm, onComplete, onCancel }: CountdownOverlay
   }, []);
 
   useEffect(() => {
-    // Initialize audio context
-    audioContextRef.current = getAudioContext();
-    
-    // Play first click immediately
-    playClick(true);
-    setIsAnimating(true);
-    
-    let currentCount = 4;
-    
-    intervalRef.current = setInterval(() => {
-      currentCount--;
+    // Initialize audio context and start countdown
+    const startCountdown = async () => {
+      // Initialize audio context first
+      audioContextRef.current = getAudioContext();
       
-      if (currentCount <= 0) {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-        onComplete();
-      } else {
-        playClick(false);
-        setCount(currentCount);
-        setIsAnimating(false);
-        // Trigger animation
-        requestAnimationFrame(() => setIsAnimating(true));
+      // Ensure audio context is ready before playing first click
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
       }
-    }, beatInterval);
+      
+      // Play first click immediately
+      await playClick(true);
+      setIsAnimating(true);
+      
+      let currentCount = 4;
+      
+      intervalRef.current = setInterval(async () => {
+        currentCount--;
+        
+        if (currentCount <= 0) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+          }
+          onComplete();
+        } else {
+          await playClick(false);
+          setCount(currentCount);
+          setIsAnimating(false);
+          // Trigger animation
+          requestAnimationFrame(() => setIsAnimating(true));
+        }
+      }, beatInterval);
+    };
+
+    startCountdown();
 
     return () => {
       if (intervalRef.current) {
