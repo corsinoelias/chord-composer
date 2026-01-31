@@ -18,13 +18,13 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
   const [duration, setDuration] = useState(2);
 
   // Play a preview sound when chord changes
-  const playChordPreview = useCallback((r: RootNote, acc: Accidental, q: ChordQuality) => {
+  const playChordPreview = useCallback(async (r: RootNote, acc: Accidental, q: ChordQuality) => {
     try {
       const ctx = getAudioContext();
       
-      // Resume if suspended
+      // Resume if suspended - MUST await this!
       if (ctx.state === 'suspended') {
-        ctx.resume();
+        await ctx.resume();
       }
       
       const tempChord: Chord = { id: 'preview', root: r, accidental: acc, quality: q, duration: 2 };
