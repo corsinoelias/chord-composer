@@ -9,12 +9,12 @@ import { memo, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Plus, Shuffle, Music2, Play, Square, Volume2 } from 'lucide-react';
-import { Chord, formatChord, generateChordId, chordToMidiNotes, midiToFrequency } from '@/lib/musicTheory';
+import { Sparkles, Plus, Shuffle, Music2, Play, Square, Headphones } from 'lucide-react';
+import { Chord, formatChord } from '@/lib/musicTheory';
 import { useChordSuggestions, ProgressionSuggestion } from '@/hooks/useChordSuggestions';
 import { GENRE_PROGRESSIONS, progressionToChords } from '@/lib/chordProgressions';
 import { toast } from 'sonner';
-import { getAudioContext } from '@/lib/audioEngine';
+import { playChordPreview } from '@/lib/audioEngine';
 
 interface ChordSuggestionsProps {
   styleId: string;
@@ -32,24 +32,17 @@ export const ChordSuggestions = memo(function ChordSuggestions({
   const [previewingChords, setPreviewingChords] = useState<Chord[] | null>(null);
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
   const previewTimeoutRef = useRef<NodeJS.Timeout[]>([]);
-  const oscillatorsRef = useRef<OscillatorNode[]>([]);
 
   const stopPreview = useCallback(() => {
     // Clear timeouts
     previewTimeoutRef.current.forEach(t => clearTimeout(t));
     previewTimeoutRef.current = [];
     
-    // Stop oscillators
-    oscillatorsRef.current.forEach(osc => {
-      try { osc.stop(); } catch(e) {}
-    });
-    oscillatorsRef.current = [];
-    
     setIsPreviewPlaying(false);
     setPreviewingChords(null);
   }, []);
 
-  const playPreview = useCallback(async (chords: Chord[]) => {
+  const playPreview = useCallback((chords: Chord[]) => {
     stopPreview();
     
     if (chords.length === 0) return;
@@ -57,60 +50,23 @@ export const ChordSuggestions = memo(function ChordSuggestions({
     setIsPreviewPlaying(true);
     setPreviewingChords(chords);
     
-    try {
-      const ctx = getAudioContext();
-      
-      // Resume audio context if suspended - MUST await this!
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
-      
-      const masterGain = ctx.createGain();
-      masterGain.gain.value = 0.25;
-      masterGain.connect(ctx.destination);
-      
-      const now = ctx.currentTime;
-      const chordDuration = 0.5; // 500ms per chord for preview
+    // Play each chord with a delay using the working audioEngine function
+    const chordDuration = 600; // ms between chords
     
-      chords.forEach((chord, index) => {
-        const startTime = now + (index * chordDuration);
-        const midiNotes = chordToMidiNotes(chord, 0);
-        
-        midiNotes.forEach(midiNote => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          
-          // Use triangle wave for piano-like tone (same as AddChordModal)
-          osc.type = 'triangle';
-          osc.frequency.value = midiToFrequency(midiNote);
-          
-          // Piano-like envelope: quick attack, smooth decay (matching AddChordModal)
-          gain.gain.setValueAtTime(0, startTime);
-          gain.gain.linearRampToValueAtTime(0.12, startTime + 0.03);
-          gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
-          
-          osc.connect(gain);
-          gain.connect(masterGain);
-          
-          osc.start(startTime);
-          osc.stop(startTime + 0.5);
-          
-          oscillatorsRef.current.push(osc);
-        });
-      });
-    
-      // Auto-stop after all chords finish
-      const totalDuration = chords.length * chordDuration * 1000;
+    chords.forEach((chord, index) => {
       const timeout = setTimeout(() => {
-        setIsPreviewPlaying(false);
-        setPreviewingChords(null);
-      }, totalDuration + 100);
-      previewTimeoutRef.current.push(timeout as unknown as NodeJS.Timeout);
-    } catch (err) {
-      console.warn('Preview playback failed:', err);
+        playChordPreview(chord);
+      }, index * chordDuration);
+      previewTimeoutRef.current.push(timeout);
+    });
+    
+    // Auto-stop after all chords finish
+    const totalDuration = chords.length * chordDuration + 500;
+    const endTimeout = setTimeout(() => {
       setIsPreviewPlaying(false);
       setPreviewingChords(null);
-    }
+    }, totalDuration);
+    previewTimeoutRef.current.push(endTimeout);
   }, [stopPreview]);
 
   const handleOpen = (open: boolean) => {
@@ -310,7 +266,7 @@ export const ChordSuggestions = memo(function ChordSuggestions({
 
         <div className="p-2 border-t bg-muted/50">
           <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
-            <Volume2 className="h-3 w-3" />
+            <Headphones className="h-3 w-3" />
             Click play to preview, click progression to apply
           </p>
         </div>

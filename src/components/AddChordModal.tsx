@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, RootNote, Accidental, ChordQuality, createChord, Chord, chordToMidiNotes, midiToFrequency } from '@/lib/musicTheory';
-import { getAudioContext } from '@/lib/audioEngine';
+import { ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, RootNote, Accidental, ChordQuality, createChord, Chord } from '@/lib/musicTheory';
+import { playChordPreview as playPreviewFromEngine } from '@/lib/audioEngine';
+import { Headphones } from 'lucide-react';
 
 interface AddChordModalProps {
   open: boolean;
@@ -17,44 +18,10 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
   const [quality, setQuality] = useState<ChordQuality>('maj');
   const [duration, setDuration] = useState(2);
 
-  // Play a preview sound when chord changes
-  const playChordPreview = useCallback(async (r: RootNote, acc: Accidental, q: ChordQuality) => {
-    try {
-      const ctx = getAudioContext();
-      
-      // Resume if suspended - MUST await this!
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
-      
-      const tempChord: Chord = { id: 'preview', root: r, accidental: acc, quality: q, duration: 2 };
-      const midiNotes = chordToMidiNotes(tempChord, 0);
-      
-      const now = ctx.currentTime;
-      const masterGain = ctx.createGain();
-      masterGain.gain.value = 0.25;
-      masterGain.connect(ctx.destination);
-      
-      midiNotes.forEach(midiNote => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        osc.type = 'triangle';
-        osc.frequency.value = midiToFrequency(midiNote);
-        
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.12, now + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-        
-        osc.connect(gain);
-        gain.connect(masterGain);
-        
-        osc.start(now);
-        osc.stop(now + 0.5);
-      });
-    } catch (err) {
-      console.warn('Chord preview failed:', err);
-    }
+  // Play a preview sound when chord changes - uses the same engine as ChordEditModal
+  const playChordPreview = useCallback((r: RootNote, acc: Accidental, q: ChordQuality) => {
+    const tempChord: Chord = { id: 'preview', root: r, accidental: acc, quality: q, duration: 2 };
+    playPreviewFromEngine(tempChord);
   }, []);
 
   const handleRootChange = (note: RootNote) => {
@@ -93,8 +60,9 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-foreground">
+          <DialogTitle className="text-foreground flex items-center gap-2">
             Add Chord to {sectionName}
+            <Headphones className="h-4 w-4 text-muted-foreground" />
           </DialogTitle>
         </DialogHeader>
 

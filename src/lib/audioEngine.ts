@@ -343,10 +343,21 @@ export async function ensureSamplesLoaded(): Promise<void> {
 
 /**
  * Plays a chord preview - single chord playback for editing feedback
+ * This function is self-contained and doesn't require prior audio initialization
  */
 export function playChordPreview(chord: Chord, volume: number = 0.5): void {
   const ctx = getAudioContext();
-  if (!masterGain) return;
+  
+  // Resume context if suspended (required for user interaction)
+  if (ctx.state === 'suspended') {
+    ctx.resume();
+  }
+  
+  // Create a local gain node that connects directly to destination
+  // This ensures the preview works even if masterGain hasn't been initialized
+  const previewGain = ctx.createGain();
+  previewGain.gain.value = 0.5;
+  previewGain.connect(ctx.destination);
   
   const midiNotes = chordToMidiNotes(chord, 4);
   const now = ctx.currentTime;
@@ -356,9 +367,9 @@ export function playChordPreview(chord: Chord, volume: number = 0.5): void {
     const frequency = midiToFrequency(midiNote);
     
     const gainNode = ctx.createGain();
-    gainNode.connect(masterGain!);
+    gainNode.connect(previewGain);
     
-    // Simple piano-like sound for preview
+    // Simple piano-like sound for preview with harmonics
     const harmonics = [
       { freq: 1, amp: 1.0 },
       { freq: 2, amp: 0.4 },
