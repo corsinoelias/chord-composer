@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, RootNote, Accidental, ChordQuality, createChord, Chord } from '@/lib/musicTheory';
 import { playChordPreview as playPreviewFromEngine } from '@/lib/audioEngine';
-import { Headphones } from 'lucide-react';
+
 
 interface AddChordModalProps {
   open: boolean;
@@ -60,9 +60,8 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-foreground flex items-center gap-2">
+          <DialogTitle className="text-foreground">
             Add Chord to {sectionName}
-            <Headphones className="h-4 w-4 text-muted-foreground" />
           </DialogTitle>
         </DialogHeader>
 
