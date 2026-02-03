@@ -36,7 +36,7 @@ interface SectionCardProps {
   onSetProgression: (chords: Chord[]) => void;
 }
 
-// Section color palette based on index
+// Section color palette
 const SECTION_COLORS = [
   '262 83%', // Purple (primary)
   '172 66%', // Teal
@@ -45,6 +45,17 @@ const SECTION_COLORS = [
   '220 70%', // Blue
   '142 71%', // Green
 ];
+
+// Get consistent color index from section ID (so color stays with section when reordering)
+function getColorIndexFromId(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    const char = id.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash) % SECTION_COLORS.length;
+}
 
 export const SectionCard = memo(function SectionCard({
   section,
@@ -71,8 +82,8 @@ export const SectionCard = memo(function SectionCard({
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
 
-  // Get section accent color
-  const colorHsl = SECTION_COLORS[sectionIndex % SECTION_COLORS.length];
+  // Get section accent color based on ID (persists across reordering)
+  const colorHsl = SECTION_COLORS[getColorIndexFromId(section.id)];
 
   // Droppable zone for the section (for cross-section chord drops)
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
