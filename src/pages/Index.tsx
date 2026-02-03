@@ -110,6 +110,7 @@ const Index = () => {
   const [showCountdown, setShowCountdown] = useState(false);
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
   const [mixingConsoleOpen, setMixingConsoleOpen] = useState(false);
+  const [animatingSections, setAnimatingSections] = useState<{ index: number; direction: 'up' | 'down' }[]>([]);
   
   // Refs for current values (used in callbacks)
   const sectionsRef = useRef<Section[]>([]);
@@ -627,6 +628,17 @@ const Index = () => {
     const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
     if (toIndex < 0 || toIndex >= sections.length) return;
     
+    // Trigger swap animation for both sections
+    setAnimatingSections([
+      { index: fromIndex, direction },
+      { index: toIndex, direction: direction === 'up' ? 'down' : 'up' }
+    ]);
+    
+    // Clear animation after it completes
+    setTimeout(() => {
+      setAnimatingSections([]);
+    }, 350);
+    
     setSections(prev => {
       const newSections = [...prev];
       const [removed] = newSections.splice(fromIndex, 1);
@@ -838,6 +850,7 @@ const Index = () => {
                   totalSections={sections.length}
                   isLooping={loopingSectionIndex === sectionIndex}
                   styleId={selectedStyleId}
+                  swapAnimation={animatingSections.find(a => a.index === sectionIndex)?.direction || null}
                   onAddChord={() => setAddChordSection({ index: sectionIndex, name: section.name })}
                   onChordClick={(chordIndex) => handleChordClick(sectionIndex, chordIndex)}
                   onChordDelete={(chordIndex) => handleChordDelete(sectionIndex, chordIndex)}

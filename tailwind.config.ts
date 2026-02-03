@@ -63,28 +63,58 @@ export default {
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
-  		keyframes: {
-  			'accordion-down': {
-  				from: {
-  					height: '0'
-  				},
-  				to: {
-  					height: 'var(--radix-accordion-content-height)'
-  				}
-  			},
-  			'accordion-up': {
-  				from: {
-  					height: 'var(--radix-accordion-content-height)'
-  				},
-  				to: {
-  					height: '0'
-  				}
-  			}
-  		},
-  		animation: {
-  			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
-  		},
+		keyframes: {
+			'accordion-down': {
+				from: {
+					height: '0'
+				},
+				to: {
+					height: 'var(--radix-accordion-content-height)'
+				}
+			},
+			'accordion-up': {
+				from: {
+					height: 'var(--radix-accordion-content-height)'
+				},
+				to: {
+					height: '0'
+				}
+			},
+			'section-swap-up': {
+				'0%': {
+					transform: 'translateY(0)',
+					opacity: '1'
+				},
+				'50%': {
+					transform: 'translateY(-20px)',
+					opacity: '0.7'
+				},
+				'100%': {
+					transform: 'translateY(0)',
+					opacity: '1'
+				}
+			},
+			'section-swap-down': {
+				'0%': {
+					transform: 'translateY(0)',
+					opacity: '1'
+				},
+				'50%': {
+					transform: 'translateY(20px)',
+					opacity: '0.7'
+				},
+				'100%': {
+					transform: 'translateY(0)',
+					opacity: '1'
+				}
+			}
+		},
+		animation: {
+			'accordion-down': 'accordion-down 0.2s ease-out',
+			'accordion-up': 'accordion-up 0.2s ease-out',
+			'section-swap-up': 'section-swap-up 0.35s ease-out',
+			'section-swap-down': 'section-swap-down 0.35s ease-out'
+		},
   		boxShadow: {
   			'2xs': 'var(--shadow-2xs)',
   			xs: 'var(--shadow-xs)',

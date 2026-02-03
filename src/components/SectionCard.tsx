@@ -21,6 +21,7 @@ interface SectionCardProps {
   totalSections: number;
   isLooping?: boolean;
   styleId: string;
+  swapAnimation?: 'up' | 'down' | null;
   onAddChord: () => void;
   onChordClick: (chordIndex: number) => void;
   onChordDelete: (chordIndex: number) => void;
@@ -53,6 +54,7 @@ export const SectionCard = memo(function SectionCard({
   totalSections,
   isLooping,
   styleId,
+  swapAnimation,
   onAddChord,
   onChordClick,
   onChordDelete,
@@ -125,6 +127,13 @@ export const SectionCard = memo(function SectionCard({
     onMoveDown();
   };
 
+  // Determine animation class
+  const animationClass = swapAnimation === 'up' 
+    ? 'animate-section-swap-up' 
+    : swapAnimation === 'down' 
+      ? 'animate-section-swap-down' 
+      : '';
+
   return (
     <TooltipProvider delayDuration={300}>
       <div 
@@ -132,7 +141,7 @@ export const SectionCard = memo(function SectionCard({
           isLooping ? 'ring-2 ring-offset-2 ring-offset-background' :
           isOver ? 'ring-2 ring-offset-2 ring-offset-background ring-primary/50' :
           ''
-        }`}
+        } ${animationClass}`}
         style={{
           borderLeft: `4px solid hsl(${colorHsl} ${isLooping ? '55%' : '50%'})`,
           ...(isLooping ? { '--tw-ring-color': `hsl(${colorHsl} 55%)` } as React.CSSProperties : {}),
