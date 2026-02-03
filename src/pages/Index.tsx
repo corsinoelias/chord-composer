@@ -708,36 +708,40 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="container max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="mr-1">
-                <ArrowLeft className="h-5 w-5" />
+        <div className="container max-w-6xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            {/* Left: Back + Logo + Title */}
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="shrink-0 h-8 w-8 sm:h-9 sm:w-9">
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
-              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-                <Music2 className="w-5 h-5 text-primary-foreground" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                <Music2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
               </div>
-              <div>
-                <h1 className="text-xl font-semibold text-foreground">Chord Player</h1>
-                <p className="text-sm text-muted-foreground">Create chord progressions & export</p>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-xl font-semibold text-foreground truncate">Chord Player</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground hidden xs:block">Create chord progressions & export</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              {/* Waveform Visualizer */}
+            {/* Right: Actions */}
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+              {/* Waveform Visualizer - hidden on mobile */}
               {isPlaying && (
-                <div className="h-8 w-24 hidden sm:block">
+                <div className="h-8 w-24 hidden md:block">
                   <WaveformVisualizer isPlaying={isPlaying} barCount={16} />
                 </div>
               )}
               
-              {/* Beat indicator */}
+              {/* Beat indicator - smaller on mobile */}
               {isPlaying && (
-                <BeatIndicator
-                  currentStep={currentPlayheadStep}
-                  isPlaying={isPlaying}
-                  bpm={bpm}
-                />
+                <div className="hidden sm:block">
+                  <BeatIndicator
+                    currentStep={currentPlayheadStep}
+                    isPlaying={isPlaying}
+                    bpm={bpm}
+                  />
+                </div>
               )}
               
               {/* Mixing Console button */}
@@ -745,10 +749,10 @@ const Index = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setMixingConsoleOpen(true)}
-                className="gap-1.5"
+                className="gap-1.5 h-8 px-2 sm:px-3"
               >
                 <Sliders className="h-4 w-4" />
-                <span className="hidden sm:inline">Mix</span>
+                <span className="hidden md:inline">Mix</span>
               </Button>
               
               {/* Templates button */}
@@ -756,17 +760,19 @@ const Index = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setTemplatesModalOpen(true)}
-                className="gap-1.5"
+                className="gap-1.5 h-8 px-2 sm:px-3"
               >
                 <FileMusic className="h-4 w-4" />
-                <span className="hidden sm:inline">Templates</span>
+                <span className="hidden md:inline">Templates</span>
               </Button>
               
-              {/* Shortcuts help */}
-              <ShortcutsHelp />
+              {/* Shortcuts help - hidden on very small screens */}
+              <div className="hidden sm:block">
+                <ShortcutsHelp />
+              </div>
               
               {/* Save status */}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
                 {isSaving ? (
                   <span className="flex items-center gap-1">
                     <Loader2 className="h-3 w-3 animate-spin" />
