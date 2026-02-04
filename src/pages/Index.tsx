@@ -707,35 +707,35 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="container max-w-6xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <header className="border-b border-border bg-card sticky top-0 z-40">
+        <div className="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between gap-2">
             {/* Left: Back + Logo + Title */}
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="shrink-0 h-8 w-8 sm:h-9 sm:w-9">
-                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+            <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+              <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="shrink-0 h-8 w-8">
+                <ArrowLeft className="h-4 w-4" />
               </Button>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                <Music2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                <Music2 className="w-4 h-4 text-primary-foreground" />
               </div>
-              <div className="min-w-0">
-                <h1 className="text-base sm:text-xl font-semibold text-foreground truncate">Chord Player</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground hidden xs:block">Create chord progressions & export</p>
+              <div className="min-w-0 hidden xs:block">
+                <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">Chord Player</h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">Create chord progressions & export</p>
               </div>
             </div>
             
             {/* Right: Actions */}
-            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               {/* Waveform Visualizer - hidden on mobile */}
               {isPlaying && (
-                <div className="h-8 w-24 hidden md:block">
-                  <WaveformVisualizer isPlaying={isPlaying} barCount={16} />
+                <div className="h-6 w-16 hidden lg:block">
+                  <WaveformVisualizer isPlaying={isPlaying} barCount={12} />
                 </div>
               )}
               
-              {/* Beat indicator - smaller on mobile */}
+              {/* Beat indicator - only on desktop */}
               {isPlaying && (
-                <div className="hidden sm:block">
+                <div className="hidden md:block">
                   <BeatIndicator
                     currentStep={currentPlayheadStep}
                     isPlaying={isPlaying}
@@ -749,10 +749,10 @@ const Index = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setMixingConsoleOpen(true)}
-                className="gap-1.5 h-8 px-2 sm:px-3"
+                className="gap-1 h-8 px-2"
               >
-                <Sliders className="h-4 w-4" />
-                <span className="hidden md:inline">Mix</span>
+                <Sliders className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline text-xs">Mix</span>
               </Button>
               
               {/* Templates button */}
@@ -760,28 +760,27 @@ const Index = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setTemplatesModalOpen(true)}
-                className="gap-1.5 h-8 px-2 sm:px-3"
+                className="gap-1 h-8 px-2"
               >
-                <FileMusic className="h-4 w-4" />
-                <span className="hidden md:inline">Templates</span>
+                <FileMusic className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline text-xs">Templates</span>
               </Button>
               
-              {/* Shortcuts help - hidden on very small screens */}
-              <div className="hidden sm:block">
+              {/* Shortcuts help - hidden on mobile */}
+              <div className="hidden md:block">
                 <ShortcutsHelp />
               </div>
               
               {/* Save status */}
-              <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 {isSaving ? (
                   <span className="flex items-center gap-1">
                     <Loader2 className="h-3 w-3 animate-spin" />
-                    <span className="hidden sm:inline">Saving...</span>
                   </span>
                 ) : lastSavedAt ? (
-                  <span className="flex items-center gap-1">
-                    <Check className="h-3 w-3 text-green-500" />
-                    <span className="hidden sm:inline">Saved</span>
+                  <span className="flex items-center gap-1 text-[hsl(var(--success))]">
+                    <Check className="h-3 w-3" />
+                    <span className="hidden xs:inline">Saved</span>
                   </span>
                 ) : null}
               </div>
@@ -790,7 +789,7 @@ const Index = () => {
         </div>
       </header>
       
-      <main className="container max-w-6xl mx-auto px-4 py-6 space-y-4">
+      <main className="container max-w-6xl mx-auto px-2 sm:px-4 py-3 sm:py-6 space-y-3 sm:space-y-4">
         {/* Progress bar when playing */}
         <ProgressBar
           sections={sections}

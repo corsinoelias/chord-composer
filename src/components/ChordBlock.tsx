@@ -47,9 +47,9 @@ export const ChordBlock = memo(function ChordBlock({
         ${isDragging ? 'opacity-50 scale-95' : ''}
       `}
       style={{ 
-        width: fixedWidth ? '5.5rem' : `${Math.max(chord.duration * 4.5, 5.5)}rem`,
-        minWidth: '5rem',
-        height: '5.5rem',
+        width: fixedWidth ? '4.5rem' : `${Math.max(chord.duration * 4, 4.5)}rem`,
+        minWidth: '4rem',
+        height: '4.5rem',
         backgroundColor: isPlaying 
           ? `hsl(${colorVar} / 0.2)`
           : `hsl(${colorVar} / 0.08)`,
@@ -63,15 +63,15 @@ export const ChordBlock = memo(function ChordBlock({
     >
       {/* Drag handle indicator */}
       <div 
-        className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-40 group-hover:opacity-60 transition-opacity"
+        className="absolute left-1 top-1/2 -translate-y-1/2 opacity-40 group-hover:opacity-60 transition-opacity"
         style={{ color: `hsl(${colorVar})` }}
       >
-        <GripVertical size={14} />
+        <GripVertical size={12} />
       </div>
       
       {/* Chord name */}
       <span 
-        className="font-mono font-bold text-xl transition-colors"
+        className="font-mono font-bold text-base sm:text-xl transition-colors"
         style={{ color: isPlaying ? `hsl(${colorVar})` : 'hsl(var(--foreground))' }}
       >
         {formatChord(chord)}
@@ -79,21 +79,21 @@ export const ChordBlock = memo(function ChordBlock({
       
       {/* Duration indicator */}
       <span 
-        className="text-xs mt-1 transition-colors"
+        className="text-[10px] sm:text-xs mt-0.5 sm:mt-1 transition-colors"
         style={{ color: `hsl(${colorVar} / 0.7)` }}
       >
-        {chord.duration} {chord.duration === 1 ? 'beat' : 'beats'}
+        {chord.duration}b
       </span>
       
-      {/* Delete button - hidden on mobile */}
+      {/* Delete button - hidden on mobile, show on hover on desktop */}
       <button
         onClick={(e) => {
           e.stopPropagation();
           onDelete();
         }}
         className="
-          absolute -top-2 -right-2 
-          w-6 h-6 rounded-full 
+          absolute -top-1.5 -right-1.5 sm:-top-2 sm:-right-2 
+          w-5 h-5 sm:w-6 sm:h-6 rounded-full 
           bg-destructive text-destructive-foreground
           flex items-center justify-center
           opacity-0 group-hover:opacity-100
@@ -103,7 +103,7 @@ export const ChordBlock = memo(function ChordBlock({
         "
         aria-label="Delete chord"
       >
-        <X size={12} />
+        <X size={10} />
       </button>
 
       {/* Duplicate button - hidden on mobile */}
@@ -114,8 +114,8 @@ export const ChordBlock = memo(function ChordBlock({
             onDuplicate();
           }}
           className="
-            absolute -top-2 right-5 
-            w-6 h-6 rounded-full 
+            absolute -top-1.5 right-4 sm:-top-2 sm:right-5 
+            w-5 h-5 sm:w-6 sm:h-6 rounded-full 
             bg-card text-foreground border border-border
             flex items-center justify-center
             opacity-0 group-hover:opacity-100
@@ -125,7 +125,7 @@ export const ChordBlock = memo(function ChordBlock({
           "
           aria-label="Duplicate chord"
         >
-          <Copy size={10} />
+          <Copy size={9} />
         </button>
       )}
       
