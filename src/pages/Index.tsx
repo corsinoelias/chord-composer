@@ -739,7 +739,6 @@ const Index = () => {
                   <BeatIndicator
                     currentStep={currentPlayheadStep}
                     isPlaying={isPlaying}
-                    bpm={bpm}
                   />
                 </div>
               )}
@@ -844,7 +843,7 @@ const Index = () => {
           onDragEnd={handleDragEnd}
         >
           <SortableContext items={allChordIds} strategy={rectSortingStrategy}>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {sections.map((section, sectionIndex) => (
                 <SectionCard
                   key={section.id}
@@ -897,7 +896,7 @@ const Index = () => {
           </DragOverlay>
         </DndContext>
 
-        <Button variant="outline" onClick={handleAddSection} className="w-full border-dashed">
+        <Button variant="outline" onClick={handleAddSection} className="w-full border-dashed border-border/50 hover:border-primary/40 h-9">
           <Plus className="h-4 w-4 mr-2" />
           Add Section
         </Button>

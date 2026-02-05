@@ -3,34 +3,31 @@
  * 
  * Visual indicator that pulses with the beat during playback
  * Shows 4 dots representing the current beat in a 4/4 bar
+ * Uses immediate visual updates for tight audio sync
  */
 
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 
 interface BeatIndicatorProps {
   currentStep: number; // 0-15 for 16th notes
   isPlaying: boolean;
-  bpm: number;
+  bpm?: number; // Optional, kept for API compatibility
 }
 
 export const BeatIndicator = memo(function BeatIndicator({
   currentStep,
   isPlaying,
-  bpm,
 }: BeatIndicatorProps) {
   // Convert 16th note step to quarter note beat (0-3)
   const currentBeat = Math.floor((currentStep % 16) / 4);
   
-  // Animation duration based on BPM
-  const beatDuration = useMemo(() => 60 / bpm, [bpm]);
-  
   if (!isPlaying) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {[0, 1, 2, 3].map((beat) => (
           <div
             key={beat}
-            className="w-3 h-3 rounded-full bg-muted-foreground/30"
+            className="w-2.5 h-2.5 rounded-full bg-muted-foreground/20"
           />
         ))}
       </div>
@@ -38,7 +35,7 @@ export const BeatIndicator = memo(function BeatIndicator({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       {[0, 1, 2, 3].map((beat) => {
         const isActive = beat === currentBeat;
         const isFirstBeat = beat === 0;
@@ -46,18 +43,13 @@ export const BeatIndicator = memo(function BeatIndicator({
         return (
           <div
             key={beat}
-            className={`
-              w-3 h-3 rounded-full transition-all
-              ${isActive 
+            className={`w-2.5 h-2.5 rounded-full ${
+              isActive 
                 ? isFirstBeat 
-                  ? 'bg-primary scale-125 shadow-[0_0_8px_var(--primary)]' 
-                  : 'bg-primary/80 scale-110'
-                : 'bg-muted-foreground/30'
-              }
-            `}
-            style={{
-              transitionDuration: `${beatDuration * 0.1}s`,
-            }}
+                  ? 'bg-primary shadow-[0_0_6px_hsl(var(--primary)/0.6)]' 
+                  : 'bg-primary/70'
+                : 'bg-muted-foreground/20'
+            }`}
           />
         );
       })}
