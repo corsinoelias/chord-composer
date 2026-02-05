@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { Chord, formatChord } from '@/lib/musicTheory';
-import { X, GripVertical, Copy } from 'lucide-react';
+import { X, Copy } from 'lucide-react';
 
 interface ChordBlockProps {
   chord: Chord;
@@ -38,40 +38,32 @@ export const ChordBlock = memo(function ChordBlock({
     <div
       className={`
         group relative flex flex-col items-center justify-center
-        rounded-xl border-2 transition-all duration-200
+        rounded-lg border transition-all duration-100
         cursor-grab active:cursor-grabbing select-none
         ${isPlaying 
-          ? 'scale-105 shadow-xl' 
-          : 'hover:shadow-lg hover:-translate-y-0.5'
+          ? 'shadow-lg' 
+          : 'hover:shadow-md'
         }
         ${isDragging ? 'opacity-50 scale-95' : ''}
       `}
       style={{ 
-        width: fixedWidth ? '4.5rem' : `${Math.max(chord.duration * 4, 4.5)}rem`,
-        minWidth: '4rem',
-        height: '4.5rem',
+        width: fixedWidth ? '3.5rem' : `${Math.max(chord.duration * 3.5, 3.5)}rem`,
+        minWidth: '3.5rem',
+        height: '3.5rem',
         backgroundColor: isPlaying 
-          ? `hsl(${colorVar} / 0.2)`
+          ? `hsl(${colorVar} / 0.18)`
           : `hsl(${colorVar} / 0.08)`,
         borderColor: isPlaying 
           ? `hsl(${colorVar})`
-          : `hsl(${colorVar} / 0.3)`,
+          : `hsl(${colorVar} / 0.25)`,
         boxShadow: isPlaying 
-          ? `0 0 20px hsl(${colorVar} / 0.3), inset 0 0 20px hsl(${colorVar} / 0.1)`
+          ? `0 0 12px hsl(${colorVar} / 0.25)`
           : undefined,
       }}
     >
-      {/* Drag handle indicator */}
-      <div 
-        className="absolute left-1 top-1/2 -translate-y-1/2 opacity-40 group-hover:opacity-60 transition-opacity"
-        style={{ color: `hsl(${colorVar})` }}
-      >
-        <GripVertical size={12} />
-      </div>
-      
       {/* Chord name */}
       <span 
-        className="font-mono font-bold text-base sm:text-xl transition-colors"
+        className="font-mono font-bold text-sm sm:text-base"
         style={{ color: isPlaying ? `hsl(${colorVar})` : 'hsl(var(--foreground))' }}
       >
         {formatChord(chord)}
@@ -79,7 +71,7 @@ export const ChordBlock = memo(function ChordBlock({
       
       {/* Duration indicator */}
       <span 
-        className="text-[10px] sm:text-xs mt-0.5 sm:mt-1 transition-colors"
+        className="text-[9px] sm:text-[10px] mt-0.5"
         style={{ color: `hsl(${colorVar} / 0.7)` }}
       >
         {chord.duration}b
@@ -92,18 +84,18 @@ export const ChordBlock = memo(function ChordBlock({
           onDelete();
         }}
         className="
-          absolute -top-1.5 -right-1.5 sm:-top-2 sm:-right-2 
-          w-5 h-5 sm:w-6 sm:h-6 rounded-full 
+          absolute -top-1 -right-1
+          w-4 h-4 sm:w-5 sm:h-5 rounded-full 
           bg-destructive text-destructive-foreground
           flex items-center justify-center
           opacity-0 group-hover:opacity-100
-          transition-all duration-200
-          hover:scale-110 shadow-md
+          transition-opacity duration-100
+          hover:scale-110 shadow-sm
           hidden sm:flex
         "
         aria-label="Delete chord"
       >
-        <X size={10} />
+        <X size={8} />
       </button>
 
       {/* Duplicate button - hidden on mobile */}
@@ -114,27 +106,19 @@ export const ChordBlock = memo(function ChordBlock({
             onDuplicate();
           }}
           className="
-            absolute -top-1.5 right-4 sm:-top-2 sm:right-5 
-            w-5 h-5 sm:w-6 sm:h-6 rounded-full 
+            absolute -top-1 right-3 sm:right-4
+            w-4 h-4 sm:w-5 sm:h-5 rounded-full 
             bg-card text-foreground border border-border
             flex items-center justify-center
             opacity-0 group-hover:opacity-100
-            transition-all duration-200
-            hover:scale-110 shadow-md
+            transition-opacity duration-100
+            hover:scale-110 shadow-sm
             hidden sm:flex
           "
           aria-label="Duplicate chord"
         >
-          <Copy size={9} />
+          <Copy size={8} />
         </button>
-      )}
-      
-      {/* Playing indicator animation */}
-      {isPlaying && (
-        <div 
-          className="absolute inset-0 rounded-xl animate-pulse pointer-events-none"
-          style={{ backgroundColor: `hsl(${colorVar} / 0.1)` }}
-        />
       )}
     </div>
   );

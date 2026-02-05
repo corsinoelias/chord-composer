@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useEffect, useState } from 'react';
 import { Section } from '@/lib/sections';
 import { formatChord } from '@/lib/musicTheory';
 
@@ -15,8 +15,11 @@ export const ProgressBar = memo(function ProgressBar({
   isPlaying,
   loopingSectionIndex,
 }: ProgressBarProps) {
+  // Smooth progress animation
+  const [displayProgress, setDisplayProgress] = useState(0);
+
   // Calculate total chords and current position
-  const { totalChords, currentSection, currentChord, progress } = useMemo(() => {
+  const { totalChords, currentSection, currentChord, targetProgress } = useMemo(() => {
     let total = 0;
     let currentSec = '';
     let currentCh = '';
@@ -63,36 +66,40 @@ export const ProgressBar = memo(function ProgressBar({
       totalChords: total, 
       currentSection: currentSec, 
       currentChord: currentCh,
-      progress: prog,
+      targetProgress: prog,
     };
   }, [sections, currentChordIndex, loopingSectionIndex]);
+
+  // Animate progress smoothly
+  useEffect(() => {
+    setDisplayProgress(targetProgress);
+  }, [targetProgress]);
 
   if (!isPlaying) return null;
 
   return (
-    <div className="bg-card border border-border rounded-lg p-3 animate-in slide-in-from-top-2 duration-300">
-      <div className="flex items-center justify-between text-sm mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">Now playing:</span>
+    <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg px-3 py-2 animate-in fade-in duration-200">
+      <div className="flex items-center justify-between text-xs sm:text-sm mb-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
           {currentSection && (
-            <span className="font-medium text-foreground">{currentSection}</span>
+            <span className="font-medium text-muted-foreground truncate">{currentSection}</span>
           )}
           {currentChord && (
             <>
               <span className="text-muted-foreground">•</span>
-              <span className="font-mono font-bold text-primary">{currentChord}</span>
+              <span className="font-mono font-semibold text-foreground">{currentChord}</span>
             </>
           )}
         </div>
-        <span className="text-muted-foreground tabular-nums">
+        <span className="text-muted-foreground/70 tabular-nums text-xs ml-2">
           {currentChordIndex + 1} / {totalChords}
         </span>
       </div>
       
-      <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+      <div className="h-1 bg-secondary/50 rounded-full overflow-hidden">
         <div
-          className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
-          style={{ width: `${progress}%` }}
+          className="h-full bg-primary/80 rounded-full transition-[width] duration-200 ease-out"
+          style={{ width: `${displayProgress}%` }}
         />
       </div>
     </div>
