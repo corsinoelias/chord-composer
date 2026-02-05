@@ -69,13 +69,16 @@ export const ChordBlock = memo(function ChordBlock({
         {formatChord(chord)}
       </span>
       
-      {/* Duration indicator */}
-      <span 
-        className="text-[9px] sm:text-[10px] mt-0.5"
-        style={{ color: `hsl(${colorVar} / 0.7)` }}
-      >
-        {chord.duration}b
-      </span>
+      {/* Duration indicator - visual dots */}
+      <div className="flex gap-0.5 mt-0.5">
+        {Array.from({ length: Math.min(chord.duration, 8) }).map((_, i) => (
+          <div
+            key={i}
+            className="w-1 h-1 rounded-full"
+            style={{ backgroundColor: `hsl(${colorVar} / ${isPlaying ? 0.8 : 0.5})` }}
+          />
+        ))}
+      </div>
       
       {/* Delete button - hidden on mobile, show on hover on desktop */}
       <button
