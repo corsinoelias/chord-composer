@@ -131,9 +131,6 @@ export const SongCard = memo(function SongCard({
             {song.bpm} BPM
           </Badge>
           <Badge variant="outline" className="text-xs">
-            {totalChords} chords
-          </Badge>
-          <Badge variant="outline" className="text-xs">
             {formatDuration(duration)}
           </Badge>
           <Badge variant="outline" className="text-xs">
