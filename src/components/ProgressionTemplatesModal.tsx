@@ -1,14 +1,11 @@
 /**
  * Progression Templates Modal
  * 
- * Allows users to quickly load famous chord progressions:
- * - Pop: I-V-vi-IV (C-G-Am-F)
- * - Blues 12-bar
- * - Jazz ii-V-I
- * - And more...
+ * Allows users to quickly load famous chord progressions.
+ * Organized by genre with song examples and audio preview.
  */
 
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,135 +14,11 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Chord, generateChordId } from '@/lib/musicTheory';
-import { Music2, Play } from 'lucide-react';
-
-interface ProgressionTemplate {
-  id: string;
-  name: string;
-  genre: string;
-  description: string;
-  chords: Omit<Chord, 'id'>[];
-  examples: string[];
-}
-
-const TEMPLATES: ProgressionTemplate[] = [
-  {
-    id: 'pop-1564',
-    name: 'Pop I-V-vi-IV',
-    genre: 'Pop/Rock',
-    description: 'The most popular progression in modern pop music',
-    chords: [
-      { root: 'C', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'G', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'A', accidental: '', quality: 'min', duration: 4 },
-      { root: 'F', accidental: '', quality: 'maj', duration: 4 },
-    ],
-    examples: ['Let It Be', 'No Woman No Cry', 'With or Without You'],
-  },
-  {
-    id: 'blues-12bar',
-    name: 'Blues 12-Bar',
-    genre: 'Blues/Rock',
-    description: 'The classic 12-bar blues progression',
-    chords: [
-      { root: 'A', accidental: '', quality: '7', duration: 4 },
-      { root: 'A', accidental: '', quality: '7', duration: 4 },
-      { root: 'A', accidental: '', quality: '7', duration: 4 },
-      { root: 'A', accidental: '', quality: '7', duration: 4 },
-      { root: 'D', accidental: '', quality: '7', duration: 4 },
-      { root: 'D', accidental: '', quality: '7', duration: 4 },
-      { root: 'A', accidental: '', quality: '7', duration: 4 },
-      { root: 'A', accidental: '', quality: '7', duration: 4 },
-      { root: 'E', accidental: '', quality: '7', duration: 4 },
-      { root: 'D', accidental: '', quality: '7', duration: 4 },
-      { root: 'A', accidental: '', quality: '7', duration: 4 },
-      { root: 'E', accidental: '', quality: '7', duration: 4 },
-    ],
-    examples: ['Sweet Home Chicago', 'Pride and Joy', 'Rock and Roll'],
-  },
-  {
-    id: 'jazz-251',
-    name: 'Jazz ii-V-I',
-    genre: 'Jazz',
-    description: 'The fundamental jazz cadence',
-    chords: [
-      { root: 'D', accidental: '', quality: 'min7', duration: 4 },
-      { root: 'G', accidental: '', quality: '7', duration: 4 },
-      { root: 'C', accidental: '', quality: 'maj7', duration: 8 },
-    ],
-    examples: ['Autumn Leaves', 'All The Things You Are', 'Fly Me To The Moon'],
-  },
-  {
-    id: 'sad-6415',
-    name: 'Emotional vi-IV-I-V',
-    genre: 'Pop/Ballad',
-    description: 'A melancholic, emotional progression',
-    chords: [
-      { root: 'A', accidental: '', quality: 'min', duration: 4 },
-      { root: 'F', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'C', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'G', accidental: '', quality: 'maj', duration: 4 },
-    ],
-    examples: ['Numb', 'Someone Like You', 'Hello'],
-  },
-  {
-    id: 'rock-1-b7-4',
-    name: 'Rock I-♭VII-IV',
-    genre: 'Rock',
-    description: 'Classic rock progression with ♭VII',
-    chords: [
-      { root: 'A', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'G', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'D', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'A', accidental: '', quality: 'maj', duration: 4 },
-    ],
-    examples: ['Sweet Child O Mine', 'Free Fallin', 'Knockin on Heaven\'s Door'],
-  },
-  {
-    id: 'andalusian',
-    name: 'Andalusian Cadence',
-    genre: 'Flamenco/Latin',
-    description: 'Descending minor progression from Spain',
-    chords: [
-      { root: 'A', accidental: '', quality: 'min', duration: 4 },
-      { root: 'G', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'F', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'E', accidental: '', quality: 'maj', duration: 4 },
-    ],
-    examples: ['Hit The Road Jack', 'Smooth', 'Stairway to Heaven (verse)'],
-  },
-  {
-    id: 'canon-progression',
-    name: 'Canon / Pachelbel',
-    genre: 'Classical/Pop',
-    description: 'The timeless Pachelbel Canon progression',
-    chords: [
-      { root: 'C', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'G', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'A', accidental: '', quality: 'min', duration: 4 },
-      { root: 'E', accidental: '', quality: 'min', duration: 4 },
-      { root: 'F', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'C', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'F', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'G', accidental: '', quality: 'maj', duration: 4 },
-    ],
-    examples: ['Basket Case', 'Graduation', 'Hook'],
-  },
-  {
-    id: 'reggae',
-    name: 'Reggae I-IV',
-    genre: 'Reggae',
-    description: 'Classic reggae two-chord progression',
-    chords: [
-      { root: 'G', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'C', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'G', accidental: '', quality: 'maj', duration: 4 },
-      { root: 'C', accidental: '', quality: 'maj', duration: 4 },
-    ],
-    examples: ['Three Little Birds', 'Jamming', 'Is This Love'],
-  },
-];
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Chord, generateChordId, formatChord } from '@/lib/musicTheory';
+import { GENRE_PROGRESSIONS, progressionToChords } from '@/lib/chordProgressions';
+import { playChordPreview } from '@/lib/audioEngine';
+import { Music2, Play, Square, Check, Headphones } from 'lucide-react';
 
 interface ProgressionTemplatesModalProps {
   open: boolean;
@@ -158,91 +31,202 @@ export function ProgressionTemplatesModal({
   onOpenChange,
   onSelect,
 }: ProgressionTemplatesModalProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedGenre, setSelectedGenre] = useState<string>(GENRE_PROGRESSIONS[0]?.id || 'pop');
+  const [appliedId, setAppliedId] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const previewTimeoutRef = useRef<NodeJS.Timeout[]>([]);
 
-  const handleSelect = (template: ProgressionTemplate) => {
-    const chords = template.chords.map(chord => ({
-      ...chord,
-      id: generateChordId(),
-    }));
+  const stopPreview = useCallback(() => {
+    previewTimeoutRef.current.forEach(t => clearTimeout(t));
+    previewTimeoutRef.current = [];
+    setPreviewingId(null);
+  }, []);
+
+  const playPreview = useCallback((chords: Chord[], id: string) => {
+    stopPreview();
+    setPreviewingId(id);
+    
+    const chordDuration = 550;
+    chords.forEach((chord, index) => {
+      const timeout = setTimeout(() => {
+        playChordPreview(chord);
+      }, index * chordDuration);
+      previewTimeoutRef.current.push(timeout);
+    });
+    
+    const endTimeout = setTimeout(() => {
+      setPreviewingId(null);
+    }, chords.length * chordDuration + 400);
+    previewTimeoutRef.current.push(endTimeout);
+  }, [stopPreview]);
+
+  const handleSelect = useCallback((genreId: string, progIdx: number) => {
+    stopPreview();
+    const genre = GENRE_PROGRESSIONS.find(g => g.id === genreId);
+    if (!genre) return;
+    
+    const prog = genre.progressions[progIdx];
+    const chords = progressionToChords(prog);
     onSelect(chords);
-    onOpenChange(false);
-  };
+    
+    // Show applied state, then close
+    const id = `${genreId}-${progIdx}`;
+    setAppliedId(id);
+    setTimeout(() => {
+      onOpenChange(false);
+      setAppliedId(null);
+    }, 500);
+  }, [onSelect, onOpenChange, stopPreview]);
+
+  const handlePreview = useCallback((genreId: string, progIdx: number) => {
+    const id = `${genreId}-${progIdx}`;
+    if (previewingId === id) {
+      stopPreview();
+      return;
+    }
+    const genre = GENRE_PROGRESSIONS.find(g => g.id === genreId);
+    if (!genre) return;
+    const chords = progressionToChords(genre.progressions[progIdx]);
+    playPreview(chords, id);
+  }, [previewingId, stopPreview, playPreview]);
+
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      stopPreview();
+      setAppliedId(null);
+    }
+    onOpenChange(open);
+  }, [onOpenChange, stopPreview]);
+
+  const currentGenre = GENRE_PROGRESSIONS.find(g => g.id === selectedGenre) || GENRE_PROGRESSIONS[0];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[80vh] p-0 gap-0 overflow-hidden">
+        <DialogHeader className="p-4 pb-3 border-b border-border">
           <DialogTitle className="flex items-center gap-2">
             <Music2 className="h-5 w-5 text-primary" />
-            Chord Progression Templates
+            Progression Templates
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-3 mt-4">
-          {TEMPLATES.map((template) => (
-            <div
-              key={template.id}
-              className={`
-                p-4 rounded-lg border-2 cursor-pointer transition-all
-                ${selectedId === template.id 
-                  ? 'border-primary bg-primary/5' 
-                  : 'border-border hover:border-primary/50 hover:bg-muted/30'
-                }
-              `}
-              onClick={() => setSelectedId(template.id)}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold text-foreground">
-                      {template.name}
-                    </h3>
-                    <Badge variant="secondary" className="text-xs">
-                      {template.genre}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {template.description}
-                  </p>
-                  
-                  {/* Chord preview */}
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {template.chords.slice(0, 8).map((chord, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-0.5 rounded text-xs font-mono bg-secondary text-secondary-foreground"
-                      >
-                        {chord.root}{chord.accidental}{chord.quality === 'maj' ? '' : chord.quality}
-                      </span>
-                    ))}
-                    {template.chords.length > 8 && (
-                      <span className="text-xs text-muted-foreground">
-                        +{template.chords.length - 8} more
-                      </span>
-                    )}
-                  </div>
-                  
-                  {/* Examples */}
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium">Examples:</span> {template.examples.join(', ')}
-                  </p>
-                </div>
+        {/* Genre tabs */}
+        <div className="border-b border-border px-4 py-2 overflow-x-auto">
+          <div className="flex gap-1 min-w-max">
+            {GENRE_PROGRESSIONS.map((genre) => (
+              <Button
+                key={genre.id}
+                variant={selectedGenre === genre.id ? 'default' : 'ghost'}
+                size="sm"
+                className="h-7 text-xs px-3 shrink-0"
+                onClick={() => setSelectedGenre(genre.id)}
+              >
+                {genre.name}
+              </Button>
+            ))}
+          </div>
+        </div>
 
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSelect(template);
-                  }}
-                  className="shrink-0"
+        {/* Progressions list */}
+        <ScrollArea className="flex-1 max-h-[55vh]">
+          <div className="p-3 space-y-2">
+            {currentGenre.progressions.map((prog, idx) => {
+              const id = `${currentGenre.id}-${idx}`;
+              const isPreviewing = previewingId === id;
+              const isApplied = appliedId === id;
+              
+              return (
+                <div
+                  key={idx}
+                  className={`p-3 rounded-lg border transition-all duration-100 cursor-pointer group ${
+                    isApplied
+                      ? 'border-[hsl(var(--success))] bg-[hsl(var(--success)/0.08)]'
+                      : 'border-border hover:border-primary/40 hover:bg-accent/50'
+                  }`}
+                  onClick={() => handleSelect(currentGenre.id, idx)}
                 >
-                  <Play className="h-4 w-4 mr-1" />
-                  Use
-                </Button>
-              </div>
-            </div>
-          ))}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <h3 className="font-semibold text-sm text-foreground">
+                          {prog.name}
+                        </h3>
+                      </div>
+                      
+                      {/* Chord preview chips */}
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {prog.chords.slice(0, 8).map((chord, i) => (
+                          <span
+                            key={i}
+                            className="px-1.5 py-0.5 rounded text-xs font-mono bg-secondary text-secondary-foreground"
+                          >
+                            {chord.root}
+                            {chord.accidental === '#' ? '♯' : chord.accidental === 'b' ? '♭' : ''}
+                            {chord.quality === 'maj' ? '' : chord.quality}
+                          </span>
+                        ))}
+                        {prog.chords.length > 8 && (
+                          <span className="text-xs text-muted-foreground self-center">
+                            +{prog.chords.length - 8}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Song examples */}
+                      {prog.examples && prog.examples.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          🎵 {prog.examples.join(' · ')}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Preview button */}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePreview(currentGenre.id, idx);
+                        }}
+                      >
+                        {isPreviewing ? (
+                          <Square className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                      </Button>
+                      
+                      {/* Apply button */}
+                      <Button
+                        size="sm"
+                        variant={isApplied ? 'default' : 'secondary'}
+                        className={`h-8 text-xs ${isApplied ? 'bg-[hsl(var(--success))]' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelect(currentGenre.id, idx);
+                        }}
+                      >
+                        {isApplied ? (
+                          <><Check className="h-3 w-3 mr-1" /> Applied</>
+                        ) : (
+                          'Use'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+
+        <div className="p-2 border-t border-border bg-muted/50">
+          <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
+            <Headphones className="h-3 w-3" />
+            ▶ preview · click to apply
+          </p>
         </div>
       </DialogContent>
     </Dialog>

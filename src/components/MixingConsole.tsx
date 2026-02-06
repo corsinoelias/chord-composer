@@ -1,17 +1,19 @@
 /**
  * Mixing Console Component
  * 
- * Master EQ, reverb, and compression controls
+ * Professional-style master EQ, reverb, and compression controls
+ * with visual feedback and intuitive layout.
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Sliders, RotateCcw } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Sliders, RotateCcw, Volume2 } from 'lucide-react';
 import { 
   EffectsState, 
   DEFAULT_EFFECTS_STATE,
@@ -25,6 +27,158 @@ import {
 interface MixingConsoleProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+/** Vertical EQ band with visual gain meter */
+function EQBand({ 
+  label, 
+  freq, 
+  value, 
+  onChange 
+}: { 
+  label: string; 
+  freq: string; 
+  value: number; 
+  onChange: (v: number) => void; 
+}) {
+  const percentage = ((value + 12) / 24) * 100;
+  const isBoost = value > 0;
+  const isCut = value < 0;
+  
+  return (
+    <div className="flex flex-col items-center gap-2 flex-1">
+      {/* Gain value */}
+      <span className={`text-xs font-mono tabular-nums ${
+        isBoost ? 'text-[hsl(var(--success))]' : isCut ? 'text-destructive' : 'text-muted-foreground'
+      }`}>
+        {value > 0 ? '+' : ''}{value.toFixed(1)}
+      </span>
+      
+      {/* Vertical slider track */}
+      <div className="relative w-8 h-32 flex items-center justify-center">
+        {/* Track background */}
+        <div className="absolute w-1.5 h-full rounded-full bg-secondary overflow-hidden">
+          {/* Filled portion from center */}
+          <div 
+            className="absolute w-full transition-all duration-75"
+            style={{
+              backgroundColor: isBoost 
+                ? 'hsl(var(--success))' 
+                : isCut 
+                  ? 'hsl(var(--destructive))' 
+                  : 'hsl(var(--primary))',
+              top: isBoost ? `${100 - percentage}%` : '50%',
+              bottom: isCut ? `${percentage}%` : '50%',
+              height: 'auto',
+            }}
+          />
+          {/* Center line */}
+          <div className="absolute w-full h-px bg-muted-foreground/40 top-1/2" />
+        </div>
+        
+        {/* Slider input */}
+        <input
+          type="range"
+          min={-12}
+          max={12}
+          step={0.5}
+          value={value}
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+          className="absolute w-32 h-8 opacity-0 cursor-pointer"
+          style={{ 
+            transform: 'rotate(-90deg)',
+            WebkitAppearance: 'none',
+          }}
+        />
+        
+        {/* Thumb indicator */}
+        <div 
+          className="absolute w-6 h-3 rounded-sm bg-foreground/80 border border-border shadow-sm pointer-events-none transition-all duration-75"
+          style={{ top: `${100 - percentage}%`, transform: 'translateY(-50%)' }}
+        />
+      </div>
+      
+      {/* Labels */}
+      <div className="text-center">
+        <div className="text-xs font-medium text-foreground">{label}</div>
+        <div className="text-[10px] text-muted-foreground">{freq}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Effect section wrapper */
+function EffectSection({ 
+  title, 
+  enabled, 
+  onToggle, 
+  children,
+  badge,
+}: { 
+  title: string; 
+  enabled?: boolean; 
+  onToggle?: (v: boolean) => void; 
+  children: React.ReactNode;
+  badge?: string;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {badge && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+              {badge}
+            </Badge>
+          )}
+        </div>
+        {onToggle !== undefined && enabled !== undefined && (
+          <Switch
+            checked={enabled}
+            onCheckedChange={onToggle}
+          />
+        )}
+      </div>
+      <div className={onToggle !== undefined && !enabled ? 'opacity-40 pointer-events-none' : ''}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Labeled horizontal slider */
+function EffectSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  format,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  format: (v: number) => string;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between text-xs">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="text-foreground font-mono tabular-nums">{format(value)}</span>
+      </div>
+      <Slider
+        value={[value]}
+        min={min}
+        max={max}
+        step={step}
+        onValueChange={([val]) => onChange(val)}
+      />
+    </div>
+  );
 }
 
 export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
@@ -68,203 +222,164 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
     resetEffects();
   }, []);
 
+  // Check if any effects are modified from defaults
+  const isModified = useMemo(() => {
+    return (
+      effects.eq.low.gain !== 0 ||
+      effects.eq.mid.gain !== 0 ||
+      effects.eq.high.gain !== 0 ||
+      effects.reverb.enabled ||
+      effects.compressor.enabled
+    );
+  }, [effects]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Sliders className="h-5 w-5" />
-            Mixing Console
-          </SheetTitle>
-          <SheetDescription>
-            Master EQ, reverb, and compression
-          </SheetDescription>
-        </SheetHeader>
+      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto p-0">
+        <div className="p-4 border-b border-border">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
+                <Sliders className="h-4 w-4 text-primary" />
+              </div>
+              Mixing Console
+              {isModified && (
+                <Badge variant="secondary" className="text-[10px] ml-auto">Modified</Badge>
+              )}
+            </SheetTitle>
+            <SheetDescription className="text-xs">
+              Master audio processing — EQ, reverb & compression
+            </SheetDescription>
+          </SheetHeader>
+        </div>
 
-        <div className="mt-6 space-y-6">
-          <Tabs defaultValue="eq" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="eq">EQ</TabsTrigger>
-              <TabsTrigger value="reverb">Reverb</TabsTrigger>
-              <TabsTrigger value="compressor">Compressor</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="eq" className="space-y-6 mt-4">
-              <div className="space-y-4">
-                <EQSlider
-                  label="Low (100 Hz)"
+        <div className="p-4 space-y-6">
+          {/* ─── EQUALIZER ─── */}
+          <EffectSection title="Equalizer" badge="3-Band">
+            <div className="bg-secondary/30 rounded-lg p-4">
+              <div className="flex items-end justify-center gap-4">
+                <EQBand
+                  label="Low"
+                  freq="100 Hz"
                   value={effects.eq.low.gain}
                   onChange={(gain) => handleEQChange('low', gain)}
                 />
-                <EQSlider
-                  label="Mid (1 kHz)"
+                <EQBand
+                  label="Mid"
+                  freq="1 kHz"
                   value={effects.eq.mid.gain}
                   onChange={(gain) => handleEQChange('mid', gain)}
                 />
-                <EQSlider
-                  label="High (8 kHz)"
+                <EQBand
+                  label="High"
+                  freq="8 kHz"
                   value={effects.eq.high.gain}
                   onChange={(gain) => handleEQChange('high', gain)}
                 />
               </div>
-            </TabsContent>
-
-            <TabsContent value="reverb" className="space-y-6 mt-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="reverb-enabled">Enable Reverb</Label>
-                <Switch
-                  id="reverb-enabled"
-                  checked={effects.reverb.enabled}
-                  onCheckedChange={(checked) => handleReverbChange('enabled', checked)}
-                />
+              
+              {/* dB scale labels */}
+              <div className="flex justify-between mt-2 px-2">
+                <span className="text-[10px] text-muted-foreground">-12 dB</span>
+                <span className="text-[10px] text-muted-foreground">0 dB</span>
+                <span className="text-[10px] text-muted-foreground">+12 dB</span>
               </div>
+            </div>
+          </EffectSection>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <Label>Decay</Label>
-                    <span className="text-muted-foreground">{effects.reverb.decay.toFixed(1)}s</span>
-                  </div>
-                  <Slider
-                    value={[effects.reverb.decay]}
-                    min={0.1}
-                    max={5}
-                    step={0.1}
-                    onValueChange={([value]) => handleReverbChange('decay', value)}
-                    disabled={!effects.reverb.enabled}
-                  />
-                </div>
+          <Separator />
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <Label>Wet/Dry Mix</Label>
-                    <span className="text-muted-foreground">{Math.round(effects.reverb.wetDry * 100)}%</span>
-                  </div>
-                  <Slider
-                    value={[effects.reverb.wetDry]}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    onValueChange={([value]) => handleReverbChange('wetDry', value)}
-                    disabled={!effects.reverb.enabled}
-                  />
-                </div>
-              </div>
-            </TabsContent>
+          {/* ─── REVERB ─── */}
+          <EffectSection 
+            title="Reverb" 
+            enabled={effects.reverb.enabled}
+            onToggle={(checked) => handleReverbChange('enabled', checked)}
+          >
+            <div className="space-y-4">
+              <EffectSlider
+                label="Decay Time"
+                value={effects.reverb.decay}
+                min={0.1}
+                max={5}
+                step={0.1}
+                format={(v) => `${v.toFixed(1)}s`}
+                onChange={(v) => handleReverbChange('decay', v)}
+              />
+              <EffectSlider
+                label="Wet / Dry"
+                value={effects.reverb.wetDry}
+                min={0}
+                max={1}
+                step={0.01}
+                format={(v) => `${Math.round(v * 100)}%`}
+                onChange={(v) => handleReverbChange('wetDry', v)}
+              />
+            </div>
+          </EffectSection>
 
-            <TabsContent value="compressor" className="space-y-6 mt-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="compressor-enabled">Enable Compressor</Label>
-                <Switch
-                  id="compressor-enabled"
-                  checked={effects.compressor.enabled}
-                  onCheckedChange={(checked) => handleCompressorChange('enabled', checked)}
-                />
-              </div>
+          <Separator />
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <Label>Threshold</Label>
-                    <span className="text-muted-foreground">{effects.compressor.threshold} dB</span>
-                  </div>
-                  <Slider
-                    value={[effects.compressor.threshold]}
-                    min={-60}
-                    max={0}
-                    step={1}
-                    onValueChange={([value]) => handleCompressorChange('threshold', value)}
-                    disabled={!effects.compressor.enabled}
-                  />
-                </div>
+          {/* ─── COMPRESSOR ─── */}
+          <EffectSection 
+            title="Compressor" 
+            enabled={effects.compressor.enabled}
+            onToggle={(checked) => handleCompressorChange('enabled', checked)}
+          >
+            <div className="space-y-4">
+              <EffectSlider
+                label="Threshold"
+                value={effects.compressor.threshold}
+                min={-60}
+                max={0}
+                step={1}
+                format={(v) => `${v} dB`}
+                onChange={(v) => handleCompressorChange('threshold', v)}
+              />
+              <EffectSlider
+                label="Ratio"
+                value={effects.compressor.ratio}
+                min={1}
+                max={20}
+                step={0.5}
+                format={(v) => `${v}:1`}
+                onChange={(v) => handleCompressorChange('ratio', v)}
+              />
+              <EffectSlider
+                label="Attack"
+                value={effects.compressor.attack}
+                min={0.001}
+                max={1}
+                step={0.001}
+                format={(v) => `${(v * 1000).toFixed(0)} ms`}
+                onChange={(v) => handleCompressorChange('attack', v)}
+              />
+              <EffectSlider
+                label="Release"
+                value={effects.compressor.release}
+                min={0.01}
+                max={1}
+                step={0.01}
+                format={(v) => `${(v * 1000).toFixed(0)} ms`}
+                onChange={(v) => handleCompressorChange('release', v)}
+              />
+            </div>
+          </EffectSection>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <Label>Ratio</Label>
-                    <span className="text-muted-foreground">{effects.compressor.ratio}:1</span>
-                  </div>
-                  <Slider
-                    value={[effects.compressor.ratio]}
-                    min={1}
-                    max={20}
-                    step={0.5}
-                    onValueChange={([value]) => handleCompressorChange('ratio', value)}
-                    disabled={!effects.compressor.enabled}
-                  />
-                </div>
+          <Separator />
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <Label>Attack</Label>
-                    <span className="text-muted-foreground">{(effects.compressor.attack * 1000).toFixed(0)} ms</span>
-                  </div>
-                  <Slider
-                    value={[effects.compressor.attack]}
-                    min={0.001}
-                    max={1}
-                    step={0.001}
-                    onValueChange={([value]) => handleCompressorChange('attack', value)}
-                    disabled={!effects.compressor.enabled}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <Label>Release</Label>
-                    <span className="text-muted-foreground">{(effects.compressor.release * 1000).toFixed(0)} ms</span>
-                  </div>
-                  <Slider
-                    value={[effects.compressor.release]}
-                    min={0.01}
-                    max={1}
-                    step={0.01}
-                    onValueChange={([value]) => handleCompressorChange('release', value)}
-                    disabled={!effects.compressor.enabled}
-                  />
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <div className="pt-4 border-t">
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleReset}
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset All Effects
-            </Button>
-          </div>
+          {/* Reset */}
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleReset}
+            disabled={!isModified}
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Reset All Effects
+          </Button>
         </div>
       </SheetContent>
     </Sheet>
-  );
-}
-
-interface EQSliderProps {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}
-
-function EQSlider({ label, value, onChange }: EQSliderProps) {
-  return (
-    <div className="space-y-2">
-      <div className="flex justify-between text-sm">
-        <Label>{label}</Label>
-        <span className={`text-muted-foreground ${value > 0 ? 'text-green-500' : value < 0 ? 'text-red-500' : ''}`}>
-          {value > 0 ? '+' : ''}{value.toFixed(1)} dB
-        </span>
-      </div>
-      <Slider
-        value={[value]}
-        min={-12}
-        max={12}
-        step={0.5}
-        onValueChange={([val]) => onChange(val)}
-      />
-    </div>
   );
 }
 
