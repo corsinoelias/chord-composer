@@ -2,14 +2,14 @@
  * Chord Suggestions Component
  * 
  * Displays chord progression templates organized by genre.
- * Allows users to preview progressions before applying them.
+ * Closes automatically when a progression is applied, with visual feedback.
  */
 
 import { memo, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Plus, Shuffle, Music2, Play, Square, Headphones } from 'lucide-react';
+import { Sparkles, Plus, Shuffle, Music2, Play, Square, Headphones, Check } from 'lucide-react';
 import { Chord, formatChord } from '@/lib/musicTheory';
 import { useChordSuggestions, ProgressionSuggestion } from '@/hooks/useChordSuggestions';
 import { GENRE_PROGRESSIONS, progressionToChords } from '@/lib/chordProgressions';
@@ -31,27 +31,25 @@ export const ChordSuggestions = memo(function ChordSuggestions({
   const [generatedProgression, setGeneratedProgression] = useState<ProgressionSuggestion | null>(null);
   const [previewingChords, setPreviewingChords] = useState<Chord[] | null>(null);
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [appliedId, setAppliedId] = useState<string | null>(null);
   const previewTimeoutRef = useRef<NodeJS.Timeout[]>([]);
 
   const stopPreview = useCallback(() => {
-    // Clear timeouts
     previewTimeoutRef.current.forEach(t => clearTimeout(t));
     previewTimeoutRef.current = [];
-    
     setIsPreviewPlaying(false);
     setPreviewingChords(null);
   }, []);
 
   const playPreview = useCallback((chords: Chord[]) => {
     stopPreview();
-    
     if (chords.length === 0) return;
     
     setIsPreviewPlaying(true);
     setPreviewingChords(chords);
     
-    // Play each chord with a delay using the working audioEngine function
-    const chordDuration = 600; // ms between chords
+    const chordDuration = 600;
     
     chords.forEach((chord, index) => {
       const timeout = setTimeout(() => {
@@ -60,7 +58,6 @@ export const ChordSuggestions = memo(function ChordSuggestions({
       previewTimeoutRef.current.push(timeout);
     });
     
-    // Auto-stop after all chords finish
     const totalDuration = chords.length * chordDuration + 500;
     const endTimeout = setTimeout(() => {
       setIsPreviewPlaying(false);
@@ -69,10 +66,12 @@ export const ChordSuggestions = memo(function ChordSuggestions({
     previewTimeoutRef.current.push(endTimeout);
   }, [stopPreview]);
 
-  const handleOpen = (open: boolean) => {
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
     if (!open) {
       stopPreview();
       setGeneratedProgression(null);
+      setAppliedId(null);
     }
   };
 
@@ -86,7 +85,10 @@ export const ChordSuggestions = memo(function ChordSuggestions({
     stopPreview();
     if (generatedProgression) {
       onSetProgression(generatedProgression.chords);
-      toast.success(`Applied ${generatedProgression.name} progression`);
+      toast.success(`Applied "${generatedProgression.name}"`);
+      // Close after a brief flash of confirmation
+      setAppliedId('generated');
+      setTimeout(() => setIsOpen(false), 400);
     }
   };
 
@@ -107,7 +109,10 @@ export const ChordSuggestions = memo(function ChordSuggestions({
       const progression = genre.progressions[progressionIndex];
       const chords = progressionToChords(progression);
       onSetProgression(chords);
-      toast.success(`Applied ${progression.name} progression`);
+      toast.success(`Applied "${progression.name}"`);
+      // Show applied state then close
+      setAppliedId(`${genreId}-${progressionIndex}`);
+      setTimeout(() => setIsOpen(false), 400);
     }
   };
 
@@ -131,13 +136,12 @@ export const ChordSuggestions = memo(function ChordSuggestions({
     if (!genre) return false;
     const progression = genre.progressions[progressionIndex];
     const chords = progressionToChords(progression);
-    // Compare chord roots as a simple check
     return chords.length === previewingChords.length && 
            chords.every((c, i) => c.root === previewingChords![i].root);
   };
 
   return (
-    <Popover onOpenChange={handleOpen}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -186,8 +190,16 @@ export const ChordSuggestions = memo(function ChordSuggestions({
                     <Play className="h-4 w-4" />
                   )}
                 </Button>
-                <Button size="sm" onClick={handleApplyProgression}>
-                  Apply
+                <Button 
+                  size="sm" 
+                  onClick={handleApplyProgression}
+                  className={appliedId === 'generated' ? 'bg-[hsl(var(--success))] text-primary-foreground' : ''}
+                >
+                  {appliedId === 'generated' ? (
+                    <><Check className="h-3 w-3 mr-1" /> Applied</>
+                  ) : (
+                    'Apply'
+                  )}
                 </Button>
               </div>
             </div>
@@ -201,7 +213,7 @@ export const ChordSuggestions = memo(function ChordSuggestions({
           </div>
         )}
 
-        <div className="max-h-64 overflow-y-auto">
+        <div className="max-h-72 overflow-y-auto">
           {GENRE_PROGRESSIONS.map((genre) => (
             <div key={genre.id} className="border-b last:border-b-0">
               <div className="px-3 py-2 bg-muted/50">
@@ -209,21 +221,30 @@ export const ChordSuggestions = memo(function ChordSuggestions({
                   {genre.name}
                 </span>
               </div>
-              <div className="p-2 space-y-1">
-                {genre.progressions.slice(0, 3).map((prog, idx) => {
+              <div className="p-1.5 space-y-0.5">
+                {genre.progressions.slice(0, 4).map((prog, idx) => {
                   const isPreviewing = isPreviewingPreset(genre.id, idx);
+                  const isApplied = appliedId === `${genre.id}-${idx}`;
                   
                   return (
                     <div
                       key={idx}
-                      className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors group"
+                      className={`flex items-center gap-2 p-2 rounded-md transition-all duration-100 group cursor-pointer ${
+                        isApplied 
+                          ? 'bg-[hsl(var(--success)/0.15)]' 
+                          : 'hover:bg-accent'
+                      }`}
+                      onClick={() => handleApplyPresetProgression(genre.id, idx)}
                     >
                       {/* Preview button */}
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 shrink-0"
-                        onClick={() => handlePreviewPreset(genre.id, idx)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePreviewPreset(genre.id, idx);
+                        }}
                       >
                         {isPreviewing ? (
                           <Square className="h-3.5 w-3.5" />
@@ -233,12 +254,9 @@ export const ChordSuggestions = memo(function ChordSuggestions({
                       </Button>
                       
                       {/* Progression info */}
-                      <button
-                        onClick={() => handleApplyPresetProgression(genre.id, idx)}
-                        className="flex-1 min-w-0 text-left"
-                      >
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{prog.name}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
+                        <div className="flex flex-wrap gap-0.5 mt-0.5">
                           {prog.chords.slice(0, 6).map((c, i) => (
                             <span key={i} className="text-xs text-muted-foreground">
                               {c.root}{c.accidental === '#' ? '♯' : c.accidental === 'b' ? '♭' : ''}{c.quality !== 'maj' ? c.quality : ''}
@@ -249,13 +267,16 @@ export const ChordSuggestions = memo(function ChordSuggestions({
                             <span className="text-xs text-muted-foreground">...</span>
                           )}
                         </div>
-                      </button>
+                      </div>
                       
-                      {/* Apply button */}
-                      <Plus 
-                        className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shrink-0" 
-                        onClick={() => handleApplyPresetProgression(genre.id, idx)}
-                      />
+                      {/* Applied checkmark or apply icon */}
+                      {isApplied ? (
+                        <Check className="h-4 w-4 text-[hsl(var(--success))] shrink-0" />
+                      ) : (
+                        <Plus 
+                          className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" 
+                        />
+                      )}
                     </div>
                   );
                 })}
@@ -267,7 +288,7 @@ export const ChordSuggestions = memo(function ChordSuggestions({
         <div className="p-2 border-t bg-muted/50">
           <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
             <Headphones className="h-3 w-3" />
-            Click play to preview, click progression to apply
+            ▶ preview · click to apply
           </p>
         </div>
       </PopoverContent>
