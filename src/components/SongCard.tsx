@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Music, MoreVertical, Play, Copy, Trash2, Download, Clock, Music2 } from 'lucide-react';
+import { MoreVertical, Play, Copy, Trash2, Download, Clock, Music2, Layers } from 'lucide-react';
 
 interface SongCardProps {
   song: Song;
@@ -48,7 +48,6 @@ export const SongCard = memo(function SongCard({
 }: SongCardProps) {
   const duration = getSongDuration(song);
   const chordsPreview = getChordsPreview(song);
-  const totalChords = song.sections.reduce((sum, s) => sum + s.chords.length, 0);
   const gradientClass = CARD_GRADIENTS[getGradientIndex(song.id)];
   
   const formatDate = (dateStr: string) => {
@@ -70,23 +69,23 @@ export const SongCard = memo(function SongCard({
 
   return (
     <Card 
-      className="group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden border-border/50"
+      className="group cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden border-border/50"
       onClick={onOpen}
     >
       {/* Gradient header */}
-      <div className={`h-2 bg-gradient-to-r ${gradientClass}`} />
+      <div className={`h-1.5 bg-gradient-to-r ${gradientClass}`} />
       
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradientClass} flex items-center justify-center flex-shrink-0 border border-border/30`}>
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradientClass} flex items-center justify-center flex-shrink-0 border border-border/30`}>
               <Music2 className="w-5 h-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                 {song.title}
               </h3>
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                 <Clock className="h-3 w-3" />
                 {formatDate(song.updatedAt)}
               </p>
@@ -114,7 +113,7 @@ export const SongCard = memo(function SongCard({
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onExport}>
                 <Download className="h-4 w-4 mr-2" />
-                Export MP3
+                Export
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
@@ -125,25 +124,26 @@ export const SongCard = memo(function SongCard({
           </DropdownMenu>
         </div>
         
-        {/* Stats row */}
-        <div className="mt-3 flex items-center gap-2 flex-wrap">
-          <Badge variant="secondary" className="text-xs font-medium bg-primary/10 text-primary border-0">
-            {song.bpm} BPM
-          </Badge>
-          <Badge variant="outline" className="text-xs">
-            {formatDuration(duration)}
-          </Badge>
-          <Badge variant="outline" className="text-xs">
-            {song.sections.length} {song.sections.length === 1 ? 'section' : 'sections'}
-          </Badge>
+        {/* Stats row - minimal and clear */}
+        <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="font-mono font-medium text-foreground">{song.bpm} bpm</span>
+          <span className="text-border">·</span>
+          <span>{formatDuration(duration)}</span>
+          <span className="text-border">·</span>
+          <span className="flex items-center gap-1">
+            <Layers className="h-3 w-3" />
+            {song.sections.length}
+          </span>
         </div>
         
         {/* Chord preview */}
-        <div className="mt-3 p-2 rounded-lg bg-secondary/30 border border-border/30">
-          <p className="text-sm text-muted-foreground font-mono truncate">
-            {chordsPreview}
-          </p>
-        </div>
+        {chordsPreview && (
+          <div className="mt-3 p-2 rounded-lg bg-secondary/30 border border-border/30">
+            <p className="text-xs text-muted-foreground font-mono truncate">
+              {chordsPreview}
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
