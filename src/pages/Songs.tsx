@@ -71,22 +71,31 @@ const Songs = () => {
   }, [deleteConfirm, refreshSongs]);
 
   const handleExport = useCallback((song: Song) => {
-    // Navigate to editor with export flag
     navigate(`/editor/${song.id}?export=true`);
   }, [navigate]);
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="container max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Music2 className="w-5 h-5 text-primary-foreground" />
+        <div className="container max-w-6xl mx-auto px-4 py-4 sm:py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-[var(--shadow-glow-sm)]">
+                <Music2 className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">Chord Player</h1>
+                <p className="text-xs text-muted-foreground">
+                  {songs.length} {songs.length === 1 ? 'song' : 'songs'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-semibold text-foreground">Chord Player</h1>
-              <p className="text-sm text-muted-foreground">Your saved songs</p>
-            </div>
+            {songs.length > 0 && (
+              <Button onClick={handleCreateNew} className="gap-1.5 shadow-md">
+                <Plus className="h-4 w-4" />
+                <span className="hidden xs:inline">New Song</span>
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -94,21 +103,18 @@ const Songs = () => {
       <main className="container max-w-6xl mx-auto px-4 py-6">
         {songs.length > 0 ? (
           <>
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <div className="relative flex-1">
+            {/* Search - only show when there are multiple songs */}
+            {songs.length > 2 && (
+              <div className="relative mb-6">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search songs..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 max-w-sm"
                 />
               </div>
-              <Button onClick={handleCreateNew}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Song
-              </Button>
-            </div>
+            )}
 
             {filteredSongs.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
