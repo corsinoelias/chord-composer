@@ -9,7 +9,7 @@ import { Chord } from '@/lib/musicTheory';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Repeat, Pencil, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Repeat, Pencil } from 'lucide-react';
 import { SortableChord } from './SortableChord';
 import { ChordSuggestions } from './ChordSuggestions';
 
@@ -46,13 +46,13 @@ const SECTION_COLORS = [
   '142 71%', // Green
 ];
 
-// Get consistent color index from section ID
+// Get consistent color index from section ID (so color stays with section when reordering)
 function getColorIndexFromId(id: string): number {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
     const char = id.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
+    hash = hash & hash; // Convert to 32bit integer
   }
   return Math.abs(hash) % SECTION_COLORS.length;
 }
@@ -82,8 +82,10 @@ export const SectionCard = memo(function SectionCard({
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
 
+  // Get section accent color based on ID (persists across reordering)
   const colorHsl = SECTION_COLORS[getColorIndexFromId(section.id)];
 
+  // Droppable zone for the section (for cross-section chord drops)
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: `section-drop-${sectionIndex}`,
   });
@@ -97,6 +99,7 @@ export const SectionCard = memo(function SectionCard({
     setIsEditingName(false);
   };
 
+  // Calculate which chord in this section is playing
   const getLocalPlayingIndex = (): number => {
     if (currentChordIndex < 0) return -1;
     const localIndex = currentChordIndex - globalChordOffset;
@@ -110,12 +113,15 @@ export const SectionCard = memo(function SectionCard({
   };
 
   const localPlayingIndex = getLocalPlayingIndex();
+
+  // Generate unique chord IDs that include section index
   const chordIds = section.chords.map(c => `chord-${sectionIndex}-${c.id}`);
 
   const canMoveUp = sectionIndex > 0;
   const canMoveDown = sectionIndex < totalSections - 1;
   const showReorderButtons = totalSections > 1;
 
+  // Haptic feedback helper
   const triggerHaptic = () => {
     if ('vibrate' in navigator) {
       navigator.vibrate(10);
@@ -132,6 +138,7 @@ export const SectionCard = memo(function SectionCard({
     onMoveDown();
   };
 
+  // Determine animation class
   const animationClass = swapAnimation === 'up' 
     ? 'animate-section-swap-up' 
     : swapAnimation === 'down' 
@@ -141,7 +148,7 @@ export const SectionCard = memo(function SectionCard({
   return (
     <TooltipProvider delayDuration={300}>
       <div 
-        className={`bg-card rounded-xl overflow-hidden transition-shadow duration-100 shadow-sm hover:shadow-md ${
+        className={`bg-card rounded-xl overflow-hidden transition-shadow duration-200 shadow-sm hover:shadow-md ${
           isLooping ? 'ring-2 ring-offset-2 ring-offset-background' :
           isOver ? 'ring-2 ring-offset-2 ring-offset-background ring-primary/50' :
           ''
@@ -151,39 +158,48 @@ export const SectionCard = memo(function SectionCard({
           ...(isLooping ? { '--tw-ring-color': `hsl(${colorHsl} 55%)` } as React.CSSProperties : {}),
         }}
       >
-        {/* Section Header */}
+        {/* Section Header - Responsive */}
         <div 
-          className="flex items-center justify-between px-2.5 sm:px-3 py-2 border-b border-border/30 select-none gap-1 sm:gap-2"
+          className="flex items-center justify-between px-2 sm:px-3 py-2 border-b border-border/30 select-none gap-1 sm:gap-2"
           style={{ 
             background: `linear-gradient(90deg, hsl(${colorHsl} 50% / 0.06) 0%, transparent 100%)` 
           }}
         >
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-            {/* Reorder buttons */}
+            {/* Move Up/Down Buttons - only show when multiple sections */}
             {showReorderButtons && (
               <div className="flex flex-col -my-1 shrink-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 sm:h-6 sm:w-6 rounded-b-none opacity-40 hover:opacity-100"
-                  onClick={handleMoveUp}
-                  disabled={!canMoveUp}
-                >
-                  <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 sm:h-6 sm:w-6 rounded-t-none opacity-40 hover:opacity-100"
-                  onClick={handleMoveDown}
-                  disabled={!canMoveDown}
-                >
-                  <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 sm:h-6 sm:w-6 rounded-b-none opacity-50 hover:opacity-100"
+                      onClick={handleMoveUp}
+                      disabled={!canMoveUp}
+                    >
+                      <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Move section up</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 sm:h-6 sm:w-6 rounded-t-none opacity-50 hover:opacity-100"
+                      onClick={handleMoveDown}
+                      disabled={!canMoveDown}
+                    >
+                      <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Move section down</TooltipContent>
+                </Tooltip>
               </div>
             )}
             
-            {/* Section name - editable on click */}
             {isEditingName ? (
               <Input
                 value={editName}
@@ -201,21 +217,16 @@ export const SectionCard = memo(function SectionCard({
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button 
-                    className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors group text-sm truncate"
-                    onClick={() => {
-                      setEditName(section.name);
-                      setIsEditingName(true);
-                    }}
-                  >
-                    <span className="truncate">{section.name}</span>
-                    <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50 transition-opacity shrink-0" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Click to rename section</TooltipContent>
-              </Tooltip>
+              <button 
+                className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors group text-sm truncate"
+                onClick={() => {
+                  setEditName(section.name);
+                  setIsEditingName(true);
+                }}
+              >
+                <span className="truncate">{section.name}</span>
+                <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50 transition-opacity shrink-0" />
+              </button>
             )}
           </div>
 
@@ -233,10 +244,10 @@ export const SectionCard = memo(function SectionCard({
                   <Repeat className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{isLooping ? 'Stop looping this section' : 'Loop only this section'}</TooltipContent>
+              <TooltipContent>{isLooping ? 'Stop looping' : 'Loop section'}</TooltipContent>
             </Tooltip>
 
-            {/* Repeat Count */}
+            {/* Repeat Count Badge */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="relative">
@@ -256,17 +267,17 @@ export const SectionCard = memo(function SectionCard({
                   )}
                 </div>
               </TooltipTrigger>
-              <TooltipContent>Click to add repeats, badge to reduce</TooltipContent>
+              <TooltipContent>Repeat count</TooltipContent>
             </Tooltip>
 
-            {/* Section Actions - desktop */}
+            {/* Section Actions - hidden on mobile, show on larger screens */}
             <div className="hidden xs:flex items-center gap-0.5 ml-1 pl-1.5 border-l border-border/30">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 opacity-40 hover:opacity-100"
+                    className="h-7 w-7 opacity-50 hover:opacity-100"
                     onClick={onDuplicate}
                   >
                     <Copy className="h-3.5 w-3.5" />
@@ -279,7 +290,7 @@ export const SectionCard = memo(function SectionCard({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 opacity-40 hover:opacity-100 hover:text-destructive"
+                    className="h-7 w-7 opacity-50 hover:opacity-100 hover:text-destructive"
                     onClick={onDelete}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -291,21 +302,20 @@ export const SectionCard = memo(function SectionCard({
           </div>
         </div>
 
-        {/* Chords Area */}
+        {/* Chords */}
         <div ref={setDroppableRef} className="p-2 sm:p-3">
           {section.chords.length === 0 ? (
             <div 
-              className={`flex flex-col items-center justify-center h-20 text-muted-foreground text-sm border-2 border-dashed rounded-lg transition-all ${
+              className={`flex flex-col items-center justify-center h-16 sm:h-20 text-muted-foreground text-xs border-2 border-dashed rounded-lg transition-all ${
                 isOver ? 'border-primary bg-primary/5' : 'border-border/50'
               }`}
             >
               {isOver ? (
                 <span className="text-primary font-medium">Drop chord here</span>
               ) : (
-                <div className="flex flex-col items-center gap-1">
-                  <span className="opacity-60">No chords yet</span>
-                  <span className="text-xs opacity-40">Click "Add Chord" or drag one here</span>
-                </div>
+                <>
+                  <span className="opacity-70">No chords yet</span>
+                </>
               )}
             </div>
           ) : (
@@ -327,29 +337,25 @@ export const SectionCard = memo(function SectionCard({
             </SortableContext>
           )}
 
-          {/* Section Action Bar */}
+          {/* Section Action Buttons - Responsive */}
           <div className="mt-2 sm:mt-3 flex flex-wrap items-center gap-1.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onAddChord}
-                  className="border-dashed border-border/60 hover:border-primary/50 hover:bg-primary/5 transition-all h-7 text-xs px-2"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Add Chord
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Add a new chord to this section</TooltipContent>
-            </Tooltip>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onAddChord}
+              className="border-dashed border-border/60 hover:border-primary/50 hover:bg-primary/5 transition-all h-7 text-xs px-2"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add Chord
+            </Button>
             
+            {/* Chord Suggestions per section */}
             <ChordSuggestions
               styleId={styleId}
               onSetProgression={onSetProgression}
             />
 
-            {/* Mobile: duplicate/delete */}
+            {/* Mobile: Show duplicate/delete actions */}
             <div className="xs:hidden flex items-center gap-0.5 ml-auto">
               <Button
                 variant="ghost"

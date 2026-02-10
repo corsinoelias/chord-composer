@@ -710,39 +710,30 @@ const Index = () => {
       <header className="border-b border-border bg-card sticky top-0 z-40">
         <div className="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between gap-2">
-            {/* Left: Back + Title */}
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            {/* Left: Back + Logo + Title */}
+            <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
               <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="shrink-0 h-8 w-8">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <div className="min-w-0">
-                <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">{songTitle || 'Untitled'}</h1>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  {isSaving ? (
-                    <span className="flex items-center gap-1">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      <span className="hidden xs:inline">Saving...</span>
-                    </span>
-                  ) : lastSavedAt ? (
-                    <span className="flex items-center gap-1 text-[hsl(var(--success))]">
-                      <Check className="h-3 w-3" />
-                      <span className="hidden xs:inline">Saved</span>
-                    </span>
-                  ) : null}
-                </div>
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                <Music2 className="w-4 h-4 text-primary-foreground" />
+              </div>
+              <div className="min-w-0 hidden xs:block">
+                <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">Chord Player</h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">Create chord progressions & export</p>
               </div>
             </div>
             
             {/* Right: Actions */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {/* Waveform Visualizer */}
+              {/* Waveform Visualizer - hidden on mobile */}
               {isPlaying && (
                 <div className="h-6 w-16 hidden lg:block">
                   <WaveformVisualizer isPlaying={isPlaying} barCount={12} />
                 </div>
               )}
               
-              {/* Beat indicator */}
+              {/* Beat indicator - only on desktop */}
               {isPlaying && (
                 <div className="hidden md:block">
                   <BeatIndicator
@@ -752,7 +743,7 @@ const Index = () => {
                 </div>
               )}
               
-              {/* Mixing Console */}
+              {/* Mixing Console button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -763,7 +754,7 @@ const Index = () => {
                 <span className="hidden sm:inline text-xs">Mix</span>
               </Button>
               
-              {/* Templates */}
+              {/* Templates button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -774,9 +765,23 @@ const Index = () => {
                 <span className="hidden sm:inline text-xs">Templates</span>
               </Button>
               
-              {/* Shortcuts */}
+              {/* Shortcuts help - hidden on mobile */}
               <div className="hidden md:block">
                 <ShortcutsHelp />
+              </div>
+              
+              {/* Save status */}
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                {isSaving ? (
+                  <span className="flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  </span>
+                ) : lastSavedAt ? (
+                  <span className="flex items-center gap-1 text-[hsl(var(--success))]">
+                    <Check className="h-3 w-3" />
+                    <span className="hidden xs:inline">Saved</span>
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>

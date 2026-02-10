@@ -65,10 +65,10 @@ export const TransportControls = memo(function TransportControls({
   return (
     <TooltipProvider delayDuration={300}>
       <div className="bg-card border border-border rounded-2xl shadow-lg overflow-hidden">
-        {/* Main Controls Row */}
+        {/* Main Controls Row - Responsive layout */}
         <div className="p-3 sm:p-4 md:p-5">
           <div className="flex flex-col gap-4">
-            {/* Top Row: Play + BPM + Song Title + Actions */}
+            {/* Top Row: Play + BPM + Actions */}
             <div className="flex items-center gap-3 sm:gap-4">
               {/* Hero Play Button */}
               <Tooltip>
@@ -78,7 +78,7 @@ export const TransportControls = memo(function TransportControls({
                     disabled={!hasChords || isExporting}
                     className={`
                       relative shrink-0 rounded-full flex items-center justify-center
-                      transition-all duration-200 
+                      transition-all duration-300 
                       disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100
                       ${isMobile ? 'w-14 h-14' : 'w-16 h-16'}
                       ${isPlaying 
@@ -102,17 +102,17 @@ export const TransportControls = memo(function TransportControls({
                     )}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>{isPlaying ? 'Stop (Space)' : 'Play (Space)'}</TooltipContent>
+                <TooltipContent>{isPlaying ? 'Stop playback' : 'Start playback'}</TooltipContent>
               </Tooltip>
 
-              {/* BPM Control - clearer label */}
+              {/* BPM Control */}
               <div className="flex flex-col min-w-0">
-                <div className="flex items-baseline gap-1.5 mb-1">
-                  <span className="font-mono text-xl sm:text-2xl font-bold text-foreground tabular-nums leading-none">
-                    {bpm}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Tempo
                   </span>
-                  <span className="text-xs text-muted-foreground font-medium">
-                    bpm
+                  <span className="font-mono text-base sm:text-lg font-bold text-foreground tabular-nums">
+                    {bpm}
                   </span>
                 </div>
                 <input
@@ -126,13 +126,17 @@ export const TransportControls = memo(function TransportControls({
                 />
               </div>
 
-              {/* Song Title - visible on sm+ */}
+              {/* Song Title - grows to fill space */}
               <div className="flex-1 min-w-0 hidden sm:block max-w-xs">
+                <Label htmlFor="song-title" className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
+                  Song Title
+                </Label>
                 <Input
+                  id="song-title"
                   value={songTitle}
                   onChange={(e) => onSongTitleChange(e.target.value)}
-                  placeholder="Song title..."
-                  className="bg-background/50 border-border/50 focus:border-primary h-9 text-sm font-medium"
+                  placeholder="My Song"
+                  className="bg-background/50 border-border/50 focus:border-primary h-9"
                 />
               </div>
 
@@ -141,35 +145,29 @@ export const TransportControls = memo(function TransportControls({
                 {/* Metronome Toggle */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button
-                      onClick={() => onMetronomeToggle(!metronomeEnabled)}
-                      disabled={isExporting}
-                      className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg border transition-all duration-100 ${
-                        metronomeEnabled
-                          ? 'bg-primary/10 border-primary/30 text-primary'
-                          : 'bg-secondary/50 border-border/50 text-muted-foreground'
-                      }`}
-                    >
+                    <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg bg-secondary/50 border border-border/50">
                       {metronomeEnabled ? (
-                        <Volume2 size={16} />
+                        <Volume2 size={14} className="text-primary" />
                       ) : (
-                        <VolumeX size={16} />
+                        <VolumeX size={14} className="text-muted-foreground" />
                       )}
-                      <span className="text-xs font-medium hidden xs:inline">
-                        {metronomeEnabled ? 'On' : 'Off'}
-                      </span>
-                    </button>
+                      <Switch
+                        id="metronome"
+                        checked={metronomeEnabled}
+                        onCheckedChange={onMetronomeToggle}
+                        disabled={isExporting}
+                        className="scale-75 sm:scale-90"
+                      />
+                    </div>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    {metronomeEnabled ? 'Metronome on — click to mute' : 'Metronome off — click to enable'}
-                  </TooltipContent>
+                  <TooltipContent>Toggle metronome</TooltipContent>
                 </Tooltip>
 
                 {/* Export Button */}
                 <Button
                   onClick={onExport}
                   disabled={!hasChords || isPlaying || isExporting}
-                  size={isMobile ? "sm" : "default"}
+                  size={isMobile ? "sm" : "lg"}
                   className="gap-1.5 sm:gap-2 shadow-md"
                 >
                   {isExporting ? (
@@ -211,36 +209,21 @@ export const TransportControls = memo(function TransportControls({
             
             <div className="h-6 w-px bg-border/70 mx-0.5 sm:mx-1 hidden xs:block" />
             
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={onOpenInstruments} className="gap-1 sm:gap-1.5 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
-                  <Settings2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                  <span className="hidden xs:inline">Instruments</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Configure instrument volumes</TooltipContent>
-            </Tooltip>
+            <Button variant="ghost" size="sm" onClick={onOpenInstruments} className="gap-1 sm:gap-1.5 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
+              <Settings2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <span className="hidden xs:inline">Instruments</span>
+            </Button>
             
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={onOpenRhythmEditor} className="gap-1 sm:gap-1.5 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
-                  <Grid3X3 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                  <span className="hidden xs:inline">Rhythm</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Edit rhythm pattern</TooltipContent>
-            </Tooltip>
+            <Button variant="ghost" size="sm" onClick={onOpenRhythmEditor} className="gap-1 sm:gap-1.5 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
+              <Grid3X3 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <span className="hidden xs:inline">Rhythm</span>
+            </Button>
             
             {onCreateNewRhythm && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" onClick={onCreateNewRhythm} className="gap-1 sm:gap-1.5 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
-                    <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    <span className="hidden sm:inline">New</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Create a custom rhythm</TooltipContent>
-              </Tooltip>
+              <Button variant="ghost" size="sm" onClick={onCreateNewRhythm} className="gap-1 sm:gap-1.5 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
+                <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                <span className="hidden sm:inline">New</span>
+              </Button>
             )}
 
             {/* Advanced toggle */}
@@ -280,7 +263,7 @@ export const TransportControls = memo(function TransportControls({
                           -
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Transpose down one semitone</TooltipContent>
+                      <TooltipContent>Transpose down</TooltipContent>
                     </Tooltip>
                     <span className="w-8 sm:w-10 text-center font-mono text-xs sm:text-sm font-medium">
                       {transposition > 0 ? `+${transposition}` : transposition}
@@ -297,7 +280,7 @@ export const TransportControls = memo(function TransportControls({
                           +
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Transpose up one semitone</TooltipContent>
+                      <TooltipContent>Transpose up</TooltipContent>
                     </Tooltip>
                   </div>
                 </div>
