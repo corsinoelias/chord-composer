@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Song } from '@/lib/songs';
 import { getSongs, deleteSong, duplicateSong } from '@/lib/songStorage';
 import { SongCard } from '@/components/SongCard';
@@ -77,6 +78,14 @@ const Songs = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Your Saved Songs — Chord Player</title>
+        <meta name="description" content="Browse, search, duplicate, and export your saved chord progressions in Chord Player." />
+        <link rel="canonical" href="https://riff-rhythm-recorder.lovable.app/" />
+        <meta property="og:title" content="Your Saved Songs — Chord Player" />
+        <meta property="og:description" content="Browse, search, duplicate, and export your saved chord progressions." />
+        <meta property="og:url" content="https://riff-rhythm-recorder.lovable.app/" />
+      </Helmet>
       <header className="border-b border-border bg-card">
         <div className="container max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
@@ -84,7 +93,7 @@ const Songs = () => {
               <Music2 className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-foreground">Chord Player</h1>
+              <h1 className="text-xl font-semibold text-foreground">Chord Player — Your Saved Songs</h1>
               <p className="text-sm text-muted-foreground">Your saved songs</p>
             </div>
           </div>
@@ -92,6 +101,7 @@ const Songs = () => {
       </header>
 
       <main className="container max-w-6xl mx-auto px-4 py-6">
+        <h2 className="sr-only">Saved songs</h2>
         {songs.length > 0 ? (
           <>
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
