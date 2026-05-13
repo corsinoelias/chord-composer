@@ -34,7 +34,7 @@ export function ProgressionTemplatesModal({
   const [selectedGenre, setSelectedGenre] = useState<string>(GENRE_PROGRESSIONS[0]?.id || 'pop');
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
-  const previewTimeoutRef = useRef<NodeJS.Timeout[]>([]);
+  const previewTimeoutRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const stopPreview = useCallback(() => {
     previewTimeoutRef.current.forEach(t => clearTimeout(t));

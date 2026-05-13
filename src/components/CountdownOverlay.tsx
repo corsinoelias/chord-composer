@@ -18,7 +18,7 @@ export function CountdownOverlay({ bpm, onComplete, onCancel }: CountdownOverlay
   const [count, setCount] = useState(4);
   const [isAnimating, setIsAnimating] = useState(false);
   const beatInterval = (60 / bpm) * 1000; // ms per beat
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
   // Play metronome click - louder and using proper audio scheduling

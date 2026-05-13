@@ -33,7 +33,7 @@ export const ChordSuggestions = memo(function ChordSuggestions({
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [appliedId, setAppliedId] = useState<string | null>(null);
-  const previewTimeoutRef = useRef<NodeJS.Timeout[]>([]);
+  const previewTimeoutRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const stopPreview = useCallback(() => {
     previewTimeoutRef.current.forEach(t => clearTimeout(t));

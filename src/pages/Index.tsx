@@ -63,7 +63,7 @@ const Index = () => {
   const [currentSongId, setCurrentSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Default chords for new songs
   const defaultChords: Chord[] = [

@@ -11,7 +11,7 @@ import { getDefaultInstrumentStates } from '@/lib/instruments';
 export function useStylePreview() {
   const [previewingStyleId, setPreviewingStyleId] = useState<string | null>(null);
   const previewRef = useRef<{ cancel: () => void } | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopPreview = useCallback(() => {
     const hadPreview = !!previewRef.current || !!timeoutRef.current;
