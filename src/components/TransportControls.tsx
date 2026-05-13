@@ -108,14 +108,15 @@ export const TransportControls = memo(function TransportControls({
               {/* BPM Control */}
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <Label htmlFor="bpm-range" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Tempo
-                  </span>
+                  </Label>
                   <span className="font-mono text-base sm:text-lg font-bold text-foreground tabular-nums">
                     {bpm}
                   </span>
                 </div>
                 <input
+                  id="bpm-range"
                   type="range"
                   min={40}
                   max={200}
@@ -123,6 +124,7 @@ export const TransportControls = memo(function TransportControls({
                   onChange={(e) => onBpmChange(parseInt(e.target.value))}
                   disabled={isExporting}
                   className="w-20 sm:w-28 md:w-32 h-2 bg-secondary rounded-full appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label={`Tempo, ${bpm} beats per minute`}
                 />
               </div>
 
@@ -151,12 +153,14 @@ export const TransportControls = memo(function TransportControls({
                       ) : (
                         <VolumeX size={14} className="text-muted-foreground" />
                       )}
+                      <Label htmlFor="metronome" className="sr-only">Metronome</Label>
                       <Switch
                         id="metronome"
                         checked={metronomeEnabled}
                         onCheckedChange={onMetronomeToggle}
                         disabled={isExporting}
                         className="scale-75 sm:scale-90"
+                        aria-label="Toggle metronome"
                       />
                     </div>
                   </TooltipTrigger>
@@ -259,6 +263,7 @@ export const TransportControls = memo(function TransportControls({
                           onClick={() => onTranspositionChange(transposition - 1)}
                           disabled={transposition <= -12}
                           className="h-7 sm:h-8 w-7 sm:w-8 p-0"
+                          aria-label="Transpose down one semitone"
                         >
                           -
                         </Button>
@@ -276,6 +281,7 @@ export const TransportControls = memo(function TransportControls({
                           onClick={() => onTranspositionChange(transposition + 1)}
                           disabled={transposition >= 12}
                           className="h-7 sm:h-8 w-7 sm:w-8 p-0"
+                          aria-label="Transpose up one semitone"
                         >
                           +
                         </Button>

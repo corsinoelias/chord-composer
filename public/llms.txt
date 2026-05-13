@@ -1,0 +1,10 @@
+# Chord Player
+
+> Create chord progressions with drag-and-drop editing, real-time playback, multiple rhythm styles, and MP3 export.
+
+Chord Player is a web app for songwriters and musicians to build, arrange, and export chord progressions across configurable sections, instruments, and tempos.
+
+## Pages
+
+- [Songs Library](/): Browse, search, duplicate and delete your saved chord progressions.
+- [Editor](/editor): Create a new song — add sections, place chords, pick a rhythm style, transpose, and export to MP3.

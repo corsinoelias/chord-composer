@@ -177,6 +177,7 @@ export const SectionCard = memo(function SectionCard({
                       className="h-5 w-5 sm:h-6 sm:w-6 rounded-b-none opacity-50 hover:opacity-100"
                       onClick={handleMoveUp}
                       disabled={!canMoveUp}
+                      aria-label={`Move ${section.name} up`}
                     >
                       <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
@@ -191,6 +192,7 @@ export const SectionCard = memo(function SectionCard({
                       className="h-5 w-5 sm:h-6 sm:w-6 rounded-t-none opacity-50 hover:opacity-100"
                       onClick={handleMoveDown}
                       disabled={!canMoveDown}
+                      aria-label={`Move ${section.name} down`}
                     >
                       <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
@@ -240,6 +242,7 @@ export const SectionCard = memo(function SectionCard({
                   className="h-7 w-7"
                   onClick={onToggleLoop}
                   style={isLooping ? { backgroundColor: `hsl(${colorHsl} 50%)` } : {}}
+                  aria-label={isLooping ? `Stop looping ${section.name}` : `Loop ${section.name}`}
                 >
                   <Repeat className="h-3.5 w-3.5" />
                 </Button>
@@ -279,6 +282,7 @@ export const SectionCard = memo(function SectionCard({
                     size="icon"
                     className="h-7 w-7 opacity-50 hover:opacity-100"
                     onClick={onDuplicate}
+                    aria-label={`Duplicate ${section.name}`}
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </Button>
@@ -292,6 +296,7 @@ export const SectionCard = memo(function SectionCard({
                     size="icon"
                     className="h-7 w-7 opacity-50 hover:opacity-100 hover:text-destructive"
                     onClick={onDelete}
+                    aria-label={`Delete ${section.name}`}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -362,6 +367,7 @@ export const SectionCard = memo(function SectionCard({
                 size="icon"
                 className="h-7 w-7 opacity-50 hover:opacity-100"
                 onClick={onDuplicate}
+                aria-label={`Duplicate ${section.name}`}
               >
                 <Copy className="h-3 w-3" />
               </Button>
@@ -370,6 +376,7 @@ export const SectionCard = memo(function SectionCard({
                 size="icon"
                 className="h-7 w-7 opacity-50 hover:opacity-100 hover:text-destructive"
                 onClick={onDelete}
+                aria-label={`Delete ${section.name}`}
               >
                 <Trash2 className="h-3 w-3" />
               </Button>

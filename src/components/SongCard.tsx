@@ -99,6 +99,7 @@ export const SongCard = memo(function SongCard({
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label={`More options for ${song.title}`}
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>
