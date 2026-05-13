@@ -2,29 +2,18 @@
  * Audio Effects Engine
  *
  * Master EQ, reverb and compression actually wired into the playback chain.
- *
- * Usage from audioEngine:
- *   const fxInput = buildEffectsChain(ctx, masterGain, analyserNode);
- *   // masterGain is already connected to fxInput; chain ends at analyserNode.
+ * The chain is built by audioEngine.ts each time the AudioContext is (re)created.
  */
 
 export interface EQBand {
   frequency: number;
-  gain: number; // -12 to +12 dB
+  gain: number; // -12..+12 dB
   Q: number;
 }
 
 export interface EffectsState {
-  eq: {
-    low: EQBand;
-    mid: EQBand;
-    high: EQBand;
-  };
-  reverb: {
-    enabled: boolean;
-    decay: number;   // seconds
-    wetDry: number;  // 0..1
-  };
+  eq: { low: EQBand; mid: EQBand; high: EQBand };
+  reverb: { enabled: boolean; decay: number; wetDry: number };
   compressor: {
     enabled: boolean;
     threshold: number;
@@ -52,18 +41,18 @@ interface EffectNodes {
   eqLow: BiquadFilterNode;
   eqMid: BiquadFilterNode;
   eqHigh: BiquadFilterNode;
+  // Compressor wet/bypass branches
   compressor: DynamicsCompressorNode;
-  preReverb: GainNode;     // tap point feeding both dry and wet branches
+  compGain: GainNode;     // gain on compressor branch
+  bypassGain: GainNode;   // gain on direct branch
+  preReverb: GainNode;
+  // Reverb wet/dry
   dryGain: GainNode;
   wetGain: GainNode;
   convolver: ConvolverNode;
-  bypassCompressor: GainNode; // simple way to "disable" comp by routing around it
 }
 
-// Persistent state (survives AudioContext recreation on Stop)
 const currentState: EffectsState = JSON.parse(JSON.stringify(DEFAULT_EFFECTS_STATE));
-
-// Currently active nodes (one set per live AudioContext)
 let active: EffectNodes | null = null;
 
 function createImpulseResponse(ctx: AudioContext, duration: number, decay: number): AudioBuffer {
@@ -80,13 +69,12 @@ function createImpulseResponse(ctx: AudioContext, duration: number, decay: numbe
 }
 
 /**
- * Build the master effects chain and insert it between `input` and `output`.
- * Returns the input node of the chain (already connected from `input`).
+ * Build chain and connect input -> chain -> output.
  *
- * Topology:
- *   input -> eqLow -> eqMid -> eqHigh -> [compressor or bypass] -> preReverb
- *     preReverb -> dryGain -> output
- *     preReverb -> convolver -> wetGain -> output
+ *   input -> eqLow -> eqMid -> eqHigh ─┬─> compressor -> compGain ──┐
+ *                                      └─> bypassGain ──────────────┴─> preReverb
+ *   preReverb -> dryGain -> output
+ *   preReverb -> convolver -> wetGain -> output
  */
 export function buildEffectsChain(
   ctx: AudioContext,
@@ -107,26 +95,28 @@ export function buildEffectsChain(
   eqHigh.frequency.value = currentState.eq.high.frequency;
 
   const compressor = ctx.createDynamicsCompressor();
-  const bypassCompressor = ctx.createGain();
-
+  const compGain = ctx.createGain();
+  const bypassGain = ctx.createGain();
   const preReverb = ctx.createGain();
+
   const dryGain = ctx.createGain();
   const wetGain = ctx.createGain();
   const convolver = ctx.createConvolver();
   convolver.buffer = createImpulseResponse(ctx, 2, currentState.reverb.decay);
 
-  // Wire EQ
+  // EQ chain
   input.connect(eqLow);
   eqLow.connect(eqMid);
   eqMid.connect(eqHigh);
 
-  // Compressor in parallel: only one of these has gain=1 at a time
+  // Parallel compressor / bypass
   eqHigh.connect(compressor);
-  eqHigh.connect(bypassCompressor);
-  compressor.connect(preReverb);
-  bypassCompressor.connect(preReverb);
+  compressor.connect(compGain);
+  eqHigh.connect(bypassGain);
+  compGain.connect(preReverb);
+  bypassGain.connect(preReverb);
 
-  // Dry / wet split
+  // Reverb dry/wet
   preReverb.connect(dryGain);
   preReverb.connect(convolver);
   convolver.connect(wetGain);
@@ -135,93 +125,57 @@ export function buildEffectsChain(
 
   active = {
     ctx, eqLow, eqMid, eqHigh,
-    compressor, bypassCompressor,
-    preReverb, dryGain, wetGain, convolver,
+    compressor, compGain, bypassGain, preReverb,
+    dryGain, wetGain, convolver,
   };
 
-  // Apply current state to the freshly built nodes
   applyAll();
-
   return eqLow;
 }
 
-function applyAll() {
-  applyEQ();
-  applyCompressor();
-  applyReverb();
-}
+function setParam(p: AudioParam, v: number, t: number) { p.setValueAtTime(v, t); }
+
+function applyAll() { applyEQ(); applyCompressor(); applyReverb(); }
 
 function applyEQ() {
   if (!active) return;
-  const { ctx, eqLow, eqMid, eqHigh } = active;
-  const t = ctx.currentTime;
-  eqLow.gain.setValueAtTime(currentState.eq.low.gain, t);
-  eqMid.gain.setValueAtTime(currentState.eq.mid.gain, t);
-  eqMid.Q.setValueAtTime(currentState.eq.mid.Q, t);
-  eqHigh.gain.setValueAtTime(currentState.eq.high.gain, t);
+  const t = active.ctx.currentTime;
+  setParam(active.eqLow.gain, currentState.eq.low.gain, t);
+  setParam(active.eqMid.gain, currentState.eq.mid.gain, t);
+  setParam(active.eqMid.Q,    currentState.eq.mid.Q, t);
+  setParam(active.eqHigh.gain, currentState.eq.high.gain, t);
 }
 
 function applyCompressor() {
   if (!active) return;
-  const { ctx, compressor, bypassCompressor } = active;
+  const { ctx, compressor, compGain, bypassGain } = active;
   const t = ctx.currentTime;
   const c = currentState.compressor;
-  compressor.threshold.setValueAtTime(c.threshold, t);
-  compressor.ratio.setValueAtTime(c.ratio, t);
-  compressor.attack.setValueAtTime(c.attack, t);
-  compressor.release.setValueAtTime(c.release, t);
-  compressor.knee.setValueAtTime(c.knee, t);
-  // Route through compressor when enabled, otherwise bypass
-  if (c.enabled) {
-    compressor.connect; // no-op, just for clarity
-    setGain(active.bypassCompressor.gain, 0, t);
-    setGain(active.compressor === compressor ? null : null, 1, t); // placeholder
-    // We can't change compressor's output gain directly — control via parallel paths:
-    // bypassCompressor=0, but compressor path is always 1 (no extra gain on it).
-  } else {
-    setGain(bypassCompressor.gain, 1, t);
-  }
-  // Mute the unused branch
-  if (c.enabled) {
-    setGain(bypassCompressor.gain, 0, t);
-  } else {
-    setGain(bypassCompressor.gain, 1, t);
-  }
+  setParam(compressor.threshold, c.threshold, t);
+  setParam(compressor.ratio,     c.ratio, t);
+  setParam(compressor.attack,    c.attack, t);
+  setParam(compressor.release,   c.release, t);
+  setParam(compressor.knee,      c.knee, t);
+  setParam(compGain.gain,   c.enabled ? 1 : 0, t);
+  setParam(bypassGain.gain, c.enabled ? 0 : 1, t);
 }
-
-function setGain(p: AudioParam | null, v: number, t: number) {
-  if (!p) return;
-  p.setValueAtTime(v, t);
-}
-
-// We need a controllable gain on the compressor branch too, otherwise both
-// branches sum when compressor is enabled. Add it lazily.
-function ensureCompressorBranchGain() {
-  // Already handled implicitly: compressor output is 1, bypass is 0 when enabled.
-  // When disabled we set bypass=1 and we want compressor branch=0.
-  // To do that cleanly, replace direct compressor->preReverb with a gain node.
-}
-
-// Re-implement compressor wiring with explicit gain on each branch.
-// (Override applyCompressor + buildEffectsChain logic below.)
 
 function applyReverb() {
   if (!active) return;
   const { ctx, dryGain, wetGain, convolver } = active;
   const t = ctx.currentTime;
   const r = currentState.reverb;
-  // Regenerate IR if decay changed significantly
   convolver.buffer = createImpulseResponse(ctx, 2, r.decay);
   if (r.enabled) {
-    setGain(dryGain.gain, 1 - r.wetDry * 0.5, t);
-    setGain(wetGain.gain, r.wetDry, t);
+    setParam(dryGain.gain, 1 - r.wetDry * 0.5, t);
+    setParam(wetGain.gain, r.wetDry, t);
   } else {
-    setGain(dryGain.gain, 1, t);
-    setGain(wetGain.gain, 0, t);
+    setParam(dryGain.gain, 1, t);
+    setParam(wetGain.gain, 0, t);
   }
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────
+// ─── Public API ─────────────────────────────────────────────────────────
 
 export function getCurrentEffectsState(): EffectsState {
   return JSON.parse(JSON.stringify(currentState));
@@ -253,5 +207,5 @@ export function resetEffects(): void {
   applyAll();
 }
 
-/** Backwards-compat no-op (kept so existing callers don't break). */
-export function initializeEffects(): void { /* chain is built by audioEngine */ }
+/** Backwards-compat no-op. */
+export function initializeEffects(): void { /* chain built by audioEngine */ }
