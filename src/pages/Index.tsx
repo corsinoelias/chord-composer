@@ -79,16 +79,20 @@ const Index = () => {
     ...createSection('Section A'),
     chords: defaultChords
   }]);
-  const [bpm, setBpm] = useState(100);
   const [customStyles, setCustomStyles] = useState<StylePattern[]>(getCustomStyles());
-  
+
   // Determine initial style (prefer merengue if exists, fallback to rock_basic)
   const getInitialStyleId = () => {
     const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
     return allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic';
   };
-  
+
   const [selectedStyleId, setSelectedStyleId] = useState(getInitialStyleId);
+  const [bpm, setBpm] = useState(() => {
+    const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
+    const initialId = allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic';
+    return allStyles.find(s => s.id === initialId)?.bpm ?? 100;
+  });
   const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
   const [songTitle, setSongTitle] = useState('My Song');
   const [transposition, setTransposition] = useState(0);
