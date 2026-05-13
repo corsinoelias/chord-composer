@@ -9,6 +9,7 @@ import { Chord, chordToMidiNotes, midiToFrequency } from './musicTheory';
 import { InstrumentState, getSoundType, SoundType, isInstrumentAudible } from './instruments';
 import { StylePattern, generateBarPattern, ArpeggioCell, ArpeggioType, ArpeggioSpeed } from './styles';
 import { Section } from './sections';
+import { buildEffectsChain } from './audioEffects';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
