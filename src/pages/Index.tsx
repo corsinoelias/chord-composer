@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   DndContext,
   closestCenter,
@@ -707,19 +708,27 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>{songTitle ? `${songTitle} — Chord Player Editor` : 'Chord Player Editor — Create Chord Progressions'}</title>
+        <meta name="description" content="Compose chord progressions section by section, pick a rhythm style, transpose, preview live, and export to MP3." />
+        <link rel="canonical" href="https://riff-rhythm-recorder.lovable.app/editor" />
+        <meta property="og:title" content={songTitle ? `${songTitle} — Chord Player` : 'Chord Player — Create Chord Progressions'} />
+        <meta property="og:description" content="Compose chord progressions section by section, pick a rhythm style, transpose, preview live, and export to MP3." />
+        <meta property="og:url" content="https://riff-rhythm-recorder.lovable.app/editor" />
+      </Helmet>
       <header className="border-b border-border bg-card sticky top-0 z-40">
         <div className="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between gap-2">
             {/* Left: Back + Logo + Title */}
             <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
-              <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="shrink-0 h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="shrink-0 h-8 w-8" aria-label="Back to saved songs">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
                 <Music2 className="w-4 h-4 text-primary-foreground" />
               </div>
               <div className="min-w-0 hidden xs:block">
-                <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">Chord Player</h1>
+                <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">Chord Player — Create Chord Progressions</h1>
                 <p className="text-xs text-muted-foreground hidden sm:block">Create chord progressions & export</p>
               </div>
             </div>
@@ -749,6 +758,7 @@ const Index = () => {
                 size="sm"
                 onClick={() => setMixingConsoleOpen(true)}
                 className="gap-1 h-8 px-2"
+                aria-label="Open mixing console"
               >
                 <Sliders className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline text-xs">Mix</span>
@@ -760,6 +770,7 @@ const Index = () => {
                 size="sm"
                 onClick={() => setTemplatesModalOpen(true)}
                 className="gap-1 h-8 px-2"
+                aria-label="Open progression templates"
               >
                 <FileMusic className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline text-xs">Templates</span>
