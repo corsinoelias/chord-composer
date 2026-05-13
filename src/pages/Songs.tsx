@@ -81,10 +81,10 @@ const Songs = () => {
       <Helmet>
         <title>Your Saved Songs — Chord Player</title>
         <meta name="description" content="Browse, search, duplicate, and export your saved chord progressions in Chord Player." />
-        <link rel="canonical" href="https://riff-rhythm-recorder.lovable.app/" />
+        <link rel="canonical" href="https://chordsequence.com/" />
         <meta property="og:title" content="Your Saved Songs — Chord Player" />
         <meta property="og:description" content="Browse, search, duplicate, and export your saved chord progressions." />
-        <meta property="og:url" content="https://riff-rhythm-recorder.lovable.app/" />
+        <meta property="og:url" content="https://chordsequence.com/" />
       </Helmet>
       <header className="border-b border-border bg-card">
         <div className="container max-w-6xl mx-auto px-4 py-4">

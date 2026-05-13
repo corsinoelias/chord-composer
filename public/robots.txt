@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://riff-rhythm-recorder.lovable.app/sitemap.xml
+Sitemap: https://chordsequence.com/sitemap.xml

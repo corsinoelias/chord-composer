@@ -711,10 +711,10 @@ const Index = () => {
       <Helmet>
         <title>{songTitle ? `${songTitle} — Chord Player Editor` : 'Chord Player Editor — Create Chord Progressions'}</title>
         <meta name="description" content="Compose chord progressions section by section, pick a rhythm style, transpose, preview live, and export to MP3." />
-        <link rel="canonical" href="https://riff-rhythm-recorder.lovable.app/editor" />
+        <link rel="canonical" href="https://chordsequence.com/editor" />
         <meta property="og:title" content={songTitle ? `${songTitle} — Chord Player` : 'Chord Player — Create Chord Progressions'} />
         <meta property="og:description" content="Compose chord progressions section by section, pick a rhythm style, transpose, preview live, and export to MP3." />
-        <meta property="og:url" content="https://riff-rhythm-recorder.lovable.app/editor" />
+        <meta property="og:url" content="https://chordsequence.com/editor" />
       </Helmet>
       <header className="border-b border-border bg-card sticky top-0 z-40">
         <div className="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
