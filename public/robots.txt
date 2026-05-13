@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+Sitemap:
+Sitemap: https://riff-rhythm-recorder.lovable.app/sitemap.xml
