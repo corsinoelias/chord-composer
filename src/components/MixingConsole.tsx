@@ -14,14 +14,14 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Sliders, RotateCcw, Volume2 } from 'lucide-react';
-import { 
-  EffectsState, 
+import {
+  EffectsState,
   DEFAULT_EFFECTS_STATE,
   updateEQ,
   updateReverb,
   updateCompressor,
   resetEffects,
-  initializeEffects
+  getCurrentEffectsState,
 } from '@/lib/audioEffects';
 
 interface MixingConsoleProps {
@@ -182,12 +182,12 @@ function EffectSlider({
 }
 
 export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
-  const [effects, setEffects] = useState<EffectsState>(DEFAULT_EFFECTS_STATE);
+  const [effects, setEffects] = useState<EffectsState>(() => getCurrentEffectsState());
 
+  // Re-hydrate from the engine each time the panel opens, so values stay
+  // consistent across sessions / context recreations.
   useEffect(() => {
-    if (open) {
-      initializeEffects();
-    }
+    if (open) setEffects(getCurrentEffectsState());
   }, [open]);
 
   const handleEQChange = useCallback((band: 'low' | 'mid' | 'high', gain: number) => {

@@ -9,6 +9,7 @@ import { Chord, chordToMidiNotes, midiToFrequency } from './musicTheory';
 import { InstrumentState, getSoundType, SoundType, isInstrumentAudible } from './instruments';
 import { StylePattern, generateBarPattern, ArpeggioCell, ArpeggioType, ArpeggioSpeed } from './styles';
 import { Section } from './sections';
+import { buildEffectsChain } from './audioEffects';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
@@ -254,14 +255,14 @@ export function getAudioContext(): AudioContext {
     audioContext = new AudioContext();
     masterGain = audioContext.createGain();
     masterGain.gain.value = 1.0;
-    
+
     // Create analyser node for waveform visualization
     analyserNode = audioContext.createAnalyser();
     analyserNode.fftSize = 256;
     analyserNode.smoothingTimeConstant = 0.8;
-    
-    // Connect: masterGain -> analyser -> destination
-    masterGain.connect(analyserNode);
+
+    // Insert master effects chain: masterGain -> [EQ -> Comp -> Reverb] -> analyser -> destination
+    buildEffectsChain(audioContext, masterGain, analyserNode);
     analyserNode.connect(audioContext.destination);
 
     // Only load samples once per app lifecycle; buffers can be reused across contexts.
