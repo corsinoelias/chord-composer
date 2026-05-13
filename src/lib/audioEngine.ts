@@ -254,14 +254,14 @@ export function getAudioContext(): AudioContext {
     audioContext = new AudioContext();
     masterGain = audioContext.createGain();
     masterGain.gain.value = 1.0;
-    
+
     // Create analyser node for waveform visualization
     analyserNode = audioContext.createAnalyser();
     analyserNode.fftSize = 256;
     analyserNode.smoothingTimeConstant = 0.8;
-    
-    // Connect: masterGain -> analyser -> destination
-    masterGain.connect(analyserNode);
+
+    // Insert master effects chain: masterGain -> [EQ -> Comp -> Reverb] -> analyser -> destination
+    buildEffectsChain(audioContext, masterGain, analyserNode);
     analyserNode.connect(audioContext.destination);
 
     // Only load samples once per app lifecycle; buffers can be reused across contexts.
