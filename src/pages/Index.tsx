@@ -51,6 +51,7 @@ import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'luc
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { SEO_OG, editorCanonicalUrl } from '@/lib/seo';
 
 const Index = () => {
   const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
@@ -710,15 +711,47 @@ const Index = () => {
     enabled: !showCountdown && !templatesModalOpen && !editingChord && !addChordSection,
   });
 
+  const editorPageUrl = editorCanonicalUrl(songId ?? null);
+
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>{songTitle ? `${songTitle} — Chord Player Editor` : 'Chord Player Editor — Create Chord Progressions'}</title>
-        <meta name="description" content="Compose chord progressions section by section, pick a rhythm style, transpose, preview live, and export to MP3." />
-        <link rel="canonical" href="https://chordsequence.com/editor" />
-        <meta property="og:title" content={songTitle ? `${songTitle} — Chord Player` : 'Chord Player — Create Chord Progressions'} />
-        <meta property="og:description" content="Compose chord progressions section by section, pick a rhythm style, transpose, preview live, and export to MP3." />
-        <meta property="og:url" content="https://chordsequence.com/editor" />
+        <title>
+          {songTitle
+            ? `${songTitle} — Chord Player editor | Chord Sequence`
+            : 'Chord progression editor — Chord Player | Chord Sequence'}
+        </title>
+        <meta
+          name="description"
+          content="Compose chord progressions on chordsequence.com: sections, rhythm styles, transposition, live preview, and MP3 export."
+        />
+        <link rel="canonical" href={editorPageUrl} />
+        <meta property="og:site_name" content={SEO_OG.siteName} />
+        <meta property="og:type" content="website" />
+        <meta
+          property="og:title"
+          content={songTitle ? `${songTitle} — Chord Player` : 'Chord Player — Chord progression editor'}
+        />
+        <meta
+          property="og:description"
+          content="Compose chord progressions on chordsequence.com: sections, rhythm styles, transposition, live preview, and MP3 export."
+        />
+        <meta property="og:url" content={editorPageUrl} />
+        <meta property="og:image" content={SEO_OG.imageUrl} />
+        <meta property="og:image:width" content={String(SEO_OG.imageWidth)} />
+        <meta property="og:image:height" content={String(SEO_OG.imageHeight)} />
+        <meta property="og:image:alt" content={SEO_OG.imageAlt} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+          name="twitter:title"
+          content={songTitle ? `${songTitle} — Chord Player` : 'Chord Player — Chord progression editor'}
+        />
+        <meta
+          name="twitter:description"
+          content="Compose chord progressions on chordsequence.com: sections, rhythm styles, transposition, live preview, and MP3 export."
+        />
+        <meta name="twitter:image" content={SEO_OG.imageUrl} />
+        <meta name="twitter:image:alt" content={SEO_OG.imageAlt} />
       </Helmet>
       <header className="border-b border-border bg-card sticky top-0 z-40">
         <div className="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
@@ -731,9 +764,9 @@ const Index = () => {
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
                 <Music2 className="w-4 h-4 text-primary-foreground" />
               </div>
-              <div className="min-w-0 hidden xs:block">
-                <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">Chord Player — Create Chord Progressions</h1>
-                <p className="text-xs text-muted-foreground hidden sm:block">Create chord progressions & export</p>
+              <div className="min-w-0">
+                <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">Chord Player — Chord progression editor</h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">Chord Sequence · chordsequence.com</p>
               </div>
             </div>
             

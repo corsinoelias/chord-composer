@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Song } from '@/lib/songs';
 import { getSongs, deleteSong, duplicateSong } from '@/lib/songStorage';
@@ -20,6 +20,7 @@ import {
 import { Music2, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
+import { SITE_ORIGIN, SEO_OG } from '@/lib/seo';
 
 const Songs = () => {
   const navigate = useNavigate();
@@ -79,12 +80,23 @@ const Songs = () => {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Your Saved Songs — Chord Player</title>
-        <meta name="description" content="Browse, search, duplicate, and export your saved chord progressions in Chord Player." />
-        <link rel="canonical" href="https://chordsequence.com/" />
-        <meta property="og:title" content="Your Saved Songs — Chord Player" />
-        <meta property="og:description" content="Browse, search, duplicate, and export your saved chord progressions." />
-        <meta property="og:url" content="https://chordsequence.com/" />
+        <title>Chord progression library — Chord Player | Chord Sequence</title>
+        <meta name="description" content="Open chordsequence.com to browse your saved chord progressions, open the progression editor, duplicate songs, search titles, and export MP3s." />
+        <link rel="canonical" href={`${SITE_ORIGIN}/`} />
+        <meta property="og:site_name" content={SEO_OG.siteName} />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Chord progression library — Chord Player | Chord Sequence" />
+        <meta property="og:description" content="Browse your saved chord progressions on chordsequence.com. Open the editor to build sections, rhythms, transpositions, and MP3 export." />
+        <meta property="og:url" content={`${SITE_ORIGIN}/`} />
+        <meta property="og:image" content={SEO_OG.imageUrl} />
+        <meta property="og:image:width" content={String(SEO_OG.imageWidth)} />
+        <meta property="og:image:height" content={String(SEO_OG.imageHeight)} />
+        <meta property="og:image:alt" content={SEO_OG.imageAlt} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Chord progression library — Chord Player | Chord Sequence" />
+        <meta name="twitter:description" content="Browse your saved chord progressions on chordsequence.com. Open the editor to build sections, rhythms, transpositions, and MP3 export." />
+        <meta name="twitter:image" content={SEO_OG.imageUrl} />
+        <meta name="twitter:image:alt" content={SEO_OG.imageAlt} />
       </Helmet>
       <header className="border-b border-border bg-card">
         <div className="container max-w-6xl mx-auto px-4 py-4">
@@ -93,14 +105,34 @@ const Songs = () => {
               <Music2 className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-foreground">Chord Player — Your Saved Songs</h1>
-              <p className="text-sm text-muted-foreground">Your saved songs</p>
+              <h1 className="text-xl font-semibold text-foreground">Chord Player — Your saved songs</h1>
+              <p className="text-sm text-muted-foreground">Chord Sequence · chordsequence.com</p>
             </div>
           </div>
         </div>
       </header>
 
       <main className="container max-w-6xl mx-auto px-4 py-6">
+        <section
+          className="mb-8 rounded-xl border border-border bg-card/50 p-4 sm:p-6 text-sm sm:text-base text-muted-foreground leading-relaxed"
+          aria-labelledby="home-seo-intro"
+        >
+          <h2 id="home-seo-intro" className="text-foreground font-semibold text-base sm:text-lg mb-2">
+            Chord progression builder and MP3 export
+          </h2>
+          <p className="mb-3">
+            <strong className="text-foreground font-medium">Chord Player</strong> on{' '}
+            <strong className="text-foreground font-medium">Chord Sequence</strong> (chordsequence.com) helps you
+            arrange chord progressions in sections, try rhythm styles, transpose in semitones, preview with live
+            playback, and export audio to MP3 — free in your browser.
+          </p>
+          <p>
+            <Link to="/editor" className="text-primary font-medium underline underline-offset-4 hover:text-primary/90">
+              Open the chord progression editor
+            </Link>
+            {' '}to start a new song, or use <span className="text-foreground">New Song</span> above when you have saved work in this library.
+          </p>
+        </section>
         <h2 className="sr-only">Saved songs</h2>
         {songs.length > 0 ? (
           <>

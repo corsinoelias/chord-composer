@@ -25,7 +25,7 @@ export const EmptyState = memo(function EmptyState({ onCreateSong }: EmptyStateP
       </h2>
       
       <p className="text-muted-foreground mb-8 max-w-md leading-relaxed">
-        Create beautiful chord progressions, experiment with different rhythms, 
+        Create beautiful chord progressions on chordsequence.com (Chord Sequence), experiment with different rhythms,
         and export your creations as audio files.
       </p>
       

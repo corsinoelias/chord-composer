@@ -1,8 +1,8 @@
-# Chord Player
+# Chord Player (Chord Sequence)
 
-> Create chord progressions with drag-and-drop editing, real-time playback, multiple rhythm styles, and MP3 export.
+> chordsequence.com — Create chord progressions with drag-and-drop editing, real-time playback, multiple rhythm styles, and MP3 export.
 
-Chord Player is a web app for songwriters and musicians to build, arrange, and export chord progressions across configurable sections, instruments, and tempos.
+Chord Player is the web app on Chord Sequence (chordsequence.com) for songwriters and musicians to build, arrange, and export chord progressions across configurable sections, instruments, and tempos.
 
 ## Pages
 
