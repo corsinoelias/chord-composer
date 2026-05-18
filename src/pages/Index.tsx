@@ -51,7 +51,7 @@ import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'luc
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { SEO_OG, editorCanonicalUrl } from '@/lib/seo';
+import { SEO_OG, SITE_ORIGIN, editorCanonicalUrl } from '@/lib/seo';
 
 const Index = () => {
   const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
@@ -713,6 +713,37 @@ const Index = () => {
 
   const editorPageUrl = editorCanonicalUrl(songId ?? null);
 
+  // Build a dynamic, per-song SEO description so every saved song
+  // has unique metadata (sections, chord count, BPM, style).
+  const seoDescription = useMemo(() => {
+    const totalChords = sections.reduce((sum, s) => sum + s.chords.length, 0);
+    const sectionCount = sections.length;
+    const styleName =
+      [...MUSICAL_STYLES, ...getCustomStyles()].find(s => s.id === selectedStyleId)?.name ?? 'custom';
+    if (totalChords === 0) {
+      return `Build "${songTitle}" on chordsequence.com — arrange sections, pick a rhythm style, transpose, and export to MP3.`;
+    }
+    return `"${songTitle}" — ${totalChords} chord${totalChords === 1 ? '' : 's'} across ${sectionCount} section${sectionCount === 1 ? '' : 's'} at ${bpm} BPM (${styleName} style). Edit and export to MP3 on chordsequence.com.`;
+  }, [songTitle, sections, bpm, selectedStyleId]);
+
+  const breadcrumbJsonLd = useMemo(
+    () =>
+      JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Songs', item: `${SITE_ORIGIN}/` },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: songTitle || 'Editor',
+            item: editorPageUrl,
+          },
+        ],
+      }),
+    [songTitle, editorPageUrl],
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
@@ -723,7 +754,7 @@ const Index = () => {
         </title>
         <meta
           name="description"
-          content="Compose chord progressions on chordsequence.com: sections, rhythm styles, transposition, live preview, and MP3 export."
+          content={seoDescription}
         />
         <link rel="canonical" href={editorPageUrl} />
         <meta property="og:site_name" content={SEO_OG.siteName} />
@@ -734,7 +765,7 @@ const Index = () => {
         />
         <meta
           property="og:description"
-          content="Compose chord progressions on chordsequence.com: sections, rhythm styles, transposition, live preview, and MP3 export."
+          content={seoDescription}
         />
         <meta property="og:url" content={editorPageUrl} />
         <meta property="og:image" content={SEO_OG.imageUrl} />
@@ -748,10 +779,11 @@ const Index = () => {
         />
         <meta
           name="twitter:description"
-          content="Compose chord progressions on chordsequence.com: sections, rhythm styles, transposition, live preview, and MP3 export."
+          content={seoDescription}
         />
         <meta name="twitter:image" content={SEO_OG.imageUrl} />
         <meta name="twitter:image:alt" content={SEO_OG.imageAlt} />
+        <script type="application/ld+json">{breadcrumbJsonLd}</script>
       </Helmet>
       <header className="border-b border-border bg-card sticky top-0 z-40">
         <div className="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
