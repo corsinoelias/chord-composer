@@ -97,6 +97,44 @@ const Songs = () => {
         <meta name="twitter:description" content="Browse your saved chord progressions on chordsequence.com. Open the editor to build sections, rhythms, transpositions, and MP3 export." />
         <meta name="twitter:image" content={SEO_OG.imageUrl} />
         <meta name="twitter:image:alt" content={SEO_OG.imageAlt} />
+        <script type="application/ld+json">{JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: [
+            {
+              '@type': 'Question',
+              name: 'What is Chord Player on Chord Sequence?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Chord Player is a free online chord progression builder at chordsequence.com. Arrange chords into sections, choose a rhythm style, transpose, preview live, and export your progression as an MP3.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'Is Chord Sequence free to use?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Yes. Chord Player runs entirely in your browser at no cost — no account is required to build progressions or export MP3 files.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'Can I export my chord progression as audio?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Yes. Every progression can be exported to MP3 in one click from the editor, ready to share or import into your DAW.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'Do my saved songs stay private?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Songs are stored locally in your browser by default, so they stay on your device until you choose to export or sync them.',
+              },
+            },
+          ],
+        })}</script>
       </Helmet>
       <header className="border-b border-border bg-card">
         <div className="container max-w-6xl mx-auto px-4 py-4">
