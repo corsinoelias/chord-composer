@@ -51,7 +51,7 @@ import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'luc
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { SEO_OG, editorCanonicalUrl } from '@/lib/seo';
+import { SEO_OG, SITE_ORIGIN, editorCanonicalUrl } from '@/lib/seo';
 
 const Index = () => {
   const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
