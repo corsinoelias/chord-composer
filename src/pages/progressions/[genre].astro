@@ -1,0 +1,90 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
+import { GENRES, getGenre } from '../../data/progressions';
+
+export function getStaticPaths() {
+  return GENRES.map((g) => ({
+    params: { genre: g.slug },
+    props: { genre: g },
+  }));
+}
+
+const { genre } = Astro.props;
+
+const itemListSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: `${genre.name} Chord Progressions`,
+  description: genre.description,
+  url: `https://chordsequence.com/progressions/${genre.slug}`,
+  numberOfItems: genre.progressions.length,
+  itemListElement: genre.progressions.map((p, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    name: p.title,
+    description: p.description,
+  })),
+};
+---
+
+<BaseLayout
+  title={`${genre.name} Chord Progressions — Play & Export | Chord Sequence`}
+  description={genre.metaDescription}
+  canonicalUrl={`https://chordsequence.com/progressions/${genre.slug}`}
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href="/progressions" class="hover:text-foreground transition-colors">Progressions</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">{genre.name}</span>
+    </nav>
+
+    <header class="mb-14">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
+        {genre.name} chord progressions
+      </h1>
+      <p class="text-lg text-muted-foreground">{genre.description}</p>
+    </header>
+
+    <div class="space-y-6">
+      {genre.progressions.map((p) => (
+        <div class="rounded-xl border border-border bg-card p-5">
+          <p class="text-xs text-muted-foreground mb-3 leading-relaxed">{p.description}</p>
+          <ChordEmbedIsland chords={p.chords} bpm={p.bpm} style={p.style} title={p.title} />
+        </div>
+      ))}
+    </div>
+
+    <!-- Other genres -->
+    <div class="mt-16">
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Other genres</h2>
+      <div class="flex flex-wrap gap-2">
+        {GENRES.filter((g) => g.slug !== genre.slug).map((g) => (
+          <a
+            href={`/progressions/${g.slug}`}
+            class="px-3 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+          >
+            {g.name}
+          </a>
+        ))}
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="mt-12 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Build your own {genre.name} progression</h2>
+      <p class="text-sm text-muted-foreground mb-5">Open the editor, add any of these chords, and customize the rhythm and tempo.</p>
+      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Chord Player →
+      </a>
+    </div>
+  </main>
+</BaseLayout>

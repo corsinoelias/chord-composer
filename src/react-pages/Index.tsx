@@ -1,6 +1,4 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
 import {
   DndContext,
   closestCenter,
@@ -9,27 +7,28 @@ import {
   TouchSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
-  DragStartEvent,
+  type DragEndEvent,
+  type DragStartEvent,
   DragOverlay,
-  CollisionDetection,
+  type CollisionDetection,
   pointerWithin,
 } from '@dnd-kit/core';
 import {
   SortableContext,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Chord, generateChordId } from '@/lib/musicTheory';
-import { Section, createSection, getSectionDisplayName } from '@/lib/sections';
-import { getDefaultInstrumentStates, InstrumentState } from '@/lib/instruments';
-import { getStyleByIdWithOverrides, MUSICAL_STYLES, StylePattern } from '@/lib/styles';
-import { getCustomStyles, getStyleOverride } from '@/lib/customStyles';
+import { type Chord, generateChordId } from '@/lib/musicTheory';
+import { type Section, createSection, getSectionDisplayName } from '@/lib/sections';
+import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
+import { getStyleByIdWithOverrides, MUSICAL_STYLES, type StylePattern } from '@/lib/styles';
+import { getCustomStyles, getStyleOverride, initCustomStylesCache } from '@/lib/customStyles';
 import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAudio } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
-import { Song, createSong } from '@/lib/songs';
-import { getSongById, saveSong } from '@/lib/songStorage';
+import { type Song, createSong } from '@/lib/songs';
+import { parseChordString } from '@/lib/chordParser';
+import { getSongById, saveSongWithSync } from '@/lib/songStorage';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
@@ -51,13 +50,13 @@ import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'luc
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { SEO_OG, SITE_ORIGIN, editorCanonicalUrl } from '@/lib/seo';
 
-const Index = () => {
+interface IndexProps {
+  songId?: string;
+}
+
+const Index = ({ songId }: IndexProps) => {
   const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
-  const { songId } = useParams<{ songId?: string }>();
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { state: playbackState, play, stop: stopPlayback, updatePlaybackOptions } = usePlayback();
   const { isPlaying, currentChordIndex, currentStep: currentPlayheadStep } = playbackState;
 
@@ -65,6 +64,7 @@ const Index = () => {
   const [currentSongId, setCurrentSongId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [songCreatedAt, setSongCreatedAt] = useState<string | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Default chords for new songs
@@ -75,21 +75,32 @@ const Index = () => {
     { id: generateChordId(), root: 'C', accidental: '', quality: 'maj', duration: 4 },
   ];
 
-  // Sections state
-  const [sections, setSections] = useState<Section[]>([{
-    ...createSection('Section A'),
-    chords: defaultChords
-  }]);
+  // Sections state — if opening from a blog link (?chords=...), use those chords
+  const [sections, setSections] = useState<Section[]>(() => {
+    const chordsParam = new URLSearchParams(window.location.search).get('chords');
+    const fromUrl = chordsParam ? parseChordString(chordsParam) : [];
+    return [{
+      ...createSection('Section A'),
+      chords: fromUrl.length > 0 ? fromUrl : defaultChords,
+    }];
+  });
   const [customStyles, setCustomStyles] = useState<StylePattern[]>(getCustomStyles());
 
-  // Determine initial style (prefer merengue if exists, fallback to rock_basic)
+  // Determine initial style — prefer ?style= URL param, then merengue, then rock_basic
   const getInitialStyleId = () => {
+    const styleParam = new URLSearchParams(window.location.search).get('style');
     const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
+    if (styleParam && allStyles.some(s => s.id === styleParam)) return styleParam;
     return allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic';
   };
 
   const [selectedStyleId, setSelectedStyleId] = useState(getInitialStyleId);
   const [bpm, setBpm] = useState(() => {
+    const bpmParam = new URLSearchParams(window.location.search).get('bpm');
+    if (bpmParam) {
+      const parsed = parseInt(bpmParam, 10);
+      if (!isNaN(parsed) && parsed >= 40 && parsed <= 300) return parsed;
+    }
     const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
     const initialId = allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic';
     return allStyles.find(s => s.id === initialId)?.bpm ?? 100;
@@ -194,26 +205,28 @@ const Index = () => {
   // Load song from URL param
   useEffect(() => {
     if (songId && songId !== currentSongId) {
-      const song = getSongById(songId);
-      if (song) {
-        setSections(song.sections.length > 0 ? song.sections : [{
-          ...createSection('Section A'),
-          chords: defaultChords
-        }]);
-        setBpm(song.bpm);
-        setSelectedStyleId(song.styleId);
-        setTransposition(song.transposition);
-        setMetronomeEnabled(song.metronomeEnabled);
-        setSongTitle(song.title);
-        if (song.instrumentSettings.length > 0) {
-          setInstruments(song.instrumentSettings);
+      getSongById(songId).then(song => {
+        if (song) {
+          setSections(song.sections.length > 0 ? song.sections : [{
+            ...createSection('Section A'),
+            chords: defaultChords
+          }]);
+          setBpm(song.bpm);
+          setSelectedStyleId(song.styleId);
+          setTransposition(song.transposition);
+          setMetronomeEnabled(song.metronomeEnabled);
+          setSongTitle(song.title);
+          if (song.instrumentSettings.length > 0) {
+            setInstruments(song.instrumentSettings);
+          }
+          setCurrentSongId(song.id);
+          setSongCreatedAt(song.createdAt);
+          setLastSavedAt(new Date(song.updatedAt));
+        } else {
+          toast.error('Song not found');
+          window.location.href = '/app';
         }
-        setCurrentSongId(song.id);
-        setLastSavedAt(new Date(song.updatedAt));
-      } else {
-        toast.error('Song not found');
-        navigate('/');
-      }
+      });
     } else if (!songId && !currentSongId) {
       // New song - create and save immediately
       const newSong = createSong('My Song');
@@ -223,11 +236,11 @@ const Index = () => {
       newSong.transposition = transposition;
       newSong.metronomeEnabled = metronomeEnabled;
       newSong.instrumentSettings = instruments;
-      saveSong(newSong);
+      saveSongWithSync(newSong);
       setCurrentSongId(newSong.id);
+      setSongCreatedAt(newSong.createdAt);
       setLastSavedAt(new Date());
-      // Update URL without adding to history
-      navigate(`/editor/${newSong.id}`, { replace: true });
+      window.history.replaceState({}, '', `/editor/${newSong.id}`);
     }
   }, [songId]);
 
@@ -247,7 +260,7 @@ const Index = () => {
       const song: Song = {
         id: currentSongId,
         title: songTitle,
-        createdAt: new Date().toISOString(), // Will be overwritten if exists
+        createdAt: songCreatedAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         sections,
         bpm,
@@ -256,14 +269,8 @@ const Index = () => {
         instrumentSettings: instruments,
         metronomeEnabled,
       };
-      
-      // Get existing song to preserve createdAt
-      const existing = getSongById(currentSongId);
-      if (existing) {
-        song.createdAt = existing.createdAt;
-      }
-      
-      saveSong(song);
+
+      saveSongWithSync(song);
       setLastSavedAt(new Date());
       setIsSaving(false);
     }, 1500);
@@ -273,25 +280,32 @@ const Index = () => {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled]);
+  }, [currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, songCreatedAt]);
 
   // Handle export from Songs page
   useEffect(() => {
-    if (searchParams.get('export') === 'true' && currentSongId) {
+    if (new URLSearchParams(window.location.search).get('export') === 'true' && currentSongId) {
       // Remove export param from URL
-      navigate(`/editor/${currentSongId}`, { replace: true });
+      window.history.replaceState({}, '', `/editor/${currentSongId}`);
       // Trigger export after a short delay to let everything load
       setTimeout(() => {
         handleExport();
       }, 500);
     }
-  }, [currentSongId, searchParams]);
+  }, [currentSongId]);
 
   const handleBackToSongs = useCallback(() => {
     stopPlayback();
-    navigate('/');
-  }, [navigate, stopPlayback]);
+    window.location.href = '/app';
+  }, [stopPlayback]);
 
+
+  // Load custom styles from Supabase on mount
+  useEffect(() => {
+    initCustomStylesCache().then(({ customStyles: cs }) => {
+      setCustomStyles(cs);
+    });
+  }, []);
 
   useEffect(() => {
     const handleCustomStylesChanged = () => {
@@ -711,81 +725,15 @@ const Index = () => {
     enabled: !showCountdown && !templatesModalOpen && !editingChord && !addChordSection,
   });
 
-  const editorPageUrl = editorCanonicalUrl(songId ?? null);
-
-  // Build a dynamic, per-song SEO description so every saved song
-  // has unique metadata (sections, chord count, BPM, style).
-  const seoDescription = useMemo(() => {
-    const totalChords = sections.reduce((sum, s) => sum + s.chords.length, 0);
-    const sectionCount = sections.length;
-    const styleName =
-      [...MUSICAL_STYLES, ...getCustomStyles()].find(s => s.id === selectedStyleId)?.name ?? 'custom';
-    if (totalChords === 0) {
-      return `Build "${songTitle}" on chordsequence.com — arrange sections, pick a rhythm style, transpose, and export to MP3.`;
-    }
-    return `"${songTitle}" — ${totalChords} chord${totalChords === 1 ? '' : 's'} across ${sectionCount} section${sectionCount === 1 ? '' : 's'} at ${bpm} BPM (${styleName} style). Edit and export to MP3 on chordsequence.com.`;
-  }, [songTitle, sections, bpm, selectedStyleId]);
-
-  const breadcrumbJsonLd = useMemo(
-    () =>
-      JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'BreadcrumbList',
-        itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Songs', item: `${SITE_ORIGIN}/` },
-          {
-            '@type': 'ListItem',
-            position: 2,
-            name: songTitle || 'Editor',
-            item: editorPageUrl,
-          },
-        ],
-      }),
-    [songTitle, editorPageUrl],
-  );
+  // Update browser tab title dynamically (SEO static meta is handled by Astro)
+  useEffect(() => {
+    document.title = songTitle
+      ? `${songTitle} — Chord Player editor | Chord Sequence`
+      : 'Chord progression editor — Chord Player | Chord Sequence';
+  }, [songTitle]);
 
   return (
     <div className="min-h-screen bg-background">
-      <Helmet>
-        <title>
-          {songTitle
-            ? `${songTitle} — Chord Player editor | Chord Sequence`
-            : 'Chord progression editor — Chord Player | Chord Sequence'}
-        </title>
-        <meta
-          name="description"
-          content={seoDescription}
-        />
-        {!songId && <meta name="robots" content="noindex, follow" />}
-        <link rel="canonical" href={editorPageUrl} />
-        <meta property="og:site_name" content={SEO_OG.siteName} />
-        <meta property="og:type" content="website" />
-        <meta
-          property="og:title"
-          content={songTitle ? `${songTitle} — Chord Player` : 'Chord Player — Chord progression editor'}
-        />
-        <meta
-          property="og:description"
-          content={seoDescription}
-        />
-        <meta property="og:url" content={editorPageUrl} />
-        <meta property="og:image" content={SEO_OG.imageUrl} />
-        <meta property="og:image:width" content={String(SEO_OG.imageWidth)} />
-        <meta property="og:image:height" content={String(SEO_OG.imageHeight)} />
-        <meta property="og:image:alt" content={SEO_OG.imageAlt} />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta
-          name="twitter:title"
-          content={songTitle ? `${songTitle} — Chord Player` : 'Chord Player — Chord progression editor'}
-        />
-        <meta
-          name="twitter:description"
-          content={seoDescription}
-        />
-        <meta name="twitter:image" content={SEO_OG.imageUrl} />
-        <meta name="twitter:image:alt" content={SEO_OG.imageAlt} />
-        <script type="application/ld+json">{breadcrumbJsonLd}</script>
-      </Helmet>
       <header className="border-b border-border bg-card sticky top-0 z-40">
         <div className="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between gap-2">

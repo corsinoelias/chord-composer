@@ -4,7 +4,7 @@
  */
 
 import { useRef, useCallback, useState } from 'react';
-import { StylePattern } from '@/lib/styles';
+import { type StylePattern } from '@/lib/styles';
 import { ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 

@@ -1,0 +1,160 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
+
+const examples = [
+  { original: 'C major: C G Am F', transposed: 'G major: G D Em C', chords: 'G D Em C', bpm: 110, title: 'I–V–vi–IV transposed to G major' },
+  { original: 'D minor: Dm Am Bb F', transposed: 'Am minor: Am Em F C', chords: 'Am Em F C', bpm: 100, title: 'Same progression in A minor' },
+];
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'How do I transpose chord progressions?',
+      acceptedAnswer: { '@type': 'Answer', text: 'To transpose a chord progression, shift every chord in the progression by the same number of semitones. For example, moving C–G–Am–F up by 2 semitones gives D–A–Bm–G. In Chord Sequence, use the transposition slider in the editor to shift the entire song in real time.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'How many semitones are between common keys?',
+      acceptedAnswer: { '@type': 'Answer', text: 'From C to D is 2 semitones. C to E is 4 semitones. C to F is 5. C to G is 7. C to A is 9. C to B is 11. Going up an octave is 12 semitones.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'Why would I need to transpose a chord progression?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Transposing is useful when a song is too high or too low for your voice, when collaborating with a musician who plays in a different key, or when you want a fresh emotional feel from the same chord progression.' },
+    },
+  ],
+};
+---
+
+<BaseLayout
+  title="Chord Transposer — Transpose Any Chord Progression | Chord Sequence"
+  description="Free online chord transposer. Shift any chord progression to any key by semitones. Works with all chord types including 7ths, maj7, m7, and more."
+  canonicalUrl="https://chordsequence.com/tools/chord-transposer"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href="/tools" class="hover:text-foreground transition-colors">Tools</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">Chord Transposer</span>
+    </nav>
+
+    <header class="mb-10">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
+        Chord Transposer
+      </h1>
+      <p class="text-lg text-muted-foreground">
+        Shift any chord progression to any key — in real time. Supports all 37 chord types including 7ths, maj7, m7, dim, aug, and sus chords.
+      </p>
+    </header>
+
+    <!-- Inline CTA for the actual tool -->
+    <div class="rounded-xl border border-primary/30 bg-primary/5 p-7 mb-14 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Transpose your progression</h2>
+      <p class="text-sm text-muted-foreground mb-5">
+        Open Chord Player, add your chords, and use the transposition slider to shift the entire song up or down in real time — while the audio keeps playing.
+      </p>
+      <a href="/app" class="inline-flex items-center gap-2 px-7 py-3.5 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Chord Transposer →
+      </a>
+    </div>
+
+    <!-- How transposing works -->
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-6">How chord transposition works</h2>
+      <div class="prose prose-invert max-w-none">
+        <p class="text-muted-foreground leading-relaxed mb-4">
+          Transposing a chord progression means shifting every chord by the same number of <strong class="text-foreground">semitones</strong> (half steps). The relationship between chords stays identical — only the key changes.
+        </p>
+        <p class="text-muted-foreground leading-relaxed mb-4">
+          For example, the I–V–vi–IV progression in C major (C – G – Am – F) transposed up 7 semitones becomes the same progression in G major (G – D – Em – C). The emotional feel is the same, just in a different pitch range.
+        </p>
+
+        <div class="rounded-lg border border-border bg-card p-5 font-mono text-sm mb-6 overflow-x-auto">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <div class="text-xs text-muted-foreground mb-2 font-sans">C major (original)</div>
+              <div class="text-foreground">C → G → Am → F</div>
+            </div>
+            <div>
+              <div class="text-xs text-muted-foreground mb-2 font-sans">G major (+7 semitones)</div>
+              <div class="text-primary">G → D → Em → C</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Transposition table -->
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Semitone reference table</h2>
+      <div class="overflow-x-auto rounded-xl border border-border">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-border bg-muted/50">
+              <th class="px-4 py-3 text-left font-semibold text-foreground">From C</th>
+              <th class="px-4 py-3 text-left font-semibold text-foreground">Semitones</th>
+              <th class="px-4 py-3 text-left font-semibold text-foreground">Destination key</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ['+1', 'C# / Db'], ['+2', 'D'], ['+3', 'D# / Eb'], ['+4', 'E'],
+              ['+5', 'F'], ['+6', 'F# / Gb'], ['+7', 'G'], ['+8', 'G# / Ab'],
+              ['+9', 'A'], ['+10', 'A# / Bb'], ['+11', 'B'], ['+12', 'C (octave higher)'],
+            ].map(([semi, key], i) => (
+              <tr class={`border-b border-border/50 ${i % 2 === 0 ? '' : 'bg-muted/20'}`}>
+                <td class="px-4 py-2.5 text-muted-foreground font-mono">{semi}</td>
+                <td class="px-4 py-2.5 text-muted-foreground">{semi.replace('+', '')} semitone{semi !== '+1' ? 's' : ''}</td>
+                <td class="px-4 py-2.5 text-foreground font-medium">{key}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Examples with ChordEmbed -->
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Hear the same progression in different keys</h2>
+      <p class="text-sm text-muted-foreground mb-6">I–V–vi–IV transposed from C to G. Same structure, different key. Notice how the feel changes slightly at a higher pitch.</p>
+      <div class="space-y-4">
+        <ChordEmbedIsland chords="C G Am F" bpm={110} style="pop_basic" title="I–V–vi–IV in C major (original)" />
+        <ChordEmbedIsland chords="G D Em C" bpm={110} style="pop_basic" title="I–V–vi–IV in G major (+7 semitones)" />
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Frequently asked questions</h2>
+      <dl class="space-y-3">
+        {faqSchema.mainEntity.map((q: any) => (
+          <div class="rounded-xl border border-border bg-card overflow-hidden">
+            <details class="group">
+              <summary class="flex cursor-pointer items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-foreground select-none list-none hover:bg-accent/30 transition-colors">
+                {q.name}
+                <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+              </summary>
+              <div class="border-t border-border px-5 py-4">
+                <p class="text-sm leading-relaxed text-muted-foreground">{q.acceptedAnswer.text}</p>
+              </div>
+            </details>
+          </div>
+        ))}
+      </dl>
+    </section>
+
+    <div class="text-center">
+      <a href="/tools" class="text-sm text-muted-foreground hover:text-foreground transition-colors">← Back to all tools</a>
+    </div>
+  </main>
+</BaseLayout>

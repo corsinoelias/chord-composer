@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Song, getSongDuration, formatDuration, getChordsPreview } from '@/lib/songs';
+import { type Song, getSongDuration, formatDuration, getChordsPreview } from '@/lib/songs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {

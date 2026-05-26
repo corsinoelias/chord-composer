@@ -6,8 +6,8 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
-import { InstrumentState, InstrumentType, getDefaultInstrumentStates, INSTRUMENTS } from '@/lib/instruments';
-import { StylePattern, InstrumentSounds } from '@/lib/styles';
+import { type InstrumentState, type InstrumentType, getDefaultInstrumentStates, INSTRUMENTS } from '@/lib/instruments';
+import { type StylePattern, type InstrumentSounds } from '@/lib/styles';
 
 interface UseStyleInstrumentsOptions {
   style: StylePattern | null;

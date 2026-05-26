@@ -5,7 +5,7 @@
  * including famous song references.
  */
 
-import { Chord, RootNote, Accidental, ChordQuality, generateChordId } from './musicTheory';
+import { type Chord, type RootNote, type Accidental, type ChordQuality, generateChordId } from './musicTheory';
 
 export interface ChordProgression {
   name: string;

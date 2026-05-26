@@ -4,12 +4,12 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Chord } from '@/lib/musicTheory';
+import { type Chord } from '@/lib/musicTheory';
 import { 
   getProgressionsForStyle, 
   progressionToChords, 
   getRandomProgression,
-  ChordProgression 
+  type ChordProgression
 } from '@/lib/chordProgressions';
 
 export interface ChordSuggestion {

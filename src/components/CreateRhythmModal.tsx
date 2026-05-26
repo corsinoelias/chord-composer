@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Music, Volume2, Square } from 'lucide-react';
-import { StylePattern, MUSICAL_STYLES } from '@/lib/styles';
+import { type StylePattern, MUSICAL_STYLES } from '@/lib/styles';
 import { generateCustomStyleId } from '@/lib/customStyles';
 import { useStylePreview } from '@/hooks/useStylePreview';
 import { cn } from '@/lib/utils';

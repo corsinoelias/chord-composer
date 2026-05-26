@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Chord, generateChordId, formatChord } from '@/lib/musicTheory';
+import { type Chord, generateChordId, formatChord } from '@/lib/musicTheory';
 import { GENRE_PROGRESSIONS, progressionToChords } from '@/lib/chordProgressions';
 import { playChordPreview } from '@/lib/audioEngine';
 import { Music2, Play, Square, Check, Headphones } from 'lucide-react';

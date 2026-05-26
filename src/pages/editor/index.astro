@@ -1,0 +1,18 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EditorApp from '../../components/EditorApp';
+
+// NOTE: URLs like /editor/SONG_ID are handled by this same page via SPA routing.
+// For static hosting (Netlify/Vercel), configure a redirect:
+//   /editor/*  →  /editor/  (200 rewrite)
+// The EditorApp reads the songId from window.location.pathname at runtime.
+---
+
+<BaseLayout
+  title="Chord progression editor — Chord Player | Chord Sequence"
+  description="Build chord progressions with drag-and-drop sections, live rhythm playback, transposition, and one-click WAV export on chordsequence.com."
+  canonicalUrl="https://chordsequence.com/editor"
+  showNav={false}
+>
+  <EditorApp client:only="react" />
+</BaseLayout>

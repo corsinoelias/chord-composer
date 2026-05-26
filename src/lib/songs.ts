@@ -4,8 +4,8 @@
  * Defines the Song data model and utility functions
  */
 
-import { Section } from './sections';
-import { InstrumentState } from './instruments';
+import type { Section } from './sections';
+import type { InstrumentState } from './instruments';
 
 export interface Song {
   id: string;

@@ -5,9 +5,9 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { Section } from '@/lib/sections';
-import { InstrumentState, getDefaultInstrumentStates } from '@/lib/instruments';
-import { StylePattern, MUSICAL_STYLES, getStyleByIdWithOverrides } from '@/lib/styles';
+import { type Section } from '@/lib/sections';
+import { type InstrumentState, getDefaultInstrumentStates } from '@/lib/instruments';
+import { type StylePattern, MUSICAL_STYLES, getStyleByIdWithOverrides } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
 import {
   ensureSamplesLoaded,

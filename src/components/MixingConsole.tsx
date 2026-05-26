@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Sliders, RotateCcw, Volume2 } from 'lucide-react';
 import {
-  EffectsState,
+  type EffectsState,
   DEFAULT_EFFECTS_STATE,
   updateEQ,
   updateReverb,

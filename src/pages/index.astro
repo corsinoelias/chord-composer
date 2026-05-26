@@ -1,0 +1,399 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ChordEmbed from '../components/ChordEmbed';
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'What is Chord Sequence?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Chord Sequence is a free online chord progression builder at chordsequence.com. Drag and drop chords, pick a rhythm style, play live, transpose to any key, and export your progression as a WAV file — all in your browser with no account required.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'Is Chord Sequence free to use?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Yes. Chord Sequence is completely free. No subscription, no account, and no credit card required. You can build, play, and export chord progressions with no limitations.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'Can I export my chord progression as audio?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Yes. Every progression can be exported to WAV in one click from the editor. The file is ready to import into any DAW (Ableton, Logic, GarageBand, etc.).' },
+    },
+    {
+      '@type': 'Question',
+      name: 'Do I need to install anything?',
+      acceptedAnswer: { '@type': 'Answer', text: 'No installation required. Chord Sequence runs entirely in your browser using the Web Audio API. It works on Chrome, Firefox, Safari, and Edge.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'What chord types does Chord Sequence support?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Chord Sequence supports 37 chord qualities including major, minor, dominant 7th, major 7th, minor 7th, diminished, augmented, suspended, added 9th, 11th, 13th chords, and more.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'Can I transpose chord progressions?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Yes. You can transpose any progression up or down by any number of semitones with a single click. This is useful for finding the right key for your voice or instrument.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'What rhythm styles are available?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Chord Sequence includes 13+ rhythm styles including pop, rock, jazz, lo-fi, worship, Latin, and more. Each style changes the playback feel and instrument mix.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'Are my saved songs private?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Yes. Songs are stored locally in your browser\'s localStorage by default. They never leave your device unless you choose to export them.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'Can I use Chord Sequence on mobile?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Yes. Chord Sequence is fully responsive and works on smartphones and tablets. The editor is touch-friendly and the playback works on iOS and Android.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'What is a chord progression?',
+      acceptedAnswer: { '@type': 'Answer', text: 'A chord progression is a sequence of chords played in order. Chord progressions form the harmonic backbone of virtually every piece of music — from pop songs to jazz standards. Common examples include I–V–vi–IV (pop), ii–V–I (jazz), and i–VI–III–VII (minor pop).' },
+    },
+  ],
+};
+
+const features = [
+  { icon: 'grid', title: 'Drag & Drop Builder', desc: 'Arrange chords and sections visually. Reorder with drag & drop, duplicate sections, and build complex song structures in minutes.' },
+  { icon: 'play', title: 'Live Rhythm Playback', desc: '13+ rhythm styles with real audio samples. Hear your progression as a real band — pop, jazz, lo-fi, worship, and more.' },
+  { icon: 'arrows', title: 'Transpose Any Key', desc: 'Shift your entire progression up or down by semitones. Instantly find the key that fits your voice or instrument.' },
+  { icon: 'download', title: 'Export to WAV', desc: 'Download your chord progression as a high-quality WAV file in one click. Ready to import into any DAW.' },
+  { icon: 'folder', title: 'Song Library', desc: 'Save unlimited songs locally. Your progressions are stored in your browser — private, persistent, and always available.' },
+  { icon: 'sliders', title: 'Mixing Console', desc: 'Adjust instrument volumes and effects. Fine-tune the sound of your progression with the built-in mixing console.' },
+];
+
+const useCases = [
+  { emoji: '🎸', title: 'Songwriters', desc: 'Map out chord ideas before picking up your instrument. Hear how a progression feels before committing to paper.' },
+  { emoji: '🎓', title: 'Music Students', desc: 'Learn music theory hands-on — not just on paper. Build and listen to any progression you read about in a textbook.' },
+  { emoji: '🎧', title: 'Producers', desc: 'Quickly audition dozens of chord ideas without opening your DAW. Export the winner and build from there.' },
+  { emoji: '🎹', title: 'Teachers', desc: 'Demonstrate harmony concepts live in class or online. Share a progression link and students can play it instantly.' },
+];
+
+const popularProgressions = [
+  { title: 'I–V–vi–IV (Pop)', chords: 'C G Am F', bpm: 110, style: 'pop_basic', label: 'The most-used progression in pop music. Found in thousands of hits.' },
+  { title: 'ii–V–I (Jazz)', chords: 'Dm7 G7 Cmaj7', bpm: 120, style: 'pop_basic', label: 'The cornerstone of jazz harmony.' },
+  { title: 'Lo-fi Jazz Loop', chords: 'Cmaj7 Am7 Fmaj7 G7', bpm: 75, style: 'pop_basic', label: 'Warm extended chords for study beats and chill music.' },
+  { title: 'Minor Ballad', chords: 'Am F C G', bpm: 70, style: 'pop_basic', label: 'Melancholic minor key pop. Emotional and versatile.' },
+];
+
+const tools = [
+  { title: 'Chord Transposer', desc: 'Shift any chord or progression to any key instantly.', href: '/tools/chord-transposer' },
+  { title: 'Chord Finder', desc: 'Find the name of any chord from its notes.', href: '/tools/chord-finder' },
+  { title: 'Key Detector', desc: 'Detect the key of any chord progression.', href: '/tools/key-detector' },
+  { title: 'Chord Generator', desc: 'Generate chord voicings from a root note.', href: '/tools/chord-generator' },
+  { title: 'Roman Numeral Analyzer', desc: 'Analyze progression functions with Roman numerals.', href: '/tools/roman-numeral-analyzer' },
+];
+
+const steps = [
+  { n: '1', title: 'Add your chords', desc: 'Click to add chords from a palette of 37 chord types. Drag to reorder, group into sections, and repeat as needed.' },
+  { n: '2', title: 'Pick a rhythm style', desc: 'Choose from 13+ rhythm styles — pop, jazz, lo-fi, worship, and more. Each style gives your progression a different feel.' },
+  { n: '3', title: 'Play, transpose & export', desc: 'Hit Play to hear your progression with real audio. Transpose to any key. Export to WAV in one click.' },
+];
+---
+
+<BaseLayout
+  title="Chord Sequence — Free Online Chord Progression Builder"
+  description="Build, play, and export chord progressions for free. 37 chord types, 13+ rhythm styles, transpose, and WAV export — no account required. Works in any browser."
+  canonicalUrl="https://chordsequence.com"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+  </Fragment>
+
+  <!-- ─── HERO ─────────────────────────────────────────────────────────── -->
+  <section class="relative overflow-hidden py-24 sm:py-32 lg:py-40">
+    <!-- Background glow -->
+    <div class="pointer-events-none absolute inset-0 -z-10">
+      <div class="absolute left-1/2 top-0 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-primary/10 blur-[120px]"></div>
+    </div>
+
+    <div class="mx-auto max-w-4xl px-4 sm:px-6 text-center">
+      <!-- Badge -->
+      <div class="mb-8 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+        <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"></span>
+        Free · No account required · Works in any browser
+      </div>
+
+      <h1 class="mb-6 text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
+        Build chord progressions.<br />
+        <span class="text-primary">Hear them instantly.</span>
+      </h1>
+
+      <p class="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground sm:text-xl">
+        The free chord progression builder for songwriters, producers, and music students.
+        Drag chords, pick a rhythm style, and play in seconds — no DAW required.
+      </p>
+
+      <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <a
+          href="/app"
+          class="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-colors hover:bg-primary/90"
+        >
+          Open Chord Player
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a
+          href="#demo"
+          class="inline-flex items-center gap-2 rounded-xl border border-border px-8 py-4 text-lg font-medium text-foreground transition-colors hover:bg-accent/50"
+        >
+          See it in action
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SOCIAL PROOF ──────────────────────────────────────────────────── -->
+  <section class="border-y border-border bg-card/50">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 py-6">
+      <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+        {[
+          '100% Free',
+          'No account needed',
+          '37 chord types',
+          '13+ rhythm styles',
+          'WAV export',
+          'Works offline',
+        ].map((item) => (
+          <span class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <svg class="h-3.5 w-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── FEATURES ─────────────────────────────────────────────────────── -->
+  <section id="features" class="py-20 sm:py-28">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6">
+      <div class="mb-14 text-center">
+        <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Everything you need to build progressions
+        </h2>
+        <p class="mx-auto max-w-xl text-lg text-muted-foreground">
+          No DAW, no theory knowledge required. Just open the app and start creating.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {features.map((f) => (
+          <div class="group rounded-xl border border-border bg-card p-6 transition-colors hover:border-primary/40">
+            <div class="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <svg class="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                {f.icon === 'grid'     && <><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></>}
+                {f.icon === 'play'     && <><polygon points="5 3 19 12 5 21 5 3"/></>}
+                {f.icon === 'arrows'   && <><path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4"/></>}
+                {f.icon === 'download' && <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>}
+                {f.icon === 'folder'   && <><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></>}
+                {f.icon === 'sliders'  && <><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></>}
+              </svg>
+            </div>
+            <h3 class="mb-2 font-semibold text-foreground">{f.title}</h3>
+            <p class="text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── INTERACTIVE DEMO ──────────────────────────────────────────────── -->
+  <section id="demo" class="py-20 sm:py-28 bg-muted/20 border-y border-border">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6">
+      <div class="mb-12 text-center">
+        <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Try it right now
+        </h2>
+        <p class="text-lg text-muted-foreground">
+          No signup, no install. Press Play on any of these progressions.
+        </p>
+      </div>
+
+      <div class="space-y-4">
+        <ChordEmbed client:visible chords="C G Am F" bpm={110} style="pop_basic" title="I–V–vi–IV — The Pop Axis (C major)" />
+        <ChordEmbed client:visible chords="Dm7 G7 Cmaj7" bpm={120} style="pop_basic" title="ii–V–I — Jazz Standard Cornerstone" />
+        <ChordEmbed client:visible chords="Cmaj7 Am7 Fmaj7 G7" bpm={75} style="pop_basic" title="Lo-fi Jazz Loop — Chill study vibes" />
+      </div>
+
+      <div class="mt-10 text-center">
+        <a
+          href="/app"
+          class="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-colors hover:bg-primary/90"
+        >
+          Open Full Editor — Build Your Own
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── USE CASES ────────────────────────────────────────────────────── -->
+  <section class="py-20 sm:py-28">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6">
+      <div class="mb-14 text-center">
+        <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Built for every kind of musician
+        </h2>
+        <p class="mx-auto max-w-xl text-lg text-muted-foreground">
+          Whether you're writing songs, studying theory, or producing beats — Chord Sequence fits your workflow.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        {useCases.map((u) => (
+          <div class="flex gap-5 rounded-xl border border-border bg-card p-6">
+            <span class="text-3xl shrink-0 mt-0.5">{u.emoji}</span>
+            <div>
+              <h3 class="mb-2 font-semibold text-foreground">{u.title}</h3>
+              <p class="text-sm leading-relaxed text-muted-foreground">{u.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── POPULAR PROGRESSIONS ─────────────────────────────────────────── -->
+  <section class="py-20 sm:py-28 bg-muted/20 border-y border-border">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6">
+      <div class="mb-14 text-center">
+        <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          The world's most-used chord progressions
+        </h2>
+        <p class="text-lg text-muted-foreground">
+          Recognized in hundreds of hit songs. Play them here, then build your own.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        {popularProgressions.map((p) => (
+          <div class="rounded-xl border border-border bg-card p-5">
+            <p class="mb-3 text-xs text-muted-foreground leading-relaxed">{p.label}</p>
+            <ChordEmbed client:visible chords={p.chords} bpm={p.bpm} style={p.style} title={p.title} />
+          </div>
+        ))}
+      </div>
+
+      <div class="mt-10 text-center">
+        <a href="/progressions" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+          Browse all chord progressions by genre →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── TOOLS ────────────────────────────────────────────────────────── -->
+  <section class="py-20 sm:py-28" id="tools">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6">
+      <div class="mb-14 text-center">
+        <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Music theory tools
+        </h2>
+        <p class="text-lg text-muted-foreground">
+          Free tools for every stage of the songwriting process.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {tools.map((t) => (
+          <a
+            href={t.href}
+            class="group flex items-start gap-4 rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
+          >
+            <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <svg class="h-4 w-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            </div>
+            <div>
+              <h3 class="font-semibold text-foreground group-hover:text-primary transition-colors mb-1">{t.title}</h3>
+              <p class="text-sm text-muted-foreground">{t.desc}</p>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      <div class="mt-10 text-center">
+        <a href="/tools" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+          View all music tools →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── HOW IT WORKS ─────────────────────────────────────────────────── -->
+  <section id="how-it-works" class="py-20 sm:py-28 bg-muted/20 border-y border-border">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6">
+      <div class="mb-14 text-center">
+        <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          How it works
+        </h2>
+        <p class="text-lg text-muted-foreground">Three steps from idea to audio.</p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        {steps.map((s) => (
+          <div class="relative rounded-xl border border-border bg-card p-8 text-center">
+            <div class="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
+              {s.n}
+            </div>
+            <h3 class="mb-2 font-semibold text-foreground">{s.title}</h3>
+            <p class="text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── FAQ ──────────────────────────────────────────────────────────── -->
+  <section class="py-20 sm:py-28">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6">
+      <div class="mb-12 text-center">
+        <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Frequently asked questions
+        </h2>
+      </div>
+
+      <dl class="space-y-4">
+        {faqSchema.mainEntity.map((q: any) => (
+          <div class="rounded-xl border border-border bg-card overflow-hidden">
+            <details class="group">
+              <summary class="flex cursor-pointer items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-foreground select-none list-none hover:bg-accent/30 transition-colors">
+                {q.name}
+                <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+              </summary>
+              <div class="border-t border-border px-5 py-4">
+                <p class="text-sm leading-relaxed text-muted-foreground">{q.acceptedAnswer.text}</p>
+              </div>
+            </details>
+          </div>
+        ))}
+      </dl>
+    </div>
+  </section>
+
+  <!-- ─── FINAL CTA ─────────────────────────────────────────────────────── -->
+  <section class="relative overflow-hidden py-24 sm:py-32 border-t border-border">
+    <div class="pointer-events-none absolute inset-0 -z-10">
+      <div class="absolute left-1/2 top-1/2 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/8 blur-[100px]"></div>
+    </div>
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 text-center">
+      <h2 class="mb-6 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+        Your next chord progression<br />is one click away.
+      </h2>
+      <p class="mx-auto mb-10 max-w-xl text-lg text-muted-foreground">
+        Free, instant, and no signup. Open the editor and start building.
+      </p>
+      <a
+        href="/app"
+        class="inline-flex items-center gap-2 rounded-xl bg-primary px-10 py-5 text-xl font-bold text-primary-foreground shadow-xl shadow-primary/25 transition-colors hover:bg-primary/90"
+      >
+        Open Chord Player — It's Free
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </section>
+</BaseLayout>

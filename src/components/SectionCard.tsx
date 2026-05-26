@@ -4,8 +4,8 @@ import {
   SortableContext,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Section } from '@/lib/sections';
-import { Chord } from '@/lib/musicTheory';
+import { type Section } from '@/lib/sections';
+import { type Chord } from '@/lib/musicTheory';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';

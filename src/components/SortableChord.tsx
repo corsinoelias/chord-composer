@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Chord } from '@/lib/musicTheory';
+import { type Chord } from '@/lib/musicTheory';
 import { ChordBlock } from './ChordBlock';
 
 interface SortableChordProps {

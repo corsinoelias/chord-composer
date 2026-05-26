@@ -1,16 +1,7 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
+Disallow: /app
+Disallow: /app/
+Disallow: /editor/
 Allow: /
 
 Sitemap: https://chordsequence.com/sitemap.xml

@@ -1,7 +1,7 @@
 import { useState, memo, useMemo, useCallback } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { MUSICAL_STYLES, StylePattern } from '@/lib/styles';
+import { MUSICAL_STYLES, type StylePattern } from '@/lib/styles';
 import { getCustomStyles, deleteCustomStyle, getStyleOverride } from '@/lib/customStyles';
 import { Music, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';

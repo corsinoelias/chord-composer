@@ -1,0 +1,89 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
+
+const keyExamples = [
+  { chords: 'C G Am F', key: 'C major', hint: 'All chords are diatonic to C major. The I chord (C) is the tonal center.' },
+  { chords: 'Am F C G', key: 'A minor / C major', hint: 'Starts on Am — feels like A minor. Same notes, different tonal center.' },
+  { chords: 'Dm7 G7 Cmaj7', key: 'C major', hint: 'ii–V–I in C. The G7 resolves strongly to Cmaj7, confirming C as the key.' },
+];
+---
+
+<BaseLayout
+  title="Key Detector — Find the Key of Any Chord Progression | Chord Sequence"
+  description="Learn how to detect the musical key of any chord progression. Use Chord Sequence to play progressions in any key and identify tonal centers."
+  canonicalUrl="https://chordsequence.com/tools/key-detector"
+>
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href="/tools" class="hover:text-foreground transition-colors">Tools</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">Key Detector</span>
+    </nav>
+
+    <header class="mb-10">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
+        Key Detector
+      </h1>
+      <p class="text-lg text-muted-foreground">
+        Identify the musical key of any chord progression. Understand which key your chords belong to and why.
+      </p>
+    </header>
+
+    <div class="rounded-xl border border-primary/30 bg-primary/5 p-7 mb-14 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Detect the key in Chord Player</h2>
+      <p class="text-sm text-muted-foreground mb-5">
+        Add your chords in Chord Player and use the Roman Numeral view to see which key your progression belongs to.
+      </p>
+      <a href="/app" class="inline-flex items-center gap-2 px-7 py-3.5 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Chord Player →
+      </a>
+    </div>
+
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-6">How to find the key of a chord progression</h2>
+
+      <div class="space-y-5 text-muted-foreground leading-relaxed">
+        <p>The key of a chord progression is determined by the <strong class="text-foreground">tonal center</strong> — the chord that feels like "home." Here are the most reliable methods:</p>
+
+        <div class="space-y-4">
+          {[
+            { n: '1', title: 'Check for a V7 chord', desc: 'A dominant 7th chord (e.g. G7) almost always resolves to its I chord (Cmaj7). If you have G7 → C, the key is C major.' },
+            { n: '2', title: 'Find all the diatonic chords', desc: 'List the chords and find the major scale that contains all of them. For C, G, Am, F — all four fit perfectly into C major (I, V, vi, IV).' },
+            { n: '3', title: 'Listen for the resting chord', desc: 'The chord where the progression feels resolved or complete is usually the I (tonic). Play the progression and notice where it "wants to land."' },
+            { n: '4', title: 'Check relative minor', desc: 'C major and A minor share the same chords. A progression starting on Am and ending on Am is likely in A minor. Starting on C and ending on C is likely C major.' },
+          ].map((step) => (
+            <div class="flex gap-4 rounded-xl border border-border bg-card p-5">
+              <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary mt-0.5">{step.n}</div>
+              <div>
+                <h3 class="font-semibold text-foreground mb-1">{step.title}</h3>
+                <p class="text-sm">{step.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Examples — hear the key</h2>
+      <div class="space-y-6">
+        {keyExamples.map((ex) => (
+          <div class="rounded-xl border border-border bg-card p-5">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Key: {ex.key}</span>
+            </div>
+            <p class="text-xs text-muted-foreground mb-3">{ex.hint}</p>
+            <ChordEmbedIsland chords={ex.chords} bpm={100} style="pop_basic" title={ex.chords} />
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <div class="text-center">
+      <a href="/tools" class="text-sm text-muted-foreground hover:text-foreground transition-colors">← Back to all tools</a>
+    </div>
+  </main>
+</BaseLayout>

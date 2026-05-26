@@ -1,0 +1,77 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const tools = [
+  {
+    title: 'Chord Transposer',
+    desc: 'Shift any chord progression to any key in one click. Perfect for finding the right key for your voice or instrument.',
+    href: '/tools/chord-transposer',
+    keywords: 'transpose chords, change key, chord transposition',
+  },
+  {
+    title: 'Chord Finder',
+    desc: 'Enter the notes you\'re playing and find the chord name instantly. Useful for identifying chords by ear.',
+    href: '/tools/chord-finder',
+    keywords: 'chord finder, identify chords, chord name',
+  },
+  {
+    title: 'Key Detector',
+    desc: 'Enter a progression and detect the musical key it belongs to. Understand the tonal center of any chord sequence.',
+    href: '/tools/key-detector',
+    keywords: 'key detector, find key, musical key',
+  },
+  {
+    title: 'Chord Generator',
+    desc: 'Pick a root note and generate diatonic chords for any key. Great for building progressions from scratch.',
+    href: '/tools/chord-generator',
+    keywords: 'chord generator, diatonic chords, key chords',
+  },
+  {
+    title: 'Roman Numeral Analyzer',
+    desc: 'Analyze any chord progression using Roman numerals. Understand the function of each chord within a key.',
+    href: '/tools/roman-numeral-analyzer',
+    keywords: 'roman numeral analysis, chord function, music theory',
+  },
+];
+---
+
+<BaseLayout
+  title="Free Music Theory Tools — Chord Transposer, Key Detector & More | Chord Sequence"
+  description="Free online music tools for songwriters and musicians. Chord transposer, chord finder, key detector, chord generator, and Roman numeral analyzer."
+  canonicalUrl="https://chordsequence.com/tools"
+>
+  <main class="mx-auto max-w-5xl px-4 sm:px-6 py-16 sm:py-24">
+    <div class="mb-14 text-center">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
+        Free music theory tools
+      </h1>
+      <p class="text-lg text-muted-foreground max-w-xl mx-auto">
+        Online tools for every stage of the songwriting process. Free, instant, and no signup required.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+      {tools.map((t) => (
+        <a
+          href={t.href}
+          class="group flex flex-col rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-colors"
+        >
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <h2 class="text-lg font-bold text-foreground group-hover:text-primary transition-colors">{t.title}</h2>
+            <svg class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+          <p class="text-sm text-muted-foreground leading-relaxed flex-1">{t.desc}</p>
+          <p class="mt-4 text-xs text-muted-foreground/60">{t.keywords}</p>
+        </a>
+      ))}
+    </div>
+
+    <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Need the full editor?</h2>
+      <p class="text-sm text-muted-foreground mb-5">Combine all these tools in the Chord Player — drag chords, pick styles, and export to WAV.</p>
+      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Chord Player →
+      </a>
+    </div>
+  </main>
+</BaseLayout>

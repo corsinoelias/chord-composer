@@ -1,5 +1,5 @@
 import { memo, useMemo, useEffect, useState } from 'react';
-import { Section } from '@/lib/sections';
+import { type Section } from '@/lib/sections';
 import { formatChord } from '@/lib/musicTheory';
 
 interface ProgressBarProps {

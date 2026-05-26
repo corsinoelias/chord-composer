@@ -5,10 +5,10 @@
  * Supports multiple instruments with 16-slot rhythm patterns (16th note resolution).
  */
 
-import { Chord, chordToMidiNotes, midiToFrequency } from './musicTheory';
-import { InstrumentState, getSoundType, SoundType, isInstrumentAudible } from './instruments';
-import { StylePattern, generateBarPattern, ArpeggioCell, ArpeggioType, ArpeggioSpeed } from './styles';
-import { Section } from './sections';
+import { type Chord, chordToMidiNotes, midiToFrequency } from './musicTheory';
+import { type InstrumentState, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
+import { type StylePattern, generateBarPattern, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
+import { type Section } from './sections';
 import { buildEffectsChain } from './audioEffects';
 
 let audioContext: AudioContext | null = null;

@@ -25,9 +25,9 @@ import {
   ChevronDown,
   RotateCw
 } from 'lucide-react';
-import { StylePattern, MUSICAL_STYLES, ArpeggioCell, ArpeggioType, ArpeggioSpeed, InstrumentSounds } from '@/lib/styles';
+import { type StylePattern, MUSICAL_STYLES, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed, type InstrumentSounds } from '@/lib/styles';
 import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
-import { getDefaultInstrumentStates, INSTRUMENTS, InstrumentType } from '@/lib/instruments';
+import { getDefaultInstrumentStates, INSTRUMENTS, type InstrumentType } from '@/lib/instruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
 import { useStylePreview } from '@/hooks/useStylePreview';
 import { usePlayback } from '@/contexts/PlaybackContext';

@@ -4,7 +4,7 @@
  * Allows organizing chord progressions into repeatable sections
  */
 
-import { Chord, generateChordId } from './musicTheory';
+import { type Chord, generateChordId } from './musicTheory';
 
 export interface Section {
   id: string;

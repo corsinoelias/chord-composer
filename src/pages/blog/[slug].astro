@@ -1,0 +1,31 @@
+---
+import { getCollection } from 'astro:content';
+import BlogLayout from '../../layouts/BlogLayout.astro';
+import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  return posts.map((post) => ({
+    params: { slug: post.slug },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await post.render();
+---
+
+<BlogLayout
+  title={post.data.title}
+  description={post.data.description}
+  pubDate={post.data.pubDate}
+  image={post.data.image}
+  tags={post.data.tags}
+>
+  <!--
+    ChordEmbed is injected as a global MDX component — no need to import it in .mdx files.
+    Usage in any blog post:
+      <ChordEmbed chords="Am F C G" bpm={120} style="pop_basic" title="I-V-vi-IV" />
+  -->
+  <Content components={{ ChordEmbed: ChordEmbedIsland }} />
+</BlogLayout>

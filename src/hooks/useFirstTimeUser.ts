@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
 const FIRST_TIME_KEY = 'chord-player-first-time-complete';
 const ONBOARDING_KEY = 'chord-player-onboarding-seen';
@@ -7,7 +7,7 @@ export function useFirstTimeUser() {
   const [isFirstTime, setIsFirstTime] = useState(() => {
     return localStorage.getItem(FIRST_TIME_KEY) !== 'true';
   });
-  
+
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return localStorage.getItem(ONBOARDING_KEY) !== 'true';
   });
@@ -22,21 +22,6 @@ export function useFirstTimeUser() {
     setShowOnboarding(false);
     markAsReturningUser();
   }, [markAsReturningUser]);
-
-  // Auto-mark as returning user once they have songs
-  const checkAndUpdateStatus = useCallback(() => {
-    const songs = localStorage.getItem('chord-player-songs');
-    if (songs) {
-      const parsed = JSON.parse(songs);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        markAsReturningUser();
-      }
-    }
-  }, [markAsReturningUser]);
-
-  useEffect(() => {
-    checkAndUpdateStatus();
-  }, [checkAndUpdateStatus]);
 
   return {
     isFirstTime,

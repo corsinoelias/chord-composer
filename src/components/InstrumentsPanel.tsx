@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { InstrumentState, INSTRUMENTS, getInstrumentConfig, InstrumentType } from '@/lib/instruments';
-import { StylePattern, InstrumentSounds } from '@/lib/styles';
+import { type InstrumentState, INSTRUMENTS, getInstrumentConfig, type InstrumentType } from '@/lib/instruments';
+import { type StylePattern, type InstrumentSounds } from '@/lib/styles';
 import { Piano, Guitar, Drum, Music } from 'lucide-react';
 
 interface InstrumentsPanelProps {

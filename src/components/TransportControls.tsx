@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { StyleSelector } from './StyleSelector';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-import { StylePattern } from '@/lib/styles';
+import { type StylePattern } from '@/lib/styles';
 
 interface TransportControlsProps {
   isPlaying: boolean;

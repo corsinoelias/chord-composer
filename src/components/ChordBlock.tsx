@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { Chord, formatChord } from '@/lib/musicTheory';
+import { type Chord, formatChord } from '@/lib/musicTheory';
 import { X, Copy } from 'lucide-react';
 
 interface ChordBlockProps {

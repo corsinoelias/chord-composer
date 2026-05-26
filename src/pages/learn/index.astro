@@ -1,0 +1,72 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const allPosts = await getCollection('blog', ({ data }) => !data.draft);
+allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+
+<BaseLayout
+  title="Learn Music Theory & Chord Progressions | Chord Sequence"
+  description="Free music theory guides for songwriters and producers. Learn chord progressions, transposition, the circle of fifths, and more — with interactive examples."
+  canonicalUrl="https://chordsequence.com/learn"
+>
+  <main class="mx-auto max-w-4xl px-4 sm:px-6 py-16 sm:py-24">
+    <div class="mb-12">
+      <div class="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-6">
+        Free music theory guides
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
+        Learn music theory
+      </h1>
+      <p class="text-lg text-muted-foreground max-w-xl">
+        Short, practical guides for songwriters and producers. Every article includes interactive chord players so you can hear what you're learning.
+      </p>
+    </div>
+
+    {allPosts.length === 0 ? (
+      <p class="text-muted-foreground">No articles yet. Check back soon.</p>
+    ) : (
+      <ul class="space-y-4">
+        {allPosts.map((post) => (
+          <li>
+            <a
+              href={`/learn/${post.slug}`}
+              class="group flex flex-col sm:flex-row sm:items-start gap-4 rounded-xl border border-border bg-card p-5 hover:border-primary/40 transition-colors"
+            >
+              <div class="flex-1 min-w-0">
+                {post.data.tags.length > 0 && (
+                  <div class="flex flex-wrap gap-1.5 mb-2">
+                    {post.data.tags.map((tag: string) => (
+                      <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <h2 class="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-1">
+                  {post.data.title}
+                </h2>
+                <p class="text-sm text-muted-foreground line-clamp-2 mb-3">{post.data.description}</p>
+                <p class="text-xs text-muted-foreground">
+                  {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+              </div>
+              <div class="hidden sm:flex items-center text-primary/60 group-hover:text-primary transition-colors">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+
+    <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Ready to try what you've learned?</h2>
+      <p class="text-sm text-muted-foreground mb-5">Build any progression you read about in the interactive editor.</p>
+      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Chord Player →
+      </a>
+    </div>
+  </main>
+</BaseLayout>

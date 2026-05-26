@@ -1,0 +1,89 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  return posts.map((post) => ({
+    params: { slug: post.slug },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await post.render();
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: post.data.title,
+  description: post.data.description,
+  datePublished: post.data.pubDate.toISOString(),
+  author: { '@type': 'Organization', name: 'Chord Sequence' },
+  publisher: { '@type': 'Organization', name: 'Chord Sequence', url: 'https://chordsequence.com' },
+  mainEntityOfPage: `https://chordsequence.com/learn/${post.slug}`,
+};
+---
+
+<BaseLayout
+  title={`${post.data.title} | Chord Sequence`}
+  description={post.data.description}
+  canonicalUrl={`https://chordsequence.com/learn/${post.slug}`}
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-8">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href="/learn" class="hover:text-foreground transition-colors">Learn</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground truncate">{post.data.title}</span>
+    </nav>
+
+    <!-- Tags -->
+    {post.data.tags.length > 0 && (
+      <div class="flex flex-wrap gap-1.5 mb-5">
+        {post.data.tags.map((tag: string) => (
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+            {tag}
+          </span>
+        ))}
+      </div>
+    )}
+
+    <header class="mb-10">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4 font-serif">
+        {post.data.title}
+      </h1>
+      <p class="text-lg text-muted-foreground">{post.data.description}</p>
+      <p class="mt-4 text-sm text-muted-foreground">
+        {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+      </p>
+    </header>
+
+    <article class="prose prose-invert prose-lg max-w-none prose-headings:font-bold prose-headings:text-foreground prose-p:text-muted-foreground prose-a:text-primary prose-strong:text-foreground">
+      <Content components={{ ChordEmbed: ChordEmbedIsland }} />
+    </article>
+
+    <!-- CTA -->
+    <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Try it in Chord Player</h2>
+      <p class="text-sm text-muted-foreground mb-5">Build the progressions from this article in the free interactive editor.</p>
+      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Chord Player →
+      </a>
+    </div>
+
+    <!-- Back -->
+    <div class="mt-8 text-center">
+      <a href="/learn" class="text-sm text-muted-foreground hover:text-foreground transition-colors">
+        ← Back to all articles
+      </a>
+    </div>
+  </main>
+</BaseLayout>

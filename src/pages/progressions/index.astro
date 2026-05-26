@@ -1,0 +1,53 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { GENRES } from '../../data/progressions';
+---
+
+<BaseLayout
+  title="Chord Progressions by Genre — Pop, Jazz, Lo-fi & More | Chord Sequence"
+  description="Browse hundreds of chord progressions organized by genre and mood. Pop, jazz, lo-fi, sad, happy, worship, neo soul, and EDM. Play them instantly."
+  canonicalUrl="https://chordsequence.com/progressions"
+>
+  <main class="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-24">
+    <div class="mb-14 text-center">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
+        Chord progressions by genre
+      </h1>
+      <p class="text-lg text-muted-foreground max-w-xl mx-auto">
+        Browse progressions by mood and genre. Click any to hear it instantly, or open in the editor to customize.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {GENRES.map((genre) => (
+        <a
+          href={`/progressions/${genre.slug}`}
+          class="group flex flex-col rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-colors"
+        >
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-bold text-foreground group-hover:text-primary transition-colors">
+              {genre.name}
+            </h2>
+            <svg class="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+          <p class="text-sm text-muted-foreground flex-1 mb-4 leading-relaxed">{genre.description}</p>
+          <div class="flex flex-wrap gap-1.5">
+            {genre.progressions.slice(0, 3).map((p) => (
+              <span class="text-xs px-2 py-0.5 rounded-full border border-border text-muted-foreground font-mono">
+                {p.chords.split(' ').slice(0, 4).join(' ')}
+              </span>
+            ))}
+          </div>
+        </a>
+      ))}
+    </div>
+
+    <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Build your own progression</h2>
+      <p class="text-sm text-muted-foreground mb-5">Use the Chord Player to arrange any of these chords, change the rhythm, and export to WAV.</p>
+      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Chord Player →
+      </a>
+    </div>
+  </main>
+</BaseLayout>

@@ -1,0 +1,14 @@
+---
+import ChordEmbed from './ChordEmbed';
+
+interface Props {
+  chords: string;
+  bpm?: number;
+  style?: string;
+  title?: string;
+}
+
+const { chords, bpm, style, title } = Astro.props;
+---
+
+<ChordEmbed client:visible chords={chords} bpm={bpm} style={style} title={title} />

@@ -1,0 +1,99 @@
+---
+const currentYear = new Date().getFullYear();
+
+const columns = [
+  {
+    label: 'Product',
+    links: [
+      { label: 'Chord Player App', href: '/app' },
+      { label: 'Features', href: '/#features' },
+      { label: 'How It Works', href: '/#how-it-works' },
+    ],
+  },
+  {
+    label: 'Tools',
+    links: [
+      { label: 'Chord Transposer', href: '/tools/chord-transposer' },
+      { label: 'Chord Finder', href: '/tools/chord-finder' },
+      { label: 'Key Detector', href: '/tools/key-detector' },
+      { label: 'All Tools', href: '/tools' },
+    ],
+  },
+  {
+    label: 'Progressions',
+    links: [
+      { label: 'Pop', href: '/progressions/pop' },
+      { label: 'Jazz', href: '/progressions/jazz' },
+      { label: 'Lo-fi', href: '/progressions/lo-fi' },
+      { label: 'All Genres', href: '/progressions' },
+    ],
+  },
+  {
+    label: 'Learn',
+    links: [
+      { label: 'What is a Chord Progression?', href: '/learn/what-is-a-chord-progression' },
+      { label: 'How to Transpose Chords', href: '/learn/how-to-transpose-chords' },
+      { label: 'Circle of Fifths', href: '/learn/circle-of-fifths-explained' },
+      { label: 'All Articles', href: '/learn' },
+    ],
+  },
+];
+---
+
+<footer class="border-t border-border bg-card mt-auto">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-12">
+
+      <!-- Brand column -->
+      <div class="col-span-2 sm:col-span-4 lg:col-span-1">
+        <a href="/" class="flex items-center gap-2.5 mb-4">
+          <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <svg class="w-4 h-4 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M9 18V5l12-2v13"/>
+              <circle cx="6" cy="18" r="3"/>
+              <circle cx="18" cy="16" r="3"/>
+            </svg>
+          </div>
+          <span class="font-bold text-foreground tracking-tight">ChordSequence</span>
+        </a>
+        <p class="text-sm text-muted-foreground leading-relaxed">
+          Free online chord progression builder for songwriters, producers, and music students.
+        </p>
+        <a
+          href="/app"
+          class="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          Open App →
+        </a>
+      </div>
+
+      <!-- Link columns -->
+      {columns.map((col) => (
+        <div>
+          <h3 class="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">{col.label}</h3>
+          <ul class="space-y-2.5">
+            {col.links.map((link) => (
+              <li>
+                <a
+                  href={link.href}
+                  class="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+
+    <div class="border-t border-border mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-xs text-muted-foreground">
+        © {currentYear} ChordSequence. Free online chord progression builder.
+      </p>
+      <div class="flex items-center gap-4">
+        <a href="/sitemap-index.xml" class="text-xs text-muted-foreground hover:text-foreground transition-colors">Sitemap</a>
+      </div>
+    </div>
+  </div>
+</footer>
