@@ -756,6 +756,7 @@ const Index = () => {
           name="description"
           content={seoDescription}
         />
+        {!songId && <meta name="robots" content="noindex, follow" />}
         <link rel="canonical" href={editorPageUrl} />
         <meta property="og:site_name" content={SEO_OG.siteName} />
         <meta property="og:type" content="website" />

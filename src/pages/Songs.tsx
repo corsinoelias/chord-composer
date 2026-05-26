@@ -82,12 +82,12 @@ const Songs = () => {
       <Helmet>
         <title>Chord progression library — Chord Player | Chord Sequence</title>
         <meta name="description" content="Open chordsequence.com to browse your saved chord progressions, open the progression editor, duplicate songs, search titles, and export MP3s." />
-        <link rel="canonical" href={`${SITE_ORIGIN}/`} />
+        <link rel="canonical" href={SITE_ORIGIN} />
         <meta property="og:site_name" content={SEO_OG.siteName} />
         <meta property="og:type" content="website" />
         <meta property="og:title" content="Chord progression library — Chord Player | Chord Sequence" />
         <meta property="og:description" content="Browse your saved chord progressions on chordsequence.com. Open the editor to build sections, rhythms, transpositions, and MP3 export." />
-        <meta property="og:url" content={`${SITE_ORIGIN}/`} />
+        <meta property="og:url" content={SITE_ORIGIN} />
         <meta property="og:image" content={SEO_OG.imageUrl} />
         <meta property="og:image:width" content={String(SEO_OG.imageWidth)} />
         <meta property="og:image:height" content={String(SEO_OG.imageHeight)} />
