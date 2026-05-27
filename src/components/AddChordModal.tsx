@@ -1,7 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, type RootNote, type Accidental, type ChordQuality, createChord, type Chord } from '@/lib/musicTheory';
+import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
+import { getGuitarVoicing } from '@/data/guitarChords';
+import { PianoKeyboard } from '@/components/PianoKeyboard';
+import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { playChordPreview as playPreviewFromEngine } from '@/lib/audioEngine';
 
 
@@ -51,14 +55,17 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
     'b': '♭',
   };
 
-  const getChordName = () => {
-    const accDisplay = accidental === '#' ? '♯' : accidental === 'b' ? '♭' : '';
-    return `${root}${accDisplay}${QUALITY_LABELS[quality]}`;
-  };
+  const previewChord = useMemo<Chord>(() => ({
+    id: 'modal-preview', root, accidental, quality, duration,
+  }), [root, accidental, quality, duration]);
+
+  const activeNotes = useMemo(() => getChordNotes(previewChord), [previewChord]);
+  const guitarVoicing = useMemo(() => getGuitarVoicing(previewChord, 0), [previewChord]);
+  const chordDisplayName = useMemo(() => getTransposedChordName(previewChord, 0), [previewChord]);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-md bg-card border-border">
+      <DialogContent className="sm:max-w-lg bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-foreground">
             Add Chord to {sectionName}
@@ -154,10 +161,22 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
             </div>
           </div>
 
-          {/* Preview */}
-          <div className="p-4 bg-secondary/50 rounded-lg text-center">
-            <span className="text-2xl font-bold text-foreground">{getChordName()}</span>
-            <p className="text-xs text-muted-foreground mt-1">{duration} beats</p>
+          {/* Chord visualization */}
+          <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              {guitarVoicing && (
+                <GuitarChordDiagram
+                  voicing={guitarVoicing}
+                  chordName={chordDisplayName}
+                  className="w-24 sm:w-28 flex-shrink-0"
+                />
+              )}
+              <PianoKeyboard
+                activeNotes={activeNotes}
+                chordName={guitarVoicing ? undefined : chordDisplayName}
+                className="w-full"
+              />
+            </div>
           </div>
         </div>
 
