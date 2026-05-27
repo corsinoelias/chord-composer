@@ -1,7 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { type Chord, ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, type RootNote, type Accidental, type ChordQuality } from '@/lib/musicTheory';
+import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
+import { getGuitarVoicing } from '@/data/guitarChords';
+import { PianoKeyboard } from '@/components/PianoKeyboard';
+import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { Trash2, Copy } from 'lucide-react';
 
 interface ChordEditModalProps {
@@ -23,6 +27,14 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
   const triggerPreview = (newRoot: RootNote, newAccidental: Accidental, newQuality: ChordQuality) => {
     onPreview?.({ root: newRoot, accidental: newAccidental, quality: newQuality });
   };
+
+  const previewChord = useMemo<Chord>(() => ({
+    id: 'modal-preview', root, accidental, quality, duration,
+  }), [root, accidental, quality, duration]);
+
+  const activeNotes = useMemo(() => getChordNotes(previewChord), [previewChord]);
+  const guitarVoicing = useMemo(() => getGuitarVoicing(previewChord, 0), [previewChord]);
+  const chordDisplayName = useMemo(() => getTransposedChordName(previewChord, 0), [previewChord]);
 
   // Sync state when chord changes or modal opens
   useEffect(() => {
@@ -54,7 +66,7 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-md bg-card border-border">
+      <DialogContent className="sm:max-w-lg bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-foreground">Edit Chord</DialogTitle>
         </DialogHeader>

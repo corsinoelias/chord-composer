@@ -29,6 +29,7 @@ import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/us
 import { type Song, createSong } from '@/lib/songs';
 import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
+import { getGuitarVoicing } from '@/data/guitarChords';
 import { getSongById, saveSongWithSync } from '@/lib/songStorage';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
@@ -46,6 +47,7 @@ import { ProgressionTemplatesModal } from '@/components/ProgressionTemplatesModa
 import { ShortcutsHelp } from '@/components/ShortcutsHelp';
 import { WaveformVisualizer } from '@/components/WaveformVisualizer';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
+import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { MixingConsole } from '@/components/MixingConsole';
 import { Button } from '@/components/ui/button';
 import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'lucide-react';
@@ -690,6 +692,11 @@ const Index = ({ songId }: IndexProps) => {
     [currentPlayingChord, transposition],
   );
 
+  const guitarVoicing = useMemo(
+    () => (currentPlayingChord ? getGuitarVoicing(currentPlayingChord, transposition) : null),
+    [currentPlayingChord, transposition],
+  );
+
   // Calculate global chord offset for each section (with repeats)
   const getGlobalOffset = (sectionIndex: number) => {
     // When looping, offset is always 0
@@ -923,15 +930,24 @@ const Index = ({ songId }: IndexProps) => {
           hasChords={hasChords}
         />
 
-        {/* Piano keyboard — shown during playback */}
+        {/* Chord visualizer — shown during playback */}
         {isPlaying && (
-          <div className="rounded-xl border border-border bg-card/60 px-4 py-4 flex flex-col items-center gap-1">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Now playing</p>
-            <PianoKeyboard
-              activeNotes={activeNotes}
-              chordName={currentChordDisplayName}
-              className="w-full max-w-xs sm:max-w-sm"
-            />
+          <div className="rounded-xl border border-border bg-card/60 px-4 py-4">
+            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-3">Now playing</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              {guitarVoicing && (
+                <GuitarChordDiagram
+                  voicing={guitarVoicing}
+                  chordName={currentChordDisplayName}
+                  className="w-28 sm:w-32 flex-shrink-0"
+                />
+              )}
+              <PianoKeyboard
+                activeNotes={activeNotes}
+                chordName={guitarVoicing ? undefined : currentChordDisplayName}
+                className="w-full max-w-xs sm:max-w-sm"
+              />
+            </div>
           </div>
         )}
 
