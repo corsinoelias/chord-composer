@@ -28,6 +28,7 @@ import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
 import { type Song, createSong } from '@/lib/songs';
 import { parseChordString } from '@/lib/chordParser';
+import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
 import { getSongById, saveSongWithSync } from '@/lib/songStorage';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
@@ -44,6 +45,7 @@ import { CountdownOverlay } from '@/components/CountdownOverlay';
 import { ProgressionTemplatesModal } from '@/components/ProgressionTemplatesModal';
 import { ShortcutsHelp } from '@/components/ShortcutsHelp';
 import { WaveformVisualizer } from '@/components/WaveformVisualizer';
+import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { MixingConsole } from '@/components/MixingConsole';
 import { Button } from '@/components/ui/button';
 import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'lucide-react';
@@ -661,6 +663,33 @@ const Index = ({ songId }: IndexProps) => {
 
   const hasChords = sections.some(s => s.chords.length > 0);
 
+  // Resolve which chord is currently highlighted during playback
+  const currentPlayingChord = useMemo(() => {
+    if (currentChordIndex < 0) return null;
+    if (loopingSectionIndex !== null) {
+      const sec = sections[loopingSectionIndex];
+      if (!sec || sec.chords.length === 0) return null;
+      return sec.chords[currentChordIndex % sec.chords.length];
+    }
+    let idx = currentChordIndex;
+    for (const sec of sections) {
+      const total = sec.chords.length * sec.repeatCount;
+      if (idx < total) return sec.chords[idx % sec.chords.length];
+      idx -= total;
+    }
+    return null;
+  }, [currentChordIndex, sections, loopingSectionIndex]);
+
+  const activeNotes = useMemo(
+    () => (currentPlayingChord ? getChordNotes(currentPlayingChord, transposition) : []),
+    [currentPlayingChord, transposition],
+  );
+
+  const currentChordDisplayName = useMemo(
+    () => (currentPlayingChord ? getTransposedChordName(currentPlayingChord, transposition) : ''),
+    [currentPlayingChord, transposition],
+  );
+
   // Calculate global chord offset for each section (with repeats)
   const getGlobalOffset = (sectionIndex: number) => {
     // When looping, offset is always 0
@@ -893,6 +922,18 @@ const Index = ({ songId }: IndexProps) => {
           onCreateNewRhythm={() => setCreateRhythmModalOpen(true)}
           hasChords={hasChords}
         />
+
+        {/* Piano keyboard — shown during playback */}
+        {isPlaying && (
+          <div className="rounded-xl border border-border bg-card/60 px-4 py-4 flex flex-col items-center gap-1">
+            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Now playing</p>
+            <PianoKeyboard
+              activeNotes={activeNotes}
+              chordName={currentChordDisplayName}
+              className="w-full max-w-xs sm:max-w-sm"
+            />
+          </div>
+        )}
 
         {/* Sections - DndContext only for chord drag & drop */}
         <DndContext
