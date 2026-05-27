@@ -66,6 +66,10 @@ const Index = ({ songId }: IndexProps) => {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [songCreatedAt, setSongCreatedAt] = useState<string | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True when editor was opened via ?chords= link (e.g. from homepage embeds)
+  const isFromEmbedRef = useRef(!songId && !!new URLSearchParams(window.location.search).get('chords'));
+  // Becomes true after the initial render cycle — used to distinguish init from user changes
+  const initialRenderDoneRef = useRef(false);
 
   // Default chords for new songs
   const defaultChords: Chord[] = [
@@ -106,7 +110,11 @@ const Index = ({ songId }: IndexProps) => {
     return allStyles.find(s => s.id === initialId)?.bpm ?? 100;
   });
   const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
-  const [songTitle, setSongTitle] = useState('My Song');
+  const [songTitle, setSongTitle] = useState(() => {
+    const now = new Date();
+    const date = now.toLocaleString('en', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    return `My Song · ${date}`;
+  });
   const [transposition, setTransposition] = useState(0);
   const [metronomeEnabled, setMetronomeEnabled] = useState(true);
   const [loopingSectionIndex, setLoopingSectionIndex] = useState<number | null>(null);
@@ -227,9 +235,9 @@ const Index = ({ songId }: IndexProps) => {
           window.location.href = '/app';
         }
       });
-    } else if (!songId && !currentSongId) {
+    } else if (!songId && !currentSongId && !isFromEmbedRef.current) {
       // New song - create and save immediately
-      const newSong = createSong('My Song');
+      const newSong = createSong(songTitle);
       newSong.sections = sections;
       newSong.bpm = bpm;
       newSong.styleId = selectedStyleId;
@@ -241,12 +249,34 @@ const Index = ({ songId }: IndexProps) => {
       setSongCreatedAt(newSong.createdAt);
       setLastSavedAt(new Date());
       window.history.replaceState({}, '', `/editor/${newSong.id}`);
+    } else if (!songId && !currentSongId && isFromEmbedRef.current) {
+      // Opened from embed — mark initial render done after one tick so auto-save
+      // can distinguish init from actual user changes
+      setTimeout(() => { initialRenderDoneRef.current = true; }, 0);
     }
   }, [songId]);
 
   // Auto-save with debounce
   useEffect(() => {
-    if (!currentSongId) return;
+    if (!currentSongId) {
+      // If opened from embed and user has made a change, create the song now
+      if (isFromEmbedRef.current && initialRenderDoneRef.current) {
+        const newSong = createSong(songTitle);
+        newSong.sections = sections;
+        newSong.bpm = bpm;
+        newSong.styleId = selectedStyleId;
+        newSong.transposition = transposition;
+        newSong.metronomeEnabled = metronomeEnabled;
+        newSong.instrumentSettings = instruments;
+        saveSongWithSync(newSong);
+        setCurrentSongId(newSong.id);
+        setSongCreatedAt(newSong.createdAt);
+        setLastSavedAt(new Date());
+        window.history.replaceState({}, '', `/editor/${newSong.id}`);
+        isFromEmbedRef.current = false;
+      }
+      return;
+    }
 
     // Clear existing timeout
     if (saveTimeoutRef.current) {

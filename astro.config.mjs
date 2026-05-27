@@ -12,7 +12,9 @@ export default defineConfig({
   integrations: [
     react(),
     mdx(),
-    sitemap(),
+    sitemap({
+      filter: (page) => !page.includes('/app') && !page.includes('/editor'),
+    }),
   ],
   output: 'static',
   vite: {

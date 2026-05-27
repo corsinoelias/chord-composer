@@ -154,7 +154,7 @@ function parseChordToken(token: string): Chord | null {
 export function parseChordString(input: string): Chord[] {
   if (!input?.trim()) return [];
   // Split on spaces, hyphens, or commas
-  const tokens = input.trim().split(/[\s,]+/);
+  const tokens = input.trim().split(/[\s,\-]+/);
   const chords: Chord[] = [];
   for (const token of tokens) {
     const chord = parseChordToken(token);

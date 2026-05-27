@@ -4,4 +4,4 @@ Disallow: /app/
 Disallow: /editor/
 Allow: /
 
-Sitemap: https://chordsequence.com/sitemap.xml
+Sitemap: https://chordsequence.com/sitemap-index.xml
