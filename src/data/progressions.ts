@@ -12,6 +12,7 @@ export interface Genre {
   description: string;
   metaDescription: string;
   progressions: Progression[];
+  learnLink?: { href: string; label: string };
 }
 
 export const GENRES: Genre[] = [
@@ -32,14 +33,22 @@ export const GENRES: Genre[] = [
   {
     slug: 'jazz',
     name: 'Jazz',
-    description: 'Sophisticated jazz harmony — from the ii–V–I to rhythm changes.',
-    metaDescription: 'Learn and play essential jazz chord progressions: ii–V–I, turnarounds, and rhythm changes. Interactive players in every key.',
+    description: 'Essential jazz chord progressions — from the ii–V–I cornerstone to bossa nova, jazz blues, and modal harmony.',
+    metaDescription: 'Play and learn essential jazz chord progressions: ii–V–I, jazz turnarounds, bossa nova, jazz blues, modal jazz, and more. Interactive players — no signup required.',
+    learnLink: { href: '/learn/jazz-chord-progressions', label: 'Read the complete jazz chord progressions guide →' },
     progressions: [
-      { title: 'ii–V–I', chords: 'Dm7 G7 Cmaj7', bpm: 120, style: 'pop_basic', description: 'The cornerstone of jazz harmony. Tension resolves beautifully.' },
-      { title: 'I–VI–ii–V (Turnaround)', chords: 'Cmaj7 A7 Dm7 G7', bpm: 130, style: 'pop_basic', description: 'Classic jazz turnaround used in thousands of standards.' },
-      { title: 'ii–V–I–VI', chords: 'Dm7 G7 Cmaj7 A7', bpm: 120, style: 'pop_basic', description: 'Extends the ii–V–I with a VI7 that pulls back to ii.' },
-      { title: 'iii–VI–ii–V', chords: 'Em7 A7 Dm7 G7', bpm: 140, style: 'pop_basic', description: 'A cycle of dominants used in bebop and standard progressions.' },
-      { title: 'I–IV–iii–VI (Bird Blues)', chords: 'Cmaj7 Fmaj7 Em7 A7', bpm: 130, style: 'pop_basic', description: 'Charlie Parker style reharmonization of the blues form.' },
+      { title: 'ii–V–I', chords: 'Dm7 G7 Cmaj7', bpm: 120, style: 'pop_basic', description: 'The cornerstone of jazz harmony. Used in virtually every jazz standard ever written.' },
+      { title: 'I–VI–ii–V (Turnaround)', chords: 'Cmaj7 A7 Dm7 G7', bpm: 130, style: 'pop_basic', description: 'Classic jazz turnaround used to loop back to the top of any standard.' },
+      { title: 'ii–V–I–VI (Extended)', chords: 'Dm7 G7 Cmaj7 A7', bpm: 120, style: 'pop_basic', description: 'Extends the ii–V–I with a VI7 that pulls the ear back to the beginning.' },
+      { title: 'iii–VI–ii–V (Cycle)', chords: 'Em7 A7 Dm7 G7', bpm: 140, style: 'pop_basic', description: 'A cycle-of-fifths chain of dominants. The backbone of bebop harmony.' },
+      { title: 'Jazz Blues', chords: 'C7 F7 C7 G7 F7 C7', bpm: 120, style: 'pop_basic', description: 'The 12-bar blues with jazz seventh chords. Parker, Rollins, Coltrane all started here.' },
+      { title: 'Bossa Nova Loop', chords: 'Cmaj7 Am7 Dm7 G7', bpm: 80, style: 'pop_basic', description: 'Jobim-style major seventh harmony at a relaxed bossa nova tempo.' },
+      { title: 'Descending Bossa Nova', chords: 'Fmaj7 Em7 Am7 Dm7 G7 Cmaj7', bpm: 75, style: 'pop_basic', description: 'Flowing cycle-of-fifths movement — the classic Jobim sound.' },
+      { title: 'Minor ii–V–i', chords: 'Dm7 G7 Cm7', bpm: 120, style: 'pop_basic', description: 'The minor key ii–V–I. Essential for Autumn Leaves, Summertime, and minor standards.' },
+      { title: 'Dorian Modal Vamp', chords: 'Dm7 Em7 Fmaj7 Em7', bpm: 110, style: 'pop_basic', description: 'Miles Davis "So What" style modal jazz. Two chords, infinite space.' },
+      { title: 'Cycle of Fifths', chords: 'Em7 A7 Dm7 G7 Cmaj7', bpm: 130, style: 'pop_basic', description: 'Descending through the circle of fifths. The skeleton of Autumn Leaves.' },
+      { title: 'I–IV–iii–VI (Bird Blues)', chords: 'Cmaj7 Fmaj7 Em7 A7', bpm: 130, style: 'pop_basic', description: 'Charlie Parker style reharmonization — Bird Blues opening changes.' },
+      { title: 'Neo Soul Jazz', chords: 'Dm9 G13 Cmaj9 Am9', bpm: 88, style: 'pop_basic', description: 'Extended ninth and thirteenth chords for a modern jazz-R&B crossover feel.' },
     ],
   },
   {

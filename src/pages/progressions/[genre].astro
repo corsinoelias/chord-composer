@@ -51,7 +51,12 @@ const itemListSchema = {
       <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
         {genre.name} chord progressions
       </h1>
-      <p class="text-lg text-muted-foreground">{genre.description}</p>
+      <p class="text-lg text-muted-foreground mb-4">{genre.description}</p>
+      {genre.learnLink && (
+        <a href={genre.learnLink.href} class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+          {genre.learnLink.label}
+        </a>
+      )}
     </header>
 
     <div class="space-y-6">
