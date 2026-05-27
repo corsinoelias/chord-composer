@@ -171,6 +171,24 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
               <span>8</span>
             </div>
           </div>
+
+          {/* Chord visualization */}
+          <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              {guitarVoicing && (
+                <GuitarChordDiagram
+                  voicing={guitarVoicing}
+                  chordName={chordDisplayName}
+                  className="w-24 sm:w-28 flex-shrink-0"
+                />
+              )}
+              <PianoKeyboard
+                activeNotes={activeNotes}
+                chordName={guitarVoicing ? undefined : chordDisplayName}
+                className="w-full"
+              />
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
