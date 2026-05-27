@@ -128,6 +128,7 @@ const Index = ({ songId }: IndexProps) => {
   
   // UI state
   const [isExporting, setIsExporting] = useState(false);
+  const [previewChord, setPreviewChord] = useState<Chord | null>(null);
   const [editingChord, setEditingChord] = useState<{ sectionIndex: number; chordIndex: number; chord: Chord } | null>(null);
   const [addChordSection, setAddChordSection] = useState<{ index: number; name: string } | null>(null);
   const [instrumentsPanelOpen, setInstrumentsPanelOpen] = useState(false);
@@ -453,10 +454,10 @@ const Index = ({ songId }: IndexProps) => {
 
   const handleChordClick = (sectionIndex: number, chordIndex: number) => {
     const chord = sections[sectionIndex].chords[chordIndex];
-    // Play preview when not playing
     if (!isPlaying) {
       playChordPreview(chord);
     }
+    setPreviewChord(chord);
     setEditingChord({ sectionIndex, chordIndex, chord });
   };
 
@@ -682,19 +683,26 @@ const Index = ({ songId }: IndexProps) => {
     return null;
   }, [currentChordIndex, sections, loopingSectionIndex]);
 
+  // What to show in the visualization panel: playback chord when playing, last clicked or first chord otherwise
+  const visualChord = useMemo(() => {
+    if (isPlaying) return currentPlayingChord;
+    if (previewChord) return previewChord;
+    return sections[0]?.chords[0] ?? null;
+  }, [isPlaying, currentPlayingChord, previewChord, sections]);
+
   const activeNotes = useMemo(
-    () => (currentPlayingChord ? getChordNotes(currentPlayingChord, transposition) : []),
-    [currentPlayingChord, transposition],
+    () => (visualChord ? getChordNotes(visualChord, transposition) : []),
+    [visualChord, transposition],
   );
 
   const currentChordDisplayName = useMemo(
-    () => (currentPlayingChord ? getTransposedChordName(currentPlayingChord, transposition) : ''),
-    [currentPlayingChord, transposition],
+    () => (visualChord ? getTransposedChordName(visualChord, transposition) : ''),
+    [visualChord, transposition],
   );
 
   const guitarVoicing = useMemo(
-    () => (currentPlayingChord ? getGuitarVoicing(currentPlayingChord, transposition) : null),
-    [currentPlayingChord, transposition],
+    () => (visualChord ? getGuitarVoicing(visualChord, transposition) : null),
+    [visualChord, transposition],
   );
 
   // Calculate global chord offset for each section (with repeats)
@@ -930,10 +938,12 @@ const Index = ({ songId }: IndexProps) => {
           hasChords={hasChords}
         />
 
-        {/* Chord visualizer — shown during playback */}
-        {isPlaying && (
+        {/* Chord visualizer — always visible when chords exist */}
+        {hasChords && (
           <div className="rounded-xl border border-border bg-card/60 px-4 py-4">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-3">Now playing</p>
+            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-3">
+              {isPlaying ? 'Now playing' : 'Chord preview'}
+            </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               {guitarVoicing && (
                 <GuitarChordDiagram

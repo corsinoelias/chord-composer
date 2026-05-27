@@ -1,9 +1,13 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
 import { parseChordString, serializeChords } from '@/lib/chordParser';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 import { MUSICAL_STYLES } from '@/lib/styles';
 import { createSection } from '@/lib/sections';
+import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
+import { getGuitarVoicing } from '@/data/guitarChords';
+import { PianoKeyboard } from '@/components/PianoKeyboard';
+import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { Play, Square, ExternalLink, Music2 } from 'lucide-react';
 
 interface ChordEmbedProps {
@@ -16,8 +20,9 @@ interface ChordEmbedProps {
 function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: ChordEmbedProps) {
   const { state: playbackState, play, stop } = usePlayback();
   const { isPlaying, currentChordIndex } = playbackState;
-  const parsedChords = parseChordString(chords);
+  const parsedChords = useMemo(() => parseChordString(chords), [chords]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState(0);
   const sectionRef = useRef([{
     ...createSection('Section A'),
     chords: parsedChords,
@@ -25,6 +30,24 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: Chor
 
   const instruments = getDefaultInstrumentStates();
   const selectedStyle = MUSICAL_STYLES.find(s => s.id === style) ?? MUSICAL_STYLES[0];
+
+  const visualChord = useMemo(() => {
+    if (isPlaying) return parsedChords[currentChordIndex] ?? parsedChords[0] ?? null;
+    return parsedChords[selectedIdx] ?? parsedChords[0] ?? null;
+  }, [isPlaying, currentChordIndex, selectedIdx, parsedChords]);
+
+  const embedActiveNotes = useMemo(
+    () => (visualChord ? getChordNotes(visualChord, 0) : []),
+    [visualChord],
+  );
+  const embedGuitarVoicing = useMemo(
+    () => (visualChord ? getGuitarVoicing(visualChord, 0) : null),
+    [visualChord],
+  );
+  const embedChordName = useMemo(
+    () => (visualChord ? getTransposedChordName(visualChord, 0) : ''),
+    [visualChord],
+  );
 
   const handlePlay = useCallback(async () => {
     if (isPlaying) {
@@ -73,16 +96,21 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: Chor
         {/* Chord blocks */}
         <div className="flex flex-wrap gap-2 mb-3">
           {parsedChords.map((chord, i) => {
-            const isActive = isPlaying && currentChordIndex === i;
+            const isPlayingActive = isPlaying && currentChordIndex === i;
+            const isSelected = !isPlaying && selectedIdx === i;
             return (
-              <div
+              <button
                 key={chord.id}
+                type="button"
+                onClick={() => setSelectedIdx(i)}
                 className={`
                   inline-flex items-center justify-center min-w-[48px] px-3 py-1.5 rounded-lg
                   text-sm font-semibold border transition-all duration-150
-                  ${isActive
+                  ${isPlayingActive
                     ? 'bg-primary text-primary-foreground border-primary scale-105 shadow-md'
-                    : 'bg-background text-foreground border-border'
+                    : isSelected
+                      ? 'bg-primary/15 text-primary border-primary/40 ring-1 ring-primary/30'
+                      : 'bg-background text-foreground border-border hover:border-primary/40 hover:bg-primary/5'
                   }
                 `}
               >
@@ -90,7 +118,7 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: Chor
                 <span className="text-xs font-normal ml-0.5 opacity-75">
                   {chord.quality === 'maj' ? '' : chord.quality === 'min' ? 'm' : chord.quality}
                 </span>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -128,6 +156,26 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: Chor
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>
+
+        {/* Chord visualization */}
+        {visualChord && (
+          <div className="mt-3 pt-3 border-t border-border">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              {embedGuitarVoicing && (
+                <GuitarChordDiagram
+                  voicing={embedGuitarVoicing}
+                  chordName={embedChordName}
+                  className="w-24 sm:w-28 flex-shrink-0"
+                />
+              )}
+              <PianoKeyboard
+                activeNotes={embedActiveNotes}
+                chordName={embedGuitarVoicing ? undefined : embedChordName}
+                className="w-full"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

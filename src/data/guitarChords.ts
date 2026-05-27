@@ -22,6 +22,10 @@ const OPEN: Record<string, GuitarVoicing> = {
   Gmaj:  { frets: [ 3, 2, 0, 0, 0, 3], fingers: [2, 1, 0, 0, 0, 3], baseFret: 1 },
   Amaj:  { frets: [-1, 0, 2, 2, 2, 0], fingers: [0, 0, 1, 2, 3, 0], baseFret: 1 },
   Bmaj:  { frets: [-1, 2, 4, 4, 4,-1], fingers: [0, 1, 3, 3, 3, 0], barre: { fret: 4, fromString: 2, toString: 4 }, baseFret: 1 },
+  // Sharp majors — specific low-position voicings
+  'C#maj': { frets: [-1, 4, 3, 1, 2, 1], fingers: [0, 4, 3, 1, 2, 1], barre: { fret: 1, fromString: 3, toString: 5 }, baseFret: 1 },
+  'D#maj': { frets: [-1,-1, 1, 3, 4, 3], fingers: [0, 0, 1, 2, 4, 3], baseFret: 1 },
+  'G#maj': { frets: [ 4, 3, 1, 1, 1,-1], fingers: [4, 3, 1, 1, 1, 0], barre: { fret: 1, fromString: 2, toString: 4 }, baseFret: 1 },
   // Minor
   Amin:  { frets: [-1, 0, 2, 2, 1, 0], fingers: [0, 0, 2, 3, 1, 0], baseFret: 1 },
   Emin:  { frets: [ 0, 2, 2, 0, 0, 0], fingers: [0, 2, 3, 0, 0, 0], baseFret: 1 },
