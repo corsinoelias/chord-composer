@@ -150,7 +150,7 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: Chor
 
           <a
             href={editorUrl}
-            className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:text-primary/80 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:text-primary/80 transition-colors min-h-[44px] py-3"
           >
             Open in Editor
             <ExternalLink className="w-3 h-3" />

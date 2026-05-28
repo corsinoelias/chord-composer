@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
+import { AUTHORS } from '../../data/authors';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
@@ -14,25 +15,55 @@ export async function getStaticPaths() {
 const { post } = Astro.props;
 const { Content } = await post.render();
 
+const canonicalLearnUrl = `https://chordsequence.com/learn/${post.slug}/`;
+
+const authorSlug = post.data.author as keyof typeof AUTHORS | undefined;
+const author = authorSlug ? AUTHORS[authorSlug] : null;
+
 const articleSchema = {
   '@context': 'https://schema.org',
   '@type': 'Article',
   headline: post.data.title,
   description: post.data.description,
+  image: post.data.image ?? 'https://chordsequence.com/og-image.png',
   datePublished: post.data.pubDate.toISOString(),
-  author: { '@type': 'Organization', name: 'Chord Sequence' },
-  publisher: { '@type': 'Organization', name: 'Chord Sequence', url: 'https://chordsequence.com' },
-  mainEntityOfPage: `https://chordsequence.com/learn/${post.slug}`,
+  dateModified: new Date().toISOString().split('T')[0],
+  author: author
+    ? {
+        '@type': 'Person',
+        name: author.name,
+        url: author.url,
+        sameAs: [author.linkedin, author.instagram],
+      }
+    : { '@type': 'Organization', name: 'Chord Sequence', url: 'https://chordsequence.com' },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Chord Sequence',
+    url: 'https://chordsequence.com',
+    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/og-image.png', width: 1200, height: 630 },
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalLearnUrl },
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com' },
+    { '@type': 'ListItem', position: 2, name: 'Learn', item: 'https://chordsequence.com/learn/' },
+    { '@type': 'ListItem', position: 3, name: post.data.title, item: canonicalLearnUrl },
+  ],
 };
 ---
 
 <BaseLayout
   title={`${post.data.title} | Chord Sequence`}
   description={post.data.description}
-  canonicalUrl={`https://chordsequence.com/learn/${post.slug}`}
+  canonicalUrl={canonicalLearnUrl}
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
 
   <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
@@ -64,6 +95,20 @@ const articleSchema = {
       <p class="mt-4 text-sm text-muted-foreground">
         {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
       </p>
+
+      {author && (
+        <div class="flex items-center gap-3 mt-6 pb-6 border-b border-border">
+          <div class="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+            EC
+          </div>
+          <div>
+            <a href="/about/elias-corsino" class="text-sm font-medium text-foreground hover:text-primary transition-colors">
+              {author.name}
+            </a>
+            <p class="text-xs text-muted-foreground">{author.role}</p>
+          </div>
+        </div>
+      )}
     </header>
 
     <article class="

@@ -1,0 +1,129 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { AUTHORS } from '../data/authors';
+
+const author = AUTHORS['elias-corsino'];
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com' },
+    { '@type': 'ListItem', position: 2, name: 'About', item: 'https://chordsequence.com/about/' },
+  ],
+};
+---
+
+<BaseLayout
+  title="About Chord Sequence — Free Chord Progression Builder"
+  description="Chord Sequence is a free browser-based chord progression builder created by Elías Corsino Saldaña, a musician and developer from the Dominican Republic."
+  canonicalUrl="https://chordsequence.com/about/"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">About</span>
+    </nav>
+
+    <header class="mb-14">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
+        About Chord Sequence
+      </h1>
+      <p class="text-lg text-muted-foreground leading-relaxed">
+        A free, no-account chord progression builder for songwriters, producers, and music students.
+      </p>
+    </header>
+
+    <!-- What is it -->
+    <section class="mb-14 space-y-5 text-muted-foreground leading-relaxed">
+      <h2 class="text-2xl font-bold text-foreground mb-4">What is Chord Sequence?</h2>
+      <p>
+        Chord Sequence is a browser-based tool that lets you build, play, and export chord progressions — no signup,
+        no subscription, no plugins. Open it in any browser and start making music in seconds.
+      </p>
+      <p>
+        It supports 37 chord types (major, minor, 7th, maj7, m7, dim, aug, sus, add9, and more),
+        real-time transposition, BPM control, MIDI export, and a growing library of curated progressions
+        across genres like pop, jazz, lo-fi, soul, and blues.
+      </p>
+
+      <div class="grid sm:grid-cols-3 gap-4 not-prose mt-6">
+        {[
+          { label: '37 chord types', desc: 'From simple triads to extended jazz voicings' },
+          { label: 'MIDI export', desc: 'Drag directly into your DAW' },
+          { label: 'No account needed', desc: 'Your progressions stay in your browser' },
+        ].map((f) => (
+          <div class="rounded-xl border border-border bg-card p-5">
+            <p class="font-semibold text-foreground text-sm mb-1">{f.label}</p>
+            <p class="text-xs text-muted-foreground">{f.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Author -->
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Who built it</h2>
+      <div class="rounded-xl border border-border bg-card p-6">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg shrink-0">
+            EC
+          </div>
+          <div>
+            <a href="/about/elias-corsino" class="font-semibold text-foreground hover:text-primary transition-colors">
+              {author.name}
+            </a>
+            <p class="text-sm text-muted-foreground">{author.role}</p>
+          </div>
+        </div>
+        <p class="text-sm text-muted-foreground leading-relaxed mb-4">{author.bio}</p>
+        <div class="flex items-center gap-4">
+          <a
+            href={author.linkedin}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+          >
+            LinkedIn ↗
+          </a>
+          <a
+            href={author.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+          >
+            Instagram ↗
+          </a>
+          <a href="/about/elias-corsino" class="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Full bio →
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Why free -->
+    <section class="mb-14 space-y-5 text-muted-foreground leading-relaxed">
+      <h2 class="text-2xl font-bold text-foreground mb-4">Why is it free?</h2>
+      <p>
+        Music theory tools shouldn't cost money. The best way to learn harmony is to experiment — to try a chord,
+        hear what it sounds like in context, and understand why it works. Paywalls kill that feedback loop.
+      </p>
+      <p>
+        Chord Sequence will always be free to use. There's no freemium tier, no feature locks, no ads inside the app.
+      </p>
+    </section>
+
+    <div class="rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Try it now</h2>
+      <p class="text-sm text-muted-foreground mb-5">No signup. No download. Works in any browser.</p>
+      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Chord Player →
+      </a>
+    </div>
+  </main>
+</BaseLayout>

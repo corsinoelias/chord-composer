@@ -1,5 +1,6 @@
 ---
 import BaseLayout from './BaseLayout.astro';
+import { AUTHORS } from '../data/authors';
 
 interface Props {
   title: string;
@@ -7,11 +8,14 @@ interface Props {
   pubDate: Date;
   image?: string;
   tags?: string[];
+  author?: string;
 }
 
-const { title, description, pubDate, image, tags = [] } = Astro.props;
+const { title, description, pubDate, image, tags = [], author: authorSlug } = Astro.props;
+const author = authorSlug ? AUTHORS[authorSlug as keyof typeof AUTHORS] ?? null : null;
 
-const canonicalUrl = `https://chordsequence.com/blog/${Astro.url.pathname.split('/').pop()}`;
+const slug = Astro.url.pathname.split('/').filter(Boolean).pop();
+const canonicalUrl = `https://chordsequence.com/learn/${slug}/`;
 const formattedDate = pubDate.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'long',
@@ -24,12 +28,21 @@ const articleSchema = {
   headline: title,
   description,
   datePublished: pubDate.toISOString(),
+  dateModified: new Date().toISOString().split('T')[0],
   image: image ?? 'https://chordsequence.com/og-image.png',
-  author: { '@type': 'Organization', name: 'Chord Sequence' },
+  author: author
+    ? {
+        '@type': 'Person',
+        name: author.name,
+        url: author.url,
+        sameAs: [author.linkedin, author.instagram],
+      }
+    : { '@type': 'Organization', name: 'Chord Sequence', url: 'https://chordsequence.com' },
   publisher: {
     '@type': 'Organization',
     name: 'Chord Sequence',
-    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/favicon.ico' },
+    url: 'https://chordsequence.com',
+    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/og-image.png', width: 1200, height: 630 },
   },
   mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
 };
@@ -39,7 +52,7 @@ const breadcrumbSchema = {
   '@type': 'BreadcrumbList',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com' },
-    { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://chordsequence.com/blog' },
+    { '@type': 'ListItem', position: 2, name: 'Learn', item: 'https://chordsequence.com/learn/' },
     { '@type': 'ListItem', position: 3, name: title, item: canonicalUrl },
   ],
 };
@@ -74,6 +87,20 @@ const breadcrumbSchema = {
           )}
           <h1 class="text-3xl sm:text-4xl font-bold text-foreground mb-3 font-serif">{title}</h1>
           <p class="text-muted-foreground text-sm">{formattedDate}</p>
+
+          {author && (
+            <div class="flex items-center gap-3 mt-5 pb-5 border-b border-border">
+              <div class="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                EC
+              </div>
+              <div>
+                <a href="/about/elias-corsino" class="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                  {author.name}
+                </a>
+                <p class="text-xs text-muted-foreground">{author.role}</p>
+              </div>
+            </div>
+          )}
         </header>
 
         {image && (

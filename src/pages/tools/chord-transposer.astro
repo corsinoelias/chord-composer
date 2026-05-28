@@ -28,15 +28,40 @@ const faqSchema = {
     },
   ],
 };
+
+const webAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Chord Transposer',
+  url: 'https://chordsequence.com/tools/chord-transposer/',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Any',
+  browserRequirements: 'Requires a modern browser with Web Audio API support',
+  description: 'Free online chord transposer. Shift any chord progression to any key by semitones. Supports all 37 chord types.',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  isPartOf: { '@type': 'WebSite', name: 'Chord Sequence', url: 'https://chordsequence.com' },
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com' },
+    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://chordsequence.com/tools/' },
+    { '@type': 'ListItem', position: 3, name: 'Chord Transposer', item: 'https://chordsequence.com/tools/chord-transposer/' },
+  ],
+};
 ---
 
 <BaseLayout
   title="Chord Transposer — Transpose Any Chord Progression | Chord Sequence"
   description="Free online chord transposer. Shift any chord progression to any key by semitones. Works with all chord types including 7ths, maj7, m7, and more."
-  canonicalUrl="https://chordsequence.com/tools/chord-transposer"
+  canonicalUrl="https://chordsequence.com/tools/chord-transposer/"
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
 
   <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">

@@ -158,6 +158,10 @@ All colors MUST be HSL.
 }
 
 @layer base {
+  html {
+    font-size: 16px;
+  }
+
   * {
     @apply border-border;
   }

@@ -58,7 +58,7 @@ const orgSchema = {
   name: 'Chord Sequence',
   alternateName: 'Chord Player',
   url: 'https://chordsequence.com',
-  logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/favicon.ico' },
+  logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/og-image.png', width: 1200, height: 630 },
 };
 ---
 
@@ -75,13 +75,21 @@ const orgSchema = {
     {noIndex && <meta name="robots" content="noindex, follow" />}
     <link rel="canonical" href={canonicalUrl} />
 
-    <!-- Google Fonts -->
+    <!-- Google Fonts: non-blocking load to avoid render-blocking LCP penalty -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+      />
+    </noscript>
 
     <!-- Open Graph -->
     <meta property="og:site_name" content="Chord Sequence" />

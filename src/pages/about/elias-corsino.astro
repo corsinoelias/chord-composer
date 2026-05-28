@@ -1,0 +1,124 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { AUTHORS } from '../../data/authors';
+
+const author = AUTHORS['elias-corsino'];
+
+const personSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: author.name,
+  url: author.url,
+  jobTitle: author.role,
+  description: author.bio,
+  sameAs: [author.linkedin, author.instagram],
+  knowsAbout: ['Music Theory', 'Chord Progressions', 'Piano', 'Bass Guitar', 'Guitar', 'Drums', 'Software Development', 'Web Development'],
+  alumniOf: { '@type': 'Country', name: 'Dominican Republic' },
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com' },
+    { '@type': 'ListItem', position: 2, name: 'About', item: 'https://chordsequence.com/about/' },
+    { '@type': 'ListItem', position: 3, name: author.name, item: 'https://chordsequence.com/about/elias-corsino/' },
+  ],
+};
+---
+
+<BaseLayout
+  title={`${author.name} — Musician & Developer | Chord Sequence`}
+  description={`${author.name} is a musician and software developer from the Dominican Republic. He plays piano, bass, guitar, and drums, and built Chord Sequence to make music theory accessible to everyone.`}
+  canonicalUrl="https://chordsequence.com/about/elias-corsino/"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(personSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href="/about" class="hover:text-foreground transition-colors">About</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">{author.name}</span>
+    </nav>
+
+    <div class="flex items-center gap-5 mb-10">
+      <div class="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-2xl shrink-0">
+        EC
+      </div>
+      <div>
+        <h1 class="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">{author.name}</h1>
+        <p class="text-muted-foreground mt-1">{author.role}</p>
+        <div class="flex items-center gap-3 mt-3">
+          <a
+            href={author.linkedin}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-xs font-medium text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
+          >
+            LinkedIn ↗
+          </a>
+          <a
+            href={author.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-xs font-medium text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
+          >
+            Instagram ↗
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="prose prose-invert max-w-none space-y-6 text-muted-foreground leading-relaxed">
+      <p>
+        Elías Corsino Saldaña is a musician and software developer from the Dominican Republic.
+        He started learning music at age 12 — first on piano, then bass, guitar, and drums — driven by an
+        early fascination with how harmony works and why certain chord combinations create such strong emotional responses.
+      </p>
+
+      <p>
+        Over the years, Elías noticed that most music theory resources were either too academic (dense textbooks full of sheet music)
+        or too shallow (YouTube videos that explained chords without explaining why they work). He wanted something in between:
+        a tool that lets you hear theory in action, instantly, with no setup required.
+      </p>
+
+      <p>
+        That's why he built <strong class="text-foreground">Chord Sequence</strong>. As a software developer, he had the skills
+        to build it. As a musician, he knew exactly what it should feel like to use.
+      </p>
+
+      <h2 class="text-2xl font-bold text-foreground mt-10 mb-4">Instruments</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 not-prose">
+        {['Piano', 'Bass', 'Guitar', 'Drums'].map((instrument) => (
+          <div class="rounded-xl border border-border bg-card p-4 text-center">
+            <p class="font-semibold text-foreground text-sm">{instrument}</p>
+          </div>
+        ))}
+      </div>
+
+      <h2 class="text-2xl font-bold text-foreground mt-10 mb-4">About Chord Sequence</h2>
+      <p>
+        Chord Sequence is a free, browser-based chord progression builder. No account required — just open it,
+        add your chords, and hit play. It supports real-time transposition, MIDI export, 37 chord types,
+        and a growing library of genre-specific progressions.
+      </p>
+      <p>
+        The app runs entirely in your browser. No data is sent to any server — your progressions live in your
+        browser's local storage until you decide to export them.
+      </p>
+    </div>
+
+    <div class="mt-12 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Try the app Elías built</h2>
+      <p class="text-sm text-muted-foreground mb-5">Free, no account needed. Build chord progressions and hear them instantly.</p>
+      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Chord Player →
+      </a>
+    </div>
+  </main>
+</BaseLayout>
