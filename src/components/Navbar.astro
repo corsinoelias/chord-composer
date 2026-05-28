@@ -1,62 +1,61 @@
 ---
-const currentPath = Astro.url.pathname;
-
 const nav = [
   {
     id: 'features',
     label: 'Features',
     items: [
-      { label: 'Chord Progression Builder', href: '/app', desc: 'Drag-and-drop chord sequencer' },
-      { label: 'Live Rhythm Playback', href: '/app', desc: '13+ rhythm styles with real audio' },
-      { label: 'Chord Transposer', href: '/tools/chord-transposer', desc: 'Shift any progression by semitones' },
-      { label: 'WAV Export', href: '/app', desc: 'Download your progression as audio' },
-      { label: 'Song Library', href: '/app', desc: 'Save and organize your songs' },
+      { label: 'Chord Progression Builder', href: '/app/', desc: 'Drag-and-drop chord sequencer' },
+      { label: 'Live Rhythm Playback', href: '/app/', desc: '13+ rhythm styles with real audio' },
+      { label: 'Chord Transposer', href: '/tools/chord-transposer/', desc: 'Shift any progression by semitones' },
+      { label: 'WAV Export', href: '/app/', desc: 'Download your progression as audio' },
+      { label: 'Song Library', href: '/app/', desc: 'Save and organize your songs' },
     ],
   },
   {
     id: 'tools',
     label: 'Tools',
     items: [
-      { label: 'Chord Transposer', href: '/tools/chord-transposer', desc: 'Shift chords by key or semitone' },
-      { label: 'Key Detector', href: '/tools/key-detector', desc: 'Detect the key of a progression' },
+      { label: 'Circle of Fifths', href: '/tools/circle-of-fifths/', desc: 'Interactive key & chord relationships' },
+      { label: 'Chord Transposer', href: '/tools/chord-transposer/', desc: 'Shift chords by key or semitone' },
+      { label: 'Key Detector', href: '/tools/key-detector/', desc: 'Detect the key of a progression' },
     ],
   },
   {
     id: 'progressions',
     label: 'Progressions',
     items: [
-      { label: 'Pop Progressions', href: '/progressions/pop', desc: null },
-      { label: 'Jazz Progressions', href: '/progressions/jazz', desc: null },
-      { label: 'Lo-fi Progressions', href: '/progressions/lo-fi', desc: null },
-      { label: 'Sad Progressions', href: '/progressions/sad', desc: null },
-      { label: 'Happy Progressions', href: '/progressions/happy', desc: null },
-      { label: 'Neo Soul Progressions', href: '/progressions/neo-soul', desc: null },
-      { label: 'Worship Progressions', href: '/progressions/worship', desc: null },
-      { label: 'EDM Progressions', href: '/progressions/edm', desc: null },
+      { label: 'Pop Progressions', href: '/progressions/pop/', desc: null },
+      { label: 'Jazz Progressions', href: '/progressions/jazz/', desc: null },
+      { label: 'Lo-fi Progressions', href: '/progressions/lo-fi/', desc: null },
+      { label: 'Sad Progressions', href: '/progressions/sad/', desc: null },
+      { label: 'Happy Progressions', href: '/progressions/happy/', desc: null },
+      { label: 'Neo Soul Progressions', href: '/progressions/neo-soul/', desc: null },
+      { label: 'Worship Progressions', href: '/progressions/worship/', desc: null },
+      { label: 'EDM Progressions', href: '/progressions/edm/', desc: null },
     ],
   },
   {
     id: 'genres',
     label: 'Genres',
     items: [
-      { label: 'Pop', href: '/progressions/pop', desc: null },
-      { label: 'Jazz', href: '/progressions/jazz', desc: null },
-      { label: 'Gospel', href: '/progressions/worship', desc: null },
-      { label: 'Neo Soul', href: '/progressions/neo-soul', desc: null },
-      { label: 'Lo-fi / Chill', href: '/progressions/lo-fi', desc: null },
-      { label: 'EDM', href: '/progressions/edm', desc: null },
+      { label: 'Pop', href: '/progressions/pop/', desc: null },
+      { label: 'Jazz', href: '/progressions/jazz/', desc: null },
+      { label: 'Gospel', href: '/progressions/worship/', desc: null },
+      { label: 'Neo Soul', href: '/progressions/neo-soul/', desc: null },
+      { label: 'Lo-fi / Chill', href: '/progressions/lo-fi/', desc: null },
+      { label: 'EDM', href: '/progressions/edm/', desc: null },
     ],
   },
   {
     id: 'learn',
     label: 'Learn',
     items: [
-      { label: 'What is a Chord Progression?', href: '/learn/what-is-a-chord-progression', desc: null },
-      { label: 'How to Transpose Chords', href: '/learn/how-to-transpose-chords', desc: null },
-      { label: 'Circle of Fifths Explained', href: '/learn/circle-of-fifths-explained', desc: null },
-      { label: 'Common Pop Progressions', href: '/learn/chord-progressions-for-beginners', desc: null },
-      { label: 'Music Theory Basics', href: '/learn/music-theory-basics-for-songwriters', desc: null },
-      { label: 'All Articles →', href: '/learn', desc: null },
+      { label: 'What is a Chord Progression?', href: '/learn/what-is-a-chord-progression/', desc: null },
+      { label: 'How to Transpose Chords', href: '/learn/how-to-transpose-chords/', desc: null },
+      { label: 'Circle of Fifths Explained', href: '/learn/circle-of-fifths-explained/', desc: null },
+      { label: 'Common Pop Progressions', href: '/learn/chord-progressions-for-beginners/', desc: null },
+      { label: 'Music Theory Basics', href: '/learn/music-theory-basics-for-songwriters/', desc: null },
+      { label: 'All Articles →', href: '/learn/', desc: null },
     ],
   },
 ];
@@ -81,19 +80,19 @@ const nav = [
       <!-- Desktop nav -->
       <nav class="hidden lg:flex items-center gap-0.5">
         {nav.map((section) => (
-          <div class="relative group">
+          <div class="relative" data-nav-item>
             <button
               class="flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
               aria-haspopup="true"
             >
               {section.label}
-              <svg class="w-3 h-3 transition-transform duration-200 group-hover:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <svg class="w-3 h-3 transition-transform duration-200" data-nav-chevron viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="m6 9 6 6 6-6"/>
               </svg>
             </button>
 
             <!-- Dropdown panel -->
-            <div class="absolute top-full left-0 pt-2 opacity-0 invisible translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-150 z-50">
+            <div class="absolute top-full left-0 pt-2 opacity-0 invisible translate-y-1 transition-all duration-150 z-50" data-nav-panel>
               <div class="bg-card border border-border rounded-xl shadow-2xl overflow-hidden min-w-[220px]">
                 <div class="p-1.5">
                   {section.items.map((item) => (
@@ -188,6 +187,7 @@ const nav = [
 </header>
 
 <script>
+  // ── Mobile nav ────────────────────────────────────────────────
   const btn = document.getElementById('mobile-nav-btn');
   const panel = document.getElementById('mobile-nav');
   const hamburger = document.getElementById('hamburger-icon');
@@ -209,5 +209,39 @@ const nav = [
       content?.classList.toggle('hidden');
       chevron?.classList.toggle('rotate-180');
     });
+  });
+
+  // ── Desktop dropdowns (JS-driven so only one opens at a time) ─
+  const navItems = document.querySelectorAll<HTMLElement>('[data-nav-item]');
+
+  function closeAll() {
+    navItems.forEach(item => {
+      item.querySelector<HTMLElement>('[data-nav-panel]')?.classList.add('opacity-0', 'invisible', 'translate-y-1');
+      item.querySelector<HTMLElement>('[data-nav-panel]')?.classList.remove('opacity-100', 'visible', 'translate-y-0');
+      item.querySelector<SVGElement>('[data-nav-chevron]')?.classList.remove('rotate-180');
+    });
+  }
+
+  navItems.forEach(item => {
+    const dropPanel = item.querySelector<HTMLElement>('[data-nav-panel]');
+    const chevron = item.querySelector<SVGElement>('[data-nav-chevron]');
+
+    item.addEventListener('mouseenter', () => {
+      closeAll();
+      dropPanel?.classList.remove('opacity-0', 'invisible', 'translate-y-1');
+      dropPanel?.classList.add('opacity-100', 'visible', 'translate-y-0');
+      chevron?.classList.add('rotate-180');
+    });
+
+    item.addEventListener('mouseleave', () => {
+      dropPanel?.classList.add('opacity-0', 'invisible', 'translate-y-1');
+      dropPanel?.classList.remove('opacity-100', 'visible', 'translate-y-0');
+      chevron?.classList.remove('rotate-180');
+    });
+  });
+
+  // Close on click outside
+  document.addEventListener('click', (e) => {
+    if (!(e.target as HTMLElement).closest('[data-nav-item]')) closeAll();
   });
 </script>

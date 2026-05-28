@@ -3,34 +3,22 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
 const tools = [
   {
-    title: 'Chord Transposer',
-    desc: 'Shift any chord progression to any key in one click. Perfect for finding the right key for your voice or instrument.',
-    href: '/tools/chord-transposer',
-    keywords: 'transpose chords, change key, chord transposition',
+    title: 'Circle of Fifths',
+    desc: 'Interactive Circle of Fifths. Click any key to instantly see its diatonic chords, relative minor, and neighbouring key relationships.',
+    href: '/tools/circle-of-fifths/',
+    keywords: 'circle of fifths, key relationships, diatonic chords',
   },
   {
-    title: 'Chord Finder',
-    desc: 'Enter the notes you\'re playing and find the chord name instantly. Useful for identifying chords by ear.',
-    href: '/tools/chord-finder',
-    keywords: 'chord finder, identify chords, chord name',
+    title: 'Chord Transposer',
+    desc: 'Shift any chord progression to any key in one click. Perfect for finding the right key for your voice or instrument.',
+    href: '/tools/chord-transposer/',
+    keywords: 'transpose chords, change key, chord transposition',
   },
   {
     title: 'Key Detector',
     desc: 'Enter a progression and detect the musical key it belongs to. Understand the tonal center of any chord sequence.',
-    href: '/tools/key-detector',
+    href: '/tools/key-detector/',
     keywords: 'key detector, find key, musical key',
-  },
-  {
-    title: 'Chord Generator',
-    desc: 'Pick a root note and generate diatonic chords for any key. Great for building progressions from scratch.',
-    href: '/tools/chord-generator',
-    keywords: 'chord generator, diatonic chords, key chords',
-  },
-  {
-    title: 'Roman Numeral Analyzer',
-    desc: 'Analyze any chord progression using Roman numerals. Understand the function of each chord within a key.',
-    href: '/tools/roman-numeral-analyzer',
-    keywords: 'roman numeral analysis, chord function, music theory',
   },
 ];
 ---
@@ -69,7 +57,7 @@ const tools = [
     <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
       <h2 class="text-xl font-semibold text-foreground mb-2">Need the full editor?</h2>
       <p class="text-sm text-muted-foreground mb-5">Combine all these tools in the Chord Player — drag chords, pick styles, and export to WAV.</p>
-      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
         Open Chord Player →
       </a>
     </div>

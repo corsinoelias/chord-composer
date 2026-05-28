@@ -1,0 +1,97 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { CircleOfFifths } from '../../components/CircleOfFifths';
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Circle of Fifths — Interactive Chart',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Web',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  url: 'https://chordsequence.com/tools/circle-of-fifths/',
+  description: 'Free interactive Circle of Fifths. Click any key to see its diatonic chords, relative minor, parallel minor, and chord functions.',
+};
+---
+
+<BaseLayout
+  title="Circle of Fifths — Interactive Chart | Chord Sequence"
+  description="Free interactive Circle of Fifths chart. Click any key to instantly see its diatonic chords (I ii iii IV V vi vii°), relative minor, and parallel minor. No signup required."
+  canonicalUrl="https://chordsequence.com/tools/circle-of-fifths/"
+>
+  <script type="application/ld+json" set:html={JSON.stringify(schema)} slot="head" />
+
+  <main class="mx-auto max-w-4xl px-4 sm:px-6 py-12 sm:py-20">
+
+    <!-- Header -->
+    <div class="mb-12 text-center">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
+        Circle of Fifths
+      </h1>
+      <p class="text-lg text-muted-foreground max-w-xl mx-auto">
+        Click any key to see its diatonic chords, relative minor, and how it relates to neighbouring keys.
+      </p>
+    </div>
+
+    <!-- Interactive chart -->
+    <div class="flex justify-center">
+      <div class="w-full max-w-xl">
+        <CircleOfFifths client:load />
+      </div>
+    </div>
+
+    <!-- Explainer -->
+    <section class="mt-20 prose prose-invert max-w-none">
+      <h2 class="text-2xl font-bold text-foreground mb-6">What is the Circle of Fifths?</h2>
+      <div class="grid sm:grid-cols-2 gap-8">
+        <div class="rounded-xl border border-border bg-card p-6">
+          <h3 class="font-semibold text-foreground mb-2">How to read it</h3>
+          <p class="text-sm text-muted-foreground leading-relaxed">
+            Moving <strong class="text-foreground">clockwise</strong> by one step adds a sharp to the key signature —
+            C → G → D → A and so on. Moving <strong class="text-foreground">counterclockwise</strong> adds a flat.
+            Keys next to each other share six of their seven diatonic chords, making modulation between them sound natural.
+          </p>
+        </div>
+        <div class="rounded-xl border border-border bg-card p-6">
+          <h3 class="font-semibold text-foreground mb-2">Outer vs inner ring</h3>
+          <p class="text-sm text-muted-foreground leading-relaxed">
+            The <strong class="text-foreground">outer ring</strong> shows major keys.
+            The <strong class="text-foreground">inner ring</strong> shows their relative minors — they share the exact same notes
+            but with a different tonal centre. For example, C major and A minor both use C D E F G A B.
+          </p>
+        </div>
+        <div class="rounded-xl border border-border bg-card p-6">
+          <h3 class="font-semibold text-foreground mb-2">IV and V highlighted</h3>
+          <p class="text-sm text-muted-foreground leading-relaxed">
+            When you select a key, the circle highlights its <strong class="text-foreground">dominant (V)</strong> one step clockwise
+            and its <strong class="text-foreground">subdominant (IV)</strong> one step counterclockwise.
+            These are the three most closely related keys — the foundation of Western harmony.
+          </p>
+        </div>
+        <div class="rounded-xl border border-border bg-card p-6">
+          <h3 class="font-semibold text-foreground mb-2">Use it for songwriting</h3>
+          <p class="text-sm text-muted-foreground leading-relaxed">
+            Pick a key, read off the diatonic chords, and you have a palette of chords that sound great together.
+            Click any chord in the table to open it in the editor, or use the <strong class="text-foreground">I–vi–IV–V</strong> button
+            to load the most popular pop progression instantly.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Build a progression from your key</h2>
+      <p class="text-sm text-muted-foreground mb-5">
+        Pick chords from the table above and arrange them in the Chord Player — add rhythm, transpose, and export to WAV.
+      </p>
+      <a
+        href="/app/"
+        class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+      >
+        Open Chord Player →
+      </a>
+    </div>
+
+  </main>
+</BaseLayout>

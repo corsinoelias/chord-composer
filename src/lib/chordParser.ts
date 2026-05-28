@@ -113,19 +113,17 @@ function parseChordToken(token: string): Chord | null {
   const root = rootChar as RootNote;
 
   let idx = 1;
-  // Accidental: # or b (but not 'b' at start of quality like 'b5')
+  // Accidental: # or b
+  // 'b' immediately after the root letter is always a flat (Db, Bb, Ebm, Bbmaj7…).
+  // Altered-quality 'b' (like the b5 in "7b5") never appears at position 1 because
+  // it follows a digit, not a root letter.
   let accidental: Accidental = '';
   if (trimmed[idx] === '#') {
     accidental = '#';
     idx++;
-  } else if (trimmed[idx] === 'b' && trimmed.length > idx + 1) {
-    // 'b' is accidental only if followed by more chars that aren't 0-9 or end
-    // Heuristic: if next char is uppercase root note or end, it's a flat accidental
-    const nextAfterFlat = trimmed[idx + 1];
-    if (!nextAfterFlat || !/\d/.test(nextAfterFlat)) {
-      accidental = 'b';
-      idx++;
-    }
+  } else if (trimmed[idx] === 'b') {
+    accidental = 'b';
+    idx++;
   }
 
   const qualitySuffix = trimmed.slice(idx);
