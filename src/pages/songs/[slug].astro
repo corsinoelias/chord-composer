@@ -1,0 +1,161 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SongChordPlayerIsland from '../../components/SongChordPlayerIsland.astro';
+import { SONGS, getSong, extractChordsFromSong } from '../../data/songs';
+
+export function getStaticPaths() {
+  return SONGS.map(song => ({
+    params: { slug: song.slug },
+    props: { song },
+  }));
+}
+
+const { song } = Astro.props;
+
+const canonicalUrl = `https://chordsequence.com/songs/${song.slug}/`;
+const allChords = extractChordsFromSong(song);
+const uniqueChords = [...new Set(allChords)].join(', ');
+const capoNote = song.capo
+  ? ` Capo ${song.capo}${song.capo === 1 ? 'st' : song.capo === 2 ? 'nd' : song.capo === 3 ? 'rd' : 'th'} fret.`
+  : '';
+
+// Related songs (same genre, exclude current)
+const relatedSongs = SONGS
+  .filter(s => s.slug !== song.slug && s.genre.some(g => song.genre.includes(g)))
+  .slice(0, 3);
+
+// Schema
+const musicSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'MusicComposition',
+  name: song.title,
+  composer: { '@type': 'Person', name: song.artist },
+  inAlbum: song.album ? { '@type': 'MusicAlbum', name: song.album } : undefined,
+  datePublished: song.year?.toString(),
+  genre: song.genre.join(', '),
+  url: canonicalUrl,
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com' },
+    { '@type': 'ListItem', position: 2, name: 'Songs', item: 'https://chordsequence.com/songs/' },
+    { '@type': 'ListItem', position: 3, name: `${song.title} Chords`, item: canonicalUrl },
+  ],
+};
+---
+
+<BaseLayout
+  title={`${song.title} Chords — ${song.artist} | Chord Sequence`}
+  description={`${song.title} by ${song.artist} — interactive chord chart with lyrics. Key of ${song.key}.${capoNote} Chords: ${uniqueChords}. Press Play to hear every chord as it appears in the song.`}
+  canonicalUrl={canonicalUrl}
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(musicSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 py-12 sm:py-20">
+
+    <!-- Edit button -->
+    <div class="flex justify-end mb-4">
+      <a
+        href={`/songs/new/?from-static=${song.slug}`}
+        class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 transition-colors hover:border-primary/40"
+      >
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit song
+      </a>
+    </div>
+
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-8">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href="/songs/" class="hover:text-foreground transition-colors">Songs</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground truncate">{song.title}</span>
+    </nav>
+
+    <!-- How to use hint (only shown once) -->
+    <div class="mb-6 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 flex items-start gap-3">
+      <svg class="w-4 h-4 text-primary shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      <p class="text-xs text-muted-foreground">
+        Press <strong class="text-foreground">Play song</strong> to hear the chords.
+        The active chord highlights above the lyrics so you always know where you are.
+        {song.capo && (
+          <span> Capo {song.capo}{song.capo === 1 ? 'st' : song.capo === 2 ? 'nd' : song.capo === 3 ? 'rd' : 'th'} fret — sounds in {song.key === 'C' && song.capo === 1 ? 'Db' : song.key}.</span>
+        )}
+      </p>
+    </div>
+
+    <!-- Interactive player -->
+    <SongChordPlayerIsland song={song} />
+
+    <!-- Chord summary -->
+    <div class="mt-10 rounded-xl border border-border bg-card p-5">
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        Chords used in this song
+      </h2>
+      <div class="flex flex-wrap gap-2">
+        {[...new Set(allChords)].map(chord => (
+          <span class="text-sm font-bold font-mono px-3 py-1.5 rounded-lg border border-border bg-background text-foreground">
+            {chord}
+          </span>
+        ))}
+      </div>
+    </div>
+
+    <!-- Related progressions -->
+    {song.relatedProgressions.length > 0 && (
+      <div class="mt-8 pt-8 border-t border-border">
+        <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+          Explore related progressions
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {song.relatedProgressions.map(slug => (
+            <a
+              href={`/progressions/${slug}/`}
+              class="group flex items-center justify-between rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+            >
+              <span class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors capitalize">
+                {slug.replace(/-/g, ' ')} chord progressions
+              </span>
+              <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <!-- Related songs -->
+    {relatedSongs.length > 0 && (
+      <div class="mt-8 pt-8 border-t border-border">
+        <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+          More songs
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {relatedSongs.map(s => (
+            <a
+              href={`/songs/${s.slug}/`}
+              class="group rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+            >
+              <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{s.title}</p>
+              <p class="text-xs text-muted-foreground mt-0.5">{s.artist}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <!-- Back -->
+    <div class="mt-8 text-center">
+      <a href="/songs/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">
+        ← All song chord charts
+      </a>
+    </div>
+
+  </main>
+</BaseLayout>

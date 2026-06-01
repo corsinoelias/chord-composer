@@ -15,7 +15,7 @@ export default defineConfig({
     react(),
     mdx(),
     sitemap({
-      filter: (page) => !page.includes('/app') && !page.includes('/editor'),
+      filter: (page) => !page.includes('/app') && !page.includes('/editor') && !page.includes('/songs/c') && !page.includes('/songs/new'),
       serialize(item) {
         const lastmodMap = {
           'https://chordsequence.com/': '2026-05-29',
@@ -39,6 +39,11 @@ export default defineConfig({
           'https://chordsequence.com/progressions/blues/': '2026-06-01',
           'https://chordsequence.com/progressions/12-bar-blues/': '2026-06-01',
           'https://chordsequence.com/progressions/ii-v-i/': '2026-06-01',
+          'https://chordsequence.com/songs/': '2026-06-01',
+          'https://chordsequence.com/songs/holy-forever-chris-tomlin/': '2026-06-01',
+          'https://chordsequence.com/songs/autumn-leaves-jazz-standard/': '2026-06-01',
+          'https://chordsequence.com/songs/hallelujah-leonard-cohen/': '2026-06-01',
+          'https://chordsequence.com/songs/wonderwall-oasis/': '2026-06-01',
           'https://chordsequence.com/tools/': '2026-05-29',
           'https://chordsequence.com/tools/chord-transposer/': '2026-05-29',
           'https://chordsequence.com/tools/circle-of-fifths/': '2026-05-01',

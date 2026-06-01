@@ -1,0 +1,24 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import SongCreatorIsland from '../../../components/SongCreatorIsland.astro';
+---
+
+<BaseLayout
+  title="Add a Chord Chart — Chord Sequence"
+  description="Create an interactive chord chart with synchronized lyrics. Click words to assign chords, then publish for everyone to play."
+  canonicalUrl="https://chordsequence.com/songs/new/"
+  noIndex={true}
+>
+  <main class="min-h-screen bg-background">
+    <header class="border-b border-border bg-card">
+      <div class="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
+        <a href="/songs/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">← Songs</a>
+        <span class="text-muted-foreground/40">|</span>
+        <span class="text-sm font-medium text-foreground">New chord chart</span>
+      </div>
+    </header>
+    <div class="max-w-4xl mx-auto px-4 py-10">
+      <SongCreatorIsland />
+    </div>
+  </main>
+</BaseLayout>

@@ -17,6 +17,11 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^editor/(.+)$ /editor/index.html [L]
 
+# Rewrite /songs/c/<slug>/ → serve /songs/c/index.html (community song SPA)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^songs/c/.+ /songs/c/index.html [L]
+
 # Security headers
 <IfModule mod_headers.c>
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"

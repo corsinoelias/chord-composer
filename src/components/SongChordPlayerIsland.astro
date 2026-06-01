@@ -1,0 +1,12 @@
+---
+import SongChordPlayer from './SongChordPlayer';
+import type { Song } from '@/data/songs';
+
+interface Props {
+  song: Song;
+}
+
+const { song } = Astro.props;
+---
+
+<SongChordPlayer song={song} client:load />
