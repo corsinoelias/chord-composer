@@ -49,8 +49,7 @@ export default function SongCreator() {
         if (!song) { toast.error('Song not found'); setLoadingEdit(false); return; }
         setEditId(song.id);
         setMeta({ title: song.title, artist: song.artist, key: song.key, capo: song.capo ?? 0, bpm: song.bpm, genre: song.genre, style: song.style });
-        const edSections = songSectionsToEditorSections(song.sections);
-        setSections(edSections);
+        setSections(songSectionsToEditorSections(song.sections));
         setLoadingEdit(false);
         setStep('chords');
       });
@@ -68,8 +67,7 @@ export default function SongCreator() {
         genre: staticSong.genre,
         style: staticSong.style,
       });
-      const edSections = songSectionsToEditorSections(staticSong.sections);
-      setSections(edSections);
+      setSections(songSectionsToEditorSections(staticSong.sections));
       setStep('chords');
     }
   }, []);

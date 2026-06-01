@@ -1,8 +1,9 @@
+// ── Legacy token model (used only by LyricsStep parser internals) ─────────────
 export interface WordToken {
   id: string;
   text: string;
   chord: string;
-  duration: number; // beats, default 2
+  duration: number;
   isSpace: boolean;
 }
 
@@ -15,6 +16,26 @@ export interface EditorSection {
   id: string;
   name: string;
   lines: EditorLine[];
+}
+
+// ── Primary editing model ─────────────────────────────────────────────────────
+// One "slot" = one chord anchor + the lyric text that sits under it
+export interface ChordSlot {
+  id: string;
+  chord: string;    // e.g. "Am", "" = no chord
+  duration: number; // beats (default 4)
+  lyric: string;    // text under this chord
+}
+
+export interface ChordLine {
+  id: string;
+  slots: ChordSlot[];
+}
+
+export interface SectionData {
+  id: string;
+  name: string;
+  lines: ChordLine[];
 }
 
 export interface SongMeta {

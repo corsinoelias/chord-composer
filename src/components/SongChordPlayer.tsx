@@ -5,6 +5,7 @@ import { getDefaultInstrumentStates } from '@/lib/instruments';
 import { createSection } from '@/lib/sections';
 import { Play, Square, ExternalLink, Music2, ChevronDown, ChevronUp } from 'lucide-react';
 import { parseLyricLine, extractChordsWithDuration, type Song } from '@/data/songs';
+import ChordTooltip from '@/components/ChordTooltip';
 
 // ─── Token with resolved global index ────────────────────────────────────────
 interface ResolvedToken {
@@ -251,10 +252,10 @@ function SongChordPlayerInner({ song }: { song: Song }) {
                                 if (el) chordRefs.current.set(token.globalIndex, el);
                                 else chordRefs.current.delete(token.globalIndex);
                               } : undefined}
-                              className="inline-flex flex-col items-start"
+                              className="group/chord inline-flex flex-col items-start relative"
                               style={{ fontFamily: 'var(--font-mono, monospace)' }}
                             >
-                              {/* Chord name row */}
+                              {/* Chord name row — hover shows tooltip */}
                               <span
                                 className={`
                                   text-xs font-bold leading-none mb-0.5 whitespace-pre px-0.5
@@ -262,7 +263,7 @@ function SongChordPlayerInner({ song }: { song: Song }) {
                                   ${hasChord
                                     ? isActive
                                       ? 'text-primary bg-primary/15 rounded px-1 py-0.5 scale-105 inline-block'
-                                      : 'text-primary/70'
+                                      : 'text-primary/70 cursor-help'
                                     : 'invisible select-none'
                                   }
                                 `}
@@ -270,6 +271,13 @@ function SongChordPlayerInner({ song }: { song: Song }) {
                               >
                                 {hasChord ? token.chord : '.'}
                               </span>
+
+                              {/* Chord tooltip on hover */}
+                              {hasChord && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 opacity-0 group-hover/chord:opacity-100 transition-opacity duration-150 pointer-events-none group-hover/chord:pointer-events-auto">
+                                  <ChordTooltip chord={token.chord} />
+                                </div>
+                              )}
 
                               {/* Lyrics row */}
                               {!isChordOnlyLine && (
