@@ -28,8 +28,13 @@ const articleSchema = {
   headline: title,
   description,
   datePublished: pubDate.toISOString(),
-  dateModified: new Date().toISOString().split('T')[0],
-  image: image ?? 'https://chordsequence.com/og-image.png',
+  dateModified: new Date().toISOString(),
+  image: {
+    '@type': 'ImageObject',
+    url: image ?? 'https://chordsequence.com/og-image.png',
+    width: 1200,
+    height: 630,
+  },
   author: author
     ? {
         '@type': 'Person',
@@ -42,7 +47,7 @@ const articleSchema = {
     '@type': 'Organization',
     name: 'Chord Sequence',
     url: 'https://chordsequence.com',
-    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/og-image.png', width: 1200, height: 630 },
+    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/favicon.ico', width: 64, height: 64 },
   },
   mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
 };
@@ -58,10 +63,24 @@ const breadcrumbSchema = {
 };
 ---
 
-<BaseLayout {title} {description} {canonicalUrl} ogImage={image}>
+<BaseLayout
+  {title}
+  {description}
+  {canonicalUrl}
+  ogImage={image}
+  ogType="article"
+  ogImageAlt={`${title} — Chord Sequence`}
+  author={author?.name ?? 'Chord Sequence'}
+>
   <Fragment slot="head">
     <script type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
     <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    {author && (
+      <>
+        <meta property="article:published_time" content={pubDate.toISOString()} />
+        <meta property="article:author" content={author.url} />
+      </>
+    )}
   </Fragment>
 
   <div class="min-h-screen bg-background text-foreground">
@@ -69,7 +88,7 @@ const breadcrumbSchema = {
       <div class="container max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
         <a href="/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">← Chord Player</a>
         <span class="text-muted-foreground">/</span>
-        <a href="/blog" class="text-sm text-muted-foreground hover:text-foreground transition-colors">Blog</a>
+        <a href="/learn/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">Learn</a>
       </div>
     </header>
 
@@ -90,11 +109,15 @@ const breadcrumbSchema = {
 
           {author && (
             <div class="flex items-center gap-3 mt-5 pb-5 border-b border-border">
-              <div class="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                EC
-              </div>
+              <img
+                src={(author as any).avatar ?? '/images/elias-corsino.jpg'}
+                alt={author.name}
+                class="w-9 h-9 rounded-full object-cover shrink-0"
+                width="36"
+                height="36"
+              />
               <div>
-                <a href="/about/elias-corsino" class="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                <a href="/about/elias-corsino/" class="text-sm font-medium text-foreground hover:text-primary transition-colors">
                   {author.name}
                 </a>
                 <p class="text-xs text-muted-foreground">{author.role}</p>
@@ -118,10 +141,10 @@ const breadcrumbSchema = {
 
       <footer class="mt-12 pt-8 border-t border-border">
         <a
-          href="/blog"
+          href="/learn/"
           class="text-primary font-medium hover:text-primary/80 transition-colors"
         >
-          ← Back to Blog
+          ← Back to Learn
         </a>
       </footer>
     </main>

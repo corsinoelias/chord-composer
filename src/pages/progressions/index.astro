@@ -42,10 +42,27 @@ import { GENRES } from '../../data/progressions';
       ))}
     </div>
 
-    <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+    <!-- Learn the theory -->
+    <div class="mt-16 pt-10 border-t border-border">
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-6">Learn the theory behind these progressions</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { href: '/learn/what-is-a-chord-progression/', title: 'What is a chord progression?', desc: 'The harmonic foundation every songwriter needs to understand' },
+          { href: '/learn/chord-progressions-for-beginners/', title: 'Chord progressions for beginners', desc: 'I–V–vi–IV, 12-bar blues, and the four progressions you need first' },
+          { href: '/learn/jazz-chord-progressions/', title: 'Jazz chord progressions', desc: 'ii–V–I, turnarounds, bossa nova, and modal jazz explained' },
+        ].map((a) => (
+          <a href={a.href} class="group rounded-xl border border-border bg-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors">
+            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors mb-1">{a.title}</p>
+            <p class="text-xs text-muted-foreground leading-relaxed">{a.desc}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+
+    <div class="mt-12 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
       <h2 class="text-xl font-semibold text-foreground mb-2">Build your own progression</h2>
       <p class="text-sm text-muted-foreground mb-5">Use the Chord Player to arrange any of these chords, change the rhythm, and export to WAV.</p>
-      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
         Open Chord Player →
       </a>
     </div>

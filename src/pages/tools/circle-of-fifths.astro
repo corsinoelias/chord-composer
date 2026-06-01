@@ -2,15 +2,25 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { CircleOfFifths } from '../../components/CircleOfFifths';
 
-const schema = {
+const webAppSchema = {
   '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
+  '@type': 'WebApplication',
   name: 'Circle of Fifths — Interactive Chart',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Web',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   url: 'https://chordsequence.com/tools/circle-of-fifths/',
   description: 'Free interactive Circle of Fifths. Click any key to see its diatonic chords, relative minor, parallel minor, and chord functions.',
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com' },
+    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://chordsequence.com/tools/' },
+    { '@type': 'ListItem', position: 3, name: 'Circle of Fifths', item: 'https://chordsequence.com/tools/circle-of-fifths/' },
+  ],
 };
 ---
 
@@ -19,9 +29,21 @@ const schema = {
   description="Free interactive Circle of Fifths chart. Click any key to instantly see its diatonic chords (I ii iii IV V vi vii°), relative minor, and parallel minor. No signup required."
   canonicalUrl="https://chordsequence.com/tools/circle-of-fifths/"
 >
-  <script type="application/ld+json" set:html={JSON.stringify(schema)} slot="head" />
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
 
   <main class="mx-auto max-w-4xl px-4 sm:px-6 py-12 sm:py-20">
+
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href="/tools/" class="hover:text-foreground transition-colors">Tools</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">Circle of Fifths</span>
+    </nav>
 
     <!-- Header -->
     <div class="mb-12 text-center">
@@ -91,6 +113,37 @@ const schema = {
       >
         Open Chord Player →
       </a>
+    </div>
+
+    <!-- Related reading -->
+    <div class="mt-16 pt-8 border-t border-border">
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Related reading</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <a href="/learn/circle-of-fifths-explained/" class="group flex items-start gap-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 p-4 transition-colors">
+          <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs text-muted-foreground mb-1">Deep dive</p>
+            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Circle of fifths explained</p>
+            <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">Key signatures, relative minors, and how jazz progressions follow the circle</p>
+          </div>
+        </a>
+        <a href="/learn/jazz-chord-progressions/" class="group flex items-start gap-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 p-4 transition-colors">
+          <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs text-muted-foreground mb-1">Progressions</p>
+            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Jazz chord progressions</p>
+            <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">How the circle of fifths directly shapes ii–V–I movement in jazz</p>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <div class="mt-8 text-center">
+      <a href="/tools/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">← Back to all tools</a>
     </div>
 
   </main>

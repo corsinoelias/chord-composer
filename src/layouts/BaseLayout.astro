@@ -8,6 +8,9 @@ interface Props {
   description?: string;
   canonicalUrl?: string;
   ogImage?: string;
+  ogImageAlt?: string;
+  ogType?: string;
+  author?: string;
   noIndex?: boolean;
   showNav?: boolean;
 }
@@ -15,8 +18,11 @@ interface Props {
 const {
   title = 'Chord Player (Chord Sequence) — Build & Export Chord Progressions',
   description = 'Free online chord progression builder on chordsequence.com: drag-and-drop sections, live rhythm playback, transposition, and one-click WAV export for songwriters.',
-  canonicalUrl = 'https://chordsequence.com',
+  canonicalUrl = 'https://chordsequence.com/',
   ogImage = 'https://chordsequence.com/og-image.png',
+  ogImageAlt = 'Chord Sequence — free online chord progression builder',
+  ogType = 'website',
+  author = 'Chord Sequence',
   noIndex = false,
   showNav = true,
 } = Astro.props;
@@ -24,8 +30,8 @@ const {
 const webAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'Chord Player',
-  alternateName: 'Chord Sequence',
+  name: 'Chord Sequence',
+  alternateName: 'Chord Player',
   url: 'https://chordsequence.com',
   image: 'https://chordsequence.com/og-image.png',
   applicationCategory: 'MusicApplication',
@@ -50,6 +56,14 @@ const websiteSchema = {
   name: 'Chord Sequence',
   alternateName: 'Chord Player',
   url: 'https://chordsequence.com',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: 'https://chordsequence.com/progressions/?q={search_term_string}',
+    },
+    'query-input': 'required name=search_term_string',
+  },
 };
 
 const orgSchema = {
@@ -58,7 +72,11 @@ const orgSchema = {
   name: 'Chord Sequence',
   alternateName: 'Chord Player',
   url: 'https://chordsequence.com',
-  logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/og-image.png', width: 1200, height: 630 },
+  logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
+  sameAs: [
+    'https://www.linkedin.com/in/elias-corsino-salda%C3%B1a-945138182/',
+    'https://www.instagram.com/corsinoeliaas/',
+  ],
 };
 ---
 
@@ -71,8 +89,8 @@ const orgSchema = {
 
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="author" content="Chord Sequence" />
-    {noIndex && <meta name="robots" content="noindex, follow" />}
+    <meta name="author" content={author} />
+    {noIndex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonicalUrl} />
 
     <!-- Google Fonts: non-blocking load to avoid render-blocking LCP penalty -->
@@ -96,19 +114,19 @@ const orgSchema = {
     <meta property="og:locale" content="en_US" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Chord Player — chord progression editor on chordsequence.com" />
+    <meta property="og:image:alt" content={ogImageAlt} />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
-    <meta name="twitter:image:alt" content="Chord Player — chord progression editor on chordsequence.com" />
+    <meta name="twitter:image:alt" content={ogImageAlt} />
 
     <!-- Structured Data -->
     <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />

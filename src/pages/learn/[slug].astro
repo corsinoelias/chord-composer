@@ -4,6 +4,82 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
 import { AUTHORS } from '../../data/authors';
 
+interface RelatedLink {
+  href: string;
+  label: string;
+  description: string;
+}
+
+interface ArticleRelated {
+  progressions: RelatedLink[];
+  articles: RelatedLink[];
+  tool?: { href: string; label: string; cta: string };
+}
+
+const ARTICLE_RELATED: Record<string, ArticleRelated> = {
+  'what-is-a-chord-progression': {
+    progressions: [
+      { href: '/progressions/pop/', label: 'Pop chord progressions', description: 'I–V–vi–IV and the most recorded progressions in modern music' },
+      { href: '/progressions/sad/', label: 'Sad chord progressions', description: 'Minor keys and descending lines that evoke emotion' },
+    ],
+    articles: [
+      { href: '/learn/chord-progressions-for-beginners/', label: 'Chord progressions for beginners', description: 'Step-by-step guide to using progressions in your own songs' },
+      { href: '/learn/music-theory-basics-for-songwriters/', label: 'Music theory basics for songwriters', description: 'Keys, scales, and the theory behind every chord choice' },
+    ],
+  },
+  'chord-progressions-for-beginners': {
+    progressions: [
+      { href: '/progressions/pop/', label: 'Pop chord progressions', description: 'Start playing the I–V–vi–IV and other pop staples right now' },
+      { href: '/progressions/happy/', label: 'Happy chord progressions', description: 'Bright, major-key progressions full of energy' },
+    ],
+    articles: [
+      { href: '/learn/what-is-a-chord-progression/', label: 'What is a chord progression?', description: 'The theory behind why certain chord combinations work' },
+      { href: '/learn/jazz-chord-progressions/', label: 'Jazz chord progressions', description: 'Take your progressions further with jazz harmony' },
+    ],
+  },
+  'jazz-chord-progressions': {
+    progressions: [
+      { href: '/progressions/jazz/', label: 'Jazz chord progressions', description: 'ii–V–I, turnarounds, bossa nova — play every example in your browser' },
+      { href: '/progressions/neo-soul/', label: 'Neo soul chord progressions', description: 'Jazz-influenced extended harmony in a modern R&B context' },
+    ],
+    articles: [
+      { href: '/learn/what-is-a-chord-progression/', label: 'What is a chord progression?', description: 'The fundamentals behind all harmonic movement' },
+      { href: '/learn/circle-of-fifths-explained/', label: 'Circle of fifths explained', description: 'Why jazz progressions move through the circle of fifths' },
+    ],
+  },
+  'circle-of-fifths-explained': {
+    progressions: [
+      { href: '/progressions/jazz/', label: 'Jazz chord progressions', description: 'The circle of fifths in action — ii–V–I and cycle progressions' },
+    ],
+    articles: [
+      { href: '/learn/how-to-transpose-chords/', label: 'How to transpose chords', description: 'The circle of fifths is the foundation of transposition' },
+      { href: '/learn/jazz-chord-progressions/', label: 'Jazz chord progressions', description: 'How jazz harmony follows the circle of fifths step by step' },
+    ],
+    tool: { href: '/tools/circle-of-fifths/', label: 'Explore key relationships visually with the interactive Circle of Fifths tool', cta: 'Open Circle of Fifths →' },
+  },
+  'how-to-transpose-chords': {
+    progressions: [
+      { href: '/progressions/pop/', label: 'Pop chord progressions', description: 'Try transposing I–V–vi–IV to different keys to hear the difference' },
+    ],
+    articles: [
+      { href: '/learn/chord-progressions-for-beginners/', label: 'Chord progressions for beginners', description: 'The foundational progressions to practice transposing' },
+      { href: '/learn/music-theory-basics-for-songwriters/', label: 'Music theory basics for songwriters', description: 'Keys, intervals, and how transposition fits the bigger picture' },
+    ],
+    tool: { href: '/tools/chord-transposer/', label: 'Shift any chord progression to any key instantly with the free Chord Transposer', cta: 'Open Chord Transposer →' },
+  },
+  'music-theory-basics-for-songwriters': {
+    progressions: [
+      { href: '/progressions/edm/', label: 'EDM chord progressions', description: 'How electronic music applies basic theory at high energy' },
+      { href: '/progressions/lo-fi/', label: 'Lo-fi chord progressions', description: 'Extended seventh chords and modal harmony in chill beats' },
+    ],
+    articles: [
+      { href: '/learn/what-is-a-chord-progression/', label: 'What is a chord progression?', description: 'Apply your theory knowledge to real chord writing' },
+      { href: '/learn/circle-of-fifths-explained/', label: 'Circle of fifths explained', description: 'The visual tool that maps all key relationships' },
+    ],
+    tool: { href: '/tools/key-detector/', label: 'Find the key of any chord progression with the free Key Detector tool', cta: 'Open Key Detector →' },
+  },
+};
+
 export async function getStaticPaths() {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
   return posts.map((post) => ({
@@ -14,6 +90,7 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { Content } = await post.render();
+const related = ARTICLE_RELATED[post.slug];
 
 const canonicalLearnUrl = `https://chordsequence.com/learn/${post.slug}/`;
 
@@ -27,7 +104,7 @@ const articleSchema = {
   description: post.data.description,
   image: post.data.image ?? 'https://chordsequence.com/og-image.png',
   datePublished: post.data.pubDate.toISOString(),
-  dateModified: new Date().toISOString().split('T')[0],
+  dateModified: post.data.pubDate.toISOString().split('T')[0],
   author: author
     ? {
         '@type': 'Person',
@@ -40,7 +117,7 @@ const articleSchema = {
     '@type': 'Organization',
     name: 'Chord Sequence',
     url: 'https://chordsequence.com',
-    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/og-image.png', width: 1200, height: 630 },
+    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
   },
   mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalLearnUrl },
 };
@@ -60,8 +137,12 @@ const breadcrumbSchema = {
   title={`${post.data.title} | Chord Sequence`}
   description={post.data.description}
   canonicalUrl={canonicalLearnUrl}
+  ogType="article"
 >
   <Fragment slot="head">
+    <meta property="article:published_time" content={post.data.pubDate.toISOString()} />
+    <meta property="article:modified_time" content={post.data.pubDate.toISOString()} />
+    <meta property="article:author" content={author?.url ?? 'https://chordsequence.com/about/elias-corsino/'} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
@@ -98,11 +179,16 @@ const breadcrumbSchema = {
 
       {author && (
         <div class="flex items-center gap-3 mt-6 pb-6 border-b border-border">
-          <div class="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-            EC
-          </div>
+          <img
+            src={author.avatar}
+            alt={author.name}
+            width="36"
+            height="36"
+            class="w-9 h-9 rounded-full object-cover shrink-0"
+            loading="lazy"
+          />
           <div>
-            <a href="/about/elias-corsino" class="text-sm font-medium text-foreground hover:text-primary transition-colors">
+            <a href="/about/elias-corsino/" class="text-sm font-medium text-foreground hover:text-primary transition-colors">
               {author.name}
             </a>
             <p class="text-xs text-muted-foreground">{author.role}</p>
@@ -110,6 +196,17 @@ const breadcrumbSchema = {
         </div>
       )}
     </header>
+
+    <!-- Above-fold CTA -->
+    <div class="mb-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-5 py-4">
+      <p class="text-sm text-muted-foreground">Build the progressions from this article in the free interactive editor.</p>
+      <a
+        href="/app/"
+        class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+      >
+        Try in Chord Player →
+      </a>
+    </div>
 
     <article class="
       prose prose-invert prose-lg max-w-none
@@ -140,9 +237,74 @@ const breadcrumbSchema = {
       </a>
     </div>
 
+    <!-- Related tool callout -->
+    {related?.tool && (
+      <div class="mt-8 rounded-xl border border-primary/20 bg-primary/5 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p class="text-sm text-muted-foreground text-center sm:text-left">{related.tool.label}</p>
+        <a
+          href={related.tool.href}
+          class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          {related.tool.cta}
+        </a>
+      </div>
+    )}
+
+    <!-- Explore progressions -->
+    {related?.progressions && related.progressions.length > 0 && (
+      <div class="mt-12 pt-8 border-t border-border">
+        <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Explore progressions</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {related.progressions.map((item) => (
+            <a
+              href={item.href}
+              class="group flex items-start gap-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 p-4 transition-colors"
+            >
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {item.label}
+                </p>
+                <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.description}</p>
+              </div>
+              <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <!-- Related articles -->
+    {related?.articles && related.articles.length > 0 && (
+      <div class="mt-8 pt-8 border-t border-border">
+        <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Related articles</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {related.articles.map((item) => (
+            <a
+              href={item.href}
+              class="group flex items-start gap-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 p-4 transition-colors"
+            >
+              <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {item.label}
+                </p>
+                <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.description}</p>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
+
     <!-- Back -->
     <div class="mt-8 text-center">
-      <a href="/learn" class="text-sm text-muted-foreground hover:text-foreground transition-colors">
+      <a href="/learn/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">
         ← Back to all articles
       </a>
     </div>

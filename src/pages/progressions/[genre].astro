@@ -60,7 +60,7 @@ const breadcrumbSchema = {
       <span class="text-foreground">{genre.name}</span>
     </nav>
 
-    <header class="mb-14">
+    <header class="mb-10">
       <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
         {genre.name} chord progressions
       </h1>
@@ -71,6 +71,14 @@ const breadcrumbSchema = {
         </a>
       )}
     </header>
+
+    {genre.editorialIntro && genre.editorialIntro.length > 0 && (
+      <div class="mb-14 space-y-4">
+        {genre.editorialIntro.map((para) => (
+          <p class="text-muted-foreground leading-relaxed">{para}</p>
+        ))}
+      </div>
+    )}
 
     <div class="space-y-6">
       {genre.progressions.map((p) => (
@@ -87,7 +95,7 @@ const breadcrumbSchema = {
       <div class="flex flex-wrap gap-2">
         {GENRES.filter((g) => g.slug !== genre.slug).map((g) => (
           <a
-            href={`/progressions/${g.slug}`}
+            href={`/progressions/${g.slug}/`}
             class="px-3 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
           >
             {g.name}
@@ -95,6 +103,37 @@ const breadcrumbSchema = {
         ))}
       </div>
     </div>
+
+    <!-- Learn more section -->
+    {genre.relatedArticles && genre.relatedArticles.length > 0 && (
+      <div class="mt-16 pt-8 border-t border-border">
+        <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+          {genre.learnSectionTitle ?? 'Learn more'}
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {genre.relatedArticles.map((article) => (
+            <a
+              href={article.href}
+              class="group flex items-start gap-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 p-4 transition-colors"
+            >
+              <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {article.label}
+                </p>
+                <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  {article.description}
+                </p>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
 
     <!-- CTA -->
     <div class="mt-12 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">

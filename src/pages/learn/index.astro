@@ -61,10 +61,35 @@ allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
       </ul>
     )}
 
-    <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+    <!-- Explore by genre -->
+    <div class="mt-12 pt-10 border-t border-border">
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Explore progressions by genre</h2>
+      <div class="flex flex-wrap gap-2">
+        {[
+          { href: '/progressions/pop/', label: 'Pop' },
+          { href: '/progressions/jazz/', label: 'Jazz' },
+          { href: '/progressions/lo-fi/', label: 'Lo-fi' },
+          { href: '/progressions/blues/', label: 'Blues' },
+          { href: '/progressions/12-bar-blues/', label: '12-Bar Blues' },
+          { href: '/progressions/ii-v-i/', label: 'ii–V–I' },
+          { href: '/progressions/rock/', label: 'Rock' },
+          { href: '/progressions/sad/', label: 'Sad' },
+          { href: '/progressions/happy/', label: 'Happy' },
+          { href: '/progressions/neo-soul/', label: 'Neo Soul' },
+          { href: '/progressions/worship/', label: 'Worship' },
+          { href: '/progressions/edm/', label: 'EDM' },
+        ].map((g) => (
+          <a href={g.href} class="px-3 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
+            {g.label}
+          </a>
+        ))}
+      </div>
+    </div>
+
+    <div class="mt-12 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
       <h2 class="text-xl font-semibold text-foreground mb-2">Ready to try what you've learned?</h2>
       <p class="text-sm text-muted-foreground mb-5">Build any progression you read about in the interactive editor.</p>
-      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
         Open Chord Player →
       </a>
     </div>

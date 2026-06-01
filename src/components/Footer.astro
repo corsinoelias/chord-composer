@@ -14,6 +14,7 @@ const columns = [
     label: 'Tools',
     links: [
       { label: 'Chord Transposer', href: '/tools/chord-transposer/' },
+      { label: 'Circle of Fifths', href: '/tools/circle-of-fifths/' },
       { label: 'Key Detector', href: '/tools/key-detector/' },
       { label: 'All Tools', href: '/tools/' },
     ],
@@ -59,7 +60,7 @@ const columns = [
           Free online chord progression builder for songwriters, producers, and music students.
         </p>
         <a
-          href="/app"
+          href="/app/"
           class="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
         >
           Open App →
@@ -69,7 +70,7 @@ const columns = [
       <!-- Link columns -->
       {columns.map((col) => (
         <div>
-          <h3 class="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">{col.label}</h3>
+          <p class="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">{col.label}</p>
           <ul class="space-y-2.5">
             {col.links.map((link) => (
               <li>

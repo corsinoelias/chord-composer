@@ -48,8 +48,8 @@ const DIATONIC_MIN: string[][] = [
   ['Dm', 'E°',  'F',  'Gm', 'Am', 'B♭', 'C'],
 ];
 
-const ROMAN_MAJ  = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
-const ROMAN_MIN  = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+const ROMAN_MAJ  = ['I',  'ii',  'iii', 'IV', 'V',  'vi',  'vii°'];
+const ROMAN_MIN  = ['i',  'ii°', 'III', 'iv', 'v',  'VI',  'VII'];
 const FUNCS_MAJ  = ['tonic','supertonic','mediant','subdominant','dominant','submediant','leading tone'];
 const FUNCS_MIN  = ['tonic','supertonic','mediant','subdominant','dominant','submediant','subtonic'];
 
@@ -338,18 +338,22 @@ function CircleOfFifthsInner() {
               <div className="grid grid-cols-7 divide-x divide-border/40">
 
                 {/* Roman numerals row */}
-                {roman.map((r, j) => (
-                  <div
-                    key={`r${j}`}
-                    className={`py-2.5 text-center text-sm font-bold tracking-wide border-b border-border/60 transition-colors ${
-                      hoveredDeg === j ? 'bg-primary/10 text-primary' : 'text-foreground'
-                    }`}
-                    onMouseEnter={() => setHoveredDeg(j)}
-                    onMouseLeave={() => setHoveredDeg(null)}
-                  >
-                    {r}
-                  </div>
-                ))}
+                {roman.map((r, j) => {
+                  const isUpperCase = r[0] === r[0].toUpperCase() && r[0] !== r[0].toLowerCase();
+                  return (
+                    <div
+                      key={`r${j}`}
+                      className={`py-2.5 text-center font-bold border-b border-border/60 transition-colors ${
+                        hoveredDeg === j ? 'bg-primary/10 text-primary' : 'text-foreground'
+                      }`}
+                      style={{ fontSize: isUpperCase ? 14 : 12, letterSpacing: '0.04em' }}
+                      onMouseEnter={() => setHoveredDeg(j)}
+                      onMouseLeave={() => setHoveredDeg(null)}
+                    >
+                      {r}
+                    </div>
+                  );
+                })}
 
                 {/* Function names row */}
                 {funcs.map((fn, j) => (

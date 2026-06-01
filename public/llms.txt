@@ -1,10 +1,42 @@
-# Chord Player (Chord Sequence)
+# Chord Sequence
 
-> chordsequence.com — Create chord progressions with drag-and-drop editing, real-time playback, multiple rhythm styles, and MP3 export.
+> Chord Sequence (chordsequence.com) is a free online chord progression builder for songwriters, producers, and music students. Build progressions with drag-and-drop, hear them with real-time playback across 13+ rhythm styles, export as WAV, and explore ready-made genre libraries — no account or DAW required.
 
-Chord Player is the web app on Chord Sequence (chordsequence.com) for songwriters and musicians to build, arrange, and export chord progressions across configurable sections, instruments, and tempos.
+## Core Tool
+- [Chord Progression Builder](https://chordsequence.com/): The main app. Drag-and-drop chord editor with real-time playback, 37 chord types, key transposer, and WAV export. Free, no account required, works in any browser.
 
-## Pages
+## Learn: Music Theory & Chord Progressions
+- [What is a Chord Progression?](https://chordsequence.com/learn/what-is-a-chord-progression/): Beginner's complete guide — definitions, Roman numeral system, common progressions, and how emotion maps to harmony.
+- [Chord Progressions for Beginners](https://chordsequence.com/learn/chord-progressions-for-beginners/): The 4 chords every songwriter needs — I–V–vi–IV, 12-bar blues, and how to get started writing songs.
+- [Jazz Chord Progressions](https://chordsequence.com/learn/jazz-chord-progressions/): Complete guide to ii–V–I, jazz blues, bossa nova, turnarounds, and modal jazz with interactive players.
+- [Circle of Fifths Explained](https://chordsequence.com/learn/circle-of-fifths-explained/): How to use the circle of fifths for songwriting, understanding key relationships, and modulation.
+- [How to Transpose Chords](https://chordsequence.com/learn/how-to-transpose-chords/): Complete transposition guide with semitone reference chart and worked examples.
+- [Music Theory Basics for Songwriters](https://chordsequence.com/learn/music-theory-basics-for-songwriters/): Intervals, scales, and diatonic chords — the minimum theory needed to write songs.
 
-- [Songs Library](/): Browse, search, duplicate and delete your saved chord progressions.
-- [Editor](/editor): Create a new song — add sections, place chords, pick a rhythm style, transpose, and export to MP3.
+## Ready-Made Progression Libraries
+- [Jazz Progressions](https://chordsequence.com/progressions/jazz/): Curated jazz chord progressions — ii–V–I, turnarounds, tritone substitutions — ready to play and edit.
+- [Pop Progressions](https://chordsequence.com/progressions/pop/): The most common pop chord progressions with interactive playback. I–V–vi–IV, vi–IV–I–V, and more.
+- [Lo-Fi / Chill Progressions](https://chordsequence.com/progressions/lo-fi/): Lo-fi chord progressions with extended chords for relaxed, laid-back vibes.
+- [Neo Soul Progressions](https://chordsequence.com/progressions/neo-soul/): Neo soul harmony with maj7, min9, and dominant 13th chords.
+- [EDM Progressions](https://chordsequence.com/progressions/edm/): Electronic dance music chord progressions for house, trance, and synth-based music.
+- [Gospel / Worship Progressions](https://chordsequence.com/progressions/worship/): Gospel chord progressions for worship music and contemporary Christian music.
+- [Happy Progressions](https://chordsequence.com/progressions/happy/): Upbeat, major-key chord progressions that convey joy and energy.
+- [Sad Progressions](https://chordsequence.com/progressions/sad/): Minor-key and melancholic chord progressions for emotional songwriting.
+
+## Tools
+- [Chord Transposer](https://chordsequence.com/tools/chord-transposer/): Instantly transpose any chord or progression to a different key. Includes semitone reference chart and worked examples.
+- [Circle of Fifths](https://chordsequence.com/tools/circle-of-fifths/): Interactive circle of fifths for navigating key relationships.
+- [Key Detector](https://chordsequence.com/tools/key-detector/): Detect the key of any chord progression.
+
+## About
+- [About Chord Sequence](https://chordsequence.com/about/): About the tool and its creator.
+- [Elías Corsino Saldaña](https://chordsequence.com/about/elias-corsino/): Creator of Chord Sequence — Musician & Software Developer from the Dominican Republic. Plays piano, bass, guitar, and drums. Started learning music at age 12.
+
+## Key Facts
+- 100% free, no account required
+- Works in-browser, no download or DAW needed
+- 37 chord types supported (major, minor, 7th, maj7, min7, diminished, augmented, suspended, and more)
+- 13+ rhythm styles with real audio samples (pop, rock, jazz, lo-fi, worship, Latin, and more)
+- WAV export for use in any DAW (Ableton, Logic, GarageBand, FL Studio)
+- Chord progressions stored in browser — private, no server uploads
+- Works offline after first load

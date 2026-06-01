@@ -7,27 +7,20 @@ const examples = [
   { original: 'D minor: Dm Am Bb F', transposed: 'Am minor: Am Em F C', chords: 'Am Em F C', bpm: 100, title: 'Same progression in A minor' },
 ];
 
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'How do I transpose chord progressions?',
-      acceptedAnswer: { '@type': 'Answer', text: 'To transpose a chord progression, shift every chord in the progression by the same number of semitones. For example, moving C–G–Am–F up by 2 semitones gives D–A–Bm–G. In Chord Sequence, use the transposition slider in the editor to shift the entire song in real time.' },
-    },
-    {
-      '@type': 'Question',
-      name: 'How many semitones are between common keys?',
-      acceptedAnswer: { '@type': 'Answer', text: 'From C to D is 2 semitones. C to E is 4 semitones. C to F is 5. C to G is 7. C to A is 9. C to B is 11. Going up an octave is 12 semitones.' },
-    },
-    {
-      '@type': 'Question',
-      name: 'Why would I need to transpose a chord progression?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Transposing is useful when a song is too high or too low for your voice, when collaborating with a musician who plays in a different key, or when you want a fresh emotional feel from the same chord progression.' },
-    },
-  ],
-};
+const faqItems = [
+  {
+    name: 'How do I transpose chord progressions?',
+    answer: 'To transpose a chord progression, shift every chord in the progression by the same number of semitones. For example, moving C–G–Am–F up by 2 semitones gives D–A–Bm–G. In Chord Sequence, use the transposition slider in the editor to shift the entire song in real time.',
+  },
+  {
+    name: 'How many semitones are between common keys?',
+    answer: 'From C to D is 2 semitones. C to E is 4 semitones. C to F is 5. C to G is 7. C to A is 9. C to B is 11. Going up an octave is 12 semitones.',
+  },
+  {
+    name: 'Why would I need to transpose a chord progression?',
+    answer: 'Transposing is useful when a song is too high or too low for your voice, when collaborating with a musician who plays in a different key, or when you want a fresh emotional feel from the same chord progression.',
+  },
+];
 
 const webAppSchema = {
   '@context': 'https://schema.org',
@@ -59,7 +52,6 @@ const breadcrumbSchema = {
   canonicalUrl="https://chordsequence.com/tools/chord-transposer/"
 >
   <Fragment slot="head">
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
@@ -162,7 +154,7 @@ const breadcrumbSchema = {
     <section class="mb-14">
       <h2 class="text-2xl font-bold text-foreground mb-6">Frequently asked questions</h2>
       <dl class="space-y-3">
-        {faqSchema.mainEntity.map((q: any) => (
+        {faqItems.map((q) => (
           <div class="rounded-xl border border-border bg-card overflow-hidden">
             <details class="group">
               <summary class="flex cursor-pointer items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-foreground select-none list-none hover:bg-accent/30 transition-colors">
@@ -170,7 +162,7 @@ const breadcrumbSchema = {
                 <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
               </summary>
               <div class="border-t border-border px-5 py-4">
-                <p class="text-sm leading-relaxed text-muted-foreground">{q.acceptedAnswer.text}</p>
+                <p class="text-sm leading-relaxed text-muted-foreground">{q.answer}</p>
               </div>
             </details>
           </div>
@@ -178,8 +170,35 @@ const breadcrumbSchema = {
       </dl>
     </section>
 
-    <div class="text-center">
-      <a href="/tools" class="text-sm text-muted-foreground hover:text-foreground transition-colors">← Back to all tools</a>
+    <!-- Related reading -->
+    <div class="mt-14 pt-8 border-t border-border">
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Related reading</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <a href="/learn/how-to-transpose-chords/" class="group flex items-start gap-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 p-4 transition-colors">
+          <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs text-muted-foreground mb-1">Guide</p>
+            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">How to transpose chords</p>
+            <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">The theory behind transposition — semitones, keys, and practical tips</p>
+          </div>
+        </a>
+        <a href="/learn/music-theory-basics-for-songwriters/" class="group flex items-start gap-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 p-4 transition-colors">
+          <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs text-muted-foreground mb-1">Music theory</p>
+            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Music theory basics for songwriters</p>
+            <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">Keys, intervals, and how transposition fits into the bigger picture</p>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <div class="mt-8 text-center">
+      <a href="/tools/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">← Back to all tools</a>
     </div>
   </main>
 </BaseLayout>
