@@ -48,10 +48,37 @@ if (pub) {
 const canonicalUrl = `https://chordsequence.com/songs/${song.slug}/`;
 const allChords = extractChordsFromSong(song);
 const uniqueChords = [...new Set(allChords)];
-const uniqueChordsStr = uniqueChords.join(', ');
 const capoNote = song.capo
   ? ` Capo ${song.capo}${song.capo === 1 ? 'st' : song.capo === 2 ? 'nd' : song.capo === 3 ? 'rd' : 'th'} fret.`
   : '';
+
+// Build a rich SEO description using the actual lyrics and chord list.
+function extractLyricsSnippet(s: Song): string {
+  for (const section of s.sections) {
+    for (const line of section.lines) {
+      const clean = line.replace(/\[([^\]]+)\]/g, '').trim();
+      if (clean.length > 8) return clean;
+    }
+  }
+  return '';
+}
+
+function buildSeoDescription(s: Song): string {
+  const chordList = [...new Set(extractChordsFromSong(s))].slice(0, 7).join(', ');
+  const capo = s.capo ? `, Capo ${s.capo}` : '';
+  const year = s.year ? ` (${s.year})` : '';
+  const lyric = extractLyricsSnippet(s);
+  const lyricPart = lyric ? ` "${lyric}."` : '';
+
+  const desc =
+    `${s.title} chords by ${s.artist}${year} — Key of ${s.key}${capo}. ` +
+    `Chords: ${chordList}.${lyricPart} ` +
+    `Interactive chord chart with synchronized lyrics — play along and follow each chord in real time.`;
+
+  return desc.length > 160 ? desc.slice(0, 157) + '…' : desc;
+}
+
+const seoDescription = buildSeoDescription(song);
 
 const relatedSongs = SONGS
   .filter(s => s.slug !== song.slug && s.genre.some(g => song.genre.includes(g)))
@@ -81,7 +108,7 @@ const breadcrumbSchema = {
 
 <BaseLayout
   title={`${song.title} Chords — ${song.artist} | Chord Sequence`}
-  description={`${song.title} by ${song.artist} — interactive chord chart with lyrics. Key of ${song.key}.${capoNote} Chords: ${uniqueChordsStr}. Press Play to hear every chord as it appears in the song.`}
+  description={seoDescription}
   canonicalUrl={canonicalUrl}
 >
   <Fragment slot="head">
