@@ -3,21 +3,45 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getPublishedSongs } from '@/lib/publicSongs';
 
 const songs = await getPublishedSongs();
+
+const itemListSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Song Chords — Chord Sequence',
+  description: 'Chords and lyrics for popular songs with interactive play-along player.',
+  url: 'https://chordsequence.com/songs/',
+  numberOfItems: songs.length,
+  itemListElement: songs.map((s, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    item: {
+      '@type': 'MusicComposition',
+      name: s.title,
+      composer: { '@type': 'Person', name: s.artist },
+      musicalKey: s.key,
+      genre: s.genre.join(', '),
+      url: `https://chordsequence.com/songs/${s.slug}/`,
+    },
+  })),
+};
 ---
 
 <BaseLayout
-  title="Song Chord Charts — Play Any Song with Interactive Audio | Chord Sequence"
-  description="Interactive chord charts with lyrics for popular songs. Play every section with audio, see which chord goes on which word, and open any song in the editor."
+  title="Song Chords — Play Along with Interactive Chord Sheets | Chord Sequence"
+  description="Chords and lyrics for popular songs. Press Play and watch each chord highlight above the lyrics in real time. Learn any song by playing along."
   canonicalUrl="https://chordsequence.com/songs/"
 >
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
+  </Fragment>
   <main class="mx-auto max-w-5xl px-4 sm:px-6 py-16 sm:py-24">
 
     <div class="mb-14">
       <div class="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-6">
-        Interactive chord charts
+        Play along
       </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
-        Song chord charts
+        Song chords
       </h1>
       <p class="text-lg text-muted-foreground max-w-xl">
         Every song has an interactive player. Press Play and watch each chord light up above the lyrics
@@ -34,7 +58,7 @@ const songs = await getPublishedSongs();
         class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
       >
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-        Add a chart
+        Add a song
       </a>
     </div>
 
