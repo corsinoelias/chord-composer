@@ -9,20 +9,16 @@ import { getPublicSongBySlug } from '@/lib/publicSongs';
 
 const { slug } = Astro.params;
 
-// Check static curated songs first (no network call)
-const staticSong = SONGS.find(s => s.slug === slug);
+// Supabase is the source of truth — SONGS array is only a fallback
+// if Supabase is unavailable (e.g. cold start failure or missing env vars).
 let song: Song;
 let isCommunity = false;
 let communityCreatedBy: string | undefined;
 
-if (staticSong) {
-  song = staticSong;
-} else {
-  const pub = slug ? await getPublicSongBySlug(slug) : null;
-  if (!pub) {
-    return Astro.redirect('/songs/');
-  }
-  isCommunity = true;
+const pub = slug ? await getPublicSongBySlug(slug) : null;
+
+if (pub) {
+  isCommunity = !SONGS.some(s => s.slug === pub.slug);
   communityCreatedBy = pub.created_by;
   song = {
     slug: pub.slug,
@@ -40,6 +36,13 @@ if (staticSong) {
     relatedProgressions: pub.relatedProgressions,
     sections: pub.sections,
   };
+} else {
+  // Fallback: static SONGS array (works even without Supabase)
+  const staticSong = SONGS.find(s => s.slug === slug);
+  if (!staticSong) {
+    return Astro.redirect('/songs/');
+  }
+  song = staticSong;
 }
 
 const canonicalUrl = `https://chordsequence.com/songs/${song.slug}/`;
