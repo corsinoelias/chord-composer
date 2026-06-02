@@ -48,30 +48,35 @@ if (pub) {
 const canonicalUrl = `https://chordsequence.com/songs/${song.slug}/`;
 const allChords = extractChordsFromSong(song);
 const uniqueChords = [...new Set(allChords)];
-// Build a rich SEO description using the actual lyrics and chord list.
-function extractLyricsSnippet(s: Song): string {
+// Build a rich SEO description using lyrics, chords and song metadata.
+function extractLyricLines(s: Song, maxLines = 3): string[] {
+  const lines: string[] = [];
   for (const section of s.sections) {
     for (const line of section.lines) {
       const clean = line.replace(/\[([^\]]+)\]/g, '').trim();
-      if (clean.length > 8) return clean;
+      if (clean.length > 8) {
+        lines.push(clean);
+        if (lines.length >= maxLines) return lines;
+      }
     }
   }
-  return '';
+  return lines;
 }
 
 function buildSeoDescription(s: Song): string {
-  const chordList = [...new Set(extractChordsFromSong(s))].slice(0, 7).join(', ');
+  const chordList = [...new Set(extractChordsFromSong(s))].join(', ');
   const capo = s.capo ? `, Capo ${s.capo}` : '';
   const year = s.year ? ` (${s.year})` : '';
-  const lyric = extractLyricsSnippet(s);
-  const lyricPart = lyric ? ` "${lyric}."` : '';
+  const genre = s.genre.length > 0 ? ` ${s.genre.join(', ')} song.` : '';
+  const lyricLines = extractLyricLines(s, 3);
+  const lyricPart = lyricLines.length > 0 ? ` "${lyricLines.join(' / ')}."` : '';
 
   const desc =
-    `${s.title} chords by ${s.artist}${year} — Key of ${s.key}${capo}. ` +
+    `${s.title} chords by ${s.artist}${year} — Key of ${s.key}${capo}.${genre} ` +
     `Chords: ${chordList}.${lyricPart} ` +
-    `Interactive chord chart with synchronized lyrics — play along and follow each chord in real time.`;
+    `Interactive chord chart with synchronized lyrics — press Play and follow each chord in real time.`;
 
-  return desc.length > 160 ? desc.slice(0, 157) + '…' : desc;
+  return desc.length > 320 ? desc.slice(0, 317) + '…' : desc;
 }
 
 const seoDescription = buildSeoDescription(song);
