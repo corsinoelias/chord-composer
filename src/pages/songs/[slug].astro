@@ -1,17 +1,45 @@
 ---
-export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import SongChordPlayerIsland from '../../components/SongChordPlayerIsland.astro';
+import CommunityEditButton from '../../components/CommunityEditButton';
 import { SONGS, extractChordsFromSong } from '../../data/songs';
+import type { Song } from '../../data/songs';
+import { getPublicSongBySlug } from '@/lib/publicSongs';
 
-export function getStaticPaths() {
-  return SONGS.map(song => ({
-    params: { slug: song.slug },
-    props: { song },
-  }));
+const { slug } = Astro.params;
+
+// Check static curated songs first (no network call)
+const staticSong = SONGS.find(s => s.slug === slug);
+let song: Song;
+let isCommunity = false;
+let communityCreatedBy: string | undefined;
+
+if (staticSong) {
+  song = staticSong;
+} else {
+  const pub = slug ? await getPublicSongBySlug(slug) : null;
+  if (!pub) {
+    return Astro.redirect('/songs/');
+  }
+  isCommunity = true;
+  communityCreatedBy = pub.created_by;
+  song = {
+    slug: pub.slug,
+    title: pub.title,
+    artist: pub.artist,
+    album: pub.album,
+    year: pub.year,
+    genre: pub.genre,
+    key: pub.key,
+    capo: pub.capo,
+    bpm: pub.bpm,
+    style: pub.style,
+    description: pub.description,
+    tags: pub.tags,
+    relatedProgressions: pub.relatedProgressions,
+    sections: pub.sections,
+  };
 }
-
-const { song } = Astro.props;
 
 const canonicalUrl = `https://chordsequence.com/songs/${song.slug}/`;
 const allChords = extractChordsFromSong(song);
@@ -20,12 +48,10 @@ const capoNote = song.capo
   ? ` Capo ${song.capo}${song.capo === 1 ? 'st' : song.capo === 2 ? 'nd' : song.capo === 3 ? 'rd' : 'th'} fret.`
   : '';
 
-// Related songs (same genre, exclude current)
 const relatedSongs = SONGS
   .filter(s => s.slug !== song.slug && s.genre.some(g => song.genre.includes(g)))
   .slice(0, 3);
 
-// Schema
 const musicSchema = {
   '@context': 'https://schema.org',
   '@type': 'MusicComposition',
@@ -62,13 +88,17 @@ const breadcrumbSchema = {
 
     <!-- Edit button -->
     <div class="flex justify-end mb-4">
-      <a
-        href={`/songs/new/?from-static=${song.slug}`}
-        class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 transition-colors hover:border-primary/40"
-      >
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        Edit song
-      </a>
+      {isCommunity ? (
+        <CommunityEditButton client:load songSlug={slug} createdBy={communityCreatedBy} />
+      ) : (
+        <a
+          href={`/songs/new/?from-static=${song.slug}`}
+          class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 transition-colors hover:border-primary/40"
+        >
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit song
+        </a>
+      )}
     </div>
 
     <!-- Breadcrumb -->
@@ -80,14 +110,14 @@ const breadcrumbSchema = {
       <span class="text-foreground truncate">{song.title}</span>
     </nav>
 
-    <!-- How to use hint (only shown once) -->
+    <!-- How to use hint -->
     <div class="mb-6 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 flex items-start gap-3">
       <svg class="w-4 h-4 text-primary shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
       <p class="text-xs text-muted-foreground">
         Press <strong class="text-foreground">Play song</strong> to hear the chords.
         The active chord highlights above the lyrics so you always know where you are.
         {song.capo && (
-          <span> Capo {song.capo}{song.capo === 1 ? 'st' : song.capo === 2 ? 'nd' : song.capo === 3 ? 'rd' : 'th'} fret — sounds in {song.key === 'C' && song.capo === 1 ? 'Db' : song.key}.</span>
+          <span> Capo {song.capo}{song.capo === 1 ? 'st' : song.capo === 2 ? 'nd' : song.capo === 3 ? 'rd' : 'th'} fret.</span>
         )}
       </p>
     </div>
@@ -96,18 +126,20 @@ const breadcrumbSchema = {
     <SongChordPlayerIsland song={song} />
 
     <!-- Chord summary -->
-    <div class="mt-10 rounded-xl border border-border bg-card p-5">
-      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-        Chords used in this song
-      </h2>
-      <div class="flex flex-wrap gap-2">
-        {[...new Set(allChords)].map(chord => (
-          <span class="text-sm font-bold font-mono px-3 py-1.5 rounded-lg border border-border bg-background text-foreground">
-            {chord}
-          </span>
-        ))}
+    {allChords.length > 0 && (
+      <div class="mt-10 rounded-xl border border-border bg-card p-5">
+        <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          Chords used in this song
+        </h2>
+        <div class="flex flex-wrap gap-2">
+          {[...new Set(allChords)].map(chord => (
+            <span class="text-sm font-bold font-mono px-3 py-1.5 rounded-lg border border-border bg-background text-foreground">
+              {chord}
+            </span>
+          ))}
+        </div>
       </div>
-    </div>
+    )}
 
     <!-- Related progressions -->
     {song.relatedProgressions.length > 0 && (
@@ -131,7 +163,7 @@ const breadcrumbSchema = {
       </div>
     )}
 
-    <!-- Related songs -->
+    <!-- Related songs (from curated list, same genre) -->
     {relatedSongs.length > 0 && (
       <div class="mt-8 pt-8 border-t border-border">
         <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">

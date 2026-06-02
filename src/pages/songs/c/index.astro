@@ -1,16 +1,4 @@
 ---
-export const prerender = true;
-import BaseLayout from '../../../layouts/BaseLayout.astro';
-import PublicSongViewerIsland from '../../../components/PublicSongViewerIsland.astro';
+export const prerender = false;
+return Astro.redirect('/songs/', 301);
 ---
-
-<BaseLayout
-  title="Chord Chart — Chord Sequence"
-  description="Interactive chord chart with synchronized lyrics. Play the song and watch each chord light up in real time."
-  canonicalUrl="https://chordsequence.com/songs/c/"
-  noIndex={true}
->
-  <main class="min-h-screen bg-background">
-    <PublicSongViewerIsland />
-  </main>
-</BaseLayout>

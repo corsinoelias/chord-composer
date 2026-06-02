@@ -1,5 +1,3 @@
-# Welcome to your Lovable project
-Prueba deploy
 ## Project info Chord Sequences
 
 **URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID

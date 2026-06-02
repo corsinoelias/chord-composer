@@ -6,6 +6,13 @@
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
 
+# Redirect old community song URLs to clean URLs
+[[redirects]]
+  from = "/songs/c/:slug"
+  to = "/songs/:slug"
+  status = 301
+  force = false
+
 # SPA fallback for editor deep links
 [[redirects]]
   from = "/editor/*"
