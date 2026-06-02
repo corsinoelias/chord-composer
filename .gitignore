@@ -28,5 +28,4 @@ dist-ssr
 *.sln
 *.sw?
 .astro/content-modules.mjs
-.netlify/build/
-.netlify/v1/
+.netlify/
