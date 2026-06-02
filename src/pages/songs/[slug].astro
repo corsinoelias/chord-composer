@@ -48,10 +48,6 @@ if (pub) {
 const canonicalUrl = `https://chordsequence.com/songs/${song.slug}/`;
 const allChords = extractChordsFromSong(song);
 const uniqueChords = [...new Set(allChords)];
-const capoNote = song.capo
-  ? ` Capo ${song.capo}${song.capo === 1 ? 'st' : song.capo === 2 ? 'nd' : song.capo === 3 ? 'rd' : 'th'} fret.`
-  : '';
-
 // Build a rich SEO description using the actual lyrics and chord list.
 function extractLyricsSnippet(s: Song): string {
   for (const section of s.sections) {
@@ -121,7 +117,7 @@ const breadcrumbSchema = {
     <!-- Edit button -->
     <div class="flex justify-end mb-4">
       {isCommunity ? (
-        <CommunityEditButton client:load songSlug={slug} createdBy={communityCreatedBy} />
+        <CommunityEditButton client:only="react" songSlug={slug} createdBy={communityCreatedBy} />
       ) : (
         <a
           href={`/songs/new/?from-static=${song.slug}`}
