@@ -4,6 +4,8 @@ import { getChordNotes } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
+import { playChordPreview } from '@/lib/audioEngine';
+import { Play } from 'lucide-react';
 
 interface Props {
   chord: string; // e.g. "Am7"
@@ -22,11 +24,25 @@ export default function ChordTooltip({ chord }: Props) {
 
   if (!chordObj || notes.length === 0) return null;
 
+  function handlePlay(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (chordObj) playChordPreview(chordObj);
+  }
+
   return (
     <div className="w-56 rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <span className="text-sm font-bold text-foreground font-mono">{chord}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-foreground font-mono">{chord}</span>
+          <button
+            onClick={handlePlay}
+            title="Play chord"
+            className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+          >
+            <Play className="w-3 h-3 fill-primary" />
+          </button>
+        </div>
         <div className="flex rounded-lg border border-border bg-muted/30 p-0.5 gap-0.5">
           {(['piano', 'guitar'] as View[]).map(v => (
             <button
@@ -38,7 +54,7 @@ export default function ChordTooltip({ chord }: Props) {
                   : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              {v === 'piano' ? '🎹' : '🎸'}
+              {v === 'piano' ? 'Piano' : 'Guitar'}
             </button>
           ))}
         </div>

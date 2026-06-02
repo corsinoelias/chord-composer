@@ -30,6 +30,8 @@ function SongChordPlayerInner({ song }: { song: Song }) {
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
   // null = full song, number = which section index is playing solo
   const [playingSection, setPlayingSection] = useState<number | null>(null);
+  // which chord tooltip is open (by globalIndex); hover opens, click-outside closes
+  const [openTooltipIdx, setOpenTooltipIdx] = useState<number | null>(null);
   const chordRefs = useRef<Map<number, HTMLElement>>(new Map());
 
   // ── Parse all sections and assign global chord indices ─────────────────────
@@ -306,7 +308,10 @@ function SongChordPlayerInner({ song }: { song: Song }) {
                             >
                               {/* Chord name row */}
                               {hasChord ? (
-                                <Popover>
+                                <Popover
+                                  open={openTooltipIdx === token.globalIndex}
+                                  onOpenChange={(open) => { if (!open) setOpenTooltipIdx(null); }}
+                                >
                                   <PopoverTrigger asChild>
                                     <span
                                       className={`
@@ -318,6 +323,7 @@ function SongChordPlayerInner({ song }: { song: Song }) {
                                         }
                                       `}
                                       style={{ minWidth: '1ch' }}
+                                      onMouseEnter={() => setOpenTooltipIdx(token.globalIndex)}
                                       onClick={() => {
                                         const parsed = parseChordString(token.chord);
                                         if (parsed[0]) playChordPreview(parsed[0]);
