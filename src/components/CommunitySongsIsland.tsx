@@ -40,7 +40,7 @@ export default function CommunitySongsIsland() {
         {songs.map(song => (
           <a
             key={song.id}
-            href={`/songs/c/${song.slug}/`}
+            href={`/songs/${song.slug}/`}
             className="group flex flex-col rounded-xl border border-border bg-card p-5 hover:border-primary/50 hover:bg-primary/5 transition-colors"
           >
             <div className="flex items-start justify-between gap-2 mb-3">

@@ -6,6 +6,22 @@
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
 
+# ---------------------------------------------------------------------------
+# Webhook setup (one-time manual steps):
+#
+# 1. Netlify → Site settings → Build & deploy → Build hooks
+#    → Add build hook → Name: "Supabase publish" → Copy the URL
+#
+# 2. Supabase → Dashboard → Database → Webhooks → Create a new hook
+#    → Table: public_songs
+#    → Events: INSERT, UPDATE
+#    → Method: POST
+#    → URL: [paste Netlify build hook URL from step 1]
+#
+# Result: publishing a song triggers a Netlify rebuild (~60s).
+# The rebuild regenerates sitemap-index.xml and warms all SSR routes.
+# ---------------------------------------------------------------------------
+
 # Redirect old community song URLs to clean URLs
 [[redirects]]
   from = "/songs/c/:slug"

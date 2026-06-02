@@ -166,7 +166,7 @@ export default function SongCreator() {
         </p>
         <div className="flex gap-3">
           <a
-            href={`/songs/c/${publishedSlug}/`}
+            href={`/songs/${publishedSlug}/`}
             className="px-6 py-2.5 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-colors"
           >
             View song →
