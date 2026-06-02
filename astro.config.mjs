@@ -19,12 +19,7 @@ export default defineConfig({
     mdx(),
     sitemap({
       filter: (page) => !page.includes('/app') && !page.includes('/editor') && !page.includes('/songs/c/') && !page.includes('/songs/new'),
-      customPages: [
-        'https://chordsequence.com/songs/holy-forever-chris-tomlin/',
-        'https://chordsequence.com/songs/autumn-leaves-jazz-standard/',
-        'https://chordsequence.com/songs/hallelujah-leonard-cohen/',
-        'https://chordsequence.com/songs/wonderwall-oasis/',
-      ],
+      customPages: ['https://chordsequence.com/songs/'],
       serialize(item) {
         const lastmodMap = {
           'https://chordsequence.com/': '2026-05-29',

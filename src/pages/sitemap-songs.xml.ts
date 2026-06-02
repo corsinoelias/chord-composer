@@ -1,26 +1,23 @@
-// Dynamic sitemap for community songs — always reflects current Supabase state.
+// Dynamic sitemap for all songs — always reflects current Supabase state.
 // Googlebot discovers new songs without needing a rebuild.
-// Referenced in robots.txt and the main sitemap via <sitemapindex>.
+// Referenced in robots.txt alongside sitemap-index.xml.
 import type { APIRoute } from 'astro';
 import { getPublishedSongs } from '@/lib/publicSongs';
-import { SONGS } from '@/data/songs';
 
 const SITE = 'https://chordsequence.com';
 const TODAY = new Date().toISOString().split('T')[0];
 
 export const GET: APIRoute = async () => {
-  const community = await getPublishedSongs();
-  const staticSlugs = new Set(SONGS.map(s => s.slug));
+  const songs = await getPublishedSongs();
 
-  const urls = community
-    .filter(s => !staticSlugs.has(s.slug))
+  const urls = songs
     .map(s => {
       const lastmod = s.updated_at?.split('T')[0] ?? TODAY;
       return `  <url>
     <loc>${SITE}/songs/${s.slug}/</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.8</priority>
   </url>`;
     })
     .join('\n');
