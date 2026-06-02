@@ -2,6 +2,7 @@
 export const prerender = true;
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ChordEmbed from '../components/ChordEmbed';
+import { SONGS } from '../data/songs';
 
 const faqSchema = {
   '@context': 'https://schema.org',
@@ -279,6 +280,56 @@ const steps = [
       <div class="mt-10 text-center">
         <a href="/progressions/" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
           Browse all chord progressions by genre →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SONG CHORD CHARTS ──────────────────────────────────────────── -->
+  <section class="py-20 sm:py-28">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6">
+      <div class="mb-14 text-center">
+        <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Interactive song chord charts
+        </h2>
+        <p class="text-lg text-muted-foreground max-w-xl mx-auto">
+          Follow along with full chord charts for popular songs. Every chord is synchronized
+          to the lyrics — press Play and the active chord highlights in real time.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {SONGS.map(song => (
+          <a
+            href={`/songs/${song.slug}/`}
+            class="group flex flex-col rounded-xl border border-border bg-card p-5 hover:border-primary/50 hover:bg-primary/5 transition-colors"
+          >
+            <p class="text-base font-bold text-foreground group-hover:text-primary transition-colors mb-1 truncate">
+              {song.title}
+            </p>
+            <p class="text-sm text-muted-foreground truncate mb-3">{song.artist}</p>
+            <div class="flex flex-wrap gap-1.5 mt-auto pt-3 border-t border-border/50">
+              <span class="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                Key: {song.key}
+              </span>
+              {song.capo && (
+                <span class="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+                  Capo {song.capo}
+                </span>
+              )}
+              {song.genre.slice(0, 1).map(g => (
+                <span class="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border capitalize">
+                  {g}
+                </span>
+              ))}
+            </div>
+          </a>
+        ))}
+      </div>
+
+      <div class="mt-10 text-center">
+        <a href="/songs/" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+          View all song chord charts →
         </a>
       </div>
     </div>

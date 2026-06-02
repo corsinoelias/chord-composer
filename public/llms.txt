@@ -23,6 +23,14 @@
 - [Happy Progressions](https://chordsequence.com/progressions/happy/): Upbeat, major-key chord progressions that convey joy and energy.
 - [Sad Progressions](https://chordsequence.com/progressions/sad/): Minor-key and melancholic chord progressions for emotional songwriting.
 
+## Song Chord Charts
+Interactive chord charts with synchronized lyrics — press Play and follow each chord in real time.
+- [All Song Chord Charts](https://chordsequence.com/songs/): Full catalog of interactive chord charts for popular songs.
+- [Holy Forever — Chris Tomlin](https://chordsequence.com/songs/holy-forever-chris-tomlin/): Worship song. Key of C, Capo 1. Chords: G, C, F, Am, Dm, Em.
+- [Wonderwall — Oasis](https://chordsequence.com/songs/wonderwall-oasis/): Rock/Britpop (1995). Key of F#m, Capo 2. Chords: Em7, G, Dsus4, A7sus4, Cadd9.
+- [Hallelujah — Leonard Cohen](https://chordsequence.com/songs/hallelujah-leonard-cohen/): Folk/Pop. Key of C. Chords: C, Am, F, G, E.
+- [Hermoso Momento — Oasis Ministry](https://chordsequence.com/songs/hermoso-momento-oasis-ministry/): Worship. Key of Eb. Chords: Fm, Ab, Eb, Bb.
+
 ## Tools
 - [Chord Transposer](https://chordsequence.com/tools/chord-transposer/): Instantly transpose any chord or progression to a different key. Includes semitone reference chart and worked examples.
 - [Circle of Fifths](https://chordsequence.com/tools/circle-of-fifths/): Interactive circle of fifths for navigating key relationships.
