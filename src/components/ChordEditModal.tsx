@@ -38,18 +38,24 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
 
   // Sync state when chord changes or modal opens
   useEffect(() => {
-    if (chord && open) {
+    if (!open) return;
+    if (chord) {
       setRoot(chord.root);
       setAccidental(chord.accidental);
       setQuality(chord.quality);
       setDuration(chord.duration);
+    } else {
+      // New chord — reset to defaults
+      setRoot('C');
+      setAccidental('');
+      setQuality('maj');
+      setDuration(4);
     }
   }, [chord, open]);
 
   const handleSave = () => {
-    if (!chord) return;
     onSave({
-      ...chord,
+      id: chord?.id ?? 'new',
       root,
       accidental,
       quality,

@@ -5,12 +5,15 @@ import sitemap from '@astrojs/sitemap';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import netlify from '@astrojs/netlify';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 
 export default defineConfig({
   site: 'https://chordsequence.com',
   trailingSlash: 'always',
+
   integrations: [
     react(),
     mdx(),
@@ -59,12 +62,15 @@ export default defineConfig({
       },
     }),
   ],
-  output: 'static',
+
+  output: 'server',
+
   vite: {
     server: {
-      // Serves /editor/ for any /editor/* URL in dev — mirrors the Netlify _redirects in production
       historyApiFallback: {
-        rewrites: [{ from: /^\/editor\/.*$/, to: '/editor/' }],
+        rewrites: [
+          { from: /^\/editor\/.*$/, to: '/editor/' },
+        ],
       },
     },
     resolve: {
@@ -84,4 +90,6 @@ export default defineConfig({
       },
     },
   },
+
+  adapter: netlify(),
 });

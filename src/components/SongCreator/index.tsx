@@ -5,7 +5,7 @@ import LyricsStep from './LyricsStep';
 import ChordStep from './ChordStep';
 import type { SongMeta, EditorSection } from './types';
 import { sectionsToSongFormat, songSectionsToEditorSections } from './lyricsParser';
-import { savePublicSong, updatePublicSong, isSlugTaken, getPublicSongBySlug } from '@/lib/publicSongs';
+import { savePublicSong, updatePublicSong, upsertPublicSongBySlug, getPublicSongBySlug } from '@/lib/publicSongs';
 import { SONGS } from '@/data/songs';
 import { generateSlug } from '@/lib/musicKeys';
 import { toast } from 'sonner';
@@ -36,18 +36,20 @@ export default function SongCreator() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishedSlug, setPublishedSlug] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
+  const [editSlug, setEditSlug] = useState<string>('');
   const [loadingEdit, setLoadingEdit] = useState(false);
 
   useEffect(() => {
-    const editSlug = getParam('edit');
+    const editSlugParam = getParam('edit');
     const fromStatic = getParam('from-static');
 
-    if (editSlug) {
+    if (editSlugParam) {
       // Load existing community song for editing
       setLoadingEdit(true);
-      getPublicSongBySlug(editSlug).then(song => {
+      getPublicSongBySlug(editSlugParam).then(song => {
         if (!song) { toast.error('Song not found'); setLoadingEdit(false); return; }
         setEditId(song.id);
+        setEditSlug(editSlugParam);
         setMeta({ title: song.title, artist: song.artist, key: song.key, capo: song.capo ?? 0, bpm: song.bpm, genre: song.genre, style: song.style });
         setSections(songSectionsToEditorSections(song.sections));
         setLoadingEdit(false);
@@ -55,20 +57,35 @@ export default function SongCreator() {
       });
 
     } else if (fromStatic) {
-      // Load a static song (data/songs.ts) into the editor
+      // Load a static song (data/songs.ts) into the editor.
+      // If a community version already exists, load that instead so the user
+      // sees their previously published edits and we can update by ID (not upsert).
       const staticSong = SONGS.find(s => s.slug === fromStatic);
       if (!staticSong) { toast.error('Static song not found'); return; }
-      setMeta({
-        title: staticSong.title,
-        artist: staticSong.artist,
-        key: staticSong.key,
-        capo: staticSong.capo ?? 0,
-        bpm: staticSong.bpm,
-        genre: staticSong.genre,
-        style: staticSong.style,
+
+      setLoadingEdit(true);
+      const communitySlug = generateSlug(staticSong.title, staticSong.artist);
+      getPublicSongBySlug(communitySlug).then(existing => {
+        if (existing) {
+          setEditId(existing.id);
+          setEditSlug(communitySlug);
+          setMeta({ title: existing.title, artist: existing.artist, key: existing.key, capo: existing.capo ?? 0, bpm: existing.bpm, genre: existing.genre, style: existing.style });
+          setSections(songSectionsToEditorSections(existing.sections));
+        } else {
+          setMeta({
+            title: staticSong.title,
+            artist: staticSong.artist,
+            key: staticSong.key,
+            capo: staticSong.capo ?? 0,
+            bpm: staticSong.bpm,
+            genre: staticSong.genre,
+            style: staticSong.style,
+          });
+          setSections(songSectionsToEditorSections(staticSong.sections));
+        }
+        setLoadingEdit(false);
+        setStep('chords');
       });
-      setSections(songSectionsToEditorSections(staticSong.sections));
-      setStep('chords');
     }
   }, []);
 
@@ -94,13 +111,10 @@ export default function SongCreator() {
           sections: songSections,
         });
         if (!ok) { toast.error('Failed to update song.'); return; }
-        setPublishedSlug(getParam('edit') ?? '');
+        setPublishedSlug(editSlug || getParam('edit') || '');
       } else {
-        // Create new song
-        let slug = generateSlug(meta.title, meta.artist);
-        if (await isSlugTaken(slug)) slug = `${slug}-${Date.now()}`;
-
-        const saved = await savePublicSong({
+        const slug = generateSlug(meta.title, meta.artist);
+        const songPayload = {
           slug,
           title: meta.title,
           artist: meta.artist,
@@ -111,10 +125,17 @@ export default function SongCreator() {
           genre: meta.genre,
           tags: [...meta.genre],
           description: `${meta.title} by ${meta.artist} — interactive chord chart with lyrics. Key of ${meta.key}.`,
-          relatedProgressions: [],
+          relatedProgressions: [] as string[],
           sections: songSections,
           is_published: true,
-        });
+        };
+
+        // If coming from a static song, upsert by slug (update if exists, create if not)
+        const isFromStatic = !!getParam('from-static');
+        const saved = isFromStatic
+          ? await upsertPublicSongBySlug(slug, songPayload)
+          : await savePublicSong(songPayload);
+
         if (!saved) { toast.error('Failed to publish. Make sure you are logged in.'); return; }
         setPublishedSlug(slug);
       }

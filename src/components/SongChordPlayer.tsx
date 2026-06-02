@@ -6,6 +6,8 @@ import { createSection } from '@/lib/sections';
 import { Play, Square, ExternalLink, Music2, ChevronDown, ChevronUp } from 'lucide-react';
 import { parseLyricLine, extractChordsWithDuration, type Song } from '@/data/songs';
 import ChordTooltip from '@/components/ChordTooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { playChordPreview } from '@/lib/audioEngine';
 
 // ─── Token with resolved global index ────────────────────────────────────────
 interface ResolvedToken {
@@ -26,82 +28,94 @@ function SongChordPlayerInner({ song }: { song: Song }) {
   const [isLoading, setIsLoading] = useState(false);
   const [bpm, setBpm] = useState(song.bpm);
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
+  // null = full song, number = which section index is playing solo
+  const [playingSection, setPlayingSection] = useState<number | null>(null);
   const chordRefs = useRef<Map<number, HTMLElement>>(new Map());
 
   // ── Parse all sections and assign global chord indices ─────────────────────
-  const { resolvedSections, allChordsFlat } = useMemo(() => {
+  const { resolvedSections, allChordsFlat, sectionStartIndices, sectionChordCounts } = useMemo(() => {
     const allChords: string[] = [];
+    const startIndices: number[] = [];
+    const chordCounts: number[] = [];
     let idx = 0;
 
-    const sections: ResolvedSection[] = song.sections.map(section => ({
-      name: section.name,
-      lines: section.lines.map(line => {
+    const sections: ResolvedSection[] = song.sections.map(section => {
+      startIndices.push(idx);
+      let count = 0;
+      const lines = section.lines.map(line => {
         const tokens = parseLyricLine(line);
         return tokens.map(token => {
-          if (token.chord) {
-            allChords.push(token.chord);
-            return { ...token, globalIndex: idx++ };
-          }
+          if (token.chord) { allChords.push(token.chord); count++; return { ...token, globalIndex: idx++ }; }
           return { ...token, globalIndex: -1 };
         });
-      }),
-    }));
-
-    return { resolvedSections: sections, allChordsFlat: allChords };
-  }, [song]);
-
-  // ── Build single section for the playback engine (with per-chord durations) ─
-  const playbackSection = useMemo(() => {
-    const chordsWithDur = extractChordsWithDuration(song);
-    const parsedChords = chordsWithDur.flatMap(({ chord, duration }) => {
-      const parsed = parseChordString(chord);
-      return parsed.map(c => ({ ...c, duration }));
+      });
+      chordCounts.push(count);
+      return { name: section.name, lines };
     });
-    return [{ ...createSection('Song'), chords: parsedChords }];
+
+    return { resolvedSections: sections, allChordsFlat: allChords, sectionStartIndices: startIndices, sectionChordCounts: chordCounts };
   }, [song]);
+
+  // ── Build playback chords for a range ─────────────────────────────────────
+  function buildPlayback(startGlobal: number, count: number, label: string) {
+    const chordsWithDur = extractChordsWithDuration(song).slice(startGlobal, startGlobal + count);
+    const parsed = chordsWithDur.flatMap(({ chord, duration }) =>
+      parseChordString(chord).map(c => ({ ...c, duration }))
+    );
+    return [{ ...createSection(label), chords: parsed }];
+  }
+
+  // ── Reset playing section when playback stops ──────────────────────────────
+  useEffect(() => { if (!isPlaying) setPlayingSection(null); }, [isPlaying]);
 
   // ── Auto-scroll to active chord ────────────────────────────────────────────
   useEffect(() => {
     if (!isPlaying || currentChordIndex < 0) return;
-    const el = chordRefs.current.get(currentChordIndex);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [currentChordIndex, isPlaying]);
+    const globalIdx = playingSection !== null
+      ? sectionStartIndices[playingSection] + currentChordIndex
+      : currentChordIndex;
+    chordRefs.current.get(globalIdx)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [currentChordIndex, isPlaying, playingSection, sectionStartIndices]);
 
-  // ── Playback handlers ──────────────────────────────────────────────────────
+  // ── Play full song ─────────────────────────────────────────────────────────
   const handlePlay = useCallback(async () => {
     if (isPlaying) { stop(); return; }
     if (allChordsFlat.length === 0) return;
+    setPlayingSection(null);
     setIsLoading(true);
     try {
-      await play(playbackSection, {
-        bpm,
-        metronome: false,
-        instruments: getDefaultInstrumentStates(),
-        styleId: song.style,
-        transposition: 0,
-        liveEditedStyle: null,
-        customStyles: [],
-        loopingSectionIndex: null,
+      await play(buildPlayback(0, allChordsFlat.length, 'Song'), {
+        bpm, metronome: false, instruments: getDefaultInstrumentStates(),
+        styleId: song.style, transposition: 0, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
       });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isPlaying, play, stop, playbackSection, bpm, song.style, allChordsFlat.length]);
+    } finally { setIsLoading(false); }
+  }, [isPlaying, play, stop, allChordsFlat.length, bpm, song.style]);
+
+  // ── Play single section ────────────────────────────────────────────────────
+  const handlePlaySection = useCallback(async (si: number) => {
+    if (isPlaying && playingSection === si) { stop(); return; }
+    if (isPlaying) stop();
+    if (sectionChordCounts[si] === 0) return;
+    setPlayingSection(si);
+    setIsLoading(true);
+    try {
+      await play(buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name), {
+        bpm, metronome: false, instruments: getDefaultInstrumentStates(),
+        styleId: song.style, transposition: 0, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
+      });
+    } finally { setIsLoading(false); }
+  }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections]);
 
   // Stop on unmount
   useEffect(() => () => { stop(); }, []);
 
   const toggleSection = (idx: number) => {
-    setCollapsedSections(prev => {
-      const next = new Set(prev);
-      next.has(idx) ? next.delete(idx) : next.add(idx);
-      return next;
-    });
+    setCollapsedSections(prev => { const n = new Set(prev); n.has(idx) ? n.delete(idx) : n.add(idx); return n; });
   };
 
-  const progress = allChordsFlat.length > 0
-    ? Math.min(100, Math.round((currentChordIndex / (allChordsFlat.length - 1)) * 100))
-    : 0;
+  // Progress depends on what's playing
+  const activeCount = playingSection !== null ? sectionChordCounts[playingSection] : allChordsFlat.length;
+  const progress = activeCount > 0 ? Math.min(100, Math.round((currentChordIndex / (activeCount - 1)) * 100)) : 0;
 
   const editorUrl = `/editor?chords=${encodeURIComponent(allChordsFlat.slice(0, 32).join('-'))}&bpm=${bpm}&style=${song.style}`;
 
@@ -202,8 +216,19 @@ function SongChordPlayerInner({ song }: { song: Song }) {
       <div className="space-y-6">
         {resolvedSections.map((section, si) => {
           const collapsed = collapsedSections.has(si);
-          const isActiveSection = isPlaying &&
-            section.lines.some(line => line.some(t => t.globalIndex === currentChordIndex));
+
+          // Which global index is "active" right now
+          const activeGlobal = isPlaying
+            ? (playingSection !== null ? sectionStartIndices[playingSection] + currentChordIndex : currentChordIndex)
+            : -1;
+
+          const isSectionPlaying = isPlaying && playingSection === si;
+          const isActiveSection = isPlaying && (
+            playingSection !== null
+              ? playingSection === si
+              : section.lines.some(line => line.some(t => t.globalIndex === activeGlobal))
+          );
+          const isSectionPlayable = sectionChordCounts[si] > 0;
 
           return (
             <div
@@ -213,20 +238,44 @@ function SongChordPlayerInner({ song }: { song: Song }) {
               `}
             >
               {/* Section header */}
-              <button
-                onClick={() => toggleSection(si)}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-accent/30 transition-colors"
-              >
-                <span className={`text-xs font-bold uppercase tracking-widest
-                  ${isActiveSection ? 'text-primary' : 'text-muted-foreground'}
-                `}>
-                  {section.name}
-                </span>
-                {collapsed
-                  ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-                  : <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
-                }
-              </button>
+              <div className="flex items-center px-4 py-2.5 gap-2">
+                {/* Collapse/expand area */}
+                <button
+                  onClick={() => toggleSection(si)}
+                  className="flex-1 flex items-center justify-between text-left hover:bg-transparent transition-colors min-w-0"
+                >
+                  <span className={`text-xs font-bold uppercase tracking-widest truncate
+                    ${isActiveSection ? 'text-primary' : 'text-muted-foreground'}
+                  `}>
+                    {section.name}
+                  </span>
+                  {collapsed
+                    ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0 ml-2" />
+                    : <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0 ml-2" />
+                  }
+                </button>
+
+                {/* Per-section play button */}
+                {isSectionPlayable && (
+                  <button
+                    onClick={() => handlePlaySection(si)}
+                    disabled={isLoading}
+                    title={isSectionPlaying ? 'Stop' : `Play ${section.name}`}
+                    className={`
+                      shrink-0 flex items-center justify-center w-6 h-6 rounded-md transition-all
+                      ${isSectionPlaying
+                        ? 'bg-primary text-primary-foreground hover:bg-primary/80'
+                        : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+                      }
+                    `}
+                  >
+                    {isSectionPlaying
+                      ? <Square className="w-3 h-3" />
+                      : <Play className="w-3 h-3" />
+                    }
+                  </button>
+                )}
+              </div>
 
               {/* Section content */}
               {!collapsed && (
@@ -242,7 +291,7 @@ function SongChordPlayerInner({ song }: { song: Song }) {
                         {line.map((token, ti) => {
                           if (!token.chord && !token.lyrics.trim()) return null;
 
-                          const isActive = isPlaying && token.globalIndex === currentChordIndex;
+                          const isActive = isPlaying && token.globalIndex === activeGlobal;
                           const hasChord = token.chord !== '';
 
                           return (
@@ -252,31 +301,42 @@ function SongChordPlayerInner({ song }: { song: Song }) {
                                 if (el) chordRefs.current.set(token.globalIndex, el);
                                 else chordRefs.current.delete(token.globalIndex);
                               } : undefined}
-                              className="group/chord inline-flex flex-col items-start relative"
+                              className="inline-flex flex-col items-start relative"
                               style={{ fontFamily: 'var(--font-mono, monospace)' }}
                             >
-                              {/* Chord name row — hover shows tooltip */}
-                              <span
-                                className={`
-                                  text-xs font-bold leading-none mb-0.5 whitespace-pre px-0.5
-                                  transition-all duration-100
-                                  ${hasChord
-                                    ? isActive
-                                      ? 'text-primary bg-primary/15 rounded px-1 py-0.5 scale-105 inline-block'
-                                      : 'text-primary/70 cursor-help'
-                                    : 'invisible select-none'
-                                  }
-                                `}
-                                style={{ minWidth: hasChord ? '1ch' : '0' }}
-                              >
-                                {hasChord ? token.chord : '.'}
-                              </span>
-
-                              {/* Chord tooltip on hover */}
-                              {hasChord && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 opacity-0 group-hover/chord:opacity-100 transition-opacity duration-150 pointer-events-none group-hover/chord:pointer-events-auto">
-                                  <ChordTooltip chord={token.chord} />
-                                </div>
+                              {/* Chord name row */}
+                              {hasChord ? (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <span
+                                      className={`
+                                        text-xs font-bold leading-none mb-0.5 whitespace-pre px-0.5
+                                        transition-all duration-100 cursor-pointer select-none
+                                        ${isActive
+                                          ? 'text-primary bg-primary/15 rounded px-1 py-0.5 scale-105 inline-block'
+                                          : 'text-primary/70 hover:text-primary'
+                                        }
+                                      `}
+                                      style={{ minWidth: '1ch' }}
+                                      onClick={() => {
+                                        const parsed = parseChordString(token.chord);
+                                        if (parsed[0]) playChordPreview(parsed[0]);
+                                      }}
+                                    >
+                                      {token.chord}
+                                    </span>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    side="top"
+                                    sideOffset={10}
+                                    collisionPadding={16}
+                                    className="p-0 border-none shadow-none bg-transparent overflow-visible w-auto"
+                                  >
+                                    <ChordTooltip chord={token.chord} />
+                                  </PopoverContent>
+                                </Popover>
+                              ) : (
+                                <span className="invisible select-none text-xs font-bold leading-none mb-0.5 whitespace-pre px-0.5" style={{ minWidth: '0' }}>.</span>
                               )}
 
                               {/* Lyrics row */}

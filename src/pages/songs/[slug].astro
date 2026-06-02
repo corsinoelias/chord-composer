@@ -1,7 +1,8 @@
 ---
+export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import SongChordPlayerIsland from '../../components/SongChordPlayerIsland.astro';
-import { SONGS, getSong, extractChordsFromSong } from '../../data/songs';
+import { SONGS, extractChordsFromSong } from '../../data/songs';
 
 export function getStaticPaths() {
   return SONGS.map(song => ({

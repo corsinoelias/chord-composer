@@ -11,7 +11,10 @@ import { sectionsToSongFormat, tokensToRawLine, parseLineToTokens, makeEmptyLine
 import { ChordEditModal } from '@/components/ChordEditModal';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import SongChordPlayer from '@/components/SongChordPlayer';
-import { PlaybackProvider } from '@/contexts/PlaybackContext';
+import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
+import { createSection } from '@/lib/sections';
+import { getDefaultInstrumentStates } from '@/lib/instruments';
+import { playChordPreview } from '@/lib/audioEngine';
 import type { Song } from '@/data/songs';
 import { ALL_KEYS, SONG_GENRES } from '@/lib/musicKeys';
 import { parseChordString, serializeChords } from '@/lib/chordParser';
@@ -19,7 +22,7 @@ import type { Chord } from '@/lib/musicTheory';
 
 import {
   Music2, Plus, Trash2, Pencil, Check, X,
-  GripVertical, ChevronDown, ChevronUp, Copy, Play,
+  GripVertical, ChevronDown, ChevronUp, Copy, Play, Square,
 } from 'lucide-react';
 
 // ── Transpose helpers ─────────────────────────────────────────────────────────
@@ -92,12 +95,23 @@ interface Props {
 
 export default function ChordStep({ sections: init, meta, onMetaChange, onBack, onPublish, isPublishing, isEditMode }: Props) {
   const [sections, setSections] = useState(init);
+  const [savedSectionsJson, setSavedSectionsJson] = useState(() => JSON.stringify(init));
+  const [savedMetaJson, setSavedMetaJson] = useState(() => JSON.stringify(meta));
   const [editingChord, setEditingChord] = useState<EditingChord | null>(null);
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editingLineText, setEditingLineText] = useState('');
   const [showMeta, setShowMeta] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [playingSectionId, setPlayingSectionId] = useState<string | null>(null);
+
+  const hasChanges = JSON.stringify(sections) !== savedSectionsJson || JSON.stringify(meta) !== savedMetaJson;
   const lineEditRef = useRef<HTMLTextAreaElement>(null);
+
+  const { state: pbState, play, stop } = usePlayback();
+  const { isPlaying } = pbState;
+
+  // Reset playing state when playback ends
+  useEffect(() => { if (!isPlaying) setPlayingSectionId(null); }, [isPlaying]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -139,6 +153,36 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
     const chord = currentChord ? stringToChord(currentChord) : null;
     setEditingChord({ sectionId: sid, lineId: lid, tokenId: tid, chord, duration });
   };
+
+  // ── Playback helpers ──────────────────────────────────────────────────────────
+  const playbackOpts = useCallback(() => ({
+    bpm: meta.bpm, metronome: false,
+    instruments: getDefaultInstrumentStates(),
+    styleId: meta.style, transposition: 0,
+    liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
+  }), [meta.bpm, meta.style]);
+
+  // Preview a single chord — short sound via audioEngine, no playback track
+  const previewChord = useCallback((chordStr: string) => {
+    if (!chordStr) return;
+    const parsed = parseChordString(chordStr);
+    if (!parsed.length) return;
+    playChordPreview(parsed[0]);
+  }, []);
+
+  // Play / stop a whole section
+  const handlePlaySection = useCallback(async (section: EditorSection) => {
+    if (isPlaying && playingSectionId === section.id) { stop(); return; }
+    if (isPlaying) stop();
+
+    const chords = section.lines.flatMap(l => l.tokens)
+      .filter(t => t.chord && !t.isSpace)
+      .flatMap(t => parseChordString(t.chord).map(c => ({ ...c, duration: t.duration })));
+
+    if (!chords.length) return;
+    setPlayingSectionId(section.id);
+    await play([{ ...createSection(section.name), chords }], playbackOpts());
+  }, [isPlaying, playingSectionId, play, stop, playbackOpts]);
 
   const handleChordSave = (saved: Chord) => {
     if (!editingChord) return;
@@ -257,9 +301,11 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
                 editingLineId={editingLineId}
                 editingLineText={editingLineText}
                 lineEditRef={lineEditRef}
+                isPlaying={isPlaying && playingSectionId === section.id}
                 onRename={renameSect}
                 onDelete={deleteSection}
                 onDuplicate={duplicateSection}
+                onPlaySection={handlePlaySection}
                 onAddLine={addLine}
                 onDeleteLine={deleteLine}
                 onDuplicateLine={duplicateLine}
@@ -268,6 +314,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
                 onCancelLineEdit={() => setEditingLineId(null)}
                 onEditingLineTextChange={setEditingLineText}
                 onOpenChordModal={openChordModal}
+                onPreviewChord={previewChord}
                 onUpdateToken={updateToken}
               />
             ))}
@@ -280,13 +327,53 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
         <Plus className="w-4 h-4" /> Add section
       </button>
 
-      {/* ── Bottom bar ── */}
-      <div className="flex items-center justify-between pt-4 border-t border-border">
-        <button onClick={onBack} className="text-sm text-muted-foreground hover:text-foreground transition-colors">← Back</button>
-        <button onClick={() => onPublish(sections)} disabled={isPublishing}
-          className="px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
-          {isPublishing ? (isEditMode ? 'Saving…' : 'Publishing…') : (isEditMode ? 'Save changes →' : 'Publish song →')}
-        </button>
+      {/* ── Sticky save bar ── */}
+      <div className="sticky bottom-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-background/95 backdrop-blur border-t border-border">
+        <div className="flex items-center justify-between gap-4 max-w-4xl mx-auto">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={onBack} className="text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0">
+              ← Back
+            </button>
+            {/* Unsaved changes indicator */}
+            {hasChanges && !isPublishing && (
+              <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Unsaved changes
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Public indicator */}
+            <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>
+              </svg>
+              Saves publicly
+            </span>
+
+            <button
+              onClick={() => {
+                onPublish(sections);
+                setSavedSectionsJson(JSON.stringify(sections));
+                setSavedMetaJson(JSON.stringify(meta));
+              }}
+              disabled={isPublishing || (!hasChanges && isEditMode)}
+              className={`px-6 py-2.5 font-semibold rounded-xl transition-all disabled:cursor-not-allowed
+                ${hasChanges || !isEditMode
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md disabled:opacity-60'
+                  : 'bg-muted text-muted-foreground border border-border disabled:opacity-50'
+                }`}
+            >
+              {isPublishing
+                ? (isEditMode ? 'Saving…' : 'Publishing…')
+                : isEditMode
+                  ? (hasChanges ? 'Save changes →' : 'Saved ✓')
+                  : 'Publish song →'
+              }
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* ── Chord edit modal (portal-based, no overflow clipping) ── */}
@@ -296,6 +383,10 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
         onClose={() => setEditingChord(null)}
         onSave={handleChordSave}
         onDelete={editingChord?.chord ? handleChordDelete : undefined}
+        onPreview={partial => {
+          const c = { root: 'C', accidental: '', quality: 'maj', duration: 4, id: 'preview', ...partial } as import('@/lib/musicTheory').Chord;
+          playChordPreview(c);
+        }}
       />
 
       {/* ── Preview modal ── */}
@@ -322,9 +413,11 @@ interface SortableSectionProps {
   editingLineId: string | null;
   editingLineText: string;
   lineEditRef: React.RefObject<HTMLTextAreaElement>;
+  isPlaying: boolean;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onPlaySection: (section: EditorSection) => void;
   onAddLine: (sid: string) => void;
   onDeleteLine: (sid: string, lid: string) => void;
   onDuplicateLine: (sid: string, lid: string) => void;
@@ -333,18 +426,22 @@ interface SortableSectionProps {
   onCancelLineEdit: () => void;
   onEditingLineTextChange: (text: string) => void;
   onOpenChordModal: (sid: string, lid: string, tid: string, chord: string, duration: number) => void;
+  onPreviewChord: (chord: string) => void;
   onUpdateToken: (sid: string, lid: string, tid: string, patch: Partial<WordToken>) => void;
 }
 
-function SortableSection({ section, canDelete, ...props }: SortableSectionProps) {
+function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSectionProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 } as React.CSSProperties;
   const [nameFocused, setNameFocused] = useState(false);
 
+  const hasChords = section.lines.some(l => l.tokens.some(t => t.chord));
+
   return (
-    <div ref={setNodeRef} style={style} className="rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+    <div ref={setNodeRef} style={style}
+      className={`rounded-2xl border bg-card shadow-sm hover:shadow-md transition-all ${isPlaying ? 'border-primary/50 bg-primary/5 shadow-primary/10' : 'border-border'}`}>
       {/* Section header */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/60 rounded-t-2xl bg-muted/20">
+      <div className={`flex items-center gap-2 px-4 py-2.5 border-b rounded-t-2xl transition-colors ${isPlaying ? 'border-primary/30 bg-primary/5' : 'border-border/60 bg-muted/20'}`}>
         <button {...attributes} {...listeners} className="text-muted-foreground/30 hover:text-muted-foreground cursor-grab active:cursor-grabbing shrink-0 touch-none transition-colors">
           <GripVertical className="w-3.5 h-3.5" />
         </button>
@@ -355,7 +452,7 @@ function SortableSection({ section, canDelete, ...props }: SortableSectionProps)
             onChange={e => props.onRename(section.id, e.target.value)}
             onFocus={() => setNameFocused(true)}
             onBlur={() => setTimeout(() => setNameFocused(false), 150)}
-            className="w-full text-xs font-bold uppercase tracking-widest text-muted-foreground bg-transparent focus:outline-none focus:text-foreground transition-colors"
+            className={`w-full text-xs font-bold uppercase tracking-widest bg-transparent focus:outline-none transition-colors ${isPlaying ? 'text-primary' : 'text-muted-foreground focus:text-foreground'}`}
           />
           {nameFocused && (
             <div className="absolute top-full left-0 mt-1.5 z-50 flex flex-wrap gap-1 bg-card border border-border rounded-xl p-2 shadow-xl min-w-max">
@@ -370,6 +467,20 @@ function SortableSection({ section, canDelete, ...props }: SortableSectionProps)
         </div>
 
         <div className="flex items-center gap-0.5 shrink-0">
+          {/* Play section button */}
+          {hasChords && (
+            <button
+              onClick={() => props.onPlaySection(section)}
+              title={isPlaying ? 'Stop' : `Play ${section.name}`}
+              className={`p-1.5 rounded-lg transition-all ${
+                isPlaying
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/80'
+                  : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+              }`}
+            >
+              {isPlaying ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+            </button>
+          )}
           <button onClick={() => props.onDuplicate(section.id)} title="Duplicate section"
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors">
             <Copy className="w-3.5 h-3.5" />
@@ -413,6 +524,7 @@ function SortableSection({ section, canDelete, ...props }: SortableSectionProps)
                         key={token.id} token={token}
                         onOpenModal={() => props.onOpenChordModal(section.id, line.id, token.id, token.chord, token.duration)}
                         onRemove={() => props.onUpdateToken(section.id, line.id, token.id, { chord: '', duration: 4 })}
+                        onPreview={() => props.onPreviewChord(token.chord)}
                       />
                     ))
                   )}
@@ -446,13 +558,19 @@ interface ChipProps {
   token: WordToken;
   onOpenModal: () => void;
   onRemove: () => void;
+  onPreview: () => void;
 }
 
-function TokenChip({ token, onOpenModal, onRemove }: ChipProps) {
+function TokenChip({ token, onOpenModal, onRemove, onPreview }: ChipProps) {
   if (token.isSpace) return <span className="text-sm select-none">{token.text}</span>;
 
   const hasChord = !!token.chord;
   const durLabel = hasChord && token.duration !== 4 ? `${token.duration}b` : null;
+
+  const handleChordClick = () => {
+    onPreview();   // play the sound
+    onOpenModal(); // open the edit modal
+  };
 
   return (
     <span className="group/chip relative inline-flex flex-col items-start" style={{ fontFamily: 'var(--font-mono, monospace)' }}>
@@ -460,9 +578,9 @@ function TokenChip({ token, onOpenModal, onRemove }: ChipProps) {
       <span className="flex items-center gap-0.5 min-h-[1.75em] mb-0.5">
         {hasChord ? (
           <>
-            {/* Chord badge — click to open modal */}
+            {/* Chord badge — click plays sound + opens modal */}
             <button
-              onClick={onOpenModal}
+              onClick={handleChordClick}
               className="inline-flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/60 rounded-lg px-2 py-0.5 transition-all hover:shadow-sm leading-none"
             >
               {token.chord}
@@ -479,7 +597,6 @@ function TokenChip({ token, onOpenModal, onRemove }: ChipProps) {
             </button>
           </>
         ) : (
-          /* Subtle placeholder, more visible than before */
           <button
             onClick={onOpenModal}
             className="opacity-20 group-hover/chip:opacity-100 text-[11px] text-muted-foreground hover:text-primary border border-dashed border-border hover:border-primary/60 hover:bg-primary/5 rounded-lg px-1.5 py-0.5 transition-all whitespace-nowrap leading-none"
