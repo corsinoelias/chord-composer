@@ -1,0 +1,129 @@
+---
+import PrintChordSheet from '@/components/PrintChordSheet.astro';
+import { SONGS } from '@/data/songs';
+import type { Song } from '@/data/songs';
+import { getPublicSongBySlug } from '@/lib/publicSongs';
+
+const { slug } = Astro.params;
+const transposeParam = Astro.url.searchParams.get('transpose');
+const transpose = transposeParam ? parseInt(transposeParam) || 0 : 0;
+
+let song: Song | null = null;
+
+const pub = slug ? await getPublicSongBySlug(slug) : null;
+if (pub) {
+  song = {
+    slug: pub.slug, title: pub.title, artist: pub.artist,
+    album: pub.album, year: pub.year, genre: pub.genre,
+    key: pub.key, capo: pub.capo, bpm: pub.bpm, style: pub.style,
+    description: pub.description, tags: pub.tags,
+    relatedProgressions: pub.relatedProgressions, sections: pub.sections,
+  };
+} else {
+  song = SONGS.find(s => s.slug === slug) ?? null;
+}
+
+if (!song) return Astro.redirect('/songs/');
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{song.title} — {song.artist} | Chord Sheet</title>
+  <meta name="robots" content="noindex" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 2rem 2.5rem;
+      background: #fff;
+      color: #111;
+    }
+
+    /* Print controls bar — hidden when printing */
+    .print-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      padding: 0.75rem 1rem;
+      background: #f8f9fa;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      font-family: system-ui, sans-serif;
+    }
+    .print-controls-left { display: flex; align-items: center; gap: 0.75rem; }
+    .print-controls label { font-size: 0.8rem; color: #555; font-weight: 500; }
+    .transpose-row { display: flex; align-items: center; gap: 0.4rem; }
+    .transpose-btn {
+      width: 28px; height: 28px; border-radius: 6px; border: 1px solid #cbd5e1;
+      background: #fff; cursor: pointer; font-size: 1rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; color: #374151;
+    }
+    .transpose-btn:hover { background: #f1f5f9; }
+    .transpose-val { font-size: 0.8rem; min-width: 3.5rem; text-align: center; color: #374151; font-weight: 600; }
+    .btn-print {
+      padding: 0.5rem 1.25rem; border-radius: 8px; border: none;
+      background: #1a56db; color: #fff; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .btn-print:hover { background: #1e40af; }
+    .btn-back {
+      font-size: 0.8rem; color: #6b7280; text-decoration: none;
+    }
+    .btn-back:hover { color: #111; }
+
+    @media print {
+      .print-controls { display: none; }
+      body { padding: 0; }
+      @page { size: A4; margin: 2cm 2.2cm; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Controls (hidden when printing) -->
+  <div class="print-controls">
+    <div class="print-controls-left">
+      <a href={`/songs/${song.slug}/`} class="btn-back">← Back to song</a>
+      <div class="transpose-row">
+        <label>Transpose</label>
+        <button class="transpose-btn" id="btn-down">−</button>
+        <span class="transpose-val" id="transpose-label">
+          {transpose === 0 ? 'Original' : `${transpose > 0 ? '+' : ''}${transpose}`}
+        </span>
+        <button class="transpose-btn" id="btn-up">+</button>
+      </div>
+    </div>
+    <button class="btn-print" onclick="window.print()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M6 9V2h12v7"/><rect x="6" y="13" width="12" height="9"/>
+        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+      </svg>
+      Print / Save PDF
+    </button>
+  </div>
+
+  <!-- Chord sheet -->
+  <PrintChordSheet song={song} transpose={transpose} />
+
+  <script define:vars={{ slug: song.slug, initTranspose: transpose }}>
+    let t = initTranspose;
+
+    function update() {
+      const label = document.getElementById('transpose-label');
+      if (label) label.textContent = t === 0 ? 'Original' : (t > 0 ? '+' : '') + t;
+      const url = new URL(window.location.href);
+      if (t === 0) url.searchParams.delete('transpose');
+      else url.searchParams.set('transpose', String(t));
+      window.location.href = url.toString();
+    }
+
+    document.getElementById('btn-down')?.addEventListener('click', () => { if (t > -6) { t--; update(); } });
+    document.getElementById('btn-up')?.addEventListener('click',   () => { if (t < 6)  { t++; update(); } });
+  </script>
+</body>
+</html>

@@ -125,8 +125,23 @@ const breadcrumbSchema = {
 
   <main class="mx-auto max-w-5xl px-4 sm:px-6 py-12 sm:py-20">
 
-    <!-- Edit button -->
-    <div class="flex justify-end mb-4">
+    <!-- Edit + PDF buttons -->
+    <div class="flex justify-end gap-2 mb-4">
+      <!-- PDF export -->
+      <a
+        href={`/songs/pdf/${song.slug}/`}
+        target="_blank"
+        class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 transition-colors hover:border-primary/40"
+        title="Export chord sheet as PDF"
+      >
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 9V2h12v7"/><rect x="6" y="13" width="12" height="9"/>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+        </svg>
+        PDF
+      </a>
+
+      <!-- Edit -->
       {isCommunity ? (
         <CommunityEditButton client:only="react" songSlug={slug} createdBy={communityCreatedBy} />
       ) : (

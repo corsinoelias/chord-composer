@@ -1,0 +1,261 @@
+---
+import { parseLyricLine, extractChordsFromSong, type Song } from '@/data/songs';
+import { parseChordString } from '@/lib/chordParser';
+import { getGuitarVoicing } from '@/data/guitarChords';
+import PrintGuitarDiagram from './PrintGuitarDiagram.astro';
+
+interface Props {
+  song: Song;
+  transpose?: number;
+}
+
+const { song, transpose = 0 } = Astro.props;
+
+// ── Transpose helpers ─────────────────────────────────────────────────────────
+const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLATS  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const FLAT_KEYS = new Set(['F','Bb','Eb','Ab','Db','Gb','Dm','Gm','Cm','Fm','Bbm','Ebm']);
+
+function noteIndex(n: string) {
+  const i = SHARPS.indexOf(n);
+  return i !== -1 ? i : FLATS.indexOf(n);
+}
+function transposeChord(c: string, s: number, flats: boolean): string {
+  const m = c.match(/^([A-G][#b]?)(.*)/);
+  if (!m || s === 0) return c;
+  const i = noteIndex(m[1]);
+  if (i === -1) return c;
+  return (flats ? FLATS : SHARPS)[((i + s) % 12 + 12) % 12] + m[2];
+}
+function getDisplayKey(key: string, s: number): string {
+  if (s === 0) return key;
+  const minor = key.endsWith('m') && key.length > 1;
+  const root = minor ? key.slice(0, -1) : key;
+  const i = noteIndex(root);
+  if (i === -1) return key;
+  const newRoot = (FLAT_KEYS.has(key) ? FLATS : SHARPS)[((i + s) % 12 + 12) % 12];
+  return newRoot + (minor ? 'm' : '');
+}
+
+const displayKey = getDisplayKey(song.key, transpose);
+const useFlats = FLAT_KEYS.has(displayKey);
+
+// Unique chords used (transposed), with guitar voicings
+const rawChords = [...new Set(extractChordsFromSong(song))];
+const chordItems = rawChords
+  .map(raw => {
+    const displayChord = transposeChord(raw, transpose, useFlats);
+    const parsed = parseChordString(displayChord)[0] ?? null;
+    const voicing = parsed ? getGuitarVoicing(parsed, 0) : null;
+    return { name: displayChord, parsed, voicing };
+  })
+  .filter(c => c.parsed);
+---
+
+<div class="chord-sheet">
+
+  <!-- Header -->
+  <header class="sheet-header">
+    <div class="sheet-title-block">
+      <h1 class="sheet-title">{song.title}</h1>
+      <p class="sheet-artist">{song.artist}{song.year ? ` (${song.year})` : ''}</p>
+      {song.genre.length > 0 && <p class="sheet-genre">{song.genre.join(' · ')}</p>}
+    </div>
+    <div class="sheet-meta">
+      <span class="meta-badge">Key: <strong>{displayKey}</strong></span>
+      {song.capo && <span class="meta-badge">Capo: <strong>{song.capo}</strong></span>}
+      <span class="meta-badge">{song.bpm} BPM</span>
+      {transpose !== 0 && <span class="meta-badge transpose-badge">Transposed {transpose > 0 ? '+' : ''}{transpose}</span>}
+    </div>
+  </header>
+
+  <hr class="sheet-divider" />
+
+  <!-- Sections -->
+  {song.sections.map(section => {
+    const hasContent = section.lines.some(l => l.trim());
+    if (!hasContent) return null;
+    return (
+      <section class="song-section">
+        <h2 class="section-name">{section.name}</h2>
+        {section.lines.map(line => {
+          const tokens = parseLyricLine(line);
+          if (tokens.length === 0) return null;
+
+          const isChordOnly = tokens.every(t => !t.lyrics.trim());
+
+          if (isChordOnly) {
+            // Instrumental line: chords in a row
+            return (
+              <div class="chord-only-line">
+                {tokens.filter(t => t.chord).map(t => (
+                  <span class="standalone-chord">
+                    {transposeChord(t.chord, transpose, useFlats)}
+                  </span>
+                ))}
+              </div>
+            );
+          }
+
+          return (
+            <div class="lyric-line">
+              {tokens.map(token => (
+                <span class="chord-group">
+                  <span class="chord-name">
+                    {token.chord ? transposeChord(token.chord, transpose, useFlats) : ''}
+                  </span>
+                  <span class="lyric-text">{token.lyrics}</span>
+                </span>
+              ))}
+            </div>
+          );
+        })}
+      </section>
+    );
+  })}
+
+  <!-- Chords used -->
+  {chordItems.length > 0 && (
+    <section class="chords-used">
+      <h2 class="section-name">Chords used</h2>
+      <div class="chords-grid">
+        {chordItems.map(({ name, voicing }) =>
+          voicing
+            ? <PrintGuitarDiagram voicing={voicing} chordName={name} />
+            : <span class="chord-name-only">{name}</span>
+        )}
+      </div>
+    </section>
+  )}
+
+  <!-- Footer -->
+  <footer class="sheet-footer">
+    <span>chordsequence.com/songs/{song.slug}/</span>
+    {song.description && <span class="footer-sep">·</span>}
+  </footer>
+
+</div>
+
+<style>
+  .chord-sheet {
+    font-family: 'Georgia', serif;
+    max-width: 700px;
+    margin: 0 auto;
+    color: #111;
+  }
+
+  /* Header */
+  .sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .sheet-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin: 0 0 0.2rem;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+  }
+  .sheet-artist { font-size: 1rem; margin: 0 0 0.15rem; color: #444; }
+  .sheet-genre  { font-size: 0.75rem; margin: 0; color: #888; text-transform: capitalize; }
+  .sheet-meta   { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-end; flex-shrink: 0; padding-top: 0.3rem; }
+  .meta-badge   { font-size: 0.78rem; color: #333; white-space: nowrap; }
+  .meta-badge strong { font-weight: 700; }
+  .transpose-badge { color: #1a56db; font-weight: 600; }
+
+  .sheet-divider { border: none; border-top: 2px solid #111; margin: 0.5rem 0 1.25rem; }
+
+  /* Section */
+  .song-section { margin-bottom: 1.5rem; }
+  .section-name {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #555;
+    margin: 0 0 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid #ddd;
+  }
+
+  /* Lyric line */
+  .lyric-line {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 0.8rem;
+    font-family: 'Courier New', monospace;
+  }
+  .chord-group {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .chord-name {
+    font-weight: 800;
+    font-size: 0.78rem;
+    min-height: 1.3em;
+    color: #1a56db;
+    white-space: pre;
+    padding-right: 0.35em;
+    letter-spacing: 0.01em;
+  }
+  .lyric-text {
+    font-size: 0.95rem;
+    white-space: pre;
+    color: #111;
+  }
+
+  /* Chord-only line (intro, solo, instrumental) */
+  .chord-only-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 0.8rem;
+  }
+  .standalone-chord {
+    font-family: 'Courier New', monospace;
+    font-weight: 800;
+    font-size: 0.9rem;
+    color: #1a56db;
+  }
+
+  /* Chords used */
+  .chords-used { margin-bottom: 1.5rem; page-break-inside: avoid; }
+  .chords-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 1.5rem;
+    padding-top: 0.5rem;
+  }
+  .chord-name-only {
+    font-family: 'Courier New', monospace;
+    font-weight: 800;
+    font-size: 0.9rem;
+    align-self: center;
+  }
+
+  /* Footer */
+  .sheet-footer {
+    margin-top: 2rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #ddd;
+    font-size: 0.7rem;
+    color: #999;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .footer-sep { color: #ccc; }
+
+  /* ── Print rules ────────────────────────────────────────────────────────── */
+  @media print {
+    .chord-sheet { max-width: 100%; }
+    .chord-name  { color: #000; }
+    .standalone-chord { color: #000; }
+    .transpose-badge  { color: #000; }
+    .song-section { page-break-inside: avoid; }
+    .sheet-footer { color: #666; }
+  }
+</style>

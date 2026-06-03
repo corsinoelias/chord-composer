@@ -1,0 +1,150 @@
+---
+import type { GuitarVoicing } from '@/data/guitarChords';
+
+interface Props {
+  voicing: GuitarVoicing;
+  chordName: string;
+}
+
+const { voicing, chordName } = Astro.props;
+const { frets, fingers, barre, baseFret } = voicing;
+
+// SVG constants
+const W = 235;
+const H = 271;
+const STRING_X = [30, 65, 100, 135, 170, 205];
+const FRET_Y   = [55, 104, 153, 202, 251];
+const ROW_Y    = [79.5, 128.5, 177.5, 226.5];
+const ABOVE_Y  = 35.4;
+const DOT_R    = 16;
+const OPEN_R   = 7;
+
+// Print colors
+const C_LINE    = '#bbb';
+const C_NUT     = '#000';
+const C_DOT     = '#111';
+const C_DOT_TXT = '#fff';
+const C_OPEN    = '#111';
+const C_MUTED   = '#aaa';
+
+function toRow(fret: number) { return fret - baseFret; }
+
+// Pre-compute all elements in frontmatter to avoid complex template conditionals
+
+// Open / muted markers
+interface OpenMarker  { type: 'open';  x: number }
+interface MutedMarker { type: 'muted'; x: number; s: number }
+const openMarkers:  OpenMarker[]  = [];
+const mutedMarkers: MutedMarker[] = [];
+frets.forEach((fret, si) => {
+  const x = STRING_X[si];
+  if (fret === 0)  openMarkers.push({ type: 'open', x });
+  if (fret === -1) mutedMarkers.push({ type: 'muted', x, s: OPEN_R - 1 });
+});
+
+// Barre bar
+interface BarreData { x: number; y: number; width: number; height: number; rx: number }
+let barreData: BarreData | null = null;
+if (barre) {
+  const row = toRow(barre.fret);
+  if (row >= 0 && row <= 3) {
+    const cy = ROW_Y[row];
+    const x1 = STRING_X[barre.fromString];
+    const x2 = STRING_X[barre.toString];
+    barreData = { x: x1 - 10, y: cy - DOT_R, width: x2 - x1 + 20, height: DOT_R * 2, rx: DOT_R };
+  }
+}
+
+// Finger dots
+interface DotData { cx: number; cy: number; finger: number }
+const dots: DotData[] = [];
+frets.forEach((fret, si) => {
+  if (fret <= 0) return;
+  const row = toRow(fret);
+  if (row < 0 || row > 3) return;
+  dots.push({ cx: STRING_X[si], cy: ROW_Y[row], finger: fingers[si] });
+});
+
+// Fret lines with stroke properties
+const fretLines = FRET_Y.map((y, i) => ({
+  y,
+  stroke: i === 0 && baseFret === 1 ? C_NUT : C_LINE,
+  strokeWidth: i === 0 && baseFret === 1 ? 4 : 1,
+}));
+---
+
+<div class="diagram-item">
+  <span class="diagram-label">{chordName}</span>
+  <svg viewBox={`0 0 ${W} ${H}`} width="80" height="92" aria-hidden="true">
+
+    {/* Fret number label */}
+    {baseFret > 1 && (
+      <text x="14.5" y={ROW_Y[0]} font-size="16" fill={C_NUT}
+            text-anchor="middle" dominant-baseline="middle">
+        {baseFret}fr
+      </text>
+    )}
+
+    {/* String lines */}
+    {STRING_X.map(x => (
+      <line x1={x} y1={FRET_Y[0]} x2={x} y2={FRET_Y[4]} stroke={C_LINE} stroke-width="1" />
+    ))}
+
+    {/* Fret lines */}
+    {fretLines.map(({ y, stroke, strokeWidth }) => (
+      <line x1={STRING_X[0]} y1={y} x2={STRING_X[5]} y2={y}
+            stroke={stroke} stroke-width={strokeWidth} />
+    ))}
+
+    {/* Open string circles */}
+    {openMarkers.map(({ x }) => (
+      <circle cx={x} cy={ABOVE_Y} r={OPEN_R}
+              fill="transparent" stroke={C_OPEN} stroke-width="2" />
+    ))}
+
+    {/* Muted string X markers */}
+    {mutedMarkers.map(({ x, s }) => (
+      <g stroke={C_MUTED} stroke-width="2">
+        <line x1={x - s} y1={ABOVE_Y - s} x2={x + s} y2={ABOVE_Y + s} />
+        <line x1={x + s} y1={ABOVE_Y - s} x2={x - s} y2={ABOVE_Y + s} />
+      </g>
+    ))}
+
+    {/* Barre bar */}
+    {barreData && (
+      <rect x={barreData.x} y={barreData.y}
+            width={barreData.width} height={barreData.height}
+            rx={barreData.rx} fill={C_DOT} />
+    )}
+
+    {/* Finger dots */}
+    {dots.map(({ cx, cy, finger }) => (
+      <g fill={C_DOT}>
+        <circle cx={cx} cy={cy} r={DOT_R} stroke="transparent" />
+        {finger > 0 && (
+          <text x={cx} y={cy + 6} text-anchor="middle" font-size="16"
+                fill={C_DOT_TXT} stroke={C_DOT_TXT} stroke-width="0.3">
+            {finger}
+          </text>
+        )}
+      </g>
+    ))}
+
+  </svg>
+</div>
+
+<style>
+  .diagram-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .diagram-label {
+    font-family: 'Courier New', monospace;
+    font-weight: 800;
+    font-size: 0.82rem;
+    color: #111;
+    text-align: center;
+  }
+</style>
