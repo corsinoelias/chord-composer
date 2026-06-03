@@ -61,6 +61,12 @@
   force = true
 
 [[redirects]]
+  from = "/blog/"
+  to = "/learn/"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/blog/*"
   to = "/learn/:splat"
   status = 301
@@ -71,7 +77,32 @@
   from = "/songs/c/:slug"
   to = "/songs/:slug"
   status = 301
-  force = false
+  force = true
+
+# Beginner pages moved under /learn/
+[[redirects]]
+  from = "/beginner-guitar-chords/"
+  to = "/learn/beginner-guitar-chords/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/beginner-guitar-chords"
+  to = "/learn/beginner-guitar-chords/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/easy-guitar-songs/"
+  to = "/learn/easy-guitar-songs/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/easy-guitar-songs"
+  to = "/learn/easy-guitar-songs/"
+  status = 301
+  force = true
 
 # SPA fallback for editor deep links
 [[redirects]]

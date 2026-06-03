@@ -1,7 +1,7 @@
 ---
 export const prerender = true;
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import PrintGuitarDiagram from '../../components/PrintGuitarDiagram.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PrintGuitarDiagram from '../../../components/PrintGuitarDiagram.astro';
 import { parseChordString } from '@/lib/chordParser';
 import { getGuitarVoicing } from '@/data/guitarChords';
 
@@ -105,14 +105,15 @@ const chordItems = chords.map(c => {
 });
 
 // ── Schema ────────────────────────────────────────────────────────────────────
-const canonicalUrl = 'https://chordsequence.com/beginner-guitar-chords/';
+const canonicalUrl = 'https://chordsequence.com/learn/beginner-guitar-chords/';
 
 const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com' },
-    { '@type': 'ListItem', position: 2, name: 'Guitar chords for beginners', item: canonicalUrl },
+    { '@type': 'ListItem', position: 2, name: 'Learn', item: 'https://chordsequence.com/learn/' },
+    { '@type': 'ListItem', position: 3, name: 'Guitar chords for beginners', item: canonicalUrl },
   ],
 };
 
@@ -164,6 +165,8 @@ const faqSchema = {
     <!-- Breadcrumb -->
     <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
       <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href="/learn/" class="hover:text-foreground transition-colors">Learn</a>
       <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
       <span class="text-foreground">Guitar chords for beginners</span>
     </nav>
@@ -398,7 +401,7 @@ const faqSchema = {
       <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Keep learning</h2>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          { title: 'Easy guitar songs', desc: 'Songs you can play with these chords', href: '/songs/' },
+          { title: 'Easy guitar songs', desc: 'Songs you can play with these chords', href: '/learn/easy-guitar-songs/' },
           { title: 'Chord transposer', desc: 'Move any chord to a different key', href: '/tools/chord-transposer/' },
           { title: 'Chord progressions', desc: 'Learn the patterns behind songs', href: '/progressions/' },
         ].map(link => (

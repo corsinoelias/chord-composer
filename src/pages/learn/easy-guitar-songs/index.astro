@@ -1,8 +1,8 @@
 ---
 export const prerender = true;
-import BaseLayout from '../../layouts/BaseLayout.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
 
-const canonicalUrl = 'https://chordsequence.com/easy-guitar-songs/';
+const canonicalUrl = 'https://chordsequence.com/learn/easy-guitar-songs/';
 
 // ── Song data ─────────────────────────────────────────────────────────────────
 const songGroups = [
@@ -217,7 +217,8 @@ const breadcrumbSchema = {
   '@type': 'BreadcrumbList',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com' },
-    { '@type': 'ListItem', position: 2, name: 'Easy guitar songs for beginners', item: canonicalUrl },
+    { '@type': 'ListItem', position: 2, name: 'Learn', item: 'https://chordsequence.com/learn/' },
+    { '@type': 'ListItem', position: 3, name: 'Easy guitar songs for beginners', item: canonicalUrl },
   ],
 };
 
@@ -239,6 +240,8 @@ const totalSongs = songGroups.reduce((sum, g) => sum + g.songs.length, 0);
     <!-- Breadcrumb -->
     <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
       <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href="/learn/" class="hover:text-foreground transition-colors">Learn</a>
       <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
       <span class="text-foreground">Easy guitar songs</span>
     </nav>
@@ -271,7 +274,7 @@ const totalSongs = songGroups.reduce((sum, g) => sum + g.songs.length, 0);
       </p>
       <div class="flex flex-wrap gap-3">
         <a
-          href="/beginner-guitar-chords/"
+          href="/learn/beginner-guitar-chords/"
           class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors"
         >
           Learn the 8 beginner chords →
@@ -415,7 +418,7 @@ const totalSongs = songGroups.reduce((sum, g) => sum + g.songs.length, 0);
       <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">More for beginners</h2>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          { title: 'Guitar chords for beginners', desc: '8 essential chords with diagrams', href: '/beginner-guitar-chords/' },
+          { title: 'Guitar chords for beginners', desc: '8 essential chords with diagrams', href: '/learn/beginner-guitar-chords/' },
           { title: 'Song chord charts', desc: 'Full chords + lyrics with play-along', href: '/songs/' },
           { title: 'Chord transposer', desc: 'Change any song to your key', href: '/tools/chord-transposer/' },
         ].map(link => (

@@ -82,7 +82,7 @@ const ARTICLE_RELATED: Record<string, ArticleRelated> = {
 };
 
 export async function getStaticPaths() {
-  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  const posts = await getCollection('learn', ({ data }) => !data.draft);
   return posts.map((post) => ({
     params: { slug: post.slug },
     props: { post },

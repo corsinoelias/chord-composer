@@ -3,14 +3,14 @@ export const prerender = true;
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 
-const allPosts = await getCollection('blog', ({ data }) => !data.draft);
+const allPosts = await getCollection('learn', ({ data }) => !data.draft);
 allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 ---
 
 <BaseLayout
   title="Learn Music Theory & Chord Progressions | Chord Sequence"
   description="Free music theory guides for songwriters and producers. Learn chord progressions, transposition, the circle of fifths, and more — with interactive examples."
-  canonicalUrl="https://chordsequence.com/learn"
+  canonicalUrl="https://chordsequence.com/learn/"
 >
   <main class="mx-auto max-w-4xl px-4 sm:px-6 py-16 sm:py-24">
     <div class="mb-12">
@@ -25,9 +25,49 @@ allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
       </p>
     </div>
 
+    <!-- Beginner guides (static pages, not in blog collection) -->
+    <div class="mb-10">
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Beginner guides</h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        {[
+          {
+            href: '/learn/beginner-guitar-chords/',
+            title: 'Guitar Chords for Beginners',
+            description: 'The 8 chords every beginner needs to know — diagrams, finger positions, and songs to practice.',
+            tags: ['Guitar', 'Beginner'],
+          },
+          {
+            href: '/learn/easy-guitar-songs/',
+            title: 'Easy Guitar Songs for Beginners',
+            description: '16 songs you can play today — from 2-chord classics to acoustic favourites.',
+            tags: ['Guitar', 'Songs', 'Beginner'],
+          },
+        ].map((guide) => (
+          <a
+            href={guide.href}
+            class="group flex flex-col rounded-xl border border-border bg-card p-5 hover:border-primary/40 transition-colors"
+          >
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              {guide.tags.map((tag) => (
+                <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <h2 class="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-1">
+              {guide.title}
+            </h2>
+            <p class="text-sm text-muted-foreground flex-1">{guide.description}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+
     {allPosts.length === 0 ? (
       <p class="text-muted-foreground">No articles yet. Check back soon.</p>
     ) : (
+      <>
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Music theory articles</h2>
       <ul class="space-y-4">
         {allPosts.map((post) => (
           <li>
@@ -60,6 +100,7 @@ allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
           </li>
         ))}
       </ul>
+      </>
     )}
 
     <!-- Explore by genre -->
