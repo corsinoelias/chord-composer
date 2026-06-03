@@ -1,0 +1,417 @@
+---
+export const prerender = true;
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PrintGuitarDiagram from '../../components/PrintGuitarDiagram.astro';
+import { parseChordString } from '@/lib/chordParser';
+import { getGuitarVoicing } from '@/data/guitarChords';
+
+// ── Chord data ────────────────────────────────────────────────────────────────
+const chords = [
+  {
+    id: 'em',
+    name: 'Em',
+    label: 'E minor',
+    fingers: 2,
+    level: 'super-easy',
+    levelLabel: 'Super easy',
+    tip: 'Put finger 2 on string 5 fret 2, and finger 3 on string 4 fret 2. Strum all 6 strings.',
+    songs: ['Nothing Else Matters — Metallica', 'House of the Rising Sun — The Animals', 'Mad World — Gary Jules'],
+    editorUrl: '/editor/?chords=Em&bpm=80&style=pop_basic',
+  },
+  {
+    id: 'am',
+    name: 'Am',
+    label: 'A minor',
+    fingers: 3,
+    level: 'super-easy',
+    levelLabel: 'Super easy',
+    tip: 'Three fingers on a row. Skip the thickest string (the big one). Strum the remaining 5.',
+    songs: ['Stairway to Heaven — Led Zeppelin', 'Wonderful Tonight — Eric Clapton', 'Losing My Religion — R.E.M.'],
+    editorUrl: '/editor/?chords=Am&bpm=80&style=pop_basic',
+  },
+  {
+    id: 'c',
+    name: 'C',
+    label: 'C major',
+    fingers: 3,
+    level: 'easy',
+    levelLabel: 'Easy',
+    tip: 'One of the most used chords in music. Skip the thickest string. Strum 5 strings.',
+    songs: ['Let It Be — The Beatles', 'Knockin\' on Heaven\'s Door — Bob Dylan', 'Time of Your Life — Green Day'],
+    editorUrl: '/editor/?chords=C&bpm=80&style=pop_basic',
+  },
+  {
+    id: 'g',
+    name: 'G',
+    label: 'G major',
+    fingers: 3,
+    level: 'easy',
+    levelLabel: 'Easy',
+    tip: 'Use your ring finger on string 1. Strum all 6 strings — this one rings beautifully.',
+    songs: ['Wonderwall — Oasis', 'Country Roads — John Denver', 'Wish You Were Here — Pink Floyd'],
+    editorUrl: '/editor/?chords=G&bpm=80&style=pop_basic',
+  },
+  {
+    id: 'd',
+    name: 'D',
+    label: 'D major',
+    fingers: 3,
+    level: 'easy',
+    levelLabel: 'Easy',
+    tip: 'Skip the two thickest strings. Only strum the 4 thin ones — you\'ll get a bright, happy sound.',
+    songs: ['Brown Eyed Girl — Van Morrison', 'Sweet Home Alabama — Lynyrd Skynyrd', 'What I Got — Sublime'],
+    editorUrl: '/editor/?chords=D&bpm=80&style=pop_basic',
+  },
+  {
+    id: 'e',
+    name: 'E',
+    label: 'E major',
+    fingers: 3,
+    level: 'easy',
+    levelLabel: 'Easy',
+    tip: 'Very similar to Em but add one more finger. Strum all 6 strings.',
+    songs: ['Smoke on the Water — Deep Purple', 'Sunshine of Your Love — Cream', 'Purple Haze — Hendrix'],
+    editorUrl: '/editor/?chords=E&bpm=80&style=pop_basic',
+  },
+  {
+    id: 'a',
+    name: 'A',
+    label: 'A major',
+    fingers: 3,
+    level: 'medium',
+    levelLabel: 'A bit harder',
+    tip: 'Three fingers squeezed into the same fret. Some people use one finger to bar all three. Skip the thickest string.',
+    songs: ['Free Fallin\' — Tom Petty', 'Jolene — Dolly Parton', 'Wild Thing — The Troggs'],
+    editorUrl: '/editor/?chords=A&bpm=80&style=pop_basic',
+  },
+  {
+    id: 'f',
+    name: 'F',
+    label: 'F major',
+    fingers: 6,
+    level: 'challenge',
+    levelLabel: 'Challenge chord',
+    tip: 'This is the famous "barre chord" that trips up every beginner. Your index finger covers all 6 strings. Don\'t worry if it doesn\'t ring perfectly at first — it takes weeks of practice. Everyone goes through this.',
+    songs: ['Wonderwall — Oasis', 'No Woman No Cry — Bob Marley', 'What\'s Up — 4 Non Blondes'],
+    editorUrl: '/editor/?chords=F&bpm=80&style=pop_basic',
+  },
+];
+
+// Get guitar voicings for each chord
+const chordItems = chords.map(c => {
+  const parsed = parseChordString(c.name)[0] ?? null;
+  const voicing = parsed ? getGuitarVoicing(parsed, 0) : null;
+  return { ...c, parsed, voicing };
+});
+
+// ── Schema ────────────────────────────────────────────────────────────────────
+const canonicalUrl = 'https://chordsequence.com/beginner-guitar-chords/';
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com' },
+    { '@type': 'ListItem', position: 2, name: 'Guitar chords for beginners', item: canonicalUrl },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'What are the easiest guitar chords for beginners?',
+      acceptedAnswer: { '@type': 'Answer', text: 'The easiest guitar chords for beginners are Em (E minor) and Am (A minor) — both need only 2-3 fingers. After those, C, G, and D are the next ones to learn. These 5 chords let you play hundreds of songs.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'How many chords do I need to know to play songs?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Just 4 chords — C, G, Am, and F — are enough to play over 100 popular songs. Many famous songs like Let It Be, No Woman No Cry, and Someone Like You all use these same 4 chords.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'How long does it take to learn basic guitar chords?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Most beginners can learn Em, Am, C, G, and D within 2-4 weeks of daily practice (15-20 minutes per day). The F chord (barre chord) typically takes 1-3 months. Everyone learns at a different pace — the most important thing is to practice consistently.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'What is the hardest beginner guitar chord?',
+      acceptedAnswer: { '@type': 'Answer', text: 'The F major chord is the hardest for beginners because it requires a "barre" — pressing one finger across all 6 strings at the same time. It\'s a famous rite of passage for guitar players. Don\'t worry, everyone struggles with it at first.' },
+    },
+    {
+      '@type': 'Question',
+      name: 'Do I need to learn music theory to play guitar?',
+      acceptedAnswer: { '@type': 'Answer', text: 'No. You can start playing songs on day one without knowing any music theory. Learning a handful of chord shapes and how to switch between them is all you need to play real music.' },
+    },
+  ],
+};
+---
+
+<BaseLayout
+  title="Guitar Chords for Beginners — 8 Easy Chords to Learn First | Chord Sequence"
+  description="The 8 guitar chords every beginner needs to know. Simple diagrams, finger positions, and famous songs to practice. Start playing in minutes — free."
+  canonicalUrl={canonicalUrl}
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-4xl px-4 sm:px-6 py-14 sm:py-20">
+
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">Guitar chords for beginners</span>
+    </nav>
+
+    <!-- Hero -->
+    <div class="mb-16">
+      <div class="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-6">
+        🎸 Beginner guide
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-5">
+        Guitar chords for beginners
+      </h1>
+      <p class="text-xl text-muted-foreground mb-4 max-w-2xl">
+        You only need <strong class="text-foreground">8 chords</strong> to play hundreds of songs.
+        Learn them one by one — most people can play their first song in a single day.
+      </p>
+      <p class="text-muted-foreground mb-8 max-w-2xl">
+        No music theory. No complicated explanations. Just the chords, how to play them,
+        and the songs you can play straight away.
+      </p>
+
+      <!-- 4-chord hook -->
+      <div class="rounded-2xl border border-primary/20 bg-primary/5 p-6 mb-8 max-w-2xl">
+        <p class="text-sm font-semibold text-primary uppercase tracking-wide mb-3">🔑 The secret</p>
+        <p class="text-lg font-semibold text-foreground mb-2">4 chords = 100+ songs</p>
+        <p class="text-muted-foreground text-sm mb-4">
+          C · Am · F · G — these four chords appear in most of the pop songs you already know.
+          Learn them and you can play Let It Be, Someone Like You, No Woman No Cry, and many more.
+        </p>
+        <a
+          href="/editor/?chords=C-Am-F-G&bpm=90&style=pop_basic"
+          class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Hear these 4 chords now — free
+        </a>
+      </div>
+    </div>
+
+    <!-- Difficulty guide -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-14 text-sm">
+      {[
+        { dot: 'bg-green-500', label: 'Super easy', desc: '2–3 fingers' },
+        { dot: 'bg-blue-500', label: 'Easy', desc: '3 fingers' },
+        { dot: 'bg-amber-500', label: 'A bit harder', desc: 'tricky shape' },
+        { dot: 'bg-red-500', label: 'Challenge', desc: 'barre chord' },
+      ].map(d => (
+        <div class="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+          <span class={`w-2.5 h-2.5 rounded-full shrink-0 ${d.dot}`}></span>
+          <div>
+            <p class="font-medium text-foreground text-xs">{d.label}</p>
+            <p class="text-muted-foreground text-[11px]">{d.desc}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Chord sections -->
+    <div class="space-y-14">
+      {chordItems.map((chord, i) => {
+        const dotColor = chord.level === 'super-easy' ? 'bg-green-500'
+          : chord.level === 'easy' ? 'bg-blue-500'
+          : chord.level === 'medium' ? 'bg-amber-500'
+          : 'bg-red-500';
+
+        return (
+          <section id={chord.id} class="scroll-mt-24">
+            <div class="flex flex-col sm:flex-row gap-8 items-start">
+
+              {/* Diagram */}
+              <div class="shrink-0 flex flex-col items-center">
+                {chord.voicing ? (
+                  <PrintGuitarDiagram voicing={chord.voicing} chordName={chord.label} />
+                ) : (
+                  <div class="w-20 h-24 rounded-xl bg-muted flex items-center justify-center text-muted-foreground text-xs">
+                    No diagram
+                  </div>
+                )}
+              </div>
+
+              {/* Content */}
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-3 flex-wrap">
+                  <span class="text-3xl font-bold text-foreground font-mono">{chord.name}</span>
+                  <span class="text-lg text-muted-foreground">{chord.label}</span>
+                  <span class={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-muted text-foreground`}>
+                    <span class={`w-2 h-2 rounded-full ${dotColor}`}></span>
+                    {chord.levelLabel}
+                  </span>
+                </div>
+
+                <p class="text-muted-foreground mb-4 leading-relaxed">{chord.tip}</p>
+
+                {/* Songs */}
+                <div class="mb-4">
+                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Songs that use {chord.name}:</p>
+                  <ul class="space-y-1">
+                    {chord.songs.map(song => (
+                      <li class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <svg class="w-3 h-3 text-primary shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                        {song}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <a
+                  href={chord.editorUrl}
+                  class="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                >
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                  Hear what {chord.name} sounds like →
+                </a>
+              </div>
+            </div>
+
+            {i < chordItems.length - 1 && <hr class="border-border mt-14" />}
+          </section>
+        );
+      })}
+    </div>
+
+    <!-- Songs table -->
+    <section class="mt-20">
+      <h2 class="text-2xl font-bold text-foreground mb-2">Songs you can play right now</h2>
+      <p class="text-muted-foreground mb-8">
+        With just Em, Am, C, G, and D — 5 chords — you can play all of these:
+      </p>
+      <div class="rounded-xl border border-border overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-muted/50 border-b border-border">
+            <tr>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Song</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Chords</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Difficulty</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            {[
+              { song: 'Knockin\' on Heaven\'s Door', artist: 'Bob Dylan', chords: 'G · D · Am', difficulty: '🟢 Easy' },
+              { song: 'Wonderwall', artist: 'Oasis', chords: 'Em · G · D · Am', difficulty: '🟢 Easy' },
+              { song: 'Let It Be', artist: 'The Beatles', chords: 'C · G · Am · F', difficulty: '🟡 Medium' },
+              { song: 'Wish You Were Here', artist: 'Pink Floyd', chords: 'Em · G · Am · C', difficulty: '🟢 Easy' },
+              { song: 'House of the Rising Sun', artist: 'The Animals', chords: 'Am · C · D · F', difficulty: '🟡 Medium' },
+              { song: 'Brown Eyed Girl', artist: 'Van Morrison', chords: 'G · C · D · Em', difficulty: '🟢 Easy' },
+              { song: 'Someone Like You', artist: 'Adele', chords: 'A · E · F#m · D', difficulty: '🟡 Medium' },
+              { song: 'Sweet Home Alabama', artist: 'Lynyrd Skynyrd', chords: 'D · C · G', difficulty: '🟢 Easy' },
+            ].map(row => (
+              <tr class="hover:bg-muted/30 transition-colors">
+                <td class="px-4 py-3">
+                  <p class="font-medium text-foreground">{row.song}</p>
+                  <p class="text-xs text-muted-foreground">{row.artist}</p>
+                </td>
+                <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{row.chords}</td>
+                <td class="px-4 py-3 text-xs hidden sm:table-cell">{row.difficulty}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-4 text-sm text-muted-foreground">
+        Want the full chord chart for any of these songs?
+        <a href="/songs/" class="text-primary hover:underline ml-1">Browse all song charts →</a>
+      </p>
+    </section>
+
+    <!-- Practice tips -->
+    <section class="mt-16 rounded-2xl border border-border bg-card p-6 sm:p-8">
+      <h2 class="text-xl font-bold text-foreground mb-6">3 tips that actually help</h2>
+      <div class="space-y-5">
+        {[
+          {
+            n: '1',
+            title: 'Practice switching, not just playing',
+            desc: 'The hardest part of guitar is not playing individual chords — it\'s switching between them quickly. Practice going from C to G over and over until it feels natural.',
+          },
+          {
+            n: '2',
+            title: 'Practice a little every day',
+            desc: '15 minutes every day is much better than 2 hours on Saturday. Your fingers need time to build muscle memory. Daily practice makes a huge difference.',
+          },
+          {
+            n: '3',
+            title: 'Start with songs, not exercises',
+            desc: 'Pick a song you actually like and learn to play it. You\'ll stay motivated much longer than if you\'re just doing scales and drills.',
+          },
+        ].map(tip => (
+          <div class="flex gap-4">
+            <div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
+              {tip.n}
+            </div>
+            <div>
+              <p class="font-semibold text-foreground mb-1">{tip.title}</p>
+              <p class="text-sm text-muted-foreground">{tip.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="mt-16">
+      <h2 class="text-2xl font-bold text-foreground mb-8">Common questions</h2>
+      <div class="space-y-6">
+        {faqSchema.mainEntity.map(faq => (
+          <div class="border-b border-border pb-6 last:border-0">
+            <h3 class="font-semibold text-foreground mb-2">{faq.name}</h3>
+            <p class="text-muted-foreground text-sm leading-relaxed">{faq.acceptedAnswer.text}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Bottom CTA -->
+    <section class="mt-16 rounded-2xl bg-primary/5 border border-primary/20 p-8 text-center">
+      <h2 class="text-2xl font-bold text-foreground mb-3">Ready to hear what these chords sound like?</h2>
+      <p class="text-muted-foreground mb-6 max-w-md mx-auto">
+        Open the free chord player and hear Em, Am, C, G play together with a real rhythm. No sign-up needed.
+      </p>
+      <a
+        href="/editor/?chords=Em-Am-C-G&bpm=90&style=pop_basic"
+        class="inline-flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground text-lg font-semibold rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+      >
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Try the free chord player
+      </a>
+      <p class="mt-3 text-sm text-muted-foreground">Free · No account · Works in any browser</p>
+    </section>
+
+    <!-- Internal links -->
+    <section class="mt-12 pt-8 border-t border-border">
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Keep learning</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          { title: 'Easy guitar songs', desc: 'Songs you can play with these chords', href: '/songs/' },
+          { title: 'Chord transposer', desc: 'Move any chord to a different key', href: '/tools/chord-transposer/' },
+          { title: 'Chord progressions', desc: 'Learn the patterns behind songs', href: '/progressions/' },
+        ].map(link => (
+          <a
+            href={link.href}
+            class="rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors group"
+          >
+            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{link.title}</p>
+            <p class="text-xs text-muted-foreground mt-0.5">{link.desc}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+
+  </main>
+</BaseLayout>

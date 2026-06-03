@@ -811,18 +811,24 @@ const Index = ({ songId }: IndexProps) => {
       <header className="border-b border-border bg-card sticky top-0 z-40">
         <div className="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between gap-2">
-            {/* Left: Back + Logo + Title */}
-            <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
-              <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="shrink-0 h-8 w-8" aria-label="Back to saved songs">
+            {/* Left: Logo + breadcrumb + title */}
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              {/* Logo — goes home */}
+              <a href="/" className="shrink-0 w-8 h-8 rounded-lg bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors" aria-label="ChordSequence home">
+                <Music2 className="w-4 h-4 text-primary-foreground" />
+              </a>
+
+              {/* Breadcrumb */}
+              <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                <a href="/app/" className="hover:text-foreground transition-colors shrink-0">My library</a>
+                <span className="opacity-30 mx-0.5">/</span>
+                <span className="text-foreground font-medium truncate max-w-[160px] md:max-w-xs">{songTitle || 'New progression'}</span>
+              </div>
+
+              {/* Mobile: back button only */}
+              <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="sm:hidden shrink-0 h-8 w-8" aria-label="Back to library">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                <Music2 className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">Chord Player — Chord progression editor</h1>
-                <p className="text-xs text-muted-foreground hidden sm:block">Chord Sequence · chordsequence.com</p>
-              </div>
             </div>
             
             {/* Right: Actions */}
@@ -1026,6 +1032,7 @@ const Index = ({ songId }: IndexProps) => {
           <Plus className="h-4 w-4 mr-2" />
           Add Section
         </Button>
+
       </main>
 
       {/* Welcome Overlay for first-time users */}

@@ -3,11 +3,12 @@ const currentYear = new Date().getFullYear();
 
 const columns = [
   {
-    label: 'Product',
+    label: 'Create',
     links: [
-      { label: 'Chord Player App', href: '/app/' },
-      { label: 'Features', href: '/#features' },
-      { label: 'How It Works', href: '/#how-it-works' },
+      { label: 'My library', href: '/app/' },
+      { label: 'Progression editor', href: '/editor/' },
+      { label: 'Song charts', href: '/songs/' },
+      { label: 'Add a song', href: '/songs/new/' },
     ],
   },
   {
@@ -40,6 +41,7 @@ const columns = [
   {
     label: 'Learn',
     links: [
+      { label: 'Guitar chords for beginners', href: '/beginner-guitar-chords/' },
       { label: 'What is a Chord Progression?', href: '/learn/what-is-a-chord-progression/' },
       { label: 'How to Transpose Chords', href: '/learn/how-to-transpose-chords/' },
       { label: 'Circle of Fifths', href: '/learn/circle-of-fifths-explained/' },
@@ -69,10 +71,11 @@ const columns = [
           Free online chord progression builder for songwriters, producers, and music students.
         </p>
         <a
-          href="/app/"
-          class="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+          href="/editor/?chords=C-Am-F-G&bpm=100&style=pop_basic"
+          class="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors w-fit"
         >
-          Open App →
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Try it free
         </a>
       </div>
 

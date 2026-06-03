@@ -1,14 +1,33 @@
 ---
 const nav = [
   {
-    id: 'features',
-    label: 'Features',
+    id: 'songs',
+    label: 'Songs',
     items: [
-      { label: 'Chord Progression Builder', href: '/app/', desc: 'Drag-and-drop chord sequencer' },
-      { label: 'Live Rhythm Playback', href: '/app/', desc: '13+ rhythm styles with real audio' },
-      { label: 'Chord Transposer', href: '/tools/chord-transposer/', desc: 'Shift any progression by semitones' },
-      { label: 'WAV Export', href: '/app/', desc: 'Download your progression as audio' },
-      { label: 'Song Library', href: '/app/', desc: 'Save and organize your songs' },
+      { label: 'Holy Forever — Chris Tomlin', href: '/songs/holy-forever-chris-tomlin/', desc: 'Worship · Key C · Capo 1' },
+      { label: 'Wonderwall — Oasis', href: '/songs/wonderwall-oasis/', desc: 'Rock · Key F#m · Capo 2' },
+      { label: 'Hallelujah — Leonard Cohen', href: '/songs/hallelujah-leonard-cohen/', desc: 'Folk · Key C' },
+      { label: 'Hermoso Momento — Oasis Ministry', href: '/songs/hermoso-momento-oasis-ministry/', desc: 'Worship · Key Eb' },
+      { label: 'Creo en Ti — Julio Melgar', href: '/songs/creo-en-ti-julio-melgar/', desc: 'Worship' },
+      { label: 'All song charts →', href: '/songs/', desc: null },
+    ],
+  },
+  {
+    id: 'progressions',
+    label: 'Progressions',
+    items: [
+      { label: 'Pop', href: '/progressions/pop/', desc: null },
+      { label: 'Jazz', href: '/progressions/jazz/', desc: null },
+      { label: 'Lo-fi', href: '/progressions/lo-fi/', desc: null },
+      { label: 'Rock', href: '/progressions/rock/', desc: null },
+      { label: 'Blues', href: '/progressions/blues/', desc: null },
+      { label: '12-Bar Blues', href: '/progressions/12-bar-blues/', desc: null },
+      { label: 'Sad', href: '/progressions/sad/', desc: null },
+      { label: 'Happy', href: '/progressions/happy/', desc: null },
+      { label: 'Neo Soul', href: '/progressions/neo-soul/', desc: null },
+      { label: 'Worship', href: '/progressions/worship/', desc: null },
+      { label: 'EDM', href: '/progressions/edm/', desc: null },
+      { label: 'ii–V–I (Jazz)', href: '/progressions/ii-v-i/', desc: null },
     ],
   },
   {
@@ -17,49 +36,20 @@ const nav = [
     items: [
       { label: 'Circle of Fifths', href: '/tools/circle-of-fifths/', desc: 'Interactive key & chord relationships' },
       { label: 'Chord Transposer', href: '/tools/chord-transposer/', desc: 'Shift chords by key or semitone' },
-      { label: 'Key Detector', href: '/tools/key-detector/', desc: 'Detect the key of a progression' },
-    ],
-  },
-  {
-    id: 'progressions',
-    label: 'Progressions',
-    items: [
-      { label: 'Pop Progressions', href: '/progressions/pop/', desc: null },
-      { label: 'Jazz Progressions', href: '/progressions/jazz/', desc: null },
-      { label: 'Lo-fi Progressions', href: '/progressions/lo-fi/', desc: null },
-      { label: 'Sad Progressions', href: '/progressions/sad/', desc: null },
-      { label: 'Happy Progressions', href: '/progressions/happy/', desc: null },
-      { label: 'Neo Soul Progressions', href: '/progressions/neo-soul/', desc: null },
-      { label: 'Worship Progressions', href: '/progressions/worship/', desc: null },
-      { label: 'EDM Progressions', href: '/progressions/edm/', desc: null },
-      { label: 'Rock Progressions', href: '/progressions/rock/', desc: null },
-      { label: 'Blues Progressions', href: '/progressions/blues/', desc: null },
-      { label: '12-Bar Blues', href: '/progressions/12-bar-blues/', desc: null },
-      { label: 'ii–V–I (Jazz)', href: '/progressions/ii-v-i/', desc: null },
-    ],
-  },
-  {
-    id: 'songs',
-    label: 'Songs',
-    items: [
-      { label: 'Holy Forever — Chris Tomlin', href: '/songs/holy-forever-chris-tomlin/', desc: 'Worship • Key C • Capo 1' },
-      { label: 'Wonderwall — Oasis', href: '/songs/wonderwall-oasis/', desc: 'Rock • Key F#m • Capo 2' },
-      { label: 'Hallelujah — Leonard Cohen', href: '/songs/hallelujah-leonard-cohen/', desc: 'Folk • Key C' },
-      { label: 'Hermoso Momento — Oasis Ministry', href: '/songs/hermoso-momento-oasis-ministry/', desc: 'Worship • Key Eb' },
-      { label: 'Creo en Ti — Julio Melgar', href: '/songs/creo-en-ti-julio-melgar/', desc: 'Worship' },
-      { label: 'All songs →', href: '/songs/', desc: null },
+      { label: 'Key Detector', href: '/tools/key-detector/', desc: 'Find the key of any progression' },
     ],
   },
   {
     id: 'learn',
     label: 'Learn',
     items: [
+      { label: 'Guitar Chords for Beginners', href: '/beginner-guitar-chords/', desc: '8 essential chords with diagrams' },
       { label: 'What is a Chord Progression?', href: '/learn/what-is-a-chord-progression/', desc: null },
       { label: 'How to Transpose Chords', href: '/learn/how-to-transpose-chords/', desc: null },
       { label: 'Circle of Fifths Explained', href: '/learn/circle-of-fifths-explained/', desc: null },
       { label: 'Common Pop Progressions', href: '/learn/chord-progressions-for-beginners/', desc: null },
       { label: 'Music Theory Basics', href: '/learn/music-theory-basics-for-songwriters/', desc: null },
-      { label: 'All Articles →', href: '/learn/', desc: null },
+      { label: 'All articles →', href: '/learn/', desc: null },
     ],
   },
 ];
@@ -97,14 +87,14 @@ const nav = [
 
             <!-- Dropdown panel -->
             <div class="absolute top-full left-0 pt-2 opacity-0 invisible translate-y-1 transition-all duration-150 z-50" data-nav-panel>
-              <div class="bg-card border border-border rounded-xl shadow-2xl overflow-hidden min-w-[220px]">
+              <div class="bg-card border border-border rounded-xl shadow-2xl overflow-hidden min-w-[200px]">
                 <div class="p-1.5">
                   {section.items.map((item) => (
                     <a
                       href={item.href}
-                      class="flex flex-col px-3 py-2.5 rounded-lg hover:bg-accent/60 transition-colors group/item"
+                      class="flex flex-col px-3 py-2 rounded-lg hover:bg-accent/60 transition-colors group/item"
                     >
-                      <span class="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">{item.label}</span>
+                      <span class="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors leading-snug">{item.label}</span>
                       {item.desc && (
                         <span class="text-xs text-muted-foreground mt-0.5">{item.desc}</span>
                       )}
@@ -120,13 +110,11 @@ const nav = [
       <!-- Right: CTA + mobile button -->
       <div class="flex items-center gap-2 shrink-0">
         <a
-          href="/app/"
-          class="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+          href="/editor/?chords=C-Am-F-G&bpm=100&style=pop_basic"
+          class="hidden sm:inline-flex items-center gap-1.5 px-5 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
         >
-          Open App
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Try it free
         </a>
 
         <!-- Mobile hamburger -->
@@ -177,13 +165,11 @@ const nav = [
 
       <div class="pt-3 pb-2 border-t border-border mt-3">
         <a
-          href="/app/"
+          href="/editor/?chords=C-Am-F-G&bpm=100&style=pop_basic"
           class="flex items-center justify-center gap-2 w-full px-4 py-3 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
         >
-          Open App
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Try it free
         </a>
       </div>
     </div>
@@ -191,7 +177,6 @@ const nav = [
 </header>
 
 <script>
-  // ── Mobile nav ────────────────────────────────────────────────
   const btn = document.getElementById('mobile-nav-btn');
   const panel = document.getElementById('mobile-nav');
   const hamburger = document.getElementById('hamburger-icon');
@@ -215,13 +200,13 @@ const nav = [
     });
   });
 
-  // ── Desktop dropdowns (JS-driven so only one opens at a time) ─
   const navItems = document.querySelectorAll<HTMLElement>('[data-nav-item]');
 
   function closeAll() {
     navItems.forEach(item => {
-      item.querySelector<HTMLElement>('[data-nav-panel]')?.classList.add('opacity-0', 'invisible', 'translate-y-1');
-      item.querySelector<HTMLElement>('[data-nav-panel]')?.classList.remove('opacity-100', 'visible', 'translate-y-0');
+      const p = item.querySelector<HTMLElement>('[data-nav-panel]');
+      p?.classList.add('opacity-0', 'invisible', 'translate-y-1');
+      p?.classList.remove('opacity-100', 'visible', 'translate-y-0');
       item.querySelector<SVGElement>('[data-nav-chevron]')?.classList.remove('rotate-180');
     });
   }
@@ -244,7 +229,6 @@ const nav = [
     });
   });
 
-  // Close on click outside
   document.addEventListener('click', (e) => {
     if (!(e.target as HTMLElement).closest('[data-nav-item]')) closeAll();
   });
