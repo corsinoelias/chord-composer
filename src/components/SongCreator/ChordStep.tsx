@@ -1,13 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
-  type DragEndEvent,
+  DragOverlay, useDraggable, useDroppable,
+  type DragEndEvent, type DragStartEvent, type CollisionDetection,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 import type { EditorSection, WordToken, SongMeta } from './types';
 import { sectionsToSongFormat, tokensToRawLine, parseLineToTokens, makeEmptyLine, makeNewSection } from './lyricsParser';
+import ChordPalette from './ChordPalette';
 import { ChordEditModal } from '@/components/ChordEditModal';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import SongChordPlayer from '@/components/SongChordPlayer';
@@ -102,6 +104,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
   const [editingLineText, setEditingLineText] = useState('');
   const [showMeta, setShowMeta] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [draggingChord, setDraggingChord] = useState<string | null>(null);
   const [playingSectionId, setPlayingSectionId] = useState<string | null>(null);
 
   const hasChanges = JSON.stringify(sections) !== savedSectionsJson || JSON.stringify(meta) !== savedMetaJson;
@@ -125,8 +128,88 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
     const i = p.findIndex(s => s.id === id);
     const next = [...p]; next.splice(i + 1, 0, cloneSection(p[i])); return next;
   });
+  const handleDragStart = ({ active }: DragStartEvent) => {
+    const type = active.data.current?.type;
+    if (type === 'chord' || type === 'palette-chord') {
+      setDraggingChord(active.data.current.chord);
+    }
+  };
+
   const handleDragEnd = ({ active: a, over: o }: DragEndEvent) => {
-    if (o && a.id !== o.id) setSections(p => arrayMove(p, p.findIndex(s => s.id === a.id), p.findIndex(s => s.id === o.id)));
+    setDraggingChord(null);
+    if (!o) return;
+
+    if (a.data.current?.type === 'palette-chord' && o.data.current?.type === 'chord-target') {
+      // Palette drag: assign the palette chord to the target token
+      const chord = a.data.current.chord as string;
+      const dstId = o.data.current.tokenId as string;
+      setSections(prev => prev.map(sec => ({
+        ...sec,
+        lines: sec.lines.map(l => ({
+          ...l,
+          tokens: l.tokens.map(t => t.id === dstId ? { ...t, chord, duration: 4 } : t),
+        })),
+      })));
+    } else if (a.data.current?.type === 'chord' && o.data.current?.type === 'chord-target') {
+      const srcId = a.data.current.tokenId as string;
+      const dstId = o.data.current.tokenId as string;
+      if (srcId === dstId) return;
+
+      setSections(prev => {
+        let srcChord = '', srcDur = 4, dstChord = '', dstDur = 4;
+        for (const sec of prev)
+          for (const line of sec.lines)
+            for (const t of line.tokens) {
+              if (t.id === srcId) { srcChord = t.chord; srcDur = t.duration; }
+              if (t.id === dstId) { dstChord = t.chord; dstDur = t.duration; }
+            }
+
+        return prev.map(sec => ({
+          ...sec,
+          lines: sec.lines.map(l => ({
+            ...l,
+            tokens: l.tokens.map(t => {
+              if (t.id === srcId) return { ...t, chord: dstChord, duration: dstDur };
+              if (t.id === dstId) return { ...t, chord: srcChord, duration: srcDur };
+              return t;
+            }),
+          })),
+        }));
+      });
+    } else if (
+      (a.data.current?.type === 'palette-chord' || a.data.current?.type === 'chord') &&
+      o.data.current?.type === 'line-drop'
+    ) {
+      // Drop on an empty line — add a new chord token
+      const chord = a.data.current.chord as string;
+      const srcTokenId = a.data.current?.tokenId as string | undefined;
+      const { lineId: dstLine } = o.data.current as { lineId: string };
+
+      setSections(prev => {
+        let next = prev.map(sec => ({
+          ...sec,
+          lines: sec.lines.map(l => {
+            if (l.id !== dstLine) return l;
+            const newToken: WordToken = { id: nid(), text: '', chord, duration: 4, isSpace: false };
+            const kept = l.tokens.filter(t => t.text.trim() || t.chord);
+            return { ...l, tokens: [...kept, newToken] };
+          }),
+        }));
+        // If moving from an existing token, clear the source
+        if (srcTokenId) {
+          next = next.map(sec => ({
+            ...sec,
+            lines: sec.lines.map(l => ({
+              ...l,
+              tokens: l.tokens.map(t => t.id === srcTokenId ? { ...t, chord: '', duration: 4 } : t),
+            })),
+          }));
+        }
+        return next;
+      });
+    } else if (!a.data.current?.type && a.id !== o.id) {
+      setSections(p => arrayMove(p, p.findIndex(s => s.id === a.id), p.findIndex(s => s.id === o.id)));
+    }
   };
 
   // ── Line ops ──────────────────────────────────────────────────────────────────
@@ -205,6 +288,17 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
     onMetaChange({ ...meta, key: newKey });
   };
 
+  // ── Collision detection: sections only collide with sections ─────────────────
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const activeType = args.active.data.current?.type;
+    if (!activeType) {
+      // Section drag — filter out chord/line droppables
+      const sectionOnly = args.droppableContainers.filter(c => !c.data.current?.type);
+      return closestCenter({ ...args, droppableContainers: sectionOnly });
+    }
+    return closestCenter(args);
+  }, []);
+
   // ── Preview song ──────────────────────────────────────────────────────────────
   const previewSong: Song = {
     slug: 'preview', title: meta.title || 'Preview', artist: meta.artist || '',
@@ -244,6 +338,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
             className="flex items-center gap-1.5 text-xs bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/40 rounded-lg px-3 py-1.5 font-medium transition-colors">
             <Play className="w-3.5 h-3.5" /> Preview
           </button>
+
         </div>
       </div>
 
@@ -289,43 +384,62 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
         </div>
       )}
 
-      {/* ── Editor ── */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-3">
-            {sections.map(section => (
-              <SortableSection
-                key={section.id}
-                section={section}
-                canDelete={sections.length > 1}
-                editingLineId={editingLineId}
-                editingLineText={editingLineText}
-                lineEditRef={lineEditRef}
-                isPlaying={isPlaying && playingSectionId === section.id}
-                onRename={renameSect}
-                onDelete={deleteSection}
-                onDuplicate={duplicateSection}
-                onPlaySection={handlePlaySection}
-                onAddLine={addLine}
-                onDeleteLine={deleteLine}
-                onDuplicateLine={duplicateLine}
-                onStartEditLine={startEditLine}
-                onCommitLineEdit={commitLineEdit}
-                onCancelLineEdit={() => setEditingLineId(null)}
-                onEditingLineTextChange={setEditingLineText}
-                onOpenChordModal={openChordModal}
-                onPreviewChord={previewChord}
-                onUpdateToken={updateToken}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+      {/* ── Editor + chord palette aside ── */}
+      <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="flex gap-4 items-start">
 
-      <button onClick={addSection}
-        className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground border-2 border-dashed border-border/50 hover:border-primary/40 rounded-xl py-3 transition-colors">
-        <Plus className="w-4 h-4" /> Add section
-      </button>
+          {/* Sections column */}
+          <div className="flex-1 min-w-0 flex flex-col gap-3">
+            <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-3">
+                {sections.map(section => (
+                  <SortableSection
+                    key={section.id}
+                    section={section}
+                    canDelete={sections.length > 1}
+                    editingLineId={editingLineId}
+                    editingLineText={editingLineText}
+                    lineEditRef={lineEditRef}
+                    isPlaying={isPlaying && playingSectionId === section.id}
+                    onRename={renameSect}
+                    onDelete={deleteSection}
+                    onDuplicate={duplicateSection}
+                    onPlaySection={handlePlaySection}
+                    onAddLine={addLine}
+                    onDeleteLine={deleteLine}
+                    onDuplicateLine={duplicateLine}
+                    onStartEditLine={startEditLine}
+                    onCommitLineEdit={commitLineEdit}
+                    onCancelLineEdit={() => setEditingLineId(null)}
+                    onEditingLineTextChange={setEditingLineText}
+                    onOpenChordModal={openChordModal}
+                    onPreviewChord={previewChord}
+                    onUpdateToken={updateToken}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+
+            <button onClick={addSection}
+              className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground border-2 border-dashed border-border/50 hover:border-primary/40 rounded-xl py-3 transition-colors">
+              <Plus className="w-4 h-4" /> Add section
+            </button>
+          </div>
+
+          {/* Chord palette aside — sticky */}
+          <div className="w-36 shrink-0 sticky top-20 self-start">
+            <ChordPalette songKey={meta.key} />
+          </div>
+        </div>
+
+        <DragOverlay dropAnimation={null}>
+          {draggingChord && (
+            <span className="inline-flex items-center text-xs font-bold text-primary bg-primary/20 border border-primary/60 rounded-lg px-2.5 py-1 shadow-lg cursor-grabbing select-none">
+              {draggingChord}
+            </span>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {/* ── Sticky save bar ── */}
       <div className="sticky bottom-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-background/95 backdrop-blur border-t border-border">
@@ -383,6 +497,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
         onClose={() => setEditingChord(null)}
         onSave={handleChordSave}
         onDelete={editingChord?.chord ? handleChordDelete : undefined}
+        songKey={meta.key}
         onPreview={partial => {
           const c = { root: 'C', accidental: '', quality: 'maj', duration: 4, id: 'preview', ...partial } as import('@/lib/musicTheory').Chord;
           playChordPreview(c);
@@ -402,6 +517,26 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
           </PlaybackProvider>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ── LineDropZone — droppable wrapper for empty lines ─────────────────────────
+function LineDropZone({ lineId, sectionId, children, isEmpty }: {
+  lineId: string; sectionId: string; isEmpty: boolean; children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'linedrop-' + lineId,
+    disabled: !isEmpty,
+    data: { type: 'line-drop', sectionId, lineId },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex-1 flex flex-wrap gap-x-1 gap-y-4 py-1 min-h-[3rem] rounded-lg transition-all
+        ${isOver ? 'bg-primary/10 ring-2 ring-dashed ring-primary/50' : ''}`}
+    >
+      {children}
     </div>
   );
 }
@@ -515,20 +650,31 @@ function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSe
               </div>
             ) : (
               <div className="flex items-start gap-2">
-                <div className="flex-1 flex flex-wrap gap-x-1 gap-y-4 py-1 min-h-[3rem]">
-                  {line.tokens.length === 0 || (line.tokens.length === 1 && !line.tokens[0].text) ? (
-                    <span className="text-xs text-muted-foreground/30 italic self-center">Empty — click ✎ to add text</span>
-                  ) : (
-                    line.tokens.map(token => (
-                      <TokenChip
-                        key={token.id} token={token}
-                        onOpenModal={() => props.onOpenChordModal(section.id, line.id, token.id, token.chord, token.duration)}
-                        onRemove={() => props.onUpdateToken(section.id, line.id, token.id, { chord: '', duration: 4 })}
-                        onPreview={() => props.onPreviewChord(token.chord)}
-                      />
-                    ))
-                  )}
-                </div>
+                {(() => {
+                  // "chord-only" = no real lyrics text — allows dropping more chords at any point
+                  const hasText = line.tokens.some(t => t.text.trim() && !t.isSpace);
+                  const isChordOnly = !hasText;
+                  const isBlank = line.tokens.length === 0 || (line.tokens.length === 1 && !line.tokens[0].text && !line.tokens[0].chord);
+                  return (
+                    <LineDropZone lineId={line.id} sectionId={section.id} isEmpty={isChordOnly}>
+                      {isBlank ? (
+                        <span className="text-xs text-muted-foreground/30 italic self-center">
+                          Empty — drag a chord here or click ✎ to add text
+                        </span>
+                      ) : (
+                        line.tokens.map(token => (
+                          <TokenChip
+                            key={token.id} token={token}
+                            sectionId={section.id} lineId={line.id}
+                            onOpenModal={() => props.onOpenChordModal(section.id, line.id, token.id, token.chord, token.duration)}
+                            onRemove={() => props.onUpdateToken(section.id, line.id, token.id, { chord: '', duration: 4 })}
+                            onPreview={() => props.onPreviewChord(token.chord)}
+                          />
+                        ))
+                      )}
+                    </LineDropZone>
+                  );
+                })()}
 
                 {/* Line actions */}
                 <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity pt-3 shrink-0">
@@ -556,32 +702,57 @@ function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSe
 // ── TokenChip ─────────────────────────────────────────────────────────────────
 interface ChipProps {
   token: WordToken;
+  sectionId: string;
+  lineId: string;
   onOpenModal: () => void;
   onRemove: () => void;
   onPreview: () => void;
 }
 
-function TokenChip({ token, onOpenModal, onRemove, onPreview }: ChipProps) {
+function TokenChip({ token, sectionId, lineId, onOpenModal, onRemove, onPreview }: ChipProps) {
   if (token.isSpace) return <span className="text-sm select-none">{token.text}</span>;
 
   const hasChord = !!token.chord;
   const durLabel = hasChord && token.duration !== 4 ? `${token.duration}b` : null;
 
-  const handleChordClick = () => {
-    onPreview();   // play the sound
-    onOpenModal(); // open the edit modal
+  // Draggable — only when this token has a chord
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: 'drag-' + token.id,
+    disabled: !hasChord,
+    data: { type: 'chord', sectionId, lineId, tokenId: token.id, chord: token.chord, duration: token.duration },
+  });
+
+  // Droppable — always, so any chord can be dropped here
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: 'drop-' + token.id,
+    data: { type: 'chord-target', sectionId, lineId, tokenId: token.id },
+  });
+
+  const handleChordClick = (e: React.MouseEvent) => {
+    if (isDragging) return;
+    onPreview();
+    onOpenModal();
   };
 
   return (
-    <span className="group/chip relative inline-flex flex-col items-start" style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+    <span
+      ref={setDropRef}
+      className={`group/chip relative inline-flex flex-col items-start rounded-lg transition-colors
+        ${isOver ? 'bg-primary/10 outline outline-2 outline-primary/40 outline-offset-1' : ''}`}
+      style={{ fontFamily: 'var(--font-mono, monospace)' }}
+    >
       {/* Chord area */}
       <span className="flex items-center gap-0.5 min-h-[1.75em] mb-0.5">
         {hasChord ? (
           <>
-            {/* Chord badge — click plays sound + opens modal */}
+            {/* Chord badge — draggable + click opens modal */}
             <button
+              ref={setDragRef}
+              {...attributes}
+              {...listeners}
               onClick={handleChordClick}
-              className="inline-flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/60 rounded-lg px-2 py-0.5 transition-all hover:shadow-sm leading-none"
+              className={`inline-flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/60 rounded-lg px-2 py-0.5 transition-all hover:shadow-sm leading-none
+                ${isDragging ? 'opacity-30 cursor-grabbing' : 'cursor-grab active:cursor-grabbing'}`}
             >
               {token.chord}
               {durLabel && <span className="text-[10px] font-normal opacity-60">{durLabel}</span>}
@@ -599,7 +770,8 @@ function TokenChip({ token, onOpenModal, onRemove, onPreview }: ChipProps) {
         ) : (
           <button
             onClick={onOpenModal}
-            className="opacity-20 group-hover/chip:opacity-100 text-[11px] text-muted-foreground hover:text-primary border border-dashed border-border hover:border-primary/60 hover:bg-primary/5 rounded-lg px-1.5 py-0.5 transition-all whitespace-nowrap leading-none"
+            className={`opacity-20 group-hover/chip:opacity-100 text-[11px] text-muted-foreground hover:text-primary border border-dashed border-border hover:border-primary/60 hover:bg-primary/5 rounded-lg px-1.5 py-0.5 transition-all whitespace-nowrap leading-none
+              ${isOver ? 'opacity-100 border-primary/60 bg-primary/5' : ''}`}
           >
             +
           </button>

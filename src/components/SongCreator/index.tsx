@@ -3,15 +3,17 @@ import { PlaybackProvider } from '@/contexts/PlaybackContext';
 import MetaStep from './MetaStep';
 import LyricsStep from './LyricsStep';
 import ChordStep from './ChordStep';
+import TextModeStep from './TextModeStep';
 import type { SongMeta, EditorSection } from './types';
 import { sectionsToSongFormat, songSectionsToEditorSections } from './lyricsParser';
 import { savePublicSong, updatePublicSong, upsertPublicSongBySlug, getPublicSongBySlug } from '@/lib/publicSongs';
 import { SONGS } from '@/data/songs';
 import { generateSlug } from '@/lib/musicKeys';
 import { toast } from 'sonner';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2, AlignLeft, LayoutList } from 'lucide-react';
 
 type Step = 'meta' | 'lyrics' | 'chords' | 'done';
+type Mode = 'steps' | 'text';
 
 const STEPS: { key: Step; label: string }[] = [
   { key: 'meta', label: 'Details' },
@@ -30,6 +32,7 @@ function getParam(name: string): string | null {
 
 export default function SongCreator() {
   const [step, setStep] = useState<Step>('meta');
+  const [mode, setMode] = useState<Mode>('steps');
   const [meta, setMeta] = useState<SongMeta>(DEFAULT_META);
   const [rawLyrics, setRawLyrics] = useState('');
   const [sections, setSections] = useState<EditorSection[]>([]);
@@ -90,6 +93,21 @@ export default function SongCreator() {
   }, []);
 
   const stepIndex = STEPS.findIndex(s => s.key === step);
+
+  function handleTextImport(parsedMeta: Partial<SongMeta>, parsedSections: EditorSection[]) {
+    setMeta({
+      title:  parsedMeta.title  ?? meta.title,
+      artist: parsedMeta.artist ?? meta.artist,
+      key:    parsedMeta.key    ?? meta.key,
+      capo:   parsedMeta.capo   ?? meta.capo,
+      bpm:    parsedMeta.bpm    ?? meta.bpm,
+      genre:  parsedMeta.genre  ?? meta.genre,
+      style:  parsedMeta.style  ?? meta.style,
+    });
+    setSections(parsedSections);
+    setMode('steps');
+    setStep('chords');
+  }
 
   async function handlePublish(finalSections: EditorSection[]) {
     setIsPublishing(true);
@@ -187,49 +205,79 @@ export default function SongCreator() {
 
   return (
     <div>
-      {/* Step indicator */}
-      <nav className="flex items-center gap-0 mb-10">
-        {STEPS.map((s, i) => (
-          <div key={s.key} className="flex items-center">
-            <div className={`flex items-center gap-2 text-sm font-medium transition-colors
-              ${i < stepIndex ? 'text-primary cursor-pointer' : i === stepIndex ? 'text-foreground' : 'text-muted-foreground'}`}
-              onClick={() => i < stepIndex && setStep(s.key)}
+      {/* Mode toggle — hidden once in chords step */}
+      {step !== 'chords' && (
+        <div className="flex items-center gap-1 mb-8 p-1 bg-muted/50 rounded-xl w-fit border border-border">
+          {(['steps', 'text'] as const).map(m => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors
+                ${mode === m ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
-                ${i < stepIndex ? 'bg-primary text-primary-foreground' : i === stepIndex ? 'bg-primary/10 text-primary border border-primary/40' : 'bg-muted text-muted-foreground'}`}>
-                {i < stepIndex ? '✓' : i + 1}
-              </span>
-              <span className="hidden sm:inline">{s.label}</span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <div className={`w-8 h-px mx-2 ${i < stepIndex ? 'bg-primary' : 'bg-border'}`} />
-            )}
-          </div>
-        ))}
-      </nav>
-
-      {step === 'meta' && (
-        <MetaStep meta={meta} onChange={setMeta} onNext={() => setStep('lyrics')} />
+              {m === 'steps' ? <><LayoutList className="w-3.5 h-3.5" /> Step by step</> : <><AlignLeft className="w-3.5 h-3.5" /> From text</>}
+            </button>
+          ))}
+        </div>
       )}
-      {step === 'lyrics' && (
-        <LyricsStep
-          initialText={rawLyrics}
-          onNext={(parsed, raw) => { setSections(parsed); setRawLyrics(raw); setStep('chords'); }}
-          onBack={() => setStep('meta')}
+
+      {/* Text mode */}
+      {mode === 'text' && (
+        <TextModeStep
+          initialText=""
+          onImport={handleTextImport}
+          onBack={() => setMode('steps')}
         />
       )}
-      {step === 'chords' && (
-        <PlaybackProvider>
-          <ChordStep
-            sections={sections}
-            meta={meta}
-            onMetaChange={setMeta}
-            onBack={() => setStep('lyrics')}
-            onPublish={handlePublish}
-            isPublishing={isPublishing}
-            isEditMode={!!editId}
-          />
-        </PlaybackProvider>
+
+      {/* Step-by-step mode */}
+      {mode === 'steps' && (
+        <>
+          {/* Step indicator */}
+          <nav className="flex items-center gap-0 mb-10">
+            {STEPS.map((s, i) => (
+              <div key={s.key} className="flex items-center">
+                <div className={`flex items-center gap-2 text-sm font-medium transition-colors
+                  ${i < stepIndex ? 'text-primary cursor-pointer' : i === stepIndex ? 'text-foreground' : 'text-muted-foreground'}`}
+                  onClick={() => i < stepIndex && setStep(s.key)}
+                >
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
+                    ${i < stepIndex ? 'bg-primary text-primary-foreground' : i === stepIndex ? 'bg-primary/10 text-primary border border-primary/40' : 'bg-muted text-muted-foreground'}`}>
+                    {i < stepIndex ? '✓' : i + 1}
+                  </span>
+                  <span className="hidden sm:inline">{s.label}</span>
+                </div>
+                {i < STEPS.length - 1 && (
+                  <div className={`w-8 h-px mx-2 ${i < stepIndex ? 'bg-primary' : 'bg-border'}`} />
+                )}
+              </div>
+            ))}
+          </nav>
+
+          {step === 'meta' && (
+            <MetaStep meta={meta} onChange={setMeta} onNext={() => setStep('lyrics')} />
+          )}
+          {step === 'lyrics' && (
+            <LyricsStep
+              initialText={rawLyrics}
+              onNext={(parsed, raw) => { setSections(parsed); setRawLyrics(raw); setStep('chords'); }}
+              onBack={() => setStep('meta')}
+            />
+          )}
+          {step === 'chords' && (
+            <PlaybackProvider>
+              <ChordStep
+                sections={sections}
+                meta={meta}
+                onMetaChange={setMeta}
+                onBack={() => setStep('lyrics')}
+                onPublish={handlePublish}
+                isPublishing={isPublishing}
+                isEditMode={!!editId}
+              />
+            </PlaybackProvider>
+          )}
+        </>
       )}
     </div>
   );

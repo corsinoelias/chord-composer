@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes } from '@/lib/chordNotes';
@@ -7,17 +7,50 @@ import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { playChordPreview } from '@/lib/audioEngine';
 
+// ── Transpose helpers ─────────────────────────────────────────────────────────
+const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLATS  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const FLAT_KEYS = new Set(['F','Bb','Eb','Ab','Db','Gb','Dm','Gm','Cm','Fm','Bbm','Ebm']);
+function noteIndex(n: string) { const i = SHARPS.indexOf(n); return i !== -1 ? i : FLATS.indexOf(n); }
+function transposeChordStr(c: string, s: number, flats: boolean) {
+  const m = c.match(/^([A-G][#b]?)(.*)/); if (!m) return c;
+  const i = noteIndex(m[1]); if (i === -1) return c;
+  return (flats ? FLATS : SHARPS)[((i + s) % 12 + 12) % 12] + m[2];
+}
+function transposeKey(key: string, s: number) {
+  const minor = key.endsWith('m') && key.length > 1;
+  const root = minor ? key.slice(0, -1) : key;
+  const i = noteIndex(root); if (i === -1) return key;
+  return (FLAT_KEYS.has(key) ? FLATS : SHARPS)[((i + s) % 12 + 12) % 12] + (minor ? 'm' : '');
+}
+
 interface Props {
   chords: string[];
+  songKey: string;
 }
 
 type View = 'piano' | 'guitar';
 
-export default function ChordAside({ chords }: Props) {
+export default function ChordAside({ chords, songKey }: Props) {
   const [open, setOpen] = useState(true);
   const [view, setView] = useState<View>('piano');
+  const [semitones, setSemitones] = useState(0);
 
-  const items = chords
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setSemitones((e as CustomEvent<{ semitones: number }>).detail.semitones);
+    };
+    window.addEventListener('song-transpose', handler);
+    return () => window.removeEventListener('song-transpose', handler);
+  }, []);
+
+  const displayKey = semitones === 0 ? songKey : transposeKey(songKey, semitones);
+  const useFlats = FLAT_KEYS.has(displayKey);
+  const displayedChords = semitones === 0
+    ? chords
+    : chords.map(c => transposeChordStr(c, semitones, useFlats));
+
+  const items = displayedChords
     .map(chord => {
       const parsed = parseChordString(chord);
       const chordObj = parsed[0] ?? null;

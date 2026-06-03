@@ -1157,6 +1157,7 @@ export interface PlaybackOptions {
   getMetronome?: () => boolean;
   getInstruments?: () => InstrumentState[];
   getTransposition?: () => number;
+  getBpm?: () => number;
 }
 
 /**
@@ -1183,14 +1184,16 @@ export function scheduleProgression(
     forceFill = false,
     getMetronome,
     getInstruments,
-    getTransposition
+    getTransposition,
+    getBpm: getBpmGetter,
   } = options;
-  
+
   const ctx = getAudioContext();
   const startTime = ctx.currentTime + 0.1;
   const beatDuration = 60 / bpm;
   const barDuration = beatDuration * 4; // 4 beats per bar
-  const slotDuration = beatDuration / 4; // 16th note duration
+  const slotDuration = beatDuration / 4; // 16th note duration — used only for totalDuration estimate
+  const getCurrentBpm = () => getBpmGetter ? getBpmGetter() : bpm;
   
   const timeouts: number[] = [];
   let cancelled = false;
@@ -1246,7 +1249,10 @@ export function scheduleProgression(
   // Schedule a batch of slots (one chord segment at a time for efficiency)
   const scheduleSegment = (segmentStartTime: number) => {
     if (cancelled) return;
-    
+
+    // Re-read BPM each segment so live changes take effect on the next chord
+    const slotDuration = (60 / getCurrentBpm()) / 4;
+
     // Check if we've finished all segments
     if (currentSegmentIndex >= chordSegments.length) {
       if (loop) {

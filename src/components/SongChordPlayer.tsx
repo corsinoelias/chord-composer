@@ -9,6 +9,26 @@ import ChordTooltip from '@/components/ChordTooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { playChordPreview } from '@/lib/audioEngine';
 
+// ─── Transpose helpers ────────────────────────────────────────────────────────
+const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLATS  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const FLAT_KEYS = new Set(['F','Bb','Eb','Ab','Db','Gb','Dm','Gm','Cm','Fm','Bbm','Ebm']);
+function noteIndex(n: string) { const i = SHARPS.indexOf(n); return i !== -1 ? i : FLATS.indexOf(n); }
+function transposeNote(n: string, s: number, flats: boolean) {
+  const i = noteIndex(n); if (i === -1) return n;
+  return (flats ? FLATS : SHARPS)[((i + s) % 12 + 12) % 12];
+}
+function transposeChordStr(c: string, s: number, flats: boolean) {
+  const m = c.match(/^([A-G][#b]?)(.*)/); if (!m) return c;
+  return transposeNote(m[1], s, flats) + m[2];
+}
+function transposeKey(key: string, s: number) {
+  const minor = key.endsWith('m') && key.length > 1;
+  const root = minor ? key.slice(0, -1) : key;
+  const newRoot = transposeNote(root, s, FLAT_KEYS.has(key));
+  return newRoot + (minor ? 'm' : '');
+}
+
 // ─── Token with resolved global index ────────────────────────────────────────
 interface ResolvedToken {
   chord: string;
@@ -23,10 +43,20 @@ interface ResolvedSection {
 
 // ─── Inner component (needs PlaybackContext) ──────────────────────────────────
 function SongChordPlayerInner({ song }: { song: Song }) {
-  const { state, play, stop } = usePlayback();
+  const { state, play, stop, setBpm: setContextBpm, updatePlaybackOptions } = usePlayback();
   const { isPlaying, currentChordIndex } = state;
   const [isLoading, setIsLoading] = useState(false);
   const [bpm, setBpm] = useState(song.bpm);
+  const [transpose, setTranspose] = useState(0);
+
+  // Keep context BPM in sync for live tempo changes during playback
+  useEffect(() => { setContextBpm(bpm); }, [bpm, setContextBpm]);
+
+  // Keep context transposition in sync + notify ChordAside
+  useEffect(() => {
+    updatePlaybackOptions({ transposition: transpose });
+    window.dispatchEvent(new CustomEvent('song-transpose', { detail: { semitones: transpose } }));
+  }, [transpose, updatePlaybackOptions]);
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
   // null = full song, number = which section index is playing solo
   const [playingSection, setPlayingSection] = useState<number | null>(null);
@@ -58,6 +88,22 @@ function SongChordPlayerInner({ song }: { song: Song }) {
     return { resolvedSections: sections, allChordsFlat: allChords, sectionStartIndices: startIndices, sectionChordCounts: chordCounts };
   }, [song]);
 
+  const displayKey = useMemo(() => transpose === 0 ? song.key : transposeKey(song.key, transpose), [song.key, transpose]);
+
+  const displayedSections = useMemo(() => {
+    if (transpose === 0) return resolvedSections;
+    const flats = FLAT_KEYS.has(displayKey);
+    return resolvedSections.map(sec => ({
+      ...sec,
+      lines: sec.lines.map(line =>
+        line.map(token => ({
+          ...token,
+          chord: token.chord ? transposeChordStr(token.chord, transpose, flats) : token.chord,
+        }))
+      ),
+    }));
+  }, [resolvedSections, transpose, displayKey]);
+
   // ── Build playback chords for a range ─────────────────────────────────────
   function buildPlayback(startGlobal: number, count: number, label: string) {
     const chordsWithDur = extractChordsWithDuration(song).slice(startGlobal, startGlobal + count);
@@ -88,7 +134,7 @@ function SongChordPlayerInner({ song }: { song: Song }) {
     try {
       await play(buildPlayback(0, allChordsFlat.length, 'Song'), {
         bpm, metronome: false, instruments: getDefaultInstrumentStates(),
-        styleId: song.style, transposition: 0, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
+        styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
       });
     } finally { setIsLoading(false); }
   }, [isPlaying, play, stop, allChordsFlat.length, bpm, song.style]);
@@ -103,7 +149,7 @@ function SongChordPlayerInner({ song }: { song: Song }) {
     try {
       await play(buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name), {
         bpm, metronome: false, instruments: getDefaultInstrumentStates(),
-        styleId: song.style, transposition: 0, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
+        styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
       });
     } finally { setIsLoading(false); }
   }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections]);
@@ -146,7 +192,7 @@ function SongChordPlayerInner({ song }: { song: Song }) {
             {/* Key / Capo badges */}
             <div className="flex flex-wrap gap-1.5 justify-end shrink-0">
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
-                Key: {song.key}
+                Key: {displayKey}{transpose !== 0 && <span className="ml-1 opacity-60 font-normal">({transpose > 0 ? '+' : ''}{transpose})</span>}
               </span>
               {song.capo && (
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border">
@@ -194,6 +240,23 @@ function SongChordPlayerInner({ song }: { song: Song }) {
                 className="w-6 h-6 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 text-xs font-bold transition-colors"
               >+</button>
             </div>
+
+            {/* Key transposition */}
+            <div className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-background">
+              <button
+                onClick={() => setTranspose(t => Math.max(-6, t - 1))}
+                disabled={transpose <= -6}
+                className="w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 disabled:opacity-30 text-xs font-bold transition-colors"
+                title="Transpose down"
+              >−</button>
+              <span className="text-xs text-muted-foreground w-16 text-center select-none">{displayKey}{transpose !== 0 ? ` (${transpose > 0 ? '+' : ''}${transpose})` : ''}</span>
+              <button
+                onClick={() => setTranspose(t => Math.min(6, t + 1))}
+                disabled={transpose >= 6}
+                className="w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 disabled:opacity-30 text-xs font-bold transition-colors"
+                title="Transpose up"
+              >+</button>
+            </div>
           </div>
 
           <a
@@ -216,7 +279,7 @@ function SongChordPlayerInner({ song }: { song: Song }) {
 
       {/* ─ Song chart ─ */}
       <div className="space-y-6">
-        {resolvedSections.map((section, si) => {
+        {displayedSections.map((section, si) => {
           const collapsed = collapsedSections.has(si);
 
           // Which global index is "active" right now

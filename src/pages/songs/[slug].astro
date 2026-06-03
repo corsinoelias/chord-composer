@@ -222,7 +222,7 @@ const breadcrumbSchema = {
       <!-- Aside: chord visualizers -->
       {uniqueChords.length > 0 && (
         <aside class="lg:sticky lg:top-6">
-          <ChordAside client:load chords={uniqueChords} />
+          <ChordAside client:load chords={uniqueChords} songKey={song.key} />
         </aside>
       )}
 

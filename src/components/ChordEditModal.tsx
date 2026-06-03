@@ -7,6 +7,15 @@ import { getGuitarVoicing } from '@/data/guitarChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { Trash2, Copy } from 'lucide-react';
+import { getDiatonicChords } from '@/lib/musicKeys';
+
+// Parse simple diatonic chord strings ("Am", "Bdim", "F#") into component parts
+function parseDiatonic(str: string): { root: RootNote; acc: Accidental; qual: ChordQuality } | null {
+  const m = str.match(/^([A-G])([#b]?)(m|dim)?$/);
+  if (!m) return null;
+  const qual: ChordQuality = m[3] === 'dim' ? 'dim' : m[3] === 'm' ? 'min' : 'maj';
+  return { root: m[1] as RootNote, acc: (m[2] ?? '') as Accidental, qual };
+}
 
 interface ChordEditModalProps {
   chord: Chord | null;
@@ -16,13 +25,19 @@ interface ChordEditModalProps {
   onDelete?: () => void;
   onDuplicate?: () => void;
   onPreview?: (chord: Partial<Chord>) => void;
+  songKey?: string;
 }
 
-export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDuplicate, onPreview }: ChordEditModalProps) {
+export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDuplicate, onPreview, songKey }: ChordEditModalProps) {
   const [root, setRoot] = useState<RootNote>('C');
   const [accidental, setAccidental] = useState<Accidental>('');
   const [quality, setQuality] = useState<ChordQuality>('maj');
   const [duration, setDuration] = useState(2);
+
+  const diatonicChords = useMemo(
+    () => songKey ? getDiatonicChords(songKey) : [],
+    [songKey]
+  );
 
   const triggerPreview = (newRoot: RootNote, newAccidental: Accidental, newQuality: ChordQuality) => {
     onPreview?.({ root: newRoot, accidental: newAccidental, quality: newQuality });
@@ -72,12 +87,47 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-lg bg-card border-border">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg bg-card border-border flex flex-col max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-foreground">Edit Chord</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 py-4 overflow-y-auto flex-1 pr-1">
+          {/* In-key quick-pick */}
+          {diatonicChords.length > 0 && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
+              <label className="block text-[11px] font-semibold text-primary/70 uppercase tracking-widest mb-2">
+                In key of {songKey}
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {diatonicChords.map(c => {
+                  const parsed = parseDiatonic(c);
+                  if (!parsed) return null;
+                  const isActive = root === parsed.root && accidental === parsed.acc && quality === parsed.qual;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => {
+                        setRoot(parsed.root);
+                        setAccidental(parsed.acc);
+                        setQuality(parsed.qual);
+                        triggerPreview(parsed.root, parsed.acc, parsed.qual);
+                      }}
+                      className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition-all
+                        ${isActive
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                          : 'bg-background text-foreground border-border hover:border-primary/50 hover:bg-primary/10 hover:text-primary'
+                        }`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Root Note */}
           <div>
             <label className="block text-xs text-muted-foreground mb-2">Root Note</label>
@@ -197,7 +247,7 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex-col sm:flex-row gap-2 shrink-0">
           <div className="flex gap-2 w-full sm:w-auto">
             {onDelete && (
               <Button 

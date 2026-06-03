@@ -235,6 +235,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       getMetronome: () => optionsRef.current?.metronome ?? true,
       getInstruments: () => optionsRef.current?.instruments ?? options.instruments,
       getTransposition: () => optionsRef.current?.transposition ?? 0,
+      getBpm: () => optionsRef.current?.bpm ?? options.bpm,
     });
 
     cancelRef.current = cancel;
