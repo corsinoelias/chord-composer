@@ -15,6 +15,16 @@ const { genre } = Astro.props;
 
 const genreCanonicalUrl = `https://chordsequence.com/progressions/${genre.slug}/`;
 
+function toAnchorId(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[–—]/g, '-')
+    .replace(/[♭]/g, 'b')
+    .replace(/[#♯]/g, 's')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 const itemListSchema = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
@@ -27,6 +37,7 @@ const itemListSchema = {
     position: i + 1,
     name: p.title,
     description: p.description,
+    url: `${genreCanonicalUrl}#${toAnchorId(p.title)}`,
   })),
 };
 
@@ -83,7 +94,7 @@ const breadcrumbSchema = {
 
     <div class="space-y-6">
       {genre.progressions.map((p) => (
-        <div class="rounded-xl border border-border bg-card p-5">
+        <div id={toAnchorId(p.title)} class="rounded-xl border border-border bg-card p-5">
           <p class="text-xs text-muted-foreground mb-3 leading-relaxed">{p.description}</p>
           <ChordEmbedIsland chords={p.chords} bpm={p.bpm} style={p.style} title={p.title} />
         </div>

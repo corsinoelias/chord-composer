@@ -19,7 +19,13 @@ export default defineConfig({
     mdx(),
     sitemap({
       filter: (page) => !page.includes('/app') && !page.includes('/editor') && !page.includes('/songs/c/') && !page.includes('/songs/new'),
-      customPages: ['https://chordsequence.com/songs/'],
+      customPages: [
+        'https://chordsequence.com/songs/',
+        'https://chordsequence.com/songs/holy-forever-chris-tomlin/',
+        'https://chordsequence.com/songs/autumn-leaves-jazz-standard/',
+        'https://chordsequence.com/songs/hallelujah-leonard-cohen/',
+        'https://chordsequence.com/songs/wonderwall-oasis/',
+      ],
       serialize(item) {
         const lastmodMap = {
           'https://chordsequence.com/': '2026-05-29',
@@ -43,7 +49,7 @@ export default defineConfig({
           'https://chordsequence.com/progressions/blues/': '2026-06-01',
           'https://chordsequence.com/progressions/12-bar-blues/': '2026-06-01',
           'https://chordsequence.com/progressions/ii-v-i/': '2026-06-01',
-          'https://chordsequence.com/songs/': '2026-06-01',
+          'https://chordsequence.com/songs/': '2026-06-03',
           'https://chordsequence.com/songs/holy-forever-chris-tomlin/': '2026-06-01',
           'https://chordsequence.com/songs/autumn-leaves-jazz-standard/': '2026-06-01',
           'https://chordsequence.com/songs/hallelujah-leonard-cohen/': '2026-06-01',

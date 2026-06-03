@@ -85,11 +85,14 @@ const relatedSongs = SONGS
   .filter(s => s.slug !== song.slug && s.genre.some(g => song.genre.includes(g)))
   .slice(0, 3);
 
+const KNOWN_BANDS = new Set(['Oasis', 'The Beatles', 'Led Zeppelin', 'Pink Floyd', 'Oasis Ministry', 'Radiohead', 'Coldplay', 'U2', 'Metallica', 'AC/DC']);
+const composerType = KNOWN_BANDS.has(song.artist) ? 'MusicGroup' : 'Person';
+
 const musicSchema = {
   '@context': 'https://schema.org',
   '@type': 'MusicComposition',
   name: song.title,
-  composer: { '@type': 'Person', name: song.artist },
+  composer: { '@type': composerType, name: song.artist },
   inAlbum: song.album ? { '@type': 'MusicAlbum', name: song.album } : undefined,
   datePublished: song.year?.toString(),
   genre: song.genre.join(', '),
@@ -106,49 +109,8 @@ const breadcrumbSchema = {
   ],
 };
 
-const chordListStr = uniqueChords.join(', ');
-const capoAnswer = song.capo
-  ? ` with a capo on fret ${song.capo}`
-  : '';
-
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: `What key is ${song.title} in?`,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: `${song.title} by ${song.artist} is in the key of ${song.key}${capoAnswer}.`,
-      },
-    },
-    {
-      '@type': 'Question',
-      name: `What chords are used in ${song.title}?`,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: `${song.title} uses the following chords: ${chordListStr}.`,
-      },
-    },
-    ...(song.capo ? [{
-      '@type': 'Question',
-      name: `Does ${song.title} require a capo?`,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: `Yes, ${song.title} by ${song.artist} is played with a capo on fret ${song.capo}. The chord shapes are played${capoAnswer}.`,
-      },
-    }] : []),
-    {
-      '@type': 'Question',
-      name: `How do I play ${song.title} on guitar?`,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: `To play ${song.title} by ${song.artist}, you need to know these chords: ${chordListStr}. Use the interactive player on this page to follow the chords in sync with the lyrics.`,
-      },
-    },
-  ],
-};
+// FAQPage schema intentionally removed — Google restricted FAQPage rich results
+// to government/healthcare sites (Aug 2023). The FAQ content stays on-page for users.
 ---
 
 <BaseLayout
@@ -159,7 +121,6 @@ const faqSchema = {
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(musicSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
   </Fragment>
 
   <main class="mx-auto max-w-5xl px-4 sm:px-6 py-12 sm:py-20">
