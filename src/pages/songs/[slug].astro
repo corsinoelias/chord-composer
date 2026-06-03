@@ -2,6 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import SongChordPlayerIsland from '../../components/SongChordPlayerIsland.astro';
 import CommunityEditButton from '../../components/CommunityEditButton';
+import SongImageButton from '../../components/SongImageButton';
 import ChordAside from '../../components/ChordAside';
 import { SONGS, extractChordsFromSong } from '../../data/songs';
 import type { Song } from '../../data/songs';
@@ -140,6 +141,9 @@ const breadcrumbSchema = {
         </svg>
         PDF
       </a>
+
+      <!-- Image export -->
+      <SongImageButton client:load song={song} />
 
       <!-- Edit -->
       {isCommunity ? (
