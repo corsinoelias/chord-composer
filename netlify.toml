@@ -22,19 +22,24 @@
 # The rebuild regenerates sitemap-index.xml and warms all SSR routes.
 # ---------------------------------------------------------------------------
 
-# Security headers — applied globally (replaces lost .htaccess rules after Netlify migration)
+# Security headers — applied globally
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; frame-ancestors 'none';"
 
-# Edge-cache /songs/ index (SSR but content changes only on new song publish)
+# Edge-cache /songs/ index and individual song pages (SSR — content changes only on new song publish)
 [[headers]]
   for = "/songs/"
+  [headers.values]
+    Cache-Control = "public, s-maxage=3600, stale-while-revalidate=86400"
+
+[[headers]]
+  for = "/songs/*"
   [headers.values]
     Cache-Control = "public, s-maxage=3600, stale-while-revalidate=86400"
 
@@ -46,10 +51,23 @@
   status = 200
   force = true
 
-# CRIT-1: sitemap.xml → sitemap-index.xml (lost in Netlify migration)
+# sitemap.xml → sitemap-combined.xml (canonical sitemap entry point)
 [[redirects]]
   from = "/sitemap.xml"
-  to = "/sitemap-index.xml"
+  to = "/sitemap-combined.xml"
+  status = 301
+  force = true
+
+# /learn/circle-of-fifths/ was renamed to /learn/circle-of-fifths-explained/
+[[redirects]]
+  from = "/learn/circle-of-fifths/"
+  to = "/learn/circle-of-fifths-explained/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/learn/circle-of-fifths"
+  to = "/learn/circle-of-fifths-explained/"
   status = 301
   force = true
 

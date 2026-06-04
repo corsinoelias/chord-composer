@@ -31,4 +31,4 @@ Disallow: /
 User-agent: anthropic-ai
 Disallow: /
 
-Sitemap: https://chordsequence.com/sitemap-index.xml
+Sitemap: https://chordsequence.com/sitemap-combined.xml

@@ -17,6 +17,29 @@ interface ArticleRelated {
   tool?: { href: string; label: string; cta: string };
 }
 
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+const ARTICLE_FAQ: Record<string, FAQItem[]> = {
+  'what-is-a-chord-progression': [
+    { question: 'What is a chord progression?', answer: 'A chord progression is a sequence of two or more chords played in succession that forms the harmonic foundation of a song. Chord progressions give music its emotional direction and are one of the primary building blocks of songwriting.' },
+    { question: 'What is the most common chord progression?', answer: 'The most common chord progression is I–V–vi–IV (for example, C–G–Am–F in the key of C major). It is used in thousands of pop songs across every decade and is sometimes called the Axis progression.' },
+    { question: 'How many chords do you need for a chord progression?', answer: 'A chord progression needs at least two chords, but most songs use three or four. The I–IV–V uses three chords and is the foundation of the blues, rock and roll, and folk music. The I–V–vi–IV uses four chords and drives the majority of modern pop.' },
+  ],
+  'jazz-chord-progressions': [
+    { question: 'What is the most important jazz chord progression?', answer: 'The ii–V–I is the most important chord progression in jazz. In C major it is Dm7–G7–Cmaj7. The dominant seventh chord (G7) creates strong tension through its tritone interval, which resolves naturally to the tonic major seventh (Cmaj7). This progression appears in virtually every jazz standard ever written.' },
+    { question: 'What is a jazz turnaround?', answer: 'A jazz turnaround is a short chord progression — typically two to four chords — used at the end of a section to create tension that leads back to the top of the form. The most common turnaround is I–VI–ii–V (Cmaj7–A7–Dm7–G7 in C major). The VI7 chord creates a secondary dominant that pulls toward the ii chord, which then resolves through V back to I.' },
+    { question: 'What is tritone substitution in jazz?', answer: 'Tritone substitution replaces a dominant seventh chord with another dominant seventh whose root is a tritone (six semitones) away. G7 can be replaced by Db7 because they share the same tritone interval (B and F, or Cb and F). The substitution creates a chromatic descending bass line — G, Db, C — which is smoother and more colorful than the standard root movement.' },
+  ],
+  'circle-of-fifths-explained': [
+    { question: 'What is the circle of fifths?', answer: 'The circle of fifths is a diagram that arranges all 12 musical keys in a circle based on their harmonic relationships. Moving clockwise, each key is a perfect fifth above the previous one. The circle shows which keys share the most notes (adjacent keys), which chords belong to each key, and how to modulate from one key to another.' },
+    { question: 'How do you use the circle of fifths for songwriting?', answer: 'The circle of fifths helps songwriters choose chords that sound natural together. All the diatonic chords of a key sit adjacent to each other on the circle. To find chords that fit in C major, look at C and its immediate neighbors (G and F) — these are the I, V, and IV chords. Moving two steps in either direction gives you the ii, iii, and vi chords. Modulating to a closely related key means moving one or two steps around the circle.' },
+    { question: 'Why do jazz progressions follow the circle of fifths?', answer: 'Jazz progressions follow the circle of fifths because each dominant seventh chord naturally resolves to the key a fifth below. In G7–Cmaj7, G7 resolves to C — one step clockwise on the circle. Jazz composers chain these resolutions together, creating sequences that descend through the circle (iii–VI–ii–V–I in the key of C, for example). This movement generates harmonic momentum that listeners experience as forward motion.' },
+  ],
+};
+
 const ARTICLE_RELATED: Record<string, ArticleRelated> = {
   'what-is-a-chord-progression': {
     progressions: [
@@ -92,6 +115,18 @@ export async function getStaticPaths() {
 const { post } = Astro.props;
 const { Content } = await post.render();
 const related = ARTICLE_RELATED[post.slug];
+const faqItems = ARTICLE_FAQ[post.slug];
+const faqSchema = faqItems
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: faqItems.map((f) => ({
+        '@type': 'Question',
+        name: f.question,
+        acceptedAnswer: { '@type': 'Answer', text: f.answer },
+      })),
+    }
+  : null;
 
 const canonicalLearnUrl = `https://chordsequence.com/learn/${post.slug}/`;
 
@@ -139,6 +174,7 @@ const breadcrumbSchema = {
   description={post.data.description}
   canonicalUrl={canonicalLearnUrl}
   ogType="article"
+  author={author?.name ?? 'Elías Corsino Saldaña'}
 >
   <Fragment slot="head">
     <meta property="article:published_time" content={post.data.pubDate.toISOString()} />
@@ -146,6 +182,7 @@ const breadcrumbSchema = {
     <meta property="article:author" content={author?.url ?? 'https://chordsequence.com/about/elias-corsino/'} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    {faqSchema && <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />}
   </Fragment>
 
   <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">

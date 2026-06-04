@@ -86,7 +86,7 @@ const relatedSongs = SONGS
   .filter(s => s.slug !== song.slug && s.genre.some(g => song.genre.includes(g)))
   .slice(0, 3);
 
-const KNOWN_BANDS = new Set(['Oasis', 'The Beatles', 'Led Zeppelin', 'Pink Floyd', 'Oasis Ministry', 'Radiohead', 'Coldplay', 'U2', 'Metallica', 'AC/DC']);
+const KNOWN_BANDS = new Set(['Oasis', 'The Beatles', 'Led Zeppelin', 'Pink Floyd', 'Oasis Ministry', 'Elevation Worship', 'Hillsong', 'Bethel Music', 'Radiohead', 'Coldplay', 'U2', 'Metallica', 'AC/DC']);
 const composerType = KNOWN_BANDS.has(song.artist) ? 'MusicGroup' : 'Person';
 
 const musicSchema = {

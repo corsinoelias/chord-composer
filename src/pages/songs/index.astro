@@ -4,6 +4,14 @@ import { getPublishedSongs } from '@/lib/publicSongs';
 
 const songs = await getPublishedSongs();
 
+const KNOWN_BANDS = new Set(['Oasis', 'The Beatles', 'Led Zeppelin', 'Pink Floyd', 'Oasis Ministry', 'Elevation Worship', 'Hillsong', 'Bethel Music', 'Radiohead', 'Coldplay', 'U2', 'Metallica', 'AC/DC']);
+
+function getComposer(artist: string) {
+  if (KNOWN_BANDS.has(artist)) return { '@type': 'MusicGroup', name: artist };
+  if (artist === 'Jazz Standard') return { '@type': 'Person', name: 'Joseph Kosma' };
+  return { '@type': 'Person', name: artist };
+}
+
 const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
@@ -26,7 +34,7 @@ const itemListSchema = {
     item: {
       '@type': 'MusicComposition',
       name: s.title,
-      composer: { '@type': 'Person', name: s.artist },
+      composer: getComposer(s.artist),
       musicalKey: s.key,
       genre: s.genre.join(', '),
       url: `https://chordsequence.com/songs/${s.slug}/`,
