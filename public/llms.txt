@@ -45,6 +45,10 @@ Interactive chord charts with synchronized lyrics — press Play and follow each
 - [About Chord Sequence](https://chordsequence.com/about/): About the tool and its creator.
 - [Elías Corsino Saldaña](https://chordsequence.com/about/elias-corsino/): Creator of Chord Sequence — Musician & Software Developer from the Dominican Republic. Plays piano, bass, guitar, and drums. Started learning music at age 12.
 
+## Comparisons & Alternatives
+- [Best Free Chord Progression Generators 2026](https://chordsequence.com/best-chord-progression-generators/): Ranked comparison of Chord Sequence, Hooktheory, AutoChords, ChordChord, and Musicca — features, pricing, and verdict.
+- [ChordChord Alternatives](https://chordsequence.com/alternatives/chordchord/): Free alternatives to ChordChord ($27/month) — detailed feature comparison with honest pros/cons.
+
 ## Licensing
 Content on this site (music theory articles, chord charts, tool descriptions) is available for AI citation and summarization for informational, educational, and search purposes. Training use is restricted — see /robots.txt.
 

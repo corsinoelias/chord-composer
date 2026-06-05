@@ -1,0 +1,294 @@
+---
+export const prerender = true;
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const canonicalUrl = 'https://chordsequence.com/best-chord-progression-generators/';
+const updatedDate = 'June 2026';
+
+const itemListSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Best Free Chord Progression Generators 2026',
+  description: 'Comparison of the best free online chord progression generators for songwriters and producers.',
+  url: canonicalUrl,
+  numberOfItems: 5,
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, item: { '@type': 'SoftwareApplication', name: 'Chord Sequence', url: 'https://chordsequence.com/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 2, item: { '@type': 'SoftwareApplication', name: 'Hooktheory', url: 'https://www.hooktheory.com/', applicationCategory: 'MusicApplication' } },
+    { '@type': 'ListItem', position: 3, item: { '@type': 'SoftwareApplication', name: 'AutoChords', url: 'https://autochords.com/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 4, item: { '@type': 'SoftwareApplication', name: 'ChordChord', url: 'https://chordchord.com/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '27', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 5, item: { '@type': 'SoftwareApplication', name: 'Musicca', url: 'https://www.musicca.com/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
+  ],
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Best Chord Progression Generators', item: canonicalUrl },
+  ],
+};
+---
+
+<BaseLayout
+  title="5 Best Free Chord Progression Generators in 2026 (Compared)"
+  description="The best free online chord progression generators ranked by features, audio playback, and export options. No account required for most — start building in seconds."
+  canonicalUrl={canonicalUrl}
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
+
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">Best Chord Progression Generators</span>
+    </nav>
+
+    <header class="mb-12">
+      <div class="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-6">
+        Updated {updatedDate}
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-5">
+        5 Best Free Chord Progression Generators in 2026
+      </h1>
+      <p class="text-lg text-muted-foreground leading-relaxed">
+        Whether you're a songwriter looking for harmonic inspiration or a producer building backing tracks,
+        these tools let you create, hear, and export chord progressions — most for free, directly in your browser.
+      </p>
+      <p class="mt-3 text-sm text-muted-foreground">
+        <em>Disclosure: Chord Sequence (#1 below) is our own tool. All competitor data comes from their public websites as of {updatedDate}.</em>
+      </p>
+    </header>
+
+    <!-- Quick answer -->
+    <div class="mb-14 rounded-xl border border-primary/20 bg-primary/5 p-6">
+      <p class="text-sm font-semibold text-primary uppercase tracking-wide mb-2">Quick answer</p>
+      <p class="text-muted-foreground leading-relaxed">
+        The best <strong class="text-foreground">free</strong> chord progression generator is <strong class="text-foreground">Chord Sequence</strong> — it's fully free, requires no account, and includes real audio playback, 37 chord types, 13 rhythm styles, and WAV export. For AI-generated progressions, ChordChord ($27/month) is the leading paid option. For song-based music theory learning, Hooktheory has the most comprehensive database.
+      </p>
+    </div>
+
+    <!-- What to look for -->
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-6">What to look for in a chord progression generator</h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        {[
+          { title: 'Audio playback', desc: 'You should be able to hear your progression with a realistic instrument sound — not just see the chord names.' },
+          { title: 'Rhythm styles', desc: 'Different rhythms (strummed, arpeggiated, jazz, lo-fi) drastically change how a progression feels. More styles = more flexibility.' },
+          { title: 'Chord variety', desc: 'Major and minor triads are just the start. Extended chords (maj7, m7, dim, aug, sus) give you more harmonic color.' },
+          { title: 'Export options', desc: 'WAV or MIDI export lets you take your progression into a DAW. Without this, you have to re-create it from scratch.' },
+        ].map(f => (
+          <div class="rounded-xl border border-border bg-card p-4">
+            <p class="font-semibold text-foreground text-sm mb-1">{f.title}</p>
+            <p class="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Comparison table -->
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-4">Feature comparison table</h2>
+      <p class="text-sm text-muted-foreground mb-4">Pricing as of {updatedDate}.</p>
+      <div class="overflow-x-auto rounded-xl border border-border">
+        <table class="w-full text-sm">
+          <thead class="bg-muted/50 border-b border-border">
+            <tr>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-32">Tool</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Price</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Audio</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Export</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">AI</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            {[
+              ['Chord Sequence', 'Free', '✅', 'WAV + MIDI', 'None', '❌', true],
+              ['Hooktheory', 'Free / Paid', '✅', 'Paid only', 'Required', '❌', false],
+              ['AutoChords', 'Free', '❌', '❌', 'None', '❌', false],
+              ['ChordChord', '$27/mo', '✅', 'Paid only', 'Required', '✅', false],
+              ['Musicca', 'Free', '✅', '❌', 'None', '❌', false],
+            ].map(([tool, price, audio, exportVal, account, ai, highlight]) => (
+              <tr class={`hover:bg-muted/20 transition-colors ${highlight ? 'bg-primary/5' : ''}`}>
+                <td class={`px-4 py-3 font-semibold ${highlight ? 'text-primary' : 'text-foreground'}`}>{tool}</td>
+                <td class="px-3 py-3 text-center text-muted-foreground">{price}</td>
+                <td class="px-3 py-3 text-center">{audio}</td>
+                <td class="px-3 py-3 text-center text-muted-foreground text-xs">{exportVal}</td>
+                <td class="px-3 py-3 text-center text-muted-foreground text-xs">{account}</td>
+                <td class="px-3 py-3 text-center">{ai}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Individual reviews -->
+    <section class="space-y-10 mb-14">
+      <h2 class="text-2xl font-bold text-foreground">Each tool reviewed</h2>
+
+      <!-- 1 -->
+      <div class="rounded-xl border border-primary/40 bg-card p-6">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <span class="text-xs font-bold text-primary">BEST FREE PICK · #1</span>
+            <h3 class="text-xl font-bold text-foreground mt-0.5">Chord Sequence</h3>
+          </div>
+          <span class="text-lg font-bold text-primary">Free</span>
+        </div>
+        <p class="text-muted-foreground leading-relaxed mb-4">
+          Chord Sequence is the most complete free chord progression builder available in 2026. It supports 37 chord types — from simple major and minor triads to maj7, m9, dim, aug, sus4, and add9 chords — and plays them back across 13 rhythm styles with real recorded samples. The drag-and-drop editor lets you build multi-section progressions, the built-in transposer shifts to any key in real time, and WAV export lets you drop the result directly into your DAW.
+        </p>
+        <p class="text-muted-foreground leading-relaxed mb-4">
+          Beyond the editor, the site includes a library of <a href="/progressions/" class="text-primary hover:underline">curated progressions by genre</a> (pop, jazz, lo-fi, rock, blues, worship, and more), <a href="/songs/" class="text-primary hover:underline">interactive song chord charts</a> with synchronized lyrics, and three standalone tools: an <a href="/tools/circle-of-fifths/" class="text-primary hover:underline">interactive circle of fifths</a>, a <a href="/tools/chord-transposer/" class="text-primary hover:underline">chord transposer</a>, and a <a href="/tools/key-detector/" class="text-primary hover:underline">key detector</a>. All of it is free, permanently, with no account and no ads.
+        </p>
+        <div class="grid sm:grid-cols-2 gap-3 mb-5 text-sm">
+          <div>
+            <p class="font-semibold text-foreground mb-1">Strengths</p>
+            <ul class="space-y-1 text-muted-foreground">
+              <li>✅ Free forever, no account</li>
+              <li>✅ 37 chord types, real audio</li>
+              <li>✅ 13 rhythm styles</li>
+              <li>✅ WAV + MIDI export</li>
+              <li>✅ Works offline</li>
+            </ul>
+          </div>
+          <div>
+            <p class="font-semibold text-foreground mb-1">Limitations</p>
+            <ul class="space-y-1 text-muted-foreground">
+              <li>⚠️ No AI generation</li>
+              <li>⚠️ No collaboration</li>
+              <li>⚠️ Song library still small (8 songs)</li>
+            </ul>
+          </div>
+        </div>
+        <a href="/app/" class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+          Try Chord Sequence free →
+        </a>
+      </div>
+
+      <!-- 2 -->
+      <div class="rounded-xl border border-border bg-card p-6">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <span class="text-xs font-bold text-muted-foreground">#2</span>
+            <h3 class="text-xl font-bold text-foreground mt-0.5">Hooktheory</h3>
+          </div>
+          <span class="text-lg font-bold text-foreground">Free / Paid</span>
+        </div>
+        <p class="text-muted-foreground leading-relaxed mb-4">
+          Hooktheory is the most comprehensive music theory resource for songwriters — its database (Theorytab) contains the chord progressions of 75,000+ songs broken down by section. You can browse songs by artist, genre, or chord, and hear how the progressions sound. The companion tool Hookpad lets you compose melodies and chord progressions using the same theory framework. Browsing Theorytab is free; Hookpad requires a paid subscription.
+        </p>
+        <div class="grid sm:grid-cols-2 gap-3 text-sm">
+          <div>
+            <p class="font-semibold text-foreground mb-1">Strengths</p>
+            <ul class="space-y-1 text-muted-foreground">
+              <li>✅ 75,000+ song database</li>
+              <li>✅ Theory-focused, educational</li>
+              <li>✅ Strong community</li>
+            </ul>
+          </div>
+          <div>
+            <p class="font-semibold text-foreground mb-1">Limitations</p>
+            <ul class="space-y-1 text-muted-foreground">
+              <li>⚠️ Composition tool (Hookpad) is paid</li>
+              <li>⚠️ More music theory tool than progression builder</li>
+              <li>⚠️ No WAV export on free tier</li>
+            </ul>
+          </div>
+        </div>
+        <p class="text-sm text-muted-foreground mt-4">
+          <strong class="text-foreground">Best for:</strong> Analysing real songs and understanding why certain progressions work.
+        </p>
+      </div>
+
+      <!-- 3 -->
+      <div class="rounded-xl border border-border bg-card p-6">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <span class="text-xs font-bold text-muted-foreground">#3</span>
+            <h3 class="text-xl font-bold text-foreground mt-0.5">AutoChords</h3>
+          </div>
+          <span class="text-lg font-bold text-foreground">Free</span>
+        </div>
+        <p class="text-muted-foreground leading-relaxed mb-4">
+          AutoChords is the quickest tool on this list. Select an emotional style (happy, sad, epic, dark) and a key, and the tool generates a chord progression instantly. No account, no audio, no export — just chord names. It's useful as a starting point when you're stuck and need a suggestion, but you'll need another tool to actually hear it.
+        </p>
+        <p class="text-sm text-muted-foreground">
+          <strong class="text-foreground">Best for:</strong> Fast chord name suggestions when you're stuck in a creative rut.
+        </p>
+      </div>
+
+      <!-- 4 -->
+      <div class="rounded-xl border border-border bg-card p-6">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <span class="text-xs font-bold text-muted-foreground">#4</span>
+            <h3 class="text-xl font-bold text-foreground mt-0.5">ChordChord</h3>
+          </div>
+          <span class="text-lg font-bold text-foreground">$27/mo</span>
+        </div>
+        <p class="text-muted-foreground leading-relaxed mb-4">
+          ChordChord is the leading paid chord progression generator. Its Pro plan ($27/month, or $9.99 for a 30-day trial) includes AI-powered chord generation with 5,000 prompts per month, unlimited cloud projects, MIDI and WAV export, and full commercial rights. If your workflow depends on AI-generated harmonic ideas, it's worth evaluating — but at $324/year it's expensive compared to free tools that handle the basics equally well.
+        </p>
+        <p class="text-sm text-muted-foreground">
+          <strong class="text-foreground">Best for:</strong> Producers who need AI-generated chord ideas and can justify the subscription cost.
+        </p>
+      </div>
+
+      <!-- 5 -->
+      <div class="rounded-xl border border-border bg-card p-6">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <span class="text-xs font-bold text-muted-foreground">#5</span>
+            <h3 class="text-xl font-bold text-foreground mt-0.5">Musicca</h3>
+          </div>
+          <span class="text-lg font-bold text-foreground">Free</span>
+        </div>
+        <p class="text-muted-foreground leading-relaxed mb-4">
+          Musicca is primarily a music theory learning platform with interactive exercises — ear training, scales, chords, intervals. Its chord player lets you hear individual chords across piano, guitar, and bass, making it a useful reference tool. It's not a progression builder — you can't build and sequence a multi-chord progression and export it — but it's excellent if your primary goal is understanding how chords sound.
+        </p>
+        <p class="text-sm text-muted-foreground">
+          <strong class="text-foreground">Best for:</strong> Beginners learning music theory who want to hear and understand individual chords.
+        </p>
+      </div>
+    </section>
+
+    <!-- Final verdict -->
+    <div class="rounded-xl border border-primary/20 bg-primary/5 p-8 text-center mb-14">
+      <h2 class="text-xl font-semibold text-foreground mb-3">Our recommendation</h2>
+      <p class="text-muted-foreground mb-5 max-w-xl mx-auto leading-relaxed">
+        For most songwriters and producers, <strong class="text-foreground">Chord Sequence</strong> is the best free option — it's the only tool that combines real audio playback, 37 chord types, 13 rhythm styles, and WAV export at zero cost. If you specifically need AI chord generation and can afford $27/month, ChordChord is the leading paid option.
+      </p>
+      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Try Chord Sequence free →
+      </a>
+      <p class="mt-3 text-xs text-muted-foreground">No account · No credit card · Works in any browser</p>
+    </div>
+
+    <!-- Internal links -->
+    <div class="pt-8 border-t border-border">
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Learn more</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          { title: 'ChordChord alternatives — free options', href: '/alternatives/chordchord/', desc: 'Detailed comparison of free alternatives to ChordChord' },
+          { title: 'What is a chord progression?', href: '/learn/what-is-a-chord-progression/', desc: 'Beginner guide to how chord progressions work' },
+          { title: 'Pop chord progressions', href: '/progressions/pop/', desc: 'Ready-to-play pop progressions with interactive audio' },
+          { title: 'Circle of fifths tool', href: '/tools/circle-of-fifths/', desc: 'Interactive key and chord relationship chart' },
+        ].map(link => (
+          <a href={link.href} class="group rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors">
+            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{link.title}</p>
+            <p class="text-xs text-muted-foreground mt-0.5">{link.desc}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+
+  </main>
+</BaseLayout>

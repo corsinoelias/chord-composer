@@ -1,0 +1,68 @@
+---
+export const prerender = true;
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Alternatives', item: 'https://chordsequence.com/alternatives/' },
+  ],
+};
+---
+
+<BaseLayout
+  title="Chord Progression Tool Comparisons & Alternatives | Chord Sequence"
+  description="Honest comparisons between Chord Sequence and other chord progression tools. See how we stack up against ChordChord, Hooktheory, AutoChords, and others."
+  canonicalUrl="https://chordsequence.com/alternatives/"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">Alternatives</span>
+    </nav>
+
+    <header class="mb-14">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-5">
+        Chord Progression Tool Comparisons
+      </h1>
+      <p class="text-lg text-muted-foreground leading-relaxed">
+        Honest, up-to-date comparisons between Chord Sequence and the other chord progression tools available in 2026. All competitor data sourced from their public websites.
+      </p>
+    </header>
+
+    <div class="grid gap-4">
+      <a href="/alternatives/chordchord/" class="group flex items-start justify-between rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 p-6 transition-colors">
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Alternatives</p>
+          <h2 class="text-lg font-bold text-foreground group-hover:text-primary transition-colors mb-2">ChordChord Alternatives — Free Options</h2>
+          <p class="text-sm text-muted-foreground">ChordChord costs $27/month. These free tools cover the same use case without the subscription.</p>
+        </div>
+        <svg class="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 ml-4 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+
+      <a href="/best-chord-progression-generators/" class="group flex items-start justify-between rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 p-6 transition-colors">
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Roundup</p>
+          <h2 class="text-lg font-bold text-foreground group-hover:text-primary transition-colors mb-2">5 Best Free Chord Progression Generators (2026)</h2>
+          <p class="text-sm text-muted-foreground">Full comparison of Chord Sequence, Hooktheory, AutoChords, ChordChord, and Musicca — features, pricing, and honest verdict.</p>
+        </div>
+        <svg class="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 ml-4 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+
+    <div class="mt-14 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">See for yourself</h2>
+      <p class="text-sm text-muted-foreground mb-5">Chord Sequence is free, requires no account, and works in any browser. Build a progression in 30 seconds.</p>
+      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Chord Sequence →
+      </a>
+    </div>
+  </main>
+</BaseLayout>
