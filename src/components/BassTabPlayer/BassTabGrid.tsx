@@ -223,6 +223,16 @@ export function BassTabGrid({
   const insertionLeft = beatToPixel(Math.max(0, cursorBeat), pxPerBeat)
   const showPlayhead  = isPlaying || currentBeat > 0
 
+  // Compute which notes and strings are currently sounding
+  const activeNoteIds = new Set<string>()
+  const activeStrings = new Set<number>()
+  for (const n of track.notes) {
+    if (currentBeat >= n.startBeat && currentBeat < n.startBeat + n.durationBeats) {
+      activeNoteIds.add(n.id)
+      activeStrings.add(n.stringIndex)
+    }
+  }
+
   return (
     <div ref={outerRef} className="flex flex-1 min-h-0" style={{ overflow: 'hidden' }}>
 
@@ -273,9 +283,20 @@ export function BassTabGrid({
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
           >
-            {STRINGS.map((_, i) => (
-              <div key={i} style={{ position:'absolute', left:0, right:0, top:i*rowH, height:rowH, background:i%2===0?'rgba(255,255,255,0.015)':'transparent', borderBottom:'1px solid hsl(224 15% 14%)', pointerEvents:'none' }} />
-            ))}
+            {STRINGS.map((s, i) => {
+              const rowActive = activeStrings.has(i)
+              return (
+                <div key={i} style={{
+                  position:'absolute', left:0, right:0, top:i*rowH, height:rowH,
+                  background: rowActive
+                    ? `${s.color}12`
+                    : i%2===0 ? 'rgba(255,255,255,0.015)' : 'transparent',
+                  borderBottom:'1px solid hsl(224 15% 14%)',
+                  pointerEvents:'none',
+                  transition:'background 0.12s',
+                }} />
+              )
+            })}
             {barTicks.map(tick => (
               <div key={tick.x} style={{ position:'absolute', left:tick.x, top:0, width:1, height:'100%', background:'hsl(224 15% 18%)', pointerEvents:'none' }} />
             ))}
@@ -290,23 +311,35 @@ export function BassTabGrid({
             )}
 
             {track.notes.map((note) => {
-              const left  = beatToPixel(note.startBeat, pxPerBeat)
-              const width = Math.max(20, beatToPixel(note.durationBeats, pxPerBeat) - 2)
-              const top   = note.stringIndex * rowH + 6
-              const c     = NOTE_COLORS[note.stringIndex]
-              const sel   = note.id === selectedNoteId
-              const noteH = rowH - 12
+              const left    = beatToPixel(note.startBeat, pxPerBeat)
+              const width   = Math.max(20, beatToPixel(note.durationBeats, pxPerBeat) - 2)
+              const top     = note.stringIndex * rowH + 6
+              const c       = NOTE_COLORS[note.stringIndex]
+              const sel     = note.id === selectedNoteId
+              const playing = activeNoteIds.has(note.id)
+              const noteH   = rowH - 12
+              const strColor = STRINGS[note.stringIndex].color
               return (
                 <div
                   key={note.id}
                   data-note-id={note.id}
                   style={{
                     position:'absolute', left, top, width, height:noteH,
-                    background:c.bg, border:`1.5px solid ${c.border}`,
+                    background: playing
+                      ? `linear-gradient(135deg, ${c.bg}, ${strColor}aa)`
+                      : c.bg,
+                    border: playing
+                      ? `1.5px solid ${strColor}`
+                      : `1.5px solid ${c.border}`,
                     borderRadius:5, cursor:'grab',
-                    boxShadow: sel ? `0 0 0 2px #fff, 0 0 12px rgba(255,255,255,0.2)` : '0 2px 6px rgba(0,0,0,0.6)',
+                    boxShadow: sel
+                      ? `0 0 0 2px #fff, 0 0 12px rgba(255,255,255,0.2)`
+                      : playing
+                        ? `0 0 12px ${strColor}80, 0 0 4px ${strColor}40`
+                        : '0 2px 6px rgba(0,0,0,0.6)',
                     display:'flex', alignItems:'center', overflow:'hidden', paddingLeft:6,
-                    zIndex: sel ? 5 : 2, touchAction:'none',
+                    zIndex: sel ? 5 : playing ? 4 : 2, touchAction:'none',
+                    transition: 'box-shadow 0.08s, border-color 0.08s, background 0.08s',
                   }}
                 >
                   <span style={{ color:'#fff', fontSize:noteH>32?14:11, fontWeight:700, fontFamily:'ui-monospace,monospace', lineHeight:1, pointerEvents:'none', flexShrink:0 }}>
@@ -317,10 +350,24 @@ export function BassTabGrid({
               )
             })}
 
-            {/* Cursors */}
-            <div style={{ position:'absolute', left:insertionLeft, top:0, height:'100%', width:1.5, background:'#e2e8f0', opacity:0.5, pointerEvents:'none', zIndex:15 }} />
+            {/* Insertion cursor */}
+            <div style={{ position:'absolute', left:insertionLeft, top:0, height:'100%', width:1.5, background:'rgba(226,232,240,0.45)', pointerEvents:'none', zIndex:15 }} />
+
+            {/* Playhead — solid line + ambient sweep */}
             {showPlayhead && (
-              <div style={{ position:'absolute', left:playheadLeft, top:0, height:'100%', width:2, background:'#60a5fa', boxShadow:'0 0 8px 2px rgba(96,165,250,0.45)', pointerEvents:'none', zIndex:20 }} />
+              <>
+                <div style={{
+                  position:'absolute', left:playheadLeft-16, top:0, height:'100%',
+                  width:32, pointerEvents:'none', zIndex:19,
+                  background:'linear-gradient(90deg, transparent 0%, rgba(96,165,250,0.06) 50%, transparent 100%)',
+                }} />
+                <div style={{
+                  position:'absolute', left:playheadLeft, top:0, height:'100%',
+                  width:2, background:'#60a5fa',
+                  boxShadow:'0 0 10px 2px rgba(96,165,250,0.55), 0 0 3px rgba(96,165,250,0.9)',
+                  pointerEvents:'none', zIndex:20,
+                }} />
+              </>
             )}
           </div>
         </div>
