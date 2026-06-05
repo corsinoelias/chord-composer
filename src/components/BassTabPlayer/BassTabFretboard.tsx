@@ -21,6 +21,16 @@ const STRING_GRAD = [
   'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, #a07848 35%, #583818 100%)',
 ]
 
+// ── Fret position helper ─────────────────────────────────────────────────────
+// Returns the x coordinate (relative to left of container) where the vibrating
+// segment starts. For fret 0 (open) the whole string vibrates; for fret f the
+// string vibrates from the fret-f wire to the end.
+function fretVibeStartX(fret: number): number {
+  if (fret === 0) return LABEL_W
+  // Fret wire index (f-1) sits at the left edge of fret cell f
+  return LABEL_W + OPEN_W + (fret - 1) * CELL_W + 3  // +3 = fret wire width
+}
+
 // ── Vibration parameters per string ──────────────────────────────────────────
 const VIBE = [
   { amp: 2.0, dur: 1100, glow:  5 },  // G2
@@ -77,17 +87,6 @@ export function BassTabFretboard({ activeFrets, onNoteClick }: FretboardProps) {
           easing: 'linear',
           fill: 'forwards',
         })
-      }
-      // Note released — snap string back
-      if (fret === null && prev !== null) {
-        const el = wireRefs.current[si]
-        if (el) {
-          animRefs.current[si]?.cancel()
-          animRefs.current[si] = el.animate(
-            [{ transform: 'translateY(0px)', boxShadow: '0 0 0px transparent' }],
-            { duration: 80, fill: 'forwards' },
-          )
-        }
       }
       prevFrets.current[si] = fret
     })
@@ -206,23 +205,44 @@ function StringRow({ s, si, activeFret, hovered, isInteractive, wireRef, onHover
         boxShadow:'2px 0 6px rgba(0,0,0,0.5)',
       }} />
 
-      {/* String wire */}
-      <div
-        ref={wireRef}
-        style={{
-          position:'absolute',
-          left: LABEL_W,
-          width: NECK_W,
-          top:'50%', transform:'translateY(-50%)',
-          height: STRING_H[si],
-          background: STRING_GRAD[si],
-          pointerEvents:'none',
-          zIndex:4,
-          borderRadius: '50%',
-          boxShadow: isActive ? `0 0 3px ${s.color}80` : '0 1px 2px rgba(0,0,0,0.5)',
-          transition: 'box-shadow 0.1s',
-        }}
-      />
+      {/* Dead string — full width, dimmed while a note is playing */}
+      <div style={{
+        position:'absolute', left:LABEL_W, width:NECK_W,
+        top:'50%', transform:'translateY(-50%)',
+        height: STRING_H[si],
+        background: STRING_GRAD[si],
+        opacity: isActive ? 0.28 : 1,
+        transition: 'opacity 0.12s',
+        pointerEvents:'none', zIndex:4, borderRadius:'50%',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.5)',
+      }} />
+
+      {/* Live segment — fret to bridge.
+          Wrapper positions the segment; inner div (wireRef) is the animated element.
+          Keeping the centering transform on the wrapper means the Web Animations API
+          translateY on the inner div is additive — no conflict with -50% centering. */}
+      {isActive && (() => {
+        const vibeX = fretVibeStartX(activeFret!)
+        return (
+          <div style={{
+            position:'absolute',
+            left: vibeX,
+            width: LABEL_W + NECK_W - vibeX,
+            top:'50%', transform:'translateY(-50%)',
+            pointerEvents:'none', zIndex:5,
+          }}>
+            <div
+              ref={wireRef}
+              style={{
+                width:'100%', height: STRING_H[si],
+                background: STRING_GRAD[si],
+                borderRadius:'50%',
+                boxShadow: `0 0 5px ${s.color}aa`,
+              }}
+            />
+          </div>
+        )
+      })()}
 
       {/* Open string cell */}
       <FretCell
