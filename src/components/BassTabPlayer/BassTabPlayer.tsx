@@ -100,6 +100,43 @@ export function BassTabPlayer() {
     return active
   }, [track.notes, currentBeat])
 
+  // ── Attack signals: fires on every distinct note attack (playback) ────────
+  // Tracks by noteId + backward-beat jump so loops and back-to-back same-fret
+  // notes all trigger correctly.
+  const prevNoteIds   = useRef<(string | null)[]>([null, null, null, null])
+  const prevBeatRef   = useRef(-1)
+  const [attackSignals, setAttackSignals] = useState<({ fret: number; v: number } | null)[]>(
+    [null, null, null, null],
+  )
+
+  useEffect(() => {
+    const jumpedBack = currentBeat < prevBeatRef.current - 0.5
+    prevBeatRef.current = currentBeat
+
+    const newIds: (string | null)[] = [null, null, null, null]
+    const attacks: { si: number; fret: number }[] = []
+
+    for (const note of track.notes) {
+      if (currentBeat >= note.startBeat && currentBeat < note.startBeat + note.durationBeats) {
+        newIds[note.stringIndex] = note.id
+        if (note.id !== prevNoteIds.current[note.stringIndex] || jumpedBack) {
+          attacks.push({ si: note.stringIndex, fret: note.fret })
+        }
+      }
+    }
+
+    prevNoteIds.current = newIds
+
+    if (attacks.length > 0) {
+      const now = Date.now()
+      setAttackSignals(prev => {
+        const next = [...prev]
+        attacks.forEach(({ si, fret }, i) => { next[si] = { fret, v: now + i } })
+        return next
+      })
+    }
+  }, [track.notes, currentBeat])
+
   // ── Playback ──────────────────────────────────────────────────────────────
   const handlePlay = useCallback(() => {
     const totalBeats = track.totalBars * track.beatsPerBar
@@ -349,7 +386,7 @@ export function BassTabPlayer() {
         onPlay={handlePlay} onStop={handleStop} onLoopToggle={() => setLoop(l => !l)}
         onBpmChange={handleBpmChange} onSnapChange={setSnap} onSoundChange={setSound}
         onBarsChange={(bars) => setTrack(t => ({ ...t, totalBars: bars }))}
-        onZoomIn={() => handleZoomChange(zoom + 0.25)} onZoomOut={() => handleZoomChange(zoom - 0.25)}
+        onZoomIn={() => handleZoomChange(zoom + 0.25)} onZoomOut={() => handleZoomChange(zoom - 0.25)} onZoomReset={() => handleZoomChange(1)}
         onFretChange={handleFretChange} onVolumeChange={handleVolumeChange}
         onUndo={handleUndo} onRedo={handleRedo}
         onClearAll={handleClearAll} onExportAscii={handleExportAscii}
@@ -358,7 +395,7 @@ export function BassTabPlayer() {
       />
 
       {/* Fretboard */}
-      <BassTabFretboard activeFrets={activeFrets} onNoteClick={handleFretboardNote} />
+      <BassTabFretboard activeFrets={activeFrets} attackSignals={attackSignals} onNoteClick={handleFretboardNote} />
 
       {/* Grid */}
       <BassTabGrid
