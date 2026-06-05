@@ -191,6 +191,7 @@ const articleSchema = {
     url: 'https://chordsequence.com',
     logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
   },
+  inLanguage: 'en',
   mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalLearnUrl },
 };
 
@@ -198,30 +199,13 @@ const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
   itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com' },
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
     { '@type': 'ListItem', position: 2, name: 'Learn', item: 'https://chordsequence.com/learn/' },
     { '@type': 'ListItem', position: 3, name: post.data.title, item: canonicalLearnUrl },
   ],
 };
 
 const ARTICLE_EXTRA_SCHEMAS: Record<string, object[]> = {
-  'how-to-transpose-chords': [
-    {
-      '@context': 'https://schema.org',
-      '@type': 'HowTo',
-      name: 'How to Transpose Chords',
-      description: 'How to shift any chord progression to a different key while keeping the same harmonic relationships.',
-      totalTime: 'PT5M',
-      tool: [{ '@type': 'HowToTool', name: 'Chord Transposer', url: 'https://chordsequence.com/tools/chord-transposer/' }],
-      step: [
-        { '@type': 'HowToStep', position: 1, name: 'Identify your current key', text: 'Determine which key your progression is in — for example, C major (chords C, G, Am, F).' },
-        { '@type': 'HowToStep', position: 2, name: 'Count the semitones to your target key', text: 'Each semitone is one half step. C to D is 2 semitones; C to G is 7 semitones. Use the reference chart in this guide.' },
-        { '@type': 'HowToStep', position: 3, name: 'Shift every chord by the same amount', text: 'Move every chord root by that number of semitones, keeping the quality identical. Transposing C–G–Am–F up 2 semitones gives D–A–Bm–G.' },
-        { '@type': 'HowToStep', position: 4, name: 'Check the melody fits your vocal range', text: 'Sing through the melody in the new key. If the highest note is still uncomfortable, transpose down further.' },
-        { '@type': 'HowToStep', position: 5, name: 'Verify in the Chord Transposer tool', text: 'Open the free Chord Transposer at chordsequence.com/tools/chord-transposer/ and use the slider to hear the progression in real time in the new key.' },
-      ],
-    },
-  ],
   'chord-inversions': [
     {
       '@context': 'https://schema.org',
