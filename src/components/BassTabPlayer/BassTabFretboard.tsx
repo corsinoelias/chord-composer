@@ -1,163 +1,247 @@
-import React from 'react'
-import { STRINGS } from '../../lib/bassTab/bassTheory'
+import React, { useState } from 'react'
+import { STRINGS, fretToNoteName } from '../../lib/bassTab/bassTheory'
+
+const FRET_COUNT   = 12
+const CELL_W       = 52
+const OPEN_W       = 44
+const LABEL_W      = 56
+const ROW_H        = 44
+const NECK_W       = OPEN_W + FRET_COUNT * CELL_W   // exact neck width — no overflow
+
+const SINGLE_DOT_FRETS = [3, 5, 7, 9]
 
 interface FretboardProps {
-  activeFrets: (number | null)[]  // index = string index, value = fret being played or null
+  activeFrets: (number | null)[]
+  onNoteClick?: (stringIndex: number, fret: number) => void
 }
 
-const SVG_W = 800
-const SVG_H = 96
-const LEFT_PAD = 52   // space for string labels
-const RIGHT_PAD = 16
-const NUT_W = 6
-const FRET_COUNT = 12  // show frets 0–12
-const STRING_TOP = 16
-const STRING_BOT = SVG_H - 22
-const STRING_SPACING = (STRING_BOT - STRING_TOP) / 3
-const DOT_FRETS = [3, 5, 7, 9]
+export function BassTabFretboard({ activeFrets, onNoteClick }: FretboardProps) {
+  const [hovered, setHovered] = useState<[number, number] | null>(null)
+  const isInteractive = !!onNoteClick
+  const totalW = LABEL_W + NECK_W
 
-// Fret wire positions: nut at LEFT_PAD, wires at LEFT_PAD + n*slotW (n=1..12)
-const boardW = SVG_W - LEFT_PAD - RIGHT_PAD
-const slotW = boardW / FRET_COUNT
+  const STRING_BORDER_H = [1.5, 2, 2.5, 3.5]
 
-// Circle center for fret N: in the space before fret wire N
-// Fret 0 (open): just before the nut, at x = LEFT_PAD - 10
-// Fret N (1-12): x = LEFT_PAD + NUT_W + (N - 0.5) * slotW
-function fretCenterX(fret: number): number {
-  if (fret === 0) return LEFT_PAD - 10
-  return LEFT_PAD + NUT_W + (fret - 0.5) * slotW
-}
-
-// String thicknesses (G=thinnest, E=thickest)
-const STRING_STROKE = [1.2, 1.8, 2.4, 3.0]
-
-export function BassTabFretboard({ activeFrets }: FretboardProps) {
   return (
     <div
-      className="border-b border-gray-700 flex-shrink-0"
-      style={{ background: '#0d0d0d' }}
+      className="flex-shrink-0 border-b border-gray-700"
+      style={{ background: '#07050a', overflowX: 'auto', overflowY: 'hidden' }}
     >
-      <svg
-        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-        preserveAspectRatio="xMidYMid meet"
-        style={{ width: '100%', height: SVG_H, display: 'block' }}
-      >
-        {/* Fretboard body */}
-        <rect
-          x={LEFT_PAD} y={STRING_TOP - 6}
-          width={boardW} height={STRING_BOT - STRING_TOP + 14}
-          fill="#1a0f00" rx={2}
-        />
+      {/* Fixed-width inner — never stretches beyond the 12 frets */}
+      <div style={{ width: totalW }}>
 
-        {/* Fret wires */}
-        {Array.from({ length: FRET_COUNT }, (_, i) => {
-          const x = LEFT_PAD + NUT_W + (i + 1) * slotW
-          return (
-            <line key={i}
-              x1={x} y1={STRING_TOP - 5} x2={x} y2={STRING_BOT + 5}
-              stroke="#5a4a38" strokeWidth={1.5}
-            />
-          )
-        })}
+        {/* ── Fret-number header ─────────────────────────────────────────── */}
+        <div style={{
+          display: 'flex',
+          height: 28,
+          background: '#0f0f1a',
+          borderBottom: '1px solid #1a1a2e',
+          userSelect: 'none',
+        }}>
+          <div style={{ width: LABEL_W, flexShrink: 0 }} />
 
-        {/* Nut */}
-        <rect
-          x={LEFT_PAD} y={STRING_TOP - 6}
-          width={NUT_W} height={STRING_BOT - STRING_TOP + 14}
-          fill="#d4b896" rx={1}
-        />
+          {/* Open column */}
+          <div style={{
+            width: OPEN_W, flexShrink: 0,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            color: '#4b5563', fontSize: 10, fontFamily: 'monospace',
+          }}>
+            <span>O</span>
+            <span style={{ fontSize: 8, color: '#2d3748' }}>{fretToNoteName(3, 0)}</span>
+          </div>
 
-        {/* Position dots */}
-        {DOT_FRETS.map(f => (
-          <circle
-            key={f}
-            cx={LEFT_PAD + NUT_W + (f - 0.5) * slotW}
-            cy={STRING_TOP + STRING_SPACING * 1.5}
-            r={4.5} fill="#3a2810"
-          />
-        ))}
-        {/* Double dot at 12 */}
-        <circle cx={LEFT_PAD + NUT_W + 11.5 * slotW} cy={STRING_TOP + STRING_SPACING * 0.85} r={4.5} fill="#3a2810" />
-        <circle cx={LEFT_PAD + NUT_W + 11.5 * slotW} cy={STRING_TOP + STRING_SPACING * 2.15} r={4.5} fill="#3a2810" />
+          {/* Frets 1–12 */}
+          {Array.from({ length: FRET_COUNT }, (_, i) => {
+            const f = i + 1
+            const isMarker = [3, 5, 7, 9, 12].includes(f)
+            return (
+              <div key={f} style={{
+                width: CELL_W, flexShrink: 0,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                color: isMarker ? '#6b7280' : '#2d3748',
+                fontSize: 10, fontFamily: 'monospace',
+              }}>
+                <span>{f}</span>
+                {/* E1 note name reference — helps bassist locate positions */}
+                <span style={{ fontSize: 8, color: '#2a3545', lineHeight: 1 }}>
+                  {fretToNoteName(3, f)}
+                </span>
+              </div>
+            )
+          })}
+        </div>
 
-        {/* Fret number labels */}
-        {[3, 5, 7, 9, 12].map(f => (
-          <text
-            key={f}
-            x={LEFT_PAD + NUT_W + (f - 0.5) * slotW}
-            y={SVG_H - 5}
-            textAnchor="middle"
-            fill="#4b5563"
-            fontSize={9}
-            fontFamily="monospace"
-          >{f}</text>
-        ))}
-
-        {/* Strings */}
-        {STRINGS.map((s, i) => {
-          const y = STRING_TOP + i * STRING_SPACING
-          return (
-            <line key={i}
-              x1={0} y1={y} x2={SVG_W - RIGHT_PAD} y2={y}
-              stroke="#b8946a" strokeWidth={STRING_STROKE[i]}
-              strokeLinecap="round"
-            />
-          )
-        })}
-
-        {/* String name labels */}
-        {STRINGS.map((s, i) => {
-          const y = STRING_TOP + i * STRING_SPACING
-          return (
-            <text
-              key={i}
-              x={LEFT_PAD - 8} y={y + 4}
-              textAnchor="end"
-              fill={s.color}
-              fontSize={11}
-              fontFamily="monospace"
-              fontWeight="bold"
-            >
-              {s.displayName}
-            </text>
-          )
-        })}
-
-        {/* Active fret indicators */}
-        {STRINGS.map((s, i) => {
-          const fret = activeFrets[i]
-          if (fret === null || fret === undefined) return null
-          const clampedFret = Math.min(fret, FRET_COUNT)
-          const cx = fretCenterX(clampedFret)
-          const cy = STRING_TOP + i * STRING_SPACING
-          const isOpen = fret === 0
+        {/* ── String rows ─────────────────────────────────────────────────── */}
+        {STRINGS.map((s, si) => {
+          const isRowHov = hovered?.[0] === si
 
           return (
-            <g key={i}>
-              {/* Glow */}
-              <circle cx={cx} cy={cy} r={13} fill={s.color} opacity={0.2} />
-              {/* Main circle */}
-              <circle
-                cx={cx} cy={cy} r={9}
-                fill={isOpen ? 'none' : s.darkColor}
-                stroke={s.color}
-                strokeWidth={2}
+            <div key={si} style={{
+              display: 'flex',
+              height: ROW_H,
+              position: 'relative',
+              borderBottom: si < 3 ? '1px solid #120900' : 'none',
+            }}>
+              {/* String label */}
+              <div style={{
+                width: LABEL_W, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: '#07050a',
+                borderRight: '2px solid #1a1a2e',
+                zIndex: 3,
+              }}>
+                <span style={{ color: s.color, fontSize: 11, fontFamily: 'monospace', fontWeight: 700 }}>
+                  {s.displayName}
+                </span>
+              </div>
+
+              {/* Neck body — EXACT width, ends at last fret */}
+              <div style={{
+                position: 'absolute',
+                left: LABEL_W,
+                width: NECK_W,
+                top: 0, bottom: 0,
+                background: 'linear-gradient(to bottom, #1a0c00 0%, #1f1000 50%, #1a0c00 100%)',
+              }} />
+
+              {/* Neck end cap */}
+              <div style={{
+                position: 'absolute',
+                left: LABEL_W + NECK_W - 4,
+                width: 4,
+                top: 0, bottom: 0,
+                background: '#4a2e14',
+                borderRadius: '0 2px 2px 0',
+              }} />
+
+              {/* String wire — same exact width as neck */}
+              <div style={{
+                position: 'absolute',
+                left: LABEL_W,
+                width: NECK_W,
+                top: '50%',
+                height: STRING_BORDER_H[si],
+                background: isRowHov ? s.color : '#c4a07a',
+                transform: 'translateY(-50%)',
+                transition: 'background 0.12s',
+                pointerEvents: 'none',
+                zIndex: 1,
+              }} />
+
+              {/* Open string cell */}
+              <FretCell
+                isHovered={hovered?.[0] === si && hovered?.[1] === 0}
+                isActive={activeFrets[si] === 0}
+                width={OPEN_W}
+                color={s.color}
+                darkColor={s.darkColor}
+                label="0"
+                noteName={fretToNoteName(si, 0)}
+                isInteractive={isInteractive}
+                isOpen
+                borderRight="4px solid #d4b896"
+                onEnter={() => isInteractive && setHovered([si, 0])}
+                onLeave={() => setHovered(null)}
+                onClick={() => onNoteClick?.(si, 0)}
               />
-              {/* Fret number */}
-              <text
-                x={cx} y={cy + 4}
-                textAnchor="middle"
-                fill="white"
-                fontSize={9}
-                fontWeight="bold"
-                fontFamily="monospace"
-              >
-                {fret > FRET_COUNT ? `${fret}` : fret}
-              </text>
-            </g>
+
+              {/* Fret cells 1–12 */}
+              {Array.from({ length: FRET_COUNT }, (_, i) => {
+                const f = i + 1
+                const hasDot = SINGLE_DOT_FRETS.includes(f) && si === 2
+                const hasDoubleDot = f === 12 && (si === 0 || si === 3)
+                return (
+                  <FretCell
+                    key={f}
+                    isHovered={hovered?.[0] === si && hovered?.[1] === f}
+                    isActive={activeFrets[si] === f}
+                    hasDot={hasDot || hasDoubleDot}
+                    width={CELL_W}
+                    color={s.color}
+                    darkColor={s.darkColor}
+                    label={String(f)}
+                    noteName={fretToNoteName(si, f)}
+                    isInteractive={isInteractive}
+                    borderRight="1px solid #5a4a38"
+                    onEnter={() => isInteractive && setHovered([si, f])}
+                    onLeave={() => setHovered(null)}
+                    onClick={() => onNoteClick?.(si, f)}
+                  />
+                )
+              })}
+            </div>
           )
         })}
-      </svg>
+
+        {/* ── Info footer ─────────────────────────────────────────────────── */}
+        <div style={{
+          height: 18,
+          background: '#0f0f1a',
+          borderTop: '1px solid #1a1a2e',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          userSelect: 'none',
+        }}>
+          {hovered ? (
+            <span style={{ color: STRINGS[hovered[0]].color, fontSize: 10, fontFamily: 'monospace' }}>
+              {STRINGS[hovered[0]].displayName} · Fret {hovered[1]} · {fretToNoteName(hovered[0], hovered[1])}
+              {isInteractive && ' — tap to place note at cursor ↓'}
+            </span>
+          ) : (
+            <span style={{ color: '#2d3748', fontSize: 10, fontFamily: 'monospace' }}>
+              {isInteractive ? 'Tap a fret to place note at the cursor' : ''}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Cell ─────────────────────────────────────────────────────────────────────
+interface CellProps {
+  isHovered: boolean; isActive: boolean; hasDot?: boolean; isOpen?: boolean
+  width: number; color: string; darkColor: string
+  label: string; noteName: string; isInteractive: boolean
+  borderRight?: string
+  onEnter: () => void; onLeave: () => void; onClick: () => void
+}
+
+function FretCell({ isHovered, isActive, hasDot, isOpen=false, width, color, darkColor, label, noteName, isInteractive, borderRight, onEnter, onLeave, onClick }: CellProps) {
+  return (
+    <div
+      style={{
+        width, flexShrink: 0, position: 'relative', zIndex: 2,
+        background: isHovered ? `${color}20` : 'transparent',
+        borderRight,
+        cursor: isInteractive ? 'pointer' : 'default',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'background 0.06s',
+        touchAction: 'none',
+      }}
+      onPointerEnter={onEnter}
+      onPointerLeave={onLeave}
+      onClick={onClick}
+    >
+      {hasDot && !isActive && (
+        <div style={{ position:'absolute', width:7, height:7, borderRadius:'50%', background:'#3a2810', zIndex:0, pointerEvents:'none' }} />
+      )}
+      {isActive && (
+        <div style={{
+          width:30, height:30, borderRadius:'50%',
+          background: darkColor, border:`2.5px solid ${color}`,
+          boxShadow:`0 0 10px ${color}80`,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          color:'white', fontSize:11, fontWeight:700, fontFamily:'monospace',
+          pointerEvents:'none', zIndex:4, flexShrink:0,
+        }}>{isOpen ? '0' : label}</div>
+      )}
+      {isHovered && !isActive && (
+        <span style={{ color, fontSize:11, fontFamily:'monospace', fontWeight:700, pointerEvents:'none', zIndex:4 }}>
+          {noteName}
+        </span>
+      )}
     </div>
   )
 }
