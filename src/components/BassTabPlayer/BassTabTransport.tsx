@@ -1,5 +1,5 @@
 import React from 'react'
-import { Play, Square, RotateCcw, Repeat, ZoomIn, ZoomOut, Undo2, Redo2, Trash2, Download, Share2 } from 'lucide-react'
+import { Play, Square, RotateCcw, Repeat, ZoomIn, ZoomOut, Undo2, Redo2, Trash2, Download, Share2, Bell, BellOff, Music } from 'lucide-react'
 import { type BassSound, type SnapValue, SNAP_OPTIONS } from '../../lib/bassTab/types'
 
 interface TransportProps {
@@ -15,6 +15,7 @@ interface TransportProps {
   hasSelectedNote: boolean
   canUndo: boolean
   canRedo: boolean
+  metronome: boolean
   onPlay: () => void
   onStop: () => void
   onLoopToggle: () => void
@@ -30,16 +31,18 @@ interface TransportProps {
   onRedo: () => void
   onClearAll: () => void
   onExportAscii: () => void
+  onExportMidi: () => void
   onShareUrl: () => void
+  onMetronomeToggle: () => void
 }
 
 export function BassTabTransport({
   isPlaying, loop, bpm, snap, sound, totalBars, zoom, volume,
-  selectedNoteFret, hasSelectedNote, canUndo, canRedo,
+  selectedNoteFret, hasSelectedNote, canUndo, canRedo, metronome,
   onPlay, onStop, onLoopToggle, onBpmChange, onSnapChange,
   onSoundChange, onBarsChange, onZoomIn, onZoomOut,
   onFretChange, onVolumeChange,
-  onUndo, onRedo, onClearAll, onExportAscii, onShareUrl,
+  onUndo, onRedo, onClearAll, onExportAscii, onExportMidi, onShareUrl, onMetronomeToggle,
 }: TransportProps) {
   return (
     <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-gray-900 border-b border-gray-700 select-none flex-shrink-0">
@@ -64,6 +67,13 @@ export function BassTabTransport({
           className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${loop ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
         >
           <Repeat size={13} />
+        </button>
+        <button
+          onClick={onMetronomeToggle}
+          title="Metronome click"
+          className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${metronome ? 'bg-amber-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+        >
+          {metronome ? <Bell size={13} /> : <BellOff size={13} />}
         </button>
       </div>
 
@@ -180,8 +190,11 @@ export function BassTabTransport({
 
       {/* Right-side actions */}
       <div className="flex items-center gap-1 ml-auto">
-        <button onClick={onExportAscii} title="Export ASCII Tab" className="flex items-center justify-center w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">
+        <button onClick={onExportAscii} title="Copy ASCII tab to clipboard" className="flex items-center justify-center w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">
           <Download size={13} />
+        </button>
+        <button onClick={onExportMidi} title="Download MIDI file" className="flex items-center justify-center w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">
+          <Music size={13} />
         </button>
         <button onClick={onShareUrl} title="Copy share URL" className="flex items-center justify-center w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">
           <Share2 size={13} />

@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { type BassNote, type BassTrack, type BassSound, type SnapValue, type StringIndex, DEFAULT_TRACK } from '../../lib/bassTab/types'
 import { snapToGrid } from '../../lib/bassTab/bassTheory'
-import { startPlayback, stopPlayback, setMasterVolume } from '../../lib/bassTab/bassAudio'
-import { toAsciiTab, encodeTrackToHash, decodeTrackFromHash, copyToClipboard } from '../../lib/bassTab/exportTab'
+import { startPlayback, stopPlayback, setMasterVolume, previewNote } from '../../lib/bassTab/bassAudio'
+import { toAsciiTab, encodeTrackToHash, decodeTrackFromHash, copyToClipboard, exportMidiFile } from '../../lib/bassTab/exportTab'
 import { BassTabTransport } from './BassTabTransport'
 import { BassTabFretboard } from './BassTabFretboard'
 import { BassTabGrid } from './BassTabGrid'
@@ -39,6 +39,7 @@ export function BassTabPlayer() {
   const [loop, setLoop]                 = useState(true)
   const [volume, setVolume]             = useState(0.75)
   const [selectedNoteId, setSelectedId] = useState<string | null>(null)
+  const [metronome, setMetronome]       = useState(false)
   const [ctxMenu, setCtxMenu]           = useState<CtxMenu | null>(null)
   const [toast, setToast]               = useState<string | null>(null)
 
@@ -108,8 +109,9 @@ export function BassTabPlayer() {
       (beat) => setCurrentBeat(beat),
       () => setIsPlaying(false),
       loop,
+      metronome,
     )
-  }, [track, currentBeat, sound, loop])
+  }, [track, currentBeat, sound, loop, metronome])
 
   const handleStop = useCallback(() => {
     stopPlayback()
@@ -138,8 +140,9 @@ export function BassTabPlayer() {
     setTrack(t => { pushHistory(t.notes); return t })
   }, [pushHistory])
 
-  // ── Fretboard tap → place note ────────────────────────────────────────────
+  // ── Fretboard tap → place note + preview ─────────────────────────────────
   const handleFretboardNote = useCallback((stringIndex: number, fret: number) => {
+    previewNote(stringIndex, fret, sound)
     const totalBeats = track.totalBars * track.beatsPerBar
     const beat = Math.min(cursorBeat, totalBeats - snap)
     const newNote: BassNote = {
@@ -151,7 +154,11 @@ export function BassTabPlayer() {
     setSelectedId(newNote.id)
     const next = snapToGrid(beat + 1.0, snap)
     setCursorBeat(Math.min(next, totalBeats))
-  }, [cursorBeat, snap, track, addNote])
+  }, [cursorBeat, snap, track, addNote, sound])
+
+  const handleNotePreview = useCallback((stringIndex: StringIndex, fret: number) => {
+    previewNote(stringIndex, fret, sound)
+  }, [sound])
 
   // ── Duplicate ─────────────────────────────────────────────────────────────
   const duplicateNote = useCallback((id?: string | null) => {
@@ -193,12 +200,22 @@ export function BassTabPlayer() {
     showToast(ok ? 'ASCII tab copied!' : 'Could not copy')
   }, [track, showToast])
 
+  const handleExportMidi = useCallback(() => {
+    exportMidiFile(track)
+    showToast(`${track.name}.mid downloaded`)
+  }, [track, showToast])
+
   const handleShareUrl = useCallback(async () => {
     const hash = encodeTrackToHash(track)
     const url = window.location.origin + window.location.pathname + hash
     const ok = await copyToClipboard(url)
     showToast(ok ? 'Share URL copied!' : 'Could not copy')
   }, [track, showToast])
+
+  const handleLongPress = useCallback((noteId: string, x: number, y: number) => {
+    setCtxMenu({ x, y, noteId })
+    setSelectedId(noteId)
+  }, [])
 
   // ── Context menu ──────────────────────────────────────────────────────────
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -280,14 +297,16 @@ export function BassTabPlayer() {
         isPlaying={isPlaying} loop={loop} bpm={track.bpm} snap={snap} sound={sound}
         totalBars={track.totalBars} zoom={zoom} volume={volume}
         hasSelectedNote={!!selectedNote} selectedNoteFret={selectedNote?.fret ?? null}
-        canUndo={history.past.length > 0} canRedo={history.future.length > 0}
+        canUndo={history.past.length > 0} canRedo={history.future.length > 0} metronome={metronome}
         onPlay={handlePlay} onStop={handleStop} onLoopToggle={() => setLoop(l => !l)}
         onBpmChange={handleBpmChange} onSnapChange={setSnap} onSoundChange={setSound}
         onBarsChange={(bars) => setTrack(t => ({ ...t, totalBars: bars }))}
         onZoomIn={() => handleZoomChange(zoom + 0.25)} onZoomOut={() => handleZoomChange(zoom - 0.25)}
         onFretChange={handleFretChange} onVolumeChange={handleVolumeChange}
         onUndo={handleUndo} onRedo={handleRedo}
-        onClearAll={handleClearAll} onExportAscii={handleExportAscii} onShareUrl={handleShareUrl}
+        onClearAll={handleClearAll} onExportAscii={handleExportAscii}
+        onExportMidi={handleExportMidi} onShareUrl={handleShareUrl}
+        onMetronomeToggle={() => setMetronome(m => !m)}
       />
 
       {/* Fretboard */}
@@ -300,6 +319,7 @@ export function BassTabPlayer() {
         onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
         onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
         onZoomChange={handleZoomChange} onBeginEdit={beginEdit}
+        onNotePreview={handleNotePreview} onLongPressNote={handleLongPress}
       />
 
       {/* Status bar */}

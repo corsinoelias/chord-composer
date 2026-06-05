@@ -10,12 +10,8 @@ let playStartAudioTime = 0
 
 interface SoundParams {
   waveform: OscillatorType
-  attack: number
-  decay: number
-  sustain: number
-  release: number
-  filterFreq: number
-  harmGain: number
+  attack: number; decay: number; sustain: number; release: number
+  filterFreq: number; harmGain: number
 }
 
 const SOUND_PARAMS: Record<BassSound, SoundParams> = {
@@ -37,13 +33,8 @@ function ensureCtx(): AudioContext {
 }
 
 function scheduleNote(
-  ctx: AudioContext,
-  dest: AudioNode,
-  freq: number,
-  startTime: number,
-  duration: number,
-  velocity: number,
-  sound: BassSound,
+  ctx: AudioContext, dest: AudioNode,
+  freq: number, startTime: number, duration: number, velocity: number, sound: BassSound,
 ) {
   const p = SOUND_PARAMS[sound]
 
@@ -51,7 +42,6 @@ function scheduleNote(
   osc1.type = p.waveform
   osc1.frequency.setValueAtTime(freq, startTime)
 
-  // Body/warmth harmonic
   const osc2 = ctx.createOscillator()
   osc2.type = 'triangle'
   osc2.frequency.setValueAtTime(freq * 2, startTime)
@@ -59,13 +49,11 @@ function scheduleNote(
   const harmGain = ctx.createGain()
   harmGain.gain.value = p.harmGain
 
-  // Low-pass filter (key for bass character)
   const filter = ctx.createBiquadFilter()
   filter.type = 'lowpass'
   filter.frequency.value = p.filterFreq
   filter.Q.value = 1.2
 
-  // ADSR envelope
   const env = ctx.createGain()
   const endTime = startTime + duration
   const releaseStart = Math.max(startTime + p.attack + p.decay, endTime - p.release)
@@ -83,12 +71,46 @@ function scheduleNote(
   env.connect(dest)
 
   const stopAt = endTime + 0.05
-  osc1.start(startTime)
-  osc1.stop(stopAt)
-  osc2.start(startTime)
-  osc2.stop(stopAt)
-
+  osc1.start(startTime); osc1.stop(stopAt)
+  osc2.start(startTime); osc2.stop(stopAt)
   scheduledOscillators.push(osc1, osc2)
+}
+
+function scheduleMetronome(
+  ctx: AudioContext, dest: AudioNode,
+  startAudioTime: number, fromBeat: number, totalBeats: number,
+  bpm: number, beatsPerBar: number,
+) {
+  const beatDur = 60 / bpm
+  for (let beat = 0; beat < totalBeats; beat++) {
+    if (beat < fromBeat - 0.001) continue
+    const t = startAudioTime + (beat - fromBeat) * beatDur
+    if (t < ctx.currentTime - 0.01) continue
+
+    const isDown = beat % beatsPerBar === 0
+    const osc = ctx.createOscillator()
+    osc.type = 'sine'
+    osc.frequency.value = isDown ? 1200 : 900
+
+    const env = ctx.createGain()
+    env.gain.setValueAtTime(0, t)
+    env.gain.linearRampToValueAtTime(isDown ? 0.18 : 0.12, t + 0.003)
+    env.gain.exponentialRampToValueAtTime(0.001, t + 0.065)
+
+    osc.connect(env)
+    env.connect(dest)
+    osc.start(t)
+    osc.stop(t + 0.08)
+    scheduledOscillators.push(osc)
+  }
+}
+
+// Preview a single note immediately (for fretboard taps / note selection)
+export function previewNote(stringIndex: number, fret: number, sound: BassSound): void {
+  const ctx = ensureCtx()
+  if (!masterGain) return
+  const freq = fretToFrequency(stringIndex, fret)
+  scheduleNote(ctx, masterGain, freq, ctx.currentTime + 0.01, 0.5, 0.75, sound)
 }
 
 export function startPlayback(
@@ -98,6 +120,7 @@ export function startPlayback(
   onBeatUpdate: (beat: number) => void,
   onEnd: () => void,
   loop: boolean,
+  metronome = false,
 ) {
   stopPlayback()
   const ctx = ensureCtx()
@@ -116,6 +139,10 @@ export function startPlayback(
     scheduleNote(ctx, masterGain!, freq, noteStart, noteDur, note.velocity, sound)
   }
 
+  if (metronome) {
+    scheduleMetronome(ctx, masterGain!, playStartAudioTime, fromBeat, totalBeats, track.bpm, track.beatsPerBar)
+  }
+
   function tick() {
     if (!isPlayingFlag) return
     const elapsed = ctx.currentTime - playStartAudioTime
@@ -124,7 +151,7 @@ export function startPlayback(
 
     if (ctx.currentTime >= endAudioTime) {
       if (loop) {
-        startPlayback(track, 0, sound, onBeatUpdate, onEnd, loop)
+        startPlayback(track, 0, sound, onBeatUpdate, onEnd, loop, metronome)
       } else {
         stopPlayback()
         onBeatUpdate(0)
@@ -139,13 +166,8 @@ export function startPlayback(
 
 export function stopPlayback() {
   isPlayingFlag = false
-  if (animFrameId !== null) {
-    cancelAnimationFrame(animFrameId)
-    animFrameId = null
-  }
-  for (const osc of scheduledOscillators) {
-    try { osc.stop() } catch { /* already stopped */ }
-  }
+  if (animFrameId !== null) { cancelAnimationFrame(animFrameId); animFrameId = null }
+  for (const osc of scheduledOscillators) { try { osc.stop() } catch { /* already stopped */ } }
   scheduledOscillators = []
 }
 
