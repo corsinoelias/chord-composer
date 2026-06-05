@@ -100,16 +100,22 @@ function parseQuality(suffix: string): ChordQuality {
 }
 
 /**
- * Parses a chord token like "Am", "F#m7", "Cmaj7", "Bb7" into a Chord object.
- * Returns null if the token is not recognizable.
+ * Parses a chord token like "Am", "F#m7", "Cmaj7", "Bb7", "C/E", "G/B", "D/F#"
+ * into a Chord object. Returns null if the token is not recognizable.
+ * Slash chord notation: chord/bassNote (e.g. C/E = C major with E in bass)
  */
 function parseChordToken(token: string): Chord | null {
   const trimmed = token.trim();
   if (!trimmed) return null;
 
+  // Split slash chord notation: "C/E" → chordPart="C", bassNote="E"
+  const slashIdx = trimmed.indexOf('/');
+  const chordPart = slashIdx !== -1 ? trimmed.slice(0, slashIdx) : trimmed;
+  const bassNote = slashIdx !== -1 ? trimmed.slice(slashIdx + 1) : undefined;
+
   // Root note: A-G (uppercase)
-  const rootChar = trimmed[0].toUpperCase();
-  if (!(ROOT_NOTES as readonly string[]).includes(rootChar)) return null;
+  const rootChar = chordPart[0]?.toUpperCase();
+  if (!rootChar || !(ROOT_NOTES as readonly string[]).includes(rootChar)) return null;
   const root = rootChar as RootNote;
 
   let idx = 1;
@@ -118,24 +124,28 @@ function parseChordToken(token: string): Chord | null {
   // Altered-quality 'b' (like the b5 in "7b5") never appears at position 1 because
   // it follows a digit, not a root letter.
   let accidental: Accidental = '';
-  if (trimmed[idx] === '#') {
+  if (chordPart[idx] === '#') {
     accidental = '#';
     idx++;
-  } else if (trimmed[idx] === 'b') {
+  } else if (chordPart[idx] === 'b') {
     accidental = 'b';
     idx++;
   }
 
-  const qualitySuffix = trimmed.slice(idx);
+  const qualitySuffix = chordPart.slice(idx);
   const quality = parseQuality(qualitySuffix);
 
-  return {
+  const chord: Chord = {
     id: generateChordId(),
     root,
     accidental,
     quality,
     duration: 4,
   };
+
+  if (bassNote) chord.bassNote = bassNote;
+
+  return chord;
 }
 
 /**
@@ -169,7 +179,8 @@ export function serializeChords(chords: Chord[]): string {
   return chords
     .map((c) => {
       const quality = c.quality === 'maj' ? '' : c.quality === 'min' ? 'm' : c.quality;
-      return `${c.root}${c.accidental}${quality}`;
+      const base = `${c.root}${c.accidental}${quality}`;
+      return c.bassNote ? `${base}/${c.bassNote}` : base;
     })
     .join('-');
 }

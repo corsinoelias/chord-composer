@@ -43,6 +43,7 @@ export interface Chord {
   accidental: Accidental;
   quality: ChordQuality;
   duration: number; // in beats
+  bassNote?: string; // slash chord bass note, e.g. 'E' in C/E, 'B' in G/B
 }
 
 // MIDI note numbers for C4 octave (middle C = 60)
@@ -102,24 +103,67 @@ const QUALITY_INTERVALS: Record<ChordQuality, number[]> = {
   '5': [0, 7],
 };
 
+/** Returns the pitch class (0-11) of a bass note string like 'E', 'F#', 'Bb'. */
+function bassNoteToClass(bassNote: string): number | null {
+  const trimmed = bassNote.trim();
+  if (!trimmed) return null;
+  const rootChar = trimmed[0].toUpperCase() as RootNote;
+  if (!(ROOT_NOTES as readonly string[]).includes(rootChar)) return null;
+  let cls = NOTE_TO_MIDI[rootChar] % 12;
+  if (trimmed[1] === '#') cls = (cls + 1) % 12;
+  else if (trimmed[1] === 'b') cls = (cls - 1 + 12) % 12;
+  return cls;
+}
+
 /**
- * Converts a chord to an array of MIDI note numbers
+ * Converts a chord to an array of MIDI note numbers.
+ * When the chord has a `bassNote` (slash chord), the bass note is placed
+ * below all other chord tones so inversions sound correct.
  * @param chord - The chord to convert
  * @param octave - Base octave (default 4, middle C)
- * @returns Array of MIDI note numbers
+ * @returns Array of MIDI note numbers, lowest first when inverted
  */
 export function chordToMidiNotes(chord: Chord, octave: number = 4): number[] {
   let rootMidi = NOTE_TO_MIDI[chord.root] + (octave - 4) * 12;
-  
+
   // Apply accidental
   if (chord.accidental === '#') {
     rootMidi += 1;
   } else if (chord.accidental === 'b') {
     rootMidi -= 1;
   }
-  
+
   const intervals = QUALITY_INTERVALS[chord.quality];
-  return intervals.map(interval => rootMidi + interval);
+  const notes = intervals.map(interval => rootMidi + interval);
+
+  if (chord.bassNote) {
+    const targetClass = bassNoteToClass(chord.bassNote);
+    if (targetClass !== null) {
+      const pitchClass = (n: number) => ((n % 12) + 12) % 12;
+      const bassIdx = notes.findIndex(n => pitchClass(n) === targetClass);
+
+      let bassNote: number;
+      let remaining: number[];
+
+      if (bassIdx !== -1) {
+        // Chord tone in bass — move it below the other notes
+        bassNote = notes[bassIdx];
+        remaining = notes.filter((_, i) => i !== bassIdx);
+      } else {
+        // Pedal tone — place it below the chord
+        bassNote = rootMidi - 12 + targetClass - (rootMidi % 12);
+        remaining = notes;
+      }
+
+      // Shift bass note down by octaves until it is below all remaining notes
+      const lowestRemaining = Math.min(...remaining);
+      while (bassNote >= lowestRemaining) bassNote -= 12;
+
+      return [bassNote, ...remaining];
+    }
+  }
+
+  return notes;
 }
 
 /**
