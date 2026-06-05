@@ -369,7 +369,7 @@ export function BassTabPlayer() {
         {/* Guitar / Tab view toggle */}
         <button
           onClick={() => setGuitarView(v => !v)}
-          title={guitarView ? 'Switch to Tab view' : 'Switch to Guitar view'}
+          title={guitarView ? 'Switch to Tab view' : 'Switch to Bass guitar view'}
           style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '3px 10px', borderRadius: 20,
@@ -385,7 +385,7 @@ export function BassTabPlayer() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
           </svg>
-          {guitarView ? 'Tab' : 'Guitar'}
+          {guitarView ? 'Tab' : 'Bass guitar'}
         </button>
 
         {/* Beat counter (when playing) */}
