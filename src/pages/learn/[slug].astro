@@ -3,6 +3,7 @@ export const prerender = true;
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
+import CircleOfFifthsIsland from '../../components/CircleOfFifthsIsland.astro';
 import { AUTHORS } from '../../data/authors';
 
 interface RelatedLink {
@@ -343,7 +344,7 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
       prose-td:text-muted-foreground prose-td:py-3
       prose-blockquote:border-primary prose-blockquote:text-muted-foreground
     ">
-      <Content components={{ ChordEmbed: ChordEmbedIsland }} />
+      <Content components={{ ChordEmbed: ChordEmbedIsland, CircleOfFifths: CircleOfFifthsIsland }} />
     </article>
 
     <!-- CTA -->
