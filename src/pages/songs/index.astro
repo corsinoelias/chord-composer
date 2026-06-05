@@ -62,9 +62,32 @@ const itemListSchema = {
       <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
         Song chords
       </h1>
-      <p class="text-lg text-muted-foreground max-w-xl">
+      <p class="text-lg text-muted-foreground max-w-xl mb-6">
         Every song has an interactive player. Press Play and watch each chord light up above the lyrics
         as it sounds — so you always know where you are in the song.
+      </p>
+
+      <!-- What makes these charts different -->
+      <div class="grid sm:grid-cols-3 gap-4 mb-8">
+        {[
+          { icon: 'M8 5v14l11-7z', label: 'Synchronized playback', desc: 'The active chord highlights above the lyrics in real time as the song plays.' },
+          { icon: 'M9 19V6l12-3v13M9 19c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm12-3c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2z', label: 'Hover for diagrams', desc: 'Hover any chord name to see the guitar fingering diagram and hear the isolated chord.' },
+          { icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', label: 'PDF export', desc: 'Download a clean chord sheet PDF for any song — useful for rehearsals.' },
+        ].map((f) => (
+          <div class="rounded-xl border border-border bg-card p-4">
+            <svg class="w-4 h-4 text-primary mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d={f.icon} />
+            </svg>
+            <p class="text-sm font-semibold text-foreground mb-1">{f.label}</p>
+            <p class="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <p class="text-sm text-muted-foreground max-w-2xl leading-relaxed">
+        The library covers worship, rock, folk, and jazz — from Wonderwall and Hallelujah to Creo en Ti and Holy Forever.
+        Each chart is built by hand: the key, capo position, BPM, and every chord are manually verified against the original recording.
+        Missing a song? Use the editor to build it yourself and submit it to the public library.
       </p>
     </div>
 

@@ -116,7 +116,79 @@ const breadcrumbSchema = {
       </p>
       <p>
         Chord Sequence will always be free to use. There's no freemium tier, no feature locks, no ads inside the app.
+        The site is sustained by the creator's own time as a side project.
       </p>
+    </section>
+
+    <!-- How it works -->
+    <section class="mb-14 space-y-5 text-muted-foreground leading-relaxed">
+      <h2 class="text-2xl font-bold text-foreground mb-4">How it works</h2>
+      <p>
+        Chord Sequence runs entirely in the browser using the <strong class="text-foreground">Web Audio API</strong>. When you add a chord to the editor
+        and press Play, the app synthesizes the sound in real time from pre-recorded guitar samples — no server round trips,
+        no latency, no plugins. The rhythm engine layers strumming patterns over the chord notes to produce a realistic
+        sound across 13 different rhythm styles: pop, rock, jazz, lo-fi, worship, Latin, and more.
+      </p>
+      <p>
+        Progressions are stored locally in your browser using <code class="text-primary text-sm bg-primary/10 px-1.5 py-0.5 rounded">localStorage</code> — they stay private
+        and persist between sessions without creating an account. You can also export your progression as a WAV file
+        and drag it directly into any DAW (Ableton, Logic, GarageBand, FL Studio).
+      </p>
+      <p>
+        The <strong class="text-foreground">song charts</strong> feature adds synchronized chord-over-lyrics playback:
+        every chord lights up at the right moment above the lyrics so you always know where you are in the song.
+        Songs are stored in a Supabase database and updated without a full redeploy.
+      </p>
+    </section>
+
+    <!-- Tech stack -->
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-4">Built with</h2>
+      <div class="grid sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
+        {[
+          { label: 'Astro', desc: 'Server-side rendering and static generation' },
+          { label: 'React / Preact', desc: 'Interactive editor and player islands' },
+          { label: 'Tailwind CSS', desc: 'Styling' },
+          { label: 'Web Audio API', desc: 'Real-time chord synthesis and sample playback' },
+          { label: 'Supabase', desc: 'Community song library database' },
+          { label: 'Netlify', desc: 'Hosting and edge CDN' },
+        ].map((t) => (
+          <div class="flex items-start gap-2 rounded-lg border border-border bg-card px-4 py-3">
+            <div class="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5"></div>
+            <div>
+              <span class="font-semibold text-foreground">{t.label}</span>
+              <span class="text-muted-foreground"> — {t.desc}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Learn section -->
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-4">Learn music theory</h2>
+      <p class="text-muted-foreground mb-6 leading-relaxed">
+        Alongside the tool, the site publishes free music theory guides aimed at songwriters and producers
+        who want to understand the harmony behind the music they love.
+      </p>
+      <div class="grid sm:grid-cols-2 gap-3">
+        {[
+          { title: 'What is a chord progression?', href: '/learn/what-is-a-chord-progression/' },
+          { title: 'Jazz chord progressions', href: '/learn/jazz-chord-progressions/' },
+          { title: 'Circle of fifths explained', href: '/learn/circle-of-fifths-explained/' },
+          { title: 'How to transpose chords', href: '/learn/how-to-transpose-chords/' },
+          { title: 'Chord inversions', href: '/learn/chord-inversions/' },
+          { title: 'Music theory basics for songwriters', href: '/learn/music-theory-basics-for-songwriters/' },
+        ].map((link) => (
+          <a
+            href={link.href}
+            class="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium text-foreground hover:text-primary hover:border-primary/40 transition-colors"
+          >
+            <svg class="w-3.5 h-3.5 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            {link.title}
+          </a>
+        ))}
+      </div>
     </section>
 
     <div class="rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">

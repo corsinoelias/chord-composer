@@ -1,10 +1,33 @@
 import { defineMiddleware } from 'astro:middleware';
 
-export const onRequest = defineMiddleware((context, next) => {
+const SECURITY_HEADERS: Record<string, string> = {
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy':
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; frame-ancestors 'none';",
+};
+
+export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = new URL(context.request.url);
+
   // Rewrite /editor/<songId> → /editor/ so the SPA island handles the ID
   if (/^\/editor\/.+/.test(pathname)) {
     return context.rewrite('/editor/');
   }
-  return next();
+
+  const response = await next();
+
+  // Security headers on every response (netlify.toml [[headers]] doesn't reach SSR functions)
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(key, value);
+  }
+
+  // Edge-cache dynamic songs pages — content only changes when a song is published
+  if (pathname.startsWith('/songs/') && !pathname.startsWith('/songs/new')) {
+    response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+  }
+
+  return response;
 });

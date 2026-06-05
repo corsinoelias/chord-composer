@@ -8,6 +8,7 @@
 ## Learn: Music Theory & Chord Progressions
 - [What is a Chord Progression?](https://chordsequence.com/learn/what-is-a-chord-progression/): Beginner's complete guide — definitions, Roman numeral system, common progressions, and how emotion maps to harmony.
 - [Chord Progressions for Beginners](https://chordsequence.com/learn/chord-progressions-for-beginners/): The 4 chords every songwriter needs — I–V–vi–IV, 12-bar blues, and how to get started writing songs.
+- [Chord Inversions](https://chordsequence.com/learn/chord-inversions/): What chord inversions are, slash chord notation (C/E, G/B, D/F#), descending bass lines, and voice leading — with interactive examples.
 - [Jazz Chord Progressions](https://chordsequence.com/learn/jazz-chord-progressions/): Complete guide to ii–V–I, jazz blues, bossa nova, turnarounds, and modal jazz with interactive players.
 - [Circle of Fifths Explained](https://chordsequence.com/learn/circle-of-fifths-explained/): How to use the circle of fifths for songwriting, understanding key relationships, and modulation.
 - [How to Transpose Chords](https://chordsequence.com/learn/how-to-transpose-chords/): Complete transposition guide with semitone reference chart and worked examples.
