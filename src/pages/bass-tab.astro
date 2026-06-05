@@ -1,0 +1,13 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { BassTabPlayer } from '../components/BassTabPlayer/BassTabPlayer';
+---
+
+<BaseLayout
+  title="Bass Tab Player — 4-String Bass Tablature Editor"
+  description="Free online 4-string bass tablature editor. Draw notes on any string, drag to move, resize to change duration, and hear playback in real time."
+  canonicalUrl="https://chordsequence.com/bass-tab/"
+  showNav={false}
+>
+  <BassTabPlayer client:only="react" />
+</BaseLayout>
