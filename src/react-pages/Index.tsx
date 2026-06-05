@@ -24,6 +24,7 @@ import { getStyleByIdWithOverrides, MUSICAL_STYLES, type StylePattern } from '@/
 import { getCustomStyles, getStyleOverride, initCustomStylesCache } from '@/lib/customStyles';
 import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAudio } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
+import { exportMidi } from '@/lib/midiExporter';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
 import { type Song, createSong } from '@/lib/songs';
@@ -646,10 +647,10 @@ const Index = ({ songId }: IndexProps) => {
   const handleExport = useCallback(async () => {
     const hasChords = sections.some(s => s.chords.length > 0);
     if (!hasChords) return;
-    
+
     setIsExporting(true);
     toast.info('Rendering audio...');
-    
+
     try {
       const style = liveEditedStyle || getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0];
       const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition);
@@ -663,6 +664,19 @@ const Index = ({ songId }: IndexProps) => {
       setIsExporting(false);
     }
   }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle]);
+
+  const handleExportMidi = useCallback(() => {
+    const hasChords = sections.some(s => s.chords.length > 0);
+    if (!hasChords) return;
+    try {
+      const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
+      exportMidi(sections, bpm, transposition, filename);
+      toast.success('MIDI exported successfully!');
+    } catch (error) {
+      console.error('MIDI export failed:', error);
+      toast.error('MIDI export failed. Please try again.');
+    }
+  }, [sections, bpm, transposition, songTitle]);
 
   const hasChords = sections.some(s => s.chords.length > 0);
 
@@ -919,6 +933,7 @@ const Index = ({ songId }: IndexProps) => {
           onStop={stopPlaybackCompletely}
           onReset={() => { stopPlaybackCompletely(); }}
           onExport={handleExport}
+          onExportMidi={handleExportMidi}
           onBpmChange={(newBpm) => {
             setBpm(newBpm);
           }}

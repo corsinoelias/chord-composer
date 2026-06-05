@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { StyleSelector } from './StyleSelector';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -24,6 +30,7 @@ interface TransportControlsProps {
   onStop: () => void;
   onReset: () => void;
   onExport: () => void;
+  onExportMidi: () => void;
   onBpmChange: (bpm: number) => void;
   onMetronomeToggle: (enabled: boolean) => void;
   onStyleChange: (styleId: string) => void;
@@ -49,6 +56,7 @@ export const TransportControls = memo(function TransportControls({
   onStop,
   onReset,
   onExport,
+  onExportMidi,
   onBpmChange,
   onMetronomeToggle,
   onStyleChange,
@@ -167,25 +175,49 @@ export const TransportControls = memo(function TransportControls({
                   <TooltipContent>Toggle metronome</TooltipContent>
                 </Tooltip>
 
-                {/* Export Button */}
-                <Button
-                  onClick={onExport}
-                  disabled={!hasChords || isPlaying || isExporting}
-                  size={isMobile ? "sm" : "lg"}
-                  className="gap-1.5 sm:gap-2 shadow-md"
-                >
-                  {isExporting ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span className="hidden xs:inline">Exporting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download size={16} />
-                      <span className="hidden xs:inline">Export</span>
-                    </>
-                  )}
-                </Button>
+                {/* Export — split button: main action (WAV) + dropdown (MIDI) */}
+                <div className="flex items-stretch shadow-md rounded-lg overflow-hidden">
+                  <Button
+                    onClick={onExport}
+                    disabled={!hasChords || isPlaying || isExporting}
+                    size={isMobile ? "sm" : "lg"}
+                    className="gap-1.5 sm:gap-2 rounded-none rounded-l-lg border-r border-primary-foreground/20"
+                  >
+                    {isExporting ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span className="hidden xs:inline">Exporting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download size={16} />
+                        <span className="hidden xs:inline">WAV</span>
+                      </>
+                    )}
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        disabled={!hasChords || isPlaying || isExporting}
+                        size={isMobile ? "sm" : "lg"}
+                        className="rounded-none rounded-r-lg px-2"
+                        aria-label="More export options"
+                      >
+                        <ChevronDown size={14} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={onExport} disabled={isExporting}>
+                        <Download size={14} className="mr-2" />
+                        Export WAV
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={onExportMidi}>
+                        <Download size={14} className="mr-2" />
+                        Export MIDI
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             </div>
 
