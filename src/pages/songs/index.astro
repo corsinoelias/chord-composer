@@ -33,6 +33,7 @@ const itemListSchema = {
     position: i + 1,
     item: {
       '@type': 'MusicComposition',
+      '@id': `https://chordsequence.com/songs/${s.slug}/`,
       name: s.title,
       composer: getComposer(s.artist),
       musicalKey: s.key,

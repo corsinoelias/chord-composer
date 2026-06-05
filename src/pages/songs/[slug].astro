@@ -92,6 +92,7 @@ const composerType = KNOWN_BANDS.has(song.artist) ? 'MusicGroup' : 'Person';
 const musicSchema = {
   '@context': 'https://schema.org',
   '@type': 'MusicComposition',
+  '@id': canonicalUrl,
   name: song.title,
   composer: { '@type': composerType, name: song.artist },
   inAlbum: song.album ? { '@type': 'MusicAlbum', name: song.album } : undefined,
