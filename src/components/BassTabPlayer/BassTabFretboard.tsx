@@ -266,7 +266,7 @@ interface CellProps {
   onHov: () => void; onLeave: () => void; onClick: () => void
 }
 
-function FretCell({ fret, s, isHov, isActive, isInteractive, width, hasDot, onHov, onLeave, onClick }: CellProps) {
+function FretCell({ si, fret, s, isHov, isActive, isInteractive, width, hasDot, onHov, onLeave, onClick }: CellProps) {
   return (
     <div
       style={{
