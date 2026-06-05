@@ -12,13 +12,14 @@ const itemListSchema = {
   name: 'Best Chord Progression Generators 2026',
   description: 'The best free and paid chord progression generators and plugins for songwriters and producers.',
   url: canonicalUrl,
-  numberOfItems: 5,
+  numberOfItems: 6,
   itemListElement: [
     { '@type': 'ListItem', position: 1, item: { '@type': 'SoftwareApplication', name: 'Chord Sequence', url: 'https://chordsequence.com/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
     { '@type': 'ListItem', position: 2, item: { '@type': 'SoftwareApplication', name: 'ChordSeq AI', url: 'https://chordseqai.com/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
     { '@type': 'ListItem', position: 3, item: { '@type': 'SoftwareApplication', name: 'DBDone AI Chords', url: 'https://dbdone.com/ai-chords/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
     { '@type': 'ListItem', position: 4, item: { '@type': 'SoftwareApplication', name: 'OneMotion Chord Player', url: 'https://www.onemotion.com/chord-player/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
     { '@type': 'ListItem', position: 5, item: { '@type': 'SoftwareApplication', name: 'Chord Generator by Mario Nieto', url: 'https://marionietoworld.com/chord-generator/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '29', priceCurrency: 'EUR' } } },
+    { '@type': 'ListItem', position: 6, item: { '@type': 'SoftwareApplication', name: 'Cthulhu by Xfer Records', url: 'https://xferrecords.com/products/cthulhu', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '39', priceCurrency: 'USD' } } },
   ],
 };
 
@@ -26,7 +27,7 @@ const articleSchema = {
   '@context': 'https://schema.org',
   '@type': 'Article',
   headline: 'Best Chord Progression Generators in 2026 (Free & Paid)',
-  description: 'The best chord progression generators and plugins in 2026 — browser tools and DAW plugins compared by features, audio playback, AI capabilities, and price.',
+  description: 'The best chord progression generators and plugins in 2026 — browser tools and DAW plugins compared by features, audio playback, AI capabilities, and price. Includes Chord Sequence, ChordSeq AI, DBDone, OneMotion, Mario Nieto, and Xfer Cthulhu.',
   image: 'https://chordsequence.com/images/blog/chord-sequence-editor.webp',
   datePublished: '2026-06-05T00:00:00.000Z',
   dateModified: '2026-06-05T00:00:00.000Z',
@@ -227,12 +228,45 @@ const tools = [
     ],
     bestFor: 'Producers who want fine-grained control over chord voicings and strumming patterns directly inside their DAW.',
   },
+  {
+    rank: 6,
+    name: 'Cthulhu by Xfer Records',
+    tagline: 'Best DAW plugin for chord memory and arpeggio generation',
+    url: 'https://xferrecords.com/products/cthulhu',
+    price: '$39',
+    type: 'DAW Plugin (VST / AU / AAX)',
+    image: null,
+    imageAlt: null,
+    youtubeId: '3t2yD1kX2_w',
+    youtubeTitle: 'Cthulhu by Xfer Records — Chord & Arp MIDI Plugin',
+    ours: false,
+    description: [
+      'Cthulhu by Xfer Records is a MIDI FX plugin ($39) that combines a chord memorizer with an advanced arpeggiator. Its core idea is simple: you record or import a set of chords, assign them to keys, and then trigger complex chord voicings with a single keystroke. It ships with over 150 factory chord presets and lets you import any MIDI chord directly — so you can capture a progression from any source and turn it into a playable chord pad.',
+      'The arp module is where Cthulhu separates itself from standard chord tools. An 8-tab step sequencer lets you create polymetric patterns — each tab can have an independent length, so the arp evolves over time rather than looping predictably. Tie notes, program velocity and duration per step, and use "intelligent transpose" to keep the pattern diatonic as you change chords. Logic X users get an automatic MIDI FX version that integrates natively. A 15-minute demo is available before purchase.',
+    ],
+    strengths: [
+      '150+ factory chord presets',
+      'Import or record any MIDI chord',
+      '8-tab polymetric arpeggiator',
+      'Velocity and duration sequencing per step',
+      'VST / AU / AAX — Mac and Windows',
+      '15-minute free demo available',
+      'Logic X MIDI FX version included',
+    ],
+    limitations: [
+      '$39 one-time cost',
+      'Requires a DAW — not browser-based',
+      'No AI generation',
+      'Focused on chord triggering + arp, not free-form composition',
+    ],
+    bestFor: 'Producers who want to trigger complex chord voicings live from a MIDI keyboard and generate evolving arpeggios — particularly useful for electronic, pop, and cinematic production.',
+  },
 ];
 ---
 
 <BaseLayout
-  title="5 Best Chord Progression Generators in 2026 (Free & Paid)"
-  description="The best chord progression generators and plugins in 2026 — browser tools and DAW plugins compared. Includes Chord Sequence, ChordSeq AI, DBDone, OneMotion, and Mario Nieto."
+  title="6 Best Chord Progression Generators in 2026 (Free & Paid)"
+  description="The best chord progression generators and plugins in 2026 — browser tools and DAW plugins compared. Includes Chord Sequence, ChordSeq AI, DBDone, OneMotion, Mario Nieto, and Xfer Cthulhu."
   canonicalUrl={canonicalUrl}
   ogImage="https://chordsequence.com/images/blog/chord-sequence-editor.webp"
   ogImageAlt="Best chord progression generators 2026 — Chord Sequence editor"
@@ -259,10 +293,10 @@ const tools = [
         Updated {updatedDate}
       </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-5 font-serif">
-        5 Best Chord Progression Generators in 2026
+        6 Best Chord Progression Generators in 2026
       </h1>
       <p class="text-lg text-muted-foreground leading-relaxed mb-3">
-        Whether you write songs in a browser or produce inside a DAW, there's a chord progression tool for your workflow. This guide covers five of the best options in 2026 — three free browser tools and two plugins (one free, one paid).
+        Whether you write songs in a browser or produce inside a DAW, there's a chord progression tool for your workflow. This guide covers six of the best options in 2026 — three free browser tools and three plugins.
       </p>
       <p class="text-sm text-muted-foreground">
         <em>Disclosure: Chord Sequence (#1) is our own tool. All competitor data is sourced from their public websites as of {updatedDate}.</em>
@@ -286,6 +320,7 @@ const tools = [
         <li><strong class="text-foreground">#3 DBDone AI Chords</strong> — Free DAW plugin with AI text prompts. VST3/AU/AAX, 60 credits free.</li>
         <li><strong class="text-foreground">#4 OneMotion Chord Player</strong> — Free browser tool for chord exploration. Good for beginners.</li>
         <li><strong class="text-foreground">#5 Mario Nieto Chord Generator</strong> — €29 DAW plugin. 57 scales, advanced voicing, Mac/Win/iPad.</li>
+        <li><strong class="text-foreground">#6 Cthulhu by Xfer Records</strong> — $39 DAW plugin. Chord memory + polymetric arpeggiator. 150+ presets, VST/AU/AAX.</li>
       </ul>
     </div>
 
@@ -311,6 +346,7 @@ const tools = [
               { name: 'DBDone AI Chords', price: 'Free / €89', type: 'Plugin', audio: '✅ (DAW)', ai: '✅', exp: 'MIDI',  ours: false },
               { name: 'OneMotion',      price: 'Free', type: 'Browser', audio: '✅', ai: '❌', exp: '❌',        ours: false },
               { name: 'Mario Nieto',    price: '€29',  type: 'Plugin', audio: '✅ (DAW)', ai: '❌', exp: 'MIDI', ours: false },
+              { name: 'Cthulhu (Xfer)', price: '$39',  type: 'Plugin', audio: '✅ (DAW)', ai: '❌', exp: 'MIDI', ours: false },
             ].map(r => (
               <tr class={`hover:bg-muted/20 transition-colors ${r.ours ? 'bg-primary/5' : ''}`}>
                 <td class={`px-4 py-3 font-semibold ${r.ours ? 'text-primary' : 'text-foreground'}`}>{r.name}</td>
