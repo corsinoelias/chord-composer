@@ -3,11 +3,14 @@ import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
 import { parseChordString } from '@/lib/chordParser';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 import { createSection } from '@/lib/sections';
-import { Play, Square, ExternalLink, Music2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, Square, ExternalLink, Music2, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react';
 import { parseLyricLine, extractChordsWithDuration, type Song } from '@/data/songs';
 import ChordTooltip from '@/components/ChordTooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { playChordPreview } from '@/lib/audioEngine';
+import { playChordPreview, renderProgressionOffline } from '@/lib/audioEngine';
+import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
+import { exportMidi } from '@/lib/midiExporter';
+import { MUSICAL_STYLES } from '@/lib/styles';
 
 // ─── Transpose helpers ────────────────────────────────────────────────────────
 const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -46,6 +49,7 @@ function SongChordPlayerInner({ song }: { song: Song }) {
   const { state, play, stop, setBpm: setContextBpm, updatePlaybackOptions } = usePlayback();
   const { isPlaying, currentChordIndex } = state;
   const [isLoading, setIsLoading] = useState(false);
+  const [isExportingWav, setIsExportingWav] = useState(false);
   const [bpm, setBpm] = useState(song.bpm);
   const [transpose, setTranspose] = useState(0);
 
@@ -154,6 +158,25 @@ function SongChordPlayerInner({ song }: { song: Song }) {
     } finally { setIsLoading(false); }
   }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections]);
 
+  // ── Export WAV ─────────────────────────────────────────────────────────────
+  const handleExportWav = useCallback(async () => {
+    setIsExportingWav(true);
+    try {
+      const sections = buildPlayback(0, allChordsFlat.length, song.title);
+      const style = MUSICAL_STYLES.find(s => s.id === song.style) ?? MUSICAL_STYLES[0];
+      const buffer = await renderProgressionOffline(sections, bpm, getDefaultInstrumentStates(), style, transpose);
+      await encodeAndDownloadMp3(buffer, `${song.title} - ${song.artist}.wav`);
+    } finally {
+      setIsExportingWav(false);
+    }
+  }, [allChordsFlat.length, bpm, song, transpose]);
+
+  // ── Export MIDI ────────────────────────────────────────────────────────────
+  const handleExportMidi = useCallback(() => {
+    const sections = buildPlayback(0, allChordsFlat.length, song.title);
+    exportMidi(sections, bpm, transpose, `${song.title} - ${song.artist}`);
+  }, [allChordsFlat.length, bpm, song, transpose]);
+
   // Stop on unmount
   useEffect(() => () => { stop(); }, []);
 
@@ -259,13 +282,34 @@ function SongChordPlayerInner({ song }: { song: Song }) {
             </div>
           </div>
 
-          <a
-            href={editorUrl}
-            className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:text-primary/80 transition-colors"
-          >
-            Open in Editor
-            <ExternalLink className="w-3 h-3" />
-          </a>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportWav}
+              disabled={isPlaying || isExportingWav || allChordsFlat.length === 0}
+              title="Download WAV"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isExportingWav
+                ? <><Loader2 className="w-3 h-3 animate-spin" /><span className="hidden sm:inline">WAV…</span></>
+                : <><Download className="w-3 h-3" /><span className="hidden sm:inline">WAV</span></>
+              }
+            </button>
+            <button
+              onClick={handleExportMidi}
+              disabled={allChordsFlat.length === 0}
+              title="Download MIDI"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download className="w-3 h-3" /><span className="hidden sm:inline">MIDI</span>
+            </button>
+            <a
+              href={editorUrl}
+              className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:text-primary/80 transition-colors"
+            >
+              <span className="hidden sm:inline">Open in Editor</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
 
         {/* Progress bar */}
