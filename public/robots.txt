@@ -24,6 +24,12 @@ Allow: /
 User-agent: Google-Extended
 Allow: /
 
+User-agent: Bytespider
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
 # Training-only crawlers — blocked
 User-agent: CCBot
 Disallow: /

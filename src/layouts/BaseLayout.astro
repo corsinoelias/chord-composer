@@ -72,7 +72,17 @@ const orgSchema = {
   name: 'Chord Sequence',
   alternateName: 'Chord Player',
   url: 'https://chordsequence.com',
+  foundingDate: '2024',
+  areaServed: 'Worldwide',
+  description: 'Free online chord progression builder for songwriters, producers, and music students. 37 chord types, 13+ rhythm styles, WAV export. No account required.',
   logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
+  founder: {
+    '@type': 'Person',
+    name: 'Elías Corsino Saldaña',
+    url: 'https://chordsequence.com/about/elias-corsino/',
+    jobTitle: 'Musician & Software Developer',
+    nationality: { '@type': 'Country', name: 'Dominican Republic' },
+  },
   sameAs: [
     'https://www.linkedin.com/in/elias-corsino-salda%C3%B1a-945138182/',
     'https://www.instagram.com/corsinoeliaas/',
@@ -85,6 +95,7 @@ const orgSchema = {
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="license" href="https://chordsequence.com/llms.txt" type="text/plain" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>{title}</title>

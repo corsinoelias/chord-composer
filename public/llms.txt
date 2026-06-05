@@ -31,6 +31,10 @@ Interactive chord charts with synchronized lyrics — press Play and follow each
 - [Wonderwall — Oasis](https://chordsequence.com/songs/wonderwall-oasis/): Rock/Britpop (1995). Key of F#m, Capo 2. Chords: Em7, G, Dsus4, A7sus4, Cadd9.
 - [Hallelujah — Leonard Cohen](https://chordsequence.com/songs/hallelujah-leonard-cohen/): Folk/Pop. Key of C. Chords: C, Am, F, G, E.
 - [Hermoso Momento — Oasis Ministry](https://chordsequence.com/songs/hermoso-momento-oasis-ministry/): Worship. Key of Eb. Chords: Fm, Ab, Eb, Bb.
+- [Creo en Ti — Julio Melgar](https://chordsequence.com/songs/creo-en-ti-julio-melgar/): Worship. Key of Am. Chords: Am, F, C, G.
+- [Hay Poder / Yeshua — Averly Morillo](https://chordsequence.com/songs/hay-poder-yeshua-averly-morillo/): Worship. Key of G. Chords: G, D, Em, C.
+- [Jesus Be the Name — Elevation Worship](https://chordsequence.com/songs/jesus-be-the-name-elevation-worship/): Worship. Key of D. Chords: D, A, Bm, G.
+- [Autumn Leaves — Jazz Standard](https://chordsequence.com/songs/autumn-leaves-jazz-standard/): Folk/Jazz. Key of G minor. Composer: Joseph Kosma (1945). Chords: Am7b5, D7, Gm, Cm7, F7, Bbmaj7, Ebmaj7.
 
 ## Tools
 - [Chord Transposer](https://chordsequence.com/tools/chord-transposer/): Instantly transpose any chord or progression to a different key. Includes semitone reference chart and worked examples.
@@ -40,6 +44,9 @@ Interactive chord charts with synchronized lyrics — press Play and follow each
 ## About
 - [About Chord Sequence](https://chordsequence.com/about/): About the tool and its creator.
 - [Elías Corsino Saldaña](https://chordsequence.com/about/elias-corsino/): Creator of Chord Sequence — Musician & Software Developer from the Dominican Republic. Plays piano, bass, guitar, and drums. Started learning music at age 12.
+
+## Licensing
+Content on this site (music theory articles, chord charts, tool descriptions) is available for AI citation and summarization for informational, educational, and search purposes. Training use is restricted — see /robots.txt.
 
 ## Key Facts
 - 100% free, no account required
