@@ -5,6 +5,7 @@ import { X, Copy } from 'lucide-react';
 interface ChordBlockProps {
   chord: Chord;
   isPlaying: boolean;
+  isSelected?: boolean;
   onDelete: () => void;
   onDuplicate?: () => void;
   isDragging?: boolean;
@@ -24,13 +25,14 @@ function getChordColorVar(quality: string): string {
   return 'var(--chord-major)';
 }
 
-export const ChordBlock = memo(function ChordBlock({ 
-  chord, 
-  isPlaying, 
-  onDelete, 
-  onDuplicate, 
-  isDragging, 
-  fixedWidth = false 
+export const ChordBlock = memo(function ChordBlock({
+  chord,
+  isPlaying,
+  isSelected = false,
+  onDelete,
+  onDuplicate,
+  isDragging,
+  fixedWidth = false
 }: ChordBlockProps) {
   const colorVar = useMemo(() => getChordColorVar(chord.quality), [chord.quality]);
 
@@ -46,19 +48,25 @@ export const ChordBlock = memo(function ChordBlock({
         }
         ${isDragging ? 'opacity-50 scale-95' : ''}
       `}
-      style={{ 
+      style={{
         width: fixedWidth ? '3.5rem' : `${Math.max(chord.duration * 3.5, 3.5)}rem`,
         minWidth: '3.5rem',
         height: '3.5rem',
-        backgroundColor: isPlaying 
+        backgroundColor: isPlaying
           ? `hsl(${colorVar} / 0.18)`
-          : `hsl(${colorVar} / 0.08)`,
-        borderColor: isPlaying 
-          ? `hsl(${colorVar})`
-          : `hsl(${colorVar} / 0.25)`,
-        boxShadow: isPlaying 
-          ? `0 0 12px hsl(${colorVar} / 0.25)`
-          : undefined,
+          : isSelected
+            ? `hsl(${colorVar} / 0.14)`
+            : `hsl(${colorVar} / 0.08)`,
+        borderColor: isSelected
+          ? `hsl(var(--primary))`
+          : isPlaying
+            ? `hsl(${colorVar})`
+            : `hsl(${colorVar} / 0.25)`,
+        boxShadow: isSelected
+          ? `0 0 0 2px hsl(var(--primary) / 0.5)`
+          : isPlaying
+            ? `0 0 12px hsl(${colorVar} / 0.25)`
+            : undefined,
       }}
     >
       {/* Chord name */}

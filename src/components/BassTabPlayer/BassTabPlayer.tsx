@@ -6,6 +6,7 @@ import { toAsciiTab, encodeTrackToHash, decodeTrackFromHash, copyToClipboard, ex
 import { BassTabTransport } from './BassTabTransport'
 import { BassTabFretboard } from './BassTabFretboard'
 import { BassTabGrid } from './BassTabGrid'
+import { BassRealisticDisplay } from './BassRealisticDisplay'
 
 const STORAGE_KEY = 'bass-tab-track-v1'
 const MAX_HISTORY = 60
@@ -40,6 +41,7 @@ export function BassTabPlayer() {
   const [volume, setVolume]             = useState(0.75)
   const [selectedNoteId, setSelectedId] = useState<string | null>(null)
   const [metronome, setMetronome]       = useState(false)
+  const [guitarView, setGuitarView]     = useState(false)
   const [ctxMenu, setCtxMenu]           = useState<CtxMenu | null>(null)
   const [toast, setToast]               = useState<string | null>(null)
 
@@ -213,8 +215,10 @@ export function BassTabPlayer() {
   }, [isPlaying])
 
   const handleFretChange = useCallback((fret: number) => {
-    if (selectedNoteId) updateNote(selectedNoteId, { fret })
-  }, [selectedNoteId, updateNote])
+    if (!selectedNoteId) return
+    updateNote(selectedNoteId, { fret })
+    if (selectedNote) previewNote(selectedNote.stringIndex, fret, sound)
+  }, [selectedNoteId, updateNote, selectedNote, sound])
 
   const handleVolumeChange = useCallback((vol: number) => {
     setVolume(vol); setMasterVolume(vol)
@@ -362,6 +366,28 @@ export function BassTabPlayer() {
           {track.notes.length} {track.notes.length === 1 ? 'note' : 'notes'}
         </span>
 
+        {/* Guitar / Tab view toggle */}
+        <button
+          onClick={() => setGuitarView(v => !v)}
+          title={guitarView ? 'Switch to Tab view' : 'Switch to Guitar view'}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '3px 10px', borderRadius: 20,
+            fontSize: 11, fontWeight: 500, cursor: 'pointer',
+            border: '1px solid',
+            borderColor: guitarView ? 'hsl(262 40% 40%)' : 'hsl(224 15% 28%)',
+            background: guitarView ? 'hsl(262 40% 18%)' : 'hsl(224 18% 14%)',
+            color: guitarView ? 'hsl(262 80% 80%)' : 'hsl(220 10% 55%)',
+            transition: 'all 0.15s',
+          }}
+        >
+          {/* Guitar body icon */}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
+          </svg>
+          {guitarView ? 'Tab' : 'Guitar'}
+        </button>
+
         {/* Beat counter (when playing) */}
         {isPlaying && (
           <span style={{
@@ -394,18 +420,27 @@ export function BassTabPlayer() {
         onMetronomeToggle={() => setMetronome(m => !m)}
       />
 
-      {/* Fretboard */}
-      <BassTabFretboard activeFrets={activeFrets} attackSignals={attackSignals} onNoteClick={handleFretboardNote} />
+      {guitarView ? (
+        /* ── Realistic bass visualizer ─────────────────────────────────────── */
+        <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+          <BassRealisticDisplay activeFrets={activeFrets} attackSignals={attackSignals} />
+        </div>
+      ) : (
+        <>
+          {/* Fretboard */}
+          <BassTabFretboard activeFrets={activeFrets} attackSignals={attackSignals} onNoteClick={handleFretboardNote} />
 
-      {/* Grid */}
-      <BassTabGrid
-        track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
-        cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
-        onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
-        onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
-        onZoomChange={handleZoomChange} onBeginEdit={beginEdit}
-        onNotePreview={handleNotePreview} onLongPressNote={handleLongPress}
-      />
+          {/* Grid */}
+          <BassTabGrid
+            track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
+            cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
+            onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
+            onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
+            onZoomChange={handleZoomChange} onBeginEdit={beginEdit}
+            onNotePreview={handleNotePreview} onLongPressNote={handleLongPress}
+          />
+        </>
+      )}
 
       {/* Status bar */}
       <div

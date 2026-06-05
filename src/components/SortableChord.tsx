@@ -5,12 +5,15 @@ import { ChordBlock } from './ChordBlock';
 
 interface SortableChordProps {
   chord: Chord;
-  chordId: string; // Unique ID including section index
+  chordId: string;
   index: number;
   isPlaying: boolean;
+  isSelected: boolean;
+  hasSelection: boolean;
   onClick: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onSelectToggle: (ctrl: boolean) => void;
 }
 
 export function SortableChord({
@@ -18,9 +21,12 @@ export function SortableChord({
   chordId,
   index,
   isPlaying,
+  isSelected,
+  hasSelection,
   onClick,
   onDelete,
   onDuplicate,
+  onSelectToggle,
 }: SortableChordProps) {
   const {
     attributes,
@@ -35,12 +41,17 @@ export function SortableChord({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.3 : 1,
-    zIndex: isDragging ? 10 : 'auto',
+    zIndex: isDragging ? 10 : 'auto' as const,
   };
 
-  const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
-    // Only trigger click if not dragging
-    if (!isDragging) {
+  const handleClick = (e: React.MouseEvent) => {
+    if (isDragging) return;
+    const isModifier = e.ctrlKey || e.metaKey;
+    // Enter/stay in selection mode with modifier OR when selection is already active
+    if (isModifier || hasSelection) {
+      e.preventDefault();
+      onSelectToggle(isModifier);
+    } else {
       onClick();
     }
   };
@@ -57,6 +68,7 @@ export function SortableChord({
       <ChordBlock
         chord={chord}
         isPlaying={isPlaying}
+        isSelected={isSelected}
         onDelete={onDelete}
         onDuplicate={onDuplicate}
         isDragging={isDragging}

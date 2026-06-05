@@ -1079,21 +1079,17 @@ function playClick(
   const gainNode = ctx.createGain();
   
   osc.type = 'sine';
-  // Downbeat: higher pitch & louder, other beats: lower pitch
   osc.frequency.value = isDownbeat ? 1200 : 900;
-  
-  // Connect directly to ctx.destination to bypass master gain compression
-  // This ensures metronome is always audible above instruments
+
   osc.connect(gainNode);
+  // Bypass master gain so the click is always audible regardless of instrument volumes
   gainNode.connect(ctx.destination);
-  
-  // Louder volume: 0.7 for downbeat, 0.5 for other beats
-  // Connecting directly to destination means this won't be affected by master gain
+
   const peakVolume = isDownbeat ? 0.7 : 0.5;
   gainNode.gain.setValueAtTime(0, startTime);
   gainNode.gain.linearRampToValueAtTime(peakVolume, startTime + 0.005);
   gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1);
-  
+
   osc.start(startTime);
   osc.stop(startTime + 0.12);
 }

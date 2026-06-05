@@ -138,6 +138,7 @@ const Index = ({ songId }: IndexProps) => {
   const [editingNewStyle, setEditingNewStyle] = useState<StylePattern | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [activeChord, setActiveChord] = useState<{ chord: Chord; sectionIndex: number } | null>(null);
+  const [selectedChordIds, setSelectedChordIds] = useState<Set<string>>(new Set());
   const [showCountdown, setShowCountdown] = useState(false);
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
   const [mixingConsoleOpen, setMixingConsoleOpen] = useState(false);
@@ -505,6 +506,69 @@ const Index = ({ songId }: IndexProps) => {
         : s
     ));
   };
+
+  // ── Multi-select ────────────────────────────────────────────────────────────
+
+  const handleChordSelect = useCallback((sectionIndex: number, chordIndex: number, ctrl: boolean) => {
+    const chord = sectionsRef.current[sectionIndex]?.chords[chordIndex];
+    if (!chord) return;
+    const id = `chord-${sectionIndex}-${chord.id}`;
+    setSelectedChordIds(prev => {
+      const next = new Set(prev);
+      if (ctrl) {
+        // Ctrl: toggle this chord in the existing selection
+        if (next.has(id)) next.delete(id); else next.add(id);
+      } else {
+        // No modifier but selection is active: select only this chord
+        next.clear();
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedChordIds.size === 0) return;
+    const totalChords = sectionsRef.current.reduce((s, sec) => s + sec.chords.length, 0);
+    if (totalChords <= selectedChordIds.size) {
+      toast.error('Cannot delete all chords');
+      return;
+    }
+    setSections(prev => prev.map((s, si) => ({
+      ...s,
+      chords: s.chords.filter(c => !selectedChordIds.has(`chord-${si}-${c.id}`)),
+    })));
+    setSelectedChordIds(new Set());
+    toast.success(`Deleted ${selectedChordIds.size} chord${selectedChordIds.size > 1 ? 's' : ''}`);
+  }, [selectedChordIds]);
+
+  const handleDuplicateSelected = useCallback(() => {
+    if (selectedChordIds.size === 0) return;
+    setSections(prev => prev.map((s, si) => {
+      const newChords: Chord[] = [];
+      s.chords.forEach(c => {
+        newChords.push(c);
+        if (selectedChordIds.has(`chord-${si}-${c.id}`)) {
+          newChords.push({ ...c, id: generateChordId() });
+        }
+      });
+      return { ...s, chords: newChords };
+    }));
+    setSelectedChordIds(new Set());
+    toast.success(`Duplicated ${selectedChordIds.size} chord${selectedChordIds.size > 1 ? 's' : ''}`);
+  }, [selectedChordIds]);
+
+  // Clear selection on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedChordIds(new Set());
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedChordIds.size > 0 && !editingChord && !addChordSection) {
+        handleDeleteSelected();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedChordIds, editingChord, addChordSection, handleDeleteSelected]);
 
   const handleChordReorder = (sectionIndex: number, fromIndex: number, toIndex: number) => {
     setSections(prev => prev.map((s, i) => {
@@ -1002,8 +1066,10 @@ const Index = ({ songId }: IndexProps) => {
                   isLooping={loopingSectionIndex === sectionIndex}
                   styleId={selectedStyleId}
                   swapAnimation={animatingSections.find(a => a.index === sectionIndex)?.direction || null}
+                  selectedChordIds={selectedChordIds}
                   onAddChord={() => setAddChordSection({ index: sectionIndex, name: section.name })}
                   onChordClick={(chordIndex) => handleChordClick(sectionIndex, chordIndex)}
+                  onChordSelect={(chordIndex, ctrl) => handleChordSelect(sectionIndex, chordIndex, ctrl)}
                   onChordDelete={(chordIndex) => handleChordDelete(sectionIndex, chordIndex)}
                   onChordDuplicate={(chordIndex) => handleChordDuplicate(sectionIndex, chordIndex)}
                   onRepeatChange={(count) => handleRepeatChange(sectionIndex, count)}
@@ -1052,6 +1118,39 @@ const Index = ({ songId }: IndexProps) => {
 
       {/* Welcome Overlay for first-time users */}
       {showOnboarding && <WelcomeOverlay onDismiss={dismissOnboarding} />}
+
+      {/* Multi-select floating toolbar */}
+      {selectedChordIds.size > 0 && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-2 rounded-full border border-border bg-card shadow-xl"
+          style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}
+        >
+          <span className="text-xs font-medium text-muted-foreground pr-1 border-r border-border">
+            {selectedChordIds.size} selected
+          </span>
+          <button
+            onClick={handleDuplicateSelected}
+            className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md hover:bg-muted transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16H3a1 1 0 01-1-1V3a1 1 0 011-1h12a1 1 0 011 1v1"/></svg>
+            Duplicate
+          </button>
+          <button
+            onClick={handleDeleteSelected}
+            className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md hover:bg-destructive/10 hover:text-destructive transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            Delete
+          </button>
+          <button
+            onClick={() => setSelectedChordIds(new Set())}
+            className="ml-1 text-muted-foreground hover:text-foreground transition-colors text-sm leading-none px-1"
+            aria-label="Clear selection"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <ChordEditModal
         chord={editingChord?.chord || null}

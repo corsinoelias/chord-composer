@@ -22,8 +22,10 @@ interface SectionCardProps {
   isLooping?: boolean;
   styleId: string;
   swapAnimation?: 'up' | 'down' | null;
+  selectedChordIds: Set<string>;
   onAddChord: () => void;
   onChordClick: (chordIndex: number) => void;
+  onChordSelect: (chordIndex: number, ctrl: boolean) => void;
   onChordDelete: (chordIndex: number) => void;
   onChordDuplicate: (chordIndex: number) => void;
   onRepeatChange: (repeatCount: number) => void;
@@ -66,8 +68,10 @@ export const SectionCard = memo(function SectionCard({
   isLooping,
   styleId,
   swapAnimation,
+  selectedChordIds,
   onAddChord,
   onChordClick,
+  onChordSelect,
   onChordDelete,
   onChordDuplicate,
   onRepeatChange,
@@ -326,18 +330,24 @@ export const SectionCard = memo(function SectionCard({
           ) : (
             <SortableContext items={chordIds} strategy={rectSortingStrategy}>
               <div className="flex flex-wrap gap-1.5 sm:gap-2 items-stretch">
-                {section.chords.map((chord, index) => (
-                  <SortableChord
-                    key={chord.id}
-                    chord={chord}
-                    chordId={`chord-${sectionIndex}-${chord.id}`}
-                    index={index}
-                    isPlaying={localPlayingIndex === index}
-                    onClick={() => onChordClick(index)}
-                    onDelete={() => onChordDelete(index)}
-                    onDuplicate={() => onChordDuplicate(index)}
-                  />
-                ))}
+                {section.chords.map((chord, index) => {
+                  const compoundId = `chord-${sectionIndex}-${chord.id}`
+                  return (
+                    <SortableChord
+                      key={chord.id}
+                      chord={chord}
+                      chordId={compoundId}
+                      index={index}
+                      isPlaying={localPlayingIndex === index}
+                      isSelected={selectedChordIds.has(compoundId)}
+                      hasSelection={selectedChordIds.size > 0}
+                      onClick={() => onChordClick(index)}
+                      onSelectToggle={(ctrl) => onChordSelect(index, ctrl)}
+                      onDelete={() => onChordDelete(index)}
+                      onDuplicate={() => onChordDuplicate(index)}
+                    />
+                  )
+                })}
               </div>
             </SortableContext>
           )}

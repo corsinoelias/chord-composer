@@ -77,30 +77,34 @@ function scheduleNote(
 }
 
 function scheduleMetronome(
-  ctx: AudioContext, dest: AudioNode,
+  ctx: AudioContext,
+  _dest: AudioNode,   // unused — click bypasses masterGain so it's always audible
   startAudioTime: number, fromBeat: number, totalBeats: number,
   bpm: number, beatsPerBar: number,
 ) {
   const beatDur = 60 / bpm
+
   for (let beat = 0; beat < totalBeats; beat++) {
     if (beat < fromBeat - 0.001) continue
     const t = startAudioTime + (beat - fromBeat) * beatDur
     if (t < ctx.currentTime - 0.01) continue
 
     const isDown = beat % beatsPerBar === 0
+
     const osc = ctx.createOscillator()
     osc.type = 'sine'
     osc.frequency.value = isDown ? 1200 : 900
 
     const env = ctx.createGain()
     env.gain.setValueAtTime(0, t)
-    env.gain.linearRampToValueAtTime(isDown ? 0.18 : 0.12, t + 0.003)
-    env.gain.exponentialRampToValueAtTime(0.001, t + 0.065)
+    env.gain.linearRampToValueAtTime(isDown ? 0.7 : 0.5, t + 0.005)
+    env.gain.exponentialRampToValueAtTime(0.001, t + 0.1)
 
     osc.connect(env)
-    env.connect(dest)
+    // Bypass masterGain — click is always audible regardless of instrument volumes
+    env.connect(ctx.destination)
     osc.start(t)
-    osc.stop(t + 0.08)
+    osc.stop(t + 0.12)
     scheduledOscillators.push(osc)
   }
 }
