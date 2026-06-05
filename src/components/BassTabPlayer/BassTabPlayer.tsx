@@ -262,34 +262,82 @@ export function BassTabPlayer() {
   return (
     <div
       className="flex flex-col text-white"
-      style={{ height: '100dvh', fontFamily: 'ui-monospace, monospace', overflow: 'hidden', overscrollBehavior: 'none', background: '#050508' }}
+      style={{
+        height: '100dvh',
+        fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+        overflow: 'hidden', overscrollBehavior: 'none',
+        background: 'hsl(224 24% 8%)',
+      }}
       onContextMenu={handleContextMenu}
     >
-      {/* ── ChordSequence branding header ──────────────────────────────────── */}
+      {/* ── Header — matches app nav aesthetic ────────────────────────────── */}
       <div
         style={{
-          flexShrink: 0, height: 38,
-          background: 'hsl(262 83% 12%)',
-          borderBottom: '1px solid hsl(262 83% 22%)',
-          display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 14, paddingRight: 14,
+          flexShrink: 0, height: 44,
+          background: 'hsl(224 20% 8%)',
+          borderBottom: '1px solid hsl(224 15% 18%)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', gap: 8,
+          paddingLeft: 16, paddingRight: 16,
+          fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
         }}
       >
-        <a
-          href="/"
-          style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
-        >
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'hsl(262 83% 78%)', letterSpacing: '-0.02em', fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
+        {/* Logo mark */}
+        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 7,
+            background: 'hsl(262 83% 58%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 12px hsl(262 83% 58% / 0.35)',
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+            </svg>
+          </div>
+          <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.025em', color: 'hsl(220 14% 90%)' }}>
             ChordSequence
           </span>
         </a>
-        <span style={{ color: 'hsl(262 40% 45%)', fontSize: 13 }}>/</span>
-        <span style={{ color: 'hsl(262 70% 90%)', fontSize: 13, fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
+
+        {/* Breadcrumb separator */}
+        <span style={{ color: 'hsl(224 15% 35%)', fontSize: 16, fontWeight: 300 }}>/</span>
+
+        {/* Current tool */}
+        <span style={{
+          fontSize: 13, fontWeight: 500,
+          color: 'hsl(262 60% 75%)',
+          background: 'hsl(262 40% 15%)',
+          padding: '2px 10px', borderRadius: 20,
+          border: '1px solid hsl(262 40% 22%)',
+        }}>
           Bass Tab
         </span>
+
         <div style={{ flex: 1 }} />
-        <span style={{ color: 'hsl(262 40% 45%)', fontSize: 10 }}>
-          {track.notes.length} note{track.notes.length !== 1 ? 's' : ''}
+
+        {/* Note count pill */}
+        <span style={{
+          fontSize: 11, color: 'hsl(220 10% 50%)',
+          background: 'hsl(224 18% 14%)',
+          padding: '2px 8px', borderRadius: 10,
+          border: '1px solid hsl(224 15% 20%)',
+        }}>
+          {track.notes.length} {track.notes.length === 1 ? 'note' : 'notes'}
         </span>
+
+        {/* Beat counter (when playing) */}
+        {isPlaying && (
+          <span style={{
+            fontSize: 11, fontFamily: 'ui-monospace, monospace',
+            color: 'hsl(262 60% 75%)',
+            background: 'hsl(262 40% 15%)',
+            padding: '2px 10px', borderRadius: 10,
+            border: '1px solid hsl(262 40% 22%)',
+            minWidth: 52, textAlign: 'center',
+          }}>
+            {`${Math.floor(currentBeat / track.beatsPerBar) + 1}:${Math.floor(currentBeat % track.beatsPerBar) + 1}`}
+          </span>
+        )}
       </div>
 
       {/* Transport */}
@@ -323,13 +371,26 @@ export function BassTabPlayer() {
       />
 
       {/* Status bar */}
-      <div className="flex items-center gap-3 px-3 py-0.5 border-t border-gray-800 text-gray-600 text-xs flex-shrink-0" style={{ background: '#050508', height: 22 }}>
-        <span className="hidden sm:inline">Space: play/stop</span>
-        <span className="hidden sm:inline">Del: delete</span>
-        <span className="hidden sm:inline">Ctrl+D: duplicate</span>
-        <span className="hidden sm:inline">↑↓: fret  ←→: move</span>
-        <span className="hidden sm:inline">Ctrl+scroll: zoom</span>
-        <span className="hidden md:inline">Right-click note: menu</span>
+      <div
+        className="flex items-center gap-4 px-4 flex-shrink-0 hidden sm:flex"
+        style={{
+          height: 26, background: 'hsl(224 20% 7%)',
+          borderTop: '1px solid hsl(224 15% 16%)',
+          fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+        }}
+      >
+        {[
+          'Space · play/stop',
+          'Del · delete',
+          'Ctrl+D · duplicate',
+          '↑↓ · fret   ←→ · move',
+          'Ctrl+scroll · zoom',
+          'Right-click · menu',
+        ].map(hint => (
+          <span key={hint} style={{ fontSize: 10, color: 'hsl(220 10% 38%)', whiteSpace: 'nowrap' }}>
+            {hint}
+          </span>
+        ))}
       </div>
 
       {/* Context menu */}
@@ -337,10 +398,12 @@ export function BassTabPlayer() {
         <div
           style={{
             position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
-            background: '#1a1a2e', border: '1px solid #374151', borderRadius: 8,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.7)',
-            minWidth: 160, overflow: 'hidden',
-            fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+            background: 'hsl(224 20% 14%)',
+            border: '1px solid hsl(224 15% 22%)',
+            borderRadius: 8,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px hsl(224 15% 22%)',
+            minWidth: 168, overflow: 'hidden',
+            fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
           }}
           onPointerDown={e => e.stopPropagation()}
         >
@@ -361,10 +424,11 @@ export function BassTabPlayer() {
                 display: 'block', width: '100%', textAlign: 'left',
                 padding: '8px 14px', fontSize: 12, cursor: 'pointer',
                 background: 'transparent', border: 'none',
-                color: (item as { danger?: boolean }).danger ? '#f87171' : '#d1d5db',
+                color: (item as { danger?: boolean }).danger ? 'hsl(0 72% 65%)' : 'hsl(220 14% 80%)',
                 transition: 'background 0.08s',
+                fontFamily: 'inherit',
               }}
-              onMouseEnter={e => { (e.target as HTMLElement).style.background = '#2d2d40' }}
+              onMouseEnter={e => { (e.target as HTMLElement).style.background = 'hsl(224 15% 22%)' }}
               onMouseLeave={e => { (e.target as HTMLElement).style.background = 'transparent' }}
             >
               {item.label}
@@ -377,12 +441,15 @@ export function BassTabPlayer() {
       {toast && (
         <div
           style={{
-            position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
-            background: 'hsl(262 83% 40%)', color: 'white', borderRadius: 8,
-            padding: '8px 18px', fontSize: 13, zIndex: 9999,
-            fontFamily: 'ui-sans-serif, system-ui, sans-serif',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+            position: 'fixed', bottom: 40, left: '50%', transform: 'translateX(-50%)',
+            background: 'hsl(262 83% 50%)',
+            color: 'white', borderRadius: 10,
+            padding: '9px 20px', fontSize: 13, zIndex: 9999,
+            fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+            fontWeight: 500,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px hsl(262 60% 60% / 0.3)',
             pointerEvents: 'none',
+            whiteSpace: 'nowrap',
           }}
         >
           {toast}

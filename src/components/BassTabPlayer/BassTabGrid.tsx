@@ -227,11 +227,11 @@ export function BassTabGrid({
     <div ref={outerRef} className="flex flex-1 min-h-0" style={{ overflow: 'hidden' }}>
 
       {/* String-label column */}
-      <div className="flex-shrink-0 flex flex-col border-r border-gray-700 z-10" style={{ width: LABEL_W, background: '#0a0a12' }}>
-        <div style={{ height: RULER_H, flexShrink: 0, borderBottom: '1px solid #1e293b' }} />
+      <div className="flex-shrink-0 flex flex-col z-10" style={{ width: LABEL_W, background: 'hsl(224 20% 9%)', borderRight: '1px solid hsl(224 15% 18%)' }}>
+        <div style={{ height: RULER_H, flexShrink: 0, borderBottom: '1px solid hsl(224 15% 16%)' }} />
         {STRINGS.map((s) => (
-          <div key={s.index} className="flex items-center justify-center flex-1" style={{ borderBottom: '1px solid #1e293b', minHeight: ROW_H_MIN }}>
-            <span className="text-xs font-bold font-mono" style={{ color: s.color }}>{s.displayName}</span>
+          <div key={s.index} className="flex items-center justify-center flex-1" style={{ borderBottom: '1px solid hsl(224 15% 14%)', minHeight: ROW_H_MIN }}>
+            <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'ui-monospace, monospace', color: s.color }}>{s.displayName}</span>
           </div>
         ))}
       </div>
@@ -243,17 +243,17 @@ export function BassTabGrid({
           {/* Ruler */}
           <div
             ref={rulerRef}
-            style={{ height: RULER_H, width: totalWidth, position: 'relative', background: '#090912', borderBottom: '1px solid #1e293b', cursor: 'col-resize', userSelect: 'none' }}
+            style={{ height: RULER_H, width: totalWidth, position: 'relative', background: 'hsl(224 20% 9%)', borderBottom: '1px solid hsl(224 15% 16%)', cursor: 'col-resize', userSelect: 'none' }}
             onPointerDown={handleRulerPointerDown}
           >
             {barTicks.map(tick => (
               <div key={tick.x} style={{ position:'absolute', left:tick.x, top:0, bottom:0, display:'flex', alignItems:'flex-end', paddingBottom:5, paddingLeft:4 }}>
-                <div style={{ position:'absolute', left:0, top:0, bottom:0, width:1.5, background:'#374151' }} />
-                <span style={{ color:'#6b7280', fontSize:11, fontFamily:'monospace', userSelect:'none', paddingLeft:3 }}>{tick.bar}</span>
+                <div style={{ position:'absolute', left:0, top:0, bottom:0, width:1.5, background:'hsl(224 15% 26%)' }} />
+                <span style={{ color:'hsl(220 10% 50%)', fontSize:11, fontFamily:'ui-monospace, monospace', userSelect:'none', paddingLeft:3 }}>{tick.bar}</span>
               </div>
             ))}
             {beatTicks.map((tick, i) => (
-              <div key={i} style={{ position:'absolute', left:tick.x, top:0, bottom:0, width:1, background:'#1a1a2e' }} />
+              <div key={i} style={{ position:'absolute', left:tick.x, top:0, bottom:0, width:1, background:'hsl(224 15% 14%)' }} />
             ))}
             {/* Insertion cursor ▼ */}
             <div style={{ position:'absolute', left:insertionLeft, top:0, height:'100%', width:2, background:'#e2e8f0', opacity:0.85, pointerEvents:'none', zIndex:10 }}>
@@ -267,20 +267,20 @@ export function BassTabGrid({
           {/* Notes area */}
           <div
             ref={gridRef}
-            style={{ width:totalWidth, height:rowH*4, position:'relative', background:'#0d0d1a', userSelect:'none', touchAction:'none' }}
+            style={{ width:totalWidth, height:rowH*4, position:'relative', background:'hsl(224 22% 10%)', userSelect:'none', touchAction:'none' }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
           >
             {STRINGS.map((_, i) => (
-              <div key={i} style={{ position:'absolute', left:0, right:0, top:i*rowH, height:rowH, background:i%2===0?'rgba(255,255,255,0.018)':'transparent', borderBottom:'1px solid #141428', pointerEvents:'none' }} />
+              <div key={i} style={{ position:'absolute', left:0, right:0, top:i*rowH, height:rowH, background:i%2===0?'rgba(255,255,255,0.015)':'transparent', borderBottom:'1px solid hsl(224 15% 14%)', pointerEvents:'none' }} />
             ))}
             {barTicks.map(tick => (
-              <div key={tick.x} style={{ position:'absolute', left:tick.x, top:0, width:1, height:'100%', background:'#1e2035', pointerEvents:'none' }} />
+              <div key={tick.x} style={{ position:'absolute', left:tick.x, top:0, width:1, height:'100%', background:'hsl(224 15% 18%)', pointerEvents:'none' }} />
             ))}
             {beatTicks.map((tick, i) => (
-              <div key={i} style={{ position:'absolute', left:tick.x, top:0, width:1, height:'100%', background:'#11111e', pointerEvents:'none' }} />
+              <div key={i} style={{ position:'absolute', left:tick.x, top:0, width:1, height:'100%', background:'hsl(224 15% 13%)', pointerEvents:'none' }} />
             ))}
 
             {track.notes.length === 0 && (

@@ -1,212 +1,326 @@
 import React from 'react'
-import { Play, Square, RotateCcw, Repeat, ZoomIn, ZoomOut, Undo2, Redo2, Trash2, Download, Share2, Bell, BellOff, Music } from 'lucide-react'
+import {
+  Play, Square, RotateCcw, Repeat, ZoomIn, ZoomOut,
+  Undo2, Redo2, Trash2, Download, Share2, Bell, BellOff, Music,
+} from 'lucide-react'
 import { type BassSound, type SnapValue, SNAP_OPTIONS } from '../../lib/bassTab/types'
 
-interface TransportProps {
-  isPlaying: boolean
-  loop: boolean
-  bpm: number
-  snap: SnapValue
-  sound: BassSound
-  totalBars: number
-  zoom: number
-  volume: number
-  selectedNoteFret: number | null
-  hasSelectedNote: boolean
-  canUndo: boolean
-  canRedo: boolean
-  metronome: boolean
-  onPlay: () => void
-  onStop: () => void
-  onLoopToggle: () => void
-  onBpmChange: (bpm: number) => void
-  onSnapChange: (snap: SnapValue) => void
-  onSoundChange: (sound: BassSound) => void
-  onBarsChange: (bars: number) => void
-  onZoomIn: () => void
-  onZoomOut: () => void
-  onFretChange: (fret: number) => void
-  onVolumeChange: (vol: number) => void
-  onUndo: () => void
-  onRedo: () => void
-  onClearAll: () => void
-  onExportAscii: () => void
-  onExportMidi: () => void
-  onShareUrl: () => void
-  onMetronomeToggle: () => void
+// ── Design tokens — dark surface matching the app's dark-mode palette ─────
+const T = {
+  bg:      'hsl(224 20% 11%)',
+  surface: 'hsl(224 18% 17%)',
+  surfaceHov: 'hsl(224 18% 23%)',
+  border:  'hsl(224 15% 22%)',
+  text:    'hsl(220 14% 82%)',
+  muted:   'hsl(220 10% 50%)',
+  primary: 'hsl(262 83% 58%)',
+  primaryBg: 'hsl(262 60% 25%)',
+  primaryText: 'hsl(262 80% 85%)',
+  danger:  'hsl(0 72% 51%)',
+  amber:   'hsl(38 92% 50%)',
+  amberBg: 'hsl(38 60% 18%)',
 }
 
-export function BassTabTransport({
-  isPlaying, loop, bpm, snap, sound, totalBars, zoom, volume,
-  selectedNoteFret, hasSelectedNote, canUndo, canRedo, metronome,
-  onPlay, onStop, onLoopToggle, onBpmChange, onSnapChange,
-  onSoundChange, onBarsChange, onZoomIn, onZoomOut,
-  onFretChange, onVolumeChange,
-  onUndo, onRedo, onClearAll, onExportAscii, onExportMidi, onShareUrl, onMetronomeToggle,
-}: TransportProps) {
-  return (
-    <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-gray-900 border-b border-gray-700 select-none flex-shrink-0">
+const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
 
-      {/* Transport */}
-      <div className="flex items-center gap-1">
-        <button
+interface TransportProps {
+  isPlaying: boolean; loop: boolean; bpm: number
+  snap: SnapValue; sound: BassSound; totalBars: number
+  zoom: number; volume: number
+  selectedNoteFret: number | null; hasSelectedNote: boolean
+  canUndo: boolean; canRedo: boolean; metronome: boolean
+  onPlay: () => void; onStop: () => void; onLoopToggle: () => void
+  onBpmChange: (bpm: number) => void; onSnapChange: (snap: SnapValue) => void
+  onSoundChange: (sound: BassSound) => void; onBarsChange: (bars: number) => void
+  onZoomIn: () => void; onZoomOut: () => void
+  onFretChange: (fret: number) => void; onVolumeChange: (vol: number) => void
+  onUndo: () => void; onRedo: () => void; onClearAll: () => void
+  onExportAscii: () => void; onExportMidi: () => void
+  onShareUrl: () => void; onMetronomeToggle: () => void
+}
+
+export function BassTabTransport(props: TransportProps) {
+  const {
+    isPlaying, loop, bpm, snap, sound, totalBars, zoom, volume,
+    selectedNoteFret, hasSelectedNote, canUndo, canRedo, metronome,
+    onPlay, onStop, onLoopToggle, onBpmChange, onSnapChange, onSoundChange,
+    onBarsChange, onZoomIn, onZoomOut, onFretChange, onVolumeChange,
+    onUndo, onRedo, onClearAll, onExportAscii, onExportMidi, onShareUrl, onMetronomeToggle,
+  } = props
+
+  return (
+    <div
+      style={{
+        background: T.bg,
+        borderBottom: `1px solid ${T.border}`,
+        fontFamily: FONT,
+        flexShrink: 0,
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 4,
+        padding: '6px 12px',
+        userSelect: 'none',
+      }}
+    >
+      {/* ── Playback ──────────────────────────────────────────────────── */}
+      <Group>
+        <IconBtn
           onClick={isPlaying ? onStop : onPlay}
           title={isPlaying ? 'Stop (Space)' : 'Play (Space)'}
-          className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold transition-colors ${
-            isPlaying ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-          }`}
+          active={isPlaying}
+          activeBg={isPlaying ? T.danger : T.primary}
+          size={34}
         >
-          {isPlaying ? <Square size={13} /> : <Play size={13} />}
-        </button>
-        <button onClick={onStop} title="Reset" className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">
+          {isPlaying ? <Square size={14} /> : <Play size={14} />}
+        </IconBtn>
+        <IconBtn onClick={onStop} title="Reset">
           <RotateCcw size={13} />
-        </button>
-        <button
-          onClick={onLoopToggle}
-          title="Loop"
-          className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${loop ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+        </IconBtn>
+        <IconBtn
+          onClick={onLoopToggle} title="Loop"
+          active={loop} activeBg={T.primaryBg} activeColor={T.primaryText}
         >
           <Repeat size={13} />
-        </button>
-        <button
-          onClick={onMetronomeToggle}
-          title="Metronome click"
-          className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${metronome ? 'bg-amber-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+        </IconBtn>
+        <IconBtn
+          onClick={onMetronomeToggle} title="Metronome click"
+          active={metronome} activeBg={T.amberBg} activeColor={T.amber}
         >
           {metronome ? <Bell size={13} /> : <BellOff size={13} />}
-        </button>
-      </div>
+        </IconBtn>
+      </Group>
 
-      <div className="h-5 w-px bg-gray-700" />
+      <Divider />
 
-      {/* Undo / Redo */}
-      <div className="flex items-center gap-1">
-        <button
-          onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)"
-          className="flex items-center justify-center w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-25 transition-colors"
-        >
+      {/* ── History ───────────────────────────────────────────────────── */}
+      <Group>
+        <IconBtn onClick={onUndo} title="Undo (Ctrl+Z)" disabled={!canUndo}>
           <Undo2 size={13} />
-        </button>
-        <button
-          onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Y)"
-          className="flex items-center justify-center w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-25 transition-colors"
-        >
+        </IconBtn>
+        <IconBtn onClick={onRedo} title="Redo (Ctrl+Y)" disabled={!canRedo}>
           <Redo2 size={13} />
-        </button>
-      </div>
+        </IconBtn>
+      </Group>
 
-      <div className="h-5 w-px bg-gray-700" />
+      <Divider />
 
-      {/* BPM */}
-      <div className="flex items-center gap-1">
-        <span className="text-gray-400 text-xs">BPM</span>
-        <input
-          type="number" min={40} max={240} value={bpm}
-          onChange={(e) => onBpmChange(Math.max(40, Math.min(240, Number(e.target.value))))}
-          className="w-14 bg-gray-800 border border-gray-600 rounded text-white text-xs text-center py-1 focus:outline-none focus:border-blue-500"
+      {/* ── Tempo ─────────────────────────────────────────────────────── */}
+      <LabeledControl label="BPM">
+        <NumInput
+          value={bpm} min={40} max={240} width={52}
+          onChange={v => onBpmChange(Math.max(40, Math.min(240, v)))}
         />
-      </div>
+      </LabeledControl>
 
-      <div className="h-5 w-px bg-gray-700" />
-
-      {/* Snap */}
-      <div className="flex items-center gap-1">
-        <span className="text-gray-400 text-xs">Snap</span>
-        <select
-          value={snap}
-          onChange={(e) => onSnapChange(Number(e.target.value) as SnapValue)}
-          className="bg-gray-800 border border-gray-600 rounded text-white text-xs py-1 px-1.5 focus:outline-none focus:border-blue-500"
-        >
+      {/* ── Snap ──────────────────────────────────────────────────────── */}
+      <LabeledControl label="Snap">
+        <StyledSelect value={snap} onChange={e => onSnapChange(Number(e.target.value) as SnapValue)} width={64}>
           {SNAP_OPTIONS.map(o => <option key={o.label} value={o.value}>{o.label}</option>)}
-        </select>
-      </div>
+        </StyledSelect>
+      </LabeledControl>
 
-      {/* Sound */}
-      <div className="flex items-center gap-1">
-        <span className="text-gray-400 text-xs">Sound</span>
-        <select
-          value={sound}
-          onChange={(e) => onSoundChange(e.target.value as BassSound)}
-          className="bg-gray-800 border border-gray-600 rounded text-white text-xs py-1 px-1.5 focus:outline-none focus:border-blue-500"
-        >
+      {/* ── Sound ─────────────────────────────────────────────────────── */}
+      <LabeledControl label="Sound">
+        <StyledSelect value={sound} onChange={e => onSoundChange(e.target.value as BassSound)} width={80}>
           <option value="electric">Electric</option>
           <option value="picked">Picked</option>
           <option value="synth">Synth</option>
           <option value="slap">Slap</option>
-        </select>
-      </div>
+        </StyledSelect>
+      </LabeledControl>
 
-      {/* Bars */}
-      <div className="flex items-center gap-1">
-        <span className="text-gray-400 text-xs">Bars</span>
-        <select
-          value={totalBars}
-          onChange={(e) => onBarsChange(Number(e.target.value))}
-          className="bg-gray-800 border border-gray-600 rounded text-white text-xs py-1 px-1.5 focus:outline-none focus:border-blue-500"
-        >
+      {/* ── Bars ──────────────────────────────────────────────────────── */}
+      <LabeledControl label="Bars">
+        <StyledSelect value={totalBars} onChange={e => onBarsChange(Number(e.target.value))} width={54}>
           {[2, 4, 8, 16, 32].map(b => <option key={b} value={b}>{b}</option>)}
-        </select>
-      </div>
+        </StyledSelect>
+      </LabeledControl>
 
-      {/* Volume */}
-      <div className="flex items-center gap-1">
-        <span className="text-gray-400 text-xs">Vol</span>
+      <Divider />
+
+      {/* ── Volume ────────────────────────────────────────────────────── */}
+      <LabeledControl label="Vol">
         <input
           type="range" min={0} max={1} step={0.01} value={volume}
-          onChange={(e) => onVolumeChange(Number(e.target.value))}
-          className="w-14 accent-violet-500"
+          onChange={e => onVolumeChange(Number(e.target.value))}
+          style={{ width: 68, accentColor: T.primary, cursor: 'pointer' }}
         />
-      </div>
+      </LabeledControl>
 
-      <div className="h-5 w-px bg-gray-700" />
+      <Divider />
 
-      {/* Zoom */}
-      <div className="flex items-center gap-1">
-        <span className="text-gray-400 text-xs w-8 text-right">{Math.round(zoom * 100)}%</span>
-        <button onClick={onZoomOut} disabled={zoom <= 0.5} className="flex items-center justify-center w-7 h-7 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-30 transition-colors">
-          <ZoomOut size={12} />
-        </button>
-        <button onClick={onZoomIn} disabled={zoom >= 4} className="flex items-center justify-center w-7 h-7 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-30 transition-colors">
-          <ZoomIn size={12} />
-        </button>
-      </div>
+      {/* ── Zoom ──────────────────────────────────────────────────────── */}
+      <Group>
+        <span style={{ fontSize: 11, color: T.muted, minWidth: 34, textAlign: 'right' }}>
+          {Math.round(zoom * 100)}%
+        </span>
+        <IconBtn onClick={onZoomOut} title="Zoom out" disabled={zoom <= 0.5}>
+          <ZoomOut size={13} />
+        </IconBtn>
+        <IconBtn onClick={onZoomIn} title="Zoom in" disabled={zoom >= 4}>
+          <ZoomIn size={13} />
+        </IconBtn>
+      </Group>
 
-      {/* Selected note fret editor */}
+      {/* ── Fret editor (when note selected) ─────────────────────────── */}
       {hasSelectedNote && selectedNoteFret !== null && (
         <>
-          <div className="h-5 w-px bg-gray-700" />
-          <div className="flex items-center gap-1">
-            <span className="text-gray-400 text-xs">Fret</span>
-            <button onClick={() => onFretChange(Math.max(0, selectedNoteFret - 1))} className="w-6 h-7 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm flex items-center justify-center">−</button>
-            <input
-              type="number" min={0} max={24} value={selectedNoteFret}
-              onChange={(e) => { const v = Number(e.target.value); if (!isNaN(v)) onFretChange(Math.max(0, Math.min(24, v))) }}
-              className="w-12 bg-gray-800 border border-gray-600 rounded text-white text-xs text-center py-1 focus:outline-none focus:border-blue-500"
-            />
-            <button onClick={() => onFretChange(Math.min(24, selectedNoteFret + 1))} className="w-6 h-7 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm flex items-center justify-center">+</button>
-          </div>
+          <Divider />
+          <LabeledControl label="Fret">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <SmallBtn onClick={() => onFretChange(Math.max(0, selectedNoteFret - 1))}>−</SmallBtn>
+              <NumInput
+                value={selectedNoteFret} min={0} max={24} width={44}
+                onChange={v => onFretChange(Math.max(0, Math.min(24, v)))}
+              />
+              <SmallBtn onClick={() => onFretChange(Math.min(24, selectedNoteFret + 1))}>+</SmallBtn>
+            </div>
+          </LabeledControl>
         </>
       )}
 
-      {/* Right-side actions */}
-      <div className="flex items-center gap-1 ml-auto">
-        <button onClick={onExportAscii} title="Copy ASCII tab to clipboard" className="flex items-center justify-center w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">
+      {/* ── Actions (right-aligned) ───────────────────────────────────── */}
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <IconBtn onClick={onExportAscii} title="Copy ASCII tab">
           <Download size={13} />
-        </button>
-        <button onClick={onExportMidi} title="Download MIDI file" className="flex items-center justify-center w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">
+        </IconBtn>
+        <IconBtn onClick={onExportMidi} title="Download MIDI">
           <Music size={13} />
-        </button>
-        <button onClick={onShareUrl} title="Copy share URL" className="flex items-center justify-center w-8 h-8 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">
+        </IconBtn>
+        <IconBtn onClick={onShareUrl} title="Copy share URL">
           <Share2 size={13} />
-        </button>
-        <button
-          onClick={onClearAll}
-          title="Clear all notes"
-          className="flex items-center justify-center w-8 h-8 rounded bg-gray-700 hover:bg-red-700 text-gray-400 hover:text-white transition-colors"
+        </IconBtn>
+        <Divider />
+        <IconBtn
+          onClick={onClearAll} title="Clear all notes"
+          hoverBg="hsl(0 60% 20%)" hoverColor={T.danger}
         >
           <Trash2 size={13} />
-        </button>
+        </IconBtn>
       </div>
     </div>
+  )
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────
+
+function Group({ children }: { children: React.ReactNode }) {
+  return <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>{children}</div>
+}
+
+function Divider() {
+  return <div style={{ width: 1, height: 20, background: T.border, flexShrink: 0 }} />
+}
+
+function LabeledControl({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}>
+      <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: T.muted, lineHeight: 1 }}>
+        {label}
+      </span>
+      {children}
+    </div>
+  )
+}
+
+interface IconBtnProps {
+  children: React.ReactNode
+  onClick?: () => void
+  title?: string
+  disabled?: boolean
+  active?: boolean
+  activeBg?: string
+  activeColor?: string
+  hoverBg?: string
+  hoverColor?: string
+  size?: number
+}
+
+function IconBtn({ children, onClick, title, disabled, active, activeBg, activeColor, hoverBg, hoverColor, size = 30 }: IconBtnProps) {
+  const [hov, setHov] = React.useState(false)
+  const bg    = active ? (activeBg ?? T.primaryBg) : hov ? (hoverBg ?? T.surfaceHov) : T.surface
+  const color = active ? (activeColor ?? T.primaryText) : hov ? (hoverColor ?? T.text) : T.muted
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: size, height: size,
+        background: bg, color, border: 'none', borderRadius: 6,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.3 : 1,
+        transition: 'background 0.1s, color 0.1s',
+        fontFamily: 'inherit', flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SmallBtn({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+  const [hov, setHov] = React.useState(false)
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 22, height: 28,
+        background: hov ? T.surfaceHov : T.surface, color: T.text,
+        border: 'none', borderRadius: 5, cursor: 'pointer',
+        fontSize: 15, fontFamily: 'inherit', flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function NumInput({ value, min, max, width, onChange }: { value: number; min: number; max: number; width: number; onChange: (v: number) => void }) {
+  return (
+    <input
+      type="number" min={min} max={max} value={value}
+      onChange={e => { const v = Number(e.target.value); if (!isNaN(v)) onChange(v) }}
+      style={{
+        width, height: 28,
+        background: T.surface,
+        border: `1px solid ${T.border}`,
+        borderRadius: 5, color: T.text,
+        fontSize: 12, textAlign: 'center',
+        fontFamily: 'inherit',
+        outline: 'none',
+      }}
+      onFocus={e => { e.target.style.borderColor = T.primary }}
+      onBlur={e => { e.target.style.borderColor = T.border }}
+    />
+  )
+}
+
+function StyledSelect({ value, onChange, children, width }: { value: string | number; onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void; children: React.ReactNode; width: number }) {
+  return (
+    <select
+      value={value} onChange={onChange}
+      style={{
+        width, height: 28,
+        background: T.surface,
+        border: `1px solid ${T.border}`,
+        borderRadius: 5, color: T.text,
+        fontSize: 12, paddingLeft: 6,
+        fontFamily: 'inherit',
+        outline: 'none', cursor: 'pointer',
+      }}
+      onFocus={e => { e.target.style.borderColor = T.primary }}
+      onBlur={e => { e.target.style.borderColor = T.border }}
+    >
+      {children}
+    </select>
   )
 }
