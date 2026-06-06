@@ -9,6 +9,7 @@ import { BassTabTransport } from './BassTabTransport'
 import { BassTabFretboard } from './BassTabFretboard'
 import { BassTabGrid } from './BassTabGrid'
 import { BassRealisticDisplay } from './BassRealisticDisplay'
+import { useIsMobile } from '../../hooks/use-mobile'
 
 const STORAGE_KEY = 'bass-tab-track-v1'
 const MAX_HISTORY = 60
@@ -31,6 +32,8 @@ function loadTrack(): BassTrack {
 interface CtxMenu { x: number; y: number; noteId?: string; bar?: number }
 
 export function BassTabPlayer() {
+  const isMobile = useIsMobile()
+
   const [track, setTrack]               = useState<BassTrack>(loadTrack)
   const [history, setHistory]           = useState<History>({ past: [], future: [] })
   const [isPlaying, setIsPlaying]       = useState(false)
@@ -48,6 +51,20 @@ export function BassTabPlayer() {
   const [noteDuration, setNoteDuration] = useState<number>(0.5)
   const [ctxMenu, setCtxMenu]           = useState<CtxMenu | null>(null)
   const [toast, setToast]               = useState<string | null>(null)
+  // Responsive UI state
+  const [transportExpanded, setTransportExpanded] = useState(false)
+  const [fretboardVisible, setFretboardVisible]   = useState(true)
+
+  // Auto-show fretboard when playback starts on mobile
+  useEffect(() => {
+    if (isPlaying && isMobile) setFretboardVisible(true)
+  }, [isPlaying, isMobile])
+
+  // Switch view (bottom nav handler)
+  const handleSelectView = useCallback((view: 'notation' | 'grid' | 'guitar') => {
+    if (view === 'guitar') { setGuitarView(true) }
+    else { setGuitarView(false); setViewMode(view) }
+  }, [])
 
   // Persist to localStorage
   useEffect(() => {
@@ -391,6 +408,8 @@ export function BassTabPlayer() {
     return () => window.removeEventListener('keydown', onKey)
   }, [isPlaying, handlePlay, handleStop, selectedNoteId, deleteNote, selectedNote, updateNote, snap, handleUndo, handleRedo, duplicateNote])
 
+  const activeView: 'notation' | 'grid' | 'guitar' = guitarView ? 'guitar' : viewMode
+
   return (
     <div
       className="flex flex-col text-white"
@@ -402,19 +421,18 @@ export function BassTabPlayer() {
       }}
       onContextMenu={handleContextMenu}
     >
-      {/* ── Header — matches app nav aesthetic ────────────────────────────── */}
+      {/* ── Header ────────────────────────────────────────────────────────── */}
       <div
         style={{
           flexShrink: 0, height: 44,
           background: 'hsl(224 20% 8%)',
           borderBottom: '1px solid hsl(224 15% 18%)',
-          backdropFilter: 'blur(8px)',
           display: 'flex', alignItems: 'center', gap: 8,
           paddingLeft: 16, paddingRight: 16,
           fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
         }}
       >
-        {/* Logo mark */}
+        {/* Logo */}
         <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0 }}>
           <div style={{
             width: 28, height: 28, borderRadius: 7,
@@ -426,20 +444,18 @@ export function BassTabPlayer() {
               <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.025em', color: 'hsl(220 14% 90%)' }}>
-            ChordSequence
-          </span>
+          {!isMobile && (
+            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.025em', color: 'hsl(220 14% 90%)' }}>
+              ChordSequence
+            </span>
+          )}
         </a>
 
-        {/* Breadcrumb separator */}
         <span style={{ color: 'hsl(224 15% 35%)', fontSize: 16, fontWeight: 300 }}>/</span>
 
-        {/* Current tool */}
         <span style={{
-          fontSize: 13, fontWeight: 500,
-          color: 'hsl(262 60% 75%)',
-          background: 'hsl(262 40% 15%)',
-          padding: '2px 10px', borderRadius: 20,
+          fontSize: 13, fontWeight: 500, color: 'hsl(262 60% 75%)',
+          background: 'hsl(262 40% 15%)', padding: '2px 10px', borderRadius: 20,
           border: '1px solid hsl(262 40% 22%)',
         }}>
           Bass Tab
@@ -447,74 +463,78 @@ export function BassTabPlayer() {
 
         <div style={{ flex: 1 }} />
 
-        {/* Note count pill */}
-        <span style={{
-          fontSize: 11, color: 'hsl(220 10% 50%)',
-          background: 'hsl(224 18% 14%)',
-          padding: '2px 8px', borderRadius: 10,
-          border: '1px solid hsl(224 15% 20%)',
-        }}>
-          {track.notes.length} {track.notes.length === 1 ? 'note' : 'notes'}
-        </span>
+        {/* Desktop: note count + view toggles + beat counter */}
+        {!isMobile && (
+          <>
+            <span style={{
+              fontSize: 11, color: 'hsl(220 10% 50%)',
+              background: 'hsl(224 18% 14%)',
+              padding: '2px 8px', borderRadius: 10,
+              border: '1px solid hsl(224 15% 20%)',
+            }}>
+              {track.notes.length} {track.notes.length === 1 ? 'note' : 'notes'}
+            </span>
 
-        {/* Guitar / Tab view toggle */}
-        <button
-          onClick={() => setGuitarView(v => !v)}
-          title={guitarView ? 'Switch to Tab view' : 'Switch to Bass guitar view'}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            padding: '3px 10px', borderRadius: 20,
-            fontSize: 11, fontWeight: 500, cursor: 'pointer',
-            border: '1px solid',
-            borderColor: guitarView ? 'hsl(262 40% 40%)' : 'hsl(224 15% 28%)',
-            background: guitarView ? 'hsl(262 40% 18%)' : 'hsl(224 18% 14%)',
-            color: guitarView ? 'hsl(262 80% 80%)' : 'hsl(220 10% 55%)',
-            transition: 'all 0.15s',
-          }}
-        >
-          {/* Guitar body icon */}
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
-          </svg>
-          {guitarView ? 'Tab' : 'Bass guitar'}
-        </button>
+            <button
+              onClick={() => setGuitarView(v => !v)}
+              title={guitarView ? 'Switch to Tab view' : 'Switch to Bass guitar view'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '3px 10px', borderRadius: 20,
+                fontSize: 11, fontWeight: 500, cursor: 'pointer', border: '1px solid',
+                borderColor: guitarView ? 'hsl(262 40% 40%)' : 'hsl(224 15% 28%)',
+                background:  guitarView ? 'hsl(262 40% 18%)' : 'hsl(224 18% 14%)',
+                color:       guitarView ? 'hsl(262 80% 80%)' : 'hsl(220 10% 55%)',
+                transition: 'all 0.15s',
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
+              </svg>
+              {guitarView ? 'Tab' : 'Bass guitar'}
+            </button>
 
-        {/* Notation / Grid toggle (only in tab mode) */}
-        {!guitarView && (
-          <button
-            onClick={() => setViewMode(m => m === 'notation' ? 'grid' : 'notation')}
-            title={viewMode === 'notation' ? 'Switch to Grid view' : 'Switch to Notation view'}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '3px 10px', borderRadius: 20,
-              fontSize: 11, fontWeight: 500, cursor: 'pointer',
-              border: '1px solid',
-              borderColor: viewMode === 'notation' ? 'hsl(262 40% 40%)' : 'hsl(224 15% 28%)',
-              background:  viewMode === 'notation' ? 'hsl(262 40% 18%)' : 'hsl(224 18% 14%)',
-              color:       viewMode === 'notation' ? 'hsl(262 80% 80%)' : 'hsl(220 10% 55%)',
-              transition: 'all 0.15s',
-            }}
-          >
-            {viewMode === 'notation' ? 'Notation' : 'Grid'}
-          </button>
+            {!guitarView && (
+              <button
+                onClick={() => setViewMode(m => m === 'notation' ? 'grid' : 'notation')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '3px 10px', borderRadius: 20,
+                  fontSize: 11, fontWeight: 500, cursor: 'pointer', border: '1px solid',
+                  borderColor: viewMode === 'notation' ? 'hsl(262 40% 40%)' : 'hsl(224 15% 28%)',
+                  background:  viewMode === 'notation' ? 'hsl(262 40% 18%)' : 'hsl(224 18% 14%)',
+                  color:       viewMode === 'notation' ? 'hsl(262 80% 80%)' : 'hsl(220 10% 55%)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {viewMode === 'notation' ? 'Notation' : 'Grid'}
+              </button>
+            )}
+
+            {isPlaying && (
+              <span style={{
+                fontSize: 11, fontFamily: 'ui-monospace, monospace',
+                color: 'hsl(262 60% 75%)',
+                background: 'hsl(262 40% 15%)',
+                padding: '2px 10px', borderRadius: 10,
+                border: '1px solid hsl(262 40% 22%)',
+                minWidth: 52, textAlign: 'center',
+              }}>
+                {`${Math.floor(currentBeat / track.beatsPerBar) + 1}:${Math.floor(currentBeat % track.beatsPerBar) + 1}`}
+              </span>
+            )}
+          </>
         )}
 
-        {/* Beat counter (when playing) */}
-        {isPlaying && (
-          <span style={{
-            fontSize: 11, fontFamily: 'ui-monospace, monospace',
-            color: 'hsl(262 60% 75%)',
-            background: 'hsl(262 40% 15%)',
-            padding: '2px 10px', borderRadius: 10,
-            border: '1px solid hsl(262 40% 22%)',
-            minWidth: 52, textAlign: 'center',
-          }}>
-            {`${Math.floor(currentBeat / track.beatsPerBar) + 1}:${Math.floor(currentBeat % track.beatsPerBar) + 1}`}
+        {/* Mobile: note count (compact) */}
+        {isMobile && (
+          <span style={{ fontSize: 11, color: 'hsl(220 10% 40%)', fontFamily: 'ui-monospace, monospace' }}>
+            {track.notes.length}n
           </span>
         )}
       </div>
 
-      {/* Transport */}
+      {/* ── Transport ─────────────────────────────────────────────────────── */}
       <BassTabTransport
         isPlaying={isPlaying} loop={loop} bpm={track.bpm} snap={snap} sound={sound}
         totalBars={track.totalBars} zoom={zoom} volume={volume} noteDuration={noteDuration}
@@ -530,19 +550,51 @@ export function BassTabPlayer() {
         onExportMidi={handleExportMidi} onShareUrl={handleShareUrl}
         onMetronomeToggle={() => setMetronome(m => !m)}
         onNoteDurationChange={handleNoteDurationChange}
+        isMobile={isMobile}
+        compact={isMobile && !transportExpanded}
+        onToggleExpand={() => setTransportExpanded(e => !e)}
+        currentBeat={currentBeat}
+        beatsPerBar={track.beatsPerBar}
       />
 
+      {/* ── Main content ──────────────────────────────────────────────────── */}
       {guitarView ? (
-        /* ── Realistic bass visualizer ──────────────────────────────────────── */
         <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
           <BassRealisticDisplay activeFrets={activeFrets} attackSignals={attackSignals} />
         </div>
       ) : (
         <>
-          {/* Fretboard (always visible in tab modes) */}
-          <BassTabFretboard activeFrets={activeFrets} attackSignals={attackSignals} onNoteClick={handleFretboardNote} />
+          {/* Fretboard with collapse toggle on mobile */}
+          <div style={{ flexShrink: 0 }}>
+            {isMobile && (
+              <button
+                onClick={() => setFretboardVisible(v => !v)}
+                style={{
+                  width: '100%', height: 22,
+                  background: 'hsl(224 20% 10%)',
+                  border: 'none',
+                  borderBottom: fretboardVisible ? 'none' : '1px solid hsl(224 15% 18%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  color: 'hsl(220 10% 38%)', fontSize: 10,
+                  fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+                  cursor: 'pointer', userSelect: 'none',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                <span>{fretboardVisible ? '▲' : '▼'}</span>
+                <span>Strings</span>
+                <span>{fretboardVisible ? '▲' : '▼'}</span>
+              </button>
+            )}
+            <div style={{
+              overflow: 'hidden',
+              maxHeight: (!isMobile || fretboardVisible) ? 200 : 0,
+              transition: 'max-height 0.2s ease',
+            }}>
+              <BassTabFretboard activeFrets={activeFrets} attackSignals={attackSignals} onNoteClick={handleFretboardNote} />
+            </div>
+          </div>
 
-          {/* Tab view: notation or grid */}
           {viewMode === 'notation' ? (
             <TabScore
               track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
@@ -565,28 +617,70 @@ export function BassTabPlayer() {
         </>
       )}
 
-      {/* Status bar */}
-      <div
-        className="flex items-center gap-4 px-4 flex-shrink-0 hidden sm:flex"
-        style={{
-          height: 26, background: 'hsl(224 20% 7%)',
+      {/* ── Desktop status bar ────────────────────────────────────────────── */}
+      {!isMobile && (
+        <div
+          style={{
+            height: 26, background: 'hsl(224 20% 7%)',
+            borderTop: '1px solid hsl(224 15% 16%)',
+            display: 'flex', alignItems: 'center', gap: 16,
+            paddingLeft: 16, paddingRight: 16,
+            fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+          }}
+        >
+          {[
+            'Space · play/stop',
+            'Del · delete',
+            'Ctrl+D · duplicate',
+            '↑↓ · fret   ←→ · move',
+            'Ctrl+scroll · zoom',
+            'Right-click · menu',
+          ].map(hint => (
+            <span key={hint} style={{ fontSize: 10, color: 'hsl(220 10% 38%)', whiteSpace: 'nowrap' }}>
+              {hint}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* ── Mobile bottom navigation ──────────────────────────────────────── */}
+      {isMobile && (
+        <div style={{
+          flexShrink: 0, height: 58,
+          background: 'hsl(224 20% 9%)',
           borderTop: '1px solid hsl(224 15% 16%)',
-          fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
-        }}
-      >
-        {[
-          'Space · play/stop',
-          'Del · delete',
-          'Ctrl+D · duplicate',
-          '↑↓ · fret   ←→ · move',
-          'Ctrl+scroll · zoom',
-          'Right-click · menu',
-        ].map(hint => (
-          <span key={hint} style={{ fontSize: 10, color: 'hsl(220 10% 38%)', whiteSpace: 'nowrap' }}>
-            {hint}
-          </span>
-        ))}
-      </div>
+          display: 'flex',
+        }}>
+          {([
+            { id: 'notation', label: 'Tab',    icon: <TabIcon /> },
+            { id: 'grid',     label: 'Grid',   icon: <GridIcon /> },
+            { id: 'guitar',   label: 'Guitar', icon: <GuitarIcon /> },
+          ] as const).map(tab => {
+            const isActive = activeView === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleSelectView(tab.id)}
+                style={{
+                  flex: 1, height: '100%',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  borderTop: `2px solid ${isActive ? 'hsl(262 83% 58%)' : 'transparent'}`,
+                  color: isActive ? 'hsl(262 80% 85%)' : 'hsl(220 10% 42%)',
+                  transition: 'color 0.15s, border-color 0.15s',
+                  touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
+                  fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+                }}
+              >
+                {tab.icon}
+                <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400, letterSpacing: '0.02em' }}>
+                  {tab.label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Context menu */}
       {ctxMenu && (() => {
@@ -673,5 +767,42 @@ export function BassTabPlayer() {
         </div>
       )}
     </div>
+  )
+}
+
+// ── Bottom nav icons ───────────────────────────────────────────────────────
+function TabIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <line x1="3" y1="7"  x2="17" y2="7"  />
+      <line x1="3" y1="10" x2="17" y2="10" />
+      <line x1="3" y1="13" x2="17" y2="13" />
+      <line x1="3" y1="16" x2="17" y2="16" />
+      <circle cx="7"  cy="7"  r="2" fill="currentColor" stroke="none" />
+      <circle cx="13" cy="13" r="2" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+function GridIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <rect x="3" y="3" width="6" height="6" rx="1" />
+      <rect x="11" y="3" width="6" height="6" rx="1" />
+      <rect x="3" y="11" width="6" height="6" rx="1" />
+      <rect x="11" y="11" width="6" height="6" rx="1" />
+    </svg>
+  )
+}
+
+function GuitarIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 3 L15 3 L15 8 Q18 9 18 13 Q18 18 12 18 Q6 18 6 13 Q6 9 9 8 Z" />
+      <circle cx="12" cy="13" r="2" />
+      <line x1="9" y1="18" x2="9" y2="22" />
+      <line x1="12" y1="18" x2="12" y2="22" />
+      <line x1="15" y1="18" x2="15" y2="22" />
+    </svg>
   )
 }
