@@ -1,30 +1,22 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react'
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react'
 import { STRINGS } from '../../lib/bassTab/bassTheory'
 
 // ── SVG user-space constants (viewBox 0 0 2000 2000) ─────────────────────────
+const STRING_X   = [1029, 1005, 981, 957]
+const STRING_SW  = [3, 4, 6, 9]
+const STRING_GHW = [5, 6, 8, 12]
 
-// String x-centre, matched to path measurements in the SVG
-// Left→right in SVG = E(957) A(981) D(1005) G(1029)
-const STRING_X   = [1029, 1005, 981, 957]  // indexed as [G2, D2, A1, E1]
-const STRING_SW  = [3, 4, 6, 9]            // strokeWidth in SVG units [G,D,A,E] → ~2–6px on screen
-const STRING_GHW = [5, 6, 8, 12]           // gradient half-width (wider than stroke = soft metallic edge)
-const STRING_TOP = [139, 215, 287, 361]     // y where each string leaves the headstock
-
-// Fret-wire y positions: 0=nut, 1..12=fret wires
 const FRET_WIRE_Y = [418, 497, 572, 641, 707, 769, 826, 882, 934, 983, 1030, 1073, 1115]
 const BRIDGE_Y    = 1870
 
-// Metallic gradient stop colours (dark-edge / highlight / dark-edge)
-// Horizontal gradient gives the cylindrical metallic look across the string width
 const GRAD_STOPS: [string, string][] = [
-  ['#909090', '#f0f0f0'],  // G2 — bright steel
-  ['#a09070', '#e0d8b8'],  // D2 — warm steel
-  ['#806030', '#c8a060'],  // A1 — wound bronze
-  ['#583818', '#a07848'],  // E1 — wound dark bronze
+  ['#909090', '#f0f0f0'],
+  ['#a09070', '#e0d8b8'],
+  ['#806030', '#c8a060'],
+  ['#583818', '#a07848'],
 ]
 
 // ── Geometry ─────────────────────────────────────────────────────────────────
-
 function noteY(fret: number): number {
   if (fret === 0) return FRET_WIRE_Y[0] - 28
   if (fret <= 12) return (FRET_WIRE_Y[fret - 1] + FRET_WIRE_Y[fret]) / 2
@@ -36,76 +28,261 @@ function segStartY(fret: number): number {
   return FRET_WIRE_Y[Math.min(Math.max(fret, 0), FRET_WIRE_Y.length - 1)]
 }
 
-/**
- * Build a wavy SVG path for the vibrating string segment.
- * Uses quadratic bezier half-waves; amplitude alternates sign each segment.
- * When amp ≈ 0 the path is a straight line.
- */
 function buildWavePath(x: number, y0: number, y1: number, amp: number): string {
-  const N = 5  // number of half-waves (5 gives a good bass-string look)
+  const N = 5
   const seg = (y1 - y0) / N
   let d = `M ${x} ${y0}`
   for (let i = 0; i < N; i++) {
-    const yC  = y0 + (i + 0.5) * seg
-    const yE  = y0 + (i + 1)   * seg
-    const xC  = x + amp * (i % 2 === 0 ? 1 : -1)
+    const yC = y0 + (i + 0.5) * seg
+    const yE = y0 + (i + 1)   * seg
+    const xC = x + amp * (i % 2 === 0 ? 1 : -1)
     d += ` Q ${xC.toFixed(1)},${yC.toFixed(1)} ${x},${yE.toFixed(1)}`
   }
   return d
 }
 
 // ── Vibration config ──────────────────────────────────────────────────────────
-// Amplitudes in SVG units.  At ZOOM=2.3 and ~640 px container: 1 SVG unit ≈ 0.74 px
-// amp=4  →  ~3 px  |  amp=12  →  ~9 px
-const VIBE_AMP = [4, 6, 8, 12]   // G, D, A, E
+const VIBE_AMP = [4, 6, 8, 12]
 const VIBE_DUR = [900, 1100, 1300, 1600]
 
-// ── Display transform ─────────────────────────────────────────────────────────
-// Pivot ≈ neck midpoint (x≈50 %, y≈37 % of the 2000×2000 SVG)
-const NECK_ORIGIN_X = '50%'
-const NECK_ORIGIN_Y = '37%'
-const ZOOM = 2.3
+// ── View transform ────────────────────────────────────────────────────────────
+const BASE_ZOOM     = 2.3
+const BASE_H        = 300
+const USER_ZOOM_MIN = 0.25
+const USER_ZOOM_MAX = 4.0
+
+const DEFAULT_VT = { tx: 0, ty: -80, rot: -90, zoom: 1.0 }
+
+type VT = typeof DEFAULT_VT
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type VibeInfo = { fret: number; key: number }
 
 interface Props {
-  activeFrets: (number | null)[]
+  activeFrets:   (number | null)[]
   attackSignals: ({ fret: number; v: number } | null)[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
-  const [vibes, setVibes]     = useState<VibeInfo[]>(STRINGS.map(() => ({ fret: 0, key: 0 })))
-  const [debugMode, setDebug] = useState(false)
+  const [vibes, setVibes]       = useState<VibeInfo[]>(STRINGS.map(() => ({ fret: 0, key: 0 })))
+  const [vt, setVt]             = useState<VT>(DEFAULT_VT)
+  const [isDragging, setDrag]   = useState(false)
+  const [isRotating, setRotMode]= useState(false)
+  const [containerH, setH]      = useState(0)
 
-  // Refs for animated path elements (live string segments)
-  const liveRefs  = useRef<(SVGPathElement | null)[]>([null, null, null, null])
-  const dotRefs   = useRef<(SVGCircleElement | null)[]>([null, null, null, null])
-  const rafIds    = useRef<number[]>([0, 0, 0, 0])
-  const prevKeys  = useRef<number[]>([0, 0, 0, 0])
-  const prevSigV  = useRef<(number | null)[]>([null, null, null, null])
-  const vibeStart = useRef<number[]>([0, 0, 0, 0])
+  const vtRef        = useRef<VT>(DEFAULT_VT)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const liveRefs     = useRef<(SVGPathElement | null)[]>([null, null, null, null])
+  const dotRefs      = useRef<(SVGCircleElement | null)[]>([null, null, null, null])
+  const rafIds       = useRef<number[]>([0, 0, 0, 0])
+  const prevKeys     = useRef<number[]>([0, 0, 0, 0])
+  const prevSigV     = useRef<(number | null)[]>([null, null, null, null])
+  const vibeStart    = useRef<number[]>([0, 0, 0, 0])
 
-  // ── Sine-wave animation per string ──────────────────────────────────────────
+  // Drag state (pointer events)
+  const dragRef = useRef<{
+    mode: 'pan' | 'rotate'
+    startX: number; startY: number
+    startTx: number; startTy: number; startRot: number
+  } | null>(null)
+
+  // Touch state
+  const touchRef = useRef({ mode: 'pan' as 'pan' | 'pinch', dist: 0, angle: 0, lastX: 0, lastY: 0 })
+
+  // Stable updater — keeps ref and state in sync
+  const applyVt = useCallback((patch: Partial<VT>) => {
+    const next = { ...vtRef.current, ...patch }
+    vtRef.current = next
+    setVt(next)
+  }, [])
+
+  const applyVtFn = useCallback((fn: (v: VT) => Partial<VT>) => {
+    const next = { ...vtRef.current, ...fn(vtRef.current) }
+    vtRef.current = next
+    setVt(next)
+  }, [])
+
+  // Adaptive base scale from container height
+  const adaptiveScale = useMemo(() =>
+    containerH > 0 ? Math.max(0.6, Math.min(6, (containerH / BASE_H) * BASE_ZOOM)) : BASE_ZOOM
+  , [containerH])
+
+  const totalScale = adaptiveScale * vt.zoom
+
+  // ── ResizeObserver ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(es => setH(es[0].contentRect.height))
+    ro.observe(el)
+    setH(el.getBoundingClientRect().height)
+    return () => ro.disconnect()
+  }, [])
+
+  // ── Pointer drag (mouse / pen) ──────────────────────────────────────────────
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    e.preventDefault()
+    const mode = e.shiftKey || e.button === 2 ? 'rotate' : 'pan'
+    dragRef.current = {
+      mode,
+      startX: e.clientX, startY: e.clientY,
+      startTx: vtRef.current.tx, startTy: vtRef.current.ty,
+      startRot: vtRef.current.rot,
+    }
+    ;(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId)
+    setDrag(true)
+    setRotMode(mode === 'rotate')
+  }, [])
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current
+    if (!drag) return
+    const dx = e.clientX - drag.startX
+    const dy = e.clientY - drag.startY
+    if (drag.mode === 'pan') {
+      applyVt({ tx: drag.startTx + dx, ty: drag.startTy + dy })
+    } else {
+      // Horizontal drag → rotation; full 360° over ~720px
+      applyVt({ rot: drag.startRot + dx * 0.5 })
+    }
+  }, [applyVt])
+
+  const handlePointerUp = useCallback(() => {
+    dragRef.current = null
+    setDrag(false)
+    setRotMode(false)
+  }, [])
+
+  // Shift key changes mode mid-drag cursor feedback
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Shift' && dragRef.current) { dragRef.current.mode = 'rotate'; setRotMode(true) }
+  }, [])
+  const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Shift' && dragRef.current) { dragRef.current.mode = 'pan'; setRotMode(false) }
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [handleKeyDown, handleKeyUp])
+
+  // ── Mouse wheel: zoom (ctrl) or rotate (shift) ──────────────────────────────
+  const handleWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault()
+    if (e.ctrlKey || e.metaKey) {
+      applyVtFn(v => ({ zoom: Math.max(USER_ZOOM_MIN, Math.min(USER_ZOOM_MAX, v.zoom * (1 - e.deltaY * 0.006))) }))
+    } else if (e.shiftKey) {
+      applyVtFn(v => ({ rot: v.rot + e.deltaY * 0.3 }))
+    } else {
+      // Scroll along the neck (pan X) or pan Y
+      applyVtFn(v => ({ tx: v.tx - e.deltaX * 0.5, ty: v.ty - e.deltaY * 0.5 }))
+    }
+  }, [applyVtFn])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
+
+  // ── Touch: 1-finger pan + 2-finger pinch+rotate ─────────────────────────────
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    if (e.touches.length === 1) {
+      touchRef.current = {
+        mode: 'pan', dist: 0, angle: 0,
+        lastX: e.touches[0].clientX,
+        lastY: e.touches[0].clientY,
+      }
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[1].clientX - e.touches[0].clientX
+      const dy = e.touches[1].clientY - e.touches[0].clientY
+      touchRef.current = {
+        mode: 'pinch',
+        dist:  Math.sqrt(dx * dx + dy * dy),
+        angle: Math.atan2(dy, dx) * 180 / Math.PI,
+        lastX: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        lastY: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      }
+    }
+  }, [])
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    e.preventDefault()
+    const t = touchRef.current
+
+    if (e.touches.length === 1 && t.mode === 'pan') {
+      const dx = e.touches[0].clientX - t.lastX
+      const dy = e.touches[0].clientY - t.lastY
+      applyVtFn(v => ({ tx: v.tx + dx, ty: v.ty + dy }))
+      t.lastX = e.touches[0].clientX
+      t.lastY = e.touches[0].clientY
+
+    } else if (e.touches.length === 2 && t.mode === 'pinch') {
+      const dx = e.touches[1].clientX - e.touches[0].clientX
+      const dy = e.touches[1].clientY - e.touches[0].clientY
+      const newDist  = Math.sqrt(dx * dx + dy * dy)
+      const newAngle = Math.atan2(dy, dx) * 180 / Math.PI
+      const midX     = (e.touches[0].clientX + e.touches[1].clientX) / 2
+      const midY     = (e.touches[0].clientY + e.touches[1].clientY) / 2
+
+      let dAngle = newAngle - t.angle
+      if (dAngle >  180) dAngle -= 360
+      if (dAngle < -180) dAngle += 360
+
+      const zoomFactor = t.dist > 0 ? newDist / t.dist : 1
+
+      applyVtFn(v => ({
+        zoom: Math.max(USER_ZOOM_MIN, Math.min(USER_ZOOM_MAX, v.zoom * zoomFactor)),
+        rot:  v.rot + dAngle,
+        tx:   v.tx + (midX - t.lastX),
+        ty:   v.ty + (midY - t.lastY),
+      }))
+
+      t.dist  = newDist
+      t.angle = newAngle
+      t.lastX = midX
+      t.lastY = midY
+    }
+  }, [applyVtFn])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    el.addEventListener('touchstart', handleTouchStart, { passive: false })
+    el.addEventListener('touchmove',  handleTouchMove,  { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove',  handleTouchMove)
+    }
+  }, [handleTouchStart, handleTouchMove])
+
+  // ── Double-click: reset view ────────────────────────────────────────────────
+  const handleDblClick = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    vtRef.current = { ...DEFAULT_VT }
+    setVt({ ...DEFAULT_VT })
+  }, [])
+
+  // ── Animation ───────────────────────────────────────────────────────────────
   const startAnim = useCallback((si: number, fret: number) => {
     cancelAnimationFrame(rafIds.current[si])
     vibeStart.current[si] = performance.now()
-
     const maxAmp = VIBE_AMP[si]
     const dur    = VIBE_DUR[si]
     const x      = STRING_X[si]
     const sy     = segStartY(fret)
-
     const tick = (now: number) => {
       const el = liveRefs.current[si]
       if (!el) return
       const t = (now - vibeStart.current[si]) / dur
-      if (t >= 1) {
-        el.style.opacity = '0'
-        return
-      }
-      // Envelope drives both amplitude and opacity — string fades as it settles
+      if (t >= 1) { el.style.opacity = '0'; return }
       const envelope = Math.exp(-t * 3.5)
       const amp = maxAmp * envelope * Math.sin(t * Math.PI * 16)
       el.style.opacity = String(Math.min(envelope * 0.88, 0.88))
@@ -115,18 +292,16 @@ export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
     rafIds.current[si] = requestAnimationFrame(tick)
   }, [])
 
-  // ── Flash dot on attack ─────────────────────────────────────────────────────
   const flashDot = useCallback((si: number) => {
     dotRefs.current[si]?.animate(
       [
-        { transform: 'scale(1.45)', opacity: '0.7', offset: 0 },
-        { transform: 'scale(1)',    opacity: '1',   offset: 1 },
+        { transform: 'scale(1.5)', opacity: '0.7', offset: 0 },
+        { transform: 'scale(1)',   opacity: '1',   offset: 1 },
       ],
-      { duration: 250, easing: 'ease-out', fill: 'none' },
+      { duration: 240, easing: 'ease-out', fill: 'none' },
     )
   }, [])
 
-  // ── Watch playback attack signals ───────────────────────────────────────────
   useEffect(() => {
     attackSignals.forEach((sig, si) => {
       if (!sig || sig.v === prevSigV.current[si]) return
@@ -139,7 +314,6 @@ export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
     })
   }, [attackSignals])
 
-  // ── Trigger animation when vibe key changes ─────────────────────────────────
   useEffect(() => {
     vibes.forEach(({ fret, key }, si) => {
       if (key === 0 || key === prevKeys.current[si]) return
@@ -151,39 +325,43 @@ export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
 
   useEffect(() => () => { rafIds.current.forEach(cancelAnimationFrame) }, [])
 
+  // Normalized rotation for display (-180..180)
+  const dispRot = ((((vt.rot % 360) + 540) % 360) - 180)
+  const isDefault = vt.tx === DEFAULT_VT.tx && vt.ty === DEFAULT_VT.ty &&
+                    Math.abs(vt.rot - DEFAULT_VT.rot) < 0.5 && Math.abs(vt.zoom - 1) < 0.02
+
+  const cursor = isDragging ? (isRotating ? 'crosshair' : 'grabbing') : 'grab'
+
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    // Outer: clips the rotated+scaled content to the available area
-    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-
-      {/*
-       * Inner wrapper — bass image + SVG overlay share this transform so they stay aligned.
-       *
-       * CSS background-image is used instead of <img> because CSS backgrounds always
-       * respect SVG transparency; some browsers add an implicit opaque background to <img>.
-       *
-       * rotate(-90deg) → headstock left / body right (standard horizontal playing orientation).
-       * scale(ZOOM)    → zooms in; pivot anchored at the neck midpoint (50 %, 37 %).
-       */}
+    <div
+      ref={containerRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onDoubleClick={handleDblClick}
+      style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', cursor }}
+    >
+      {/* Inner: bass image + SVG overlay */}
       <div style={{
         position:           'absolute',
         inset:              0,
-        transformOrigin:    `${NECK_ORIGIN_X} ${NECK_ORIGIN_Y}`,
-        transform:          `translateY(-80px) rotate(-90deg) scale(${ZOOM})`,
+        transformOrigin:    '50% 37%',
+        transform:          `translate(${vt.tx}px, ${vt.ty}px) rotate(${vt.rot}deg) scale(${totalScale})`,
         backgroundImage:    'url(/bass_realistic.svg)',
         backgroundRepeat:   'no-repeat',
         backgroundPosition: 'center',
         backgroundSize:     'contain',
+        willChange:         'transform',
+        pointerEvents:      'none',
       }}>
-
-        {/* SVG overlay — shares the exact coordinate space of the bass SVG */}
         <svg
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
           viewBox="0 0 2000 2000"
           preserveAspectRatio="xMidYMid meet"
         >
           <defs>
-            {/* Metallic string gradients — horizontal so each string looks like a cylinder */}
             {STRINGS.map((_, si) => {
               const [dark, light] = GRAD_STOPS[si]
               const cx  = STRING_X[si]
@@ -194,20 +372,18 @@ export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
                   gradientUnits="userSpaceOnUse"
                   x1={cx - ghw} y1={0} x2={cx + ghw} y2={0}
                 >
-                  <stop offset="0%"   stopColor={dark}    />
-                  <stop offset="30%"  stopColor={light}   />
+                  <stop offset="0%"   stopColor={dark}  />
+                  <stop offset="30%"  stopColor={light} />
                   <stop offset="50%"  stopColor="#ffffff" stopOpacity="0.9" />
-                  <stop offset="70%"  stopColor={light}   />
-                  <stop offset="100%" stopColor={dark}    />
+                  <stop offset="70%"  stopColor={light} />
+                  <stop offset="100%" stopColor={dark}  />
                 </linearGradient>
               )
             })}
-
-            {/* Note-dot glow filters */}
             {STRINGS.map((s, si) => (
-              <filter key={si} id={`rf-glow-${si}`} x="-150%" y="-150%" width="400%" height="400%">
-                <feGaussianBlur in="SourceAlpha" stdDeviation="10" result="b" />
-                <feFlood floodColor={s.color} floodOpacity="0.8" result="c" />
+              <filter key={si} id={`rf-glow-${si}`} x="-180%" y="-180%" width="460%" height="460%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="b" />
+                <feFlood floodColor={s.color} floodOpacity="0.9" result="c" />
                 <feComposite in="c" in2="b" operator="in" result="shadow" />
                 <feMerge><feMergeNode in="shadow" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
@@ -218,18 +394,12 @@ export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
             const x      = STRING_X[si]
             const sw     = STRING_SW[si]
             const vib    = vibes[si]
-            const sy     = segStartY(vib.fret)  // live-path start; also used as d= prop anchor
+            const sy     = segStartY(vib.fret)
             const active = activeFrets[si]
             const ny     = active !== null ? noteY(active) : 0
 
             return (
               <g key={si}>
-                {/*
-                 * Vibrating string overlay — invisible at rest (opacity:0).
-                 * RAF writes the wave shape + fades opacity via envelope.
-                 * Keeping it invisible when not vibrating avoids doubling the
-                 * real strings that are already drawn in the SVG background.
-                 */}
                 <path
                   ref={el => { liveRefs.current[si] = el }}
                   d={`M ${x} ${sy} L ${x} ${BRIDGE_Y}`}
@@ -239,27 +409,21 @@ export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
                   fill="none"
                   style={{ opacity: 0 }}
                 />
-
-                {/* ── Note dot ── */}
                 {active !== null && (
                   <g filter={`url(#rf-glow-${si})`}>
                     <circle
                       ref={el => { dotRefs.current[si] = el }}
-                      cx={x} cy={ny} r={12}
+                      cx={x} cy={ny} r={15}
                       fill={s.darkColor}
                       stroke={s.color}
-                      strokeWidth={2}
+                      strokeWidth={2.5}
                       style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
                     />
-                    {/*
-                     * Counter-rotate the fret number +90° around the dot centre.
-                     * The wrapper has rotate(-90deg), so this makes the text appear upright.
-                     */}
                     <text
-                      x={x} y={ny + 4}
-                      transform={`rotate(90, ${x}, ${ny})`}
+                      x={x} y={ny + 5}
+                      transform={`rotate(${-vt.rot}, ${x}, ${ny})`}
                       textAnchor="middle"
-                      fontSize={10}
+                      fontSize={11}
                       fontWeight="bold"
                       fill="white"
                       fontFamily="ui-monospace, monospace"
@@ -272,63 +436,101 @@ export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
               </g>
             )
           })}
-
-          {/* ── Debug calibration overlay ── */}
-          {debugMode && (
-            <g>
-              {/* Vertical marker at each string X */}
-              {STRINGS.map((s, si) => (
-                <g key={si}>
-                  <line
-                    x1={STRING_X[si]} y1={0} x2={STRING_X[si]} y2={2000}
-                    stroke={s.color} strokeWidth={1} strokeDasharray="6 4" opacity={0.7}
-                  />
-                  <text
-                    x={STRING_X[si]} y={160}
-                    transform={`rotate(90, ${STRING_X[si]}, 160)`}
-                    textAnchor="middle" fontSize={18} fill={s.color}
-                    fontFamily="ui-monospace, monospace"
-                  >
-                    {s.displayName}
-                  </text>
-                </g>
-              ))}
-              {/* Horizontal marker at each fret wire */}
-              {FRET_WIRE_Y.map((y, i) => (
-                <g key={i}>
-                  <line
-                    x1={880} y1={y} x2={1080} y2={y}
-                    stroke="hsl(50 100% 65%)" strokeWidth={1} strokeDasharray="4 3" opacity={0.7}
-                  />
-                  <text
-                    x={890} y={y - 4}
-                    transform={`rotate(90, 890, ${y - 4})`}
-                    fontSize={14} fill="hsl(50 100% 65%)"
-                    fontFamily="ui-monospace, monospace"
-                  >
-                    {i === 0 ? 'NUT' : `F${i}`}
-                  </text>
-                </g>
-              ))}
-            </g>
-          )}
         </svg>
       </div>
 
-      {/* Debug toggle */}
-      <button
-        onClick={() => setDebug(d => !d)}
-        style={{
-          position: 'absolute', bottom: 8, right: 8, zIndex: 10,
-          padding: '2px 8px', borderRadius: 6, cursor: 'pointer',
+      {/* ── Controls overlay ──────────────────────────────────────────────── */}
+      <div style={{
+        position: 'absolute', bottom: 10, right: 10, zIndex: 10,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+        pointerEvents: 'auto',
+      }}>
+        {/* Zoom */}
+        <VCtrl onClick={() => applyVtFn(v => ({ zoom: Math.min(USER_ZOOM_MAX, v.zoom * 1.25) }))}>+</VCtrl>
+        <VCtrl
+          onClick={() => { vtRef.current = { ...DEFAULT_VT }; setVt({ ...DEFAULT_VT }) }}
+          title="Reset view (or double-click bass)"
+          wide
+        >
+          {Math.round(vt.zoom * 100)}%
+        </VCtrl>
+        <VCtrl onClick={() => applyVtFn(v => ({ zoom: Math.max(USER_ZOOM_MIN, v.zoom * 0.8) }))}>−</VCtrl>
+
+        {/* Rotate buttons */}
+        <div style={{ height: 4 }} />
+        <VCtrl onClick={() => applyVtFn(v => ({ rot: v.rot - 15 }))} title="Rotate left 15°">↺</VCtrl>
+        <VCtrl wide title="Current angle" onClick={() => {}}>{Math.round(dispRot)}°</VCtrl>
+        <VCtrl onClick={() => applyVtFn(v => ({ rot: v.rot + 15 }))} title="Rotate right 15°">↻</VCtrl>
+      </div>
+
+      {/* ── Hint ──────────────────────────────────────────────────────────── */}
+      {!isDragging && isDefault && containerH > 0 && (
+        <div style={{
+          position: 'absolute', bottom: 10, left: 10, zIndex: 10,
+          color: 'hsl(220 10% 30%)', fontSize: 10,
+          fontFamily: 'ui-monospace, monospace',
+          pointerEvents: 'none', lineHeight: 1.6,
+        }}>
+          drag · shift+drag rotate<br />
+          scroll · pinch · dbl-click reset
+        </div>
+      )}
+
+      {/* ── Mode indicator while dragging ─────────────────────────────────── */}
+      {isDragging && (
+        <div style={{
+          position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
+          background: 'hsl(224 20% 8% / 0.8)', backdropFilter: 'blur(4px)',
+          border: '1px solid hsl(224 15% 18%)',
+          color: isRotating ? 'hsl(38 80% 65%)' : 'hsl(220 10% 55%)',
           fontSize: 10, fontFamily: 'ui-monospace, monospace',
-          background: debugMode ? 'hsl(38 80% 20%)' : 'hsl(224 18% 12%)',
-          color:      debugMode ? 'hsl(38 90% 70%)' : 'hsl(220 10% 38%)',
-          border: `1px solid ${debugMode ? 'hsl(38 60% 35%)' : 'hsl(224 15% 20%)'}`,
-        }}
-      >
-        {debugMode ? 'debug ✓' : 'debug'}
-      </button>
+          padding: '2px 10px', borderRadius: 8,
+          pointerEvents: 'none', zIndex: 10,
+        }}>
+          {isRotating ? `rotate  ${Math.round(dispRot)}°` : 'move'}
+        </div>
+      )}
     </div>
+  )
+}
+
+// ── Overlay control button ─────────────────────────────────────────────────────
+function VCtrl({ children, onClick, title, wide }: {
+  children: React.ReactNode
+  onClick: () => void
+  title?: string
+  wide?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        width:  wide ? 48 : 28,
+        height: 28,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'hsl(224 20% 10% / 0.85)',
+        backdropFilter: 'blur(6px)',
+        border: '1px solid hsl(224 15% 20%)',
+        borderRadius: 7,
+        color: 'hsl(220 10% 55%)',
+        fontSize: wide ? 10 : 15,
+        fontFamily: wide ? 'ui-monospace, monospace' : "'Inter', ui-sans-serif",
+        cursor: onClick ? 'pointer' : 'default',
+        padding: 0,
+      }}
+      onMouseEnter={e => {
+        const b = e.currentTarget
+        b.style.background = 'hsl(224 20% 18% / 0.95)'
+        b.style.color = 'hsl(220 10% 85%)'
+      }}
+      onMouseLeave={e => {
+        const b = e.currentTarget
+        b.style.background = 'hsl(224 20% 10% / 0.85)'
+        b.style.color = 'hsl(220 10% 55%)'
+      }}
+    >
+      {children}
+    </button>
   )
 }

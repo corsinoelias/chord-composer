@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
+import { useIsMobile } from '../../hooks/use-mobile.tsx'
 import {
   type BassNote, type BassTrack, type SnapValue, type StringIndex, type BassSound, type TrackSection,
 } from '../../lib/bassTab/types'
@@ -41,6 +42,7 @@ export function TabScore({
   track, zoom, snap, currentBeat, cursorBeat, isPlaying, selectedNoteId, sound, noteDuration,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote, onCursorBeatChange, onBeginEdit, onSectionChange,
 }: Props) {
+  const isMobile        = useIsMobile()
   const containerRef    = useRef<HTMLDivElement>(null)
   const scrollRef       = useRef<HTMLDivElement>(null)
   const svgRef          = useRef<SVGSVGElement>(null)
@@ -151,6 +153,87 @@ export function TabScore({
   // Keep ref current so timer callbacks always call the latest version
   const commitFretRef = useRef(commitFret)
   useEffect(() => { commitFretRef.current = commitFret }, [commitFret])
+
+  // ── Shared editing actions (called by keyboard AND mobile numpad) ──────────
+
+  const doAppendDigit = useCallback((digit: string) => {
+    if (isPlaying || !editCursorRef.current) return
+    clearTimeout(fretTimerRef.current!)
+    const newBuf = fretBufferRef.current + digit
+    const num    = parseInt(newBuf)
+    if (newBuf.length >= 2 || num > 2) {
+      commitFretRef.current(newBuf)
+    } else {
+      setFretBuffer(newBuf)
+      fretTimerRef.current = setTimeout(() => commitFretRef.current(fretBufferRef.current), 600)
+    }
+  }, [isPlaying, setFretBuffer])
+
+  const doBackspace = useCallback(() => {
+    if (isPlaying || !editCursorRef.current) return
+    clearTimeout(fretTimerRef.current!)
+    const buf = fretBufferRef.current
+    if (buf) {
+      setFretBuffer(buf.slice(0, -1))
+    } else {
+      const cur = editCursorRef.current
+      const ex  = findNoteAtBeat(trackRef.current.notes, cur.stringIndex, cur.beat)
+      if (ex) { onBeginEdit?.(); onDeleteNote(ex.id); onSelectNote(null) }
+    }
+  }, [isPlaying, setFretBuffer, onBeginEdit, onDeleteNote, onSelectNote])
+
+  const doDelete = useCallback(() => {
+    if (isPlaying || !editCursorRef.current) return
+    clearTimeout(fretTimerRef.current!)
+    setFretBuffer('')
+    const cur = editCursorRef.current
+    const ex  = findNoteAtBeat(trackRef.current.notes, cur.stringIndex, cur.beat)
+    if (ex) { onBeginEdit?.(); onDeleteNote(ex.id); onSelectNote(null) }
+  }, [isPlaying, setFretBuffer, onBeginEdit, onDeleteNote, onSelectNote])
+
+  const doConfirm = useCallback(() => {
+    if (isPlaying || !editCursorRef.current) return
+    const buf = fretBufferRef.current
+    if (buf) {
+      commitFretRef.current(buf)
+    } else {
+      const cur = editCursorRef.current
+      const sn  = snapRef.current
+      const tb  = totalBeatsRef.current
+      const next = Math.min(cur.beat + noteDurationRef.current, tb - sn)
+      setEditCursor({ ...cur, beat: next })
+      onCursorBeatChange(next)
+    }
+  }, [isPlaying, setEditCursor, onCursorBeatChange])
+
+  const doMoveBeat = useCallback((dir: 1 | -1) => {
+    if (isPlaying || !editCursorRef.current) return
+    clearTimeout(fretTimerRef.current!)
+    if (fretBufferRef.current) { commitFretRef.current(fretBufferRef.current); return }
+    const cur  = editCursorRef.current
+    const sn   = snapRef.current
+    const tb   = totalBeatsRef.current
+    const next = dir > 0
+      ? Math.min(snapToGrid(cur.beat + sn, sn), tb - sn)
+      : Math.max(0, snapToGrid(cur.beat - sn, sn))
+    setEditCursor({ ...cur, beat: next })
+    onCursorBeatChange(next)
+  }, [isPlaying, setEditCursor, onCursorBeatChange])
+
+  const doMoveString = useCallback((delta: number) => {
+    if (isPlaying || !editCursorRef.current) return
+    const cur  = editCursorRef.current
+    const next = cur.stringIndex + delta
+    if (next < 0 || next > 3) return
+    setEditCursor({ ...cur, stringIndex: next as StringIndex })
+  }, [isPlaying, setEditCursor])
+
+  const doDismiss = useCallback(() => {
+    clearTimeout(fretTimerRef.current!)
+    setFretBuffer('')
+    setEditCursor(null)
+    onSelectNote(null)
+  }, [setFretBuffer, setEditCursor, onSelectNote])
 
   // ── Keyboard handler ───────────────────────────────────────────────────────
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -659,28 +742,97 @@ export function TabScore({
             fontSize: 11,
           }}
         >
-          {/* String indicator */}
           <span style={{ color: 'hsl(262 60% 75%)', fontWeight: 600 }}>
             {STRING_LABELS[editCursor.stringIndex]}
           </span>
-          {/* Position */}
           <span style={{ color: 'hsl(220 10% 50%)' }}>
             bar {Math.floor(editCursor.beat / track.beatsPerBar) + 1}
             {' · '}
             beat {(editCursor.beat % track.beatsPerBar + 1).toFixed(editCursor.beat % 1 === 0 ? 0 : 2)}
           </span>
-          {/* Fret buffer */}
           {fretBuffer
-            ? (
-              <span style={{ color: 'hsl(220 14% 80%)' }}>
-                fret: <strong style={{ color: 'white', fontSize: 13 }}>{fretBuffer}</strong>_
-              </span>
-            ) : (
-              <span style={{ color: 'hsl(224 15% 32%)' }}>type fret · ←→ move · ↑↓ string · Del delete</span>
-            )
+            ? <span style={{ color: 'hsl(220 14% 80%)' }}>fret: <strong style={{ color: 'white', fontSize: 13 }}>{fretBuffer}</strong>_</span>
+            : <span style={{ color: 'hsl(224 15% 32%)' }}>{isMobile ? 'toca un traste ↓' : 'type fret · ←→ move · ↑↓ string · Del delete'}</span>
           }
         </div>
       )}
+
+      {/* ── Mobile numpad ──────────────────────────────────────────────────── */}
+      {isMobile && editCursor && !isPlaying && (
+        <div style={{ flexShrink: 0, background: 'hsl(224 20% 9%)', borderTop: '1px solid hsl(224 15% 16%)' }}>
+
+          {/* Row 1: string selector · beat nav · backspace · dismiss */}
+          <div style={{ display: 'flex', gap: 3, padding: '4px 4px 2px' }}>
+            {STRING_LABELS.map((label, si) => (
+              <NpadBtn
+                key={label}
+                active={editCursor.stringIndex === si}
+                onPress={() => doMoveString(si - editCursor.stringIndex)}
+              >
+                {label}
+              </NpadBtn>
+            ))}
+            <div style={{ flex: 1 }} />
+            <NpadBtn onPress={() => doMoveBeat(-1)}>←</NpadBtn>
+            <NpadBtn onPress={() => doMoveBeat(1)}>→</NpadBtn>
+            <div style={{ flex: 1 }} />
+            <NpadBtn onPress={doBackspace}>⌫</NpadBtn>
+            <NpadBtn onPress={doDismiss} danger>✕</NpadBtn>
+          </div>
+
+          {/* Row 2: digits · delete · confirm */}
+          <div style={{ display: 'flex', gap: 3, padding: '2px 4px 6px' }}>
+            {['1','2','3','4','5','6','7','8','9','0'].map(d => (
+              <NpadBtn key={d} onPress={() => doAppendDigit(d)}>{d}</NpadBtn>
+            ))}
+            <NpadBtn onPress={doDelete} danger>Del</NpadBtn>
+            <NpadBtn onPress={doConfirm} confirm>✓</NpadBtn>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+// ── NpadBtn — touch-optimised numpad button ────────────────────────────────
+function NpadBtn({
+  children, onPress, active, danger, confirm,
+}: {
+  children: React.ReactNode
+  onPress: () => void
+  active?: boolean
+  danger?: boolean
+  confirm?: boolean
+}) {
+  return (
+    <button
+      onPointerDown={e => { e.preventDefault(); onPress() }}
+      style={{
+        flex: 1, minWidth: 0, height: 42,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: confirm ? 'hsl(262 50% 28%)'
+          : active  ? 'hsl(262 40% 22%)'
+          : 'hsl(224 18% 15%)',
+        border: `1px solid ${
+          confirm ? 'hsl(262 60% 45%)'
+          : active  ? 'hsl(262 40% 35%)'
+          : 'hsl(224 15% 22%)'}`,
+        borderRadius: 7,
+        color: confirm ? 'hsl(262 80% 88%)'
+          : danger  ? 'hsl(0 72% 65%)'
+          : active  ? 'hsl(262 80% 85%)'
+          : 'hsl(220 10% 68%)',
+        fontSize: 15,
+        fontFamily: "'Inter', ui-sans-serif, sans-serif",
+        fontWeight: active || confirm ? 600 : 400,
+        cursor: 'pointer',
+        touchAction: 'manipulation',
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent',
+        transition: 'background 0.06s',
+      }}
+    >
+      {children}
+    </button>
   )
 }
