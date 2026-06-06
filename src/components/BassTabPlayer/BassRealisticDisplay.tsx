@@ -6,7 +6,12 @@ const STRING_X   = [1029, 1005, 981, 957]
 const STRING_SW  = [3, 4, 6, 9]
 const STRING_GHW = [5, 6, 8, 12]
 
-const FRET_WIRE_Y = [418, 497, 572, 641, 707, 769, 826, 882, 934, 983, 1030, 1073, 1115]
+// 25 entries: indices 0-24 → fret wires 1-25 (covers frets 0-24)
+// Derived from equal-temperament formula: Y = 335 + 1477 * (1 - 2^(-(n+1)/12))
+const FRET_WIRE_Y = [
+  418, 497, 572, 641, 707, 769, 826, 882, 934, 983, 1030, 1073, 1115,
+  1154, 1191, 1226, 1259, 1290, 1319, 1347, 1373, 1398, 1421, 1443, 1464,
+]
 const BRIDGE_Y    = 1870
 
 const GRAD_STOPS: [string, string][] = [
@@ -19,9 +24,8 @@ const GRAD_STOPS: [string, string][] = [
 // ── Geometry ─────────────────────────────────────────────────────────────────
 function noteY(fret: number): number {
   if (fret === 0) return FRET_WIRE_Y[0] - 28
-  if (fret <= 12) return (FRET_WIRE_Y[fret - 1] + FRET_WIRE_Y[fret]) / 2
-  const step = FRET_WIRE_Y[12] - FRET_WIRE_Y[11]
-  return FRET_WIRE_Y[12] + step * (fret - 12)
+  const i = Math.min(Math.max(fret, 1), FRET_WIRE_Y.length - 1)
+  return (FRET_WIRE_Y[i - 1] + FRET_WIRE_Y[i]) / 2
 }
 
 function segStartY(fret: number): number {
@@ -51,7 +55,7 @@ const BASE_H        = 300
 const USER_ZOOM_MIN = 0.25
 const USER_ZOOM_MAX = 4.0
 
-const DEFAULT_VT = { tx: 0, ty: -80, rot: -90, zoom: 1.0 }
+const DEFAULT_VT = { tx: 0, ty: -80, rot: 90, zoom: 1.0 }
 
 type VT = typeof DEFAULT_VT
 

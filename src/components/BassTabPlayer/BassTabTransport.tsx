@@ -58,6 +58,9 @@ interface TransportProps {
   // Desktop fit-to-width
   fitWidth?: boolean
   onFitWidthToggle?: () => void
+  // Desktop compact (collapse row 2)
+  desktopCompact?: boolean
+  onToggleDesktopCompact?: () => void
 }
 
 export function BassTabTransport(props: TransportProps) {
@@ -71,6 +74,7 @@ export function BassTabTransport(props: TransportProps) {
     isMobile = false, compact = false, onToggleExpand,
     currentBeat = 0, beatsPerBar = 4,
     fitWidth = false, onFitWidthToggle,
+    desktopCompact = false, onToggleDesktopCompact,
   } = props
 
   // ── Tap tempo ─────────────────────────────────────────────────────────────
@@ -471,10 +475,17 @@ export function BassTabTransport(props: TransportProps) {
                   hoverBg={T.dangerBg} hoverColor={T.danger} hoverBorder={T.danger + '88'}>
                   <Trash2 size={12} />
                 </IconBtn>
+
+                <Divider />
+
+                <IconBtn onClick={onToggleDesktopCompact} title={desktopCompact ? 'Show more controls' : 'Hide controls row'}>
+                  {desktopCompact ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                </IconBtn>
               </div>
             </div>
 
-            {/* Row 2 */}
+            {/* Row 2 — collapsible */}
+            <div style={{ overflow: 'hidden', maxHeight: desktopCompact ? 0 : 58, transition: 'max-height 0.18s ease' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', overflowX: 'auto', overflowY: 'hidden' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: T.primary, lineHeight: 1 }}>
@@ -537,6 +548,7 @@ export function BassTabTransport(props: TransportProps) {
                 </>
               )}
             </div>
+            </div>{/* end accordion */}
           </>
         )}
       </div>

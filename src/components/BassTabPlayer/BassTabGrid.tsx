@@ -3,7 +3,7 @@ import { type BassNote, type BassTrack, type SnapValue, type StringIndex } from 
 import { STRINGS, snapToGrid, beatToPixel, pixelToBeat } from '../../lib/bassTab/bassTheory'
 
 export const PPB = 80
-const ROW_H_MIN  = 64
+const ROW_H_MIN  = 48
 const RULER_H    = 32
 const LABEL_W    = 58
 const LONG_PRESS_MS  = 500
@@ -29,6 +29,7 @@ interface GridProps {
   cursorBeat: number
   isPlaying: boolean
   selectedNoteId: string | null
+  fitWidth?: boolean
   onAddNote: (note: BassNote) => void
   onUpdateNote: (id: string, patch: Partial<BassNote>) => void
   onDeleteNote: (id: string) => void
@@ -42,6 +43,7 @@ interface GridProps {
 
 export function BassTabGrid({
   track, zoom, snap, currentBeat, cursorBeat, isPlaying, selectedNoteId,
+  fitWidth = false,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote,
   onCursorBeatChange, onZoomChange, onBeginEdit,
   onNotePreview, onLongPressNote,
@@ -55,21 +57,30 @@ export function BassTabGrid({
   const lpTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lpOriginRef  = useRef<{ x: number; y: number } | null>(null)
 
-  // ── Dynamic row height ────────────────────────────────────────────────────
-  const [rowH, setRowH] = useState(ROW_H_MIN)
+  // ── Dynamic row height + container width ─────────────────────────────────
+  const [rowH, setRowH]         = useState(ROW_H_MIN)
+  const [containerW, setContainerW] = useState(0)
   useLayoutEffect(() => {
     const el = outerRef.current
     if (!el) return
     const ro = new ResizeObserver(entries => {
-      const h = entries[0]?.contentRect.height ?? (ROW_H_MIN * 4 + RULER_H)
+      const rect = entries[0]?.contentRect
+      const h = rect?.height ?? (ROW_H_MIN * 4 + RULER_H)
+      const w = rect?.width ?? 0
       setRowH(Math.max(ROW_H_MIN, Math.floor((h - RULER_H) / 4)))
+      setContainerW(w)
     })
     ro.observe(el)
+    setContainerW(el.getBoundingClientRect().width)
     return () => ro.disconnect()
   }, [])
 
-  const pxPerBeat  = PPB * zoom
-  const totalBeats = track.totalBars * track.beatsPerBar
+  const totalBeats  = track.totalBars * track.beatsPerBar
+  const fitZoom     = fitWidth && containerW > 0 && totalBeats > 0
+    ? Math.max(0.2, (containerW - LABEL_W) / (totalBeats * PPB))
+    : null
+  const effectiveZoom = fitZoom ?? zoom
+  const pxPerBeat  = PPB * effectiveZoom
   const totalWidth = totalBeats * pxPerBeat
 
   // ── Auto-scroll follows playhead ─────────────────────────────────────────
@@ -247,7 +258,7 @@ export function BassTabGrid({
       </div>
 
       {/* Scrollable content */}
-      <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-hidden" onWheel={handleWheel} style={{ cursor: 'crosshair' }}>
+      <div ref={scrollRef} className="flex-1 overflow-y-hidden" style={{ overflowX: fitWidth ? 'hidden' : 'auto', cursor: 'crosshair' }} onWheel={handleWheel}>
         <div style={{ width: totalWidth, minWidth: totalWidth }}>
 
           {/* Ruler */}
