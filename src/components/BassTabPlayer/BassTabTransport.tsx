@@ -77,203 +77,220 @@ export function BassTabTransport(props: TransportProps) {
   return (
     <div style={{
       background: T.bg, borderBottom: `1px solid ${T.border}`, fontFamily: FONT,
-      flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center',
-      gap: 4, padding: '5px 10px', userSelect: 'none',
+      flexShrink: 0, userSelect: 'none', display: 'flex', flexDirection: 'column',
     }}>
 
-      {/* ── Playback ──────────────────────────────────────────────────────── */}
-      <Group>
-        {/* Play/Stop — primary action, larger */}
-        <button
-          onClick={isPlaying ? onStop : onPlay}
-          title={isPlaying ? 'Stop  Space' : 'Play  Space'}
-          style={{
-            width: 38, height: 38, borderRadius: 8,
-            background: isPlaying ? T.dangerBg : T.primaryBg,
-            border: `1px solid ${isPlaying ? T.danger : T.primary}`,
-            color: isPlaying ? T.danger : T.primaryText,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', flexShrink: 0, transition: 'all 0.12s',
-            boxShadow: isPlaying ? `0 0 10px ${T.danger}44` : `0 0 10px ${T.primary}33`,
-          }}
-        >
-          {isPlaying ? <Square size={15} /> : <Play size={15} />}
-        </button>
-        <IconBtn onClick={onStop} title="Reset to start">
-          <RotateCcw size={12} />
-        </IconBtn>
-      </Group>
+      {/* ════════════════════════════════════════════════════════════════════
+          Row 1 — Playback + BPM + Bars + Zoom + Export
+      ════════════════════════════════════════════════════════════════════ */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 4,
+        padding: '4px 10px',
+        borderBottom: `1px solid ${T.border}`,
+      }}>
 
-      <Divider />
-
-      {/* ── Loop + Metro ──────────────────────────────────────────────────── */}
-      <Group>
-        <IconBtn onClick={onLoopToggle} title="Loop" active={loop}
-          activeBg={T.greenBg} activeColor={T.green} activeBorder={T.green}>
-          <Repeat size={12} />
-        </IconBtn>
-        <IconBtn onClick={onMetronomeToggle} title="Metronome click" active={metronome}
-          activeBg={T.amberBg} activeColor={T.amber} activeBorder={T.amber}>
-          {metronome ? <Bell size={12} /> : <BellOff size={12} />}
-        </IconBtn>
-      </Group>
-
-      <Divider />
-
-      {/* ── History ───────────────────────────────────────────────────────── */}
-      <Group>
-        <IconBtn onClick={onUndo} title="Undo  Ctrl+Z" disabled={!canUndo}>
-          <Undo2 size={12} />
-        </IconBtn>
-        <IconBtn onClick={onRedo} title="Redo  Ctrl+Y" disabled={!canRedo}>
-          <Redo2 size={12} />
-        </IconBtn>
-      </Group>
-
-      <Divider />
-
-      {/* ── BPM — scrub input + tap ────────────────────────────────────────── */}
-      <Group>
-        <LabeledControl label="BPM">
-          <ScrubInput
-            value={bpm} min={40} max={240}
-            onChange={onBpmChange}
-            width={58}
-            title="Drag ◂▸ or scroll · Shift+drag for ±0.1 · double-click to type"
-          />
-        </LabeledControl>
-        <TapButton flash={tapFlash} onClick={handleTap} />
-      </Group>
-
-      <Divider />
-
-      {/* ── Snap — quick buttons ──────────────────────────────────────────── */}
-      <LabeledControl label="Grid">
-        <SegmentedBtns
-          options={[
-            { value: 0.25,    label: '¼' },
-            { value: 0.125,   label: '⅛' },
-            { value: 0.0625,  label: '¹⁄₁₆' },
-            { value: 0.03125, label: '¹⁄₃₂' },
-          ]}
-          value={snap}
-          onChange={v => onSnapChange(v as SnapValue)}
-        />
-      </LabeledControl>
-
-      <Divider />
-
-      {/* ── Note duration ─────────────────────────────────────────────────── */}
-      <LabeledControl label="Duration">
-        <DurationPicker value={noteDuration} onChange={onNoteDurationChange} />
-      </LabeledControl>
-
-      <Divider />
-
-      {/* ── Sound ─────────────────────────────────────────────────────────── */}
-      <LabeledControl label="Sound">
-        <SegmentedBtns
-          options={[
-            { value: 'electric', label: 'Elec' },
-            { value: 'picked',   label: 'Pick' },
-            { value: 'synth',    label: 'Synth' },
-            { value: 'slap',     label: 'Slap' },
-          ]}
-          value={sound}
-          onChange={v => onSoundChange(v as BassSound)}
-        />
-      </LabeledControl>
-
-      <Divider />
-
-      {/* ── Bars ──────────────────────────────────────────────────────────── */}
-      <LabeledControl label="Bars">
-        <StepInput
-          value={totalBars} min={1} max={64}
-          onChange={onBarsChange}
-          options={[2, 4, 8, 16, 32]}
-        />
-      </LabeledControl>
-
-      <Divider />
-
-      {/* ── Volume ────────────────────────────────────────────────────────── */}
-      <LabeledControl label={`Vol ${Math.round(volume * 100)}%`}>
-        <input
-          type="range" min={0} max={1} step={0.01} value={volume}
-          onChange={e => onVolumeChange(Number(e.target.value))}
-          style={{ width: 72, accentColor: T.primary, cursor: 'pointer', height: 28 }}
-        />
-      </LabeledControl>
-
-      {/* ── Fret editor (when note selected) ─────────────────────────────── */}
-      {hasSelectedNote && selectedNoteFret !== null && (
-        <>
-          <Divider />
-          <LabeledControl label="Fret">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <StepBtn onClick={() => onFretChange(Math.max(0, selectedNoteFret - 1))} label="−" />
-              <ScrubInput
-                value={selectedNoteFret} min={0} max={24}
-                onChange={onFretChange}
-                width={40}
-                title="Drag to change fret · double-click to type"
-              />
-              <StepBtn onClick={() => onFretChange(Math.min(24, selectedNoteFret + 1))} label="+" />
-            </div>
-          </LabeledControl>
-        </>
-      )}
-
-      {/* ── Right side: zoom + export ─────────────────────────────────────── */}
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
-
-        {/* Zoom */}
+        {/* Play / Stop */}
         <Group>
-          <IconBtn onClick={onZoomOut} title="Zoom out" disabled={zoom <= 0.4}>
-            <span style={{ fontSize: 12, lineHeight: 1 }}>−</span>
-          </IconBtn>
           <button
-            onClick={onZoomReset}
-            title="Click to reset zoom to 100%"
+            onClick={isPlaying ? onStop : onPlay}
+            title={isPlaying ? 'Stop  Space' : 'Play  Space'}
             style={{
-              minWidth: 42, height: 28, padding: '0 6px',
-              background: zoom !== 1 ? T.surfaceHov : T.surface,
-              border: `1px solid ${zoom !== 1 ? T.primary + '55' : T.border}`,
-              borderRadius: 5, color: zoom !== 1 ? T.primaryText : T.muted,
-              fontSize: 11, fontFamily: FONT, cursor: zoom !== 1 ? 'pointer' : 'default',
-              fontVariantNumeric: 'tabular-nums',
-              transition: 'all 0.1s',
+              width: 34, height: 34, borderRadius: 7,
+              background: isPlaying ? T.dangerBg : T.primaryBg,
+              border: `1px solid ${isPlaying ? T.danger : T.primary}`,
+              color: isPlaying ? T.danger : T.primaryText,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', flexShrink: 0, transition: 'all 0.12s',
+              boxShadow: isPlaying ? `0 0 8px ${T.danger}44` : `0 0 8px ${T.primary}33`,
             }}
           >
-            {Math.round(zoom * 100)}%
+            {isPlaying ? <Square size={14} /> : <Play size={14} />}
           </button>
-          <IconBtn onClick={onZoomIn} title="Zoom in" disabled={zoom >= 4}>
-            <span style={{ fontSize: 12, lineHeight: 1 }}>+</span>
+          <IconBtn onClick={onStop} title="Reset to start">
+            <RotateCcw size={12} />
           </IconBtn>
         </Group>
 
         <Divider />
 
-        {/* Export */}
+        {/* Loop + Metronome */}
         <Group>
-          <IconBtn onClick={onExportAscii} title="Copy ASCII tab">
-            <Download size={12} />
+          <IconBtn onClick={onLoopToggle} title="Loop" active={loop}
+            activeBg={T.greenBg} activeColor={T.green} activeBorder={T.green}>
+            <Repeat size={12} />
           </IconBtn>
-          <IconBtn onClick={onExportMidi} title="Download MIDI (.mid)">
-            <Music size={12} />
-          </IconBtn>
-          <IconBtn onClick={onShareUrl} title="Copy share URL">
-            <Share2 size={12} />
+          <IconBtn onClick={onMetronomeToggle} title="Metronome" active={metronome}
+            activeBg={T.amberBg} activeColor={T.amber} activeBorder={T.amber}>
+            {metronome ? <Bell size={12} /> : <BellOff size={12} />}
           </IconBtn>
         </Group>
 
         <Divider />
 
-        <IconBtn onClick={onClearAll} title="Clear all notes"
-          hoverBg={T.dangerBg} hoverColor={T.danger} hoverBorder={T.danger + '88'}>
-          <Trash2 size={12} />
-        </IconBtn>
+        {/* Undo / Redo */}
+        <Group>
+          <IconBtn onClick={onUndo} title="Undo  Ctrl+Z" disabled={!canUndo}>
+            <Undo2 size={12} />
+          </IconBtn>
+          <IconBtn onClick={onRedo} title="Redo  Ctrl+Y" disabled={!canRedo}>
+            <Redo2 size={12} />
+          </IconBtn>
+        </Group>
+
+        <Divider />
+
+        {/* BPM */}
+        <Group>
+          <LabeledControl label="BPM">
+            <ScrubInput
+              value={bpm} min={40} max={240}
+              onChange={onBpmChange} width={54}
+              title="Drag ◂▸ or scroll · double-click to type"
+            />
+          </LabeledControl>
+          <TapButton flash={tapFlash} onClick={handleTap} />
+        </Group>
+
+        <Divider />
+
+        {/* Bars */}
+        <LabeledControl label="Bars">
+          <StepInput
+            value={totalBars} min={1} max={64}
+            onChange={onBarsChange}
+            options={[2, 4, 8, 16, 32]}
+          />
+        </LabeledControl>
+
+        {/* Right side */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+          {/* Zoom */}
+          <Group>
+            <IconBtn onClick={onZoomOut} title="Zoom out" disabled={zoom <= 0.4}>
+              <span style={{ fontSize: 12, lineHeight: 1 }}>−</span>
+            </IconBtn>
+            <button
+              onClick={onZoomReset}
+              title="Reset zoom to 100%"
+              style={{
+                minWidth: 40, height: 28, padding: '0 5px',
+                background: zoom !== 1 ? T.surfaceHov : T.surface,
+                border: `1px solid ${zoom !== 1 ? T.primary + '55' : T.border}`,
+                borderRadius: 5, color: zoom !== 1 ? T.primaryText : T.muted,
+                fontSize: 11, fontFamily: FONT, cursor: zoom !== 1 ? 'pointer' : 'default',
+                fontVariantNumeric: 'tabular-nums', transition: 'all 0.1s',
+              }}
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <IconBtn onClick={onZoomIn} title="Zoom in" disabled={zoom >= 4}>
+              <span style={{ fontSize: 12, lineHeight: 1 }}>+</span>
+            </IconBtn>
+          </Group>
+
+          <Divider />
+
+          {/* Export */}
+          <Group>
+            <IconBtn onClick={onExportAscii} title="Copy ASCII tab">
+              <Download size={12} />
+            </IconBtn>
+            <IconBtn onClick={onExportMidi} title="Download MIDI (.mid)">
+              <Music size={12} />
+            </IconBtn>
+            <IconBtn onClick={onShareUrl} title="Copy share URL">
+              <Share2 size={12} />
+            </IconBtn>
+          </Group>
+
+          <Divider />
+
+          <IconBtn onClick={onClearAll} title="Clear all notes"
+            hoverBg={T.dangerBg} hoverColor={T.danger} hoverBorder={T.danger + '88'}>
+            <Trash2 size={12} />
+          </IconBtn>
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════════════════════════
+          Row 2 — Editing toolbar: Duration · Grid · Sound · Volume · Fret
+      ════════════════════════════════════════════════════════════════════ */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: '5px 10px',
+      }}>
+
+        {/* Duration — primary editing control, most prominent */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <span style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.07em',
+            textTransform: 'uppercase', color: T.primary, lineHeight: 1,
+          }}>
+            Duration
+          </span>
+          <DurationPicker value={noteDuration} onChange={onNoteDurationChange} prominent />
+        </div>
+
+        <Divider />
+
+        {/* Snap grid */}
+        <LabeledControl label="Grid">
+          <SegmentedBtns
+            options={[
+              { value: 0.25,    label: '¼' },
+              { value: 0.125,   label: '⅛' },
+              { value: 0.0625,  label: '¹⁄₁₆' },
+              { value: 0.03125, label: '¹⁄₃₂' },
+            ]}
+            value={snap}
+            onChange={v => onSnapChange(v as SnapValue)}
+          />
+        </LabeledControl>
+
+        <Divider />
+
+        {/* Sound */}
+        <LabeledControl label="Sound">
+          <SegmentedBtns
+            options={[
+              { value: 'electric', label: 'Elec' },
+              { value: 'picked',   label: 'Pick' },
+              { value: 'synth',    label: 'Synth' },
+              { value: 'slap',     label: 'Slap' },
+            ]}
+            value={sound}
+            onChange={v => onSoundChange(v as BassSound)}
+          />
+        </LabeledControl>
+
+        <Divider />
+
+        {/* Volume */}
+        <LabeledControl label={`Vol ${Math.round(volume * 100)}%`}>
+          <input
+            type="range" min={0} max={1} step={0.01} value={volume}
+            onChange={e => onVolumeChange(Number(e.target.value))}
+            style={{ width: 68, accentColor: T.primary, cursor: 'pointer', height: 28 }}
+          />
+        </LabeledControl>
+
+        {/* Fret editor — only when a note is selected */}
+        {hasSelectedNote && selectedNoteFret !== null && (
+          <>
+            <Divider />
+            <LabeledControl label="Fret">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <StepBtn onClick={() => onFretChange(Math.max(0, selectedNoteFret - 1))} label="−" />
+                <ScrubInput
+                  value={selectedNoteFret} min={0} max={24}
+                  onChange={onFretChange} width={38}
+                  title="Drag to change fret · double-click to type"
+                />
+                <StepBtn onClick={() => onFretChange(Math.min(24, selectedNoteFret + 1))} label="+" />
+              </div>
+            </LabeledControl>
+          </>
+        )}
       </div>
     </div>
   )
@@ -522,20 +539,65 @@ function SegBtn({ label, active, onClick, title }: { label: string; active: bool
 }
 
 // ── Note duration picker ────────────────────────────────────────────────────
-function DurationPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const opts = [
-    { v: 4,    s: '1',  t: 'Whole note (4 beats)' },
-    { v: 2,    s: '2',  t: 'Half note (2 beats)' },
-    { v: 1,    s: '4',  t: 'Quarter note (1 beat)' },
-    { v: 0.5,  s: '8',  t: 'Eighth note (½ beat)' },
-    { v: 0.25, s: '16', t: '16th note (¼ beat)' },
-  ]
+const DURATION_OPTS = [
+  { v: 4,    label: '𝅝',   sub: '4 beats', title: 'Whole note (4 beats)  key: 1' },
+  { v: 2,    label: '𝅗𝅥',   sub: '2 beats', title: 'Half note (2 beats)   key: 2' },
+  { v: 1,    label: '♩',   sub: '1 beat',  title: 'Quarter note (1 beat)  key: 3' },
+  { v: 0.5,  label: '♪',   sub: '½ beat',  title: 'Eighth note (½ beat)   key: 4' },
+  { v: 0.25, label: '𝅘𝅥𝅯',  sub: '¼ beat',  title: '16th note (¼ beat)    key: 5' },
+]
+
+function DurationPicker({ value, onChange, prominent = false }: { value: number; onChange: (v: number) => void; prominent?: boolean }) {
   return (
-    <div style={{ display: 'flex', gap: 2 }}>
-      {opts.map(o => (
-        <SegBtn key={o.v} label={o.s} title={o.t} active={value === o.v} onClick={() => onChange(o.v)} />
-      ))}
+    <div style={{ display: 'flex', gap: prominent ? 3 : 2 }}>
+      {DURATION_OPTS.map(o => {
+        const active = value === o.v
+        return (
+          <DurationBtn
+            key={o.v}
+            label={o.label}
+            sub={o.sub}
+            title={o.title}
+            active={active}
+            prominent={prominent}
+            onClick={() => onChange(o.v)}
+          />
+        )
+      })}
     </div>
+  )
+}
+
+function DurationBtn({ label, sub, title, active, prominent, onClick }: {
+  label: string; sub: string; title: string; active: boolean; prominent: boolean; onClick: () => void
+}) {
+  const [hov, setHov] = useState(false)
+  const h = prominent ? 36 : 28
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        height: h,
+        padding: prominent ? '0 10px' : '0 7px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 1,
+        background: active ? T.primaryBg : hov ? T.surfaceHov : T.surface,
+        border: `1px solid ${active ? T.primary : hov ? T.border : T.border}`,
+        borderRadius: 6,
+        color: active ? T.primaryText : hov ? T.text : T.muted,
+        cursor: 'pointer', flexShrink: 0,
+        transition: 'all 0.1s',
+        boxShadow: active ? `0 0 8px ${T.primary}44` : 'none',
+      }}
+    >
+      <span style={{ fontSize: prominent ? 14 : 12, lineHeight: 1 }}>{label}</span>
+      {prominent && (
+        <span style={{ fontSize: 8, lineHeight: 1, opacity: 0.7 }}>{sub}</span>
+      )}
+    </button>
   )
 }
 

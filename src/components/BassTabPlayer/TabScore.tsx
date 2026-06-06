@@ -3,7 +3,7 @@ import {
   type BassNote, type BassTrack, type SnapValue, type StringIndex, type BassSound, type TrackSection,
 } from '../../lib/bassTab/types'
 import {
-  STRING_Y, STAFF_H, ABOVE_H, BELOW_H, LABEL_W, PPB, TICK_OFFSET, TICK_H,
+  STRING_Y, STAFF_H, ABOVE_H, BELOW_H, LABEL_W, PPB, TICK_OFFSET, TICK_H, NOTE_GAP,
   beatToX, barLineX, xToBeat, yToStringIndex, svgTotalWidth, buildStringPath,
   computeBeamGroups,
 } from '../../lib/bassTab/tabNotation'
@@ -338,6 +338,28 @@ export function TabScore({
     [track.notes, svgW, pxPerBeat],
   )
 
+  // Duration bars: horizontal bar from note right-edge to end of its duration
+  const durationBars = useMemo(() => track.notes.map(note => {
+    const cx    = beatToX(note.startBeat, pxPerBeat)
+    const rw    = note.fret >= 10 ? 22 : 16
+    const barX1 = cx + Math.max(NOTE_GAP / 2, rw / 2)
+    const barX2 = beatToX(note.startBeat + note.durationBeats, pxPerBeat)
+    const w     = barX2 - barX1
+    if (w <= 1) return null
+    const cy         = ABOVE_H + STRING_Y[note.stringIndex]
+    const isSelected = note.id === selectedNoteId
+    return (
+      <rect
+        key={`dur-${note.id}`}
+        x={barX1} y={cy - 1}
+        width={w} height={2}
+        rx={1}
+        fill={isSelected ? 'hsl(262 60% 62%)' : 'hsl(262 35% 38%)'}
+        style={{ pointerEvents: 'none' }}
+      />
+    )
+  }), [track.notes, pxPerBeat, selectedNoteId])
+
   const beatElements = useMemo(() => {
     const els: React.ReactNode[] = []
     const subDiv = 0.5
@@ -531,6 +553,9 @@ export function TabScore({
               stroke="#383858" strokeWidth={1} fill="none"
             />
           ))}
+
+          {/* ── Duration bars (over string, behind notes) ── */}
+          {durationBars}
 
           {/* ── Beat ticks + beams ── */}
           {beatElements}

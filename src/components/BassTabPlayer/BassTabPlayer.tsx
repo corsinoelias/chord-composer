@@ -363,6 +363,12 @@ export function BassTabPlayer() {
       if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) { e.preventDefault(); handleRedo() }
       if ((e.ctrlKey || e.metaKey) && e.code === 'KeyD') { e.preventDefault(); duplicateNote() }
 
+      // Duration shortcuts: 1=whole 2=half 3=quarter 4=eighth 5=sixteenth
+      const durMap: Record<string, number> = { Digit1: 4, Digit2: 2, Digit3: 1, Digit4: 0.5, Digit5: 0.25 }
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && durMap[e.code]) {
+        e.preventDefault(); handleNoteDurationChange(durMap[e.code])
+      }
+
       if (selectedNote) {
         if (e.code === 'ArrowUp')   { e.preventDefault(); updateNote(selectedNote.id, { fret: Math.min(24, selectedNote.fret + 1) }) }
         if (e.code === 'ArrowDown') { e.preventDefault(); updateNote(selectedNote.id, { fret: Math.max(0, selectedNote.fret - 1) }) }
