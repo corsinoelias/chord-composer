@@ -54,6 +54,16 @@ export function BassTabPlayer() {
   // Responsive UI state
   const [transportExpanded, setTransportExpanded] = useState(false)
   const [fretboardVisible, setFretboardVisible]   = useState(true)
+  const [fitWidth, setFitWidth]                   = useState(false)
+  const [splitView, setSplitView]                 = useState(false)
+  const [isWide, setIsWide]                       = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsWide(window.innerWidth >= 1200)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   // Auto-show fretboard when playback starts on mobile
   useEffect(() => {
@@ -511,6 +521,28 @@ export function BassTabPlayer() {
               </button>
             )}
 
+            {!guitarView && isWide && (
+              <button
+                onClick={() => setSplitView(v => !v)}
+                title={splitView ? 'Exit split view' : 'Split: tab + bass guitar side by side'}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '3px 10px', borderRadius: 20,
+                  fontSize: 11, fontWeight: 500, cursor: 'pointer', border: '1px solid',
+                  borderColor: splitView ? 'hsl(192 70% 40%)' : 'hsl(224 15% 28%)',
+                  background:  splitView ? 'hsl(192 60% 14%)' : 'hsl(224 18% 14%)',
+                  color:       splitView ? 'hsl(192 80% 75%)' : 'hsl(220 10% 55%)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <rect x="1" y="1" width="4" height="10" rx="1" />
+                  <rect x="7" y="1" width="4" height="10" rx="1" />
+                </svg>
+                Split
+              </button>
+            )}
+
             {isPlaying && (
               <span style={{
                 fontSize: 11, fontFamily: 'ui-monospace, monospace',
@@ -555,12 +587,45 @@ export function BassTabPlayer() {
         onToggleExpand={() => setTransportExpanded(e => !e)}
         currentBeat={currentBeat}
         beatsPerBar={track.beatsPerBar}
+        fitWidth={fitWidth}
+        onFitWidthToggle={() => setFitWidth(f => !f)}
       />
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
       {guitarView ? (
         <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
           <BassRealisticDisplay activeFrets={activeFrets} attackSignals={attackSignals} />
+        </div>
+      ) : splitView && isWide ? (
+        /* ── Split view: tab left, bass guitar right ── */
+        <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+            {viewMode === 'notation' ? (
+              <TabScore
+                track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
+                cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
+                sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
+                onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
+                onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
+                onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
+              />
+            ) : (
+              <BassTabGrid
+                track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
+                cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
+                onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
+                onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
+                onZoomChange={handleZoomChange} onBeginEdit={beginEdit}
+                onNotePreview={handleNotePreview} onLongPressNote={handleLongPress}
+              />
+            )}
+          </div>
+          {/* Divider */}
+          <div style={{ width: 1, background: 'hsl(224 15% 18%)', flexShrink: 0 }} />
+          {/* Bass guitar panel */}
+          <div style={{ width: '40%', minWidth: 280, flexShrink: 0, overflow: 'hidden' }}>
+            <BassRealisticDisplay activeFrets={activeFrets} attackSignals={attackSignals} />
+          </div>
         </div>
       ) : (
         <>
@@ -588,7 +653,7 @@ export function BassTabPlayer() {
             )}
             <div style={{
               overflow: 'hidden',
-              maxHeight: (!isMobile || fretboardVisible) ? 200 : 0,
+              maxHeight: (!isMobile || fretboardVisible) ? 280 : 0,
               transition: 'max-height 0.2s ease',
             }}>
               <BassTabFretboard activeFrets={activeFrets} attackSignals={attackSignals} onNoteClick={handleFretboardNote} />
@@ -599,7 +664,7 @@ export function BassTabPlayer() {
             <TabScore
               track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
               cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
-              sound={sound} noteDuration={noteDuration}
+              sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
               onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
               onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
               onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
@@ -619,28 +684,11 @@ export function BassTabPlayer() {
 
       {/* ── Desktop status bar ────────────────────────────────────────────── */}
       {!isMobile && (
-        <div
-          style={{
-            height: 26, background: 'hsl(224 20% 7%)',
-            borderTop: '1px solid hsl(224 15% 16%)',
-            display: 'flex', alignItems: 'center', gap: 16,
-            paddingLeft: 16, paddingRight: 16,
-            fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
-          }}
-        >
-          {[
-            'Space · play/stop',
-            'Del · delete',
-            'Ctrl+D · duplicate',
-            '↑↓ · fret   ←→ · move',
-            'Ctrl+scroll · zoom',
-            'Right-click · menu',
-          ].map(hint => (
-            <span key={hint} style={{ fontSize: 10, color: 'hsl(220 10% 38%)', whiteSpace: 'nowrap' }}>
-              {hint}
-            </span>
-          ))}
-        </div>
+        <StatusBar
+          isPlaying={isPlaying} selectedNote={selectedNote}
+          currentBeat={currentBeat} beatsPerBar={track.beatsPerBar} loop={loop}
+          guitarView={guitarView}
+        />
       )}
 
       {/* ── Mobile bottom navigation ──────────────────────────────────────── */}
@@ -766,6 +814,66 @@ export function BassTabPlayer() {
           {toast}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Status bar ────────────────────────────────────────────────────────────
+const STRING_NAMES = ['G', 'D', 'A', 'E']
+function StatusBar({ isPlaying, selectedNote, currentBeat, beatsPerBar, loop, guitarView }: {
+  isPlaying: boolean; selectedNote: import('../../lib/bassTab/types').BassNote | null
+  currentBeat: number; beatsPerBar: number; loop: boolean; guitarView: boolean
+}) {
+  let hints: { text: string; accent?: boolean }[]
+
+  if (guitarView) {
+    hints = [
+      { text: 'Drag · pan   Shift+drag · rotate   Ctrl+scroll · zoom' },
+      { text: 'Double-click · reset view' },
+    ]
+  } else if (isPlaying) {
+    const bar  = Math.floor(currentBeat / beatsPerBar) + 1
+    const beat = Math.floor(currentBeat % beatsPerBar) + 1
+    hints = [
+      { text: `${bar}:${beat}`, accent: true },
+      { text: 'Space · stop' },
+      { text: `Loop ${loop ? 'on' : 'off'}` },
+    ]
+  } else if (selectedNote) {
+    hints = [
+      { text: `Fret ${selectedNote.fret} · ${STRING_NAMES[selectedNote.stringIndex]} string`, accent: true },
+      { text: '↑↓ · fret' },
+      { text: '←→ · move' },
+      { text: 'Ctrl+D · duplicate' },
+      { text: 'Del · delete' },
+    ]
+  } else {
+    hints = [
+      { text: 'Space · play/stop' },
+      { text: 'Click staff · place note' },
+      { text: 'Ctrl+scroll · zoom' },
+      { text: 'Right-click · menu' },
+    ]
+  }
+
+  return (
+    <div style={{
+      height: 26, background: 'hsl(224 20% 7%)',
+      borderTop: '1px solid hsl(224 15% 16%)',
+      display: 'flex', alignItems: 'center', gap: 16,
+      paddingLeft: 16, paddingRight: 16,
+      fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+      overflow: 'hidden',
+    }}>
+      {hints.map((h, i) => (
+        <span key={i} style={{
+          fontSize: 10, whiteSpace: 'nowrap',
+          color: h.accent ? 'hsl(262 70% 72%)' : 'hsl(220 10% 38%)',
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          {h.text}
+        </span>
+      ))}
     </div>
   )
 }

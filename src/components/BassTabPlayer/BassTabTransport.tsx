@@ -55,6 +55,9 @@ interface TransportProps {
   onToggleExpand?: () => void
   currentBeat?: number
   beatsPerBar?: number
+  // Desktop fit-to-width
+  fitWidth?: boolean
+  onFitWidthToggle?: () => void
 }
 
 export function BassTabTransport(props: TransportProps) {
@@ -67,6 +70,7 @@ export function BassTabTransport(props: TransportProps) {
     onNoteDurationChange,
     isMobile = false, compact = false, onToggleExpand,
     currentBeat = 0, beatsPerBar = 4,
+    fitWidth = false, onFitWidthToggle,
   } = props
 
   // ── Tap tempo ─────────────────────────────────────────────────────────────
@@ -352,6 +356,7 @@ export function BassTabTransport(props: TransportProps) {
             <div style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '4px 10px', borderBottom: `1px solid ${T.border}`,
+              overflowX: 'auto', overflowY: 'hidden',
             }}>
               <Group>
                 <button
@@ -416,24 +421,33 @@ export function BassTabTransport(props: TransportProps) {
 
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Group>
-                  <IconBtn onClick={onZoomOut} title="Zoom out" disabled={zoom <= 0.4}>
+                  <IconBtn onClick={onZoomOut} title="Zoom out" disabled={zoom <= 0.4 || fitWidth}>
                     <span style={{ fontSize: 12, lineHeight: 1 }}>−</span>
                   </IconBtn>
                   <button
-                    onClick={onZoomReset} title="Reset zoom to 100%"
+                    onClick={fitWidth ? undefined : onZoomReset}
+                    title={fitWidth ? 'Fit mode active' : 'Reset zoom to 100%'}
                     style={{
-                      minWidth: 40, height: 28, padding: '0 5px',
-                      background: zoom !== 1 ? T.surfaceHov : T.surface,
-                      border: `1px solid ${zoom !== 1 ? T.primary + '55' : T.border}`,
-                      borderRadius: 5, color: zoom !== 1 ? T.primaryText : T.muted,
-                      fontSize: 11, fontFamily: FONT, cursor: zoom !== 1 ? 'pointer' : 'default',
+                      minWidth: 40, height: 32, padding: '0 5px',
+                      background: fitWidth ? T.primaryBg : zoom !== 1 ? T.surfaceHov : T.surface,
+                      border: `1px solid ${fitWidth ? T.primary : zoom !== 1 ? T.primary + '55' : T.border}`,
+                      borderRadius: 5,
+                      color: fitWidth ? T.primaryText : zoom !== 1 ? T.primaryText : T.muted,
+                      fontSize: 11, fontFamily: FONT,
+                      cursor: fitWidth ? 'default' : zoom !== 1 ? 'pointer' : 'default',
                       fontVariantNumeric: 'tabular-nums', transition: 'all 0.1s',
                     }}
                   >
-                    {Math.round(zoom * 100)}%
+                    {fitWidth ? 'fit' : `${Math.round(zoom * 100)}%`}
                   </button>
-                  <IconBtn onClick={onZoomIn} title="Zoom in" disabled={zoom >= 4}>
+                  <IconBtn onClick={onZoomIn} title="Zoom in" disabled={zoom >= 4 || fitWidth}>
                     <span style={{ fontSize: 12, lineHeight: 1 }}>+</span>
+                  </IconBtn>
+                  <IconBtn
+                    onClick={onFitWidthToggle} title="Fit to window width"
+                    active={fitWidth} activeBg={T.primaryBg} activeColor={T.primaryText} activeBorder={T.primary}
+                  >
+                    <span style={{ fontSize: 12, lineHeight: 1, letterSpacing: '-1px' }}>↔</span>
                   </IconBtn>
                 </Group>
 
@@ -461,7 +475,7 @@ export function BassTabTransport(props: TransportProps) {
             </div>
 
             {/* Row 2 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', overflowX: 'auto', overflowY: 'hidden' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: T.primary, lineHeight: 1 }}>
                   Duration
@@ -505,7 +519,7 @@ export function BassTabTransport(props: TransportProps) {
                 <input
                   type="range" min={0} max={1} step={0.01} value={volume}
                   onChange={e => onVolumeChange(Number(e.target.value))}
-                  style={{ width: 68, accentColor: T.primary, cursor: 'pointer', height: 28 }}
+                  style={{ width: 68, accentColor: T.primary, cursor: 'pointer', height: 32 }}
                 />
               </LabeledControl>
 
@@ -548,7 +562,7 @@ function Divider() {
 }
 
 function MDivider() {
-  return <div style={{ width: 1, height: 28, background: T.border, flexShrink: 0, margin: '0 2px' }} />
+  return <div style={{ width: 1, height: 32, background: T.border, flexShrink: 0, margin: '0 2px' }} />
 }
 
 function LabeledControl({ label, children }: { label: string; children: React.ReactNode }) {
@@ -587,7 +601,7 @@ function IconBtn({ children, onClick, title, disabled, active, activeBg, activeC
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: 28, height: 28, background: bg, color, cursor: disabled ? 'not-allowed' : 'pointer',
+        width: 32, height: 32, background: bg, color, cursor: disabled ? 'not-allowed' : 'pointer',
         border: `1px solid ${border}`, borderRadius: 6,
         opacity: disabled ? 0.28 : 1, transition: 'all 0.1s',
         fontFamily: 'inherit', flexShrink: 0,
@@ -630,7 +644,7 @@ function StepBtn({ onClick, label }: { onClick: () => void; label: string }) {
       onClick={onClick}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
-        width: 22, height: 28, background: hov ? T.surfaceHov : T.surface,
+        width: 22, height: 32, background: hov ? T.surfaceHov : T.surface,
         border: `1px solid ${T.border}`, borderRadius: 5,
         color: T.text, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -685,7 +699,7 @@ function ScrubInput({ value, min, max, step = 1, onChange, width = 58, title }: 
       <input ref={inputRef} type="number" value={editStr}
         onChange={e => setEditStr(e.target.value)} onBlur={commit}
         onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
-        style={{ width, height: 28, background: T.surface, border: `1px solid ${T.primary}`, borderRadius: 5, color: T.text, fontSize: 12, textAlign: 'center', fontFamily: FONT, outline: 'none' }}
+        style={{ width, height: 32, background: T.surface, border: `1px solid ${T.primary}`, borderRadius: 5, color: T.text, fontSize: 12, textAlign: 'center', fontFamily: FONT, outline: 'none' }}
       />
     )
   }
@@ -698,7 +712,7 @@ function ScrubInput({ value, min, max, step = 1, onChange, width = 58, title }: 
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       title={title}
       style={{
-        width, height: 28, background: dragRef.current ? T.surfaceHov : T.surface,
+        width, height: 32, background: dragRef.current ? T.surfaceHov : T.surface,
         border: `1px solid ${(hov || dragRef.current) ? T.primary + '88' : T.border}`,
         borderRadius: 5, color: T.text,
         fontSize: 12, fontFamily: FONT, fontVariantNumeric: 'tabular-nums',
@@ -723,7 +737,7 @@ function TapButton({ flash, onClick, mobile }: { flash: boolean; onClick: () => 
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       title="Tap to set tempo"
       style={{
-        height: mobile ? 36 : 28, padding: '0 10px',
+        height: mobile ? 36 : 32, padding: '0 10px',
         background: flash ? T.amberBg : hov ? T.surfaceHov : T.surface,
         border: `1px solid ${flash ? T.amber : T.border}`,
         borderRadius: mobile ? 8 : 5,
@@ -760,7 +774,7 @@ function SegBtn({ label, active, onClick, title }: { label: string; active: bool
       onClick={onClick} title={title}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
-        height: 28, padding: '0 7px',
+        height: 32, padding: '0 8px',
         background: active ? T.primaryBg : hov ? T.surfaceHov : T.surface,
         border: `1px solid ${active ? T.primary : T.border}`,
         borderRadius: 5, color: active ? T.primaryText : hov ? T.text : T.muted,
@@ -829,7 +843,7 @@ function StepInput({ value, min, max, onChange, options }: { value: number; min:
           onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
           title="Click for presets"
           style={{
-            width: 36, height: 28, background: hov ? T.surfaceHov : T.surface,
+            width: 36, height: 32, background: hov ? T.surfaceHov : T.surface,
             border: `1px solid ${open ? T.primary + '88' : T.border}`, borderRadius: 5,
             color: T.text, fontSize: 12, fontFamily: FONT, cursor: 'pointer',
             fontVariantNumeric: 'tabular-nums', transition: 'all 0.1s',

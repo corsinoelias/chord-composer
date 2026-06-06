@@ -36,11 +36,15 @@ interface Props {
   onCursorBeatChange: (beat: number) => void
   onBeginEdit?: () => void
   onSectionChange?: (sections: TrackSection[]) => void
+  // Fit-to-width
+  fitWidth?: boolean
+  onFitZoomChange?: (z: number) => void
 }
 
 export function TabScore({
   track, zoom, snap, currentBeat, cursorBeat, isPlaying, selectedNoteId, sound, noteDuration,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote, onCursorBeatChange, onBeginEdit, onSectionChange,
+  fitWidth = false, onFitZoomChange,
 }: Props) {
   const isMobile        = useIsMobile()
   const containerRef    = useRef<HTMLDivElement>(null)
@@ -81,10 +85,30 @@ export function TabScore({
   useEffect(() => { soundRef.current = sound }, [sound])
   useEffect(() => { totalBeatsRef.current = track.totalBars * track.beatsPerBar }, [track.totalBars, track.beatsPerBar])
 
-  const pxPerBeat  = PPB * zoom
-  const totalBeats = track.totalBars * track.beatsPerBar
-  const svgW       = svgTotalWidth(track.totalBars, track.beatsPerBar, pxPerBeat)
-  const svgH       = ABOVE_H + STAFF_H + BELOW_H
+  // ── Fit-to-width ───────────────────────────────────────────────────────────
+  const [containerW, setContainerW] = useState(0)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const ro = new ResizeObserver(es => setContainerW(es[0].contentRect.width))
+    ro.observe(el)
+    setContainerW(el.getBoundingClientRect().width)
+    return () => ro.disconnect()
+  }, [])
+
+  const totalBeats   = track.totalBars * track.beatsPerBar
+  const fitZoom      = fitWidth && containerW > 0 && totalBeats > 0
+    ? Math.max(0.2, (containerW - LABEL_W) / (totalBeats * PPB))
+    : null
+  const effectiveZoom = fitZoom ?? zoom
+  const pxPerBeat     = PPB * effectiveZoom
+
+  useEffect(() => {
+    if (fitZoom !== null) onFitZoomChange?.(fitZoom)
+  }, [fitZoom, onFitZoomChange])
+
+  const svgW = svgTotalWidth(track.totalBars, track.beatsPerBar, pxPerBeat)
+  const svgH = ABOVE_H + STAFF_H + BELOW_H
 
   // ── Auto-scroll ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -576,7 +600,7 @@ export function TabScore({
         ref={scrollRef}
         style={{
           flex: 1,
-          overflowX: 'auto',
+          overflowX: fitWidth ? 'hidden' : 'auto',
           overflowY: 'hidden',
           position: 'relative',
           background: 'hsl(224 24% 8%)',

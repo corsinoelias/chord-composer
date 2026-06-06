@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { STRINGS, fretToNoteName } from '../../lib/bassTab/bassTheory'
 
-const FRET_COUNT = 12
+const MIN_FRETS  = 12
+const MAX_FRETS  = 24
 const CELL_W     = 52
 const OPEN_W     = 44
 const LABEL_W    = 56
 const ROW_H      = 48
-const NECK_W     = OPEN_W + FRET_COUNT * CELL_W
+const NATURAL_H  = 27 + 4 * ROW_H + 19  // header + rows + footer (≈238px)
 
 // Per-string physical appearance
 const STRING_H    = [2, 3, 4.5, 6.5]
@@ -50,7 +51,9 @@ function pluckKeyframes(amp: number, color: string, glow: number): Keyframe[] {
   })
 }
 
-const SINGLE_DOT_FRETS = [3, 5, 7, 9]
+const SINGLE_DOT_FRETS = [3, 5, 7, 9, 15, 17, 19, 21]
+const DOUBLE_DOT_FRETS = [12, 24]
+const MARK_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24])
 
 interface FretboardProps {
   activeFrets: (number | null)[]
@@ -64,7 +67,30 @@ type VibeInfo = { fret: number; key: number }
 export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick }: FretboardProps) {
   const [hovered, setHovered]     = useState<[number, number] | null>(null)
   const isInteractive             = !!onNoteClick
-  const totalW                    = LABEL_W + NECK_W
+  const containerRef              = useRef<HTMLDivElement>(null)
+  const [fretCount, setFretCount] = useState(MIN_FRETS)
+  const [scale, setScale]         = useState(1)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const measure = () => {
+      const w = el.getBoundingClientRect().width
+      if (w <= 0) return
+      // Fill available width with as many frets as possible (min 12, max 24)
+      const naturalFrets = Math.max(MIN_FRETS, Math.min(MAX_FRETS, Math.floor((w - LABEL_W - OPEN_W) / CELL_W)))
+      const naturalW = LABEL_W + OPEN_W + naturalFrets * CELL_W
+      setFretCount(naturalFrets)
+      setScale(Math.min(1, w / naturalW))
+    }
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    measure()
+    return () => ro.disconnect()
+  }, [])
+
+  const neckW  = OPEN_W + fretCount * CELL_W
+  const totalW = LABEL_W + neckW
 
   // Vibration state: one entry per string
   const [vibes, setVibes] = useState<VibeInfo[]>(
@@ -121,10 +147,16 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick }: Fr
 
   return (
     <div
+      ref={containerRef}
       className="flex-shrink-0"
-      style={{ background: '#07050a', overflowX: 'auto', overflowY: 'hidden', borderBottom: '1px solid hsl(224 15% 16%)' }}
+      style={{
+        background: '#07050a',
+        overflow: 'hidden',
+        borderBottom: '1px solid hsl(224 15% 16%)',
+        height: Math.round(NATURAL_H * scale),
+      }}
     >
-      <div style={{ width: totalW }}>
+      <div style={{ width: totalW, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
 
         {/* ── Fret-number header ─────────────────────────────────────────── */}
         <div style={{ display:'flex', height:26, background:'hsl(224 20% 9%)', borderBottom:'1px solid hsl(224 15% 16%)', userSelect:'none' }}>
@@ -133,9 +165,9 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick }: Fr
             <span style={{ fontWeight:600 }}>0</span>
             <span style={{ fontSize:8, color:'hsl(220 10% 28%)' }}>{fretToNoteName(3, 0)}</span>
           </div>
-          {Array.from({ length: FRET_COUNT }, (_, i) => {
+          {Array.from({ length: fretCount }, (_, i) => {
             const f = i + 1
-            const isMark = [3, 5, 7, 9, 12].includes(f)
+            const isMark = MARK_FRETS.has(f)
             return (
               <div key={f} style={{ width:CELL_W, flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:isMark?'hsl(220 10% 48%)':'hsl(220 10% 28%)', fontSize:10, fontFamily:'ui-monospace,monospace' }}>
                 <span style={{ fontWeight: isMark ? 600 : 400 }}>{f}</span>
@@ -150,6 +182,7 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick }: Fr
           <StringRow
             key={si}
             s={s} si={si}
+            neckW={neckW} fretCount={fretCount}
             activeFret={activeFrets[si]}
             vibeFret={vibes[si].fret}
             vibeKey={vibes[si].key}
@@ -183,6 +216,7 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick }: Fr
 // ── String row ────────────────────────────────────────────────────────────────
 interface RowProps {
   s: typeof STRINGS[number]; si: number
+  neckW: number; fretCount: number
   activeFret: number | null
   vibeFret: number
   vibeKey: number
@@ -194,7 +228,7 @@ interface RowProps {
   onClick: (si: number, fret: number) => void
 }
 
-function StringRow({ s, si, activeFret, vibeFret, vibeKey, vibeRef, hovered, isInteractive, onHover, onClear, onClick }: RowProps) {
+function StringRow({ s, si, neckW, fretCount, activeFret, vibeFret, vibeKey, vibeRef, hovered, isInteractive, onHover, onClear, onClick }: RowProps) {
   const vx = vibeStartX(vibeFret)
 
   return (
@@ -207,7 +241,7 @@ function StringRow({ s, si, activeFret, vibeFret, vibeKey, vibeRef, hovered, isI
 
       {/* Neck wood */}
       <div style={{
-        position:'absolute', left:LABEL_W, width:NECK_W, top:0, bottom:0,
+        position:'absolute', left:LABEL_W, width:neckW, top:0, bottom:0,
         background:`
           repeating-linear-gradient(91deg, transparent 0px, transparent 22px, rgba(0,0,0,0.055) 22px, transparent 24px),
           repeating-linear-gradient(89deg, transparent 0px, transparent 38px, rgba(0,0,0,0.04) 38px, transparent 40px),
@@ -216,10 +250,10 @@ function StringRow({ s, si, activeFret, vibeFret, vibeKey, vibeRef, hovered, isI
       }} />
 
       {/* Neck end cap */}
-      <div style={{ position:'absolute', left:LABEL_W+NECK_W-5, width:5, top:0, bottom:0, background:'linear-gradient(90deg, #4a2810, #6a3c1a)', borderRadius:'0 2px 2px 0', zIndex:2 }} />
+      <div style={{ position:'absolute', left:LABEL_W+neckW-5, width:5, top:0, bottom:0, background:'linear-gradient(90deg, #4a2810, #6a3c1a)', borderRadius:'0 2px 2px 0', zIndex:2 }} />
 
       {/* Fret wires */}
-      {Array.from({ length: FRET_COUNT }, (_, i) => (
+      {Array.from({ length: fretCount }, (_, i) => (
         <div key={i} style={{ position:'absolute', left:LABEL_W+OPEN_W+i*CELL_W, top:0, bottom:0, width:3, zIndex:2, pointerEvents:'none', background:'linear-gradient(90deg, #3a3028, #b8a888 40%, #e8d8b8 50%, #b8a888 60%, #3a3028)' }} />
       ))}
 
@@ -228,7 +262,7 @@ function StringRow({ s, si, activeFret, vibeFret, vibeKey, vibeRef, hovered, isI
 
       {/* ── String: dead segment (NEVER changes — fully static) ─────────── */}
       <div style={{
-        position:'absolute', left:LABEL_W, width:NECK_W,
+        position:'absolute', left:LABEL_W, width:neckW,
         top:'50%', transform:'translateY(-50%)',
         height:STRING_H[si], background:STRING_GRAD[si],
         pointerEvents:'none', zIndex:4, borderRadius:'50%',
@@ -236,10 +270,8 @@ function StringRow({ s, si, activeFret, vibeFret, vibeKey, vibeRef, hovered, isI
       }} />
 
       {/* ── String: live segment (fret to bridge — vibrates on attack) ─── */}
-      {/* Wrapper positions the segment. Inner div (vibeRef) gets Web Animations
-          translateY — no CSS transform on it, so no conflict with centering. */}
       <div style={{
-        position:'absolute', left:vx, width:LABEL_W+NECK_W-vx,
+        position:'absolute', left:vx, width:LABEL_W+neckW-vx,
         top:'50%', transform:'translateY(-50%)',
         pointerEvents:'none', zIndex:5,
       }}>
@@ -265,16 +297,18 @@ function StringRow({ s, si, activeFret, vibeFret, vibeKey, vibeRef, hovered, isI
         onClick={() => onClick(si, 0)}
       />
 
-      {/* Fret cells 1–12 */}
-      {Array.from({ length: FRET_COUNT }, (_, i) => {
+      {/* Fret cells 1–N */}
+      {Array.from({ length: fretCount }, (_, i) => {
         const f = i + 1
+        const hasDot = (SINGLE_DOT_FRETS.includes(f) && si === 2)
+                    || (DOUBLE_DOT_FRETS.includes(f) && (si === 0 || si === 3))
         return (
           <FretCell key={f} si={si} fret={f} s={s}
             isHov={hovered?.[0]===si && hovered?.[1]===f}
             isActive={activeFret===f}
             isInteractive={isInteractive}
             width={CELL_W}
-            hasDot={(SINGLE_DOT_FRETS.includes(f) && si===2) || (f===12 && (si===0||si===3))}
+            hasDot={hasDot}
             vibeKey={vibeKey} vibeFret={vibeFret}
             onHov={() => isInteractive && onHover([si, f])}
             onLeave={onClear}
