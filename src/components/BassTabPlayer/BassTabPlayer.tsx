@@ -9,6 +9,8 @@ import { BassTabTransport } from './BassTabTransport'
 import { BassTabFretboard } from './BassTabFretboard'
 import { BassTabGrid } from './BassTabGrid'
 import { BassRealisticDisplay } from './BassRealisticDisplay'
+import { PresetPicker } from './PresetPicker'
+import { type Preset } from '../../data/presets'
 import { useIsMobile } from '../../hooks/use-mobile'
 
 const STORAGE_KEY = 'bass-tab-track-v1'
@@ -52,6 +54,7 @@ export function BassTabPlayer() {
   const [ctxMenu, setCtxMenu]           = useState<CtxMenu | null>(null)
   const [toast, setToast]               = useState<string | null>(null)
   // Responsive UI state
+  const [showPresets, setShowPresets]               = useState(false)
   const [transportExpanded, setTransportExpanded]   = useState(false)
   const [desktopCompact, setDesktopCompact]         = useState(false)
   const [fretboardVisible, setFretboardVisible]     = useState(true)
@@ -88,6 +91,25 @@ export function BassTabPlayer() {
   const handleSelectView = useCallback((view: 'notation' | 'grid' | 'guitar') => {
     if (view === 'guitar') { setGuitarView(true) }
     else { setGuitarView(false); setViewMode(view) }
+  }, [])
+
+  const handleLoadPreset = useCallback((preset: Preset) => {
+    stopPlayback()
+    setIsPlaying(false)
+    setCurrentBeat(0)
+    setCursorBeat(0)
+    setSelectedId(null)
+    setHistory({ past: [], future: [] })
+    setTrack({
+      id:          preset.id,
+      name:        preset.name,
+      bpm:         preset.bpm,
+      beatsPerBar: preset.beatsPerBar,
+      totalBars:   preset.totalBars,
+      notes:       preset.notes,
+      sections:    preset.sections,
+    })
+    setSound(preset.defaultSound)
   }, [])
 
   // Persist to localStorage
@@ -508,6 +530,28 @@ export function BassTabPlayer() {
 
         <div style={{ flex: 1 }} />
 
+        {/* Presets button — both mobile and desktop */}
+        <button
+          onClick={() => setShowPresets(true)}
+          title="Load a preset song"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: isMobile ? '4px 10px' : '3px 10px', borderRadius: 20,
+            fontSize: isMobile ? 12 : 11, fontWeight: 500, cursor: 'pointer', border: '1px solid',
+            borderColor: 'hsl(224 15% 28%)',
+            background: 'hsl(224 18% 14%)',
+            color: 'hsl(220 10% 62%)',
+            transition: 'all 0.15s', flexShrink: 0,
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(262 60% 45%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(262 80% 80%)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(224 15% 28%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 62%)' }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+          </svg>
+          Songs
+        </button>
+
         {/* Desktop: note count + view toggles + beat counter */}
         {!isMobile && (
           <>
@@ -619,7 +663,12 @@ export function BassTabPlayer() {
         onNoteDurationChange={handleNoteDurationChange}
         isMobile={isMobile}
         compact={isMobile && !transportExpanded}
-        onToggleExpand={() => setTransportExpanded(e => !e)}
+        onToggleExpand={() => {
+          setTransportExpanded(e => {
+            if (!e) setFretboardVisible(false) // expanding transport → collapse fretboard
+            return !e
+          })
+        }}
         currentBeat={currentBeat}
         beatsPerBar={track.beatsPerBar}
         fitWidth={fitWidth}
@@ -670,7 +719,12 @@ export function BassTabPlayer() {
           {/* Fretboard with collapse toggle */}
           <div style={{ flexShrink: 0 }}>
             <button
-              onClick={() => setFretboardVisible(v => !v)}
+              onClick={() => {
+                setFretboardVisible(v => {
+                  if (!v) setTransportExpanded(false) // opening fretboard → collapse transport
+                  return !v
+                })
+              }}
               style={{
                 width: '100%', height: isMobile ? 22 : 16,
                 background: 'hsl(224 20% 10%)',
@@ -742,7 +796,7 @@ export function BassTabPlayer() {
           {([
             { id: 'notation', label: 'Tab',    icon: <TabIcon /> },
             { id: 'grid',     label: 'Grid',   icon: <GridIcon /> },
-            { id: 'guitar',   label: 'Guitar', icon: <GuitarIcon /> },
+            { id: 'guitar',   label: 'Bass',   icon: <GuitarIcon /> },
           ] as const).map(tab => {
             const isActive = activeView === tab.id
             return (
@@ -768,6 +822,11 @@ export function BassTabPlayer() {
             )
           })}
         </div>
+      )}
+
+      {/* Preset picker */}
+      {showPresets && (
+        <PresetPicker onSelect={handleLoadPreset} onClose={() => setShowPresets(false)} />
       )}
 
       {/* Context menu */}

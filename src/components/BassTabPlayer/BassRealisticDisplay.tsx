@@ -349,17 +349,19 @@ export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
     >
       {/* Inner: bass image + SVG overlay */}
       <div style={{
-        position:           'absolute',
-        inset:              0,
-        transformOrigin:    '50% 37%',
-        transform:          `translate(${vt.tx}px, ${vt.ty}px) rotate(${vt.rot}deg) scale(${totalScale})`,
-        backgroundImage:    'url(/bass_realistic.svg)',
-        backgroundRepeat:   'no-repeat',
-        backgroundPosition: 'center',
-        backgroundSize:     'contain',
-        willChange:         'transform',
-        pointerEvents:      'none',
+        position:        'absolute',
+        inset:           0,
+        transformOrigin: '50% 37%',
+        transform:       `translate(${vt.tx}px, ${vt.ty}px) rotate(${vt.rot}deg) scale(${totalScale})`,
+        willChange:      'transform',
+        pointerEvents:   'none',
       }}>
+        {/* img renders SVG at screen resolution — no rasterization blur */}
+        <img
+          src="/bass_realistic.svg"
+          aria-hidden="true"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
+        />
         <svg
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
           viewBox="0 0 2000 2000"
