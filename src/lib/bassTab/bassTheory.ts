@@ -29,3 +29,39 @@ export function fretToNoteName(stringIndex: number, fret: number): string {
   const midiNote = (STRINGS[stringIndex]?.midiNote ?? 33) + fret
   return NOTE_NAMES[midiNote % 12]
 }
+
+import type { BassNote } from './types'
+
+/** Returns the note on `stringIndex` whose duration covers `beat`, if any. */
+export function findNoteAtBeat(
+  notes: BassNote[],
+  stringIndex: number,
+  beat: number,
+  excludeId?: string,
+): BassNote | undefined {
+  return notes.find(n =>
+    n.id !== excludeId &&
+    n.stringIndex === stringIndex &&
+    n.startBeat <= beat + 0.001 &&
+    n.startBeat + n.durationBeats > beat + 0.001,
+  )
+}
+
+/**
+ * Returns the maximum duration that fits starting at `startBeat` on `stringIndex`
+ * without overlapping the next note (or the track end).
+ */
+export function clampDuration(
+  notes: BassNote[],
+  stringIndex: number,
+  startBeat: number,
+  wantedDuration: number,
+  totalBeats: number,
+  excludeId?: string,
+): number {
+  const next = notes
+    .filter(n => n.id !== excludeId && n.stringIndex === stringIndex && n.startBeat > startBeat)
+    .sort((a, b) => a.startBeat - b.startBeat)[0]
+  const maxEnd = next ? next.startBeat : totalBeats
+  return Math.min(wantedDuration, maxEnd - startBeat)
+}

@@ -28,7 +28,7 @@ const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
 interface TransportProps {
   isPlaying: boolean; loop: boolean; bpm: number
   snap: SnapValue; sound: BassSound; totalBars: number
-  zoom: number; volume: number
+  zoom: number; volume: number; noteDuration: number
   selectedNoteFret: number | null; hasSelectedNote: boolean
   canUndo: boolean; canRedo: boolean; metronome: boolean
   onPlay: () => void; onStop: () => void; onLoopToggle: () => void
@@ -39,15 +39,17 @@ interface TransportProps {
   onUndo: () => void; onRedo: () => void; onClearAll: () => void
   onExportAscii: () => void; onExportMidi: () => void
   onShareUrl: () => void; onMetronomeToggle: () => void
+  onNoteDurationChange: (d: number) => void
 }
 
 export function BassTabTransport(props: TransportProps) {
   const {
-    isPlaying, loop, bpm, snap, sound, totalBars, zoom, volume,
+    isPlaying, loop, bpm, snap, sound, totalBars, zoom, volume, noteDuration,
     selectedNoteFret, hasSelectedNote, canUndo, canRedo, metronome,
     onPlay, onStop, onLoopToggle, onBpmChange, onSnapChange, onSoundChange,
     onBarsChange, onZoomIn, onZoomOut, onZoomReset, onFretChange, onVolumeChange,
     onUndo, onRedo, onClearAll, onExportAscii, onExportMidi, onShareUrl, onMetronomeToggle,
+    onNoteDurationChange,
   } = props
 
   // ── Tap tempo ─────────────────────────────────────────────────────────────
@@ -157,6 +159,13 @@ export function BassTabTransport(props: TransportProps) {
           value={snap}
           onChange={v => onSnapChange(v as SnapValue)}
         />
+      </LabeledControl>
+
+      <Divider />
+
+      {/* ── Note duration ─────────────────────────────────────────────────── */}
+      <LabeledControl label="Duration">
+        <DurationPicker value={noteDuration} onChange={onNoteDurationChange} />
       </LabeledControl>
 
       <Divider />
@@ -489,11 +498,12 @@ function SegmentedBtns({ options, value, onChange }: SegProps) {
   )
 }
 
-function SegBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function SegBtn({ label, active, onClick, title }: { label: string; active: boolean; onClick: () => void; title?: string }) {
   const [hov, setHov] = useState(false)
   return (
     <button
       onClick={onClick}
+      title={title}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
@@ -508,6 +518,24 @@ function SegBtn({ label, active, onClick }: { label: string; active: boolean; on
     >
       {label}
     </button>
+  )
+}
+
+// ── Note duration picker ────────────────────────────────────────────────────
+function DurationPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const opts = [
+    { v: 4,    s: '1',  t: 'Whole note (4 beats)' },
+    { v: 2,    s: '2',  t: 'Half note (2 beats)' },
+    { v: 1,    s: '4',  t: 'Quarter note (1 beat)' },
+    { v: 0.5,  s: '8',  t: 'Eighth note (½ beat)' },
+    { v: 0.25, s: '16', t: '16th note (¼ beat)' },
+  ]
+  return (
+    <div style={{ display: 'flex', gap: 2 }}>
+      {opts.map(o => (
+        <SegBtn key={o.v} label={o.s} title={o.t} active={value === o.v} onClick={() => onChange(o.v)} />
+      ))}
+    </div>
   )
 }
 
