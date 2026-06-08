@@ -105,9 +105,18 @@ export function computeNotatedNotes(
       if (group.length < 2) continue
 
       const id  = beamCounter++
-      const dir = group[0].stemDir
-      // Assign beam id
-      group.forEach(nn => { nn.beamGroupId = id })
+
+      // Unified stem direction for the whole beam group (avg position)
+      const avgStaffLine = group.reduce((s, nn) => s + nn.staffLine, 0) / group.length
+      const dir: 'up' | 'down' = avgStaffLine < 2 ? 'up' : 'down'
+
+      // Re-apply uniform direction to every note in the group
+      group.forEach(nn => {
+        nn.stemDir  = dir
+        nn.stemX    = dir === 'up' ? nn.x + NW : nn.x - NW
+        nn.stemTipY = dir === 'up' ? nn.noteY - STEM_LENGTH : nn.noteY + STEM_LENGTH
+        nn.beamGroupId = id
+      })
 
       // Adjust stem tips so all go to the same slanted height
       const tipYs = group.map(nn => nn.stemTipY)

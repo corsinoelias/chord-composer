@@ -2,13 +2,14 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { importMidi, type MidiImportResult } from '../../lib/import/midiImport'
 import { BassTabSeekBar } from './BassTabSeekBar'
 import { MobileBarView } from './MobileBarView'
-import { type BassNote, type BassTrack, type BassSound, type SnapValue, type StringIndex, DEFAULT_TRACK } from '../../lib/bassTab/types'
+import { type BassNote, type BassTrack, type BassSound, type SnapValue, type StringIndex, type LoopRange, DEFAULT_TRACK } from '../../lib/bassTab/types'
 import { DEFAULT_INTRO_TRACK } from '../../data/defaultBassTab'
 import { TabScore } from './TabScore'
 import { TabNotationView } from './TabNotationView'
 import { snapToGrid, findNoteAtBeat, clampDuration } from '../../lib/bassTab/bassTheory'
 import { startPlayback, stopPlayback, setMasterVolume, previewNote } from '../../lib/bassTab/bassAudio'
 import { toAsciiTab, encodeTrackToHash, decodeTrackFromHash, copyToClipboard, exportMidiFile } from '../../lib/bassTab/exportTab'
+import { exportTrackAsWav } from '../../lib/bassTab/exportAudio'
 import { BassTabTransport } from './BassTabTransport'
 import { BassTabFretboard } from './BassTabFretboard'
 import { BassTabGrid } from './BassTabGrid'
@@ -16,20 +17,16 @@ import { BassRealisticDisplay } from './BassRealisticDisplay'
 import { PresetPicker } from './PresetPicker'
 import { type Preset, PRESETS } from '../../data/presets'
 import { useIsMobile } from '../../hooks/use-mobile'
-
-const STORAGE_KEY = 'bass-tab-track-v1'
-const MAX_HISTORY = 60
-
-interface History { past: BassNote[][]; future: BassNote[][] }
+import { useTrackEditor } from '../../hooks/useTrackEditor'
+import { useMidiInput } from '../../hooks/useMidiInput'
 
 function loadTrack(): BassTrack {
-  // First check URL hash for shared track
   if (typeof window !== 'undefined') {
     const fromHash = decodeTrackFromHash(window.location.hash)
     if (fromHash) return fromHash
   }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem('bass-tab-track-v1')
     if (raw) return { ...DEFAULT_TRACK, ...JSON.parse(raw) }
   } catch {}
   return { ...DEFAULT_INTRO_TRACK }
@@ -40,14 +37,28 @@ interface CtxMenu { x: number; y: number; noteId?: string; bar?: number }
 export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}) {
   const isMobile = useIsMobile()
 
-  const [track, setTrack] = useState<BassTrack>(() => {
+  // ── Track editor hook (Feature 1: Refactor) ───────────────────────────────
+  const initialTrack = useMemo(() => {
     if (initialPreset) {
       const p = PRESETS.find(pr => pr.id === initialPreset)
       if (p) return { id: p.id, name: p.name, bpm: p.bpm, beatsPerBar: p.beatsPerBar, totalBars: p.totalBars, notes: p.notes, sections: p.sections }
     }
     return loadTrack()
-  })
-  const [history, setHistory]           = useState<History>({ past: [], future: [] })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const {
+    track, setTrack, history, canUndo, canRedo,
+    addNote, updateNote, deleteNote, beginEdit, pushHistory,
+    insertBar, deleteBar, handleSectionChange,
+    handleBpmChange: editorBpmChange,
+    handleBeatsPerBarChange,
+    handleLoadPresetFull,
+    handleImportTrack: editorImportTrack,
+    handleClearAll,
+    handleUndo, handleRedo,
+  } = useTrackEditor(initialTrack)
+
   const [isPlaying, setIsPlaying]       = useState(false)
   const [currentBeat, setCurrentBeat]   = useState(0)
   const [cursorBeat, setCursorBeat]     = useState(0)
@@ -79,12 +90,26 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [fretNumpadOpen, setFretNumpadOpen]         = useState(false)
   const [isWide, setIsWide]                         = useState(false)
   const [isShortScreen, setIsShortScreen]           = useState(false)
+  // Feature 2: loop range
+  const [loopRange, setLoopRange]                   = useState<LoopRange | null>(null)
+  const loopRef          = useRef(loop)
+  const loopRangeRef     = useRef(loopRange)
+  const soundRef         = useRef(sound)
+  const metronomeRef     = useRef(metronome)
+  const trackRef         = useRef(track)
+  useEffect(() => { loopRef.current      = loop },      [loop])
+  useEffect(() => { loopRangeRef.current = loopRange }, [loopRange])
+  useEffect(() => { soundRef.current     = sound },     [sound])
+  useEffect(() => { metronomeRef.current = metronome }, [metronome])
+  useEffect(() => { trackRef.current     = track },     [track])
   // ── MIDI import ───────────────────────────────────────────────────────────
   const [dragOver, setDragOver]                     = useState(false)
   const [midiPending, setMidiPending]               = useState<MidiImportResult | null>(null)
   const [midiError, setMidiError]                   = useState<string | null>(null)
   const dragCounterRef                              = useRef(0)
   const fileInputRef                                = useRef<HTMLInputElement>(null)
+  // Feature 6: MIDI input hook
+  const midiInput = useMidiInput(sound)
 
   useEffect(() => {
     const check = () => {
@@ -117,28 +142,14 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   }, [])
 
   const handleLoadPreset = useCallback((preset: Preset) => {
-    stopPlayback()
+    const { sound: presetSound } = handleLoadPresetFull(preset)
     setIsPlaying(false)
     setCurrentBeat(0)
     setCursorBeat(0)
     setSelectedId(null)
-    setHistory({ past: [], future: [] })
-    setTrack({
-      id:          preset.id,
-      name:        preset.name,
-      bpm:         preset.bpm,
-      beatsPerBar: preset.beatsPerBar,
-      totalBars:   preset.totalBars,
-      notes:       preset.notes,
-      sections:    preset.sections,
-    })
-    setSound(preset.defaultSound)
-  }, [])
-
-  // Persist to localStorage
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(track)) } catch {}
-  }, [track])
+    setLoopRange(null)
+    setSound(presetSound as BassSound)
+  }, [handleLoadPresetFull])
 
   // Toast helper
   const showToast = useCallback((msg: string) => {
@@ -148,16 +159,15 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
   // ── MIDI import handlers ───────────────────────────────────────────────────
   const handleImportTrack = useCallback((imported: BassTrack) => {
-    stopPlayback()
+    editorImportTrack(imported)
     setIsPlaying(false)
     setCurrentBeat(0)
     setCursorBeat(0)
     setSelectedId(null)
-    setHistory({ past: [], future: [] })
-    setTrack(imported)
+    setLoopRange(null)
     setMidiPending(null)
     showToast(`Imported: ${imported.name}`)
-  }, [showToast])
+  }, [editorImportTrack, showToast])
 
   const processDropFile = useCallback(async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
@@ -215,36 +225,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     [track.notes, selectedNoteId],
   )
 
-  // ── History ───────────────────────────────────────────────────────────────
-  const pushHistory = useCallback((prevNotes: BassNote[]) => {
-    setHistory(h => ({
-      past: [...h.past.slice(-MAX_HISTORY + 1), prevNotes],
-      future: [],
-    }))
-  }, [])
-
-  const handleUndo = useCallback(() => {
-    setHistory(h => {
-      if (!h.past.length) return h
-      const prev = h.past[h.past.length - 1]
-      setTrack(t => {
-        return { ...t, notes: prev }
-      })
-      return { past: h.past.slice(0, -1), future: [track.notes, ...h.future] }
-    })
-    setSelectedId(null)
-  }, [track.notes])
-
-  const handleRedo = useCallback(() => {
-    setHistory(h => {
-      if (!h.future.length) return h
-      const next = h.future[0]
-      setTrack(t => ({ ...t, notes: next }))
-      return { past: [...h.past, track.notes], future: h.future.slice(1) }
-    })
-    setSelectedId(null)
-  }, [track.notes])
-
   // ── Sync duration picker with selected note ───────────────────────────────
   useEffect(() => {
     if (!selectedNoteId) return
@@ -253,10 +233,14 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNoteId])
 
-  // Close fret numpad when note is deselected
+  // Close fret numpad when note is deselected; auto-open on mobile when note selected
   useEffect(() => {
-    if (!selectedNoteId) setFretNumpadOpen(false)
-  }, [selectedNoteId])
+    if (!selectedNoteId) {
+      setFretNumpadOpen(false)
+    } else if (isMobile) {
+      setFretNumpadOpen(true)
+    }
+  }, [selectedNoteId, isMobile])
 
   // ── Active frets ─────────────────────────────────────────────────────────
   const activeFrets = useMemo((): (number | null)[] => {
@@ -307,29 +291,37 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   }, [track.notes, currentBeat])
 
   // ── Playback ──────────────────────────────────────────────────────────────
-  const handlePlay = useCallback(() => {
-    const totalBeats = track.totalBars * track.beatsPerBar
-    const from = currentBeat < totalBeats ? currentBeat : 0
-    setIsPlaying(true)
-    startPlayback(track, from, sound,
+  const doPlay = useCallback((fromBeat: number) => {
+    const t      = trackRef.current
+    const snd    = soundRef.current
+    const isLoop = loopRef.current
+    const lRange = loopRangeRef.current
+
+    startPlayback(t, fromBeat, snd,
       (beat) => setCurrentBeat(beat),
       () => setIsPlaying(false),
-      loop,
-      metronome,
+      isLoop, metronomeRef.current, lRange,
     )
-  }, [track, currentBeat, sound, loop, metronome])
+  }, []) // stable: uses only refs
+
+  const handlePlay = useCallback(() => {
+    const totalBeats = track.totalBars * track.beatsPerBar
+    const loopFrom = loopRange ? loopRange.startBeat : 0
+    const from = currentBeat < totalBeats ? currentBeat : loopFrom
+    setIsPlaying(true)
+    doPlay(from)
+  }, [track, currentBeat, loopRange, doPlay])
 
   const handleStop = useCallback(() => {
     stopPlayback()
     setIsPlaying(false)
-    // Keep currentBeat so user can resume or see where they stopped
   }, [])
 
   const handleRewind = useCallback(() => {
     stopPlayback()
     setIsPlaying(false)
-    setCurrentBeat(0)
-  }, [])
+    setCurrentBeat(loopRange ? loopRange.startBeat : 0)
+  }, [loopRange])
 
   const handleSeek = useCallback((beat: number) => {
     const totalBeats = track.totalBars * track.beatsPerBar
@@ -337,69 +329,15 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     setCurrentBeat(clamped)
     if (isPlaying) {
       stopPlayback()
-      startPlayback(track, clamped, sound,
-        (b) => setCurrentBeat(b),
-        () => setIsPlaying(false),
-        loop,
-        metronome,
-      )
+      doPlay(clamped)
     }
-  }, [isPlaying, track, sound, loop, metronome])
+  }, [isPlaying, track, doPlay])
 
-  // ── Note mutations ─────────────────────────────────────────────────────────
-  const addNote = useCallback((note: BassNote) => {
-    setTrack(t => { pushHistory(t.notes); return { ...t, notes: [...t.notes, note] } })
-  }, [pushHistory])
-
-  const updateNote = useCallback((id: string, patch: Partial<BassNote>) => {
-    setTrack(t => ({
-      ...t,
-      notes: t.notes.map(n => n.id === id ? { ...n, ...patch } : n),
-    }))
-  }, [])
-
-  const deleteNote = useCallback((id: string) => {
-    setTrack(t => { pushHistory(t.notes); return { ...t, notes: t.notes.filter(n => n.id !== id) } })
+  // deleteNote + setSelectedId need to be combined here
+  const handleDeleteNote = useCallback((id: string) => {
+    deleteNote(id)
     setSelectedId(prev => prev === id ? null : prev)
-  }, [pushHistory])
-
-  const beginEdit = useCallback(() => {
-    setTrack(t => { pushHistory(t.notes); return t })
-  }, [pushHistory])
-
-  const insertBar = useCallback((afterBar: number) => {
-    setTrack(t => {
-      const pivot = (afterBar + 1) * t.beatsPerBar
-      return {
-        ...t,
-        totalBars: t.totalBars + 1,
-        notes: t.notes.map(n => n.startBeat >= pivot ? { ...n, startBeat: n.startBeat + t.beatsPerBar } : n),
-        sections: t.sections?.map(s => s.startBar > afterBar ? { ...s, startBar: s.startBar + 1 } : s),
-      }
-    })
-  }, [])
-
-  const deleteBar = useCallback((bar: number) => {
-    setTrack(t => {
-      if (t.totalBars <= 1) return t
-      const start = bar * t.beatsPerBar
-      const end   = start + t.beatsPerBar
-      return {
-        ...t,
-        totalBars: t.totalBars - 1,
-        notes: t.notes
-          .filter(n => n.startBeat < start || n.startBeat >= end)
-          .map(n => n.startBeat >= end ? { ...n, startBeat: n.startBeat - t.beatsPerBar } : n),
-        sections: t.sections
-          ?.filter(s => s.startBar !== bar)
-          .map(s => s.startBar > bar ? { ...s, startBar: s.startBar - 1 } : s),
-      }
-    })
-  }, [])
-
-  const handleSectionChange = useCallback((sections: import('../../lib/bassTab/types').TrackSection[]) => {
-    setTrack(t => ({ ...t, sections }))
-  }, [])
+  }, [deleteNote])
 
   const handleNoteDurationChange = useCallback((d: number) => {
     setNoteDuration(d)
@@ -451,21 +389,11 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     setSelectedId(dup.id)
   }, [track.notes, selectedNoteId, track.totalBars, track.beatsPerBar, addNote])
 
-  // ── Auto-sync totalBars with notes ────────────────────────────────────────
-  useEffect(() => {
-    const maxEnd = track.notes.reduce((max, n) => Math.max(max, n.startBeat + n.durationBeats), 0)
-    const needed = Math.max(4, Math.ceil(maxEnd / track.beatsPerBar) + 1)
-    if (needed !== track.totalBars) {
-      setTrack(t => ({ ...t, totalBars: needed }))
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [track.notes, track.beatsPerBar])
-
   // ── Transport ─────────────────────────────────────────────────────────────
   const handleBpmChange = useCallback((bpm: number) => {
     if (isPlaying) { stopPlayback(); setIsPlaying(false); setCurrentBeat(0) }
-    setTrack(t => ({ ...t, bpm }))
-  }, [isPlaying])
+    editorBpmChange(bpm, false)
+  }, [isPlaying, editorBpmChange])
 
   const handleSoundChange = useCallback((s: BassSound) => {
     setSound(s)
@@ -492,13 +420,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     setZoom(Math.max(0.4, Math.min(4, z)))
   }, [])
 
-  const handleClearAll = useCallback(() => {
-    if (track.notes.length === 0) return
-    pushHistory(track.notes)
-    setTrack(t => ({ ...t, notes: [] }))
-    setSelectedId(null)
-  }, [track.notes, pushHistory])
-
   const handleExportAscii = useCallback(async () => {
     const tab = toAsciiTab(track)
     const ok = await copyToClipboard(tab)
@@ -509,6 +430,24 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     exportMidiFile(track)
     showToast(`${track.name}.mid downloaded`)
   }, [track, showToast])
+
+  const handleExportWav = useCallback(async () => {
+    showToast('Rendering audio…')
+    try {
+      await exportTrackAsWav(track, sound)
+      showToast(`${track.name}.wav downloaded`)
+    } catch {
+      showToast('Export failed')
+    }
+  }, [track, sound, showToast])
+
+  const handleToggleLoopRange = useCallback(() => {
+    setLoopRange(lr => {
+      if (lr) return null
+      const totalBeats = track.totalBars * track.beatsPerBar
+      return { startBeat: 0, endBeat: totalBeats }
+    })
+  }, [track])
 
   const handleShareUrl = useCallback(async () => {
     const hash = encodeTrackToHash(track)
@@ -555,7 +494,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       if (tag === 'INPUT' || tag === 'SELECT') return
 
       if (e.code === 'Space') { e.preventDefault(); isPlaying ? handleStop() : handlePlay() }
-      if ((e.code === 'Delete' || e.code === 'Backspace') && selectedNoteId) { e.preventDefault(); deleteNote(selectedNoteId) }
+      if ((e.code === 'Delete' || e.code === 'Backspace') && selectedNoteId) { e.preventDefault(); handleDeleteNote(selectedNoteId) }
       if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !e.shiftKey) { e.preventDefault(); handleUndo() }
       if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) { e.preventDefault(); handleRedo() }
       if ((e.ctrlKey || e.metaKey) && e.code === 'KeyD') { e.preventDefault(); duplicateNote() }
@@ -586,7 +525,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [isPlaying, handlePlay, handleStop, selectedNoteId, deleteNote, selectedNote, updateNote, snap, handleUndo, handleRedo, duplicateNote])
+  }, [isPlaying, handlePlay, handleStop, selectedNoteId, handleDeleteNote, selectedNote, updateNote, snap, handleUndo, handleRedo, duplicateNote])
 
   const activeView: 'notation' | 'score' | 'grid' | 'guitar' = guitarView ? 'guitar' : viewMode
 
@@ -768,7 +707,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         isPlaying={isPlaying} loop={loop} bpm={track.bpm} snap={snap} sound={sound}
         totalBars={track.totalBars} zoom={zoom} volume={volume} noteDuration={noteDuration}
         hasSelectedNote={!!selectedNote} selectedNoteFret={selectedNote?.fret ?? null}
-        canUndo={history.past.length > 0} canRedo={history.future.length > 0} metronome={metronome}
+        canUndo={canUndo} canRedo={canRedo} metronome={metronome}
         onPlay={handlePlay} onStop={handleStop} onRewind={handleRewind} onLoopToggle={() => setLoop(l => !l)}
         onBpmChange={handleBpmChange} onSnapChange={setSnap} onSoundChange={handleSoundChange}
         onBarsChange={(bars) => setTrack(t => ({ ...t, totalBars: bars }))}
@@ -784,7 +723,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         compact={isMobile && !transportExpanded}
         onToggleExpand={() => {
           setTransportExpanded(e => {
-            if (!e) setFretboardVisible(false) // expanding transport → collapse fretboard
+            if (!e) setFretboardVisible(false)
             return !e
           })
         }}
@@ -794,6 +733,14 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         onFitWidthToggle={() => setFitWidth(f => !f)}
         desktopCompact={desktopCompact}
         onToggleDesktopCompact={() => setDesktopCompact(c => !c)}
+        onBeatsPerBarChange={handleBeatsPerBarChange}
+        midiInputAvailable={midiInput.available}
+        midiInputActive={midiInput.active}
+        midiDeviceName={midiInput.devices.find(d => d.id === midiInput.selectedDeviceId)?.name ?? null}
+        onMidiInputToggle={midiInput.toggle}
+        onExportWav={handleExportWav}
+        loopRangeActive={!!loopRange}
+        onToggleLoopRange={handleToggleLoopRange}
       />
 
       {/* ── Seek bar ──────────────────────────────────────────────────────── */}
@@ -803,6 +750,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         beatsPerBar={track.beatsPerBar}
         isPlaying={isPlaying}
         onSeek={handleSeek}
+        loopRange={loopRange}
+        onLoopRangeChange={setLoopRange}
       />
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
@@ -1054,7 +1003,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
               <CtxBtn label="Fret +1  ↑" onClick={() => { const n = track.notes.find(x => x.id === nid); if(n) updateNote(n.id, {fret: Math.min(24, n.fret+1)}); closeCtxMenu() }} />
               <CtxBtn label="Fret -1  ↓" onClick={() => { const n = track.notes.find(x => x.id === nid); if(n) updateNote(n.id, {fret: Math.max(0, n.fret-1)}); closeCtxMenu() }} />
               <Sep />
-              <CtxBtn label="Delete  Del" danger onClick={() => { deleteNote(nid); closeCtxMenu() }} />
+              <CtxBtn label="Delete  Del" danger onClick={() => { handleDeleteNote(nid); closeCtxMenu() }} />
             </div>
           )
         }

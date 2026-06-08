@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import {
   Play, Square, RotateCcw, Repeat,
   Undo2, Redo2, Trash2, Download, Share2, Bell, BellOff, Music, Upload,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Waves, Piano,
 } from 'lucide-react'
 import { type BassSound, type SnapValue } from '../../lib/bassTab/types'
 
@@ -63,6 +63,18 @@ interface TransportProps {
   onToggleDesktopCompact?: () => void
   // Mobile fret numpad
   onOpenFretNumpad?: () => void
+  // Feature 7: compound time signature (beatsPerBar already declared above)
+  onBeatsPerBarChange?: (bpb: number) => void
+  // Feature 6: MIDI input
+  midiInputAvailable?: boolean
+  midiInputActive?: boolean
+  midiDeviceName?: string | null
+  onMidiInputToggle?: () => void
+  // Feature 8: export WAV
+  onExportWav?: () => void
+  // Feature 2: loop range (toggle on/off)
+  loopRangeActive?: boolean
+  onToggleLoopRange?: () => void
 }
 
 export function BassTabTransport(props: TransportProps) {
@@ -78,7 +90,13 @@ export function BassTabTransport(props: TransportProps) {
     fitWidth = false, onFitWidthToggle,
     desktopCompact = false, onToggleDesktopCompact,
     onOpenFretNumpad,
+    onBeatsPerBarChange,
+    midiInputAvailable, midiInputActive, midiDeviceName, onMidiInputToggle,
+    onExportWav,
+    loopRangeActive, onToggleLoopRange,
   } = props
+
+  const bpb = beatsPerBar   // alias for clarity
 
   // ── Tap tempo ─────────────────────────────────────────────────────────────
   const tapTimesRef   = useRef<number[]>([])
@@ -373,6 +391,18 @@ export function BassTabTransport(props: TransportProps) {
               <MIconBtn onClick={onExportMidi} title="Download MIDI">
                 <Music size={14} />
               </MIconBtn>
+              {onExportWav && (
+                <MIconBtn onClick={onExportWav} title="Export WAV">
+                  <Waves size={14} />
+                </MIconBtn>
+              )}
+              {midiInputAvailable && onMidiInputToggle && (
+                <MIconBtn onClick={onMidiInputToggle} title={midiInputActive ? 'MIDI connected — tap to disconnect' : 'Connect MIDI keyboard'}
+                  active={midiInputActive}
+                  activeBg="hsl(280 60% 18%)" activeColor="hsl(280 80% 70%)" activeBorder="hsl(280 70% 45%)">
+                  <Piano size={14} />
+                </MIconBtn>
+              )}
               <MIconBtn onClick={onShareUrl} title="Copy share URL">
                 <Share2 size={14} />
               </MIconBtn>
@@ -420,6 +450,12 @@ export function BassTabTransport(props: TransportProps) {
                   activeBg={T.greenBg} activeColor={T.green} activeBorder={T.green}>
                   <Repeat size={12} />
                 </IconBtn>
+                {onToggleLoopRange && (
+                  <IconBtn onClick={onToggleLoopRange} title={loopRangeActive ? 'Clear loop range' : 'Set loop range (drag handles on seek bar)'} active={loopRangeActive}
+                    activeBg="hsl(38 60% 18%)" activeColor="hsl(38 80% 55%)" activeBorder="hsl(38 80% 50%)">
+                    <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'ui-monospace' }}>A→B</span>
+                  </IconBtn>
+                )}
                 <IconBtn onClick={onMetronomeToggle} title="Metronome" active={metronome}
                   activeBg={T.amberBg} activeColor={T.amber} activeBorder={T.amber}>
                   {metronome ? <Bell size={12} /> : <BellOff size={12} />}
@@ -497,9 +533,21 @@ export function BassTabTransport(props: TransportProps) {
                   <IconBtn onClick={onExportMidi} title="Download MIDI (.mid)">
                     <Music size={12} />
                   </IconBtn>
+                  {onExportWav && (
+                    <IconBtn onClick={onExportWav} title="Export WAV audio">
+                      <Waves size={12} />
+                    </IconBtn>
+                  )}
                   <IconBtn onClick={onShareUrl} title="Copy share URL">
                     <Share2 size={12} />
                   </IconBtn>
+                  {midiInputAvailable && onMidiInputToggle && (
+                    <IconBtn onClick={onMidiInputToggle} title={midiInputActive ? `MIDI input: ${midiDeviceName ?? 'connected'} — click to disconnect` : 'Connect MIDI keyboard input'}
+                      active={midiInputActive}
+                      activeBg="hsl(280 60% 18%)" activeColor="hsl(280 80% 70%)" activeBorder="hsl(280 70% 45%)">
+                      <Piano size={12} />
+                    </IconBtn>
+                  )}
                 </Group>
 
                 <Divider />
@@ -557,6 +605,19 @@ export function BassTabTransport(props: TransportProps) {
                 />
               </LabeledControl>
 
+              {onBeatsPerBarChange && (
+                <>
+                  <Divider />
+                  <LabeledControl label="Time">
+                    <SegmentedBtns
+                      options={[2, 3, 4, 5, 6, 7, 8].map(n => ({ value: n, label: `${n}/4` }))}
+                      value={bpb}
+                      onChange={v => onBeatsPerBarChange(v as number)}
+                    />
+                  </LabeledControl>
+                </>
+              )}
+
               <Divider />
 
               <LabeledControl label={`Vol ${Math.round(volume * 100)}%`}>
@@ -585,6 +646,7 @@ export function BassTabTransport(props: TransportProps) {
           </>
         )}
       </div>
+
     </div>
   )
 }

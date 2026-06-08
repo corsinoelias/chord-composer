@@ -51,3 +51,8 @@ export const DEFAULT_TRACK: BassTrack = {
   totalBars: 8,
   notes: [],
 }
+
+export interface LoopRange {
+  startBeat: number
+  endBeat: number
+}

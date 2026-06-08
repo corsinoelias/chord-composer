@@ -1,4 +1,4 @@
-import { type BassTrack, type BassSound } from './types'
+import { type BassTrack, type BassSound, type LoopRange } from './types'
 import { fretToFrequency } from './bassTheory'
 
 let audioCtx: AudioContext | null = null
@@ -78,14 +78,13 @@ function scheduleNote(
 
 function scheduleMetronome(
   ctx: AudioContext,
-  _dest: AudioNode,   // unused — click bypasses masterGain so it's always audible
-  startAudioTime: number, fromBeat: number, totalBeats: number,
+  dest: AudioNode,
+  startAudioTime: number, fromBeat: number, toBeat: number,
   bpm: number, beatsPerBar: number,
 ) {
   const beatDur = 60 / bpm
 
-  for (let beat = 0; beat < totalBeats; beat++) {
-    if (beat < fromBeat - 0.001) continue
+  for (let beat = Math.ceil(fromBeat); beat < toBeat; beat++) {
     const t = startAudioTime + (beat - fromBeat) * beatDur
     if (t < ctx.currentTime - 0.01) continue
 
@@ -101,7 +100,6 @@ function scheduleMetronome(
     env.gain.exponentialRampToValueAtTime(0.001, t + 0.1)
 
     osc.connect(env)
-    // Bypass masterGain — click is always audible regardless of instrument volumes
     env.connect(ctx.destination)
     osc.start(t)
     osc.stop(t + 0.12)
@@ -125,40 +123,43 @@ export function startPlayback(
   onEnd: () => void,
   loop: boolean,
   metronome = false,
+  loopRange?: LoopRange | null,
 ) {
   stopPlayback()
   const ctx = ensureCtx()
   playStartAudioTime = ctx.currentTime + 0.05
   isPlayingFlag = true
 
-  const beatDur = 60 / track.bpm
+  const beatDur    = 60 / track.bpm
   const totalBeats = track.totalBars * track.beatsPerBar
-  const endAudioTime = playStartAudioTime + (totalBeats - fromBeat) * beatDur
+  const loopEnd    = loopRange ? Math.min(loopRange.endBeat, totalBeats) : totalBeats
+  const endAudioTime = playStartAudioTime + (loopEnd - fromBeat) * beatDur
 
   for (const note of track.notes) {
-    if (note.startBeat < fromBeat || note.startBeat >= totalBeats) continue
+    if (note.startBeat < fromBeat || note.startBeat >= loopEnd) continue
     const noteStart = playStartAudioTime + (note.startBeat - fromBeat) * beatDur
-    const noteDur = Math.max(0.05, note.durationBeats * beatDur)
-    const freq = fretToFrequency(note.stringIndex, note.fret)
+    const noteDur   = Math.max(0.05, note.durationBeats * beatDur)
+    const freq      = fretToFrequency(note.stringIndex, note.fret)
     scheduleNote(ctx, masterGain!, freq, noteStart, noteDur, note.velocity, sound)
   }
 
   if (metronome) {
-    scheduleMetronome(ctx, masterGain!, playStartAudioTime, fromBeat, totalBeats, track.bpm, track.beatsPerBar)
+    scheduleMetronome(ctx, masterGain!, playStartAudioTime, fromBeat, loopEnd, track.bpm, track.beatsPerBar)
   }
 
   function tick() {
     if (!isPlayingFlag) return
     const elapsed = ctx.currentTime - playStartAudioTime
-    const beat = fromBeat + elapsed * (track.bpm / 60)
-    onBeatUpdate(Math.min(beat, totalBeats))
+    const beat    = fromBeat + elapsed * (track.bpm / 60)
+    onBeatUpdate(Math.min(beat, loopEnd))
 
     if (ctx.currentTime >= endAudioTime) {
       if (loop) {
-        startPlayback(track, 0, sound, onBeatUpdate, onEnd, loop, metronome)
+        const nextFrom = loopRange ? loopRange.startBeat : 0
+        startPlayback(track, nextFrom, sound, onBeatUpdate, onEnd, loop, metronome, loopRange)
       } else {
         stopPlayback()
-        onBeatUpdate(0)
+        onBeatUpdate(loopRange ? loopRange.startBeat : 0)
         onEnd()
       }
       return
@@ -166,6 +167,29 @@ export function startPlayback(
     animFrameId = requestAnimationFrame(tick)
   }
   animFrameId = requestAnimationFrame(tick)
+}
+
+export async function renderTrackOffline(track: BassTrack, sound: BassSound): Promise<AudioBuffer> {
+  const totalBeats    = track.totalBars * track.beatsPerBar
+  const beatDur       = 60 / track.bpm
+  const totalDuration = totalBeats * beatDur + 2 // +2s tail
+  const sampleRate    = 44100
+  const numChannels   = 2
+
+  const offCtx = new OfflineAudioContext(numChannels, Math.ceil(totalDuration * sampleRate), sampleRate)
+  const gain   = offCtx.createGain()
+  gain.gain.value = 0.75
+  gain.connect(offCtx.destination)
+
+  for (const note of track.notes) {
+    if (note.startBeat < 0 || note.startBeat >= totalBeats) continue
+    const noteStart = note.startBeat * beatDur
+    const noteDur   = Math.max(0.05, note.durationBeats * beatDur)
+    const freq      = fretToFrequency(note.stringIndex, note.fret)
+    scheduleNote(offCtx as unknown as AudioContext, gain, freq, noteStart + 0.05, noteDur, note.velocity, sound)
+  }
+
+  return offCtx.startRendering()
 }
 
 export function stopPlayback() {

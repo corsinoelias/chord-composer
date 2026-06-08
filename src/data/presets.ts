@@ -370,6 +370,170 @@ const LE_FREAK = phraseRepeat('lefreak', 4, 8, 2, [
   { si: 3, f: 3,  b: 7.5,  d: 0.5  }, // G
 ])
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 13 · COME TOGETHER (1969) · Abbey Road · Paul McCartney
+//   D minor feel. Signature descending D riff on A string with chromatic walkup.
+//   A string: D=fret5, E=fret7, F=fret8, F#=fret9, G=fret10, C=fret3, B=fret2
+// ─────────────────────────────────────────────────────────────────────────────
+const COME_TOGETHER = barRepeat('cometogether', 4, 4, [
+  { si: 2, f: 5,  b: 0.0,  d: 0.5  }, // D
+  { si: 2, f: 5,  b: 0.5,  d: 0.5  }, // D
+  { si: 2, f: 5,  b: 1.0,  d: 0.5  }, // D
+  { si: 2, f: 7,  b: 1.5,  d: 0.25 }, // E
+  { si: 2, f: 8,  b: 1.75, d: 0.25 }, // F
+  { si: 2, f: 9,  b: 2.0,  d: 0.5  }, // F#
+  { si: 2, f: 10, b: 2.5,  d: 0.5  }, // G
+  { si: 2, f: 3,  b: 3.0,  d: 0.5  }, // C
+  { si: 2, f: 2,  b: 3.5,  d: 0.5  }, // B
+])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 14 · SEVEN NATION ARMY (2003) · Elephant · Jack White
+//   E minor. Iconic riff played on A string (using octave pedal live).
+//   A string: E=fret7, G=fret10, D=fret5, C=fret3, B=fret2
+// ─────────────────────────────────────────────────────────────────────────────
+const SEVEN_NATION_ARMY = barRepeat('sevennationarmy', 4, 4, [
+  { si: 2, f: 7,  b: 0.0,  d: 0.5  }, // E
+  { si: 2, f: 7,  b: 0.5,  d: 0.25 }, // E
+  { si: 2, f: 10, b: 0.75, d: 0.5  }, // G
+  { si: 2, f: 7,  b: 1.25, d: 0.5  }, // E
+  { si: 2, f: 5,  b: 1.75, d: 0.5  }, // D
+  { si: 2, f: 3,  b: 2.25, d: 0.5  }, // C
+  { si: 2, f: 2,  b: 2.75, d: 1.25 }, // B (held)
+])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 15 · ANOTHER ONE BITES THE DUST (1980) · The Game · John Deacon
+//   E minor. Hypnotic E pedal with rhythmic G# decoration.
+//   E string: E=open, G#=fret4
+// ─────────────────────────────────────────────────────────────────────────────
+const ANOTHER_ONE = barRepeat('anotherone', 4, 4, [
+  { si: 3, f: 0, b: 0.0,  d: 0.5  }, // E open
+  { si: 3, f: 0, b: 0.5,  d: 0.5  }, // E
+  { si: 3, f: 0, b: 1.0,  d: 0.5  }, // E
+  { si: 3, f: 0, b: 1.5,  d: 0.5  }, // E
+  { si: 3, f: 0, b: 2.0,  d: 1.0  }, // E (quarter)
+  { si: 3, f: 4, b: 3.0,  d: 0.25 }, // G#
+  { si: 3, f: 0, b: 3.25, d: 0.25 }, // E
+  { si: 3, f: 4, b: 3.5,  d: 0.25 }, // G#
+  { si: 3, f: 0, b: 3.75, d: 0.25 }, // E
+])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 16 · HYSTERIA (2003) · Absolution · Chris Wolstenholme
+//   E minor. Relentless 16th-note driving riff.
+//   A string: E=fret7, F#=fret9, G=fret10, D=fret5, C#=fret4
+// ─────────────────────────────────────────────────────────────────────────────
+const HYSTERIA = barRepeat('hysteria', 4, 4, [
+  { si: 2, f: 7,  b: 0.0,  d: 0.25 }, // E
+  { si: 2, f: 7,  b: 0.25, d: 0.25 }, // E
+  { si: 2, f: 7,  b: 0.5,  d: 0.25 }, // E
+  { si: 2, f: 7,  b: 0.75, d: 0.25 }, // E
+  { si: 2, f: 7,  b: 1.0,  d: 0.25 }, // E
+  { si: 2, f: 7,  b: 1.25, d: 0.25 }, // E
+  { si: 2, f: 9,  b: 1.5,  d: 0.25 }, // F#
+  { si: 2, f: 10, b: 1.75, d: 0.25 }, // G
+  { si: 2, f: 7,  b: 2.0,  d: 0.25 }, // E
+  { si: 2, f: 7,  b: 2.25, d: 0.25 }, // E
+  { si: 2, f: 7,  b: 2.5,  d: 0.25 }, // E
+  { si: 2, f: 9,  b: 2.75, d: 0.25 }, // F#
+  { si: 2, f: 7,  b: 3.0,  d: 0.5  }, // E (8th)
+  { si: 2, f: 5,  b: 3.5,  d: 0.25 }, // D
+  { si: 2, f: 4,  b: 3.75, d: 0.25 }, // C#
+])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 17 · HIGHER GROUND (1989) · Mother's Milk · Flea (orig. Stevie Wonder 1974)
+//   C minor. Slap octave groove.
+//   A string: C=fret3, Eb=fret6, Bb=fret1
+//   G string: C octave=fret5
+// ─────────────────────────────────────────────────────────────────────────────
+const HIGHER_GROUND = barRepeat('higherground', 4, 4, [
+  { si: 2, f: 3,  b: 0.0,  d: 0.25 }, // C
+  { si: 0, f: 5,  b: 0.25, d: 0.25 }, // C octave (G str fret 5)
+  { si: 2, f: 3,  b: 0.5,  d: 0.25 }, // C
+  { si: 0, f: 5,  b: 0.75, d: 0.25 }, // C octave
+  { si: 2, f: 3,  b: 1.0,  d: 0.25 }, // C
+  { si: 2, f: 3,  b: 1.25, d: 0.25 }, // C
+  { si: 2, f: 6,  b: 1.5,  d: 0.25 }, // Eb
+  { si: 2, f: 3,  b: 1.75, d: 0.25 }, // C
+  { si: 2, f: 3,  b: 2.0,  d: 0.5  }, // C
+  { si: 0, f: 5,  b: 2.5,  d: 0.25 }, // C octave
+  { si: 2, f: 3,  b: 2.75, d: 0.25 }, // C
+  { si: 2, f: 3,  b: 3.0,  d: 0.25 }, // C
+  { si: 2, f: 1,  b: 3.25, d: 0.25 }, // Bb
+  { si: 2, f: 3,  b: 3.5,  d: 0.5  }, // C
+])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 18 · SEPTEMBER (1978) · The Best of Earth Wind & Fire Vol.1 · Verdine White
+//   D major. Funky 2-bar groove — bar 1 on D, bar 2 resolves on A.
+//   A string: D=fret5, E=fret7, F#=fret9, A=open
+//   E string: A=fret5, B=fret7, C#=fret9
+// ─────────────────────────────────────────────────────────────────────────────
+const SEPTEMBER = phraseRepeat('september', 4, 8, 2, [
+  // ── Bar 1 · D groove ───────────────────────────────────────────────────────
+  { si: 2, f: 5,  b: 0.0,  d: 0.25 }, // D
+  { si: 2, f: 5,  b: 0.25, d: 0.25 }, // D
+  { si: 2, f: 7,  b: 0.5,  d: 0.25 }, // E
+  { si: 2, f: 5,  b: 0.75, d: 0.25 }, // D
+  { si: 2, f: 5,  b: 1.0,  d: 0.5  }, // D
+  { si: 2, f: 9,  b: 1.5,  d: 0.5  }, // F#
+  { si: 2, f: 12, b: 2.0,  d: 0.5  }, // A (A str fret 12)
+  { si: 2, f: 9,  b: 2.5,  d: 0.5  }, // F#
+  { si: 2, f: 7,  b: 3.0,  d: 0.5  }, // E
+  { si: 2, f: 5,  b: 3.5,  d: 0.5  }, // D
+  // ── Bar 2 · A resolve ──────────────────────────────────────────────────────
+  { si: 3, f: 5,  b: 4.0,  d: 0.25 }, // A (E str fret 5)
+  { si: 3, f: 5,  b: 4.25, d: 0.25 }, // A
+  { si: 3, f: 7,  b: 4.5,  d: 0.25 }, // B (E str fret 7)
+  { si: 3, f: 5,  b: 4.75, d: 0.25 }, // A
+  { si: 3, f: 5,  b: 5.0,  d: 0.5  }, // A
+  { si: 3, f: 9,  b: 5.5,  d: 0.5  }, // C# (E str fret 9)
+  { si: 2, f: 0,  b: 6.0,  d: 0.5  }, // A open
+  { si: 3, f: 9,  b: 6.5,  d: 0.5  }, // C#
+  { si: 3, f: 7,  b: 7.0,  d: 0.5  }, // B
+  { si: 3, f: 5,  b: 7.5,  d: 0.5  }, // A
+])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 19 · GIVE IT AWAY (1991) · Blood Sugar Sex Magik · Flea
+//   E minor. Slap-driven E open pedal with F# neighbor note funk.
+//   E string: E=open, F#=fret2
+// ─────────────────────────────────────────────────────────────────────────────
+const GIVE_IT_AWAY = barRepeat('giveitaway', 4, 4, [
+  { si: 3, f: 0, b: 0.0,  d: 0.25 }, // E open
+  { si: 3, f: 0, b: 0.25, d: 0.25 }, // E
+  { si: 3, f: 0, b: 0.5,  d: 0.25 }, // E
+  { si: 3, f: 2, b: 0.75, d: 0.25 }, // F#
+  { si: 3, f: 0, b: 1.0,  d: 0.5  }, // E
+  { si: 3, f: 2, b: 1.5,  d: 0.25 }, // F#
+  { si: 3, f: 0, b: 1.75, d: 0.25 }, // E
+  { si: 3, f: 0, b: 2.0,  d: 0.25 }, // E
+  { si: 3, f: 0, b: 2.25, d: 0.25 }, // E
+  { si: 3, f: 0, b: 2.5,  d: 0.5  }, // E
+  { si: 3, f: 0, b: 3.0,  d: 0.25 }, // E
+  { si: 3, f: 2, b: 3.25, d: 0.25 }, // F#
+  { si: 3, f: 0, b: 3.5,  d: 0.25 }, // E
+  { si: 3, f: 2, b: 3.75, d: 0.25 }, // F#
+])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 20 · LONGVIEW (1994) · Dookie · Mike Dirnt
+//   D major. Melodic walking bass intro.
+//   A string: D=fret5, E=fret7, C=fret3, B=fret2, A=open
+// ─────────────────────────────────────────────────────────────────────────────
+const LONGVIEW = barRepeat('longview', 4, 4, [
+  { si: 2, f: 5, b: 0.0,  d: 0.5  }, // D
+  { si: 2, f: 5, b: 0.5,  d: 0.5  }, // D
+  { si: 2, f: 5, b: 1.0,  d: 0.5  }, // D
+  { si: 2, f: 7, b: 1.5,  d: 0.5  }, // E
+  { si: 2, f: 5, b: 2.0,  d: 0.25 }, // D
+  { si: 2, f: 3, b: 2.25, d: 0.25 }, // C
+  { si: 2, f: 2, b: 2.5,  d: 0.5  }, // B
+  { si: 2, f: 0, b: 3.0,  d: 1.0  }, // A open
+])
+
 // ─── Export ───────────────────────────────────────────────────────────────────
 export const PRESETS: Preset[] = [
   {
@@ -455,5 +619,61 @@ export const PRESETS: Preset[] = [
     genre: 'Worship', bpm: 140, beatsPerBar: 4, totalBars: 4,
     defaultSound: 'electric', notes: FIESTA,
     sections: [{ name: 'Verse', startBar: 0 }],
+  },
+  {
+    id: 'preset-cometogether',
+    name: 'Come Together', artist: 'The Beatles', bassist: 'Paul McCartney',
+    genre: 'Rock', bpm: 82, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'electric', notes: COME_TOGETHER,
+    sections: [{ name: 'Verse', startBar: 0 }],
+  },
+  {
+    id: 'preset-sevennationarmy',
+    name: 'Seven Nation Army', artist: 'The White Stripes', bassist: 'Jack White',
+    genre: 'Rock', bpm: 124, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'electric', notes: SEVEN_NATION_ARMY,
+    sections: [{ name: 'Riff', startBar: 0 }],
+  },
+  {
+    id: 'preset-anotheronebitesthedust',
+    name: 'Another One Bites the Dust', artist: 'Queen', bassist: 'John Deacon',
+    genre: 'Rock / Funk', bpm: 110, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'electric', notes: ANOTHER_ONE,
+    sections: [{ name: 'Verse', startBar: 0 }],
+  },
+  {
+    id: 'preset-hysteria',
+    name: 'Hysteria', artist: 'Muse', bassist: 'Chris Wolstenholme',
+    genre: 'Alternative Rock', bpm: 96, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'picked', notes: HYSTERIA,
+    sections: [{ name: 'Verse', startBar: 0 }],
+  },
+  {
+    id: 'preset-higherground',
+    name: 'Higher Ground', artist: 'Red Hot Chili Peppers', bassist: 'Flea',
+    genre: 'Funk Rock', bpm: 126, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'slap', notes: HIGHER_GROUND,
+    sections: [{ name: 'Verse', startBar: 0 }],
+  },
+  {
+    id: 'preset-september',
+    name: 'September', artist: 'Earth, Wind & Fire', bassist: 'Verdine White',
+    genre: 'Funk / Soul', bpm: 126, beatsPerBar: 4, totalBars: 8,
+    defaultSound: 'electric', notes: SEPTEMBER,
+    sections: [{ name: 'Verse', startBar: 0 }],
+  },
+  {
+    id: 'preset-giveitaway',
+    name: 'Give It Away', artist: 'Red Hot Chili Peppers', bassist: 'Flea',
+    genre: 'Funk Rock', bpm: 110, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'slap', notes: GIVE_IT_AWAY,
+    sections: [{ name: 'Verse', startBar: 0 }],
+  },
+  {
+    id: 'preset-longview',
+    name: 'Longview', artist: 'Green Day', bassist: 'Mike Dirnt',
+    genre: 'Punk Rock', bpm: 100, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'picked', notes: LONGVIEW,
+    sections: [{ name: 'Intro', startBar: 0 }],
   },
 ]

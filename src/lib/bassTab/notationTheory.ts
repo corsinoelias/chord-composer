@@ -1,8 +1,8 @@
 // ── Pitch mapping for bass guitar standard tuning ─────────────────────────
 // MIDI 60 = C4 (middle C)
-// Open strings: G3=55  D3=50  A2=45  E2=40
+// Open strings (actual sounding pitch): G2=43  D2=38  A1=33  E1=28
 
-export const OPEN_MIDI = [55, 50, 45, 40] as const  // G D A E
+export const OPEN_MIDI = [43, 38, 33, 28] as const  // G2 D2 A1 E1
 
 export function fretToMidi(stringIndex: 0 | 1 | 2 | 3, fret: number): number {
   return OPEN_MIDI[stringIndex] + fret
@@ -27,7 +27,7 @@ const CHROMATIC: ChromaticEntry[] = [
 ]
 
 export interface StaffPos {
-  /** Position in bass-clef staff. 0=bottom line(G2), 0.5=1st space, 4=top line(A3) */
+  /** Position in bass-clef staff. 0=bottom line(G1), 0.5=1st space(A1), 4=top line(A2) */
   staffLine: number
   noteName: string
   octave: number
@@ -36,15 +36,16 @@ export interface StaffPos {
 
 /**
  * Maps a MIDI note to its visual position on the bass clef staff.
- * Reference: G2 (MIDI 43) = staffLine 0 (bottom line of bass clef).
+ * Reference: G1 (MIDI 31) = staffLine 0 (bottom line of standard bass clef).
+ * Staff lines: G1(0) B1(1) D2(2) F2(3) A2(4).
  */
 export function midiToStaffPos(midi: number): StaffPos {
   const chromatic = ((midi % 12) + 12) % 12
   const octave    = Math.floor(midi / 12) - 1
   const { note, acc, diatPos } = CHROMATIC[chromatic]
 
-  // Diatonic steps from G2 (octave=2, diatPos=4)
-  const steps    = (octave - 2) * 7 + (diatPos - 4)
+  // Diatonic steps from G1 (octave=1, diatPos=4)
+  const steps    = (octave - 1) * 7 + (diatPos - 4)
   const staffLine = steps * 0.5
 
   return { staffLine, noteName: note, octave, accidental: acc }
@@ -59,9 +60,9 @@ export const NOTATION = {
   lineSpacing:   8,    // px between staff lines
   staffLines:    5,
   staffH:        32,   // (5-1) * lineSpacing
-  aboveStaff:    28,   // px above top staff line (section labels, accidentals)
-  belowStaff:    18,   // px below bottom staff line (ledger lines + bracket)
-  get totalH()  { return this.aboveStaff + this.staffH + this.belowStaff }, // 78
+  aboveStaff:    18,   // px above top staff line
+  belowStaff:    22,   // px below bottom staff line (ledger lines below E string)
+  get totalH()  { return this.aboveStaff + this.staffH + this.belowStaff }, // 86
   /** Y of a given staffLine inside the notation band (top of notation band = y=0) */
   lineToY(line: number): number {
     return this.aboveStaff + (4 - line) * this.lineSpacing

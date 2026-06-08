@@ -1,132 +1,34 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Renderer, Stave, StaveNote,
-  Formatter, Voice, Beam, Accidental,
-  type RenderContext,
-} from 'vexflow'
-import {
   type BassNote, type BassTrack, type SnapValue, type StringIndex,
   type BassSound, type TrackSection,
 } from '../../lib/bassTab/types'
 import {
-  STRING_Y, STAFF_H, ABOVE_H, BELOW_H, LABEL_W, PPB,
-  TICK_OFFSET, TICK_H,
+  STRING_Y, LABEL_W, PPB,
   beatToX, barLineX, xToBeat, yToStringIndex, svgTotalWidth,
-  buildStringPath, computeBeamGroups,
 } from '../../lib/bassTab/tabNotation'
 import { snapToGrid, findNoteAtBeat, clampDuration } from '../../lib/bassTab/bassTheory'
 import { previewNote } from '../../lib/bassTab/bassAudio'
 import { useIsMobile } from '../../hooks/use-mobile'
+import { computeNotatedNotes } from '../../lib/bassTab/notationPipeline'
+import { NOTATION } from '../../lib/bassTab/notationTheory'
 
 // ── Layout constants ──────────────────────────────────────────────────────
-// VexFlow handles only the standard notation stave (top).
-// The tab stave is rendered manually in the overlay SVG (no VexFlow TabStave).
-const VF_NOTA_Y   = 14   // stave y; VexFlow's spaceAboveStaffLn:4 × 10px → first line at y+40
-const VF_NOTA_H   = 92   // notation stave bounding box height
+const NOTA_ORIGIN_Y   = 6                              // top of notation band
+const TAB_SEP         = 4                              // gap between notation bottom and tab strings
+const TAB_SPACING     = 12                             // matches STRING_Y in tabNotation.ts
+const TAB_AREA_Y      = NOTA_ORIGIN_Y + NOTATION.totalH + TAB_SEP
+const TAB_AREA_H      = TAB_SPACING * 3 + 20
+const TOTAL_H         = TAB_AREA_Y + TAB_AREA_H
 
-const TAB_SEP     = 18   // gap between notation bottom and first tab string
-const TAB_SPACING = 12   // px between strings (matches STRING_Y in tabNotation.ts)
-const TAB_AREA_Y  = VF_NOTA_Y + VF_NOTA_H + TAB_SEP   // y of G string (top string)
-const TAB_AREA_H  = TAB_SPACING * 3 + 20               // 36px strings + 20px padding below E
-const VF_TOTAL_H  = TAB_AREA_Y + TAB_AREA_H
-
-// Overlay constants (used by click detection and cursors)
 const TAB_OVERLAY_Y       = TAB_AREA_Y
 const TAB_OVERLAY_STAFF_H = TAB_SPACING * 3   // 36px
 
+const NW = NOTATION.lineSpacing * 0.72   // notehead half-width  ≈ 5.8
+const NH = NOTATION.lineSpacing * 0.52   // notehead half-height ≈ 4.2
+const BEAM_THICK = NOTATION.lineSpacing * 0.5
+
 const STRING_LABELS = ['G', 'D', 'A', 'E']
-
-// ── Duration helpers ──────────────────────────────────────────────────────
-interface VfDur { dur: string; dots: number }
-
-function beatsToVfDur(beats: number): VfDur {
-  const b = Math.round(beats * 16) / 16
-  if (b >= 4)     return { dur: 'w',  dots: 0 }
-  if (b >= 3)     return { dur: 'h',  dots: 1 }
-  if (b >= 2)     return { dur: 'h',  dots: 0 }
-  if (b >= 1.5)   return { dur: 'q',  dots: 1 }
-  if (b >= 1)     return { dur: 'q',  dots: 0 }
-  if (b >= 0.75)  return { dur: '8',  dots: 1 }
-  if (b >= 0.5)   return { dur: '8',  dots: 0 }
-  if (b >= 0.375) return { dur: '16', dots: 1 }
-  return               { dur: '16', dots: 0 }
-}
-
-function vfDurBeats(dur: string, dots: number): number {
-  const b: Record<string, number> = { w: 4, h: 2, q: 1, '8': 0.5, '16': 0.25 }
-  return (b[dur] ?? 1) * (dots > 0 ? 1.5 : 1)
-}
-
-// ── MIDI → VexFlow key string ─────────────────────────────────────────────
-const CHROMATIC_KEYS = [
-  ['c',''], ['c','#'], ['d',''], ['d','#'], ['e',''],
-  ['f',''], ['f','#'], ['g',''], ['g','#'], ['a',''],
-  ['a','#'], ['b',''],
-] as const
-
-function midiToVfKey(midi: number): { key: string; acc: string | null } {
-  const pc  = ((midi % 12) + 12) % 12
-  const oct = Math.floor(midi / 12) - 1
-  const [note, acc] = CHROMATIC_KEYS[pc]
-  return { key: `${note}${acc}/${oct}`, acc: acc || null }
-}
-
-const OPEN_MIDI = [55, 50, 45, 40] as const  // G D A E
-function fretToMidi(si: 0|1|2|3, fret: number) { return OPEN_MIDI[si] + fret }
-
-// ── Build StaveNote list for one bar (notation only — tab is rendered manually) ──
-function buildBarNotes(
-  notes: BassNote[],
-  barStart: number,
-  bpb: number,
-): { staveNotes: StaveNote[] } {
-  const barNotes = notes
-    .filter(n => n.startBeat >= barStart && n.startBeat < barStart + bpb)
-    .sort((a, b) => a.startBeat - b.startBeat)
-
-  const staveNotes: StaveNote[] = []
-  let cursor = barStart
-
-  for (const note of barNotes) {
-    const gap = note.startBeat - cursor
-    if (gap > 0.02) {
-      let rem = gap
-      while (rem > 0.02) {
-        const { dur, dots } = beatsToVfDur(rem)
-        const actual = vfDurBeats(dur, dots)
-        const restDur = dots > 0 ? `${dur}dr` : `${dur}r`
-        staveNotes.push(new StaveNote({ clef: 'bass', keys: ['d/3'], duration: restDur }))
-        rem -= actual
-        cursor += actual
-      }
-    }
-
-    const midi = fretToMidi(note.stringIndex as 0|1|2|3, note.fret)
-    const { key, acc } = midiToVfKey(midi)
-    const { dur, dots } = beatsToVfDur(note.durationBeats)
-    const noteDur = dots > 0 ? `${dur}d` : dur
-    const sn = new StaveNote({ clef: 'bass', keys: [key], duration: noteDur })
-    if (acc) sn.addModifier(new Accidental(acc), 0)
-    ;(sn as any)._bassNoteId = note.id
-    staveNotes.push(sn)
-    cursor += note.durationBeats
-  }
-
-  const tail = barStart + bpb - cursor
-  if (tail > 0.02) {
-    let rem = tail
-    while (rem > 0.02) {
-      const { dur, dots } = beatsToVfDur(rem)
-      const actual = vfDurBeats(dur, dots)
-      const tailDur = dots > 0 ? `${dur}dr` : `${dur}r`
-      staveNotes.push(new StaveNote({ clef: 'bass', keys: ['d/3'], duration: tailDur }))
-      rem -= actual
-      cursor += actual
-    }
-  }
-
-  return { staveNotes }
-}
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface EditCursor { beat: number; stringIndex: StringIndex }
@@ -163,7 +65,6 @@ export function TabNotationView({
   const isMobile         = useIsMobile()
   const containerRef     = useRef<HTMLDivElement>(null)
   const scrollRef        = useRef<HTMLDivElement>(null)
-  const vexflowRef       = useRef<HTMLDivElement>(null)
   const overlaySvgRef    = useRef<SVGSVGElement>(null)
   const sectionInputRef  = useRef<HTMLInputElement>(null)
   const fretTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -214,86 +115,11 @@ export function TabNotationView({
 
   useEffect(() => { if (fitZoom !== null) onFitZoomChange?.(fitZoom) }, [fitZoom, onFitZoomChange])
 
-  // ── VexFlow render ────────────────────────────────────────────────────
-  useEffect(() => {
-    const container = vexflowRef.current
-    if (!container) return
-    container.innerHTML = ''
-
-    try {
-      const renderer = new Renderer(container, Renderer.Backends.SVG)
-      renderer.resize(svgW, VF_TOTAL_H)
-      const ctx = renderer.getContext()
-
-      // Style for dark theme
-      ctx.setFillStyle('hsl(220, 14%, 88%)')
-      ctx.setStrokeStyle('hsl(220, 14%, 88%)')
-      ctx.setFont('Arial', 11)
-
-      for (let bar = 0; bar < track.totalBars; bar++) {
-        const staveX = barLineX(bar, track.beatsPerBar, pxPerBeat)
-        const staveW = track.beatsPerBar * pxPerBeat
-        // Reserve space for clef+timesig on first bar
-        const noteW = staveW - (bar === 0 ? 58 : 12)
-
-        // ── Notation stave ──────────────────────────────────────────
-        const stave = new Stave(staveX, VF_NOTA_Y, staveW)
-        stave.setStyle({ fillStyle: 'hsl(220, 14%, 78%)', strokeStyle: 'hsl(220, 14%, 70%)' })
-        if (bar === 0) {
-          stave.addClef('bass')
-          stave.addTimeSignature(`${track.beatsPerBar}/4`)
-        }
-        stave.setContext(ctx).draw()
-
-        // ── Notes ───────────────────────────────────────────────────
-        const { staveNotes } = buildBarNotes(track.notes, bar * track.beatsPerBar, track.beatsPerBar)
-        if (staveNotes.length === 0) continue
-
-        staveNotes.forEach(sn => {
-          const id = (sn as any)._bassNoteId as string | undefined
-          if (!id) {
-            sn.setStyle({ fillStyle: 'hsl(220, 10%, 52%)', strokeStyle: 'hsl(220, 10%, 52%)' })
-            return
-          }
-          const n = track.notes.find(n => n.id === id)
-          const isActive   = !!n && currentBeat >= n.startBeat && currentBeat < n.startBeat + n.durationBeats
-          const isSelected = id === selectedNoteId
-          const color = isActive ? '#4ade80' : isSelected ? 'hsl(262,80%,88%)' : 'hsl(220, 8%, 88%)'
-          sn.setStyle({ fillStyle: color, strokeStyle: color })
-        })
-
-        try {
-          const voice = new Voice({ numBeats: track.beatsPerBar, beatValue: 4 })
-          voice.setMode((Voice as any).Mode?.SOFT ?? 2)
-          voice.addTickables(staveNotes)
-
-          new Formatter().joinVoices([voice]).format([voice], Math.max(20, noteW))
-
-          // Generate beams BEFORE drawing so beamed notes suppress their individual flags
-          let beams: Beam[] = []
-          const beamable = staveNotes.filter(sn => !sn.isRest())
-          if (beamable.length > 1) {
-            try { beams = Beam.generateBeams(beamable) } catch {}
-          }
-
-          voice.draw(ctx, stave)
-
-          const beamColor = 'hsl(220, 14%, 86%)'
-          beams.forEach(b => {
-            b.setStyle({ fillStyle: beamColor, strokeStyle: beamColor })
-            b.setContext(ctx).draw()
-          })
-        } catch (err) {
-          console.warn(`VexFlow error bar ${bar}:`, err)
-        }
-      }
-
-      const svgEl = container.querySelector('svg')
-      if (svgEl) svgEl.style.background = 'transparent'
-    } catch (err) {
-      console.error('VexFlow render error:', err)
-    }
-  }, [track, pxPerBeat, svgW, selectedNoteId, currentBeat])
+  // ── Custom notation pipeline ──────────────────────────────────────────
+  const notated = useMemo(
+    () => computeNotatedNotes(track, pxPerBeat, NOTA_ORIGIN_Y),
+    [track, pxPerBeat],
+  )
 
   // ── Auto-scroll ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -447,7 +273,7 @@ export function TabNotationView({
 
     const rect   = overlaySvgRef.current!.getBoundingClientRect()
     const scaleX = svgW / rect.width
-    const scaleY = VF_TOTAL_H / rect.height
+    const scaleY = TOTAL_H / rect.height
     const rawX   = (e.clientX - rect.left) * scaleX
     const rawY   = (e.clientY - rect.top)  * scaleY
 
@@ -487,8 +313,23 @@ export function TabNotationView({
 
   const activeBeat = isPlaying ? currentBeat : cursorBeat
   const cursorX    = beatToX(activeBeat, pxPerBeat)
-  const cursorY1   = 5
-  const cursorY2   = VF_TOTAL_H - 5
+  const cursorY1   = 3
+  const cursorY2   = TOTAL_H - 3
+
+  // Pre-build active/selected note color map
+  const noteColorMap = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const n of track.notes) {
+      const isActive   = currentBeat >= n.startBeat && currentBeat < n.startBeat + n.durationBeats
+      const isSelected = n.id === selectedNoteId
+      m.set(n.id, isActive ? '#4ade80' : isSelected ? 'hsl(262,80%,88%)' : 'hsl(220,8%,88%)')
+    }
+    return m
+  }, [track.notes, currentBeat, selectedNoteId])
+
+  const noteLineColor = 'hsl(220,14%,42%)'
+  const staffLineColor = 'hsl(220,14%,38%)'
+  const beamColor     = 'hsl(220,8%,78%)'
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
@@ -503,25 +344,16 @@ export function TabNotationView({
         style={{
           flex: 1, overflowX: fitWidth ? 'hidden' : 'auto', overflowY: 'hidden',
           position: 'relative', background: 'hsl(224 24% 8%)',
-          minHeight: VF_TOTAL_H,
+          minHeight: TOTAL_H,
         }}
       >
-        {/* ── VexFlow render layer ── */}
-        <div
-          ref={vexflowRef}
-          style={{
-            position: 'absolute', top: 0, left: 0,
-            width: svgW, height: VF_TOTAL_H,
-            pointerEvents: 'none',
-          }}
-        />
 
-        {/* ── Interactive overlay SVG ── */}
+        {/* ── Single SVG: notation + TAB ── */}
         <svg
           ref={overlaySvgRef}
           width={svgW}
-          height={VF_TOTAL_H}
-          viewBox={`0 0 ${svgW} ${VF_TOTAL_H}`}
+          height={TOTAL_H}
+          viewBox={`0 0 ${svgW} ${TOTAL_H}`}
           onPointerDown={handleOverlayPointerDown}
           style={{
             position: 'relative', display: 'block',
@@ -529,21 +361,128 @@ export function TabNotationView({
             userSelect: 'none',
           }}
         >
-          {/* ── Manual TAB stave ── */}
+          {/* ── Notation staff lines ── */}
+          {[0,1,2,3,4].map(line => {
+            const ly = NOTA_ORIGIN_Y + NOTATION.lineToY(line)
+            return <line key={`sl${line}`} x1={LABEL_W} x2={svgW} y1={ly} y2={ly}
+              stroke={staffLineColor} strokeWidth={0.8} style={{ pointerEvents: 'none' }} />
+          })}
+
+          {/* ── System bar lines: span notation top → TAB bottom ── */}
+          {Array.from({ length: track.totalBars + 1 }, (_, bar) => {
+            const bx = barLineX(bar, track.beatsPerBar, pxPerBeat)
+            const y1 = NOTA_ORIGIN_Y + NOTATION.lineToY(4)
+            const y2 = TAB_OVERLAY_Y + TAB_OVERLAY_STAFF_H
+            const thick = bar === 0 || bar === track.totalBars
+            return <line key={`sbl${bar}`} x1={bx} x2={bx} y1={y1} y2={y2}
+              stroke={staffLineColor} strokeWidth={thick ? 1.4 : 0.7}
+              style={{ pointerEvents: 'none' }} />
+          })}
+
+          {/* ── Left system bracket ── */}
+          {(() => {
+            const bracketX = LABEL_W - 1
+            const y1 = NOTA_ORIGIN_Y + NOTATION.lineToY(4)
+            const y2 = TAB_OVERLAY_Y + TAB_OVERLAY_STAFF_H
+            return (
+              <>
+                <line x1={bracketX} y1={y1} x2={bracketX} y2={y2}
+                  stroke={staffLineColor} strokeWidth={1.8} style={{ pointerEvents: 'none' }} />
+                <line x1={bracketX - 4} y1={y1} x2={bracketX + 1} y2={y1}
+                  stroke={staffLineColor} strokeWidth={1.8} style={{ pointerEvents: 'none' }} />
+                <line x1={bracketX - 4} y1={y2} x2={bracketX + 1} y2={y2}
+                  stroke={staffLineColor} strokeWidth={1.8} style={{ pointerEvents: 'none' }} />
+              </>
+            )
+          })()}
+
+
+          {/* ── Notation notes ── */}
+          {notated.notes.map(nn => {
+            const color = noteColorMap.get(nn.noteId) ?? 'hsl(220,8%,88%)'
+            const stemColor = nn.beamGroupId !== null ? beamColor : color
+            return (
+              <g key={`nn-${nn.noteId}`} style={{ pointerEvents: 'none' }}>
+                {/* Ledger lines */}
+                {nn.ledgerLines.map(ll => {
+                  const lly = NOTA_ORIGIN_Y + NOTATION.lineToY(ll)
+                  return <line key={ll} x1={nn.x - NW * 2} x2={nn.x + NW * 2}
+                    y1={lly} y2={lly} stroke={color} strokeWidth={0.9} />
+                })}
+
+                {/* Accidental */}
+                {nn.accidental === '#' && (
+                  <text x={nn.x - NW * 2.4} y={nn.noteY + NH + 1}
+                    fontSize={NOTATION.lineSpacing * 1.5} fontFamily="serif"
+                    fill={color} textAnchor="middle"
+                    style={{ pointerEvents: 'none' }}>
+                    ♯
+                  </text>
+                )}
+
+                {/* Note head */}
+                <ellipse cx={nn.x} cy={nn.noteY} rx={NW} ry={NH}
+                  fill={nn.head.filled ? color : 'none'}
+                  stroke={color} strokeWidth={nn.head.filled ? 0 : 1.3}
+                />
+
+                {/* Stem */}
+                {nn.head.hasStem && (
+                  <line x1={nn.stemX} y1={nn.noteY} x2={nn.stemX} y2={nn.stemTipY}
+                    stroke={stemColor} strokeWidth={1.2} />
+                )}
+
+                {/* Flag for un-beamed 8th/16th */}
+                {nn.head.beamLevel >= 1 && nn.beamGroupId === null && (
+                  <path
+                    d={nn.stemDir === 'up'
+                      ? `M ${nn.stemX} ${nn.stemTipY} C ${nn.stemX+9} ${nn.stemTipY+5} ${nn.stemX+7} ${nn.stemTipY+14} ${nn.stemX+3} ${nn.stemTipY+18}`
+                      : `M ${nn.stemX} ${nn.stemTipY} C ${nn.stemX-9} ${nn.stemTipY-5} ${nn.stemX-7} ${nn.stemTipY-14} ${nn.stemX-3} ${nn.stemTipY-18}`
+                    }
+                    fill="none" stroke={color} strokeWidth={1.3}
+                  />
+                )}
+                {nn.head.beamLevel === 2 && nn.beamGroupId === null && (
+                  <path
+                    d={nn.stemDir === 'up'
+                      ? `M ${nn.stemX} ${nn.stemTipY+8} C ${nn.stemX+9} ${nn.stemTipY+13} ${nn.stemX+7} ${nn.stemTipY+22} ${nn.stemX+3} ${nn.stemTipY+26}`
+                      : `M ${nn.stemX} ${nn.stemTipY-8} C ${nn.stemX-9} ${nn.stemTipY-13} ${nn.stemX-7} ${nn.stemTipY-22} ${nn.stemX-3} ${nn.stemTipY-26}`
+                    }
+                    fill="none" stroke={color} strokeWidth={1.3}
+                  />
+                )}
+
+                {/* Dot */}
+                {nn.head.dotted && (
+                  <circle cx={nn.x + NW * 1.9} cy={nn.noteY - NH * 0.4} r={1.6} fill={color} />
+                )}
+              </g>
+            )
+          })}
+
+          {/* ── Beams ── */}
+          {notated.beams.map(beam => {
+            const dir = beam.dir === 'up' ? -1 : 1
+            return (
+              <g key={`beam-${beam.id}`} style={{ pointerEvents: 'none' }}>
+                <line x1={beam.x1} y1={beam.y1} x2={beam.x2} y2={beam.y2}
+                  stroke={beamColor} strokeWidth={BEAM_THICK} strokeLinecap="round" />
+                {beam.level === 2 && (
+                  <line x1={beam.x1} y1={beam.y1 + dir * (BEAM_THICK + 2)} x2={beam.x2} y2={beam.y2 + dir * (BEAM_THICK + 2)}
+                    stroke={beamColor} strokeWidth={BEAM_THICK} strokeLinecap="round" />
+                )}
+              </g>
+            )
+          })}
+
+          {/* ── TAB stave ── */}
           {/* String lines */}
           {[0,1,2,3].map(si => {
             const ly = TAB_OVERLAY_Y + STRING_Y[si]
             return <line key={si} x1={LABEL_W} x2={svgW} y1={ly} y2={ly}
               stroke="hsl(220,14%,62%)" strokeWidth={0.9} style={{ pointerEvents: 'none' }} />
           })}
-          {/* Bar lines */}
-          {Array.from({ length: track.totalBars + 1 }, (_, bar) => {
-            const bx = barLineX(bar, track.beatsPerBar, pxPerBeat)
-            return <line key={bar} x1={bx} x2={bx}
-              y1={TAB_OVERLAY_Y - 1} y2={TAB_OVERLAY_Y + TAB_OVERLAY_STAFF_H + 1}
-              stroke="hsl(220,14%,62%)" strokeWidth={bar === 0 || bar === track.totalBars ? 1.5 : 0.9}
-              style={{ pointerEvents: 'none' }} />
-          })}
+          {/* Bar lines handled by system bar lines above */}
           {/* T·A·B label */}
           {['T','A','B'].map((c, i) => (
             <text key={c} x={LABEL_W / 2} y={TAB_OVERLAY_Y + i * TAB_SPACING * (3/2) + TAB_SPACING / 2}
