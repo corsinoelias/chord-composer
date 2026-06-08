@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { importMidi, type MidiImportResult } from '../../lib/import/midiImport'
 import { BassTabSeekBar } from './BassTabSeekBar'
+import { MobileBarView } from './MobileBarView'
 import { type BassNote, type BassTrack, type BassSound, type SnapValue, type StringIndex, DEFAULT_TRACK } from '../../lib/bassTab/types'
 import { DEFAULT_INTRO_TRACK } from '../../data/defaultBassTab'
 import { TabScore } from './TabScore'
@@ -890,7 +891,16 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             </div>
           </div>
 
-          {viewMode === 'notation' ? (
+          {/* Main content view: desktop full views / mobile one-bar view */}
+          {isMobile ? (
+            <MobileBarView
+              track={track}
+              currentBeat={currentBeat}
+              isPlaying={isPlaying}
+              onSeek={handleSeek}
+              viewMode={viewMode}
+            />
+          ) : viewMode === 'notation' ? (
             <TabScore
               track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
               cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}

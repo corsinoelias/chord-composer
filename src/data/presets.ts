@@ -175,22 +175,32 @@ const BEAT_IT = rawNotes('beatit', [
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 7 · SMOOTH CRIMINAL (1987) · Bad · Nathan Watts
-//   A minor verse. 4 driving 16th-note A pedals (E str fret 5), then ascending
-//   walk A→B→C on A string (frets 2–3), tail note G (E str fret 3).
-//   Source: BigBassTabs — E:—555—3h5———3 / A:—————————2—0h2—33—3—2——
+//   A minor. 2-bar verse phrase × 2 = 4 bars.
+//   Bar 1: 4× A open (16ths) → G2 passing (E str fret 3) → A open → B2 B2
+//           (8ths) → A open B2 (16ths).
+//   Bar 2: C3 C3 (16ths) → B2 C3 B2 G2 → A open tail.
+//   Source: Songsterr SVG tab (measures 10–11).
 // ─────────────────────────────────────────────────────────────────────────────
-const SMOOTH_CRIMINAL = barRepeat('smoothcriminal', 4, 4, [
-  { si: 3, f: 5, b: 0.0,  d: 0.2  }, // A (E str fret 5) × 4 sixteenth pedal
-  { si: 3, f: 5, b: 0.25, d: 0.2  }, // A
-  { si: 3, f: 5, b: 0.5,  d: 0.2  }, // A
-  { si: 3, f: 5, b: 0.75, d: 0.2  }, // A
-  { si: 2, f: 2, b: 1.0,  d: 0.45 }, // B (A str fret 2)
-  { si: 2, f: 2, b: 1.5,  d: 0.45 }, // B
-  { si: 2, f: 3, b: 2.0,  d: 0.2  }, // C (A str fret 3)
-  { si: 2, f: 3, b: 2.25, d: 0.2  }, // C
-  { si: 2, f: 3, b: 2.5,  d: 0.2  }, // C
-  { si: 2, f: 2, b: 2.75, d: 0.2  }, // B
-  { si: 3, f: 3, b: 3.0,  d: 1.0  }, // G (E str fret 3) — tail, held to bar end
+const SMOOTH_CRIMINAL = phraseRepeat('smoothcriminal', 4, 4, 2, [
+  // ── Bar 1: A minor pedal groove ────────────────────────────────────────
+  { si: 2, f: 0, b: 0.00, d: 0.2  }, // A2 open × 4 sixteenth pedal
+  { si: 2, f: 0, b: 0.25, d: 0.2  },
+  { si: 2, f: 0, b: 0.50, d: 0.2  },
+  { si: 2, f: 0, b: 0.75, d: 0.2  },
+  { si: 3, f: 3, b: 1.00, d: 0.2  }, // G2 (E str fret 3) passing tone
+  { si: 2, f: 0, b: 1.25, d: 0.2  }, // A2 return
+  { si: 2, f: 2, b: 1.50, d: 0.45 }, // B2 (A str fret 2) 8th
+  { si: 2, f: 2, b: 2.00, d: 0.45 }, // B2 8th
+  { si: 2, f: 0, b: 2.50, d: 0.2  }, // A2 16th
+  { si: 2, f: 2, b: 2.75, d: 0.2  }, // B2 16th
+  // ── Bar 2: C–B movement ────────────────────────────────────────────────
+  { si: 2, f: 3, b: 4.00, d: 0.2  }, // C3 (A str fret 3) × 2 sixteenth
+  { si: 2, f: 3, b: 4.25, d: 0.2  },
+  { si: 2, f: 2, b: 5.00, d: 0.2  }, // B2
+  { si: 2, f: 3, b: 5.25, d: 0.2  }, // C3
+  { si: 2, f: 2, b: 5.50, d: 0.2  }, // B2
+  { si: 3, f: 3, b: 5.75, d: 0.2  }, // G2 (E str fret 3)
+  { si: 2, f: 0, b: 6.50, d: 0.9  }, // A2 open — quarter tail
 ])
 
 // ─────────────────────────────────────────────────────────────────────────────
