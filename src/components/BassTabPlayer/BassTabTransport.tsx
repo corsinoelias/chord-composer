@@ -61,6 +61,8 @@ interface TransportProps {
   // Desktop compact (collapse row 2)
   desktopCompact?: boolean
   onToggleDesktopCompact?: () => void
+  // Mobile fret numpad
+  onOpenFretNumpad?: () => void
 }
 
 export function BassTabTransport(props: TransportProps) {
@@ -75,6 +77,7 @@ export function BassTabTransport(props: TransportProps) {
     currentBeat = 0, beatsPerBar = 4,
     fitWidth = false, onFitWidthToggle,
     desktopCompact = false, onToggleDesktopCompact,
+    onOpenFretNumpad,
   } = props
 
   // ── Tap tempo ─────────────────────────────────────────────────────────────
@@ -144,6 +147,27 @@ export function BassTabTransport(props: TransportProps) {
               </span>
             )}
           </div>
+
+          {/* Fret chip — tap to open numpad when note selected */}
+          {hasSelectedNote && selectedNoteFret !== null && (
+            <button
+              onClick={onOpenFretNumpad}
+              title="Tap to change fret"
+              style={{
+                height: 36, padding: '0 10px', borderRadius: 8,
+                background: T.primaryBg,
+                border: `1px solid ${T.primary}`,
+                color: T.primaryText,
+                display: 'flex', alignItems: 'center', gap: 5,
+                cursor: 'pointer', flexShrink: 0,
+                touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'hsl(262 60% 65%)', lineHeight: 1 }}>Fr</span>
+              <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>{selectedNoteFret}</span>
+              <span style={{ fontSize: 9, color: 'hsl(262 60% 65%)', lineHeight: 1 }}>▾</span>
+            </button>
+          )}
 
           {/* BPM + TAP */}
           <ScrubInput value={bpm} min={40} max={240} onChange={onBpmChange} width={52} title="Drag to change BPM" />

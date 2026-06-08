@@ -30,6 +30,7 @@ interface GridProps {
   isPlaying: boolean
   selectedNoteId: string | null
   fitWidth?: boolean
+  isMobile?: boolean
   onAddNote: (note: BassNote) => void
   onUpdateNote: (id: string, patch: Partial<BassNote>) => void
   onDeleteNote: (id: string) => void
@@ -43,7 +44,7 @@ interface GridProps {
 
 export function BassTabGrid({
   track, zoom, snap, currentBeat, cursorBeat, isPlaying, selectedNoteId,
-  fitWidth = false,
+  fitWidth = false, isMobile = false,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote,
   onCursorBeatChange, onZoomChange, onBeginEdit,
   onNotePreview, onLongPressNote,
@@ -356,7 +357,7 @@ export function BassTabGrid({
                   <span style={{ color:'#fff', fontSize:noteH>32?14:11, fontWeight:700, fontFamily:'ui-monospace,monospace', lineHeight:1, pointerEvents:'none', flexShrink:0 }}>
                     {note.fret}
                   </span>
-                  <div data-resize="true" style={{ position:'absolute', right:0, top:0, width:14, height:'100%', cursor:'ew-resize', background:'rgba(255,255,255,0.08)', borderLeft:'1px solid rgba(255,255,255,0.08)', touchAction:'none' }} />
+                  <div data-resize="true" style={{ position:'absolute', right:0, top:0, width: isMobile ? 32 : 14, height:'100%', cursor:'ew-resize', background:'rgba(255,255,255,0.08)', borderLeft:'1px solid rgba(255,255,255,0.08)', touchAction:'none' }} />
                 </div>
               )
             })}
