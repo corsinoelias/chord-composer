@@ -30,9 +30,14 @@ const features = [
     desc: 'Load Billie Jean, Beat It, Thriller, and more in one click to study the basslines.',
   },
   {
+    icon: '📥',
+    title: 'MIDI import',
+    desc: 'Drag and drop any .mid file onto the editor and it converts to a bass tab instantly — ready to play and edit.',
+  },
+  {
     icon: '📤',
     title: 'Export & share',
-    desc: 'Copy as ASCII tab or export to MIDI. Share your tab via a link with no account needed.',
+    desc: 'Copy as ASCII tab, export to MIDI, or share via a URL link. No account needed.',
   },
 ];
 
@@ -64,7 +69,11 @@ const faqs = [
   },
   {
     q: 'Can I create my own bass tabs?',
-    a: 'Yes. Use the Grid editor to draw notes on any string and fret, set the duration, and adjust BPM. You can export as ASCII tab or MIDI.',
+    a: 'Yes. Use the Grid editor to draw notes on any string and fret, set the duration, and adjust BPM. You can export as ASCII tab or MIDI, or share your tab via a URL.',
+  },
+  {
+    q: 'Can I import a MIDI file?',
+    a: 'Yes. Drag and drop a .mid or .midi file onto the editor and it automatically converts to a bass tab — fret positions calculated, BPM preserved. From there you can play it back, edit notes, or export it as ASCII tab.',
   },
   {
     q: 'What songs are included?',
@@ -79,7 +88,7 @@ const bassTabAppSchema = {
   url: 'https://chordsequence.com/tools/bass-guitar-tab/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Free online bass guitar tab player and editor. Real-time playback, 4-string notation, drag & resize notes, 10+ preset songs.',
+  description: 'Free online bass guitar tab player and editor. Real-time playback, 4-string notation, drag & resize notes, MIDI import, 10+ preset songs.',
   featureList: [
     'Real-time bass playback',
     '4-string standard tuning',
@@ -88,6 +97,7 @@ const bassTabAppSchema = {
     'BPM control',
     'Electric, acoustic and slap sounds',
     '10+ preset songs',
+    'MIDI file import (drag & drop)',
     'ASCII tab export',
     'MIDI export',
     'Share via URL',
