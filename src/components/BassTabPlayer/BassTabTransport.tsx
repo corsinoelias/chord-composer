@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react'
 import {
   Play, Square, RotateCcw, Repeat,
-  Undo2, Redo2, Trash2, Download, Share2, Bell, BellOff, Music,
+  Undo2, Redo2, Trash2, Download, Share2, Bell, BellOff, Music, Upload,
   ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { type BassSound, type SnapValue } from '../../lib/bassTab/types'
@@ -40,13 +40,13 @@ interface TransportProps {
   zoom: number; volume: number; noteDuration: number
   selectedNoteFret: number | null; hasSelectedNote: boolean
   canUndo: boolean; canRedo: boolean; metronome: boolean
-  onPlay: () => void; onStop: () => void; onLoopToggle: () => void
+  onPlay: () => void; onStop: () => void; onRewind: () => void; onLoopToggle: () => void
   onBpmChange: (bpm: number) => void; onSnapChange: (snap: SnapValue) => void
   onSoundChange: (sound: BassSound) => void; onBarsChange: (bars: number) => void
   onZoomIn: () => void; onZoomOut: () => void; onZoomReset: () => void
   onFretChange: (fret: number) => void; onVolumeChange: (vol: number) => void
   onUndo: () => void; onRedo: () => void; onClearAll: () => void
-  onExportAscii: () => void; onExportMidi: () => void
+  onExportAscii: () => void; onExportMidi: () => void; onImportMidi: () => void
   onShareUrl: () => void; onMetronomeToggle: () => void
   onNoteDurationChange: (d: number) => void
   // Responsive additions
@@ -69,9 +69,9 @@ export function BassTabTransport(props: TransportProps) {
   const {
     isPlaying, loop, bpm, snap, sound, totalBars, zoom, volume, noteDuration,
     selectedNoteFret, hasSelectedNote, canUndo, canRedo, metronome,
-    onPlay, onStop, onLoopToggle, onBpmChange, onSnapChange, onSoundChange,
+    onPlay, onStop, onRewind, onLoopToggle, onBpmChange, onSnapChange, onSoundChange,
     onBarsChange, onZoomIn, onZoomOut, onZoomReset, onFretChange, onVolumeChange,
-    onUndo, onRedo, onClearAll, onExportAscii, onExportMidi, onShareUrl, onMetronomeToggle,
+    onUndo, onRedo, onClearAll, onExportAscii, onExportMidi, onImportMidi, onShareUrl, onMetronomeToggle,
     onNoteDurationChange,
     isMobile = false, compact = false, onToggleExpand,
     currentBeat = 0, beatsPerBar = 4,
@@ -305,6 +305,9 @@ export function BassTabTransport(props: TransportProps) {
               padding: '5px 10px 9px',
               borderTop: `1px solid ${T.border}`, flexWrap: 'wrap',
             }}>
+              <MIconBtn onClick={onRewind} title="Rewind to start">
+                <RotateCcw size={14} />
+              </MIconBtn>
               <MIconBtn onClick={onLoopToggle} active={loop} title="Loop"
                 activeBg={T.greenBg} activeColor={T.green} activeBorder={T.green}>
                 <Repeat size={14} />
@@ -361,6 +364,9 @@ export function BassTabTransport(props: TransportProps) {
 
               <MDivider />
 
+              <MIconBtn onClick={onImportMidi} title="Import MIDI">
+                <Upload size={14} />
+              </MIconBtn>
               <MIconBtn onClick={onExportAscii} title="Copy ASCII tab">
                 <Download size={14} />
               </MIconBtn>
@@ -402,7 +408,7 @@ export function BassTabTransport(props: TransportProps) {
                 >
                   {isPlaying ? <Square size={14} /> : <Play size={14} />}
                 </button>
-                <IconBtn onClick={onStop} title="Reset to start">
+                <IconBtn onClick={onRewind} title="Rewind to start">
                   <RotateCcw size={12} />
                 </IconBtn>
               </Group>
@@ -482,6 +488,9 @@ export function BassTabTransport(props: TransportProps) {
                 <Divider />
 
                 <Group>
+                  <IconBtn onClick={onImportMidi} title="Import MIDI (.mid)">
+                    <Upload size={12} />
+                  </IconBtn>
                   <IconBtn onClick={onExportAscii} title="Copy ASCII tab">
                     <Download size={12} />
                   </IconBtn>

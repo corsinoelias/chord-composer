@@ -1,0 +1,386 @@
+---
+export const prerender = true;
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { BassTabPreview } from '../../../components/BassTabPlayer/BassTabPreview';
+
+const features = [
+  {
+    icon: '🎵',
+    title: 'Real-time playback',
+    desc: 'Hit play and hear your bass line instantly. Adjust BPM on the fly without stopping.',
+  },
+  {
+    icon: '🎸',
+    title: 'Three views',
+    desc: 'Switch between Tab notation, Grid editor, and a realistic Bass Guitar visual — all synced.',
+  },
+  {
+    icon: '✏️',
+    title: 'Drag & resize notes',
+    desc: 'Draw notes with a click, drag to move, resize to change duration. No typing required.',
+  },
+  {
+    icon: '🔊',
+    title: 'Multiple sounds',
+    desc: 'Electric, acoustic, slap bass — choose the tone that fits your song.',
+  },
+  {
+    icon: '🎼',
+    title: '10+ preset songs',
+    desc: 'Load Billie Jean, Beat It, Thriller, and more in one click to study the basslines.',
+  },
+  {
+    icon: '📤',
+    title: 'Export & share',
+    desc: 'Copy as ASCII tab or export to MIDI. Share your tab via a link with no account needed.',
+  },
+];
+
+const presetSongs = [
+  { name: 'Billie Jean',             artist: 'Michael Jackson', genre: 'Funk / Pop',    id: 'preset-billiejean' },
+  { name: 'Beat It',                 artist: 'Michael Jackson', genre: 'Pop / Rock',    id: 'preset-beatit' },
+  { name: 'Thriller',                artist: 'Michael Jackson', genre: 'Pop / R&B',     id: 'preset-thriller' },
+  { name: "Don't Stop 'Til You Get Enough", artist: 'Michael Jackson', genre: 'Disco Funk', id: 'preset-dontstop' },
+  { name: 'Smooth Criminal',         artist: 'Michael Jackson', genre: 'Pop / R&B',     id: 'preset-smoothcriminal' },
+  { name: 'Off the Wall',            artist: 'Michael Jackson', genre: 'Funk / Soul',   id: 'preset-offthewall' },
+  { name: "Wanna Be Startin' Somethin'", artist: 'Michael Jackson', genre: 'Funk / Pop', id: 'preset-wannabe' },
+  { name: 'The Way You Make Me Feel', artist: 'Michael Jackson', genre: 'Funk / R&B',   id: 'preset-theway' },
+  { name: 'I Want You Back',         artist: 'The Jackson 5',   genre: 'Funk / Soul',   id: 'preset-iwantyouback' },
+  { name: 'Le Freak',                artist: 'Chic',            genre: 'Disco Funk',    id: 'preset-lefreak' },
+];
+
+const faqs = [
+  {
+    q: 'What is a bass guitar tab?',
+    a: 'A bass guitar tab (tablature) is a simplified notation system that shows you exactly which string and fret to play. Instead of reading sheet music, you see four horizontal lines (one per string) with numbers indicating the fret. Zero means open string.',
+  },
+  {
+    q: 'How do I read a bass tab?',
+    a: 'Each line represents a string: G (thinnest) on top, then D, A, and E (thickest) at the bottom. Numbers show which fret to press. Read left to right — numbers stacked vertically are played simultaneously.',
+  },
+  {
+    q: 'Is this bass tab player free?',
+    a: 'Yes, completely free. No account required. Open it in any modern browser on desktop or mobile.',
+  },
+  {
+    q: 'Can I create my own bass tabs?',
+    a: 'Yes. Use the Grid editor to draw notes on any string and fret, set the duration, and adjust BPM. You can export as ASCII tab or MIDI.',
+  },
+  {
+    q: 'What songs are included?',
+    a: 'The player ships with 10 preset songs including Billie Jean, Beat It, Thriller, Le Freak, and more — all with accurate fret positions and BPM.',
+  },
+];
+
+const bassTabAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Bass Guitar Tab Player',
+  url: 'https://chordsequence.com/tools/bass-guitar-tab/',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Any',
+  description: 'Free online bass guitar tab player and editor. Real-time playback, 4-string notation, drag & resize notes, 10+ preset songs.',
+  featureList: [
+    'Real-time bass playback',
+    '4-string standard tuning',
+    'Tab, Grid and Bass Guitar views',
+    'Drag & resize notes',
+    'BPM control',
+    'Electric, acoustic and slap sounds',
+    '10+ preset songs',
+    'ASCII tab export',
+    'MIDI export',
+    'Share via URL',
+  ],
+  browserRequirements: 'Requires a modern browser with Web Audio API support',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+};
+
+const howToSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'HowTo',
+  name: 'How to read a bass guitar tab',
+  description: 'Learn to read bass tablature in 3 simple steps.',
+  step: [
+    {
+      '@type': 'HowToStep',
+      position: 1,
+      name: 'Identify the strings',
+      text: 'The four horizontal lines represent the four bass strings. Bottom line = E string (thickest), top line = G string (thinnest).',
+    },
+    {
+      '@type': 'HowToStep',
+      position: 2,
+      name: 'Read the fret numbers',
+      text: 'Numbers on each line tell you which fret to press. 0 means open string (no fret pressed). Read from left to right.',
+    },
+    {
+      '@type': 'HowToStep',
+      position: 3,
+      name: 'Follow the rhythm',
+      text: 'Notes spaced further apart last longer. Use the player\'s real-time playback to hear how each note sounds in context.',
+    },
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map(f => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+};
+---
+
+<BaseLayout
+  title="Free Bass Guitar Tab Player — Play, Learn & Create Bass Tabs Online"
+  description="Free online bass guitar tab player and editor. Load Beat It, Billie Jean, Thriller and more. Real-time playback, drag & resize notes, Tab/Grid/Bass views. No signup."
+  canonicalUrl="https://chordsequence.com/tools/bass-guitar-tab/"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(bassTabAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(howToSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+  </Fragment>
+
+  <main>
+
+    <!-- ── HERO ───────────────────────────────────────────────────────────── -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pt-14 pb-10 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Free Online Tool</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4 leading-tight">
+        Bass Guitar Tab Player
+      </h1>
+      <p class="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
+        Play, learn, and create 4-string bass tabs in your browser — no install, no account.
+        Load <strong class="text-foreground">Beat It</strong> below and hit play right now.
+      </p>
+      <div class="flex flex-wrap items-center justify-center gap-3">
+        <a
+          href="/bass-tab/"
+          class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          Open Full Editor →
+        </a>
+        <a
+          href="#features"
+          class="inline-flex items-center gap-2 px-6 py-3 border border-border text-foreground font-medium rounded-lg hover:border-primary/50 transition-colors"
+        >
+          See features
+        </a>
+      </div>
+    </section>
+
+    <!-- ── INTERACTIVE DEMO ───────────────────────────────────────────────── -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-6" aria-label="Interactive bass tab demo — Beat It by Michael Jackson">
+      <BassTabPreview client:only="react" presetId="preset-beatit" editorHref="/bass-tab/" />
+    </section>
+
+    <!-- ── WHAT IS A BASS TAB ─────────────────────────────────────────────── -->
+    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-16">
+
+      <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-5">What is a bass guitar tab?</h2>
+
+      <div class="space-y-5 text-muted-foreground leading-relaxed">
+        <p>
+          A <strong class="text-foreground">bass guitar tab</strong> (tablature) is the shortcut every bassist uses to learn songs fast.
+          Instead of reading sheet music, you see four horizontal lines — one per string — with numbers showing exactly which fret to press.
+          No music theory required. Just look at the number, press the fret, play.
+        </p>
+        <p>
+          Here's the opening riff from <em class="text-foreground not-italic font-medium">Beat It</em> written as a tab:
+        </p>
+      </div>
+
+      <!-- ── TAB VISUAL CARD ── -->
+      <div class="my-8 rounded-2xl overflow-hidden border border-border shadow-sm">
+
+        <!-- Card header -->
+        <div class="flex items-center gap-3 px-5 py-4 bg-muted/40 border-b border-border">
+          <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-base shrink-0">🎸</div>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-foreground">Beat It — Michael Jackson</p>
+            <p class="text-xs text-muted-foreground">Opening bassline · Electric bass</p>
+          </div>
+          <div class="ml-auto flex items-center gap-2 shrink-0">
+            <span class="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full">138 BPM</span>
+            <span class="text-xs font-medium bg-muted text-muted-foreground px-2.5 py-1 rounded-full">Pop / Rock</span>
+          </div>
+        </div>
+
+        <!-- Tab notation -->
+        <div class="bg-zinc-950 px-5 sm:px-8 py-6 overflow-x-auto font-mono text-sm sm:text-base leading-8 select-none">
+          <!-- G string -->
+          <div class="flex items-center gap-4">
+            <span class="text-emerald-400 font-bold w-3 shrink-0">G</span>
+            <span class="text-zinc-600">|---<span class="text-white font-bold">2</span>---<span class="text-white font-bold">2</span>---<span class="text-white font-bold">2</span>---<span class="text-white font-bold">2</span>--|</span>
+          </div>
+          <!-- D string -->
+          <div class="flex items-center gap-4">
+            <span class="text-sky-400 font-bold w-3 shrink-0">D</span>
+            <span class="text-zinc-600">|---<span class="text-white font-bold">0</span>---<span class="text-white font-bold">0</span>---<span class="text-white font-bold">0</span>---<span class="text-white font-bold">0</span>--|</span>
+          </div>
+          <!-- A string -->
+          <div class="flex items-center gap-4">
+            <span class="text-amber-400 font-bold w-3 shrink-0">A</span>
+            <span class="text-zinc-600">|-<span class="text-white font-bold">3</span>---<span class="text-white font-bold">3</span>---<span class="text-white font-bold">3</span>---<span class="text-white font-bold">3</span>----|</span>
+          </div>
+          <!-- E string -->
+          <div class="flex items-center gap-4">
+            <span class="text-rose-400 font-bold w-3 shrink-0">E</span>
+            <span class="text-zinc-600">|------------------|</span>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3.5 bg-muted/30 border-t border-border text-xs text-muted-foreground">
+          <span class="flex items-center gap-1.5">
+            <span class="font-mono font-bold text-white bg-zinc-800 px-1.5 py-0.5 rounded">2</span>
+            press fret 2
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="font-mono font-bold text-white bg-zinc-800 px-1.5 py-0.5 rounded">0</span>
+            open string — no fret
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="text-rose-400 font-bold font-mono">E</span>
+            thickest string, lowest pitch
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="text-emerald-400 font-bold font-mono">G</span>
+            thinnest string, highest pitch
+          </span>
+        </div>
+      </div>
+
+      <!-- ── HOW TO READ ── -->
+      <p class="text-muted-foreground leading-relaxed mb-8">
+        See the pattern? The <span class="text-amber-400 font-semibold font-mono">A</span> string carries the groove (fret 3),
+        while the <span class="text-sky-400 font-semibold font-mono">D</span> string adds the open notes that give Beat It its punchy feel.
+        The <span class="text-rose-400 font-semibold font-mono">E</span> string stays silent the whole bar — that space is what makes it breathe.
+      </p>
+
+      <h3 class="text-xl font-semibold text-foreground mb-6">How to read a bass tab in 3 steps</h3>
+
+      <div class="space-y-5">
+        <!-- Step 1 -->
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mt-0.5">1</div>
+          <div>
+            <p class="font-semibold text-foreground mb-1">Find your strings</p>
+            <p class="text-muted-foreground text-sm leading-relaxed">
+              The four lines are your four strings.
+              Bottom = <span class="text-rose-400 font-mono font-bold">E</span> (thickest, lowest).
+              Going up: <span class="text-amber-400 font-mono font-bold">A</span>, <span class="text-sky-400 font-mono font-bold">D</span>, <span class="text-emerald-400 font-mono font-bold">G</span> (thinnest, highest).
+              Same order as the strings on your bass, from bottom to top.
+            </p>
+          </div>
+        </div>
+        <!-- Step 2 -->
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mt-0.5">2</div>
+          <div>
+            <p class="font-semibold text-foreground mb-1">Read the numbers</p>
+            <p class="text-muted-foreground text-sm leading-relaxed">
+              A number means press that fret. <span class="font-mono font-bold text-foreground">0</span> means open string — don't press anything, just pluck.
+              Dashes (<span class="font-mono text-foreground">---</span>) are silence between notes. Read left to right.
+            </p>
+          </div>
+        </div>
+        <!-- Step 3 -->
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mt-0.5">3</div>
+          <div>
+            <p class="font-semibold text-foreground mb-1">Feel the rhythm</p>
+            <p class="text-muted-foreground text-sm leading-relaxed">
+              Tabs show <em>where</em> to play but not always <em>when</em>. Hit play on the demo above
+              and watch the notation scroll — that's the fastest way to lock in the rhythm.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── FEATURES ───────────────────────────────────────────────────────── -->
+    <section id="features" class="bg-muted/30 border-y border-border py-16">
+      <div class="mx-auto max-w-5xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-2 text-center">Everything you need to learn bass</h2>
+        <p class="text-muted-foreground text-center mb-10 max-w-xl mx-auto">
+          Built for bassists of all levels — from beginners reading their first tab to players who want to transcribe their own lines.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {features.map(f => (
+            <div class="rounded-xl border border-border bg-card p-6">
+              <div class="text-2xl mb-3">{f.icon}</div>
+              <h3 class="font-semibold text-foreground mb-1">{f.title}</h3>
+              <p class="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div class="mt-8 text-center">
+          <a
+            href="/bass-tab/"
+            class="inline-flex items-center gap-2 px-7 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            Open Full Editor →
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PRESET SONGS ───────────────────────────────────────────────────── -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 py-16">
+      <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-2">Songs included</h2>
+      <p class="text-muted-foreground mb-8 max-w-xl">
+        Load any of these songs with one click inside the editor. Accurate fret positions and BPM.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {presetSongs.map(s => (
+          <a
+            href="/bass-tab/"
+            class="group flex items-center justify-between rounded-lg border border-border bg-card px-5 py-4 hover:border-primary/50 transition-colors"
+          >
+            <div>
+              <p class="font-semibold text-foreground group-hover:text-primary transition-colors text-sm">{s.name}</p>
+              <p class="text-xs text-muted-foreground mt-0.5">{s.artist} · {s.genre}</p>
+            </div>
+            <svg class="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- ── FAQ ────────────────────────────────────────────────────────────── -->
+    <section class="bg-muted/30 border-t border-border py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-10 text-center">Frequently asked questions</h2>
+        <div class="space-y-6">
+          {faqs.map(f => (
+            <div class="rounded-xl border border-border bg-card p-6">
+              <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
+              <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- ── BOTTOM CTA ─────────────────────────────────────────────────────── -->
+    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-16 text-center">
+      <h2 class="text-2xl font-bold text-foreground mb-3">Ready to play?</h2>
+      <p class="text-muted-foreground mb-6 max-w-md mx-auto">
+        Open the full editor and start learning bass lines today. Free, no account needed.
+      </p>
+      <a
+        href="/bass-tab/"
+        class="inline-flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground font-bold rounded-xl text-lg hover:bg-primary/90 transition-colors"
+      >
+        Open Bass Tab Player →
+      </a>
+    </section>
+
+  </main>
+</BaseLayout>

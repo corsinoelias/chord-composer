@@ -38,6 +38,18 @@ function phraseRepeat(id: string, bpb: number, bars: number, phraseBars: number,
   ).flat()
 }
 
+/** One-shot note list (no phrase repeat) — for songs with variation between phrases */
+function rawNotes(id: string, pat: N[]): BassNote[] {
+  return pat.map((p, i) => ({
+    id:            `${id}-${i}`,
+    stringIndex:   p.si as StringIndex,
+    fret:          p.f,
+    startBeat:     p.b,
+    durationBeats: p.d,
+    velocity:      0.8,
+  }))
+}
+
 // ─── String / fret reference (standard bass tuning) ─────────────────────────
 //  si=3  E string (E1): E=0  F=1  F#=2  G=3  G#=4  A=5  Bb=6  B=7  C=8  C#=9  D=10  Eb=11
 //  si=2  A string (A1): A=0  Bb=1 B=2   C=3  C#=4  D=5  Eb=6  E=7  F=8  F#=9  G=10  Ab=11
@@ -135,18 +147,30 @@ const WANNA_BE = barRepeat('wannabe', 4, 4, [
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 6 · BEAT IT (1982) · Thriller · session bassist
-//   E minor rock groove. Quarter/8th note pattern — E pedal drives the verse;
-//   G and A mark the power-chord changes.
+//   Eb minor. 2-bar phrase × 2: Eb3 root → F#2–Bb2 low run → Gb3 accent
+//   → Eb3 held → F3 → Eb3–Db3 tail. 4 bars total.
+//   Source: Samplab MIDI transcription (+12 transpose applied).
 // ─────────────────────────────────────────────────────────────────────────────
-const BEAT_IT = barRepeat('beatit', 4, 4, [
-  { si: 3, f: 0, b: 0.0, d: 0.45 }, // E  (open)
-  { si: 3, f: 0, b: 0.5, d: 0.45 }, // E
-  { si: 3, f: 0, b: 1.0, d: 0.45 }, // E
-  { si: 3, f: 3, b: 1.5, d: 0.45 }, // G  (E str fret 3)
-  { si: 3, f: 5, b: 2.0, d: 0.45 }, // A  (E str fret 5)
-  { si: 3, f: 5, b: 2.5, d: 0.45 }, // A
-  { si: 3, f: 3, b: 3.0, d: 0.45 }, // G
-  { si: 3, f: 0, b: 3.5, d: 0.45 }, // E
+const BEAT_IT = rawNotes('beatit', [
+  // ── Phrase 1 (bars 1–2) ────────────────────────────────────────────────
+  { si: 1, f:  1, b:  0.000, d: 0.969 }, // D#3/Eb3 (D str fret 1)
+  { si: 3, f:  2, b:  0.969, d: 0.448 }, // F#2     (E str fret 2)
+  { si: 2, f:  1, b:  1.492, d: 0.448 }, // A#2/Bb2 (A str fret 1)
+  { si: 1, f:  4, b:  1.940, d: 0.521 }, // F#3     (D str fret 4)
+  { si: 1, f:  1, b:  2.462, d: 1.492 }, // D#3     held
+  { si: 1, f:  3, b:  3.956, d: 0.969 }, // F3      (D str fret 3)
+  { si: 1, f:  1, b:  5.002, d: 0.448 }, // D#3
+  { si: 2, f:  4, b:  5.525, d: 0.448 }, // C#3/Db3 (A str fret 4)
+  { si: 2, f:  4, b:  6.496, d: 0.448 }, // C#3/Db3
+  // ── Phrase 2 (bars 3–4) ────────────────────────────────────────────────
+  { si: 1, f:  1, b:  7.987, d: 1.044 }, // D#3
+  { si: 3, f:  2, b:  9.033, d: 0.448 }, // F#2
+  { si: 2, f:  1, b:  9.556, d: 0.448 }, // A#2/Bb2
+  { si: 1, f:  4, b: 10.004, d: 0.521 }, // F#3
+  { si: 1, f:  1, b: 10.527, d: 1.492 }, // D#3     held
+  { si: 1, f:  3, b: 12.021, d: 0.969 }, // F3
+  { si: 1, f:  1, b: 13.067, d: 0.448 }, // D#3
+  { si: 2, f:  4, b: 13.587, d: 0.448 }, // C#3/Db3
 ])
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -226,6 +250,116 @@ const I_WANT_YOU_BACK = phraseRepeat('iwantyouback', 4, 4, 2, [
   { si: 2, f: 0,  b: 7.75, d: 0.2  }, // A
 ])
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 11 · VENCIÓ · Marcos Witt
+//   C# minor. Driving praise groove: C#3 root → E3–F#3 run → A2 anchor
+//   → B2 approach → C#3 resolve. 4-bar phrase with slight variation in bar 3.
+//   Source: Samplab MIDI transcription (+12 transpose applied).
+// ─────────────────────────────────────────────────────────────────────────────
+const VENCIO = rawNotes('vencio', [
+  { si: 2, f:  4, b:  0.000, d: 0.825 }, // C#3
+  { si: 1, f:  2, b:  0.894, d: 0.687 }, // E3
+  { si: 1, f:  4, b:  1.650, d: 0.481 }, // F#3
+  { si: 2, f:  0, b:  1.994, d: 0.619 }, // A2
+  { si: 1, f:  4, b:  2.131, d: 0.275 }, // F#3
+  { si: 1, f:  2, b:  2.406, d: 0.550 }, // E3
+  { si: 2, f:  4, b:  2.890, d: 0.481 }, // C#3
+  { si: 2, f:  2, b:  3.440, d: 0.412 }, // B2
+  { si: 2, f:  4, b:  3.852, d: 0.962 }, // C#3
+  { si: 2, f:  0, b:  4.746, d: 0.275 }, // A2
+  { si: 1, f:  2, b:  4.952, d: 0.687 }, // E3
+  { si: 2, f:  0, b:  5.640, d: 1.169 }, // A2
+  { si: 1, f:  4, b:  5.708, d: 0.275 }, // F#3
+  { si: 1, f:  4, b:  6.123, d: 0.275 }, // F#3
+  { si: 1, f:  2, b:  6.398, d: 0.550 }, // E3
+  { si: 2, f:  4, b:  6.879, d: 0.481 }, // C#3
+  { si: 2, f:  2, b:  7.429, d: 0.412 }, // B2
+  { si: 2, f:  4, b:  7.842, d: 0.962 }, // C#3
+  { si: 2, f:  0, b:  8.806, d: 0.206 }, // A2
+  { si: 1, f:  2, b:  8.875, d: 0.756 }, // E3
+  { si: 2, f:  0, b:  9.631, d: 1.169 }, // A2
+  { si: 1, f:  4, b:  9.769, d: 0.344 }, // F#3
+  { si: 1, f:  4, b: 10.112, d: 0.275 }, // F#3
+  { si: 1, f:  2, b: 10.387, d: 0.550 }, // E3
+  { si: 2, f:  4, b: 10.937, d: 0.481 }, // C#3
+  { si: 2, f:  2, b: 11.419, d: 0.481 }, // B2
+  { si: 0, f:  9, b: 11.419, d: 0.412 }, // E4  (octave accent)
+  { si: 2, f:  4, b: 11.902, d: 1.031 }, // C#3
+  { si: 1, f:  2, b: 13.002, d: 0.687 }, // E3
+  { si: 2, f:  0, b: 13.690, d: 0.756 }, // A2
+  { si: 1, f:  4, b: 13.758, d: 0.412 }, // F#3
+  { si: 1, f:  4, b: 14.171, d: 0.275 }, // F#3
+  { si: 2, f:  0, b: 14.448, d: 0.550 }, // A2
+  { si: 1, f:  2, b: 14.448, d: 0.550 }, // E3
+  { si: 2, f:  4, b: 14.998, d: 0.481 }, // C#3
+  { si: 2, f:  2, b: 15.479, d: 0.481 }, // B2
+  { si: 2, f:  4, b: 16.029, d: 0.894 }, // C#3
+])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 12 · FIESTA EN EL DESIERTO · Montesanto
+//   A major. Syncopated praise groove: A2–C#3 call-response, D#3–E3 chromatic
+//   approach, B2 anchor → G#2–C3 movement, resolves to G3.
+//   Source: Samplab MIDI transcription (+12 transpose applied).
+// ─────────────────────────────────────────────────────────────────────────────
+const FIESTA = rawNotes('fiesta', [
+  { si: 2, f:  0, b:  0.000, d: 0.969 }, // A2
+  { si: 2, f:  4, b:  0.896, d: 1.044 }, // C#3
+  { si: 2, f:  0, b:  1.867, d: 0.521 }, // A2
+  { si: 2, f:  4, b:  2.387, d: 0.448 }, // C#3
+  { si: 1, f:  1, b:  2.835, d: 0.521 }, // D#3
+  { si: 1, f:  2, b:  3.358, d: 0.521 }, // E3
+  { si: 2, f:  2, b:  3.881, d: 0.969 }, // B2
+  { si: 1, f:  1, b:  4.852, d: 1.044 }, // D#3
+  { si: 2, f:  2, b:  5.898, d: 0.448 }, // B2
+  { si: 1, f:  1, b:  6.421, d: 0.448 }, // D#3
+  { si: 1, f:  2, b:  6.869, d: 0.448 }, // E3
+  { si: 1, f:  4, b:  7.392, d: 0.448 }, // F#3
+  { si: 3, f:  4, b:  7.840, d: 1.044 }, // G#2  (E str fret 4)
+  { si: 2, f:  3, b:  8.958, d: 0.896 }, // C3
+  { si: 3, f:  4, b:  9.854, d: 0.521 }, // G#2
+  { si: 2, f:  3, b: 10.377, d: 0.448 }, // C3
+  { si: 2, f:  4, b: 10.900, d: 0.448 }, // C#3
+  { si: 1, f:  1, b: 11.348, d: 0.521 }, // D#3
+  { si: 2, f:  4, b: 11.871, d: 0.969 }, // C#3
+  { si: 1, f:  2, b: 12.842, d: 0.969 }, // E3
+  { si: 2, f:  4, b: 13.887, d: 0.448 }, // C#3
+  { si: 1, f:  2, b: 14.335, d: 0.521 }, // E3
+  { si: 1, f:  4, b: 14.858, d: 0.521 }, // F#3
+  { si: 0, f:  0, b: 15.381, d: 0.373 }, // G3
+])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10 · LE FREAK (1978) · C'est Chic · Bernard Edwards
+//   A minor. 2-bar disco-funk phrase, moderate ♩ = 120.
+//   Bar 1: A root (E5) → chromatic run E-open/F#/G → C octave pair (A3×2)
+//           → A return (E5) → G/A 16th tail.
+//   Bar 2: D pair (A5×2) → chuck E-open / G / A → C pair → E-open / G resolve.
+//   Source: SVG score (BigBassTabs-style notation, 2 staves)
+// ─────────────────────────────────────────────────────────────────────────────
+const LE_FREAK = phraseRepeat('lefreak', 4, 8, 2, [
+  // ── Bar 1 ──────────────────────────────────────────────────────────────────
+  { si: 3, f: 5,  b: 0.0,  d: 1.0  }, // A  (E str fret 5) — root, quarter
+  { si: 3, f: 0,  b: 1.0,  d: 0.25 }, // E  open
+  { si: 3, f: 2,  b: 1.25, d: 0.25 }, // F# (E str fret 2)
+  { si: 3, f: 3,  b: 1.5,  d: 0.5  }, // G  (E str fret 3)
+  { si: 2, f: 3,  b: 2.0,  d: 0.5  }, // C  (A str fret 3)
+  { si: 2, f: 3,  b: 2.5,  d: 0.5  }, // C
+  { si: 3, f: 5,  b: 3.0,  d: 0.5  }, // A  (E str fret 5)
+  { si: 3, f: 3,  b: 3.5,  d: 0.25 }, // G
+  { si: 3, f: 5,  b: 3.75, d: 0.25 }, // A
+  // ── Bar 2 ──────────────────────────────────────────────────────────────────
+  { si: 2, f: 5,  b: 4.0,  d: 0.5  }, // D  (A str fret 5)
+  { si: 2, f: 5,  b: 4.5,  d: 0.5  }, // D
+  { si: 3, f: 0,  b: 5.0,  d: 0.25 }, // E  open chuck
+  { si: 3, f: 3,  b: 5.25, d: 0.25 }, // G
+  { si: 3, f: 5,  b: 5.5,  d: 0.5  }, // A
+  { si: 2, f: 3,  b: 6.0,  d: 0.5  }, // C
+  { si: 2, f: 3,  b: 6.5,  d: 0.5  }, // C
+  { si: 3, f: 0,  b: 7.0,  d: 0.5  }, // E  open
+  { si: 3, f: 3,  b: 7.5,  d: 0.5  }, // G
+])
+
 // ─── Export ───────────────────────────────────────────────────────────────────
 export const PRESETS: Preset[] = [
   {
@@ -266,7 +400,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'preset-beatit',
     name: 'Beat It', artist: 'Michael Jackson', bassist: 'session bassist',
-    genre: 'Pop / Rock', bpm: 138, beatsPerBar: 4, totalBars: 4,
+    genre: 'Pop / Rock', bpm: 140, beatsPerBar: 4, totalBars: 4,
     defaultSound: 'electric', notes: BEAT_IT,
     sections: [{ name: 'Verse', startBar: 0 }],
   },
@@ -289,6 +423,27 @@ export const PRESETS: Preset[] = [
     name: 'I Want You Back', artist: 'The Jackson 5', bassist: 'Wilton Felder',
     genre: 'Funk / Soul', bpm: 98, beatsPerBar: 4, totalBars: 4,
     defaultSound: 'electric', notes: I_WANT_YOU_BACK,
+    sections: [{ name: 'Verse', startBar: 0 }],
+  },
+  {
+    id: 'preset-lefreak',
+    name: 'Le Freak', artist: 'Chic', bassist: 'Bernard Edwards',
+    genre: 'Disco Funk', bpm: 120, beatsPerBar: 4, totalBars: 8,
+    defaultSound: 'slap', notes: LE_FREAK,
+    sections: [{ name: 'Verse', startBar: 0 }],
+  },
+  {
+    id: 'preset-vencio',
+    name: 'Venció', artist: 'Marcos Witt', bassist: 'session bassist',
+    genre: 'Worship', bpm: 129, beatsPerBar: 4, totalBars: 5,
+    defaultSound: 'electric', notes: VENCIO,
+    sections: [{ name: 'Verse', startBar: 0 }],
+  },
+  {
+    id: 'preset-fiesta',
+    name: 'Fiesta en el Desierto', artist: 'Montesanto', bassist: 'session bassist',
+    genre: 'Worship', bpm: 140, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'electric', notes: FIESTA,
     sections: [{ name: 'Verse', startBar: 0 }],
   },
 ]

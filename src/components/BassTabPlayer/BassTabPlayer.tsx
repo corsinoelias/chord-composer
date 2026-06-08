@@ -1,7 +1,10 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { importMidi, type MidiImportResult } from '../../lib/import/midiImport'
+import { BassTabSeekBar } from './BassTabSeekBar'
 import { type BassNote, type BassTrack, type BassSound, type SnapValue, type StringIndex, DEFAULT_TRACK } from '../../lib/bassTab/types'
 import { DEFAULT_INTRO_TRACK } from '../../data/defaultBassTab'
 import { TabScore } from './TabScore'
+import { TabNotationView } from './TabNotationView'
 import { snapToGrid, findNoteAtBeat, clampDuration } from '../../lib/bassTab/bassTheory'
 import { startPlayback, stopPlayback, setMasterVolume, previewNote } from '../../lib/bassTab/bassAudio'
 import { toAsciiTab, encodeTrackToHash, decodeTrackFromHash, copyToClipboard, exportMidiFile } from '../../lib/bassTab/exportTab'
@@ -10,7 +13,7 @@ import { BassTabFretboard } from './BassTabFretboard'
 import { BassTabGrid } from './BassTabGrid'
 import { BassRealisticDisplay } from './BassRealisticDisplay'
 import { PresetPicker } from './PresetPicker'
-import { type Preset } from '../../data/presets'
+import { type Preset, PRESETS } from '../../data/presets'
 import { useIsMobile } from '../../hooks/use-mobile'
 
 const STORAGE_KEY = 'bass-tab-track-v1'
@@ -33,23 +36,35 @@ function loadTrack(): BassTrack {
 
 interface CtxMenu { x: number; y: number; noteId?: string; bar?: number }
 
-export function BassTabPlayer() {
+export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}) {
   const isMobile = useIsMobile()
 
-  const [track, setTrack]               = useState<BassTrack>(loadTrack)
+  const [track, setTrack] = useState<BassTrack>(() => {
+    if (initialPreset) {
+      const p = PRESETS.find(pr => pr.id === initialPreset)
+      if (p) return { id: p.id, name: p.name, bpm: p.bpm, beatsPerBar: p.beatsPerBar, totalBars: p.totalBars, notes: p.notes, sections: p.sections }
+    }
+    return loadTrack()
+  })
   const [history, setHistory]           = useState<History>({ past: [], future: [] })
   const [isPlaying, setIsPlaying]       = useState(false)
   const [currentBeat, setCurrentBeat]   = useState(0)
   const [cursorBeat, setCursorBeat]     = useState(0)
   const [zoom, setZoom]                 = useState(1)
   const [snap, setSnap]                 = useState<SnapValue>(0.25)
-  const [sound, setSound]               = useState<BassSound>('electric')
+  const [sound, setSound]               = useState<BassSound>(() => {
+    if (initialPreset) {
+      const p = PRESETS.find(pr => pr.id === initialPreset)
+      if (p) return p.defaultSound
+    }
+    return 'electric'
+  })
   const [loop, setLoop]                 = useState(true)
   const [volume, setVolume]             = useState(0.75)
   const [selectedNoteId, setSelectedId] = useState<string | null>(null)
   const [metronome, setMetronome]       = useState(false)
   const [guitarView, setGuitarView]     = useState(false)
-  const [viewMode, setViewMode]         = useState<'notation' | 'grid'>('notation')
+  const [viewMode, setViewMode]         = useState<'notation' | 'score' | 'grid'>('notation')
   const [noteDuration, setNoteDuration] = useState<number>(0.5)
   const [ctxMenu, setCtxMenu]           = useState<CtxMenu | null>(null)
   const [toast, setToast]               = useState<string | null>(null)
@@ -63,6 +78,12 @@ export function BassTabPlayer() {
   const [fretNumpadOpen, setFretNumpadOpen]         = useState(false)
   const [isWide, setIsWide]                         = useState(false)
   const [isShortScreen, setIsShortScreen]           = useState(false)
+  // ── MIDI import ───────────────────────────────────────────────────────────
+  const [dragOver, setDragOver]                     = useState(false)
+  const [midiPending, setMidiPending]               = useState<MidiImportResult | null>(null)
+  const [midiError, setMidiError]                   = useState<string | null>(null)
+  const dragCounterRef                              = useRef(0)
+  const fileInputRef                                = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const check = () => {
@@ -89,9 +110,9 @@ export function BassTabPlayer() {
   }, [isPlaying, isMobile])
 
   // Switch view (bottom nav handler)
-  const handleSelectView = useCallback((view: 'notation' | 'grid' | 'guitar') => {
+  const handleSelectView = useCallback((view: 'notation' | 'score' | 'grid' | 'guitar') => {
     if (view === 'guitar') { setGuitarView(true) }
-    else { setGuitarView(false); setViewMode(view) }
+    else { setGuitarView(false); setViewMode(view as 'notation' | 'score' | 'grid') }
   }, [])
 
   const handleLoadPreset = useCallback((preset: Preset) => {
@@ -123,6 +144,70 @@ export function BassTabPlayer() {
     setToast(msg)
     setTimeout(() => setToast(null), 2000)
   }, [])
+
+  // ── MIDI import handlers ───────────────────────────────────────────────────
+  const handleImportTrack = useCallback((imported: BassTrack) => {
+    stopPlayback()
+    setIsPlaying(false)
+    setCurrentBeat(0)
+    setCursorBeat(0)
+    setSelectedId(null)
+    setHistory({ past: [], future: [] })
+    setTrack(imported)
+    setMidiPending(null)
+    showToast(`Imported: ${imported.name}`)
+  }, [showToast])
+
+  const processDropFile = useCallback(async (file: File) => {
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (ext !== 'mid' && ext !== 'midi') {
+      setMidiError(`Format .${ext ?? '?'} not supported. Drop a .mid or .midi file.`)
+      setTimeout(() => setMidiError(null), 4000)
+      return
+    }
+    try {
+      const buf = await file.arrayBuffer()
+      const result = importMidi(buf)
+      if (result.ok === false) {
+        setMidiError(result.error)
+        setTimeout(() => setMidiError(null), 5000)
+        return
+      }
+      setMidiPending(result)
+    } catch {
+      setMidiError('Could not read file.')
+      setTimeout(() => setMidiError(null), 4000)
+    }
+  }, [])
+
+  const handleImportMidiClick = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) processDropFile(file)
+    e.target.value = ''
+  }, [processDropFile])
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounterRef.current++
+    if (e.dataTransfer.items.length > 0) setDragOver(true)
+  }, [])
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounterRef.current--
+    if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setDragOver(false) }
+  }, [])
+  const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault() }, [])
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounterRef.current = 0
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) processDropFile(file)
+  }, [processDropFile])
 
   const selectedNote = useMemo(
     () => track.notes.find(n => n.id === selectedNoteId) ?? null,
@@ -236,8 +321,29 @@ export function BassTabPlayer() {
   const handleStop = useCallback(() => {
     stopPlayback()
     setIsPlaying(false)
+    // Keep currentBeat so user can resume or see where they stopped
+  }, [])
+
+  const handleRewind = useCallback(() => {
+    stopPlayback()
+    setIsPlaying(false)
     setCurrentBeat(0)
   }, [])
+
+  const handleSeek = useCallback((beat: number) => {
+    const totalBeats = track.totalBars * track.beatsPerBar
+    const clamped = Math.max(0, Math.min(beat, totalBeats))
+    setCurrentBeat(clamped)
+    if (isPlaying) {
+      stopPlayback()
+      startPlayback(track, clamped, sound,
+        (b) => setCurrentBeat(b),
+        () => setIsPlaying(false),
+        loop,
+        metronome,
+      )
+    }
+  }, [isPlaying, track, sound, loop, metronome])
 
   // ── Note mutations ─────────────────────────────────────────────────────────
   const addNote = useCallback((note: BassNote) => {
@@ -481,18 +587,22 @@ export function BassTabPlayer() {
     return () => window.removeEventListener('keydown', onKey)
   }, [isPlaying, handlePlay, handleStop, selectedNoteId, deleteNote, selectedNote, updateNote, snap, handleUndo, handleRedo, duplicateNote])
 
-  const activeView: 'notation' | 'grid' | 'guitar' = guitarView ? 'guitar' : viewMode
+  const activeView: 'notation' | 'score' | 'grid' | 'guitar' = guitarView ? 'guitar' : viewMode
 
   return (
     <div
       className="flex flex-col text-white"
       style={{
-        height: '100dvh',
+        height: '100dvh', position: 'relative',
         fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
         overflow: 'hidden', overscrollBehavior: 'none',
         background: 'hsl(224 24% 8%)',
       }}
       onContextMenu={handleContextMenu}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div
@@ -591,18 +701,19 @@ export function BassTabPlayer() {
 
             {!guitarView && (
               <button
-                onClick={() => setViewMode(m => m === 'notation' ? 'grid' : 'notation')}
+                onClick={() => setViewMode(m => m === 'notation' ? 'score' : m === 'score' ? 'grid' : 'notation')}
+                title="Cycle: Tab → Score → Grid"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
                   padding: '3px 10px', borderRadius: 20,
                   fontSize: 11, fontWeight: 500, cursor: 'pointer', border: '1px solid',
-                  borderColor: viewMode === 'notation' ? 'hsl(262 40% 40%)' : 'hsl(224 15% 28%)',
-                  background:  viewMode === 'notation' ? 'hsl(262 40% 18%)' : 'hsl(224 18% 14%)',
-                  color:       viewMode === 'notation' ? 'hsl(262 80% 80%)' : 'hsl(220 10% 55%)',
+                  borderColor: viewMode !== 'grid' ? 'hsl(262 40% 40%)' : 'hsl(224 15% 28%)',
+                  background:  viewMode !== 'grid' ? 'hsl(262 40% 18%)' : 'hsl(224 18% 14%)',
+                  color:       viewMode !== 'grid' ? 'hsl(262 80% 80%)' : 'hsl(220 10% 55%)',
                   transition: 'all 0.15s',
                 }}
               >
-                {viewMode === 'notation' ? 'Notation' : 'Grid'}
+                {viewMode === 'notation' ? 'Tab' : viewMode === 'score' ? 'Score' : 'Grid'}
               </button>
             )}
 
@@ -657,14 +768,14 @@ export function BassTabPlayer() {
         totalBars={track.totalBars} zoom={zoom} volume={volume} noteDuration={noteDuration}
         hasSelectedNote={!!selectedNote} selectedNoteFret={selectedNote?.fret ?? null}
         canUndo={history.past.length > 0} canRedo={history.future.length > 0} metronome={metronome}
-        onPlay={handlePlay} onStop={handleStop} onLoopToggle={() => setLoop(l => !l)}
+        onPlay={handlePlay} onStop={handleStop} onRewind={handleRewind} onLoopToggle={() => setLoop(l => !l)}
         onBpmChange={handleBpmChange} onSnapChange={setSnap} onSoundChange={handleSoundChange}
         onBarsChange={(bars) => setTrack(t => ({ ...t, totalBars: bars }))}
         onZoomIn={() => handleZoomChange(zoom + 0.25)} onZoomOut={() => handleZoomChange(zoom - 0.25)} onZoomReset={() => handleZoomChange(1)}
         onFretChange={handleFretChange} onVolumeChange={handleVolumeChange}
         onUndo={handleUndo} onRedo={handleRedo}
         onClearAll={handleClearAll} onExportAscii={handleExportAscii}
-        onExportMidi={handleExportMidi} onShareUrl={handleShareUrl}
+        onExportMidi={handleExportMidi} onImportMidi={handleImportMidiClick} onShareUrl={handleShareUrl}
         onMetronomeToggle={() => setMetronome(m => !m)}
         onNoteDurationChange={handleNoteDurationChange}
         onOpenFretNumpad={() => setFretNumpadOpen(true)}
@@ -684,6 +795,15 @@ export function BassTabPlayer() {
         onToggleDesktopCompact={() => setDesktopCompact(c => !c)}
       />
 
+      {/* ── Seek bar ──────────────────────────────────────────────────────── */}
+      <BassTabSeekBar
+        currentBeat={currentBeat}
+        totalBeats={track.totalBars * track.beatsPerBar}
+        beatsPerBar={track.beatsPerBar}
+        isPlaying={isPlaying}
+        onSeek={handleSeek}
+      />
+
       {/* ── Main content ──────────────────────────────────────────────────── */}
       {guitarView ? (
         <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
@@ -701,6 +821,16 @@ export function BassTabPlayer() {
                 onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
                 onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
                 onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
+              />
+            ) : viewMode === 'score' ? (
+              <TabNotationView
+                track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
+                cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
+                sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
+                onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
+                onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
+                onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
+                onFitZoomChange={handleZoomChange}
               />
             ) : (
               <BassTabGrid
@@ -769,6 +899,16 @@ export function BassTabPlayer() {
               onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
               onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
             />
+          ) : viewMode === 'score' ? (
+            <TabNotationView
+              track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
+              cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
+              sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
+              onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
+              onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
+              onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
+              onFitZoomChange={handleZoomChange}
+            />
           ) : (
             <BassTabGrid
               track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
@@ -801,9 +941,10 @@ export function BassTabPlayer() {
           display: 'flex',
         }}>
           {([
-            { id: 'notation', label: 'Tab',    icon: <TabIcon /> },
-            { id: 'grid',     label: 'Grid',   icon: <GridIcon /> },
-            { id: 'guitar',   label: 'Bass',   icon: <GuitarIcon /> },
+            { id: 'notation', label: 'Tab',   icon: <TabIcon /> },
+            { id: 'score',    label: 'Score', icon: <ScoreIcon /> },
+            { id: 'grid',     label: 'Grid',  icon: <GridIcon /> },
+            { id: 'guitar',   label: 'Bass',  icon: <GuitarIcon /> },
           ] as const).map(tab => {
             const isActive = activeView === tab.id
             return (
@@ -911,6 +1052,164 @@ export function BassTabPlayer() {
         return null
       })()}
 
+      {/* ── Hidden file input for MIDI import button ──────────────────────── */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".mid,.midi"
+        style={{ display: 'none' }}
+        onChange={handleFileInputChange}
+      />
+
+      {/* ── MIDI drag-over overlay ─────────────────────────────────────────── */}
+      {dragOver && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 900,
+          background: 'hsl(224 24% 6% / 0.88)', backdropFilter: 'blur(6px)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 14,
+          border: '2px dashed hsl(262 60% 52%)',
+          pointerEvents: 'none',
+        }}>
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none"
+            stroke="hsl(262 80% 72%)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+          </svg>
+          <span style={{ color: 'hsl(262 80% 88%)', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>
+            Drop MIDI file
+          </span>
+          <span style={{ color: 'hsl(220 10% 52%)', fontSize: 13 }}>
+            .mid · .midi
+          </span>
+        </div>
+      )}
+
+      {/* ── MIDI import confirmation modal ──────────────────────────────────── */}
+      {midiPending && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(3px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'hsl(224 20% 11%)',
+            border: '1px solid hsl(224 15% 22%)',
+            borderRadius: 14, padding: '24px 26px',
+            width: 340, maxWidth: '92vw',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.65)',
+            fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 9,
+                background: 'hsl(262 40% 18%)', border: '1px solid hsl(262 40% 26%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  stroke="hsl(262 80% 74%)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ color: 'hsl(220 14% 90%)', fontWeight: 600, fontSize: 15, lineHeight: 1.2 }}>
+                  MIDI ready to import
+                </div>
+                <div style={{ color: 'hsl(220 10% 48%)', fontSize: 12, marginTop: 3 }}>
+                  {midiPending.selectedTrackName}
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              background: 'hsl(224 24% 7%)', borderRadius: 9,
+              padding: '12px 14px',
+              display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr',
+              gap: '8px 0', marginBottom: 16,
+              border: '1px solid hsl(224 15% 17%)',
+            }}>
+              {([
+                { label: 'Notes', value: midiPending.track.notes.length },
+                { label: 'BPM',   value: midiPending.track.bpm },
+                { label: 'Bars',  value: midiPending.track.totalBars },
+                { label: 'Time',  value: `${midiPending.track.beatsPerBar}/4` },
+              ] as const).map(({ label, value }) => (
+                <div key={label} style={{ textAlign: 'center' }}>
+                  <div style={{ color: 'hsl(220 10% 40%)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    {label}
+                  </div>
+                  <div style={{ color: 'hsl(262 60% 80%)', fontSize: 16, fontWeight: 700, fontFamily: 'ui-monospace, monospace', marginTop: 2 }}>
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {midiPending.warnings.length > 0 && (
+              <div style={{
+                background: 'hsl(38 50% 10%)', border: '1px solid hsl(38 60% 22%)',
+                borderRadius: 7, padding: '9px 12px', marginBottom: 16,
+              }}>
+                {midiPending.warnings.map((w, i) => (
+                  <div key={i} style={{ color: 'hsl(38 80% 68%)', fontSize: 12, lineHeight: 1.5 }}>
+                    ⚠ {w}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setMidiPending(null)}
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 8,
+                  background: 'transparent', border: '1px solid hsl(224 15% 24%)',
+                  color: 'hsl(220 10% 52%)', fontSize: 13, fontWeight: 500,
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.12s, color 0.12s',
+                }}
+                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'hsl(224 15% 36%)'; el.style.color = 'hsl(220 14% 70%)' }}
+                onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = 'hsl(224 15% 24%)'; el.style.color = 'hsl(220 10% 52%)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleImportTrack(midiPending.track)}
+                style={{
+                  flex: 2, padding: '9px 0', borderRadius: 8,
+                  background: 'hsl(262 83% 58%)', border: 'none',
+                  color: 'white', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  boxShadow: '0 0 18px hsl(262 83% 58% / 0.32)',
+                  transition: 'opacity 0.12s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '0.88' }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+              >
+                Load into editor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MIDI import error ──────────────────────────────────────────────── */}
+      {midiError && (
+        <div
+          onClick={() => setMidiError(null)}
+          style={{
+            position: 'absolute', bottom: 72, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 1000, cursor: 'pointer',
+            background: 'hsl(0 55% 18%)', border: '1px solid hsl(0 55% 32%)',
+            color: 'hsl(0 80% 80%)', borderRadius: 9,
+            padding: '10px 18px', fontSize: 13, maxWidth: 340, textAlign: 'center',
+            boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+            fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+          }}
+        >
+          {midiError}
+        </div>
+      )}
+
       {/* Toast */}
       {toast && (
         <div
@@ -994,6 +1293,23 @@ function StatusBar({ isPlaying, selectedNote, currentBeat, beatsPerBar, loop, gu
 }
 
 // ── Bottom nav icons ───────────────────────────────────────────────────────
+function ScoreIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      {/* 5 staff lines */}
+      <line x1="2" y1="6"  x2="18" y2="6"  />
+      <line x1="2" y1="8"  x2="18" y2="8"  />
+      <line x1="2" y1="10" x2="18" y2="10" />
+      <line x1="2" y1="12" x2="18" y2="12" />
+      <line x1="2" y1="14" x2="18" y2="14" />
+      {/* notehead on middle line */}
+      <ellipse cx="11" cy="10" rx="2.2" ry="1.5" transform="rotate(-15,11,10)" fill="currentColor" stroke="none" />
+      {/* stem */}
+      <line x1="13" y1="10" x2="13" y2="5" strokeWidth="1.4" />
+    </svg>
+  )
+}
+
 function TabIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
