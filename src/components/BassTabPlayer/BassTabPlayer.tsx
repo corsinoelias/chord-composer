@@ -83,7 +83,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [showPresets, setShowPresets]               = useState(false)
   const [transportExpanded, setTransportExpanded]   = useState(false)
   const [desktopCompact, setDesktopCompact]         = useState(false)
-  const [fretboardVisible, setFretboardVisible]     = useState(true)
   const [fitWidth, setFitWidth]                     = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
   // splitView removed
   const [fretNumpadOpen, setFretNumpadOpen]         = useState(false)
@@ -129,19 +128,13 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  const [fretboardVisible, setFretboardVisible] = useState(true)
+
   // Auto-compact on short desktop screens
   useEffect(() => {
-    if (!isMobile && isShortScreen) {
-      setDesktopCompact(true)
-      setFretboardVisible(false)
-    }
+    if (!isMobile && isShortScreen) { setDesktopCompact(true); setFretboardVisible(false) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isShortScreen, isMobile])
-
-  // Auto-show fretboard when playback starts on mobile
-  useEffect(() => {
-    if (isPlaying && isMobile) setFretboardVisible(true)
-  }, [isPlaying, isMobile])
 
 
   const handleLoadPreset = useCallback((preset: Preset) => {
@@ -295,15 +288,15 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
   // ── Playback ──────────────────────────────────────────────────────────────
   const doPlay = useCallback((fromBeat: number) => {
-    const t      = trackRef.current
-    const snd    = soundRef.current
-    const isLoop = loopRef.current
-    const lRange = loopRangeRef.current
-
-    startPlayback(t, fromBeat, snd,
+    startPlayback(
+      trackRef.current,
+      fromBeat,
+      soundRef.current,
       (beat) => setCurrentBeat(beat),
       () => setIsPlaying(false),
-      isLoop, metronomeRef.current, lRange,
+      () => loopRef.current,
+      () => metronomeRef.current,
+      () => loopRangeRef.current,
     )
   }, []) // stable: uses only refs
 
@@ -394,20 +387,22 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
   // ── Transport ─────────────────────────────────────────────────────────────
   const handleBpmChange = useCallback((bpm: number) => {
-    if (isPlaying) { stopPlayback(); setIsPlaying(false); setCurrentBeat(0) }
+    const wasPlaying = isPlaying
+    const fromBeat   = currentBeat
+    if (wasPlaying) { stopPlayback(); setIsPlaying(false) }
     editorBpmChange(bpm, false)
-  }, [isPlaying, editorBpmChange])
+    if (wasPlaying) {
+      setTimeout(() => { setIsPlaying(true); doPlay(fromBeat) }, 0)
+    }
+  }, [isPlaying, currentBeat, editorBpmChange, doPlay])
 
   const handleSoundChange = useCallback((s: BassSound) => {
     setSound(s)
     if (!isPlaying) return
-    const from = currentBeat
-    startPlayback(track, from, s,
-      beat => setCurrentBeat(beat),
-      () => setIsPlaying(false),
-      loop, metronome,
-    )
-  }, [isPlaying, currentBeat, track, loop, metronome])
+    stopPlayback()
+    soundRef.current = s
+    doPlay(currentBeat)
+  }, [isPlaying, currentBeat, doPlay])
 
   const handleFretChange = useCallback((fret: number) => {
     if (!selectedNoteId) return
@@ -662,12 +657,12 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
       {/* ── Transport ─────────────────────────────────────────────────────── */}
       <BassTabTransport
-        isPlaying={isPlaying} loop={loop} bpm={track.bpm} snap={snap} sound={sound}
+        isPlaying={isPlaying} loop={loop} bpm={track.bpm} sound={sound}
         totalBars={track.totalBars} zoom={zoom} volume={volume} noteDuration={noteDuration}
         hasSelectedNote={!!selectedNote} selectedNoteFret={selectedNote?.fret ?? null}
         canUndo={canUndo} canRedo={canRedo} metronome={metronome}
         onPlay={handlePlay} onStop={handleStop} onRewind={handleRewind} onLoopToggle={handleLoopToggle}
-        onBpmChange={handleBpmChange} onSnapChange={setSnap} onSoundChange={handleSoundChange}
+        onBpmChange={handleBpmChange} onSoundChange={handleSoundChange}
         onBarsChange={(bars) => setTrack(t => ({ ...t, totalBars: bars }))}
         onZoomIn={() => handleZoomChange(zoom + 0.25)} onZoomOut={() => handleZoomChange(zoom - 0.25)} onZoomReset={() => handleZoomChange(1)}
         onFretChange={handleFretChange} onVolumeChange={handleVolumeChange}
@@ -679,12 +674,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         onOpenFretNumpad={() => setFretNumpadOpen(true)}
         isMobile={isMobile}
         compact={isMobile && !transportExpanded}
-        onToggleExpand={() => {
-          setTransportExpanded(e => {
-            if (!e) setFretboardVisible(false)
-            return !e
-          })
-        }}
+        onToggleExpand={() => { setTransportExpanded(e => !e); setFretboardVisible(false) }}
         currentBeat={currentBeat}
         beatsPerBar={track.beatsPerBar}
         fitWidth={fitWidth}
@@ -760,55 +750,63 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         </div>
       ) : (
         <>
-          {/* Fretboard with collapse toggle */}
-          <div style={{ flexShrink: 0 }}>
-            <button
-              onClick={() => {
-                setFretboardVisible(v => {
-                  if (!v) setTransportExpanded(false)
-                  return !v
-                })
-              }}
-              style={{
-                width: '100%', height: isMobile ? 22 : 16,
-                background: 'hsl(224 20% 10%)',
-                border: 'none',
-                borderBottom: fretboardVisible ? 'none' : '1px solid hsl(224 15% 18%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                color: 'hsl(220 10% 32%)', fontSize: isMobile ? 10 : 9,
-                fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
-                cursor: 'pointer', userSelect: 'none',
-                letterSpacing: '0.04em',
-                transition: 'background 0.1s',
-              }}
-              onMouseEnter={e => { if (!isMobile) (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 13%)' }}
-              onMouseLeave={e => { if (!isMobile) (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 10%)' }}
-            >
-              <span>{fretboardVisible ? '▲' : '▼'}</span>
-              <span>Strings</span>
-              <span>{fretboardVisible ? '▲' : '▼'}</span>
-            </button>
-            <div style={{
-              overflow: 'hidden',
-              maxHeight: fretboardVisible ? 280 : 0,
-              transition: 'max-height 0.2s ease',
-            }}>
-              <BassTabFretboard activeFrets={activeFrets} attackSignals={attackSignals} onNoteClick={handleFretboardNote} />
+          {/* Fretboard collapsible — desktop only */}
+          {!isMobile && (
+            <div style={{ flexShrink: 0 }}>
+              <button
+                onClick={() => setFretboardVisible(v => !v)}
+                style={{
+                  width: '100%', height: 16, background: 'hsl(224 20% 10%)', border: 'none',
+                  borderBottom: fretboardVisible ? 'none' : '1px solid hsl(224 15% 18%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  color: 'hsl(220 10% 32%)', fontSize: 9,
+                  fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+                  cursor: 'pointer', userSelect: 'none', letterSpacing: '0.04em',
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 13%)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 10%)'}
+              >
+                <span>{fretboardVisible ? '▲' : '▼'}</span>
+                <span>Strings</span>
+                <span>{fretboardVisible ? '▲' : '▼'}</span>
+              </button>
+              <div style={{
+                overflow: 'hidden',
+                maxHeight: fretboardVisible ? (isShortScreen ? 150 : 200) : 0,
+                transition: 'max-height 0.2s ease',
+              }}>
+                <BassTabFretboard
+                  activeFrets={activeFrets} attackSignals={attackSignals}
+                  onNoteClick={handleFretboardNote}
+                  maxHeight={isShortScreen ? 150 : 200}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Score / Tab / Grid */}
-          {isMobile ? (
+          {isMobile && activeView === 'grid' ? (
+            <BassTabGrid
+              track={track} zoom={zoom} currentBeat={currentBeat}
+              cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
+              fitWidth={fitWidth} isMobile={isMobile}
+              onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
+              onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
+              onZoomChange={handleZoomChange} onBeginEdit={beginEdit}
+              onNotePreview={handleNotePreview} onLongPressNote={handleLongPress}
+            />
+          ) : isMobile ? (
             <MobileBarView
               track={track}
               currentBeat={currentBeat}
               isPlaying={isPlaying}
               onSeek={handleSeek}
-              viewMode={activeView === 'tab' ? 'notation' : activeView as 'score' | 'grid'}
+              viewMode={activeView === 'tab' ? 'notation' : 'score'}
             />
           ) : activeView === 'tab' ? (
             <TabScore
-              track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
+              track={track} zoom={zoom} currentBeat={currentBeat}
               cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
               sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
               onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
@@ -817,7 +815,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             />
           ) : activeView === 'score' ? (
             <TabNotationView
-              track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
+              track={track} zoom={zoom} currentBeat={currentBeat}
               cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
               sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
               onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
@@ -827,7 +825,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             />
           ) : (
             <BassTabGrid
-              track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
+              track={track} zoom={zoom} currentBeat={currentBeat}
               cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
               fitWidth={fitWidth} isMobile={isMobile}
               onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}

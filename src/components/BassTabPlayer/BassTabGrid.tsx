@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useLayoutEffect, useEffect } from 'react'
-import { type BassNote, type BassTrack, type SnapValue, type StringIndex } from '../../lib/bassTab/types'
+import { type BassNote, type BassTrack, type StringIndex } from '../../lib/bassTab/types'
 import { STRINGS, snapToGrid, beatToPixel, pixelToBeat } from '../../lib/bassTab/bassTheory'
 
 export const PPB = 80
@@ -24,7 +24,6 @@ type DragOp =
 interface GridProps {
   track: BassTrack
   zoom: number
-  snap: SnapValue
   currentBeat: number
   cursorBeat: number
   isPlaying: boolean
@@ -42,8 +41,10 @@ interface GridProps {
   onLongPressNote?: (noteId: string, x: number, y: number) => void
 }
 
+const SNAP = 0.125
+
 export function BassTabGrid({
-  track, zoom, snap, currentBeat, cursorBeat, isPlaying, selectedNoteId,
+  track, zoom, currentBeat, cursorBeat, isPlaying, selectedNoteId,
   fitWidth = false, isMobile = false,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote,
   onCursorBeatChange, onZoomChange, onBeginEdit,
@@ -107,9 +108,9 @@ export function BassTabGrid({
   // ── Ruler click ───────────────────────────────────────────────────────────
   const handleRulerPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const rect = rulerRef.current!.getBoundingClientRect()
-    const beat = Math.max(0, Math.min(totalBeats, snapToGrid(pixelToBeat(e.clientX - rect.left, pxPerBeat), snap)))
+    const beat = Math.max(0, Math.min(totalBeats, snapToGrid(pixelToBeat(e.clientX - rect.left, pxPerBeat), SNAP)))
     onCursorBeatChange(beat)
-  }, [pxPerBeat, snap, totalBeats, onCursorBeatChange])
+  }, [pxPerBeat, SNAP, totalBeats, onCursorBeatChange])
 
   // ── Main grid pointer events ──────────────────────────────────────────────
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -165,23 +166,29 @@ export function BassTabGrid({
       const y = e.clientY - rect.top
       if (y < 0 || y > rowH * 4) return
 
-      const beat        = Math.max(0, snapToGrid(pixelToBeat(x, pxPerBeat), snap))
+      const beat        = Math.max(0, snapToGrid(pixelToBeat(x, pxPerBeat), SNAP))
       const stringIndex = Math.max(0, Math.min(3, Math.floor(y / rowH))) as StringIndex
 
       onBeginEdit?.()
       const newNote: BassNote = {
         id: crypto.randomUUID(), stringIndex,
         fret: 0, startBeat: beat,
-        durationBeats: Math.max(snap, 1.0), velocity: 0.8,
+        durationBeats: Math.max(SNAP, 1.0), velocity: 0.8,
       }
       onAddNote(newNote)
       onSelectNote(newNote.id)
-      onNotePreview?.(stringIndex, 0)
       onCursorBeatChange(beat + newNote.durationBeats)
-      dragRef.current = { type: 'create', noteId: newNote.id, startX: e.clientX, origDuration: newNote.durationBeats }
       dblRef.current = null
+      if (isMobile) {
+        // On mobile: open fret numpad immediately instead of waiting for long press
+        onLongPressNote?.(newNote.id, e.clientX, e.clientY)
+        dragRef.current = null
+      } else {
+        onNotePreview?.(stringIndex, 0)
+        dragRef.current = { type: 'create', noteId: newNote.id, startX: e.clientX, origDuration: newNote.durationBeats }
+      }
     }
-  }, [track.notes, pxPerBeat, snap, rowH, onAddNote, onDeleteNote, onSelectNote,
+  }, [track.notes, pxPerBeat, SNAP, rowH, onAddNote, onDeleteNote, onSelectNote,
       onCursorBeatChange, onBeginEdit, onNotePreview, onLongPressNote, cancelLongPress])
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -198,16 +205,16 @@ export function BassTabGrid({
     const deltaBeat = pixelToBeat(dx, pxPerBeat)
 
     if (op.type === 'create' || op.type === 'resize') {
-      const newDuration = Math.max(snap, snapToGrid(op.origDuration + deltaBeat, snap))
+      const newDuration = Math.max(SNAP, snapToGrid(op.origDuration + deltaBeat, SNAP))
       onUpdateNote(op.noteId, { durationBeats: newDuration })
     } else if (op.type === 'move') {
       const dy        = e.clientY - op.startY
-      const newBeat   = Math.max(0, snapToGrid(op.origBeat + deltaBeat, snap))
+      const newBeat   = Math.max(0, snapToGrid(op.origBeat + deltaBeat, SNAP))
       const strDelta  = Math.round(dy / rowH)
       const newString = Math.max(0, Math.min(3, op.origString + strDelta)) as StringIndex
       onUpdateNote(op.noteId, { startBeat: newBeat, stringIndex: newString })
     }
-  }, [pxPerBeat, snap, rowH, onUpdateNote, cancelLongPress])
+  }, [pxPerBeat, SNAP, rowH, onUpdateNote, cancelLongPress])
 
   const handlePointerUp = useCallback(() => {
     cancelLongPress()

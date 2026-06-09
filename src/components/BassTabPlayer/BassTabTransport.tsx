@@ -4,7 +4,7 @@ import {
   Undo2, Redo2, Trash2, Download, Share2, Bell, BellOff, Music, Upload,
   ChevronDown, ChevronUp, Waves, Piano, MoreHorizontal,
 } from 'lucide-react'
-import { type BassSound, type SnapValue } from '../../lib/bassTab/types'
+import { type BassSound } from '../../lib/bassTab/types'
 
 const T = {
   bg:          'hsl(224 20% 11%)',
@@ -36,12 +36,12 @@ const DURATION_OPTS = [
 
 interface TransportProps {
   isPlaying: boolean; loop: boolean; bpm: number
-  snap: SnapValue; sound: BassSound; totalBars: number
+  sound: BassSound; totalBars: number
   zoom: number; volume: number; noteDuration: number
   selectedNoteFret: number | null; hasSelectedNote: boolean
   canUndo: boolean; canRedo: boolean; metronome: boolean
   onPlay: () => void; onStop: () => void; onRewind: () => void; onLoopToggle: () => void
-  onBpmChange: (bpm: number) => void; onSnapChange: (snap: SnapValue) => void
+  onBpmChange: (bpm: number) => void
   onSoundChange: (sound: BassSound) => void; onBarsChange: (bars: number) => void
   onZoomIn: () => void; onZoomOut: () => void; onZoomReset: () => void
   onFretChange: (fret: number) => void; onVolumeChange: (vol: number) => void
@@ -79,9 +79,9 @@ interface TransportProps {
 
 export function BassTabTransport(props: TransportProps) {
   const {
-    isPlaying, loop, bpm, snap, sound, totalBars, zoom, volume, noteDuration,
+    isPlaying, loop, bpm, sound, totalBars, zoom, volume, noteDuration,
     selectedNoteFret, hasSelectedNote, canUndo, canRedo, metronome,
-    onPlay, onStop, onRewind, onLoopToggle, onBpmChange, onSnapChange, onSoundChange,
+    onPlay, onStop, onRewind, onLoopToggle, onBpmChange, onSoundChange,
     onBarsChange, onZoomIn, onZoomOut, onZoomReset, onFretChange, onVolumeChange,
     onUndo, onRedo, onClearAll, onExportAscii, onExportMidi, onImportMidi, onShareUrl, onMetronomeToggle,
     onNoteDurationChange,
@@ -289,32 +289,6 @@ export function BassTabTransport(props: TransportProps) {
                 </div>
               </div>
 
-              <div style={{ flex: 1, minWidth: 110 }}>
-                <div style={labelStyle}>Grid</div>
-                <div style={{ display: 'flex', gap: 3 }}>
-                  {([
-                    { value: 0.25   as SnapValue, label: '¼' },
-                    { value: 0.125  as SnapValue, label: '⅛' },
-                    { value: 0.0625 as SnapValue, label: '¹⁄₁₆' },
-                  ]).map(opt => {
-                    const active = snap === opt.value
-                    return (
-                      <button
-                        key={opt.value}
-                        onClick={() => onSnapChange(opt.value)}
-                        style={{
-                          flex: 1, height: 38, background: active ? T.primaryBg : T.surface,
-                          border: `1px solid ${active ? T.primary : T.border}`, borderRadius: 6,
-                          color: active ? T.primaryText : T.muted, fontSize: 11, fontFamily: FONT,
-                          cursor: 'pointer', transition: 'all 0.1s', touchAction: 'manipulation',
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
             </div>
 
             {/* Secondary row: loop · metro · bars · volume · export */}
@@ -336,16 +310,6 @@ export function BassTabTransport(props: TransportProps) {
               >
                 <RotateCcw size={14} />
               </MIconBtn>
-              {onToggleLoopRange && (
-                <MIconBtn
-                  onClick={onToggleLoopRange}
-                  active={loopRangeActive}
-                  activeBg="hsl(38 60% 18%)" activeColor="hsl(38 80% 55%)" activeBorder="hsl(38 80% 50%)"
-                  title={loopRangeActive ? 'Clear A→B range' : 'Set A→B loop range'}
-                >
-                  <span style={{ fontSize: 9, fontWeight: 700, fontFamily: 'ui-monospace' }}>A→B</span>
-                </MIconBtn>
-              )}
               <MIconBtn onClick={onMetronomeToggle} active={metronome} title="Metronome"
                 activeBg={T.amberBg} activeColor={T.amber} activeBorder={T.amber}>
                 {metronome ? <Bell size={14} /> : <BellOff size={14} />}
@@ -553,19 +517,6 @@ export function BassTabTransport(props: TransportProps) {
               </LabeledControl>
 
               <Divider />
-
-              <LabeledControl label="Snap">
-                <SegmentedBtns
-                  options={[
-                    { value: 0.25,    label: '¼' },
-                    { value: 0.125,   label: '⅛' },
-                    { value: 0.0625,  label: '¹⁄₁₆' },
-                    { value: 0.03125, label: '¹⁄₃₂' },
-                  ]}
-                  value={snap}
-                  onChange={v => onSnapChange(v as SnapValue)}
-                />
-              </LabeledControl>
 
               <Divider />
 

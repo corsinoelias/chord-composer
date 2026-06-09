@@ -76,35 +76,19 @@ function scheduleNote(
   scheduledOscillators.push(osc1, osc2)
 }
 
-function scheduleMetronome(
-  ctx: AudioContext,
-  dest: AudioNode,
-  startAudioTime: number, fromBeat: number, toBeat: number,
-  bpm: number, beatsPerBar: number,
-) {
-  const beatDur = 60 / bpm
-
-  for (let beat = Math.ceil(fromBeat); beat < toBeat; beat++) {
-    const t = startAudioTime + (beat - fromBeat) * beatDur
-    if (t < ctx.currentTime - 0.01) continue
-
-    const isDown = beat % beatsPerBar === 0
-
-    const osc = ctx.createOscillator()
-    osc.type = 'sine'
-    osc.frequency.value = isDown ? 1200 : 900
-
-    const env = ctx.createGain()
-    env.gain.setValueAtTime(0, t)
-    env.gain.linearRampToValueAtTime(isDown ? 0.7 : 0.5, t + 0.005)
-    env.gain.exponentialRampToValueAtTime(0.001, t + 0.1)
-
-    osc.connect(env)
-    env.connect(ctx.destination)
-    osc.start(t)
-    osc.stop(t + 0.12)
-    scheduledOscillators.push(osc)
-  }
+function scheduleMetronomeClick(ctx: AudioContext, t: number, isDown: boolean) {
+  const osc = ctx.createOscillator()
+  osc.type = 'sine'
+  osc.frequency.value = isDown ? 1200 : 900
+  const env = ctx.createGain()
+  env.gain.setValueAtTime(0, t)
+  env.gain.linearRampToValueAtTime(isDown ? 0.7 : 0.5, t + 0.005)
+  env.gain.exponentialRampToValueAtTime(0.001, t + 0.1)
+  osc.connect(env)
+  env.connect(ctx.destination)
+  osc.start(t)
+  osc.stop(t + 0.12)
+  scheduledOscillators.push(osc)
 }
 
 // Preview a single note immediately (for fretboard taps / note selection)
@@ -121,9 +105,9 @@ export function startPlayback(
   sound: BassSound,
   onBeatUpdate: (beat: number) => void,
   onEnd: () => void,
-  loop: boolean,
-  metronome = false,
-  loopRange?: LoopRange | null,
+  getLoop: () => boolean,
+  getMetronome: () => boolean,
+  getLoopRange: () => LoopRange | null,
 ) {
   stopPlayback()
   const ctx = ensureCtx()
@@ -132,38 +116,60 @@ export function startPlayback(
 
   const beatDur    = 60 / track.bpm
   const totalBeats = track.totalBars * track.beatsPerBar
-  const loopEnd    = loopRange ? Math.min(loopRange.endBeat, totalBeats) : totalBeats
-  const endAudioTime = playStartAudioTime + (loopEnd - fromBeat) * beatDur
 
+  const loopEnd = () => {
+    const r = getLoopRange()
+    return r ? Math.min(r.endBeat, totalBeats) : totalBeats
+  }
+  const endAudioTime = () => playStartAudioTime + (loopEnd() - fromBeat) * beatDur
+
+  // Schedule all notes for this playback segment
+  const segEnd = loopEnd()
   for (const note of track.notes) {
-    if (note.startBeat < fromBeat || note.startBeat >= loopEnd) continue
+    if (note.startBeat < fromBeat || note.startBeat >= segEnd) continue
     const noteStart = playStartAudioTime + (note.startBeat - fromBeat) * beatDur
     const noteDur   = Math.max(0.05, note.durationBeats * beatDur)
     const freq      = fretToFrequency(note.stringIndex, note.fret)
     scheduleNote(ctx, masterGain!, freq, noteStart, noteDur, note.velocity, sound)
   }
 
-  if (metronome) {
-    scheduleMetronome(ctx, masterGain!, playStartAudioTime, fromBeat, loopEnd, track.bpm, track.beatsPerBar)
-  }
+  // Dynamic metronome: schedule one beat at a time with a 0.3s lookahead
+  let nextMetroBeat = Math.ceil(fromBeat)
+  const METRO_LOOKAHEAD = 0.3
 
   function tick() {
     if (!isPlayingFlag) return
-    const elapsed = ctx.currentTime - playStartAudioTime
-    const beat    = fromBeat + elapsed * (track.bpm / 60)
-    onBeatUpdate(Math.min(beat, loopEnd))
 
-    if (ctx.currentTime >= endAudioTime) {
-      if (loop) {
-        const nextFrom = loopRange ? loopRange.startBeat : 0
-        startPlayback(track, nextFrom, sound, onBeatUpdate, onEnd, loop, metronome, loopRange)
+    const elapsed = ctx.currentTime - playStartAudioTime
+    const beat    = fromBeat + elapsed / beatDur
+
+    // Advance metronome schedule into the lookahead window
+    const lookaheadCutoff = ctx.currentTime + METRO_LOOKAHEAD
+    while (nextMetroBeat < loopEnd()) {
+      const clickTime = playStartAudioTime + (nextMetroBeat - fromBeat) * beatDur
+      if (clickTime > lookaheadCutoff) break
+      if (getMetronome()) {
+        scheduleMetronomeClick(ctx, clickTime, nextMetroBeat % track.beatsPerBar === 0)
+      }
+      nextMetroBeat++
+    }
+
+    onBeatUpdate(Math.min(beat, loopEnd()))
+
+    if (ctx.currentTime >= endAudioTime()) {
+      if (getLoop()) {
+        const range = getLoopRange()
+        const nextFrom = range ? range.startBeat : 0
+        startPlayback(track, nextFrom, sound, onBeatUpdate, onEnd, getLoop, getMetronome, getLoopRange)
       } else {
+        const range = getLoopRange()
         stopPlayback()
-        onBeatUpdate(loopRange ? loopRange.startBeat : 0)
+        onBeatUpdate(range ? range.startBeat : 0)
         onEnd()
       }
       return
     }
+
     animFrameId = requestAnimationFrame(tick)
   }
   animFrameId = requestAnimationFrame(tick)
@@ -172,7 +178,7 @@ export function startPlayback(
 export async function renderTrackOffline(track: BassTrack, sound: BassSound): Promise<AudioBuffer> {
   const totalBeats    = track.totalBars * track.beatsPerBar
   const beatDur       = 60 / track.bpm
-  const totalDuration = totalBeats * beatDur + 2 // +2s tail
+  const totalDuration = totalBeats * beatDur + 2
   const sampleRate    = 44100
   const numChannels   = 2
 

@@ -39,8 +39,9 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
       preset.defaultSound,
       (beat) => setCurrentBeat(beat),
       () => { setIsPlaying(false); setCurrentBeat(0) },
-      true,
-      false,
+      () => true,
+      () => false,
+      () => null,
     )
   }, [isPlaying, currentBeat, preset])
 
@@ -53,7 +54,6 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
         <TabNotationView
           track={trackRef.current}
           zoom={1}
-          snap={0.25}
           currentBeat={currentBeat}
           cursorBeat={currentBeat}
           isPlaying={isPlaying}

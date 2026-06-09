@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
 import {
-  type BassNote, type BassTrack, type SnapValue, type StringIndex, type BassSound,
+  type BassNote, type BassTrack, type StringIndex, type BassSound,
 } from '../../lib/bassTab/types'
 import {
   STRING_Y, STAFF_H, ABOVE_H, BELOW_H, LABEL_W, PPB, TICK_OFFSET, TICK_H,
@@ -16,7 +16,6 @@ const STRING_LABELS = ['G', 'D', 'A', 'E']
 interface Props {
   track: BassTrack
   zoom: number
-  snap: SnapValue
   currentBeat: number
   cursorBeat: number
   isPlaying: boolean
@@ -38,8 +37,10 @@ interface PendingInput {
   screenY: number
 }
 
+const SNAP = 0.25
+
 export function TabNotationMeasure({
-  track, zoom, snap, currentBeat, cursorBeat, isPlaying, selectedNoteId, sound, noteDuration,
+  track, zoom, currentBeat, cursorBeat, isPlaying, selectedNoteId, sound, noteDuration,
   onAddNote, onUpdateNote, onSelectNote, onCursorBeatChange, onBeginEdit,
 }: Props) {
   const svgRef   = useRef<SVGSVGElement>(null)
@@ -135,13 +136,13 @@ export function TabNotationMeasure({
 
     if (staffY < -8 || staffY > STAFF_H + 8) return
 
-    const beat = snapToGrid(Math.max(0, xToBeat(rawX, pxPerBeat)), snap)
+    const beat = snapToGrid(Math.max(0, xToBeat(rawX, pxPerBeat)), SNAP)
     const si   = yToStringIndex(Math.max(0, Math.min(STAFF_H, staffY)))
 
     setPending({ si, beat, screenX: e.clientX - rect.left, screenY: e.clientY - rect.top })
     setFretVal('')
     setTimeout(() => inputRef.current?.focus(), 20)
-  }, [isPlaying, vbX, vbW, svgH, pxPerBeat, snap])
+  }, [isPlaying, vbX, vbW, svgH, pxPerBeat])
 
   const commitFret = useCallback((val: string) => {
     if (!pending) return
@@ -174,8 +175,8 @@ export function TabNotationMeasure({
     onAddNote(note)
     onSelectNote(note.id)
     previewNote(pending.si, fret, sound)
-    onCursorBeatChange(snapToGrid(pending.beat + safeDur, snap))
-  }, [pending, snap, noteDuration, track, onAddNote, onUpdateNote, onSelectNote, onBeginEdit, onCursorBeatChange, sound])
+    onCursorBeatChange(snapToGrid(pending.beat + safeDur, SNAP))
+  }, [pending, noteDuration, track, onAddNote, onUpdateNote, onSelectNote, onBeginEdit, onCursorBeatChange, sound])
 
   // Notes in current bar only
   const visibleNotes = track.notes.filter(n => Math.floor(n.startBeat / bpb) === currentBar)

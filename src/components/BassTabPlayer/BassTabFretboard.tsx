@@ -59,12 +59,13 @@ interface FretboardProps {
   activeFrets: (number | null)[]
   attackSignals: ({ fret: number; v: number } | null)[]
   onNoteClick?: (stringIndex: number, fret: number) => void
+  maxHeight?: number
 }
 
 // vibeInfo[si] = { fret, key } — key changes on every attack to trigger the effect
 type VibeInfo = { fret: number; key: number }
 
-export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick }: FretboardProps) {
+export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxHeight }: FretboardProps) {
   const [hovered, setHovered]     = useState<[number, number] | null>(null)
   const isInteractive             = !!onNoteClick
   const containerRef              = useRef<HTMLDivElement>(null)
@@ -77,17 +78,18 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick }: Fr
     const measure = () => {
       const w = el.getBoundingClientRect().width
       if (w <= 0) return
-      // Fill available width with as many frets as possible (min 12, max 24)
       const naturalFrets = Math.max(MIN_FRETS, Math.min(MAX_FRETS, Math.floor((w - LABEL_W - OPEN_W) / CELL_W)))
       const naturalW = LABEL_W + OPEN_W + naturalFrets * CELL_W
+      const scaleW = Math.min(1, w / naturalW)
+      const scaleH = maxHeight ? Math.min(1, maxHeight / NATURAL_H) : 1
       setFretCount(naturalFrets)
-      setScale(Math.min(1, w / naturalW))
+      setScale(Math.min(scaleW, scaleH))
     }
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     measure()
     return () => ro.disconnect()
-  }, [])
+  }, [maxHeight])
 
   const neckW  = OPEN_W + fretCount * CELL_W
   const totalW = LABEL_W + neckW

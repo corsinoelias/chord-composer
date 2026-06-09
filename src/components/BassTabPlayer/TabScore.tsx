@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { useIsMobile } from '../../hooks/use-mobile.tsx'
 import {
-  type BassNote, type BassTrack, type SnapValue, type StringIndex, type BassSound, type TrackSection,
+  type BassNote, type BassTrack, type StringIndex, type BassSound, type TrackSection,
 } from '../../lib/bassTab/types'
 import {
   STRING_Y, STAFF_H, ABOVE_H, BELOW_H, LABEL_W, PPB, TICK_OFFSET, TICK_H, NOTE_GAP,
@@ -22,7 +22,6 @@ interface EditCursor {
 interface Props {
   track: BassTrack
   zoom: number
-  snap: SnapValue
   currentBeat: number
   cursorBeat: number
   isPlaying: boolean
@@ -41,8 +40,10 @@ interface Props {
   onFitZoomChange?: (z: number) => void
 }
 
+const SNAP = 0.25
+
 export function TabScore({
-  track, zoom, snap, currentBeat, cursorBeat, isPlaying, selectedNoteId, sound, noteDuration,
+  track, zoom, currentBeat, cursorBeat, isPlaying, selectedNoteId, sound, noteDuration,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote, onCursorBeatChange, onBeginEdit, onSectionChange,
   fitWidth = false, onFitZoomChange,
 }: Props) {
@@ -76,12 +77,11 @@ export function TabScore({
   // Stable refs for values used inside the timer-fired commitFret
   const trackRef        = useRef(track)
   const noteDurationRef = useRef(noteDuration)
-  const snapRef         = useRef(snap)
+  const snapRef         = useRef(SNAP)
   const soundRef        = useRef(sound)
   const totalBeatsRef   = useRef(track.totalBars * track.beatsPerBar)
   useEffect(() => { trackRef.current = track }, [track])
   useEffect(() => { noteDurationRef.current = noteDuration }, [noteDuration])
-  useEffect(() => { snapRef.current = snap }, [snap])
   useEffect(() => { soundRef.current = sound }, [sound])
   useEffect(() => { totalBeatsRef.current = track.totalBars * track.beatsPerBar }, [track.totalBars, track.beatsPerBar])
 
@@ -414,7 +414,7 @@ export function TabScore({
 
     if (staffY < -8 || staffY > STAFF_H + 8) return
 
-    const beat = snapToGrid(Math.max(0, xToBeat(rawX, pxPerBeat)), snap)
+    const beat = snapToGrid(Math.max(0, xToBeat(rawX, pxPerBeat)), SNAP)
     if (beat >= totalBeats) return
 
     const si = yToStringIndex(Math.max(0, Math.min(STAFF_H, staffY)))
@@ -424,7 +424,7 @@ export function TabScore({
     setEditCursor({ beat, stringIndex: si })
     onCursorBeatChange(beat)
     containerRef.current?.focus()
-  }, [isPlaying, svgW, svgH, pxPerBeat, snap, totalBeats, onCursorBeatChange, setFretBuffer, setEditCursor])
+  }, [isPlaying, svgW, svgH, pxPerBeat, totalBeats, onCursorBeatChange, setFretBuffer, setEditCursor])
 
   // ── Section name commit ────────────────────────────────────────────────────
   const commitSection = useCallback(() => {

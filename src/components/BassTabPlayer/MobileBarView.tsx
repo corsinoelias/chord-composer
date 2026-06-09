@@ -286,7 +286,6 @@ export function MobileBarView({ track, currentBeat, isPlaying, onSeek, viewMode 
             track={singleBarTrack}
             zoom={1}
             fitWidth={true}
-            snap={0.25}
             currentBeat={beatInSingleBar}
             cursorBeat={0}
             isPlaying={isPlaying && isBarActive}

@@ -1,6 +1,6 @@
 ﻿import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  type BassNote, type BassTrack, type SnapValue, type StringIndex,
+  type BassNote, type BassTrack, type StringIndex,
   type BassSound, type TrackSection,
 } from '../../lib/bassTab/types'
 import {
@@ -36,7 +36,6 @@ interface EditCursor { beat: number; stringIndex: StringIndex }
 export interface TabNotationViewProps {
   track: BassTrack
   zoom: number
-  snap: SnapValue
   currentBeat: number
   cursorBeat: number
   isPlaying: boolean
@@ -55,8 +54,10 @@ export interface TabNotationViewProps {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────
+const SNAP = 0.25
+
 export function TabNotationView({
-  track, zoom, snap, currentBeat, cursorBeat, isPlaying,
+  track, zoom, currentBeat, cursorBeat, isPlaying,
   selectedNoteId, sound, noteDuration,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote,
   onCursorBeatChange, onBeginEdit, onSectionChange,
@@ -85,12 +86,11 @@ export function TabNotationView({
 
   const trackRef        = useRef(track)
   const noteDurationRef = useRef(noteDuration)
-  const snapRef         = useRef(snap)
+  const snapRef         = useRef(SNAP)
   const soundRef        = useRef(sound)
   const totalBeatsRef   = useRef(track.totalBars * track.beatsPerBar)
   useEffect(() => { trackRef.current = track }, [track])
   useEffect(() => { noteDurationRef.current = noteDuration }, [noteDuration])
-  useEffect(() => { snapRef.current = snap }, [snap])
   useEffect(() => { soundRef.current = sound }, [sound])
   useEffect(() => { totalBeatsRef.current = track.totalBars * track.beatsPerBar }, [track.totalBars, track.beatsPerBar])
 
@@ -281,14 +281,14 @@ export function TabNotationView({
     const tabRawY = rawY - TAB_OVERLAY_Y
     if (tabRawY < -10 || tabRawY > TAB_OVERLAY_STAFF_H + 10) return
 
-    const beat = snapToGrid(Math.max(0, xToBeat(rawX, pxPerBeat)), snap)
+    const beat = snapToGrid(Math.max(0, xToBeat(rawX, pxPerBeat)), SNAP)
     if (beat >= totalBeats) return
     const si = yToStringIndex(Math.max(0, Math.min(TAB_OVERLAY_STAFF_H, tabRawY)))
 
     clearTimeout(fretTimerRef.current!); setFretBuffer('')
     setEditCursor({ beat, stringIndex: si }); onCursorBeatChange(beat)
     containerRef.current?.focus()
-  }, [isPlaying, svgW, pxPerBeat, snap, totalBeats, onCursorBeatChange, setFretBuffer, setEditCursor])
+  }, [isPlaying, svgW, pxPerBeat, totalBeats, onCursorBeatChange, setFretBuffer, setEditCursor])
 
   // ── Note click on overlay ─────────────────────────────────────────────
   const handleNoteClick = useCallback((note: BassNote) => (e: React.PointerEvent) => {
