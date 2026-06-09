@@ -5,7 +5,7 @@ export const STRING_Y    = [0, 12, 24, 36] as const  // y per string G D A E
 export const STAFF_H     = 36
 export const ABOVE_H     = 52    // space above staff (section, tempo, bar nums)
 export const BELOW_H     = 34    // space below staff (tick marks + beam)
-export const LABEL_W     = 28    // left margin for G/D/A/E labels
+export const LABEL_W     = 54    // left margin — fits bass clef + time signature
 export const PPB         = 80    // pixels per beat at zoom = 1
 export const NOTE_GAP    = 20    // gap width in string line at note position
 export const CURSOR_HEAD = 22    // how far above staff the cursor extends

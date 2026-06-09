@@ -90,6 +90,15 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [fretNumpadOpen, setFretNumpadOpen]         = useState(false)
   const [isWide, setIsWide]                         = useState(false)
   const [isShortScreen, setIsShortScreen]           = useState(false)
+  // Auto-expand totalBars to always fit notes
+  useEffect(() => {
+    if (!track.notes.length) return
+    const lastEnd = Math.max(...track.notes.map(n => n.startBeat + n.durationBeats))
+    const needed  = Math.max(Math.ceil(lastEnd / track.beatsPerBar) + 1, 4)
+    if (needed > track.totalBars) setTrack(t => ({ ...t, totalBars: needed }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [track.notes, track.beatsPerBar])
+
   // Feature 2: loop range
   const [loopRange, setLoopRange]                   = useState<LoopRange | null>(null)
   const loopRef          = useRef(loop)
@@ -744,15 +753,17 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       />
 
       {/* ── Seek bar ──────────────────────────────────────────────────────── */}
-      <BassTabSeekBar
-        currentBeat={currentBeat}
-        totalBeats={track.totalBars * track.beatsPerBar}
-        beatsPerBar={track.beatsPerBar}
-        isPlaying={isPlaying}
-        onSeek={handleSeek}
-        loopRange={loopRange}
-        onLoopRangeChange={setLoopRange}
-      />
+      <div style={{ padding: '0 8px' }}>
+        <BassTabSeekBar
+          currentBeat={currentBeat}
+          totalBeats={track.totalBars * track.beatsPerBar}
+          beatsPerBar={track.beatsPerBar}
+          isPlaying={isPlaying}
+          onSeek={handleSeek}
+          loopRange={loopRange}
+          onLoopRangeChange={setLoopRange}
+        />
+      </div>
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
       {guitarView ? (

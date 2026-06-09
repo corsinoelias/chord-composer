@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react'
+import React, { useRef, useCallback, useState } from 'react'
 import type { LoopRange } from '../../lib/bassTab/types'
 
 interface SeekBarProps {
@@ -27,6 +27,7 @@ const C = {
 }
 
 type DragTarget = 'seek' | 'loopIn' | 'loopOut' | null
+type HoverTarget = 'loopIn' | 'loopOut' | null
 
 export function BassTabSeekBar({
   currentBeat, totalBeats, beatsPerBar, isPlaying, onSeek,
@@ -34,6 +35,7 @@ export function BassTabSeekBar({
 }: SeekBarProps) {
   const railRef      = useRef<HTMLDivElement>(null)
   const dragTarget   = useRef<DragTarget>(null)
+  const [hoverTarget, setHoverTarget] = useState<HoverTarget>(null)
 
   const beatAt = useCallback((clientX: number): number => {
     const rail = railRef.current
@@ -49,15 +51,15 @@ export function BassTabSeekBar({
     e.preventDefault()
     e.currentTarget.setPointerCapture(e.pointerId)
 
-    // Check if near a loop handle (within 10px)
+    // Check if near a loop handle (within 16px)
     if (loopRange && onLoopRangeChange) {
       const rail = railRef.current
       if (rail) {
         const { left, width } = rail.getBoundingClientRect()
         const inPx  = left + (loopRange.startBeat / totalBeats) * width
         const outPx = left + (loopRange.endBeat   / totalBeats) * width
-        if (Math.abs(e.clientX - inPx) <= 10) { dragTarget.current = 'loopIn';  return }
-        if (Math.abs(e.clientX - outPx) <= 10) { dragTarget.current = 'loopOut'; return }
+        if (Math.abs(e.clientX - inPx) <= 16) { dragTarget.current = 'loopIn';  return }
+        if (Math.abs(e.clientX - outPx) <= 16) { dragTarget.current = 'loopOut'; return }
       }
     }
 
@@ -66,7 +68,6 @@ export function BassTabSeekBar({
   }, [beatAt, onSeek, loopRange, totalBeats, onLoopRangeChange])
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragTarget.current) return
     const beat = beatAt(e.clientX)
 
     if (dragTarget.current === 'seek') {
@@ -77,11 +78,23 @@ export function BassTabSeekBar({
     } else if (dragTarget.current === 'loopOut' && loopRange && onLoopRangeChange) {
       const clamped = Math.max(loopRange.startBeat + 1, Math.min(totalBeats, beat))
       onLoopRangeChange({ ...loopRange, endBeat: clamped })
+    } else if (!dragTarget.current && loopRange) {
+      // Update hover target for cursor feedback
+      const rail = railRef.current
+      if (rail) {
+        const { left, width } = rail.getBoundingClientRect()
+        const inPx  = left + (loopRange.startBeat / totalBeats) * width
+        const outPx = left + (loopRange.endBeat   / totalBeats) * width
+        if (Math.abs(e.clientX - inPx) <= 16)       setHoverTarget('loopIn')
+        else if (Math.abs(e.clientX - outPx) <= 16) setHoverTarget('loopOut')
+        else                                         setHoverTarget(null)
+      }
     }
   }, [beatAt, onSeek, loopRange, onLoopRangeChange, totalBeats])
 
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     dragTarget.current = null
+    setHoverTarget(null)
     e.currentTarget.releasePointerCapture(e.pointerId)
   }, [])
 
@@ -121,10 +134,10 @@ export function BassTabSeekBar({
       onContextMenu={handleContextMenu}
       style={{
         position:    'relative',
-        height:      18,
+        height:      22,
         background:  C.track,
         borderBottom: `1px solid ${C.border}`,
-        cursor:      'pointer',
+        cursor:      hoverTarget ? 'ew-resize' : 'pointer',
         userSelect:  'none',
         touchAction: 'none',
         flexShrink:  0,
@@ -176,21 +189,25 @@ export function BassTabSeekBar({
       {/* Loop IN handle */}
       {loopRange && loopInPct !== null && (
         <div
-          title="Loop in (drag or right-click)"
+          title="Loop start — drag to adjust"
           style={{
             position: 'absolute', top: 0, bottom: 0,
             left: `${loopInPct}%`,
-            width: 3, background: C.loopIn,
-            cursor: 'ew-resize', pointerEvents: 'none',
+            width: 2,
+            background: hoverTarget === 'loopIn' ? 'hsl(38 95% 65%)' : C.loopIn,
+            transform: 'translateX(-1px)',
+            pointerEvents: 'none',
+            transition: 'background 0.1s',
           }}
         >
+          {/* Grab tab at top */}
           <div style={{
-            position: 'absolute', top: 0, left: 0,
-            width: 0, height: 0,
-            borderLeft: '5px solid transparent',
-            borderRight: '5px solid transparent',
-            borderTop: `7px solid ${C.loopIn}`,
-            transform: 'translateX(-3px)',
+            position: 'absolute', top: 0, left: '50%',
+            transform: 'translateX(-50%)',
+            width: 10, height: 8,
+            background: hoverTarget === 'loopIn' ? 'hsl(38 95% 65%)' : C.loopIn,
+            borderRadius: '0 0 3px 3px',
+            transition: 'background 0.1s',
           }} />
         </div>
       )}
@@ -198,21 +215,25 @@ export function BassTabSeekBar({
       {/* Loop OUT handle */}
       {loopRange && loopOutPct !== null && (
         <div
-          title="Loop out (drag or right-click)"
+          title="Loop end — drag to adjust"
           style={{
             position: 'absolute', top: 0, bottom: 0,
             left: `${loopOutPct}%`,
-            width: 3, background: C.loopOut,
-            cursor: 'ew-resize', pointerEvents: 'none',
+            width: 2,
+            background: hoverTarget === 'loopOut' ? 'hsl(142 70% 55%)' : C.loopOut,
+            transform: 'translateX(-1px)',
+            pointerEvents: 'none',
+            transition: 'background 0.1s',
           }}
         >
+          {/* Grab tab at top */}
           <div style={{
-            position: 'absolute', top: 0, right: 0,
-            width: 0, height: 0,
-            borderLeft: '5px solid transparent',
-            borderRight: '5px solid transparent',
-            borderTop: `7px solid ${C.loopOut}`,
-            transform: 'translateX(2px)',
+            position: 'absolute', top: 0, left: '50%',
+            transform: 'translateX(-50%)',
+            width: 10, height: 8,
+            background: hoverTarget === 'loopOut' ? 'hsl(142 70% 55%)' : C.loopOut,
+            borderRadius: '0 0 3px 3px',
+            transition: 'background 0.1s',
           }} />
         </div>
       )}

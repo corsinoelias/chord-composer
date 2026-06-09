@@ -1,8 +1,8 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import {
-  Play, Square, RotateCcw, Repeat,
+  Play, Square, SkipBack, RotateCcw,
   Undo2, Redo2, Trash2, Download, Share2, Bell, BellOff, Music, Upload,
-  ChevronDown, ChevronUp, Waves, Piano,
+  ChevronDown, ChevronUp, Waves, Piano, MoreHorizontal,
 } from 'lucide-react'
 import { type BassSound, type SnapValue } from '../../lib/bassTab/types'
 
@@ -27,11 +27,11 @@ const T = {
 const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
 
 const DURATION_OPTS = [
-  { v: 4,    label: '𝅝',  sub: '4b',  title: 'Whole (4 beats) — key 1' },
-  { v: 2,    label: '𝅗𝅥',  sub: '2b',  title: 'Half (2 beats) — key 2' },
-  { v: 1,    label: '♩',  sub: '1b',  title: 'Quarter (1 beat) — key 3' },
-  { v: 0.5,  label: '♪',  sub: '½b',  title: 'Eighth (½ beat) — key 4' },
-  { v: 0.25, label: '𝅘𝅥𝅯', sub: '¼b',  title: '16th (¼ beat) — key 5' },
+  { v: 4,    label: 'Whole',   sub: '4 beats', title: 'Whole note (4 beats) — key 1' },
+  { v: 2,    label: 'Half',    sub: '2 beats', title: 'Half note (2 beats) — key 2' },
+  { v: 1,    label: 'Quarter', sub: '1 beat',  title: 'Quarter note (1 beat) — key 3' },
+  { v: 0.5,  label: '8th',     sub: '½ beat',  title: 'Eighth note (½ beat) — key 4' },
+  { v: 0.25, label: '16th',    sub: '¼ beat',  title: '16th note (¼ beat) — key 5' },
 ]
 
 interface TransportProps {
@@ -324,12 +324,28 @@ export function BassTabTransport(props: TransportProps) {
               borderTop: `1px solid ${T.border}`, flexWrap: 'wrap',
             }}>
               <MIconBtn onClick={onRewind} title="Rewind to start">
+                <SkipBack size={14} />
+              </MIconBtn>
+              <MIconBtn
+                onClick={onLoopToggle}
+                active={loop}
+                activeBg={T.greenBg}
+                activeColor={T.green}
+                activeBorder={T.green}
+                title="Loop playback"
+              >
                 <RotateCcw size={14} />
               </MIconBtn>
-              <MIconBtn onClick={onLoopToggle} active={loop} title="Loop"
-                activeBg={T.greenBg} activeColor={T.green} activeBorder={T.green}>
-                <Repeat size={14} />
-              </MIconBtn>
+              {onToggleLoopRange && (
+                <MIconBtn
+                  onClick={onToggleLoopRange}
+                  active={loopRangeActive}
+                  activeBg="hsl(38 60% 18%)" activeColor="hsl(38 80% 55%)" activeBorder="hsl(38 80% 50%)"
+                  title={loopRangeActive ? 'Clear A→B range' : 'Set A→B loop range'}
+                >
+                  <span style={{ fontSize: 9, fontWeight: 700, fontFamily: 'ui-monospace' }}>A→B</span>
+                </MIconBtn>
+              )}
               <MIconBtn onClick={onMetronomeToggle} active={metronome} title="Metronome"
                 activeBg={T.amberBg} activeColor={T.amber} activeBorder={T.amber}>
                 {metronome ? <Bell size={14} /> : <BellOff size={14} />}
@@ -337,15 +353,16 @@ export function BassTabTransport(props: TransportProps) {
 
               <MDivider />
 
-              {/* Bars */}
+              {/* Bars (auto-expands with notes; +/− for manual adjustment) */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <MIconBtn onClick={() => onBarsChange(Math.max(1, totalBars - 1))} title="Remove bar">
+                <span style={{ fontSize: 9, color: T.muted, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Bars</span>
+                <MIconBtn onClick={() => onBarsChange(Math.max(1, totalBars - 1))} title="Remove last bar">
                   <span style={{ fontSize: 14, lineHeight: 1 }}>−</span>
                 </MIconBtn>
-                <span style={{ fontSize: 12, color: T.text, minWidth: 28, textAlign: 'center', fontFamily: 'ui-monospace, monospace' }}>
+                <span style={{ fontSize: 12, color: T.text, minWidth: 22, textAlign: 'center', fontFamily: 'ui-monospace, monospace' }}>
                   {totalBars}
                 </span>
-                <MIconBtn onClick={() => onBarsChange(Math.min(64, totalBars + 1))} title="Add bar">
+                <MIconBtn onClick={() => onBarsChange(Math.min(64, totalBars + 1))} title="Add empty bar">
                   <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
                 </MIconBtn>
               </div>
@@ -414,14 +431,16 @@ export function BassTabTransport(props: TransportProps) {
           </div>
 
         ) : (
-          /* ── Desktop layout (unchanged) ─────────────────────────────── */
+          /* ── Desktop layout ──────────────────────────────────────────── */
           <>
-            {/* Row 1 */}
+            {/* ── Row 1: Playback + File operations ── */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 4,
-              padding: '4px 10px', borderBottom: `1px solid ${T.border}`,
+              padding: '0 10px', height: 44,
+              borderBottom: `1px solid ${T.border}`,
               overflowX: 'auto', overflowY: 'hidden',
             }}>
+              {/* Playback */}
               <Group>
                 <button
                   onClick={isPlaying ? onStop : onPlay}
@@ -439,42 +458,48 @@ export function BassTabTransport(props: TransportProps) {
                   {isPlaying ? <Square size={14} /> : <Play size={14} />}
                 </button>
                 <IconBtn onClick={onRewind} title="Rewind to start">
-                  <RotateCcw size={12} />
+                  <SkipBack size={14} />
                 </IconBtn>
               </Group>
 
               <Divider />
 
+              {/* Loop + Metronome */}
               <Group>
-                <IconBtn onClick={onLoopToggle} title="Loop" active={loop}
-                  activeBg={T.greenBg} activeColor={T.green} activeBorder={T.green}>
-                  <Repeat size={12} />
+                <IconBtn
+                  onClick={onLoopToggle}
+                  onAltClick={onToggleLoopRange}
+                  title={loopRangeActive
+                    ? 'Loop playback · A→B range active · Alt+click to clear range'
+                    : 'Loop playback · Alt+click to set A→B range'}
+                  active={loop}
+                  activeBg={T.greenBg}
+                  activeColor={T.green}
+                  activeBorder={T.green}
+                >
+                  <RotateCcw size={14} />
                 </IconBtn>
-                {onToggleLoopRange && (
-                  <IconBtn onClick={onToggleLoopRange} title={loopRangeActive ? 'Clear loop range' : 'Set loop range (drag handles on seek bar)'} active={loopRangeActive}
-                    activeBg="hsl(38 60% 18%)" activeColor="hsl(38 80% 55%)" activeBorder="hsl(38 80% 50%)">
-                    <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'ui-monospace' }}>A→B</span>
-                  </IconBtn>
-                )}
                 <IconBtn onClick={onMetronomeToggle} title="Metronome" active={metronome}
                   activeBg={T.amberBg} activeColor={T.amber} activeBorder={T.amber}>
-                  {metronome ? <Bell size={12} /> : <BellOff size={12} />}
+                  {metronome ? <Bell size={14} /> : <BellOff size={14} />}
                 </IconBtn>
               </Group>
 
               <Divider />
 
+              {/* Undo / Redo */}
               <Group>
                 <IconBtn onClick={onUndo} title="Undo  Ctrl+Z" disabled={!canUndo}>
-                  <Undo2 size={12} />
+                  <Undo2 size={14} />
                 </IconBtn>
                 <IconBtn onClick={onRedo} title="Redo  Ctrl+Y" disabled={!canRedo}>
-                  <Redo2 size={12} />
+                  <Redo2 size={14} />
                 </IconBtn>
               </Group>
 
               <Divider />
 
+              {/* Tempo */}
               <Group>
                 <LabeledControl label="BPM">
                   <ScrubInput value={bpm} min={40} max={240} onChange={onBpmChange} width={54}
@@ -483,101 +508,53 @@ export function BassTabTransport(props: TransportProps) {
                 <TapButton flash={tapFlash} onClick={handleTap} />
               </Group>
 
+              <div style={{ flex: 1 }} />
+
+              {/* File operations */}
+              <Group>
+                <IconBtn onClick={onImportMidi} title="Import MIDI (.mid)">
+                  <Upload size={14} />
+                </IconBtn>
+                <ExportDropdown
+                  onExportAscii={onExportAscii}
+                  onExportMidi={onExportMidi}
+                  onExportWav={onExportWav}
+                />
+                <IconBtn onClick={onShareUrl} title="Copy share URL">
+                  <Share2 size={14} />
+                </IconBtn>
+              </Group>
+
               <Divider />
 
-              <LabeledControl label="Bars">
-                <StepInput value={totalBars} min={1} max={64} onChange={onBarsChange} options={[2, 4, 8, 16, 32]} />
-              </LabeledControl>
-
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Group>
-                  <IconBtn onClick={onZoomOut} title="Zoom out" disabled={zoom <= 0.4 || fitWidth}>
-                    <span style={{ fontSize: 12, lineHeight: 1 }}>−</span>
-                  </IconBtn>
-                  <button
-                    onClick={fitWidth ? undefined : onZoomReset}
-                    title={fitWidth ? 'Fit mode active' : 'Reset zoom to 100%'}
-                    style={{
-                      minWidth: 40, height: 32, padding: '0 5px',
-                      background: fitWidth ? T.primaryBg : zoom !== 1 ? T.surfaceHov : T.surface,
-                      border: `1px solid ${fitWidth ? T.primary : zoom !== 1 ? T.primary + '55' : T.border}`,
-                      borderRadius: 5,
-                      color: fitWidth ? T.primaryText : zoom !== 1 ? T.primaryText : T.muted,
-                      fontSize: 11, fontFamily: FONT,
-                      cursor: fitWidth ? 'default' : zoom !== 1 ? 'pointer' : 'default',
-                      fontVariantNumeric: 'tabular-nums', transition: 'all 0.1s',
-                    }}
-                  >
-                    {fitWidth ? 'fit' : `${Math.round(zoom * 100)}%`}
-                  </button>
-                  <IconBtn onClick={onZoomIn} title="Zoom in" disabled={zoom >= 4 || fitWidth}>
-                    <span style={{ fontSize: 12, lineHeight: 1 }}>+</span>
-                  </IconBtn>
-                  <IconBtn
-                    onClick={onFitWidthToggle} title="Fit to window width"
-                    active={fitWidth} activeBg={T.primaryBg} activeColor={T.primaryText} activeBorder={T.primary}
-                  >
-                    <span style={{ fontSize: 12, lineHeight: 1, letterSpacing: '-1px' }}>↔</span>
-                  </IconBtn>
-                </Group>
-
-                <Divider />
-
-                <Group>
-                  <IconBtn onClick={onImportMidi} title="Import MIDI (.mid)">
-                    <Upload size={12} />
-                  </IconBtn>
-                  <IconBtn onClick={onExportAscii} title="Copy ASCII tab">
-                    <Download size={12} />
-                  </IconBtn>
-                  <IconBtn onClick={onExportMidi} title="Download MIDI (.mid)">
-                    <Music size={12} />
-                  </IconBtn>
-                  {onExportWav && (
-                    <IconBtn onClick={onExportWav} title="Export WAV audio">
-                      <Waves size={12} />
-                    </IconBtn>
-                  )}
-                  <IconBtn onClick={onShareUrl} title="Copy share URL">
-                    <Share2 size={12} />
-                  </IconBtn>
-                  {midiInputAvailable && onMidiInputToggle && (
-                    <IconBtn onClick={onMidiInputToggle} title={midiInputActive ? `MIDI input: ${midiDeviceName ?? 'connected'} — click to disconnect` : 'Connect MIDI keyboard input'}
-                      active={midiInputActive}
-                      activeBg="hsl(280 60% 18%)" activeColor="hsl(280 80% 70%)" activeBorder="hsl(280 70% 45%)">
-                      <Piano size={12} />
-                    </IconBtn>
-                  )}
-                </Group>
-
-                <Divider />
-
-                <IconBtn onClick={onClearAll} title="Clear all notes"
-                  hoverBg={T.dangerBg} hoverColor={T.danger} hoverBorder={T.danger + '88'}>
-                  <Trash2 size={12} />
-                </IconBtn>
-
-                <Divider />
-
-                <IconBtn onClick={onToggleDesktopCompact} title={desktopCompact ? 'Show more controls' : 'Hide controls row'}>
-                  {desktopCompact ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-                </IconBtn>
-              </div>
+              {/* Overflow: Zoom, Bars, Volume, MIDI in, Clear */}
+              <OverflowMenu
+                zoom={zoom} fitWidth={fitWidth ?? false}
+                onZoomIn={onZoomIn} onZoomOut={onZoomOut} onZoomReset={onZoomReset}
+                onFitWidthToggle={onFitWidthToggle ?? (() => {})}
+                totalBars={totalBars} onBarsChange={onBarsChange}
+                volume={volume} onVolumeChange={onVolumeChange}
+                midiInputAvailable={midiInputAvailable}
+                midiInputActive={midiInputActive}
+                midiDeviceName={midiDeviceName}
+                onMidiInputToggle={onMidiInputToggle}
+                onClearAll={onClearAll}
+              />
             </div>
 
-            {/* Row 2 — collapsible */}
-            <div style={{ overflow: 'hidden', maxHeight: desktopCompact ? 0 : 58, transition: 'max-height 0.18s ease' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', overflowX: 'auto', overflowY: 'hidden' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: T.primary, lineHeight: 1 }}>
-                  Duration
-                </span>
-                <DurationPicker value={noteDuration} onChange={onNoteDurationChange} prominent />
-              </div>
+            {/* ── Row 2: Composition tools (always visible) ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '0 10px', height: 40,
+              overflowX: 'auto', overflowY: 'hidden',
+            }}>
+              <LabeledControl label="Duration">
+                <DurationPicker value={noteDuration} onChange={onNoteDurationChange} />
+              </LabeledControl>
 
               <Divider />
 
-              <LabeledControl label="Grid">
+              <LabeledControl label="Snap">
                 <SegmentedBtns
                   options={[
                     { value: 0.25,    label: '¼' },
@@ -595,7 +572,7 @@ export function BassTabTransport(props: TransportProps) {
               <LabeledControl label="Sound">
                 <SegmentedBtns
                   options={[
-                    { value: 'electric', label: 'Elec' },
+                    { value: 'electric', label: 'Electric' },
                     { value: 'picked',   label: 'Pick' },
                     { value: 'synth',    label: 'Synth' },
                     { value: 'slap',     label: 'Slap' },
@@ -618,19 +595,9 @@ export function BassTabTransport(props: TransportProps) {
                 </>
               )}
 
-              <Divider />
-
-              <LabeledControl label={`Vol ${Math.round(volume * 100)}%`}>
-                <input
-                  type="range" min={0} max={1} step={0.01} value={volume}
-                  onChange={e => onVolumeChange(Number(e.target.value))}
-                  style={{ width: 68, accentColor: T.primary, cursor: 'pointer', height: 32 }}
-                />
-              </LabeledControl>
-
               {hasSelectedNote && selectedNoteFret !== null && (
                 <>
-                  <Divider />
+                  <div style={{ flex: 1 }} />
                   <LabeledControl label="Fret">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                       <StepBtn onClick={() => onFretChange(Math.max(0, selectedNoteFret - 1))} label="−" />
@@ -642,7 +609,6 @@ export function BassTabTransport(props: TransportProps) {
                 </>
               )}
             </div>
-            </div>{/* end accordion */}
           </>
         )}
       </div>
@@ -686,6 +652,7 @@ function LabeledControl({ label, children }: { label: string; children: React.Re
 interface IconBtnProps {
   children: React.ReactNode
   onClick?: () => void
+  onAltClick?: () => void
   title?: string
   disabled?: boolean
   active?: boolean
@@ -697,14 +664,18 @@ interface IconBtnProps {
   hoverBorder?: string
 }
 
-function IconBtn({ children, onClick, title, disabled, active, activeBg, activeColor, activeBorder, hoverBg, hoverColor, hoverBorder }: IconBtnProps) {
+function IconBtn({ children, onClick, onAltClick, title, disabled, active, activeBg, activeColor, activeBorder, hoverBg, hoverColor, hoverBorder }: IconBtnProps) {
   const [hov, setHov] = useState(false)
   const bg     = active ? (activeBg    ?? T.primaryBg)  : hov ? (hoverBg    ?? T.surfaceHov) : T.surface
   const color  = active ? (activeColor ?? T.primaryText) : hov ? (hoverColor ?? T.text)       : T.muted
   const border = active ? (activeBorder ?? T.primary)    : hov ? (hoverBorder ?? T.border)    : T.border
+  const handleClick = (e: React.MouseEvent) => {
+    if (e.altKey && onAltClick) { e.preventDefault(); onAltClick() }
+    else onClick?.()
+  }
   return (
     <button
-      onClick={onClick} disabled={disabled} title={title}
+      onClick={handleClick} disabled={disabled} title={title}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -912,25 +883,325 @@ function DurationBtn({ label, sub, title, active, prominent, onClick }: {
   label: string; sub: string; title: string; active: boolean; prominent: boolean; onClick: () => void
 }) {
   const [hov, setHov] = useState(false)
-  const h = prominent ? 36 : 28
   return (
     <button
       onClick={onClick} title={title}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
-        height: h, padding: prominent ? '0 10px' : '0 7px',
+        height: 28, padding: '0 9px',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
         background: active ? T.primaryBg : hov ? T.surfaceHov : T.surface,
         border: `1px solid ${active ? T.primary : T.border}`,
         borderRadius: 6, color: active ? T.primaryText : hov ? T.text : T.muted,
         cursor: 'pointer', flexShrink: 0, transition: 'all 0.1s',
-        boxShadow: active ? `0 0 8px ${T.primary}44` : 'none',
+        boxShadow: active ? `0 0 6px ${T.primary}33` : 'none',
       }}
     >
-      <span style={{ fontSize: prominent ? 14 : 12, lineHeight: 1 }}>{label}</span>
-      {prominent && <span style={{ fontSize: 8, lineHeight: 1, opacity: 0.7 }}>{sub}</span>}
+      <span style={{ fontSize: 11, fontWeight: active ? 600 : 400, lineHeight: 1 }}>{label}</span>
+      <span style={{ fontSize: 8, lineHeight: 1, opacity: 0.55 }}>{sub}</span>
     </button>
   )
+}
+
+// ── ExportDropdown ─────────────────────────────────────────────────────────
+function ExportDropdown({ onExportAscii, onExportMidi, onExportWav }: {
+  onExportAscii: () => void; onExportMidi: () => void; onExportWav?: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [pos,  setPos]  = useState({ top: 0, right: 0 })
+  const [hov, setHov]   = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const panelRef   = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (
+        panelRef.current  && !panelRef.current.contains(e.target as Node) &&
+        triggerRef.current && !triggerRef.current.contains(e.target as Node)
+      ) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const handleOpen = () => {
+    if (!open && triggerRef.current) {
+      const r = triggerRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    }
+    setOpen(o => !o)
+  }
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        onClick={handleOpen}
+        onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+        title="Export"
+        style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          height: 32, padding: '0 10px', borderRadius: 6,
+          background: open ? T.primaryBg : hov ? T.surfaceHov : T.surface,
+          border: `1px solid ${open ? T.primary : T.border}`,
+          color: open ? T.primaryText : hov ? T.text : T.muted,
+          fontSize: 11, fontFamily: FONT, cursor: 'pointer',
+          transition: 'all 0.1s', flexShrink: 0,
+        }}
+      >
+        <Download size={13} />
+        <span>Export</span>
+        <ChevronDown size={11} style={{ opacity: 0.5 }} />
+      </button>
+      {open && (
+        <div ref={panelRef} style={{
+          position: 'fixed', top: pos.top, right: pos.right,
+          background: 'hsl(224 20% 13%)',
+          border: `1px solid ${T.border}`, borderRadius: 8,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.55)',
+          padding: 4, minWidth: 170, zIndex: 99999,
+          display: 'flex', flexDirection: 'column', gap: 1,
+        }}>
+          <DropdownItem icon={<Music size={13} />} label="MIDI  (.mid)"
+            onClick={() => { onExportMidi(); setOpen(false) }} />
+          <DropdownItem icon={<Download size={13} />} label="ASCII Tab  (.txt)"
+            onClick={() => { onExportAscii(); setOpen(false) }} />
+          {onExportWav && (
+            <DropdownItem icon={<Waves size={13} />} label="Audio  (.wav)"
+              onClick={() => { onExportWav(); setOpen(false) }} />
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+function DropdownItem({ icon, label, onClick, danger }: {
+  icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean
+}) {
+  const [hov, setHov] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '7px 10px', borderRadius: 5, border: 'none',
+        background: hov ? (danger ? T.dangerBg : T.surfaceHov) : 'transparent',
+        color: danger ? (hov ? T.danger : `${T.danger}bb`) : hov ? T.text : T.muted,
+        fontSize: 12, fontFamily: FONT, cursor: 'pointer',
+        transition: 'all 0.08s', textAlign: 'left', width: '100%',
+      }}
+    >
+      {icon}<span>{label}</span>
+    </button>
+  )
+}
+
+// ── OverflowMenu (⋯) ───────────────────────────────────────────────────────
+interface OverflowMenuProps {
+  zoom: number; fitWidth: boolean
+  onZoomIn: () => void; onZoomOut: () => void; onZoomReset: () => void; onFitWidthToggle: () => void
+  totalBars: number; onBarsChange: (n: number) => void
+  volume: number; onVolumeChange: (v: number) => void
+  midiInputAvailable?: boolean; midiInputActive?: boolean; midiDeviceName?: string | null
+  onMidiInputToggle?: () => void
+  onClearAll: () => void
+}
+
+function OverflowMenu(p: OverflowMenuProps) {
+  const [open, setOpen]                = useState(false)
+  const [pos,  setPos]                 = useState({ top: 0, right: 0 })
+  const [clearConfirm, setClearConfirm] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const panelRef   = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (
+        panelRef.current  && !panelRef.current.contains(e.target as Node) &&
+        triggerRef.current && !triggerRef.current.contains(e.target as Node)
+      ) { setOpen(false); setClearConfirm(false) }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const handleOpen = () => {
+    if (!open && triggerRef.current) {
+      const r = triggerRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    }
+    setOpen(o => !o)
+  }
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        onClick={handleOpen}
+        title="More options"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 32, height: 32,
+          background: open ? T.primaryBg : T.surface,
+          color: open ? T.primaryText : T.muted,
+          border: `1px solid ${open ? T.primary : T.border}`,
+          borderRadius: 6, cursor: 'pointer', flexShrink: 0,
+          transition: 'all 0.1s',
+        }}
+      >
+        <MoreHorizontal size={14} />
+      </button>
+      {open && (
+        <div ref={panelRef} style={{
+          position: 'fixed', top: pos.top, right: pos.right,
+          background: 'hsl(224 20% 13%)',
+          border: `1px solid ${T.border}`, borderRadius: 8,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.55)',
+          padding: 10, minWidth: 230, zIndex: 9999,
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+
+          {/* View section */}
+          <OverflowSection label="View">
+            <OverflowRow label="Zoom">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <IconBtn onClick={p.onZoomOut} title="Zoom out" disabled={p.zoom <= 0.4 || p.fitWidth}>
+                  <span style={{ fontSize: 13, lineHeight: 1 }}>−</span>
+                </IconBtn>
+                <button
+                  onClick={p.fitWidth ? undefined : p.onZoomReset}
+                  style={{
+                    minWidth: 44, height: 32, padding: '0 4px',
+                    background: p.fitWidth ? T.primaryBg : p.zoom !== 1 ? T.surfaceHov : T.surface,
+                    border: `1px solid ${p.fitWidth ? T.primary : p.zoom !== 1 ? `${T.primary}66` : T.border}`,
+                    borderRadius: 5,
+                    color: p.fitWidth ? T.primaryText : p.zoom !== 1 ? T.primaryText : T.muted,
+                    fontSize: 11, fontFamily: FONT,
+                    cursor: p.fitWidth ? 'default' : 'pointer', transition: 'all 0.1s',
+                  }}
+                >
+                  {p.fitWidth ? 'fit' : `${Math.round(p.zoom * 100)}%`}
+                </button>
+                <IconBtn onClick={p.onZoomIn} title="Zoom in" disabled={p.zoom >= 4 || p.fitWidth}>
+                  <span style={{ fontSize: 13, lineHeight: 1 }}>+</span>
+                </IconBtn>
+                <IconBtn onClick={p.onFitWidthToggle} title="Fit to window width"
+                  active={p.fitWidth} activeBg={T.primaryBg} activeColor={T.primaryText} activeBorder={T.primary}>
+                  <span style={{ fontSize: 11, letterSpacing: '-1px' }}>↔</span>
+                </IconBtn>
+              </div>
+            </OverflowRow>
+
+            <OverflowRow label="Bars">
+              <StepInput value={p.totalBars} min={1} max={64} onChange={p.onBarsChange} options={[2, 4, 8, 16, 32]} />
+            </OverflowRow>
+
+            <OverflowRow label={`Volume  ${Math.round(p.volume * 100)}%`}>
+              <input
+                type="range" min={0} max={1} step={0.01} value={p.volume}
+                onChange={e => p.onVolumeChange(Number(e.target.value))}
+                style={{ width: 90, accentColor: T.primary, cursor: 'pointer', height: 20 }}
+              />
+            </OverflowRow>
+          </OverflowSection>
+
+          {p.midiInputAvailable && p.onMidiInputToggle && (
+            <>
+              <OverflowDivider />
+              <button
+                onClick={p.onMidiInputToggle}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '6px 4px', borderRadius: 5, border: 'none', background: 'transparent',
+                  color: p.midiInputActive ? 'hsl(280 80% 70%)' : T.muted,
+                  fontSize: 12, fontFamily: FONT, cursor: 'pointer', width: '100%',
+                  transition: 'color 0.1s',
+                }}
+              >
+                <Piano size={13} />
+                <span style={{ flex: 1, textAlign: 'left' }}>
+                  {p.midiInputActive ? `MIDI: ${p.midiDeviceName ?? 'connected'}` : 'MIDI Input'}
+                </span>
+                <div style={{
+                  width: 28, height: 16, borderRadius: 8, flexShrink: 0,
+                  background: p.midiInputActive ? 'hsl(280 70% 45%)' : T.border,
+                  position: 'relative', transition: 'background 0.2s',
+                }}>
+                  <div style={{
+                    position: 'absolute', top: 2,
+                    left: p.midiInputActive ? 14 : 2,
+                    width: 12, height: 12, borderRadius: '50%',
+                    background: 'white', transition: 'left 0.15s',
+                  }} />
+                </div>
+              </button>
+            </>
+          )}
+
+          <OverflowDivider />
+
+          {!clearConfirm ? (
+            <DropdownItem icon={<Trash2 size={13} />} label="Clear all notes"
+              onClick={() => setClearConfirm(true)} danger />
+          ) : (
+            <div>
+              <div style={{ fontSize: 11, color: T.danger, marginBottom: 6, padding: '0 2px' }}>
+                Delete all notes?
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => { p.onClearAll(); setOpen(false); setClearConfirm(false) }}
+                  style={{
+                    flex: 1, height: 28, background: T.dangerBg, border: `1px solid ${T.danger}`,
+                    borderRadius: 5, color: T.danger, fontSize: 11, fontFamily: FONT, cursor: 'pointer',
+                  }}
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => setClearConfirm(false)}
+                  style={{
+                    flex: 1, height: 28, background: T.surface, border: `1px solid ${T.border}`,
+                    borderRadius: 5, color: T.muted, fontSize: 11, fontFamily: FONT, cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+function OverflowSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: T.primary, paddingLeft: 2 }}>
+        {label}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function OverflowRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 11, color: T.muted, minWidth: 56 }}>{label}</span>
+      {children}
+    </div>
+  )
+}
+
+function OverflowDivider() {
+  return <div style={{ height: 1, background: T.border }} />
 }
 
 // ── StepInput (Bars) ───────────────────────────────────────────────────────

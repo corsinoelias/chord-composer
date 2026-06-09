@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
+﻿import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import {
   type BassNote, type BassTrack, type SnapValue, type StringIndex,
   type BassSound, type TrackSection,
@@ -396,6 +396,43 @@ export function TabNotationView({
             )
           })()}
 
+
+          {/* ── Bass clef + time signature (label area x=0..LABEL_W) ── */}
+          {/* Bravura = same music font VexFlow loads. U+E062=fClef, U+E080-E089=timeSig digits */}
+          {(() => {
+            const ls  = NOTATION.lineSpacing   // 8
+            const yLn = (line: number) => NOTA_ORIGIN_Y + NOTATION.lineToY(line)
+            const yF  = yLn(3)   // F2 line — SMuFL F-clef reference point
+
+            return (
+              <>
+                <defs>
+                  <style>{`@font-face{font-family:'Bravura';src:url('https://cdn.jsdelivr.net/npm/@vexflow-fonts/bravura/bravura.woff2') format('woff2');font-display:block}`}</style>
+                </defs>
+                <g style={{ pointerEvents: 'none' }}>
+                  {/* F-clef — SMuFL U+E062, origin = F2 line */}
+                  <text x={2} y={yF}
+                    fontFamily="Bravura, serif" fontSize={ls * 4}
+                    fill={staffLineColor}>
+                    {String.fromCodePoint(0xE062)}
+                  </text>
+                  {/* Time signature: SMuFL digits U+E080-E089 */}
+                  <text x={40} y={yF}
+                    fontFamily="Bravura, serif" fontSize={ls * 2.5}
+                    textAnchor="middle" dominantBaseline="middle"
+                    fill={staffLineColor}>
+                    {String.fromCodePoint(0xE080 + track.beatsPerBar)}
+                  </text>
+                  <text x={40} y={yLn(1)}
+                    fontFamily="Bravura, serif" fontSize={ls * 2.5}
+                    textAnchor="middle" dominantBaseline="middle"
+                    fill={staffLineColor}>
+                    {String.fromCodePoint(0xE084)}
+                  </text>
+                </g>
+              </>
+            )
+          })()}
 
           {/* ── Notation notes ── */}
           {notated.notes.map(nn => {
