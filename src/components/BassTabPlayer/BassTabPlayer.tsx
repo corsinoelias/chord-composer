@@ -71,12 +71,11 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     }
     return 'electric'
   })
-  const [loop, setLoop]                 = useState(true)
+  const [loop, setLoop]                 = useState(false)
   const [volume, setVolume]             = useState(0.75)
   const [selectedNoteId, setSelectedId] = useState<string | null>(null)
   const [metronome, setMetronome]       = useState(false)
-  const [guitarView, setGuitarView]     = useState(false)
-  const [viewMode, setViewMode]         = useState<'notation' | 'score' | 'grid'>('notation')
+  const [activeView, setActiveView]     = useState<'tab' | 'score' | 'grid' | 'guitar'>('tab')
   const [noteDuration, setNoteDuration] = useState<number>(0.5)
   const [ctxMenu, setCtxMenu]           = useState<CtxMenu | null>(null)
   const [toast, setToast]               = useState<string | null>(null)
@@ -86,7 +85,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [desktopCompact, setDesktopCompact]         = useState(false)
   const [fretboardVisible, setFretboardVisible]     = useState(true)
   const [fitWidth, setFitWidth]                     = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
-  const [splitView, setSplitView]                   = useState(false)
+  // splitView removed
   const [fretNumpadOpen, setFretNumpadOpen]         = useState(false)
   const [isWide, setIsWide]                         = useState(false)
   const [isShortScreen, setIsShortScreen]           = useState(false)
@@ -144,11 +143,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     if (isPlaying && isMobile) setFretboardVisible(true)
   }, [isPlaying, isMobile])
 
-  // Switch view (bottom nav handler)
-  const handleSelectView = useCallback((view: 'notation' | 'score' | 'grid' | 'guitar') => {
-    if (view === 'guitar') { setGuitarView(true) }
-    else { setGuitarView(false); setViewMode(view as 'notation' | 'score' | 'grid') }
-  }, [])
 
   const handleLoadPreset = useCallback((preset: Preset) => {
     const { sound: presetSound } = handleLoadPresetFull(preset)
@@ -450,13 +444,28 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     }
   }, [track, sound, showToast])
 
+  const handleLoopToggle = useCallback(() => {
+    const next = !loop
+    setLoop(next)
+    if (next) {
+      if (!loopRange) {
+        setLoopRange({ startBeat: 0, endBeat: track.totalBars * track.beatsPerBar })
+      }
+    } else {
+      setLoopRange(null)
+    }
+  }, [loop, loopRange, track.totalBars, track.beatsPerBar])
+
   const handleToggleLoopRange = useCallback(() => {
-    setLoopRange(lr => {
-      if (lr) return null
+    if (loopRange) {
+      setLoopRange(null)
+      setLoop(false)
+    } else {
       const totalBeats = track.totalBars * track.beatsPerBar
-      return { startBeat: 0, endBeat: totalBeats }
-    })
-  }, [track])
+      setLoopRange({ startBeat: 0, endBeat: totalBeats })
+      setLoop(true)
+    }
+  }, [loopRange, track])
 
   const handleShareUrl = useCallback(async () => {
     const hash = encodeTrackToHash(track)
@@ -535,8 +544,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [isPlaying, handlePlay, handleStop, selectedNoteId, handleDeleteNote, selectedNote, updateNote, snap, handleUndo, handleRedo, duplicateNote])
-
-  const activeView: 'notation' | 'score' | 'grid' | 'guitar' = guitarView ? 'guitar' : viewMode
 
   return (
     <div
@@ -629,64 +636,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
               {track.notes.length} {track.notes.length === 1 ? 'note' : 'notes'}
             </span>
 
-            <button
-              onClick={() => setGuitarView(v => !v)}
-              title={guitarView ? 'Switch to Tab view' : 'Switch to Bass guitar view'}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                padding: '3px 10px', borderRadius: 20,
-                fontSize: 11, fontWeight: 500, cursor: 'pointer', border: '1px solid',
-                borderColor: guitarView ? 'hsl(262 40% 40%)' : 'hsl(224 15% 28%)',
-                background:  guitarView ? 'hsl(262 40% 18%)' : 'hsl(224 18% 14%)',
-                color:       guitarView ? 'hsl(262 80% 80%)' : 'hsl(220 10% 55%)',
-                transition: 'all 0.15s',
-              }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
-              </svg>
-              {guitarView ? 'Tab' : 'Bass guitar'}
-            </button>
-
-            {!guitarView && (
-              <button
-                onClick={() => setViewMode(m => m === 'notation' ? 'score' : m === 'score' ? 'grid' : 'notation')}
-                title="Cycle: Tab → Score → Grid"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '3px 10px', borderRadius: 20,
-                  fontSize: 11, fontWeight: 500, cursor: 'pointer', border: '1px solid',
-                  borderColor: viewMode !== 'grid' ? 'hsl(262 40% 40%)' : 'hsl(224 15% 28%)',
-                  background:  viewMode !== 'grid' ? 'hsl(262 40% 18%)' : 'hsl(224 18% 14%)',
-                  color:       viewMode !== 'grid' ? 'hsl(262 80% 80%)' : 'hsl(220 10% 55%)',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {viewMode === 'notation' ? 'Tab' : viewMode === 'score' ? 'Score' : 'Grid'}
-              </button>
-            )}
-
-            {!guitarView && isWide && (
-              <button
-                onClick={() => setSplitView(v => !v)}
-                title={splitView ? 'Exit split view' : 'Split: tab + bass guitar side by side'}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '3px 10px', borderRadius: 20,
-                  fontSize: 11, fontWeight: 500, cursor: 'pointer', border: '1px solid',
-                  borderColor: splitView ? 'hsl(192 70% 40%)' : 'hsl(224 15% 28%)',
-                  background:  splitView ? 'hsl(192 60% 14%)' : 'hsl(224 18% 14%)',
-                  color:       splitView ? 'hsl(192 80% 75%)' : 'hsl(220 10% 55%)',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <rect x="1" y="1" width="4" height="10" rx="1" />
-                  <rect x="7" y="1" width="4" height="10" rx="1" />
-                </svg>
-                Split
-              </button>
-            )}
 
             {isPlaying && (
               <span style={{
@@ -717,7 +666,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         totalBars={track.totalBars} zoom={zoom} volume={volume} noteDuration={noteDuration}
         hasSelectedNote={!!selectedNote} selectedNoteFret={selectedNote?.fret ?? null}
         canUndo={canUndo} canRedo={canRedo} metronome={metronome}
-        onPlay={handlePlay} onStop={handleStop} onRewind={handleRewind} onLoopToggle={() => setLoop(l => !l)}
+        onPlay={handlePlay} onStop={handleStop} onRewind={handleRewind} onLoopToggle={handleLoopToggle}
         onBpmChange={handleBpmChange} onSnapChange={setSnap} onSoundChange={handleSoundChange}
         onBarsChange={(bars) => setTrack(t => ({ ...t, totalBars: bars }))}
         onZoomIn={() => handleZoomChange(zoom + 0.25)} onZoomOut={() => handleZoomChange(zoom - 0.25)} onZoomReset={() => handleZoomChange(1)}
@@ -765,52 +714,49 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         />
       </div>
 
+      {/* ── View bar (desktop) ────────────────────────────────────────────── */}
+      {!isMobile && (
+        <div style={{
+          display: 'flex', alignItems: 'stretch',
+          height: 30, flexShrink: 0,
+          background: 'hsl(224 20% 9%)',
+          borderBottom: '1px solid hsl(224 15% 16%)',
+        }}>
+          {([
+            { id: 'tab',    label: 'Tab',         icon: <TabIcon /> },
+            { id: 'score',  label: 'Score',        icon: <ScoreIcon /> },
+            { id: 'grid',   label: 'Grid',         icon: <GridIcon /> },
+            { id: 'guitar', label: 'Bass Guitar',  icon: <GuitarIcon /> },
+          ] as const).map(v => {
+            const active = activeView === v.id
+            return (
+              <button key={v.id} onClick={() => setActiveView(v.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '0 14px', height: '100%',
+                  background: active ? 'hsl(262 50% 18%)' : 'transparent',
+                  border: 'none',
+                  borderBottom: `2px solid ${active ? 'hsl(262 83% 58%)' : 'transparent'}`,
+                  color: active ? 'hsl(262 80% 85%)' : 'hsl(220 10% 42%)',
+                  fontSize: 11, fontWeight: active ? 600 : 400,
+                  cursor: 'pointer', transition: 'all 0.12s',
+                  fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+                  letterSpacing: '0.02em',
+                  userSelect: 'none',
+                }}
+              >
+                {v.icon}
+                <span>{v.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {/* ── Main content ──────────────────────────────────────────────────── */}
-      {guitarView ? (
+      {activeView === 'guitar' ? (
         <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
           <BassRealisticDisplay activeFrets={activeFrets} attackSignals={attackSignals} />
-        </div>
-      ) : splitView && isWide ? (
-        /* ── Split view: tab left, bass guitar right ── */
-        <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-            {viewMode === 'notation' ? (
-              <TabScore
-                track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
-                cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
-                sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
-                onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
-                onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
-                onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
-              />
-            ) : viewMode === 'score' ? (
-              <TabNotationView
-                track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
-                cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
-                sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
-                onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
-                onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
-                onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
-                onFitZoomChange={handleZoomChange}
-              />
-            ) : (
-              <BassTabGrid
-                track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
-                cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
-                fitWidth={fitWidth} isMobile={isMobile}
-                onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
-                onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
-                onZoomChange={handleZoomChange} onBeginEdit={beginEdit}
-                onNotePreview={handleNotePreview} onLongPressNote={handleLongPress}
-              />
-            )}
-          </div>
-          {/* Divider */}
-          <div style={{ width: 1, background: 'hsl(224 15% 18%)', flexShrink: 0 }} />
-          {/* Bass guitar panel */}
-          <div style={{ width: '40%', minWidth: 280, flexShrink: 0, overflow: 'hidden' }}>
-            <BassRealisticDisplay activeFrets={activeFrets} attackSignals={attackSignals} />
-          </div>
         </div>
       ) : (
         <>
@@ -819,7 +765,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             <button
               onClick={() => {
                 setFretboardVisible(v => {
-                  if (!v) setTransportExpanded(false) // opening fretboard → collapse transport
+                  if (!v) setTransportExpanded(false)
                   return !v
                 })
               }}
@@ -851,16 +797,16 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             </div>
           </div>
 
-          {/* Main content view: desktop full views / mobile one-bar view */}
+          {/* Score / Tab / Grid */}
           {isMobile ? (
             <MobileBarView
               track={track}
               currentBeat={currentBeat}
               isPlaying={isPlaying}
               onSeek={handleSeek}
-              viewMode={viewMode}
+              viewMode={activeView === 'tab' ? 'notation' : activeView as 'score' | 'grid'}
             />
-          ) : viewMode === 'notation' ? (
+          ) : activeView === 'tab' ? (
             <TabScore
               track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
               cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
@@ -869,7 +815,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
               onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
               onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
             />
-          ) : viewMode === 'score' ? (
+          ) : activeView === 'score' ? (
             <TabNotationView
               track={track} zoom={zoom} snap={snap} currentBeat={currentBeat}
               cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
@@ -898,7 +844,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         <StatusBar
           isPlaying={isPlaying} selectedNote={selectedNote}
           currentBeat={currentBeat} beatsPerBar={track.beatsPerBar} loop={loop}
-          guitarView={guitarView}
+          guitarView={activeView === 'guitar'}
         />
       )}
 
@@ -911,16 +857,16 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           display: 'flex',
         }}>
           {([
-            { id: 'notation', label: 'Tab',   icon: <TabIcon /> },
-            { id: 'score',    label: 'Score', icon: <ScoreIcon /> },
-            { id: 'grid',     label: 'Grid',  icon: <GridIcon /> },
-            { id: 'guitar',   label: 'Bass',  icon: <GuitarIcon /> },
+            { id: 'tab',    label: 'Tab',   icon: <TabIcon /> },
+            { id: 'score',  label: 'Score', icon: <ScoreIcon /> },
+            { id: 'grid',   label: 'Grid',  icon: <GridIcon /> },
+            { id: 'guitar', label: 'Bass',  icon: <GuitarIcon /> },
           ] as const).map(tab => {
             const isActive = activeView === tab.id
             return (
               <button
                 key={tab.id}
-                onClick={() => handleSelectView(tab.id)}
+                onClick={() => setActiveView(tab.id)}
                 style={{
                   flex: 1, height: '100%',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
