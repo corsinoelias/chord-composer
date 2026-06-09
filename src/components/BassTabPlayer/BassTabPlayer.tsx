@@ -2,12 +2,14 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { importMidi, type MidiImportResult } from '../../lib/import/midiImport'
 import { BassTabSeekBar } from './BassTabSeekBar'
 import { MobileBarView } from './MobileBarView'
+import { MobileTabEditor } from './MobileTabEditor'
 import { type BassNote, type BassTrack, type BassSound, type SnapValue, type StringIndex, type LoopRange, DEFAULT_TRACK } from '../../lib/bassTab/types'
 import { DEFAULT_INTRO_TRACK } from '../../data/defaultBassTab'
 import { TabScore } from './TabScore'
 import { TabNotationView } from './TabNotationView'
 import { snapToGrid, findNoteAtBeat, clampDuration } from '../../lib/bassTab/bassTheory'
 import { startPlayback, stopPlayback, setMasterVolume, previewNote } from '../../lib/bassTab/bassAudio'
+import { RecordingOverlay } from './RecordingOverlay'
 import { toAsciiTab, encodeTrackToHash, decodeTrackFromHash, copyToClipboard, exportMidiFile } from '../../lib/bassTab/exportTab'
 import { exportTrackAsWav } from '../../lib/bassTab/exportAudio'
 import { BassTabTransport } from './BassTabTransport'
@@ -129,6 +131,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   }, [])
 
   const [fretboardVisible, setFretboardVisible] = useState(true)
+  const [recordingOpen, setRecordingOpen]       = useState(false)
 
   // Auto-compact on short desktop screens
   useEffect(() => {
@@ -384,6 +387,18 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     addNote(dup)
     setSelectedId(dup.id)
   }, [track.notes, selectedNoteId, track.totalBars, track.beatsPerBar, addNote])
+
+  // ── Recording ─────────────────────────────────────────────────────────────
+  const handleRecordingComplete = useCallback((notes: BassNote[]) => {
+    stopPlayback()
+    setIsPlaying(false)
+    setCurrentBeat(0)
+    beginEdit()
+    setTrack(t => ({ ...t, notes }))
+    setSelectedId(null)
+    setRecordingOpen(false)
+    showToast(`Grabación importada: ${notes.length} nota${notes.length !== 1 ? 's' : ''}`)
+  }, [beginEdit, showToast])
 
   // ── Transport ─────────────────────────────────────────────────────────────
   const handleBpmChange = useCallback((bpm: number) => {
@@ -689,6 +704,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         onExportWav={handleExportWav}
         loopRangeActive={!!loopRange}
         onToggleLoopRange={handleToggleLoopRange}
+        onRecord={() => { stopPlayback(); setIsPlaying(false); setRecordingOpen(true) }}
       />
 
       {/* ── Seek bar ──────────────────────────────────────────────────────── */}
@@ -785,26 +801,22 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             </div>
           )}
 
-          {/* Score / Tab / Grid */}
-          {isMobile && activeView === 'grid' ? (
-            <BassTabGrid
-              track={track} zoom={zoom} currentBeat={currentBeat}
-              cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
-              fitWidth={fitWidth} isMobile={isMobile}
-              onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
-              onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
-              onZoomChange={handleZoomChange} onBeginEdit={beginEdit}
-              onNotePreview={handleNotePreview} onLongPressNote={handleLongPress}
-            />
-          ) : isMobile ? (
+          {/* Mobile: Edit (editable notation) or Score (read-only notation) */}
+          {isMobile && activeView === 'tab' ? (
             <MobileBarView
-              track={track}
-              currentBeat={currentBeat}
-              isPlaying={isPlaying}
-              onSeek={handleSeek}
-              viewMode={activeView === 'tab' ? 'notation' : 'score'}
+              track={track} currentBeat={currentBeat} isPlaying={isPlaying}
+              onSeek={handleSeek} viewMode="score"
+              editable selectedNoteId={selectedNoteId} sound={sound} noteDuration={noteDuration}
+              onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
+              onSelectNote={setSelectedId} onBeginEdit={beginEdit}
             />
-          ) : activeView === 'tab' ? (
+          ) : isMobile && activeView === 'score' ? (
+            <MobileBarView
+              track={track} currentBeat={currentBeat} isPlaying={isPlaying}
+              onSeek={handleSeek} viewMode="score"
+            />
+          ) : isMobile ? null
+          : activeView === 'tab' ? (
             <TabScore
               track={track} zoom={zoom} currentBeat={currentBeat}
               cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
@@ -855,9 +867,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           display: 'flex',
         }}>
           {([
-            { id: 'tab',    label: 'Tab',   icon: <TabIcon /> },
+            { id: 'tab',    label: 'Edit',  icon: <TabIcon /> },
             { id: 'score',  label: 'Score', icon: <ScoreIcon /> },
-            { id: 'grid',   label: 'Grid',  icon: <GridIcon /> },
             { id: 'guitar', label: 'Bass',  icon: <GuitarIcon /> },
           ] as const).map(tab => {
             const isActive = activeView === tab.id
@@ -1141,6 +1152,16 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         >
           {toast}
         </div>
+      )}
+
+      {/* ── Recording overlay ─────────────────────────────────────────────── */}
+      {recordingOpen && (
+        <RecordingOverlay
+          track={track}
+          sound={sound}
+          onComplete={handleRecordingComplete}
+          onCancel={() => setRecordingOpen(false)}
+        />
       )}
     </div>
   )

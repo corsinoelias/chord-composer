@@ -208,3 +208,51 @@ export function stopPlayback() {
 export function setMasterVolume(vol: number) {
   if (masterGain) masterGain.gain.value = Math.max(0, Math.min(1, vol))
 }
+
+export function getAudioContext(): AudioContext {
+  return ensureCtx()
+}
+
+export function startRecordingMetronome(
+  bpm: number,
+  beatsPerBar: number,
+  totalBeats: number,
+  onBeat: (beatIndex: number) => void,
+  onEnd: () => void,
+): { stop: () => void; startAudioTime: number } {
+  const ctx          = ensureCtx()
+  const beatDur      = 60 / bpm
+  const startAudioTime = ctx.currentTime + 0.15
+  let stopped        = false
+  let nextBeat       = 0
+  const pending: ReturnType<typeof setTimeout>[] = []
+  let rafId: number
+
+  function tick() {
+    if (stopped) return
+    while (nextBeat <= totalBeats) {
+      const t = startAudioTime + nextBeat * beatDur
+      if (t > ctx.currentTime + 0.35) break
+      if (nextBeat < totalBeats) {
+        scheduleMetronomeClick(ctx, t, nextBeat % beatsPerBar === 0)
+        const ms = Math.max(0, (t - ctx.currentTime) * 1000)
+        pending.push(setTimeout(() => { if (!stopped) onBeat(nextBeat) }, ms))
+      } else {
+        const ms = Math.max(0, (t - ctx.currentTime) * 1000)
+        pending.push(setTimeout(() => { if (!stopped) onEnd() }, ms))
+      }
+      nextBeat++
+    }
+    rafId = requestAnimationFrame(tick)
+  }
+
+  rafId = requestAnimationFrame(tick)
+  return {
+    startAudioTime,
+    stop() {
+      stopped = true
+      cancelAnimationFrame(rafId)
+      pending.forEach(clearTimeout)
+    },
+  }
+}

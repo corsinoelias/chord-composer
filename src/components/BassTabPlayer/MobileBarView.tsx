@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import type { BassTrack } from '../../lib/bassTab/types'
+import type { BassNote, BassTrack, BassSound } from '../../lib/bassTab/types'
 import { TabNotationView } from './TabNotationView'
 
 interface MobileBarViewProps {
@@ -8,6 +8,16 @@ interface MobileBarViewProps {
   isPlaying:   boolean
   onSeek:      (beat: number) => void
   viewMode?:   'notation' | 'score' | 'grid'
+  // Optional edit props — when provided, the score view becomes editable
+  editable?:       boolean
+  selectedNoteId?: string | null
+  sound?:          BassSound
+  noteDuration?:   number
+  onAddNote?:      (note: BassNote) => void
+  onUpdateNote?:   (id: string, patch: Partial<BassNote>) => void
+  onDeleteNote?:   (id: string) => void
+  onSelectNote?:   (id: string | null) => void
+  onBeginEdit?:    () => void
 }
 
 // ── Colour palette ───────────────────────────────────────────────────────────
@@ -155,7 +165,10 @@ function BarSVG({ track, barIndex, beatInBar, isPlaying }: BarSVGProps) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export function MobileBarView({ track, currentBeat, isPlaying, onSeek, viewMode = 'notation' }: MobileBarViewProps) {
+export function MobileBarView({ track, currentBeat, isPlaying, onSeek, viewMode = 'notation',
+  editable = false, selectedNoteId = null, sound = 'electric', noteDuration = 0.5,
+  onAddNote, onUpdateNote, onDeleteNote, onSelectNote, onBeginEdit,
+}: MobileBarViewProps) {
   const { beatsPerBar, totalBars } = track
 
   const [displayBar, setDisplayBar] = useState(() =>
@@ -287,17 +300,19 @@ export function MobileBarView({ track, currentBeat, isPlaying, onSeek, viewMode 
             zoom={1}
             fitWidth={true}
             currentBeat={beatInSingleBar}
-            cursorBeat={0}
+            cursorBeat={beatInSingleBar}
             isPlaying={isPlaying && isBarActive}
-            selectedNoteId={null}
-            sound="electric"
-            noteDuration={0.5}
-            onAddNote={() => {}}
-            onUpdateNote={() => {}}
-            onDeleteNote={() => {}}
-            onSelectNote={() => {}}
+            selectedNoteId={editable ? selectedNoteId : null}
+            sound={sound}
+            noteDuration={noteDuration}
+            onAddNote={editable && onAddNote
+              ? (n) => onAddNote({ ...n, startBeat: n.startBeat + barStart })
+              : () => {}}
+            onUpdateNote={editable && onUpdateNote ? onUpdateNote : () => {}}
+            onDeleteNote={editable && onDeleteNote ? onDeleteNote : () => {}}
+            onSelectNote={editable && onSelectNote ? onSelectNote : () => {}}
             onCursorBeatChange={() => {}}
-            onBeginEdit={() => {}}
+            onBeginEdit={editable && onBeginEdit ? onBeginEdit : () => {}}
             onSectionChange={() => {}}
             onFitZoomChange={() => {}}
           />

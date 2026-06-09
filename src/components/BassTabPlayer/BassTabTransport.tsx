@@ -63,6 +63,8 @@ interface TransportProps {
   onToggleDesktopCompact?: () => void
   // Mobile fret numpad
   onOpenFretNumpad?: () => void
+  // Recording
+  onRecord?: () => void
   // Feature 7: compound time signature (beatsPerBar already declared above)
   onBeatsPerBarChange?: (bpb: number) => void
   // Feature 6: MIDI input
@@ -94,6 +96,7 @@ export function BassTabTransport(props: TransportProps) {
     midiInputAvailable, midiInputActive, midiDeviceName, onMidiInputToggle,
     onExportWav,
     loopRangeActive, onToggleLoopRange,
+    onRecord,
   } = props
 
   const bpb = beatsPerBar   // alias for clarity
@@ -153,6 +156,27 @@ export function BassTabTransport(props: TransportProps) {
           >
             {isPlaying ? <Square size={18} /> : <Play size={18} />}
           </button>
+
+          {/* Record button */}
+          {onRecord && (
+            <button
+              onClick={onRecord}
+              title="Grabar tablatura"
+              style={{
+                width: 36, height: 36, borderRadius: 18, flexShrink: 0,
+                background: T.dangerBg,
+                border: `1px solid ${T.danger}88`,
+                color: T.danger,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+                touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="7" />
+              </svg>
+            </button>
+          )}
 
           {/* Bar:Beat counter — shows when playing */}
           <div style={{ minWidth: 36, textAlign: 'center' }}>
@@ -424,6 +448,14 @@ export function BassTabTransport(props: TransportProps) {
                 <IconBtn onClick={onRewind} title="Rewind to start">
                   <SkipBack size={14} />
                 </IconBtn>
+                {onRecord && (
+                  <IconBtn onClick={onRecord} title="Grabar tablatura"
+                    activeBg={T.dangerBg} activeColor={T.danger} activeBorder={T.danger}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="12" cy="12" r="7" />
+                    </svg>
+                  </IconBtn>
+                )}
               </Group>
 
               <Divider />
