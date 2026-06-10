@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import type { Song } from '@/lib/songs';
 import { getSongs, deleteSongWithSync, duplicateSong } from '@/lib/songStorage';
 import { SongCard } from '@/components/SongCard';
+import { MiniPlayer } from '@/components/MiniPlayer';
 import { SaveAccountModal } from '@/components/SaveAccountModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,8 @@ import { Plus, Search, Loader2, ShieldCheck, Music2, ArrowRight } from 'lucide-r
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { getIsAnonymousUser } from '@/lib/supabase';
+import { usePlayback } from '@/contexts/PlaybackContext';
+import { getDefaultInstrumentStates } from '@/lib/instruments';
 
 const Songs = () => {
   const { markAsReturningUser } = useFirstTimeUser();
@@ -28,6 +31,9 @@ const Songs = () => {
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<Song | null>(null);
+  const [activeSong, setActiveSong] = useState<Song | null>(null);
+
+  const { state: playbackState, play, stop } = usePlayback();
 
   useEffect(() => {
     getSongs().then(async cloudSongs => {
@@ -48,6 +54,25 @@ const Songs = () => {
     const query = searchQuery.toLowerCase();
     return songs.filter(song => song.title.toLowerCase().includes(query));
   }, [songs, searchQuery]);
+
+  const handlePlay = useCallback(async (song: Song) => {
+    if (activeSong?.id === song.id && playbackState.isPlaying) {
+      stop();
+      return;
+    }
+    setActiveSong(song);
+    await play(song.sections, {
+      bpm: song.bpm,
+      metronome: song.metronomeEnabled,
+      instruments: song.instrumentSettings.length > 0 ? song.instrumentSettings : getDefaultInstrumentStates(),
+      styleId: song.styleId,
+      transposition: song.transposition,
+    });
+  }, [activeSong, playbackState.isPlaying, play, stop]);
+
+  const handleClosePlayer = useCallback(() => {
+    setActiveSong(null);
+  }, []);
 
   const handleCreateNew = useCallback(() => { window.location.href = '/editor'; }, []);
   const handleOpenSong = useCallback((songId: string) => { window.location.href = `/editor/${songId}`; }, []);
@@ -70,7 +95,7 @@ const Songs = () => {
   }, []);
 
   return (
-    <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+    <main className={`max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 ${activeSong ? 'pb-28' : ''}`}>
 
       {/* Page header */}
       <div className="flex items-start justify-between gap-4 mb-8">
@@ -170,6 +195,8 @@ const Songs = () => {
                   onDuplicate={() => handleDuplicate(song)}
                   onDelete={() => setDeleteConfirm(song)}
                   onExport={() => handleExport(song)}
+                  isPlaying={activeSong?.id === song.id && playbackState.isPlaying}
+                  onPlay={() => handlePlay(song)}
                 />
               ))}
             </div>
@@ -186,6 +213,10 @@ const Songs = () => {
         onOpenChange={setSaveModalOpen}
         onSuccess={() => setIsAnonymous(false)}
       />
+
+      {activeSong && (
+        <MiniPlayer song={activeSong} onClose={handleClosePlayer} />
+      )}
 
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <AlertDialogContent>

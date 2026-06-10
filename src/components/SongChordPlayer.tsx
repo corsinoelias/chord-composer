@@ -3,7 +3,8 @@ import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
 import { parseChordString } from '@/lib/chordParser';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 import { createSection } from '@/lib/sections';
-import { Play, Square, ExternalLink, Music2, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react';
+import { Play, Square, Music2, ChevronDown, ChevronUp } from 'lucide-react';
+import { SongPlayerBar } from '@/components/SongPlayerBar';
 import { parseLyricLine, extractChordsWithDuration, type Song } from '@/data/songs';
 import ChordTooltip from '@/components/ChordTooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -192,7 +193,7 @@ function SongChordPlayerInner({ song }: { song: Song }) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div>
+    <div className="pb-24">
       {/* ─ Header card ─ */}
       <div className="rounded-xl border border-border bg-card mb-6 overflow-hidden">
 
@@ -229,97 +230,25 @@ function SongChordPlayerInner({ song }: { song: Song }) {
           </div>
         </div>
 
-        {/* Transport */}
-        <div className="px-5 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handlePlay}
-              disabled={isLoading}
-              className={`
-                inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold
-                transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
-                disabled:opacity-50 disabled:cursor-not-allowed
-                ${isPlaying
-                  ? 'bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                }
-              `}
-            >
-              {isPlaying
-                ? <><Square className="w-3.5 h-3.5" /> Stop</>
-                : <><Play className="w-3.5 h-3.5" /> {isLoading ? 'Loading…' : 'Play song'}</>
-              }
-            </button>
-
-            {/* BPM control */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setBpm(b => Math.max(50, b - 4))}
-                className="w-6 h-6 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 text-xs font-bold transition-colors"
-              >−</button>
-              <span className="text-xs text-muted-foreground w-14 text-center">{bpm} BPM</span>
-              <button
-                onClick={() => setBpm(b => Math.min(200, b + 4))}
-                className="w-6 h-6 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 text-xs font-bold transition-colors"
-              >+</button>
-            </div>
-
-            {/* Key transposition */}
-            <div className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-background">
-              <button
-                onClick={() => setTranspose(t => Math.max(-6, t - 1))}
-                disabled={transpose <= -6}
-                className="w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 disabled:opacity-30 text-xs font-bold transition-colors"
-                title="Transpose down"
-              >−</button>
-              <span className="text-xs text-muted-foreground w-16 text-center select-none">{displayKey}{transpose !== 0 ? ` (${transpose > 0 ? '+' : ''}${transpose})` : ''}</span>
-              <button
-                onClick={() => setTranspose(t => Math.min(6, t + 1))}
-                disabled={transpose >= 6}
-                className="w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 disabled:opacity-30 text-xs font-bold transition-colors"
-                title="Transpose up"
-              >+</button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportWav}
-              disabled={isPlaying || isExportingWav || allChordsFlat.length === 0}
-              title="Download WAV"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {isExportingWav
-                ? <><Loader2 className="w-3 h-3 animate-spin" /><span className="hidden sm:inline">WAV…</span></>
-                : <><Download className="w-3 h-3" /><span className="hidden sm:inline">WAV</span></>
-              }
-            </button>
-            <button
-              onClick={handleExportMidi}
-              disabled={allChordsFlat.length === 0}
-              title="Download MIDI"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Download className="w-3 h-3" /><span className="hidden sm:inline">MIDI</span>
-            </button>
-            <a
-              href={editorUrl}
-              className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:text-primary/80 transition-colors"
-            >
-              <span className="hidden sm:inline">Open in Editor</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="h-1 bg-border/40">
-          <div
-            className="h-full bg-primary transition-all duration-300 ease-linear"
-            style={{ width: isPlaying ? `${progress}%` : '0%' }}
-          />
-        </div>
       </div>
+
+      <SongPlayerBar
+        song={song}
+        isPlaying={isPlaying}
+        isLoading={isLoading}
+        isExportingWav={isExportingWav}
+        bpm={bpm}
+        transpose={transpose}
+        displayKey={displayKey}
+        progress={progress}
+        allChordsCount={allChordsFlat.length}
+        onPlayPause={handlePlay}
+        onBpmChange={(v) => setBpm(v)}
+        onTransposeChange={(v) => setTranspose(v)}
+        onExportWav={handleExportWav}
+        onExportMidi={handleExportMidi}
+        editorUrl={editorUrl}
+      />
 
       {/* ─ Song chart ─ */}
       <div className="space-y-6">

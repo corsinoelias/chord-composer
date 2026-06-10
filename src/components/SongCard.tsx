@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Music, MoreVertical, Play, Copy, Trash2, Download, Clock, Music2 } from 'lucide-react';
+import { Music, MoreVertical, Play, Square, Copy, Trash2, Download, Clock, Music2 } from 'lucide-react';
 
 interface SongCardProps {
   song: Song;
@@ -18,6 +18,8 @@ interface SongCardProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
+  isPlaying?: boolean;
+  onPlay?: (e: React.MouseEvent) => void;
 }
 
 // Gradient colors for song cards based on song id hash
@@ -45,6 +47,8 @@ export const SongCard = memo(function SongCard({
   onDuplicate,
   onDelete,
   onExport,
+  isPlaying = false,
+  onPlay,
 }: SongCardProps) {
   const duration = getSongDuration(song);
   const chordsPreview = getChordsPreview(song);
@@ -69,8 +73,8 @@ export const SongCard = memo(function SongCard({
   };
 
   return (
-    <Card 
-      className="group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden border-border/50"
+    <Card
+      className={`group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden border-border/50 ${isPlaying ? 'ring-2 ring-primary shadow-lg -translate-y-0.5' : ''}`}
       onClick={onOpen}
     >
       {/* Gradient header */}
@@ -93,11 +97,26 @@ export const SongCard = memo(function SongCard({
             </div>
           </div>
           
+          {onPlay && (
+            <Button
+              variant={isPlaying ? 'destructive' : 'secondary'}
+              size="icon"
+              className={`h-8 w-8 shrink-0 transition-all duration-200 ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+              onClick={(e) => { e.stopPropagation(); onPlay(e); }}
+              aria-label={isPlaying ? `Stop ${song.title}` : `Play ${song.title}`}
+            >
+              {isPlaying
+                ? <Square className="h-3.5 w-3.5 fill-current" />
+                : <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
+              }
+            </Button>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                 aria-label={`More options for ${song.title}`}
               >
