@@ -107,10 +107,17 @@ function scheduleMetronomeClick(ctx: AudioContext, t: number, isDown: boolean) {
 export function previewNote(stringIndex: number, fret: number, sound: BassSound): void {
   const ctx = ensureCtx()
   if (!masterGain) return
-  // Stop any lingering preview samples before starting a new one
   if (isSampledSound(sound)) stopAllSampledNodes()
   const freq = fretToFrequency(stringIndex, fret)
-  scheduleNote(ctx, masterGain, freq, ctx.currentTime + 0.01, 0.5, 0.75, sound)
+  const schedule = () => {
+    scheduleNote(ctx, masterGain!, freq, ctx.currentTime + 0.01, 0.5, 0.75, sound)
+  }
+  // On mobile the context may be suspended until resume() resolves — wait for it
+  if (ctx.state === 'running') {
+    schedule()
+  } else {
+    ctx.resume().then(schedule).catch(() => {})
+  }
 }
 
 export function startPlayback(

@@ -36,14 +36,17 @@ export function BassInstrument() {
   const [activeFrets, setActiveFrets] = useState<(number | null)[]>([null, null, null, null])
   const [attackSignals, setAttackSignals] = useState<({ fret: number; v: number } | null)[]>([null, null, null, null])
   const [lastPlayed, setLastPlayed] = useState<PlayedNote | null>(null)
-  const clearTimers = useRef<ReturnType<typeof setTimeout>[]>([])
+  // Per-string timers — index matches string index (0–3)
+  const clearTimers = useRef<(ReturnType<typeof setTimeout> | null)[]>([null, null, null, null])
 
   const handleNoteClick = useCallback((si: number, fret: number) => {
     previewNote(si, fret, sound)
 
-    // Clear any pending timer for this string
-    clearTimers.current.forEach(clearTimeout)
-    clearTimers.current = []
+    // Cancel only the timer for THIS string, leave others untouched
+    if (clearTimers.current[si] != null) {
+      clearTimeout(clearTimers.current[si]!)
+      clearTimers.current[si] = null
+    }
 
     setActiveFrets(prev => {
       const next = [...prev] as (number | null)[]
@@ -64,15 +67,15 @@ export function BassInstrument() {
       fullNote: fretToFullNote(si, fret),
     })
 
-    // Clear the active dot after 1.2s (sustain length)
-    const t = setTimeout(() => {
+    // Clear the active dot after 1.2s — only this string
+    clearTimers.current[si] = setTimeout(() => {
       setActiveFrets(prev => {
         const next = [...prev] as (number | null)[]
         if (next[si] === fret) next[si] = null
         return next
       })
+      clearTimers.current[si] = null
     }, 1200)
-    clearTimers.current.push(t)
   }, [sound])
 
   const string = lastPlayed !== null ? STRINGS[lastPlayed.si] : null

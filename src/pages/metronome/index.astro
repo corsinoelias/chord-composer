@@ -1,0 +1,167 @@
+---
+export const prerender = true
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import { OnlineMetronome } from '../../components/Metronome/OnlineMetronome'
+
+const faqs = [
+  {
+    q: 'What do the tempo markings mean?',
+    a: 'Tempo markings like Andante or Allegro are Italian terms used in sheet music to describe the feel of a piece, not just the speed. This metronome shows the corresponding marking below the BPM number so you can match it to what the score indicates. Andante is a walking pace (76–107 BPM), Moderato is moderate (108–119), Allegro is lively and fast (120–155), Vivace is even faster (156–175), and so on.',
+  },
+  {
+    q: 'How does Tap Tempo work?',
+    a: 'Click the Tap Tempo button (or press T on your keyboard) in rhythm with the music — the same way you would tap your foot. After two or more taps, the metronome calculates the average interval between taps and sets the BPM accordingly. The more taps you give it, the more accurate the result. If you stop tapping for more than three seconds, the next tap starts a fresh calculation.',
+  },
+  {
+    q: 'What is the accent beat?',
+    a: 'The first beat of every measure plays at a slightly higher pitch and the indicator dot is larger. This is called the accent. It helps you hear the downbeat — the start of each rhythmic group — so you can feel the meter rather than just counting individual clicks.',
+  },
+  {
+    q: 'How many beats per measure should I choose?',
+    a: 'Match this to the time signature of the piece you\'re playing. 4/4 time uses 4 beats, 3/4 (waltz) uses 3, 6/8 uses 6, and so on. If you\'re not sure, start with 4 — it fits most popular and rock music. You can also set it to 1 to hear a simple pulse without any grouping.',
+  },
+  {
+    q: 'How should I practice with a metronome?',
+    a: 'Start well below performance tempo — slow enough that you can play every note cleanly without hesitation. Only increase the BPM when you can get through the passage without mistakes at the current speed. Rushing to a fast tempo too early builds in errors that are hard to undo. A common rule: if you make a mistake, drop 10 BPM.',
+  },
+]
+
+const webAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Online Metronome',
+  url: 'https://chordsequence.com/metronome/',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Any',
+  description: 'Free online metronome with tap tempo, adjustable beats per measure, and keyboard shortcuts. Accurate Web Audio scheduling.',
+  featureList: [
+    'Adjustable BPM from 20 to 300',
+    'Tap tempo — click or press T',
+    'Beats per measure: 1–8',
+    'Accent on beat 1',
+    'Keyboard shortcuts: Space, T, arrow keys',
+    'No signup, no download',
+  ],
+  browserRequirements: 'Requires a modern browser with Web Audio API',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map(f => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+}
+---
+
+<BaseLayout
+  title="Online Metronome — Free BPM Tool with Tap Tempo | Chord Sequence"
+  description="Free online metronome. Set your BPM with the slider or tap tempo, choose beats per measure, and keep time with Web Audio precision. No signup required."
+  canonicalUrl="https://chordsequence.com/metronome/"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+  </Fragment>
+
+  <main>
+
+    <!-- HERO -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pt-14 pb-10 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Free Online Tool</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4 leading-tight">
+        Online Metronome
+      </h1>
+      <p class="text-lg text-muted-foreground max-w-xl mx-auto">
+        Set a tempo, tap it in, or use arrow keys. Precise Web Audio timing, no install needed.
+      </p>
+    </section>
+
+    <!-- METRONOME COMPONENT -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-16">
+      <OnlineMetronome client:only="react" />
+    </section>
+
+    <!-- HOW TO USE -->
+    <section class="border-t border-border py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-6">How to use the metronome</h2>
+        <div class="text-muted-foreground space-y-5 leading-relaxed">
+          <div>
+            <h3 class="font-semibold text-foreground mb-1">Set the tempo</h3>
+            <p>Drag the slider, click the + and − buttons, or use the left and right arrow keys on your keyboard. The Italian tempo name (Andante, Allegro, etc.) updates automatically to match the BPM range.</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-foreground mb-1">Use tap tempo</h3>
+            <p>If you have a piece of music playing and want to match its speed, click <strong class="text-foreground">Tap Tempo</strong> (or press <kbd class="text-xs font-mono bg-muted px-1 py-0.5 rounded border border-border">T</kbd>) in rhythm with the beat. The metronome averages your taps and sets the BPM for you.</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-foreground mb-1">Choose beats per measure</h3>
+            <p>Select the number that matches your time signature. 4 beats for 4/4, 3 beats for 3/4, 6 for 6/8, and so on. Beat 1 always plays with a higher accent click and a larger dot so you can feel where the measure begins.</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-foreground mb-1">Keyboard shortcuts</h3>
+            <p>
+              <kbd class="text-xs font-mono bg-muted px-1 py-0.5 rounded border border-border">Space</kbd> starts and stops the metronome.&ensp;
+              <kbd class="text-xs font-mono bg-muted px-1 py-0.5 rounded border border-border">T</kbd> taps the tempo.&ensp;
+              <kbd class="text-xs font-mono bg-muted px-1 py-0.5 rounded border border-border">← →</kbd> adjusts BPM by one.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHAT IS A METRONOME -->
+    <section class="bg-muted/30 border-t border-border py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-4">What is a metronome?</h2>
+        <div class="text-muted-foreground space-y-4 leading-relaxed">
+          <p>
+            A metronome produces a steady, unchanging pulse at a chosen speed. That speed is measured in BPM — beats per minute.
+            60 BPM means one click per second. 120 BPM means two clicks per second, which is a typical tempo for pop and rock music.
+          </p>
+          <p>
+            Musicians use a metronome for one core reason: it removes guesswork about time. When you practice alone, it is easy to slow down on difficult passages and rush through easy ones without realizing it. The metronome makes that tendency impossible to hide — if you rush or drag, you fall out of sync with the click, and you hear it immediately.
+          </p>
+          <p>
+            This metronome runs on the Web Audio API, which schedules audio events with sample-accurate precision.
+            Unlike a system beep or audio file loop, the timing does not drift as the page stays open.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-8">Frequently asked questions</h2>
+        <div class="space-y-5">
+          {faqs.map((f) => (
+            <div class="rounded-xl border border-border bg-card p-6">
+              <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
+              <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- BOTTOM CTA -->
+    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-12 text-center border-t border-border">
+      <h2 class="text-lg font-bold text-foreground mb-2">Need a chord player too?</h2>
+      <p class="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
+        Build chord progressions, set the BPM, and hear them played back with drums and bass — all in the browser.
+      </p>
+      <a
+        href="/editor/"
+        class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+      >
+        Open Chord Player →
+      </a>
+    </section>
+
+  </main>
+</BaseLayout>

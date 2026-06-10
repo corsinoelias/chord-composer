@@ -15,6 +15,22 @@ const instruments = [
   { name: 'Double bass',  notes: ['E1', 'A1', 'D2', 'G2'] },
 ]
 
+// Precompute note sets (letter only, no octave) for the matrix
+const instrumentMatrix = instruments.map(inst => ({
+  ...inst,
+  noteSet: new Set(inst.notes.map(n => n.replace(/\d+/, ''))),
+}))
+
+// Columns sorted by how many instruments share that note
+const NOTE_COLS = [
+  { note: 'G', count: 9, labelClass: 'text-primary',           dotClass: 'bg-primary',            emptyClass: 'border-primary/25' },
+  { note: 'D', count: 8, labelClass: 'text-primary/80',        dotClass: 'bg-primary/80',         emptyClass: 'border-primary/20' },
+  { note: 'A', count: 8, labelClass: 'text-primary/80',        dotClass: 'bg-primary/80',         emptyClass: 'border-primary/20' },
+  { note: 'E', count: 6, labelClass: 'text-primary/55',        dotClass: 'bg-primary/55',         emptyClass: 'border-border' },
+  { note: 'C', count: 3, labelClass: 'text-muted-foreground',  dotClass: 'bg-muted-foreground/60',emptyClass: 'border-border' },
+  { note: 'B', count: 2, labelClass: 'text-muted-foreground/50', dotClass: 'bg-muted-foreground/35', emptyClass: 'border-border' },
+]
+
 const faqs = [
   {
     q: 'What does "chromatic" mean in a tuner?',
@@ -91,149 +107,132 @@ const faqSchema = {
       </p>
     </section>
 
-    <!-- TWO-COLUMN BODY -->
-    <div class="mx-auto max-w-7xl px-4 sm:px-6 pb-16">
-      <div class="lg:flex lg:gap-10 xl:gap-14 lg:items-start">
+    <!-- TUNER COMPONENT -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-16">
+      <OnlineTuner client:only="react" />
+    </section>
 
-        <!-- MAIN COLUMN -->
-        <div class="lg:flex-1 min-w-0">
+    <!-- HOW TO USE -->
+    <section class="bg-muted/30 border-t border-border py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-4">How to tune your instrument</h2>
+        <div class="text-muted-foreground space-y-4 leading-relaxed">
+          <p>
+            Hit <strong class="text-foreground">Start Tuning</strong> and allow microphone access when your browser asks.
+            Then play any string on your instrument and hold the note steady.
+          </p>
+          <p>
+            The needle tells you everything: if it swings left your string is <strong class="text-foreground">flat</strong> (too low) — tighten the tuning peg.
+            If it swings right, the string is <strong class="text-foreground">sharp</strong> (too high) — loosen it slightly.
+            When the needle centers and turns green, you're in tune.
+          </p>
+          <p>
+            Make small adjustments and let the note ring out fully after each turn of the peg.
+            Strings can take a moment to settle, especially if they're new.
+          </p>
+        </div>
+      </div>
+    </section>
 
-          <!-- TUNER COMPONENT -->
-          <div class="pb-14">
-            <OnlineTuner client:only="react" />
-          </div>
+    <!-- WHAT IS A TUNER -->
+    <section class="py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-4">What is a tuner?</h2>
+        <div class="text-muted-foreground space-y-4 leading-relaxed">
+          <p>
+            Every musical note has a specific frequency — a precise number of vibrations per second measured in Hz.
+            When a string is in tune, it vibrates at exactly the right frequency for its note.
+            A tuner listens to your instrument, measures that frequency, and tells you how close you are to the target.
+          </p>
+          <p>
+            String instruments go out of tune constantly: temperature changes, humidity, stretching strings, and just playing
+            all affect the tension. Tuning before every session is a basic habit every musician needs.
+          </p>
+          <p>
+            This tuner is <strong class="text-foreground">chromatic</strong>, meaning it recognizes all 12 notes —
+            not just the open strings of one specific instrument. It works for any instrument in any tuning.
+            Everything runs in your browser; no audio leaves your device.
+          </p>
+        </div>
+      </div>
+    </section>
 
-          <!-- HOW TO USE -->
-          <div class="py-12 border-t border-border">
-            <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-4">How to tune your instrument</h2>
-            <div class="text-muted-foreground space-y-4 leading-relaxed">
-              <p>
-                Hit <strong class="text-foreground">Start Tuning</strong> and allow microphone access when your browser asks.
-                Then play any string on your instrument and hold the note steady.
-              </p>
-              <p>
-                The needle tells you everything: if it swings left your string is <strong class="text-foreground">flat</strong> (too low) — tighten the tuning peg.
-                If it swings right, the string is <strong class="text-foreground">sharp</strong> (too high) — loosen it slightly.
-                When the needle centers and turns green, you're in tune.
-              </p>
-              <p>
-                Make small adjustments and let the note ring out fully after each turn of the peg.
-                Strings can take a moment to settle, especially if they're new.
-              </p>
-            </div>
-          </div>
+    <!-- STANDARD TUNINGS: dot matrix -->
+    <section class="bg-muted/30 border-t border-border py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-2">Standard tunings</h2>
+        <p class="text-muted-foreground mb-8">
+          Each dot marks a note in that instrument's standard tuning. Brighter columns are shared by more instruments.
+        </p>
 
-          <!-- WHAT IS A TUNER -->
-          <div class="py-12 border-t border-border">
-            <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-4">What is a tuner?</h2>
-            <div class="text-muted-foreground space-y-4 leading-relaxed">
-              <p>
-                Every musical note has a specific frequency — a precise number of vibrations per second measured in Hz.
-                When a string is in tune, it vibrates at exactly the right frequency for its note.
-                A tuner listens to your instrument, measures that frequency, and tells you how close you are to the target.
-              </p>
-              <p>
-                String instruments go out of tune constantly: temperature changes, humidity, stretching strings, and just playing
-                all affect the tension. Tuning before every session is a basic habit every musician needs.
-              </p>
-              <p>
-                This tuner is <strong class="text-foreground">chromatic</strong>, meaning it recognizes all 12 notes —
-                not just the open strings of one specific instrument. It works for any instrument in any tuning.
-                Everything runs in your browser; no audio leaves your device.
-              </p>
-            </div>
-          </div>
-
-          <!-- MOBILE: tunings table (only shown below lg) -->
-          <div class="lg:hidden py-12 border-t border-border">
-            <h2 class="text-xl font-bold text-foreground mb-1">Standard tunings</h2>
-            <p class="text-sm text-muted-foreground mb-5">Notes from thickest to thinnest string.</p>
-            <div class="rounded-xl border border-border overflow-hidden">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr class="border-b border-border bg-muted/40">
-                    <th class="text-left px-3 py-2.5 font-semibold text-foreground text-xs">Instrument</th>
-                    <th class="text-left px-3 py-2.5 font-semibold text-foreground text-xs">Tuning</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {instruments.map((inst, i) => (
-                    <tr class={`border-b border-border last:border-0 ${i % 2 === 1 ? 'bg-muted/20' : ''}`}>
-                      <td class="px-3 py-2.5 font-medium text-foreground text-xs">{inst.name}</td>
-                      <td class="px-3 py-2.5">
-                        <div class="flex flex-wrap gap-1">
-                          {inst.notes.map((note) => (
-                            <span class="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-xs font-mono font-semibold border border-primary/20">
-                              {note}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="border-b border-border">
+                <th class="text-left pb-3 pr-6" style="min-width: 8rem"></th>
+                {NOTE_COLS.map(col => (
+                  <th class="pb-3 px-3 text-center w-12">
+                    <span class={`block text-sm font-bold font-mono ${col.labelClass}`}>{col.note}</span>
+                    <span class="block text-xs text-muted-foreground/40 mt-0.5">{col.count}/9</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {instrumentMatrix.map(inst => (
+                <tr class="border-b border-border/40 last:border-0 hover:bg-muted/40 transition-colors">
+                  <td class="py-3 pr-6 text-sm font-medium text-foreground whitespace-nowrap">{inst.name}</td>
+                  {NOTE_COLS.map(col => (
+                    <td class="py-3 px-3 text-center">
+                      {inst.noteSet.has(col.note) ? (
+                        <span class={`inline-block w-3.5 h-3.5 rounded-full ${col.dotClass}`} />
+                      ) : (
+                        <span class={`inline-block w-3.5 h-3.5 rounded-full border-2 ${col.emptyClass}`} />
+                      )}
+                    </td>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- FAQ -->
-          <div class="py-12 border-t border-border">
-            <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-8">Frequently asked questions</h2>
-            <div class="space-y-5">
-              {faqs.map((f) => (
-                <div class="rounded-xl border border-border bg-card p-6">
-                  <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
-                  <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
-                </div>
+                </tr>
               ))}
-            </div>
-          </div>
-
-          <!-- BOTTOM CTA -->
-          <div class="py-12 border-t border-border text-center">
-            <h2 class="text-lg font-bold text-foreground mb-2">Also try the Virtual Bass Guitar</h2>
-            <p class="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-              Once tuned, play and compose bass lines with real Fender, Finger, Slap, and Muted samples — right in the browser.
-            </p>
-            <a
-              href="/bass-guitar/"
-              class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Open Virtual Bass →
-            </a>
-          </div>
-
+            </tbody>
+          </table>
         </div>
 
-        <!-- ASIDE: sticky standard tunings (desktop only) -->
-        <aside class="hidden lg:block w-60 xl:w-64 shrink-0 sticky top-20 max-h-[calc(100vh-5.5rem)] overflow-y-auto">
-          <div class="rounded-xl border border-border bg-card p-4">
-            <h2 class="text-sm font-bold text-foreground mb-1">Standard tunings</h2>
-            <p class="text-xs text-muted-foreground mb-4 leading-relaxed">
-              Notes from thickest to thinnest string.
-            </p>
-            <div class="space-y-3.5">
-              {instruments.map((inst) => (
-                <div>
-                  <p class="text-xs font-semibold text-foreground mb-1.5">{inst.name}</p>
-                  <div class="flex flex-wrap gap-1">
-                    {inst.notes.map((note) => (
-                      <span class="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-xs font-mono font-semibold border border-primary/20">
-                        {note}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p class="text-xs text-muted-foreground mt-4 pt-3 border-t border-border leading-relaxed">
-              Standard tuning only. Drop, open, and alternate tunings vary.
-            </p>
-          </div>
-        </aside>
-
+        <p class="text-xs text-muted-foreground mt-6 pt-4 border-t border-border">
+          <strong class="text-foreground">G, D and A</strong> are the most universal —
+          they appear in guitar, bass, mandolin, and the entire violin family (violin, viola, cello).
+          Standard tuning only; drop, open, and alternate tunings vary.
+        </p>
       </div>
-    </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-8">Frequently asked questions</h2>
+        <div class="space-y-5">
+          {faqs.map((f) => (
+            <div class="rounded-xl border border-border bg-card p-6">
+              <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
+              <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- BOTTOM CTA -->
+    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-12 text-center border-t border-border">
+      <h2 class="text-lg font-bold text-foreground mb-2">Also try the Virtual Bass Guitar</h2>
+      <p class="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
+        Once tuned, play and compose bass lines with real Fender, Finger, Slap, and Muted samples — right in the browser.
+      </p>
+      <a
+        href="/bass-guitar/"
+        class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+      >
+        Open Virtual Bass →
+      </a>
+    </section>
 
   </main>
 </BaseLayout>
