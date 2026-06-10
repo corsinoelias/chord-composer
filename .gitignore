@@ -29,6 +29,3 @@ dist-ssr
 *.sw?
 .astro/content-modules.mjs
 .netlify/
-
-# Generated bass samples (run scripts/generate_bass_samples.py to regenerate)
-public/samples/

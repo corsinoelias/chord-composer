@@ -1,0 +1,152 @@
+{
+  "mode": "muted",
+  "sampleRate": 44100,
+  "noteDuration": 3.0,
+  "notes": {
+    "40": {
+      "file": "E2.wav",
+      "freq": 82.4069,
+      "name": "E2"
+    },
+    "41": {
+      "file": "F2.wav",
+      "freq": 87.3071,
+      "name": "F2"
+    },
+    "42": {
+      "file": "Gb2.wav",
+      "freq": 92.4986,
+      "name": "Gb2"
+    },
+    "43": {
+      "file": "G2.wav",
+      "freq": 97.9989,
+      "name": "G2"
+    },
+    "44": {
+      "file": "Ab2.wav",
+      "freq": 103.8262,
+      "name": "Ab2"
+    },
+    "45": {
+      "file": "A2.wav",
+      "freq": 110.0,
+      "name": "A2"
+    },
+    "46": {
+      "file": "Bb2.wav",
+      "freq": 116.5409,
+      "name": "Bb2"
+    },
+    "47": {
+      "file": "B2.wav",
+      "freq": 123.4708,
+      "name": "B2"
+    },
+    "48": {
+      "file": "C3.wav",
+      "freq": 130.8128,
+      "name": "C3"
+    },
+    "49": {
+      "file": "Db3.wav",
+      "freq": 138.5913,
+      "name": "Db3"
+    },
+    "50": {
+      "file": "D3.wav",
+      "freq": 146.8324,
+      "name": "D3"
+    },
+    "51": {
+      "file": "Eb3.wav",
+      "freq": 155.5635,
+      "name": "Eb3"
+    },
+    "52": {
+      "file": "E3.wav",
+      "freq": 164.8138,
+      "name": "E3"
+    },
+    "53": {
+      "file": "F3.wav",
+      "freq": 174.6141,
+      "name": "F3"
+    },
+    "54": {
+      "file": "Gb3.wav",
+      "freq": 184.9972,
+      "name": "Gb3"
+    },
+    "55": {
+      "file": "G3.wav",
+      "freq": 195.9977,
+      "name": "G3"
+    },
+    "56": {
+      "file": "Ab3.wav",
+      "freq": 207.6523,
+      "name": "Ab3"
+    },
+    "57": {
+      "file": "A3.wav",
+      "freq": 220.0,
+      "name": "A3"
+    },
+    "58": {
+      "file": "Bb3.wav",
+      "freq": 233.0819,
+      "name": "Bb3"
+    },
+    "59": {
+      "file": "B3.wav",
+      "freq": 246.9417,
+      "name": "B3"
+    },
+    "60": {
+      "file": "C4.wav",
+      "freq": 261.6256,
+      "name": "C4"
+    },
+    "61": {
+      "file": "Db4.wav",
+      "freq": 277.1826,
+      "name": "Db4"
+    },
+    "62": {
+      "file": "D4.wav",
+      "freq": 293.6648,
+      "name": "D4"
+    },
+    "63": {
+      "file": "Eb4.wav",
+      "freq": 311.127,
+      "name": "Eb4"
+    },
+    "64": {
+      "file": "E4.wav",
+      "freq": 329.6276,
+      "name": "E4"
+    },
+    "65": {
+      "file": "F4.wav",
+      "freq": 349.2282,
+      "name": "F4"
+    },
+    "66": {
+      "file": "Gb4.wav",
+      "freq": 369.9944,
+      "name": "Gb4"
+    },
+    "67": {
+      "file": "G4.wav",
+      "freq": 391.9954,
+      "name": "G4"
+    },
+    "68": {
+      "file": "Ab4.wav",
+      "freq": 415.3047,
+      "name": "Ab4"
+    }
+  }
+}
