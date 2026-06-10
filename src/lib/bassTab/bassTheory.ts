@@ -1,9 +1,9 @@
 // Standard 4-string bass tuning: G2 (index 0, thinnest) → E1 (index 3, thickest)
 export const STRINGS = [
-  { index: 0 as const, displayName: 'G2', openFreq: 98.00,  midiNote: 43, color: '#3b82f6', darkColor: '#1d4ed8' },
-  { index: 1 as const, displayName: 'D2', openFreq: 73.42,  midiNote: 38, color: '#22c55e', darkColor: '#15803d' },
-  { index: 2 as const, displayName: 'A1', openFreq: 55.00,  midiNote: 33, color: '#f59e0b', darkColor: '#b45309' },
-  { index: 3 as const, displayName: 'E1', openFreq: 41.20,  midiNote: 28, color: '#ef4444', darkColor: '#b91c1c' },
+  { index: 0 as const, displayName: 'G', openFreq: 196.00, midiNote: 55, color: '#3b82f6', darkColor: '#1d4ed8' },
+  { index: 1 as const, displayName: 'D', openFreq: 146.83, midiNote: 50, color: '#22c55e', darkColor: '#15803d' },
+  { index: 2 as const, displayName: 'A', openFreq: 110.00, midiNote: 45, color: '#f59e0b', darkColor: '#b45309' },
+  { index: 3 as const, displayName: 'E', openFreq: 82.41,  midiNote: 40, color: '#ef4444', darkColor: '#b91c1c' },
 ]
 
 export function fretToFrequency(stringIndex: number, fret: number): number {
