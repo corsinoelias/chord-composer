@@ -34,6 +34,11 @@ export default defineConfig({
           { from: /^\/editor\/.*$/, to: '/editor/' },
         ],
       },
+      headers: {
+        // Override the global block so /tuner/ can use the microphone in dev
+        // Production equivalent is the [[headers]] override in netlify.toml
+        'Permissions-Policy': 'microphone=(self)',
+      },
     },
     resolve: {
       alias: {

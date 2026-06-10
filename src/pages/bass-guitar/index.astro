@@ -1,0 +1,196 @@
+---
+export const prerender = true
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import { BassInstrument } from '../../components/BassTabPlayer/BassInstrument'
+
+const sounds = [
+  { label: 'Fender Pick', desc: 'Bright, punchy attack. The classic electric bass tone used in rock and pop — cuts through any mix.' },
+  { label: 'Finger',      desc: 'Warm, round tone. The standard fingerstyle sound for funk, jazz, and R&B — full and musical.' },
+  { label: 'Slap',        desc: 'Percussive slap-and-pop technique. Snappy attack with a long sustain that cuts through any groove.' },
+  { label: 'Muted',       desc: 'Dead, thumpy tone. Palm-muted for reggae, dub, and tight groove patterns — dry and rhythmic.' },
+]
+
+const howToSteps = [
+  { n: 1, title: 'Choose your sound',     desc: 'Select Fender Pick, Finger, Slap, or Muted from the sound bar above the fretboard.' },
+  { n: 2, title: 'Tap any fret to play',  desc: 'Click or tap any cell on the fretboard to play that note. The string vibrates and the note name appears below.' },
+  { n: 3, title: 'Read the note name',    desc: 'The display shows the full note (e.g., A2), string name, and fret number — great for learning positions.' },
+  { n: 4, title: 'Create your own tabs',  desc: 'Ready to compose? Open the full Bass Tab Editor to draw basslines, set rhythm, and export to MIDI.' },
+]
+
+const faqs = [
+  {
+    q: 'What is a virtual bass guitar?',
+    a: 'A virtual bass guitar is a browser-based instrument that simulates a real electric bass using recorded audio samples. You can play it with your mouse or keyboard — no physical instrument required.',
+  },
+  {
+    q: 'Is this bass guitar free to use?',
+    a: 'Yes, completely free. No account, no download. Open it in any modern browser on desktop or mobile.',
+  },
+  {
+    q: 'What bass sounds are included?',
+    a: 'Four sample-based sounds: Fender Pick (bright, punchy), Finger (warm fingerstyle), Slap (percussive funk tone), and Muted (dead, thumpy). Each uses real recorded bass samples, not synthesis.',
+  },
+  {
+    q: 'Can I create and export my own bass lines?',
+    a: 'Yes. Use the full Bass Tab Editor to draw notes, set fret positions and durations, then export as ASCII tab or MIDI. You can also share via URL with no account needed.',
+  },
+  {
+    q: 'How is this different from the Bass Guitar Tab Player?',
+    a: 'This page is the instrument home — a quick way to hear the bass and understand its sounds. The Bass Guitar Tab Player at /tools/bass-guitar-tab/ is the full-featured editor with MIDI import, Tab/Grid/Bass views, and all editing tools.',
+  },
+]
+
+const webAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Virtual Bass Guitar',
+  url: 'https://chordsequence.com/bass-guitar/',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Any',
+  description: 'Free virtual bass guitar you can play in the browser. Four real-sampled sounds: Fender Pick, Finger, Slap, Muted. Includes tab editor and 10+ preset songs.',
+  featureList: [
+    'Fender Pick, Finger, Slap and Muted sample banks',
+    '4-string standard tuning (E1 A1 D2 G2)',
+    'Real-time playback at custom BPM',
+    'Tab and Grid note editor',
+    '10+ preset songs',
+    'MIDI export',
+    'ASCII tab export',
+    'URL sharing',
+  ],
+  browserRequirements: 'Requires a modern browser with Web Audio API support',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((f) => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+}
+---
+
+<BaseLayout
+  title="Virtual Bass Guitar — Play Online Free | Chord Sequence"
+  description="Free virtual bass guitar in your browser. Four real-sampled sounds: Fender, Finger, Slap, Muted. Load preset songs or draw your own bass lines. No signup required."
+  canonicalUrl="https://chordsequence.com/bass-guitar/"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+  </Fragment>
+
+  <main>
+
+    <!-- BREADCRUMB -->
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 pt-6">
+      <a href="/instruments/" class="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
+        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m15 18-6-6 6-6"/>
+        </svg>
+        All instruments
+      </a>
+    </div>
+
+    <!-- HERO -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pt-8 pb-10 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Virtual Instrument</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4 leading-tight">
+        Virtual Bass Guitar
+      </h1>
+      <p class="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
+        Play a full 4-string bass in your browser with real sampled tones, a tab editor, and 10+ classic basslines.
+        Free, no install, no account.
+      </p>
+      <div class="flex flex-wrap items-center justify-center gap-3">
+        <a
+          href="/tools/bass-guitar-tab/"
+          class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          Open Full Tab Editor →
+        </a>
+        <a
+          href="#how-to-use"
+          class="inline-flex items-center gap-2 px-6 py-3 border border-border text-foreground font-medium rounded-lg hover:border-primary/50 transition-colors"
+        >
+          How to use
+        </a>
+      </div>
+    </section>
+
+    <!-- INTERACTIVE BASS FRETBOARD -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-6" aria-label="Interactive virtual bass guitar — tap any fret to play">
+      <BassInstrument client:only="react" />
+    </section>
+
+    <!-- 4 SOUNDS -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 py-16">
+      <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-2 text-center">Four authentic bass sounds</h2>
+      <p class="text-muted-foreground text-center mb-10 max-w-xl mx-auto">
+        Every sound uses real recorded samples — not synthesis — so you hear the true character of each playing technique.
+      </p>
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        {sounds.map((s) => (
+          <div class="rounded-xl border border-border bg-card p-6">
+            <h3 class="font-semibold text-foreground mb-1">{s.label}</h3>
+            <p class="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- HOW TO USE -->
+    <section id="how-to-use" class="bg-muted/30 border-y border-border py-16">
+      <div class="mx-auto max-w-4xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-10 text-center">How to use the virtual bass guitar</h2>
+        <div class="space-y-5">
+          {howToSteps.map((s) => (
+            <div class="flex gap-4">
+              <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mt-0.5">
+                {s.n}
+              </div>
+              <div>
+                <p class="font-semibold text-foreground mb-1">{s.title}</p>
+                <p class="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-10 text-center">Frequently asked questions</h2>
+        <div class="space-y-6">
+          {faqs.map((f) => (
+            <div class="rounded-xl border border-border bg-card p-6">
+              <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
+              <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA FINAL -->
+    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-16 text-center">
+      <h2 class="text-2xl font-bold text-foreground mb-3">Ready to go deeper?</h2>
+      <p class="text-muted-foreground mb-6 max-w-lg mx-auto">
+        The full Bass Guitar Tab Editor adds MIDI import, drag-and-resize notes, Tab/Grid/Bass views,
+        ASCII export, and URL sharing.
+      </p>
+      <a
+        href="/tools/bass-guitar-tab/"
+        class="inline-flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground font-bold rounded-xl text-lg hover:bg-primary/90 transition-colors"
+      >
+        Open Bass Tab Player →
+      </a>
+    </section>
+
+  </main>
+</BaseLayout>

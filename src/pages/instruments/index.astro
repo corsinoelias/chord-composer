@@ -1,0 +1,197 @@
+---
+export const prerender = true
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import { INSTRUMENTS_LIST } from '../../data/instrumentsList'
+
+const itemListSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Virtual Instruments — Chord Sequence',
+  url: 'https://chordsequence.com/instruments/',
+  numberOfItems: INSTRUMENTS_LIST.length,
+  itemListElement: INSTRUMENTS_LIST.map((inst, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    name: inst.name,
+    url: `https://chordsequence.com${inst.url}`,
+    description: inst.tagline,
+  })),
+}
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Are the virtual instruments free?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes — every instrument on Chord Sequence is free to use in any modern browser. No account, no download.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What is a virtual instrument?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'A virtual instrument is a software recreation of a real instrument that you play in the browser. It uses real audio samples or synthesis to produce authentic-sounding tones without physical hardware.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Can I use these instruments on mobile?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes. All instruments run in any modern browser including Safari on iOS and Chrome on Android. No plugin required.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Which virtual instrument is available right now?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'The Virtual Bass Guitar is live now — you can play it at chordsequence.com/bass-guitar/. Piano, Drums, and Guitar are in development.',
+      },
+    },
+  ],
+}
+
+const faqs = [
+  { q: 'Are the virtual instruments free?', a: 'Yes — every instrument on Chord Sequence is free to use in any modern browser. No account, no download.' },
+  { q: 'What is a virtual instrument?', a: 'A virtual instrument is a software recreation of a real instrument that you play in the browser. It uses real audio samples or synthesis to produce authentic-sounding tones without physical hardware.' },
+  { q: 'Can I use these instruments on mobile?', a: 'Yes. All instruments run in any modern browser including Safari on iOS and Chrome on Android. No plugin required.' },
+  { q: 'Which virtual instrument is available right now?', a: 'The Virtual Bass Guitar is live now — you can play it at chordsequence.com/bass-guitar/. Piano, Drums, and Guitar are in development.' },
+]
+---
+
+<BaseLayout
+  title="Virtual Instruments — Play Online Free | Chord Sequence"
+  description="Free virtual instruments you can play in the browser. No download, no account. Virtual bass guitar available now — piano, drums, and guitar coming soon."
+  canonicalUrl="https://chordsequence.com/instruments/"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+  </Fragment>
+
+  <main>
+
+    <!-- HERO -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pt-14 pb-10 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Free Online Instruments</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4 leading-tight">
+        Virtual Instruments
+      </h1>
+      <p class="text-lg text-muted-foreground max-w-2xl mx-auto">
+        Real-sounding instruments you can play right in your browser — no install, no account.
+        Built for musicians, producers, and songwriters who want to hear ideas instantly.
+      </p>
+    </section>
+
+    <!-- EDITORIAL INTRO (SEO) -->
+    <section class="mx-auto max-w-3xl px-4 sm:px-6 pb-12">
+      <p class="text-muted-foreground leading-relaxed mb-4">
+        Each virtual instrument on Chord Sequence uses <strong class="text-foreground">real audio samples</strong>
+        — not simple synthesis — so you hear the true character of the instrument. Play bass lines in tab notation,
+        experiment with chord voicings on piano, or sketch drum grooves without leaving the browser.
+      </p>
+      <p class="text-muted-foreground leading-relaxed">
+        The <strong class="text-foreground">Virtual Bass Guitar</strong> is available now with four sample banks
+        (Fender Pick, Finger, Slap, Muted) and a full tab editor. Piano, Drums, and Guitar are in development.
+      </p>
+    </section>
+
+    <!-- INSTRUMENT CARDS -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-16">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {INSTRUMENTS_LIST.map((inst) => (
+          <div class={`flex flex-col rounded-xl border bg-card overflow-hidden transition-colors ${
+            inst.status === 'available'
+              ? 'border-border hover:border-primary/50'
+              : 'border-border opacity-70'
+          }`}>
+
+            <!-- Image / emoji fallback -->
+            <div class="relative bg-muted/40 aspect-video flex items-center justify-center overflow-hidden">
+              <span class="text-6xl select-none" aria-hidden="true">{inst.emoji}</span>
+              {inst.status === 'coming-soon' && (
+                <div class="absolute inset-0 bg-background/60 flex items-center justify-center">
+                  <span class="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-semibold border border-border">
+                    Coming Soon
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <!-- Card body -->
+            <div class="flex flex-col flex-1 p-5">
+              <h2 class="text-lg font-bold text-foreground mb-1">{inst.name}</h2>
+              <p class="text-sm text-muted-foreground mb-3 leading-relaxed flex-1">{inst.tagline}</p>
+
+              <!-- Tags -->
+              <div class="flex flex-wrap gap-1.5 mb-4">
+                {inst.tags.map((tag) => (
+                  <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              <!-- CTA -->
+              {inst.status === 'available' ? (
+                <a
+                  href={inst.url}
+                  class="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  Play {inst.name} →
+                </a>
+              ) : (
+                <button
+                  disabled
+                  class="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-muted text-muted-foreground text-sm font-medium rounded-lg cursor-not-allowed"
+                  aria-label={`${inst.name} is coming soon`}
+                >
+                  Coming Soon
+                </button>
+              )}
+            </div>
+
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="bg-muted/30 border-t border-border py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-10 text-center">
+          Frequently asked questions
+        </h2>
+        <div class="space-y-6">
+          {faqs.map((f) => (
+            <div class="rounded-xl border border-border bg-card p-6">
+              <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
+              <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- BOTTOM CTA -->
+    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-16 text-center">
+      <h2 class="text-xl font-bold text-foreground mb-2">Also try the Chord Progression Editor</h2>
+      <p class="text-muted-foreground mb-5 max-w-md mx-auto text-sm">
+        Combine piano, bass, drums and guitar in one session — drag chords, pick a rhythm style, and export to WAV.
+      </p>
+      <a
+        href="/editor/?chords=C-Am-F-G&bpm=100&style=pop_basic"
+        class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+      >
+        Open Chord Editor →
+      </a>
+    </section>
+
+  </main>
+</BaseLayout>

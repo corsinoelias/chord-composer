@@ -33,6 +33,12 @@
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; frame-src https://www.youtube-nocookie.com https://www.youtube.com; frame-ancestors 'none';"
 
+# Tuner page needs microphone access — override the global Permissions-Policy
+[[headers]]
+  for = "/tuner/"
+  [headers.values]
+    Permissions-Policy = "camera=(), microphone=(self), geolocation=()"
+
 # Edge-cache /songs/ index and individual song pages (SSR — content changes only on new song publish)
 [[headers]]
   for = "/songs/"

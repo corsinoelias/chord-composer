@@ -24,6 +24,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
     response.headers.set(key, value);
   }
 
+  // /tuner/ needs microphone access — override the global block
+  if (pathname.startsWith('/tuner')) {
+    response.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()');
+  }
+
   // Edge-cache dynamic songs pages — content only changes when a song is published
   if (pathname.startsWith('/songs/') && !pathname.startsWith('/songs/new')) {
     response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
