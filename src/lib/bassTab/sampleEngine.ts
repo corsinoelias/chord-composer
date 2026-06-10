@@ -78,6 +78,28 @@ export async function preloadSamples(ctx: BaseAudioContext, sound: BassSound): P
   await Promise.all(Object.values(m.notes).map(e => getAudioBuffer(ctx, dir, e).catch(() => {})))
 }
 
+// Only fetch the samples actually needed for the given MIDI notes — much faster than full preload
+export async function preloadSamplesForMidis(
+  ctx: BaseAudioContext,
+  sound: BassSound,
+  midiNotes: number[],
+): Promise<void> {
+  const dir = SAMPLE_DIR[sound]
+  if (!dir) return
+  const m = await getManifest(dir)
+  if (!m) return
+  const seen = new Set<string>()
+  const needed: SampleEntry[] = []
+  for (const midi of midiNotes) {
+    const entry = findNearest(midi, m.notes)
+    if (entry && !seen.has(entry.file)) {
+      seen.add(entry.file)
+      needed.push(entry)
+    }
+  }
+  await Promise.all(needed.map(e => getAudioBuffer(ctx, dir, e).catch(() => {})))
+}
+
 export async function preloadAllSampledSounds(ctx: BaseAudioContext): Promise<void> {
   await Promise.all(
     (Object.keys(SAMPLE_DIR) as BassSound[]).map(s => preloadSamples(ctx, s))

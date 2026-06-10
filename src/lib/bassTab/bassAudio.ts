@@ -1,6 +1,6 @@
 import { type BassTrack, type BassSound, type LoopRange } from './types'
 import { fretToFrequency } from './bassTheory'
-import { scheduleSampledNote, scheduleSampledNoteAsync, preloadAllSampledSounds, preloadSamples, warmOfflineContext, isSampledSound, stopAllSampledNodes } from './sampleEngine'
+import { scheduleSampledNote, scheduleSampledNoteAsync, preloadAllSampledSounds, preloadSamples, preloadSamplesForMidis, warmOfflineContext, isSampledSound, stopAllSampledNodes } from './sampleEngine'
 
 let audioCtx: AudioContext | null = null
 let masterGain: GainNode | null = null
@@ -33,7 +33,6 @@ function ensureCtx(): AudioContext {
     masterGain = audioCtx.createGain()
     masterGain.gain.value = 0.75
     masterGain.connect(audioCtx.destination)
-    preloadAllSampledSounds(audioCtx).catch(() => {})
   }
   if (audioCtx.state === 'suspended') audioCtx.resume()
   return audioCtx
@@ -109,10 +108,11 @@ export function previewNote(stringIndex: number, fret: number, sound: BassSound)
   if (!masterGain) return
   if (isSampledSound(sound)) stopAllSampledNodes()
   const freq = fretToFrequency(stringIndex, fret)
+  const midiNote = Math.round(69 + 12 * Math.log2(freq / 440))
   const schedule = () => {
     if (isSampledSound(sound)) {
-      // Wait for samples to decode before scheduling — critical on mobile/slow networks
-      preloadSamples(ctx, sound).then(() => {
+      // Only load the one sample needed for this specific note
+      preloadSamplesForMidis(ctx, sound, [midiNote]).then(() => {
         scheduleNote(ctx, masterGain!, freq, ctx.currentTime + 0.01, 0.5, 0.75, sound)
       }).catch(() => {})
     } else {
@@ -145,9 +145,12 @@ export async function startPlayback(
   if (ctx.state !== 'running') {
     await ctx.resume()
   }
-  // Ensure samples are decoded before scheduling notes — fixes silence on mobile/slow networks
-  if (isSampledSound(sound)) {
-    await preloadSamples(ctx, sound)
+  // Preload only the samples actually used by this track (avoids downloading all 30 files)
+  if (isSampledSound(sound) && track.notes.length > 0) {
+    const midiNotes = track.notes.map(n =>
+      Math.round(69 + 12 * Math.log2(fretToFrequency(n.stringIndex, n.fret) / 440))
+    )
+    await preloadSamplesForMidis(ctx, sound, midiNotes)
   }
   // Guard: playback was stopped while we were preloading
   if (!isPlayingFlag) return
