@@ -2,13 +2,35 @@
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { GENRES } from '../../data/progressions';
+
+const progressionsSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'Chord Progressions by Genre',
+  description: 'Browse hundreds of chord progressions organized by genre and mood. Pop, jazz, lo-fi, worship, and more.',
+  url: 'https://chordsequence.com/progressions/',
+  mainEntity: {
+    '@type': 'ItemList',
+    numberOfItems: GENRES.length,
+    itemListElement: GENRES.map((g, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: `${g.name} Chord Progressions`,
+      url: `https://chordsequence.com/progressions/${g.slug}/`,
+      description: g.description,
+    })),
+  },
+}
 ---
 
 <BaseLayout
   title="Chord Progressions by Genre — Pop, Jazz, Lo-fi & More | Chord Sequence"
   description="Browse hundreds of chord progressions organized by genre and mood. Pop, jazz, lo-fi, sad, happy, worship, neo soul, and EDM. Play them instantly."
-  canonicalUrl="https://chordsequence.com/progressions"
+  canonicalUrl="https://chordsequence.com/progressions/"
 >
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(progressionsSchema)} />
+  </Fragment>
   <main class="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-24">
     <div class="mb-14 text-center">
       <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">

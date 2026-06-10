@@ -2,6 +2,8 @@
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 
+const SITE = 'https://chordsequence.com'
+
 const tools = [
   {
     title: 'Circle of Fifths',
@@ -40,13 +42,38 @@ const tools = [
     keywords: 'online metronome, free metronome, tap tempo, BPM tool',
   },
 ];
+
+const toolsSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Free Music Theory Tools',
+  description: 'Free online music tools for songwriters and musicians.',
+  url: `${SITE}/tools/`,
+  numberOfItems: tools.length,
+  itemListElement: tools.map((t, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    item: {
+      '@type': 'SoftwareApplication',
+      name: t.title,
+      description: t.desc,
+      url: `${SITE}${t.href}`,
+      applicationCategory: 'MusicApplication',
+      operatingSystem: 'Any',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    },
+  })),
+}
 ---
 
 <BaseLayout
   title="Free Music Theory Tools — Chord Transposer, Key Detector & More | Chord Sequence"
   description="Free online music tools for songwriters and musicians. Chord transposer, chord finder, key detector, chord generator, and Roman numeral analyzer."
-  canonicalUrl="https://chordsequence.com/tools"
+  canonicalUrl="https://chordsequence.com/tools/"
 >
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(toolsSchema)} />
+  </Fragment>
   <main class="mx-auto max-w-5xl px-4 sm:px-6 py-16 sm:py-24">
     <div class="mb-14 text-center">
       <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">

@@ -86,6 +86,85 @@ const relatedSongs = SONGS
   .filter(s => s.slug !== song.slug && s.genre.some(g => song.genre.includes(g)))
   .slice(0, 3);
 
+// ── Song analysis helpers ────────────────────────────────────────────────────
+const KEY_MOODS: Record<string, string> = {
+  C: 'pure and versatile — works across genres',
+  G: 'warm and open — one of the most natural guitar keys',
+  D: 'bright and triumphant',
+  A: 'clear and resonant — rich in open strings',
+  E: 'bright and powerful',
+  B: 'sharp and intense',
+  'F#': 'bright and cutting', Gb: 'bright and cutting',
+  'C#': 'clear and full', Db: 'rich and romantic',
+  Ab: 'grand and deep', 'G#': 'lush and dark',
+  Eb: 'warm and ceremonial — common in worship and brass',
+  Bb: 'warm and noble — popular in jazz',
+  F: 'calm and contemplative',
+  Am: 'melancholic and introspective',
+  Em: 'dark and reflective — brooding and natural on guitar',
+  Dm: 'somber and moving',
+  Bm: 'wistful and bittersweet',
+  'F#m': 'melancholic and searching',
+  'C#m': 'deep and intense — popular in modern pop and worship',
+  Gm: 'melancholic and noble',
+  Cm: 'serious and dramatic',
+}
+
+function ordinal(n: number): string {
+  const v = n % 100
+  const s = ['th', 'st', 'nd', 'rd']
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+const isMinorKey = song.key.endsWith('m')
+const fullKeyName = isMinorKey ? `${song.key.replace(/m$/, '')} minor` : `${song.key} major`
+const keyMood = KEY_MOODS[song.key] ?? (isMinorKey ? 'expressive and introspective' : 'bright and versatile')
+
+const tempoDesc =
+  song.bpm < 70  ? 'slow and contemplative' :
+  song.bpm < 90  ? 'slow and emotional' :
+  song.bpm < 110 ? 'relaxed mid-tempo' :
+  song.bpm < 130 ? 'upbeat' :
+  song.bpm < 160 ? 'fast and driving' : 'intense and high-energy'
+
+const difficultyLabel =
+  uniqueChords.length <= 3 ? 'Beginner' :
+  uniqueChords.length <= 5 ? 'Beginner–Intermediate' :
+  uniqueChords.length <= 8 ? 'Intermediate' : 'Advanced'
+
+const capoText = song.capo ? ` with a capo on the ${ordinal(song.capo)} fret` : ''
+const yearText = song.year ? ` (${song.year})` : ''
+const genreText = song.genre[0] ?? 'popular'
+
+const analysisText =
+  `${song.title} by ${song.artist}${yearText} is a ${tempoDesc} ${genreText} song written in ${fullKeyName}${capoText}. ` +
+  `${fullKeyName.charAt(0).toUpperCase() + fullKeyName.slice(1)} is ${keyMood}. ` +
+  `The chord chart uses ${uniqueChords.length} chord${uniqueChords.length !== 1 ? 's' : ''} — ${uniqueChords.join(', ')} — at ${song.bpm} BPM.`
+
+const songFaq = [
+  {
+    q: `What key is ${song.title} in?`,
+    a: `${song.title} is in ${fullKeyName}.${song.capo ? ` On guitar, place a capo on the ${ordinal(song.capo)} fret to play in the original recorded key.` : ''}`,
+  },
+  {
+    q: `What are the chords in ${song.title}?`,
+    a: `The chord chart uses ${uniqueChords.length} chord${uniqueChords.length !== 1 ? 's' : ''}: ${uniqueChords.join(', ')}.`,
+  },
+  {
+    q: `How fast is ${song.title}?`,
+    a: `${song.title} is played at ${song.bpm} BPM (beats per minute) — a ${tempoDesc} feel.`,
+  },
+  {
+    q: `Is ${song.title} easy to play?`,
+    a: `With ${uniqueChords.length} unique chord${uniqueChords.length !== 1 ? 's' : ''}${song.capo ? ` and a capo on the ${ordinal(song.capo)} fret` : ''}, ${song.title} is rated ${difficultyLabel}. ${uniqueChords.length <= 4 ? 'Most beginners can learn it in one session.' : 'It takes some practice but is very manageable.'}`,
+  },
+  ...(song.capo ? [{
+    q: `Does ${song.title} use a capo?`,
+    a: `Yes — place a capo on the ${ordinal(song.capo)} fret to play ${song.title} in its original key.`,
+  }] : []),
+]
+// ────────────────────────────────────────────────────────────────────────────
+
 const KNOWN_BANDS = new Set(['Oasis', 'The Beatles', 'Led Zeppelin', 'Pink Floyd', 'Oasis Ministry', 'Elevation Worship', 'Hillsong', 'Bethel Music', 'Radiohead', 'Coldplay', 'U2', 'Metallica', 'AC/DC']);
 const composerType = KNOWN_BANDS.has(song.artist) ? 'MusicGroup' : 'Person';
 
@@ -169,6 +248,29 @@ const breadcrumbSchema = {
       <span class="text-foreground truncate">{song.title}</span>
     </nav>
 
+    <!-- Song stats -->
+    <div class="flex flex-wrap gap-2 mb-6">
+      <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border border-border bg-muted/40 text-foreground">
+        <svg class="w-3 h-3 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        {song.bpm} BPM
+      </span>
+      <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border border-border bg-muted/40 text-foreground">
+        <svg class="w-3 h-3 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        Key of {song.key}
+      </span>
+      {song.genre.map(g => (
+        <span class="text-xs font-medium px-2.5 py-1 rounded-full border border-border bg-muted/40 text-muted-foreground capitalize">{g}</span>
+      ))}
+      {song.capo && (
+        <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary">
+          Capo {song.capo}
+        </span>
+      )}
+      <span class={`text-xs font-medium px-2.5 py-1 rounded-full border ${difficultyLabel === 'Beginner' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : difficultyLabel === 'Beginner–Intermediate' ? 'border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400' : difficultyLabel === 'Intermediate' ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
+        {difficultyLabel}
+      </span>
+    </div>
+
     <!-- How to use hint -->
     <div class="mb-6 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 flex items-start gap-3">
       <svg class="w-4 h-4 text-primary shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
@@ -230,6 +332,29 @@ const breadcrumbSchema = {
             </div>
           </div>
         )}
+
+        <!-- About this song -->
+        <section class="mt-10 pt-8 border-t border-border">
+          <h2 class="text-xl font-bold text-foreground mb-3">About {song.title}</h2>
+          <p class="text-muted-foreground leading-relaxed text-sm">{analysisText}</p>
+
+          <div class="mt-6 space-y-2">
+            <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Frequently asked questions</h3>
+            {songFaq.map((f) => (
+              <div class="rounded-xl border border-border bg-card overflow-hidden">
+                <details class="group">
+                  <summary class="flex cursor-pointer items-center justify-between gap-4 px-5 py-3.5 text-sm font-semibold text-foreground select-none list-none hover:bg-accent/30 transition-colors">
+                    {f.q}
+                    <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                  </summary>
+                  <div class="border-t border-border px-5 py-3.5">
+                    <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+                  </div>
+                </details>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <!-- Back -->
         <div class="mt-8 text-center">

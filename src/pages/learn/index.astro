@@ -5,6 +5,33 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
 const allPosts = await getCollection('learn', ({ data }) => !data.draft);
 allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+const learnSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Blog',
+  name: 'Learn Music Theory — Chord Sequence',
+  description: 'Free music theory guides for songwriters and producers. Chord progressions, transposition, circle of fifths, and more.',
+  url: 'https://chordsequence.com/learn/',
+  publisher: {
+    '@type': 'Organization',
+    name: 'Chord Sequence',
+    url: 'https://chordsequence.com',
+    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png' },
+  },
+  blogPost: allPosts.map(post => ({
+    '@type': 'BlogPosting',
+    headline: post.data.title,
+    description: post.data.description,
+    url: `https://chordsequence.com/learn/${post.slug}/`,
+    datePublished: post.data.pubDate.toISOString(),
+    dateModified: ((post.data as any).updatedDate ?? post.data.pubDate).toISOString(),
+    author: {
+      '@type': 'Person',
+      name: 'Elías Corsino Saldaña',
+      url: 'https://chordsequence.com/about/elias-corsino/',
+    },
+  })),
+}
 ---
 
 <BaseLayout
@@ -12,6 +39,9 @@ allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
   description="Free music theory guides for songwriters and producers. Learn chord progressions, transposition, the circle of fifths, and more — with interactive examples."
   canonicalUrl="https://chordsequence.com/learn/"
 >
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(learnSchema)} />
+  </Fragment>
   <main class="mx-auto max-w-4xl px-4 sm:px-6 py-16 sm:py-24">
     <div class="mb-12">
       <div class="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-6">

@@ -5,6 +5,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
 import CircleOfFifthsIsland from '../../components/CircleOfFifthsIsland.astro';
 import { AUTHORS } from '../../data/authors';
+import ArticleAuthorBox from '../../components/ArticleAuthorBox.astro';
 
 interface RelatedLink {
   href: string;
@@ -199,6 +200,11 @@ const articleSchema = {
         '@type': 'Person',
         name: author.name,
         url: author.url,
+        image: {
+          '@type': 'ImageObject',
+          url: `https://chordsequence.com${author.avatar}`,
+        },
+        description: author.bio,
         sameAs: [author.linkedin, author.instagram],
       }
     : { '@type': 'Organization', name: 'Chord Sequence', url: 'https://chordsequence.com' },
@@ -435,6 +441,11 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
           ))}
         </div>
       </div>
+    )}
+
+    <!-- Author box -->
+    {author && (
+      <ArticleAuthorBox author={author} pubDate={post.data.pubDate} updatedDate={post.data.updatedDate} />
     )}
 
     <!-- Back -->
