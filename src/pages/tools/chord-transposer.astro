@@ -2,6 +2,7 @@
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
+import RelatedTools from '../../components/RelatedTools.astro';
 
 const examples = [
   { original: 'C major: C G Am F', transposed: 'G major: G D Em C', chords: 'G D Em C', bpm: 110, title: 'I–V–vi–IV transposed to G major' },
@@ -170,6 +171,13 @@ const breadcrumbSchema = {
         ))}
       </dl>
     </section>
+
+    <!-- RELATED TOOLS -->
+    <RelatedTools tools={[
+      { href: '/tools/circle-of-fifths/', icon: 'circle', label: 'Circle of Fifths', desc: 'See how all 12 keys relate — pick a key and get its diatonic chords.' },
+      { href: '/tools/key-detector/', icon: 'key', label: 'Key Detector', desc: 'Find which key a chord progression belongs to before transposing.' },
+      { href: '/app/', icon: 'chords', label: 'Chord Player', desc: 'Play your transposed progressions with drums and bass playback.' },
+    ]} />
 
     <!-- Related reading -->
     <div class="mt-14 pt-8 border-t border-border">

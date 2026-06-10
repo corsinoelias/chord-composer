@@ -2,6 +2,7 @@
 export const prerender = true
 import BaseLayout from '../../layouts/BaseLayout.astro'
 import { OnlineTuner } from '../../components/Tuner/OnlineTuner'
+import RelatedTools from '../../components/RelatedTools.astro'
 
 const instruments = [
   { name: 'Guitar',       notes: ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'] },
@@ -220,19 +221,13 @@ const faqSchema = {
       </div>
     </section>
 
-    <!-- BOTTOM CTA -->
-    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-12 text-center border-t border-border">
-      <h2 class="text-lg font-bold text-foreground mb-2">Also try the Virtual Bass Guitar</h2>
-      <p class="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-        Once tuned, play and compose bass lines with real Fender, Finger, Slap, and Muted samples — right in the browser.
-      </p>
-      <a
-        href="/bass-guitar/"
-        class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
-      >
-        Open Virtual Bass →
-      </a>
-    </section>
+    <!-- RELATED TOOLS -->
+    <RelatedTools tools={[
+      { href: '/bass-guitar/', icon: 'bass', label: 'Virtual Bass Guitar', desc: 'Once tuned, play the bass with real Fender, Finger, Slap, and Muted samples.' },
+      { href: '/metronome/', icon: 'metronome', label: 'Metronome', desc: 'Keep steady time while you practice. Tap tempo and accent on beat 1.' },
+      { href: '/tools/bass-guitar-tab/', icon: 'bass-tab', label: 'Bass Tab Player', desc: 'Compose and play bass lines. Load Beat It, Billie Jean, and more.' },
+      { href: '/app/', icon: 'chords', label: 'Chord Player', desc: 'Build chord progressions with drums, bass, and piano playback.' },
+    ]} />
 
   </main>
 </BaseLayout>

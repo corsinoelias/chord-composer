@@ -1,0 +1,49 @@
+---
+export interface RelatedTool {
+  href: string
+  label: string
+  desc: string
+  icon: 'tuner' | 'metronome' | 'bass' | 'bass-tab' | 'circle' | 'transpose' | 'key' | 'chords'
+}
+
+interface Props {
+  tools: RelatedTool[]
+  heading?: string
+}
+
+const { tools, heading = 'Related tools' } = Astro.props
+
+const ICONS: Record<string, string> = {
+  tuner: `<svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>`,
+  metronome: `<svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 3 22 21 2 21"/><line x1="12" y1="21" x2="12" y2="8"/><line x1="12" y1="8" x2="7" y2="13"/></svg>`,
+  bass: `<svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
+  'bass-tab': `<svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>`,
+  circle: `<svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="8.17" y2="8.17"/><line x1="15.83" y1="15.83" x2="19.07" y2="19.07"/><line x1="19.07" y1="4.93" x2="15.83" y2="8.17"/><line x1="8.17" y1="15.83" x2="4.93" y2="19.07"/></svg>`,
+  transpose: `<svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 7 5-5 5 5"/><path d="M8 2v20"/><path d="m21 17-5 5-5-5"/><path d="M16 22V2"/></svg>`,
+  key: `<svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  chords: `<svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><line x1="9" y1="9" x2="21" y2="7"/></svg>`,
+}
+---
+
+<section class="border-t border-border py-12">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6">
+    <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-5">{heading}</h2>
+    <div class={`grid grid-cols-1 gap-3 ${tools.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>
+      {tools.map((tool) => (
+        <a
+          href={tool.href}
+          class="group flex items-start gap-4 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 p-5 transition-colors"
+        >
+          <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Fragment set:html={ICONS[tool.icon]} />
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{tool.label}</p>
+            <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{tool.desc}</p>
+          </div>
+          <svg class="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>

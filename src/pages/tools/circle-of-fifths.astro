@@ -2,6 +2,7 @@
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { CircleOfFifths } from '../../components/CircleOfFifths';
+import RelatedTools from '../../components/RelatedTools.astro';
 
 const webAppSchema = {
   '@context': 'https://schema.org',
@@ -115,6 +116,13 @@ const breadcrumbSchema = {
         Open Chord Player →
       </a>
     </div>
+
+    <!-- RELATED TOOLS -->
+    <RelatedTools tools={[
+      { href: '/tools/chord-transposer/', icon: 'transpose', label: 'Chord Transposer', desc: 'Move a chord progression to any key — shift by semitones in real time.' },
+      { href: '/tools/key-detector/', icon: 'key', label: 'Key Detector', desc: 'Identify the key of any chord progression using diatonic analysis.' },
+      { href: '/app/', icon: 'chords', label: 'Chord Player', desc: 'Load diatonic chords from the circle and hear them played back instantly.' },
+    ]} />
 
     <!-- Related reading -->
     <div class="mt-16 pt-8 border-t border-border">

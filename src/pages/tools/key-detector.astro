@@ -2,6 +2,7 @@
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
+import RelatedTools from '../../components/RelatedTools.astro';
 
 const breadcrumbSchema = {
   '@context': 'https://schema.org',
@@ -95,6 +96,13 @@ const keyExamples = [
         ))}
       </div>
     </section>
+
+    <!-- RELATED TOOLS -->
+    <RelatedTools tools={[
+      { href: '/tools/circle-of-fifths/', icon: 'circle', label: 'Circle of Fifths', desc: 'Visualize all 12 keys and their diatonic chords in one interactive chart.' },
+      { href: '/tools/chord-transposer/', icon: 'transpose', label: 'Chord Transposer', desc: 'Once you know the key, move the progression to any other key.' },
+      { href: '/app/', icon: 'chords', label: 'Chord Player', desc: 'Play and experiment with progressions in your detected key.' },
+    ]} />
 
     <!-- Related reading -->
     <div class="mt-14 pt-8 border-t border-border">

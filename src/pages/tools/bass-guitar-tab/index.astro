@@ -2,6 +2,7 @@
 export const prerender = true;
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { BassTabPreview } from '../../../components/BassTabPlayer/BassTabPreview';
+import RelatedTools from '../../../components/RelatedTools.astro';
 
 const features = [
   {
@@ -377,6 +378,13 @@ const faqSchema = {
         </div>
       </div>
     </section>
+
+    <!-- ── RELATED TOOLS ─────────────────────────────────────────────────── -->
+    <RelatedTools tools={[
+      { href: '/bass-guitar/', icon: 'bass', label: 'Virtual Bass Guitar', desc: 'Tap individual notes on a full fretboard with four real sampled sounds.' },
+      { href: '/tuner/', icon: 'tuner', label: 'Online Tuner', desc: 'Tune your bass before recording. Works via your device microphone.' },
+      { href: '/metronome/', icon: 'metronome', label: 'Metronome', desc: 'Practice your bass lines with a steady tempo. Tap tempo included.' },
+    ]} />
 
     <!-- ── BOTTOM CTA ─────────────────────────────────────────────────────── -->
     <section class="mx-auto max-w-4xl px-4 sm:px-6 py-16 text-center">

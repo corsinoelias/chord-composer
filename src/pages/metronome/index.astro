@@ -2,6 +2,7 @@
 export const prerender = true
 import BaseLayout from '../../layouts/BaseLayout.astro'
 import { OnlineMetronome } from '../../components/Metronome/OnlineMetronome'
+import RelatedTools from '../../components/RelatedTools.astro'
 
 const faqs = [
   {
@@ -149,19 +150,13 @@ const faqSchema = {
       </div>
     </section>
 
-    <!-- BOTTOM CTA -->
-    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-12 text-center border-t border-border">
-      <h2 class="text-lg font-bold text-foreground mb-2">Need a chord player too?</h2>
-      <p class="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-        Build chord progressions, set the BPM, and hear them played back with drums and bass — all in the browser.
-      </p>
-      <a
-        href="/editor/"
-        class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
-      >
-        Open Chord Player →
-      </a>
-    </section>
+    <!-- RELATED TOOLS -->
+    <RelatedTools tools={[
+      { href: '/tuner/', icon: 'tuner', label: 'Online Tuner', desc: 'Tune your instrument via microphone before you start practicing.' },
+      { href: '/bass-guitar/', icon: 'bass', label: 'Virtual Bass Guitar', desc: 'Play bass lines with four real sampled sounds on a full fretboard.' },
+      { href: '/tools/bass-guitar-tab/', icon: 'bass-tab', label: 'Bass Tab Player', desc: 'Compose bass lines at custom BPM. Export to MIDI or ASCII tab.' },
+      { href: '/app/', icon: 'chords', label: 'Chord Player', desc: 'Build chord progressions with drums, bass, and piano — BPM included.' },
+    ]} />
 
   </main>
 </BaseLayout>

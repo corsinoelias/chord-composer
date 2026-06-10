@@ -2,6 +2,7 @@
 export const prerender = true
 import BaseLayout from '../../layouts/BaseLayout.astro'
 import { BassInstrument } from '../../components/BassTabPlayer/BassInstrument'
+import RelatedTools from '../../components/RelatedTools.astro'
 
 const sounds = [
   { label: 'Fender Pick', desc: 'Bright, punchy attack. The classic electric bass tone used in rock and pop — cuts through any mix.' },
@@ -176,6 +177,13 @@ const faqSchema = {
         </div>
       </div>
     </section>
+
+    <!-- RELATED TOOLS -->
+    <RelatedTools tools={[
+      { href: '/tuner/', icon: 'tuner', label: 'Online Tuner', desc: 'Tune your bass with your microphone before you start playing.' },
+      { href: '/metronome/', icon: 'metronome', label: 'Metronome', desc: 'Practice with a steady click. Tap tempo and accent control included.' },
+      { href: '/tools/bass-guitar-tab/', icon: 'bass-tab', label: 'Bass Tab Player', desc: 'Draw your own bass lines, load preset songs, and export to MIDI.' },
+    ]} />
 
     <!-- CTA FINAL -->
     <section class="mx-auto max-w-4xl px-4 sm:px-6 py-16 text-center">
