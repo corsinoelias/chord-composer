@@ -5,6 +5,7 @@ import { BassTabFretboard } from './BassTabFretboard'
 import { MobileBarView } from './MobileBarView'
 
 const SNAP = 0.25
+const RECORDING_BPM = 40
 
 type RecPhase = 'ready' | 'countdown' | 'recording' | 'reviewing'
 
@@ -154,7 +155,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
 
   const totalBeats = track.totalBars * track.beatsPerBar
-  const beatDur    = 60 / track.bpm
+  const beatDur    = 60 / RECORDING_BPM
 
   const phaseRef             = useRef<RecPhase>('ready')
   const durationRef          = useRef(1)
@@ -200,7 +201,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
     setCurrentRecBeat(0)
 
     const metro = startRecordingMetronome(
-      track.bpm, track.beatsPerBar, totalBeats,
+      RECORDING_BPM, track.beatsPerBar, totalBeats,
       beatIdx => setBeatPulse(beatIdx % track.beatsPerBar),
       () => doFinalize(),
     )
@@ -215,7 +216,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
       if (beat < totalBeats) animRef.current = requestAnimationFrame(loop)
     }
     animRef.current = requestAnimationFrame(loop)
-  }, [track.bpm, track.beatsPerBar, totalBeats, beatDur, doFinalize])
+  }, [track.beatsPerBar, totalBeats, beatDur, doFinalize])
 
   // ── countdown ─────────────────────────────────────────────────────────────
   const doStartCountdown = useCallback(() => {
@@ -225,7 +226,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
     setCountdownNum(countBeats)
     setBeatPulse(-1)
     const metro = startRecordingMetronome(
-      track.bpm, track.beatsPerBar, countBeats,
+      RECORDING_BPM, track.beatsPerBar, countBeats,
       beatIdx => { setCountdownNum(countBeats - beatIdx); setBeatPulse(beatIdx % track.beatsPerBar) },
       () => doStartRecording(),
     )
@@ -381,7 +382,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
               {track.name || 'Sin título'}
             </div>
             <div style={{ fontSize: 13, color: R.muted, marginBottom: 12 }}>
-              {track.totalBars} compases · {track.bpm} BPM · {track.beatsPerBar}/4
+              {track.totalBars} compases · {RECORDING_BPM} BPM · {track.beatsPerBar}/4
             </div>
             <div style={{ fontSize: 12, color: R.muted, maxWidth: 280, lineHeight: 1.6 }}>
               Escucharás un compás de cuenta atrás. Luego toca las cuerdas para grabar la tablatura.
@@ -418,11 +419,13 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
           {/* Beat dots */}
           <div style={{ flexShrink: 0, padding: '10px 0 6px', display: 'flex', justifyContent: 'center', gap: 12 }}>
             {Array.from({ length: track.beatsPerBar }, (_, i) => (
-              <div key={i} style={{
-                width: beatPulse === i ? 16 : 9, height: beatPulse === i ? 16 : 9,
-                borderRadius: '50%', background: beatPulse === i ? R.red : R.border,
-                transition: 'all 0.08s',
-              }} />
+              <div key={i} style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{
+                  width: beatPulse === i ? 16 : 9, height: beatPulse === i ? 16 : 9,
+                  borderRadius: '50%', background: beatPulse === i ? R.red : R.border,
+                  transition: 'all 0.08s',
+                }} />
+              </div>
             ))}
           </div>
 
@@ -478,7 +481,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
             <BassTabFretboard
               activeFrets={[null, null, null, null]}
               attackSignals={[null, null, null, null]}
-              maxHeight={200}
+              maxHeight={300}
             />
             {/* Big countdown number overlay */}
             <div style={{
@@ -516,11 +519,13 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
           {/* Beat dots */}
           <div style={{ flexShrink: 0, padding: '10px 0 6px', display: 'flex', justifyContent: 'center', gap: 12 }}>
             {Array.from({ length: track.beatsPerBar }, (_, i) => (
-              <div key={i} style={{
-                width: beatPulse === i ? 16 : 9, height: beatPulse === i ? 16 : 9,
-                borderRadius: '50%', background: beatPulse === i ? R.red : R.border,
-                transition: 'all 0.08s',
-              }} />
+              <div key={i} style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{
+                  width: beatPulse === i ? 16 : 9, height: beatPulse === i ? 16 : 9,
+                  borderRadius: '50%', background: beatPulse === i ? R.red : R.border,
+                  transition: 'all 0.08s',
+                }} />
+              </div>
             ))}
           </div>
 
@@ -571,7 +576,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
               activeFrets={[null, null, null, null]}
               attackSignals={[null, null, null, null]}
               onNoteClick={handleFretClick}
-              maxHeight={200}
+              maxHeight={300}
             />
           </div>
 

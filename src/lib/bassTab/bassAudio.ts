@@ -1,5 +1,6 @@
 import { type BassTrack, type BassSound, type LoopRange } from './types'
 import { fretToFrequency } from './bassTheory'
+import { scheduleSampledNote, scheduleSampledNoteAsync, preloadAllSampledSounds, warmOfflineContext, isSampledSound, stopAllSampledNodes } from './sampleEngine'
 
 let audioCtx: AudioContext | null = null
 let masterGain: GainNode | null = null
@@ -14,11 +15,16 @@ interface SoundParams {
   filterFreq: number; harmGain: number
 }
 
+const SYNTH_FALLBACK: SoundParams = { waveform: 'sawtooth', attack: 0.010, decay: 0.05, sustain: 0.90, release: 0.10, filterFreq: 800, harmGain: 0.30 }
+
 const SOUND_PARAMS: Record<BassSound, SoundParams> = {
   electric: { waveform: 'sine',     attack: 0.020, decay: 0.15, sustain: 0.60, release: 0.30, filterFreq: 1200, harmGain: 0.20 },
   picked:   { waveform: 'sawtooth', attack: 0.005, decay: 0.08, sustain: 0.60, release: 0.15, filterFreq: 2000, harmGain: 0.15 },
   synth:    { waveform: 'sawtooth', attack: 0.010, decay: 0.05, sustain: 0.90, release: 0.10, filterFreq:  800, harmGain: 0.30 },
-  slap:     { waveform: 'square',   attack: 0.003, decay: 0.06, sustain: 0.40, release: 0.10, filterFreq: 3000, harmGain: 0.10 },
+  slap:     SYNTH_FALLBACK,
+  fender:   SYNTH_FALLBACK,
+  finger:   SYNTH_FALLBACK,
+  muted:    SYNTH_FALLBACK,
 }
 
 function ensureCtx(): AudioContext {
@@ -27,6 +33,7 @@ function ensureCtx(): AudioContext {
     masterGain = audioCtx.createGain()
     masterGain.gain.value = 0.75
     masterGain.connect(audioCtx.destination)
+    preloadAllSampledSounds(audioCtx).catch(() => {})
   }
   if (audioCtx.state === 'suspended') audioCtx.resume()
   return audioCtx
@@ -35,7 +42,12 @@ function ensureCtx(): AudioContext {
 function scheduleNote(
   ctx: AudioContext, dest: AudioNode,
   freq: number, startTime: number, duration: number, velocity: number, sound: BassSound,
+  midiNote = Math.round(69 + 12 * Math.log2(freq / 440)),
 ) {
+  if (isSampledSound(sound)) {
+    scheduleSampledNote(ctx as unknown as BaseAudioContext, dest, sound, midiNote, startTime, duration, velocity)
+    return
+  }
   const p = SOUND_PARAMS[sound]
 
   const osc1 = ctx.createOscillator()
@@ -95,6 +107,8 @@ function scheduleMetronomeClick(ctx: AudioContext, t: number, isDown: boolean) {
 export function previewNote(stringIndex: number, fret: number, sound: BassSound): void {
   const ctx = ensureCtx()
   if (!masterGain) return
+  // Stop any lingering preview samples before starting a new one
+  if (isSampledSound(sound)) stopAllSampledNodes()
   const freq = fretToFrequency(stringIndex, fret)
   scheduleNote(ctx, masterGain, freq, ctx.currentTime + 0.01, 0.5, 0.75, sound)
 }
@@ -187,12 +201,25 @@ export async function renderTrackOffline(track: BassTrack, sound: BassSound): Pr
   gain.gain.value = 0.75
   gain.connect(offCtx.destination)
 
-  for (const note of track.notes) {
-    if (note.startBeat < 0 || note.startBeat >= totalBeats) continue
-    const noteStart = note.startBeat * beatDur
-    const noteDur   = Math.max(0.05, note.durationBeats * beatDur)
-    const freq      = fretToFrequency(note.stringIndex, note.fret)
-    scheduleNote(offCtx as unknown as AudioContext, gain, freq, noteStart + 0.05, noteDur, note.velocity, sound)
+  if (isSampledSound(sound)) {
+    await warmOfflineContext(offCtx, sound)
+    await Promise.all(track.notes
+      .filter(n => n.startBeat >= 0 && n.startBeat < totalBeats)
+      .map(n => {
+        const noteStart = n.startBeat * beatDur
+        const noteDur   = Math.max(0.05, n.durationBeats * beatDur)
+        const midi      = Math.round(69 + 12 * Math.log2(fretToFrequency(n.stringIndex, n.fret) / 440))
+        return scheduleSampledNoteAsync(offCtx, gain, sound, midi, noteStart + 0.05, noteDur, n.velocity)
+      })
+    )
+  } else {
+    for (const note of track.notes) {
+      if (note.startBeat < 0 || note.startBeat >= totalBeats) continue
+      const noteStart = note.startBeat * beatDur
+      const noteDur   = Math.max(0.05, note.durationBeats * beatDur)
+      const freq      = fretToFrequency(note.stringIndex, note.fret)
+      scheduleNote(offCtx as unknown as AudioContext, gain, freq, noteStart + 0.05, noteDur, note.velocity, sound)
+    }
   }
 
   return offCtx.startRendering()
@@ -203,6 +230,7 @@ export function stopPlayback() {
   if (animFrameId !== null) { cancelAnimationFrame(animFrameId); animFrameId = null }
   for (const osc of scheduledOscillators) { try { osc.stop() } catch { /* already stopped */ } }
   scheduledOscillators = []
+  stopAllSampledNodes()
 }
 
 export function setMasterVolume(vol: number) {

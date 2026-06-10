@@ -1,0 +1,142 @@
+import { type BassSound } from './types'
+
+interface SampleEntry { file: string; freq: number; name: string }
+interface SampleManifest {
+  mode: string
+  sampleRate: number
+  noteDuration: number
+  notes: Record<string, SampleEntry>
+}
+
+const SAMPLE_DIR: Partial<Record<BassSound, string>> = {
+  fender: 'modo',
+  slap:   'slap',
+  finger: 'finger',
+  muted:  'muted',
+}
+
+export function isSampledSound(sound: BassSound): boolean {
+  return sound in SAMPLE_DIR
+}
+
+const rawCache      = new Map<string, ArrayBuffer>()
+const manifestCache = new Map<string, Promise<SampleManifest | null>>()
+const abCache       = new WeakMap<BaseAudioContext, Map<string, AudioBuffer>>()
+const activeSources = new Set<AudioBufferSourceNode>()
+
+export function stopAllSampledNodes(): void {
+  for (const src of activeSources) {
+    try { src.stop() } catch { /* already stopped */ }
+  }
+  activeSources.clear()
+}
+
+async function getManifest(dir: string): Promise<SampleManifest | null> {
+  if (!manifestCache.has(dir)) {
+    manifestCache.set(dir,
+      fetch(`/samples/${dir}/manifest.json`)
+        .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
+        .then((m: SampleManifest) => m)
+        .catch(() => null)
+    )
+  }
+  return manifestCache.get(dir)!
+}
+
+async function getAudioBuffer(ctx: BaseAudioContext, dir: string, entry: SampleEntry): Promise<AudioBuffer | null> {
+  let ctxMap = abCache.get(ctx)
+  if (!ctxMap) { ctxMap = new Map(); abCache.set(ctx, ctxMap) }
+  const cacheKey = `${dir}/${entry.file}`
+  if (ctxMap.has(cacheKey)) return ctxMap.get(cacheKey)!
+
+  if (!rawCache.has(cacheKey)) {
+    const resp = await fetch(`/samples/${dir}/${entry.file}`)
+    if (!resp.ok) return null
+    rawCache.set(cacheKey, await resp.arrayBuffer())
+  }
+
+  const ab = await ctx.decodeAudioData(rawCache.get(cacheKey)!.slice(0))
+  ctxMap.set(cacheKey, ab)
+  return ab
+}
+
+function findNearest(midi: number, notes: Record<string, SampleEntry>): SampleEntry | null {
+  let best: SampleEntry | null = null
+  let bestDist = Infinity
+  for (const [k, e] of Object.entries(notes)) {
+    const d = Math.abs(Number(k) - midi)
+    if (d < bestDist) { bestDist = d; best = e }
+  }
+  return best
+}
+
+export async function preloadSamples(ctx: BaseAudioContext, sound: BassSound): Promise<void> {
+  const dir = SAMPLE_DIR[sound]
+  if (!dir) return
+  const m = await getManifest(dir)
+  if (!m) return
+  await Promise.all(Object.values(m.notes).map(e => getAudioBuffer(ctx, dir, e).catch(() => {})))
+}
+
+export async function preloadAllSampledSounds(ctx: BaseAudioContext): Promise<void> {
+  await Promise.all(
+    (Object.keys(SAMPLE_DIR) as BassSound[]).map(s => preloadSamples(ctx, s))
+  )
+}
+
+export async function warmOfflineContext(ctx: BaseAudioContext, sound: BassSound): Promise<void> {
+  await preloadSamples(ctx, sound)
+}
+
+export function scheduleSampledNote(
+  ctx: BaseAudioContext, dest: AudioNode,
+  sound: BassSound, midi: number, startTime: number, durationSec: number, velocity: number,
+): void {
+  doSchedule(ctx, dest, sound, midi, startTime, durationSec, velocity).catch(() => {})
+}
+
+export async function scheduleSampledNoteAsync(
+  ctx: BaseAudioContext, dest: AudioNode,
+  sound: BassSound, midi: number, startTime: number, durationSec: number, velocity: number,
+): Promise<void> {
+  await doSchedule(ctx, dest, sound, midi, startTime, durationSec, velocity)
+}
+
+async function doSchedule(
+  ctx: BaseAudioContext, dest: AudioNode,
+  sound: BassSound, targetMidi: number, startTime: number, durationSec: number, velocity: number,
+): Promise<void> {
+  const dir = SAMPLE_DIR[sound]
+  if (!dir) return
+  const m = await getManifest(dir)
+  if (!m) return
+  const entry = findNearest(targetMidi, m.notes)
+  if (!entry) return
+  const buf = await getAudioBuffer(ctx, dir, entry)
+  if (!buf) return
+
+  const source = ctx.createBufferSource()
+  source.buffer = buf
+  source.playbackRate.value = (440 * 2 ** ((targetMidi - 69) / 12)) / entry.freq
+
+  const gain      = ctx.createGain()
+  const attackSec = 0.006
+  const endTime   = startTime + durationSec
+  // Short release so staccato notes cut cleanly; max 40ms
+  const relSec    = Math.min(0.04, durationSec * 0.15)
+  const relStart  = Math.max(startTime + attackSec, endTime - relSec)
+
+  gain.gain.setValueAtTime(0, startTime)
+  gain.gain.linearRampToValueAtTime(velocity, startTime + attackSec)
+  gain.gain.setValueAtTime(velocity, relStart)
+  gain.gain.linearRampToValueAtTime(0, endTime)
+
+  source.connect(gain)
+  gain.connect(dest)
+
+  activeSources.add(source)
+  source.addEventListener('ended', () => activeSources.delete(source))
+
+  source.start(startTime)
+  source.stop(endTime + 0.005)
+}

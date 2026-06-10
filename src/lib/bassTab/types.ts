@@ -24,7 +24,7 @@ export interface BassTrack {
   sections?: TrackSection[]
 }
 
-export type BassSound = 'electric' | 'picked' | 'synth' | 'slap'
+export type BassSound = 'electric' | 'picked' | 'synth' | 'slap' | 'fender' | 'finger' | 'muted'
 export type SnapValue = 0.25 | 0.5 | 1.0
 
 export const SNAP_OPTIONS: { label: string; value: SnapValue }[] = [

@@ -69,9 +69,9 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [sound, setSound]               = useState<BassSound>(() => {
     if (initialPreset) {
       const p = PRESETS.find(pr => pr.id === initialPreset)
-      if (p) return p.defaultSound
+      if (p) return p.defaultSound === 'electric' ? 'fender' : p.defaultSound
     }
-    return 'electric'
+    return 'fender'
   })
   const [loop, setLoop]                 = useState(false)
   const [volume, setVolume]             = useState(0.75)
@@ -87,7 +87,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [desktopCompact, setDesktopCompact]         = useState(false)
   const [fitWidth, setFitWidth]                     = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
   // splitView removed
-  const [fretNumpadOpen, setFretNumpadOpen]         = useState(false)
   const [isWide, setIsWide]                         = useState(false)
   const [isShortScreen, setIsShortScreen]           = useState(false)
   // Auto-expand totalBars to always fit notes
@@ -147,7 +146,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     setCursorBeat(0)
     setSelectedId(null)
     setLoopRange(null)
-    setSound(presetSound as BassSound)
+    setSound((presetSound === 'electric' ? 'fender' : presetSound) as BassSound)
   }, [handleLoadPresetFull])
 
   // Toast helper
@@ -231,15 +230,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     if (n) setNoteDuration(n.durationBeats)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNoteId])
-
-  // Close fret numpad when note is deselected; auto-open on mobile when note selected
-  useEffect(() => {
-    if (!selectedNoteId) {
-      setFretNumpadOpen(false)
-    } else if (isMobile) {
-      setFretNumpadOpen(true)
-    }
-  }, [selectedNoteId, isMobile])
 
   // ── Active frets ─────────────────────────────────────────────────────────
   const activeFrets = useMemo((): (number | null)[] => {
@@ -686,7 +676,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         onExportMidi={handleExportMidi} onImportMidi={handleImportMidiClick} onShareUrl={handleShareUrl}
         onMetronomeToggle={() => setMetronome(m => !m)}
         onNoteDurationChange={handleNoteDurationChange}
-        onOpenFretNumpad={() => setFretNumpadOpen(true)}
         isMobile={isMobile}
         compact={isMobile && !transportExpanded}
         onToggleExpand={() => { setTransportExpanded(e => !e); setFretboardVisible(false) }}
@@ -895,15 +884,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             )
           })}
         </div>
-      )}
-
-      {/* Fret numpad — mobile only */}
-      {isMobile && fretNumpadOpen && selectedNote && (
-        <FretNumpad
-          currentFret={selectedNote.fret}
-          onSelect={(fret) => { handleFretChange(fret); setFretNumpadOpen(false) }}
-          onClose={() => setFretNumpadOpen(false)}
-        />
       )}
 
       {/* Preset picker */}
@@ -1282,65 +1262,3 @@ function GuitarIcon() {
 }
 
 // ── Fret Numpad — mobile bottom sheet ─────────────────────────────────────
-const FRET_NUMPAD_FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
-const FRETS = Array.from({ length: 25 }, (_, i) => i)
-
-function FretNumpad({ currentFret, onSelect, onClose }: {
-  currentFret: number
-  onSelect: (fret: number) => void
-  onClose: () => void
-}) {
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.45)' }}
-      />
-      {/* Panel */}
-      <div style={{
-        position: 'fixed', bottom: 58, left: 0, right: 0, zIndex: 201,
-        background: 'hsl(224 20% 11%)',
-        borderTop: '1px solid hsl(224 15% 22%)',
-        borderRadius: '16px 16px 0 0',
-        padding: '14px 12px 12px',
-        fontFamily: FRET_NUMPAD_FONT,
-        boxShadow: '0 -8px 32px rgba(0,0,0,0.5)',
-      }}>
-        {/* Handle */}
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'hsl(224 15% 30%)', margin: '0 auto 12px' }} />
-        {/* Label */}
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'hsl(262 60% 60%)', textAlign: 'center', marginBottom: 10 }}>
-          Select Fret
-        </div>
-        {/* Grid 5×5 */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
-          {FRETS.map(f => {
-            const active = f === currentFret
-            return (
-              <button
-                key={f}
-                onClick={() => onSelect(f)}
-                style={{
-                  height: 48, borderRadius: 10,
-                  background: active ? 'hsl(262 60% 25%)' : 'hsl(224 18% 17%)',
-                  border: `1.5px solid ${active ? 'hsl(262 83% 58%)' : 'hsl(224 15% 24%)'}`,
-                  color: active ? 'hsl(262 80% 90%)' : 'hsl(220 14% 68%)',
-                  fontSize: 17, fontWeight: active ? 700 : 400,
-                  fontFamily: 'ui-monospace, monospace',
-                  cursor: 'pointer',
-                  touchAction: 'manipulation',
-                  WebkitTapHighlightColor: 'transparent',
-                  boxShadow: active ? '0 0 10px hsl(262 83% 58% / 0.35)' : 'none',
-                  transition: 'background 0.08s, border-color 0.08s',
-                }}
-              >
-                {f}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-    </>
-  )
-}

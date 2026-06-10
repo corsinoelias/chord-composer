@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { STRINGS, fretToNoteName } from '../../lib/bassTab/bassTheory'
 
-const MIN_FRETS  = 12
+const MIN_FRETS  = 7
 const MAX_FRETS  = 24
 const CELL_W     = 52
 const OPEN_W     = 44
 const LABEL_W    = 56
-const ROW_H      = 48
+const ROW_H      = 56
 const NATURAL_H  = 27 + 4 * ROW_H + 19  // header + rows + footer (≈238px)
 
 // Per-string physical appearance
