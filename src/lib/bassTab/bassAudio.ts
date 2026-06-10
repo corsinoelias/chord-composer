@@ -106,7 +106,6 @@ function scheduleMetronomeClick(ctx: AudioContext, t: number, isDown: boolean) {
 export function previewNote(stringIndex: number, fret: number, sound: BassSound): void {
   const ctx = ensureCtx()
   if (!masterGain) return
-  if (isSampledSound(sound)) stopAllSampledNodes()
   const freq = fretToFrequency(stringIndex, fret)
   const midiNote = Math.round(69 + 12 * Math.log2(freq / 440))
   const schedule = () => {
