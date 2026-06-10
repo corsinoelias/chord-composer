@@ -63,6 +63,12 @@ const ARTICLE_FAQ: Record<string, FAQItem[]> = {
     { question: 'How do you use the circle of fifths for songwriting?', answer: 'The circle of fifths helps songwriters choose chords that sound natural together. All the diatonic chords of a key sit adjacent to each other on the circle. To find chords that fit in C major, look at C and its immediate neighbors (G and F) — these are the I, V, and IV chords. Moving two steps in either direction gives you the ii, iii, and vi chords. Modulating to a closely related key means moving one or two steps around the circle.' },
     { question: 'Why do jazz progressions follow the circle of fifths?', answer: 'Jazz progressions follow the circle of fifths because each dominant seventh chord naturally resolves to the key a fifth below. In G7–Cmaj7, G7 resolves to C — one step clockwise on the circle. Jazz composers chain these resolutions together, creating sequences that descend through the circle (iii–VI–ii–V–I in the key of C, for example). This movement generates harmonic momentum that listeners experience as forward motion.' },
   ],
+  'secondary-dominants': [
+    { question: 'What is a secondary dominant chord?', answer: 'A secondary dominant is a dominant seventh chord that resolves to a chord other than the home tonic — it briefly tonicizes a non-tonic chord. The shorthand V/X means "the V chord of chord X." For example, in C major, D7 is the V/V because D7 resolves to G (the V chord), treating G as a temporary tonic.' },
+    { question: 'What is the most common secondary dominant?', answer: 'The most common secondary dominant is V/V — the dominant of the dominant. In C major, that is D7 (D, F#, A, C). The F# is borrowed from G major, creating a brighter, more expectant sound that makes the arrival of the G chord feel especially satisfying. You hear it in thousands of pop, gospel, and country songs.' },
+    { question: 'How do secondary dominants differ from borrowed chords?', answer: 'A secondary dominant is a dominant seventh chord that creates a V→I resolution toward a specific diatonic chord. A borrowed chord is taken from the parallel minor (or another mode) and used for color without that specific dominant-to-tonic tension. The practical test: if the chromatic chord pulls strongly toward another chord and resolves, it\'s a secondary dominant. If it\'s used for texture without that strong resolution, it\'s a borrowed chord.' },
+    { question: 'How do you find the secondary dominant of any chord?', answer: 'The formula: identify the root of the target chord, go up a perfect fifth (or down a perfect fourth) from that root, then build a dominant seventh chord there (major triad + minor seventh). For example, to find V/ii in C major: the ii chord is Dm, a fifth above D is A, so the secondary dominant is A7 (A, C#, E, G). The C# is the borrowed note that creates the temporary tension.' },
+  ],
 };
 
 const ARTICLE_RELATED: Record<string, ArticleRelated> = {
@@ -138,6 +144,17 @@ const ARTICLE_RELATED: Record<string, ArticleRelated> = {
     ],
     tool: { href: '/tools/chord-transposer/', label: 'Transpose any chord progression — including slash chords — to any key with the free Chord Transposer', cta: 'Open Chord Transposer →' },
   },
+  'secondary-dominants': {
+    progressions: [
+      { href: '/progressions/jazz/', label: 'Jazz chord progressions', description: 'Secondary dominants and dominant chains are the backbone of jazz harmony' },
+      { href: '/progressions/neo-soul/', label: 'Neo soul chord progressions', description: 'V/ii and V/vi give neo soul its characteristic warmth and surprise' },
+    ],
+    articles: [
+      { href: '/learn/jazz-chord-progressions/', label: 'Jazz chord progressions', description: 'The ii–V–I and dominant chains that secondary dominants feed into' },
+      { href: '/learn/chord-inversions/', label: 'Chord inversions', description: 'Combine inversions with secondary dominants for smooth voice leading' },
+    ],
+    tool: { href: '/tools/circle-of-fifths/', label: 'See every secondary dominant relationship visually with the interactive Circle of Fifths', cta: 'Open Circle of Fifths →' },
+  },
 };
 
 export async function getStaticPaths() {
@@ -206,6 +223,21 @@ const breadcrumbSchema = {
 };
 
 const ARTICLE_EXTRA_SCHEMAS: Record<string, object[]> = {
+  'secondary-dominants': [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'DefinedTermSet',
+      name: 'Secondary Dominant Glossary',
+      url: 'https://chordsequence.com/learn/secondary-dominants/',
+      hasDefinedTerm: [
+        { '@type': 'DefinedTerm', name: 'Secondary Dominant', termCode: 'secondary-dominant', description: 'A dominant seventh chord that resolves to a chord other than the home tonic, briefly treating that chord as a local tonic. Written as V/X (V of X).' },
+        { '@type': 'DefinedTerm', name: 'Tonicization', termCode: 'tonicization', description: 'Briefly emphasizing a non-tonic chord as if it were the tonic by approaching it with its own dominant chord. Shorter than a full modulation — the home key is never abandoned.' },
+        { '@type': 'DefinedTerm', name: 'Applied Dominant', termCode: 'applied-dominant', description: 'Another name for a secondary dominant — a dominant chord "applied" to a specific target chord to create a V→I resolution toward it.' },
+        { '@type': 'DefinedTerm', name: 'V/V', termCode: 'v-of-v', description: 'The secondary dominant of the dominant chord. In C major, V/V is D7 — the dominant of G. Introduces F# (the leading tone of G major) to make the arrival of G feel stronger.' },
+        { '@type': 'DefinedTerm', name: 'Tritone Interval', termCode: 'tritone', description: 'The interval of three whole tones (six semitones) between the third and seventh of any dominant seventh chord. This unstable interval drives the dominant-to-tonic resolution.' },
+      ],
+    },
+  ],
   'chord-inversions': [
     {
       '@context': 'https://schema.org',

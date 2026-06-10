@@ -1,6 +1,6 @@
 import { type BassTrack, type BassSound, type LoopRange } from './types'
 import { fretToFrequency } from './bassTheory'
-import { scheduleSampledNote, scheduleSampledNoteAsync, preloadAllSampledSounds, warmOfflineContext, isSampledSound, stopAllSampledNodes } from './sampleEngine'
+import { scheduleSampledNote, scheduleSampledNoteAsync, preloadAllSampledSounds, preloadSamples, warmOfflineContext, isSampledSound, stopAllSampledNodes } from './sampleEngine'
 
 let audioCtx: AudioContext | null = null
 let masterGain: GainNode | null = null
@@ -110,7 +110,14 @@ export function previewNote(stringIndex: number, fret: number, sound: BassSound)
   if (isSampledSound(sound)) stopAllSampledNodes()
   const freq = fretToFrequency(stringIndex, fret)
   const schedule = () => {
-    scheduleNote(ctx, masterGain!, freq, ctx.currentTime + 0.01, 0.5, 0.75, sound)
+    if (isSampledSound(sound)) {
+      // Wait for samples to decode before scheduling — critical on mobile/slow networks
+      preloadSamples(ctx, sound).then(() => {
+        scheduleNote(ctx, masterGain!, freq, ctx.currentTime + 0.01, 0.5, 0.75, sound)
+      }).catch(() => {})
+    } else {
+      scheduleNote(ctx, masterGain!, freq, ctx.currentTime + 0.01, 0.5, 0.75, sound)
+    }
   }
   // On mobile the context may be suspended until resume() resolves — wait for it
   if (ctx.state === 'running') {
@@ -120,7 +127,7 @@ export function previewNote(stringIndex: number, fret: number, sound: BassSound)
   }
 }
 
-export function startPlayback(
+export async function startPlayback(
   track: BassTrack,
   fromBeat: number,
   sound: BassSound,
@@ -132,8 +139,20 @@ export function startPlayback(
 ) {
   stopPlayback()
   const ctx = ensureCtx()
-  playStartAudioTime = ctx.currentTime + 0.05
   isPlayingFlag = true
+
+  // iOS/Android: context may be suspended — wait for actual resume before using currentTime
+  if (ctx.state !== 'running') {
+    await ctx.resume()
+  }
+  // Ensure samples are decoded before scheduling notes — fixes silence on mobile/slow networks
+  if (isSampledSound(sound)) {
+    await preloadSamples(ctx, sound)
+  }
+  // Guard: playback was stopped while we were preloading
+  if (!isPlayingFlag) return
+
+  playStartAudioTime = ctx.currentTime + 0.05
 
   const beatDur    = 60 / track.bpm
   const totalBeats = track.totalBars * track.beatsPerBar

@@ -13,11 +13,85 @@ const breadcrumbSchema = {
     { '@type': 'ListItem', position: 2, name: 'About', item: 'https://chordsequence.com/about/' },
   ],
 };
+
+const tools = [
+  {
+    label: 'Chord Progression Editor',
+    href: '/editor/',
+    desc: 'Build, play, and export chord progressions with 37 chord types and 13 rhythm styles.',
+    icon: 'M9 18V5l12-2v13M6 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm12-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  },
+  {
+    label: 'Bass Guitar Tab Player',
+    href: '/tools/bass-guitar-tab/',
+    desc: '4-string bass tab editor with real instrument samples, recording mode, and WAV export.',
+    icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z',
+  },
+  {
+    label: 'Song Charts',
+    href: '/songs/',
+    desc: 'Synchronized chord-over-lyrics playback — every chord lights up in time with the song.',
+    icon: 'M9 19V6l12-3v13M9 19a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm12-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0z',
+  },
+  {
+    label: 'Chromatic Tuner',
+    href: '/tuner/',
+    desc: 'Tune any instrument in your browser using your microphone. No app download needed.',
+    icon: 'M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z',
+  },
+  {
+    label: 'Metronome',
+    href: '/metronome/',
+    desc: 'BPM tool with tap tempo, accent beat, and subdivisions for any time signature.',
+    icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  },
+  {
+    label: 'Circle of Fifths',
+    href: '/tools/circle-of-fifths/',
+    desc: 'Interactive visualization of key signatures, relative majors/minors, and chord relationships.',
+    icon: 'M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 4a6 6 0 1 1 0 12A6 6 0 0 1 12 6zm0 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  },
+  {
+    label: 'Chord Transposer',
+    href: '/tools/chord-transposer/',
+    desc: 'Shift an entire chord chart up or down by key or by semitone in one click.',
+    icon: 'M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4',
+  },
+  {
+    label: 'Key Detector',
+    href: '/tools/key-detector/',
+    desc: 'Enter a chord progression and find the most likely key — including modal possibilities.',
+    icon: 'M15 7a2 2 0 0 1 2 2m4 0a6 6 0 0 1-7.743 5.743L11 17H9v2H7v2H4a1 1 0 0 1-1-1v-2.586a1 1 0 0 1 .293-.707l5.964-5.964A6 6 0 1 1 21 9z',
+  },
+];
+
+const values = [
+  {
+    title: 'Free forever',
+    desc: 'No paywalls, no freemium tiers, no feature locks. Every tool is fully accessible to everyone.',
+    icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  },
+  {
+    title: 'Privacy-first',
+    desc: 'No accounts, no tracking. Your progressions live in your browser — never on a server.',
+    icon: 'M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04.054-.09A13.916 13.916 0 0 0 8 11a4 4 0 1 1 8 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0 0 15.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 0 0 8 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4',
+  },
+  {
+    title: 'Musician-built',
+    desc: 'Every feature is designed by a working musician. If it doesn\'t help you make music, it doesn\'t ship.',
+    icon: 'M9 19V6l12-3v13M9 19a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm12-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0z',
+  },
+  {
+    title: 'Accessible to all',
+    desc: 'No installs, no subscriptions, no experience required. Open a browser and start playing.',
+    icon: 'M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9',
+  },
+];
 ---
 
 <BaseLayout
-  title="About Chord Sequence — Free Chord Progression Builder"
-  description="Chord Sequence is a free browser-based chord progression builder created by Elías Corsino Saldaña, a musician and developer from the Dominican Republic."
+  title="About Chord Sequence — Free Music Tools for Every Musician"
+  description="Chord Sequence is a suite of free browser-based music tools built by Elías Corsino Saldaña — a musician and developer from the Dominican Republic."
   canonicalUrl="https://chordsequence.com/about/"
 >
   <Fragment slot="head">
@@ -31,50 +105,105 @@ const breadcrumbSchema = {
       <span class="text-foreground">About</span>
     </nav>
 
-    <header class="mb-14">
-      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
-        About Chord Sequence
+    <!-- Hero -->
+    <header class="mb-16">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-5">
+        Music tools that get out of your way
       </h1>
-      <p class="text-lg text-muted-foreground leading-relaxed">
-        A free, no-account chord progression builder for songwriters, producers, and music students.
+      <p class="text-lg text-muted-foreground leading-relaxed max-w-2xl">
+        Chord Sequence is a growing suite of free, browser-based tools for songwriters, producers, and students.
+        No account. No download. No cost. Just open it and make music.
       </p>
     </header>
 
-    <!-- What is it -->
-    <section class="mb-14 space-y-5 text-muted-foreground leading-relaxed">
-      <h2 class="text-2xl font-bold text-foreground mb-4">What is Chord Sequence?</h2>
+    <!-- Story -->
+    <section class="mb-16 space-y-5 text-muted-foreground leading-relaxed">
+      <h2 class="text-2xl font-bold text-foreground mb-4">Our story</h2>
       <p>
-        Chord Sequence is a browser-based tool that lets you build, play, and export chord progressions — no signup,
-        no subscription, no plugins. Open it in any browser and start making music in seconds.
+        Elías Corsino Saldaña started learning music at 12 — piano first, then bass, guitar, and drums. Years later,
+        working as a software developer, he kept running into the same problem: the music theory tools online were either
+        too basic to be useful, locked behind a paywall, or buried under so many features they got in the way of
+        actually writing a song.
       </p>
       <p>
-        It supports 37 chord types (major, minor, 7th, maj7, m7, dim, aug, sus, add9, and more),
-        real-time transposition, BPM control, MIDI export, and a growing library of curated progressions
-        across genres like pop, jazz, lo-fi, soul, and blues.
+        So in 2024 he built the first version of Chord Sequence: a simple chord progression editor that ran in the
+        browser, played back chords with real guitar samples, and let you export to WAV. No account, no ads, no cost.
       </p>
+      <p>
+        It kept growing. Song charts with synchronized chord playback. A bass guitar tab editor with realistic
+        instrument samples, a fretboard, and a recording mode. A chromatic tuner. A metronome. An interactive
+        Circle of Fifths. A key detector. A chord transposer.
+      </p>
+      <p>
+        Each tool came from a real need — something missing from a practice session or a songwriting session.
+        That's still how it works today.
+      </p>
+    </section>
 
-      <div class="grid sm:grid-cols-3 gap-4 not-prose mt-6">
-        {[
-          { label: '37 chord types', desc: 'From simple triads to extended jazz voicings' },
-          { label: 'MIDI export', desc: 'Drag directly into your DAW' },
-          { label: 'No account needed', desc: 'Your progressions stay in your browser' },
-        ].map((f) => (
-          <div class="rounded-xl border border-border bg-card p-5">
-            <p class="font-semibold text-foreground text-sm mb-1">{f.label}</p>
-            <p class="text-xs text-muted-foreground">{f.desc}</p>
+    <!-- Vision -->
+    <section class="mb-16 space-y-5 text-muted-foreground leading-relaxed">
+      <h2 class="text-2xl font-bold text-foreground mb-4">Vision</h2>
+      <p>
+        The goal is to build the most useful free music toolkit on the web — a place where a beginner can learn
+        their first chord shapes and a working musician can practice a bass line, tune their instrument, and
+        chart out a song, all without paying for a subscription or installing anything.
+      </p>
+      <p>
+        Music theory should be something you experience, not something you read about. Every tool here
+        is designed to give you immediate feedback — play a chord and hear it, see the notes light up,
+        feel the rhythm. The learning happens in the doing.
+      </p>
+    </section>
+
+    <!-- Values -->
+    <section class="mb-16">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Values</h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        {values.map((v) => (
+          <div class="rounded-xl border border-border bg-card p-5 flex gap-4">
+            <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+              <svg class="w-4.5 h-4.5 text-primary" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d={v.icon} />
+              </svg>
+            </div>
+            <div>
+              <p class="font-semibold text-foreground text-sm mb-1">{v.title}</p>
+              <p class="text-xs text-muted-foreground leading-relaxed">{v.desc}</p>
+            </div>
           </div>
         ))}
       </div>
     </section>
 
-    <!-- Author -->
-    <section class="mb-14">
+    <!-- What we've built -->
+    <section class="mb-16">
+      <h2 class="text-2xl font-bold text-foreground mb-2">What we've built</h2>
+      <p class="text-muted-foreground mb-6 leading-relaxed">
+        Eight tools, all free, all running in your browser with no plugins required.
+      </p>
+      <div class="grid sm:grid-cols-2 gap-3">
+        {tools.map((t) => (
+          <a
+            href={t.href}
+            class="rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-accent/30 transition-colors group"
+          >
+            <p class="font-semibold text-foreground text-sm mb-1 group-hover:text-primary transition-colors">{t.label}</p>
+            <p class="text-xs text-muted-foreground leading-relaxed">{t.desc}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- Who built it -->
+    <section class="mb-16">
       <h2 class="text-2xl font-bold text-foreground mb-6">Who built it</h2>
       <div class="rounded-xl border border-border bg-card p-6">
         <div class="flex items-center gap-4 mb-4">
-          <div class="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg shrink-0">
-            EC
-          </div>
+          <img
+            src={author.avatar}
+            alt={author.name}
+            class="w-14 h-14 rounded-full object-cover shrink-0"
+          />
           <div>
             <a href="/about/elias-corsino" class="font-semibold text-foreground hover:text-primary transition-colors">
               {author.name}
@@ -107,49 +236,15 @@ const breadcrumbSchema = {
       </div>
     </section>
 
-    <!-- Why free -->
-    <section class="mb-14 space-y-5 text-muted-foreground leading-relaxed">
-      <h2 class="text-2xl font-bold text-foreground mb-4">Why is it free?</h2>
-      <p>
-        Music theory tools shouldn't cost money. The best way to learn harmony is to experiment — to try a chord,
-        hear what it sounds like in context, and understand why it works. Paywalls kill that feedback loop.
-      </p>
-      <p>
-        Chord Sequence will always be free to use. There's no freemium tier, no feature locks, no ads inside the app.
-        The site is sustained by the creator's own time as a side project.
-      </p>
-    </section>
-
-    <!-- How it works -->
-    <section class="mb-14 space-y-5 text-muted-foreground leading-relaxed">
-      <h2 class="text-2xl font-bold text-foreground mb-4">How it works</h2>
-      <p>
-        Chord Sequence runs entirely in the browser using the <strong class="text-foreground">Web Audio API</strong>. When you add a chord to the editor
-        and press Play, the app synthesizes the sound in real time from pre-recorded guitar samples — no server round trips,
-        no latency, no plugins. The rhythm engine layers strumming patterns over the chord notes to produce a realistic
-        sound across 13 different rhythm styles: pop, rock, jazz, lo-fi, worship, Latin, and more.
-      </p>
-      <p>
-        Progressions are stored locally in your browser using <code class="text-primary text-sm bg-primary/10 px-1.5 py-0.5 rounded">localStorage</code> — they stay private
-        and persist between sessions without creating an account. You can also export your progression as a WAV file
-        and drag it directly into any DAW (Ableton, Logic, GarageBand, FL Studio).
-      </p>
-      <p>
-        The <strong class="text-foreground">song charts</strong> feature adds synchronized chord-over-lyrics playback:
-        every chord lights up at the right moment above the lyrics so you always know where you are in the song.
-        Songs are stored in a Supabase database and updated without a full redeploy.
-      </p>
-    </section>
-
     <!-- Tech stack -->
-    <section class="mb-14">
+    <section class="mb-16">
       <h2 class="text-2xl font-bold text-foreground mb-4">Built with</h2>
       <div class="grid sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
         {[
           { label: 'Astro', desc: 'Server-side rendering and static generation' },
-          { label: 'React / Preact', desc: 'Interactive editor and player islands' },
+          { label: 'React', desc: 'Interactive editor and player islands' },
           { label: 'Tailwind CSS', desc: 'Styling' },
-          { label: 'Web Audio API', desc: 'Real-time chord synthesis and sample playback' },
+          { label: 'Web Audio API', desc: 'Real-time synthesis and sample playback' },
           { label: 'Supabase', desc: 'Community song library database' },
           { label: 'Netlify', desc: 'Hosting and edge CDN' },
         ].map((t) => (
@@ -164,33 +259,79 @@ const breadcrumbSchema = {
       </div>
     </section>
 
-    <!-- Learn section -->
-    <section class="mb-14">
-      <h2 class="text-2xl font-bold text-foreground mb-4">Learn music theory</h2>
+    <!-- Get in touch -->
+    <section class="mb-16">
+      <h2 class="text-2xl font-bold text-foreground mb-2">Get in touch</h2>
       <p class="text-muted-foreground mb-6 leading-relaxed">
-        Alongside the tool, the site publishes free music theory guides aimed at songwriters and producers
-        who want to understand the harmony behind the music they love.
+        Found a bug? Have a feature idea? Just want to say hi? We'd love to hear from you.
       </p>
-      <div class="grid sm:grid-cols-2 gap-3">
-        {[
-          { title: 'What is a chord progression?', href: '/learn/what-is-a-chord-progression/' },
-          { title: 'Jazz chord progressions', href: '/learn/jazz-chord-progressions/' },
-          { title: 'Circle of fifths explained', href: '/learn/circle-of-fifths-explained/' },
-          { title: 'How to transpose chords', href: '/learn/how-to-transpose-chords/' },
-          { title: 'Chord inversions', href: '/learn/chord-inversions/' },
-          { title: 'Music theory basics for songwriters', href: '/learn/music-theory-basics-for-songwriters/' },
-        ].map((link) => (
-          <a
-            href={link.href}
-            class="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium text-foreground hover:text-primary hover:border-primary/40 transition-colors"
-          >
-            <svg class="w-3.5 h-3.5 text-muted-foreground shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            {link.title}
-          </a>
-        ))}
+      <div class="space-y-4">
+
+        <a
+          href="mailto:corsinoelias@gmail.com"
+          class="flex items-center gap-4 rounded-xl border border-border bg-card p-5 hover:border-primary/40 hover:bg-accent/30 transition-colors group"
+        >
+          <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect width="20" height="16" x="2" y="4" rx="2"/>
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+            </svg>
+          </div>
+          <div>
+            <p class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors">Email</p>
+            <p class="text-xs text-muted-foreground">corsinoelias@gmail.com</p>
+          </div>
+        </a>
+
+        <a
+          href={author.instagram}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex items-center gap-4 rounded-xl border border-border bg-card p-5 hover:border-primary/40 hover:bg-accent/30 transition-colors group"
+        >
+          <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+              <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+            </svg>
+          </div>
+          <div>
+            <p class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors">Instagram</p>
+            <p class="text-xs text-muted-foreground">@corsinoeliaas — music tips and app updates</p>
+          </div>
+        </a>
+
+        <a
+          href={author.linkedin}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex items-center gap-4 rounded-xl border border-border bg-card p-5 hover:border-primary/40 hover:bg-accent/30 transition-colors group"
+        >
+          <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/>
+              <rect width="4" height="12" x="2" y="9"/>
+              <circle cx="4" cy="4" r="2"/>
+            </svg>
+          </div>
+          <div>
+            <p class="font-semibold text-foreground text-sm group-hover:text-primary transition-colors">LinkedIn</p>
+            <p class="text-xs text-muted-foreground">{author.name}</p>
+          </div>
+        </a>
+
       </div>
     </section>
 
+    <!-- Legal links -->
+    <div class="flex items-center gap-4 text-xs text-muted-foreground border-t border-border pt-8 mb-10">
+      <a href="/privacy/" class="hover:text-foreground transition-colors">Privacy Policy</a>
+      <span>·</span>
+      <a href="/terms/" class="hover:text-foreground transition-colors">Terms of Service</a>
+    </div>
+
+    <!-- CTA -->
     <div class="rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
       <h2 class="text-xl font-semibold text-foreground mb-2">Try it now</h2>
       <p class="text-sm text-muted-foreground mb-5">No signup. No download. Works in any browser.</p>

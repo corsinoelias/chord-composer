@@ -1,0 +1,144 @@
+---
+export const prerender = true;
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const effectiveDate = 'June 10, 2026';
+---
+
+<BaseLayout
+  title="Terms of Service | Chord Sequence"
+  description="Terms of Service for Chord Sequence. Free to use, no account required. Read our terms before using the app."
+  canonicalUrl="https://chordsequence.com/terms/"
+>
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">Terms of Service</span>
+    </nav>
+
+    <header class="mb-12">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">Terms of Service</h1>
+      <p class="text-sm text-muted-foreground">Effective date: {effectiveDate}</p>
+    </header>
+
+    <div class="space-y-10 text-muted-foreground leading-relaxed">
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">The short version</h2>
+        <p>
+          Chord Sequence is a free, browser-based music tool. Use it to make music. Don't misuse it.
+          We don't collect your personal data. Your work stays in your browser.
+          That's pretty much it.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">Acceptance of terms</h2>
+        <p>
+          By accessing or using Chord Sequence at <strong class="text-foreground">chordsequence.com</strong>,
+          you agree to these Terms of Service. If you don't agree, please don't use the service.
+          These terms apply to all visitors and users of the site.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">Use of the service</h2>
+        <p class="mb-3">Chord Sequence is provided free of charge for personal and educational use. You may:</p>
+        <ul class="list-disc list-inside space-y-1.5 text-sm mb-4">
+          <li>Use the chord progression editor, bass tab player, tuner, metronome, and all other tools for any musical purpose</li>
+          <li>Export your progressions and recordings as audio files (WAV) for use in your own projects</li>
+          <li>Share links to the app or embed the URL in educational content</li>
+        </ul>
+        <p class="mb-3">You may not:</p>
+        <ul class="list-disc list-inside space-y-1.5 text-sm">
+          <li>Scrape, crawl, or systematically extract content from the site in a way that degrades service for other users</li>
+          <li>Attempt to reverse-engineer, decompile, or exploit the app beyond normal browser usage</li>
+          <li>Use the service for any unlawful purpose or in violation of any applicable laws</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">User-submitted content</h2>
+        <p class="mb-3">
+          Some features allow users to submit content — such as song charts added to the community library.
+          By submitting content, you represent that:
+        </p>
+        <ul class="list-disc list-inside space-y-1.5 text-sm">
+          <li>You have the right to share the content (e.g., chord charts are factual arrangements, not protected expression)</li>
+          <li>The content does not infringe any third-party copyright, trademark, or intellectual property rights</li>
+          <li>The content is accurate to the best of your knowledge</li>
+        </ul>
+        <p class="mt-3">
+          We reserve the right to remove any submitted content at our discretion without notice.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">Intellectual property</h2>
+        <p class="mb-3">
+          The Chord Sequence application, design, code, audio samples, and written content are owned by
+          Elías Corsino Saldaña unless otherwise noted. All rights reserved.
+        </p>
+        <p>
+          Music theory knowledge — scales, chord names, progressions, intervals — is not owned by anyone.
+          The chord progressions you create with this tool are yours.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">No warranties</h2>
+        <p>
+          Chord Sequence is provided <strong class="text-foreground">"as is"</strong> without warranties of any kind,
+          express or implied. We don't guarantee the service will be uninterrupted, error-free, or available
+          at all times. Use it at your own discretion.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">Limitation of liability</h2>
+        <p>
+          To the maximum extent permitted by law, Chord Sequence and its creator shall not be liable for any
+          indirect, incidental, special, or consequential damages arising from your use of — or inability
+          to use — the service, including loss of data stored in your browser.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">Third-party services</h2>
+        <p>
+          Chord Sequence is hosted on <strong class="text-foreground">Netlify</strong> and uses
+          <strong class="text-foreground">Supabase</strong> for the community song library database.
+          Your use of those services is subject to their respective terms and privacy policies.
+          We are not responsible for the practices of third-party services.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">Changes to these terms</h2>
+        <p>
+          We may update these Terms of Service from time to time. Changes take effect when published on this page.
+          The effective date at the top will be updated accordingly. Continued use of the service after changes
+          constitutes acceptance of the new terms.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">Governing law</h2>
+        <p>
+          These terms are governed by the laws of the Dominican Republic, without regard to conflict of law principles.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">Contact</h2>
+        <p>
+          Questions about these terms? Reach us at
+          <a href="mailto:corsinoelias@gmail.com" class="text-primary hover:underline">corsinoelias@gmail.com</a>
+          or through our <a href="/contact/" class="text-primary hover:underline">contact page</a>.
+        </p>
+      </section>
+
+    </div>
+  </main>
+</BaseLayout>

@@ -1,6 +1,28 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { BassTabPlayer } from '../components/BassTabPlayer/BassTabPlayer';
+
+const webAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Bass Guitar Tab Player',
+  url: 'https://chordsequence.com/bass-tab/',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Any',
+  description: 'Free online 4-string bass tablature editor. Draw notes on any string, drag to move, resize to change duration, and hear playback in real time.',
+  featureList: [
+    'Draw notes on any string and fret',
+    'Drag to reposition, resize to change duration',
+    'Real-time audio playback',
+    'Multiple bass sounds: Fender Pick, Finger, Slap, Muted',
+    'ASCII tab export',
+    'MIDI export',
+    'URL sharing — no account required',
+    '10+ preset bass lines',
+  ],
+  browserRequirements: 'Requires a modern browser with Web Audio API support',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+};
 ---
 
 <BaseLayout
@@ -9,5 +31,8 @@ import { BassTabPlayer } from '../components/BassTabPlayer/BassTabPlayer';
   canonicalUrl="https://chordsequence.com/bass-tab/"
   showNav={false}
 >
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+  </Fragment>
   <BassTabPlayer client:only="react" />
 </BaseLayout>
