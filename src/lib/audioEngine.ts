@@ -1286,12 +1286,12 @@ export function scheduleProgression(
     const drumsState = instruments.find(i => i.id === 'drums');
     const guitarState = instruments.find(i => i.id === 'guitar');
     
-    // If style has instrumentSounds, use those; otherwise use the instrument panel settings
-    const styleSounds = currentStyle.instrumentSounds || {};
-    const pianoSoundId = styleSounds.piano || (pianoState?.soundTypeId ?? 'sampled');
-    const bassSoundId = styleSounds.bass || (bassState?.soundTypeId ?? 'fender');
-    const drumsSoundId = styleSounds.drums || (drumsState?.soundTypeId ?? 'standard');
-    const guitarSoundId = styleSounds.guitar || (guitarState?.soundTypeId ?? 'electric');
+    // Use instrument panel state as the single source of truth.
+    // Style sounds are applied to instrument state when the style changes (useStyleInstruments hook).
+    const pianoSoundId = pianoState?.soundTypeId ?? 'sampled';
+    const bassSoundId = bassState?.soundTypeId ?? 'fender';
+    const drumsSoundId = drumsState?.soundTypeId ?? 'standard';
+    const guitarSoundId = guitarState?.soundTypeId ?? 'electric';
     
     const pianoSound = getSoundType('piano', pianoSoundId);
     const bassSound = getSoundType('bass', bassSoundId);
