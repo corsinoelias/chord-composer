@@ -645,7 +645,7 @@ export const PRESETS: Preset[] = [
     id: 'preset-hysteria',
     name: 'Hysteria', artist: 'Muse', bassist: 'Chris Wolstenholme',
     genre: 'Alternative Rock', bpm: 96, beatsPerBar: 4, totalBars: 4,
-    defaultSound: 'picked', notes: HYSTERIA,
+    defaultSound: 'fender', notes: HYSTERIA,
     sections: [{ name: 'Verse', startBar: 0 }],
   },
   {
@@ -673,7 +673,7 @@ export const PRESETS: Preset[] = [
     id: 'preset-longview',
     name: 'Longview', artist: 'Green Day', bassist: 'Mike Dirnt',
     genre: 'Punk Rock', bpm: 100, beatsPerBar: 4, totalBars: 4,
-    defaultSound: 'picked', notes: LONGVIEW,
+    defaultSound: 'fender', notes: LONGVIEW,
     sections: [{ name: 'Intro', startBar: 0 }],
   },
 ]

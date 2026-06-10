@@ -46,7 +46,7 @@ function createEmptyStyle(name: string, category: string, bpm: number): StylePat
     volumes: { piano: 0.7, bass: 0.8, drums: 0.75 },
     instrumentSounds: {
       piano: 'sampled',
-      bass: 'synth',
+      bass: 'fender',
       drums: 'standard',
       guitar: 'electric',
     },

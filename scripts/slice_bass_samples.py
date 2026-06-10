@@ -28,7 +28,7 @@ GAP_BEATS      = 1
 SLOT_SEC       = (NOTE_BEATS + GAP_BEATS) * 60 / BPM   # 4.0 seconds per note
 CAPTURE_SEC    = NOTE_BEATS * 60 / BPM + 1.0            # capture note + 1s tail
 
-MIDI_START     = 40   # E1 en Cubase (cuerda E al aire)
+MIDI_START     = 28   # E0 en Cubase (cuerda E al aire, nota más grave del bajo)
 MIDI_END       = 68   # Ab4 en Cubase
 
 # ── Adjust if Cubase adds a silent pre-roll or offset ────────────────────────

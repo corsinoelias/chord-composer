@@ -92,22 +92,43 @@ export function scheduleSampledNote(
   ctx: BaseAudioContext, dest: AudioNode,
   sound: BassSound, midi: number, startTime: number, durationSec: number, velocity: number,
 ): void {
-  doSchedule(ctx, dest, sound, midi, startTime, durationSec, velocity).catch(() => {})
+  const dir = SAMPLE_DIR[sound]
+  if (dir) doScheduleByDir(ctx, dest, dir, midi, startTime, durationSec, velocity).catch(() => {})
 }
 
 export async function scheduleSampledNoteAsync(
   ctx: BaseAudioContext, dest: AudioNode,
   sound: BassSound, midi: number, startTime: number, durationSec: number, velocity: number,
 ): Promise<void> {
-  await doSchedule(ctx, dest, sound, midi, startTime, durationSec, velocity)
+  const dir = SAMPLE_DIR[sound]
+  if (dir) await doScheduleByDir(ctx, dest, dir, midi, startTime, durationSec, velocity)
 }
 
-async function doSchedule(
+// Used by the chord-progression audio engine (dir = 'modo' | 'slap' | 'finger' | 'muted')
+export function scheduleSampledNoteByDir(
   ctx: BaseAudioContext, dest: AudioNode,
-  sound: BassSound, targetMidi: number, startTime: number, durationSec: number, velocity: number,
+  dir: string, midi: number, startTime: number, durationSec: number, velocity: number,
+): void {
+  doScheduleByDir(ctx, dest, dir, midi, startTime, durationSec, velocity).catch(() => {})
+}
+
+export async function scheduleSampledNoteByDirAsync(
+  ctx: BaseAudioContext, dest: AudioNode,
+  dir: string, midi: number, startTime: number, durationSec: number, velocity: number,
 ): Promise<void> {
-  const dir = SAMPLE_DIR[sound]
-  if (!dir) return
+  await doScheduleByDir(ctx, dest, dir, midi, startTime, durationSec, velocity)
+}
+
+export async function preloadSampleDir(ctx: BaseAudioContext, dir: string): Promise<void> {
+  const m = await getManifest(dir)
+  if (!m) return
+  await Promise.all(Object.values(m.notes).map(e => getAudioBuffer(ctx, dir, e).catch(() => {})))
+}
+
+async function doScheduleByDir(
+  ctx: BaseAudioContext, dest: AudioNode,
+  dir: string, targetMidi: number, startTime: number, durationSec: number, velocity: number,
+): Promise<void> {
   const m = await getManifest(dir)
   if (!m) return
   const entry = findNearest(targetMidi, m.notes)

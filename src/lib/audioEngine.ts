@@ -7,6 +7,7 @@
 
 import { type Chord, chordToMidiNotes, midiToFrequency } from './musicTheory';
 import { type InstrumentState, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
+import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir } from './bassTab/sampleEngine';
 import { type StylePattern, generateBarPattern, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
 import { type Section } from './sections';
 import { buildEffectsChain } from './audioEffects';
@@ -267,6 +268,9 @@ export function getAudioContext(): AudioContext {
 
     // Only load samples once per app lifecycle; buffers can be reused across contexts.
     if (!sampleLoadingComplete) {
+      for (const dir of ['modo', 'slap', 'finger', 'muted']) {
+        preloadSampleDir(audioContext, dir).catch(() => {})
+      }
       sampleLoadPromise = Promise.all([
         loadAcousticSamples(audioContext),
         loadPianoSamples(audioContext),
@@ -1285,7 +1289,7 @@ export function scheduleProgression(
     // If style has instrumentSounds, use those; otherwise use the instrument panel settings
     const styleSounds = currentStyle.instrumentSounds || {};
     const pianoSoundId = styleSounds.piano || (pianoState?.soundTypeId ?? 'sampled');
-    const bassSoundId = styleSounds.bass || (bassState?.soundTypeId ?? 'synth');
+    const bassSoundId = styleSounds.bass || (bassState?.soundTypeId ?? 'fender');
     const drumsSoundId = styleSounds.drums || (drumsState?.soundTypeId ?? 'standard');
     const guitarSoundId = styleSounds.guitar || (guitarState?.soundTypeId ?? 'electric');
     
@@ -1409,13 +1413,15 @@ export function scheduleProgression(
       const bassVelocity = pattern.bass[patternSlot];
       if (bassState && isInstrumentAudible(bassState, instruments) && bassSound && bassVelocity > 0) {
         const bassNote = midiNotes[0];
-        const frequency = midiToFrequency(bassNote);
         const noteDuration = currentStyle.bassSustain ? beatDuration * 2 : slotDuration * 2;
-        playBassNote(
-          ctx, masterGain!, frequency, slotTime,
-          noteDuration, bassSound,
-          bassState.volume * currentStyle.volumes.bass * bassVelocity
-        );
+        const bassVol = bassState.volume * currentStyle.volumes.bass * bassVelocity;
+        if (bassSound.useSamples && bassSound.samplePath) {
+          const adjustedMidi = bassNote + bassSound.octaveOffset * 12;
+          scheduleSampledNoteByDir(ctx, masterGain!, bassSound.samplePath, adjustedMidi, slotTime, noteDuration, bassVol);
+        } else {
+          const frequency = midiToFrequency(bassNote);
+          playBassNote(ctx, masterGain!, frequency, slotTime, noteDuration, bassSound, bassVol);
+        }
       }
       
       // Drums - all drum types with velocities
@@ -1587,19 +1593,26 @@ export async function renderProgressionOffline(
   const offlineMasterGain = offlineCtx.createGain();
   offlineMasterGain.gain.value = 1.0;
   offlineMasterGain.connect(offlineCtx.destination);
-  
+
   const beatDuration = 60 / bpm;
   let currentTime = 0;
-  
+
   const pianoState = instruments.find(i => i.id === 'piano');
   const bassState = instruments.find(i => i.id === 'bass');
   const drumsState = instruments.find(i => i.id === 'drums');
   const guitarState = instruments.find(i => i.id === 'guitar');
-  
+
   const pianoSound = pianoState ? getSoundType('piano', pianoState.soundTypeId) : null;
   const bassSound = bassState ? getSoundType('bass', bassState.soundTypeId) : null;
   const drumsSound = drumsState ? getSoundType('drums', drumsState.soundTypeId) : null;
   const guitarSound = guitarState ? getSoundType('guitar', guitarState.soundTypeId) : null;
+
+  // Preload bass samples into offline context if needed
+  if (bassSound?.useSamples && bassSound.samplePath) {
+    await preloadSampleDir(offlineCtx, bassSound.samplePath)
+  }
+
+  const offlineBassPromises: Promise<void>[] = [];
   
   const slotDuration = beatDuration / 4;
   let globalSlotIndex = 0;
@@ -1723,43 +1736,52 @@ export async function renderProgressionOffline(
           const bassVelocity = pattern.bass[patternSlot];
           if (bassState && !bassState.muted && bassSound && bassVelocity > 0) {
             const bassNote = midiNotes[0];
-            const frequency = midiToFrequency(bassNote);
             const volume = bassState.volume * style.volumes.bass * bassVelocity;
-            const baseFreq = frequency * Math.pow(2, bassSound.octaveOffset);
             const noteDuration = style.bassSustain ? beatDuration * 2 : slotDuration * 2;
-            
-            const bassGain = offlineCtx.createGain();
-            const filter = offlineCtx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 800;
-            filter.connect(bassGain);
-            bassGain.connect(offlineMasterGain);
-            
-            const mainOsc = offlineCtx.createOscillator();
-            mainOsc.type = bassSound.oscillatorType;
-            mainOsc.frequency.value = baseFreq;
-            const mainOscGain = offlineCtx.createGain();
-            mainOscGain.gain.value = 0.2 * volume;
-            mainOsc.connect(mainOscGain);
-            mainOscGain.connect(filter);
-            
-            const subOsc = offlineCtx.createOscillator();
-            subOsc.type = 'sine';
-            subOsc.frequency.value = baseFreq / 2;
-            const subOscGain = offlineCtx.createGain();
-            subOscGain.gain.value = 0.15 * volume;
-            subOsc.connect(subOscGain);
-            subOscGain.connect(filter);
-            
-            bassGain.gain.setValueAtTime(0, slotTime);
-            bassGain.gain.linearRampToValueAtTime(1, slotTime + bassSound.attackTime);
-            bassGain.gain.linearRampToValueAtTime(bassSound.sustainLevel, slotTime + bassSound.attackTime + bassSound.decayTime);
-            bassGain.gain.linearRampToValueAtTime(0, slotTime + noteDuration);
-            
-            mainOsc.start(slotTime);
-            subOsc.start(slotTime);
-            mainOsc.stop(slotTime + noteDuration + 0.1);
-            subOsc.stop(slotTime + noteDuration + 0.1);
+
+            if (bassSound.useSamples && bassSound.samplePath) {
+              const adjustedMidi = bassNote + bassSound.octaveOffset * 12;
+              offlineBassPromises.push(
+                scheduleSampledNoteByDirAsync(offlineCtx, offlineMasterGain, bassSound.samplePath, adjustedMidi, slotTime, noteDuration, volume)
+              );
+            } else {
+              const frequency = midiToFrequency(bassNote);
+              const baseFreq = frequency * Math.pow(2, bassSound.octaveOffset);
+              const noteDurationLocal = noteDuration;
+
+              const bassGain = offlineCtx.createGain();
+              const filter = offlineCtx.createBiquadFilter();
+              filter.type = 'lowpass';
+              filter.frequency.value = 800;
+              filter.connect(bassGain);
+              bassGain.connect(offlineMasterGain);
+
+              const mainOsc = offlineCtx.createOscillator();
+              mainOsc.type = bassSound.oscillatorType;
+              mainOsc.frequency.value = baseFreq;
+              const mainOscGain = offlineCtx.createGain();
+              mainOscGain.gain.value = 0.2 * volume;
+              mainOsc.connect(mainOscGain);
+              mainOscGain.connect(filter);
+
+              const subOsc = offlineCtx.createOscillator();
+              subOsc.type = 'sine';
+              subOsc.frequency.value = baseFreq / 2;
+              const subOscGain = offlineCtx.createGain();
+              subOscGain.gain.value = 0.15 * volume;
+              subOsc.connect(subOscGain);
+              subOscGain.connect(filter);
+
+              bassGain.gain.setValueAtTime(0, slotTime);
+              bassGain.gain.linearRampToValueAtTime(1, slotTime + bassSound.attackTime);
+              bassGain.gain.linearRampToValueAtTime(bassSound.sustainLevel, slotTime + bassSound.attackTime + bassSound.decayTime);
+              bassGain.gain.linearRampToValueAtTime(0, slotTime + noteDurationLocal);
+
+              mainOsc.start(slotTime);
+              subOsc.start(slotTime);
+              mainOsc.stop(slotTime + noteDurationLocal + 0.1);
+              subOsc.stop(slotTime + noteDurationLocal + 0.1);
+            }
           }
           
           // Drums
@@ -1996,6 +2018,7 @@ export async function renderProgressionOffline(
     }
   });
   
+  await Promise.all(offlineBassPromises);
   return await offlineCtx.startRendering();
 }
 

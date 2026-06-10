@@ -535,7 +535,6 @@ export function BassTabTransport(props: TransportProps) {
                     { value: 'finger',   label: 'Finger' },
                     { value: 'slap',     label: 'Slap' },
                     { value: 'muted',    label: 'Muted' },
-                    { value: 'synth',    label: 'Synth' },
                   ]}
                   value={sound}
                   onChange={v => onSoundChange(v as BassSound)}

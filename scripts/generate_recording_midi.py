@@ -31,8 +31,8 @@ GAP_BEATS      = 1     # silence between notes
 NOTE_ON_TICKS  = NOTE_BEATS * TICKS_PER_BEAT   # 1440
 GAP_TICKS      = GAP_BEATS  * TICKS_PER_BEAT   #  480
 
-MIDI_START = 40   # E1 en Cubase (cuerda E al aire)
-MIDI_END   = 68   # Ab4 en Cubase (~29 notas cromáticas)
+MIDI_START = 28   # E0 en Cubase (cuerda E al aire, nota más grave del bajo)
+MIDI_END   = 68   # Ab3 en Cubase (41 notas cromáticas, cubre todo el rango del bajo)
 
 NOTE_NAMES = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B']
 
