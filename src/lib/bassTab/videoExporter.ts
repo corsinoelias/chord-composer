@@ -601,6 +601,247 @@ function drawScrollingTab(
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// BAR VIEW  (9:16 portrait — one full bar at a time)
+// ════════════════════════════════════════════════════════════════════════════
+
+function drawBarView(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  track: BassTrack,
+  currentBeat: number,
+) {
+  const LABEL_W  = 44
+  const NOTE_W   = w - LABEL_W
+  const currBar   = Math.floor(currentBeat / track.beatsPerBar)
+  const beatInBar = currentBeat - currBar * track.beatsPerBar
+
+  // ── Background ─────────────────────────────────────────────────────────────
+  ctx.fillStyle = '#0c1020'
+  ctx.fillRect(x, y, w, h)
+
+  // ── Helper: draw one bar (reused for current + next) ─────────────────────
+  function drawBar(
+    bar: number,
+    bx: number, by: number, bw: number, bh: number,
+    isActive: boolean,
+  ) {
+    const LABEL_ROW  = Math.round(bh * 0.088)
+    const PAD_V      = Math.round((bh - LABEL_ROW) * 0.075)
+    const STR_SPAN   = bh - LABEL_ROW - PAD_V * 2
+    const STR_GAP    = STR_SPAN / 3
+    const NOTE_H     = Math.min(STR_GAP * 0.64, 52)
+    const NOTE_AREA  = bw - LABEL_W
+    const barStart   = bar * track.beatsPerBar
+    const isEnd      = bar >= track.totalBars
+
+    const STR_Y = Array.from({ length: 4 }, (_, i) =>
+      by + LABEL_ROW + PAD_V + i * STR_GAP,
+    )
+
+    // Row alternating tint
+    for (let si = 0; si < 4; si++) {
+      const ry = si === 0 ? by + LABEL_ROW : STR_Y[si] - STR_GAP / 2
+      const rh = si === 3 ? by + bh - ry   : STR_GAP
+      ctx.fillStyle = si % 2 ? 'rgba(255,255,255,0.020)' : 'rgba(0,0,0,0)'
+      ctx.fillRect(bx + LABEL_W, ry, NOTE_AREA, rh)
+    }
+
+    // ── Bar label row ──
+    if (!isEnd) {
+      const section = track.sections?.find(s => s.startBar === bar)
+      const labelSize = Math.round(LABEL_ROW * 0.44)
+
+      ctx.font         = `bold ${labelSize}px ${MONO}`
+      ctx.fillStyle    = isActive ? '#7c4dff' : 'rgba(60,75,120,0.70)'
+      ctx.textAlign    = 'left'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(`Bar ${bar + 1}`, bx + LABEL_W + 6, by + LABEL_ROW / 2)
+
+      if (section) {
+        const pillSize = Math.round(LABEL_ROW * 0.36)
+        ctx.font       = `bold ${pillSize}px ${FONT}`
+        const tw       = ctx.measureText(section.name.toUpperCase()).width
+        const pillX    = bx + LABEL_W + 68
+        const pillY    = by + LABEL_ROW / 2 - pillSize * 0.85
+        rr(ctx, pillX, pillY, tw + 12, pillSize * 1.7, 4, '#2d1a6e', '#7c4dff', 1)
+        ctx.fillStyle    = '#c4b0ff'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(section.name.toUpperCase(), pillX + 6, by + LABEL_ROW / 2)
+      }
+      ctx.textBaseline = 'alphabetic'
+    }
+
+    // ── Beat + bar lines ──
+    for (let b = 0; b <= track.beatsPerBar; b++) {
+      const lx = bx + LABEL_W + (b / track.beatsPerBar) * NOTE_AREA
+      const isBarLine = b === 0 || b === track.beatsPerBar
+      ctx.strokeStyle = isBarLine ? 'rgba(80,96,140,0.55)' : 'rgba(35,46,75,0.70)'
+      ctx.lineWidth   = isBarLine ? 1.5 : 0.75
+      if (!isBarLine) ctx.setLineDash([3, 4])
+      ctx.beginPath()
+      ctx.moveTo(lx, STR_Y[0] - 10)
+      ctx.lineTo(lx, STR_Y[3] + 10)
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+
+    // ── String lines (drawn BEFORE notes) ──
+    for (let si = 0; si < 4; si++) {
+      const sy = STR_Y[si]
+      const ts = TAB_STR[si]
+      const sw = STRINGS[si].totalW * (isActive ? 1 : 0.65)
+
+      // Active string glow
+      if (isActive) {
+        const strActive = track.notes.some(
+          n => n.stringIndex === si &&
+               currentBeat >= n.startBeat &&
+               currentBeat < n.startBeat + n.durationBeats,
+        )
+        if (strActive) {
+          ctx.save()
+          ctx.shadowColor = ts.glow
+          ctx.shadowBlur  = 6
+          ctx.strokeStyle = ts.glow
+          ctx.lineWidth   = sw + 2.5
+          ctx.beginPath()
+          ctx.moveTo(bx + LABEL_W, sy)
+          ctx.lineTo(bx + bw, sy)
+          ctx.stroke()
+          ctx.restore()
+        }
+      }
+
+      ctx.globalAlpha = isActive ? 1 : 0.50
+      ctx.strokeStyle = ts.body
+      ctx.lineWidth   = sw
+      ctx.beginPath()
+      ctx.moveTo(bx + LABEL_W, sy)
+      ctx.lineTo(bx + bw, sy)
+      ctx.stroke()
+      ctx.globalAlpha = 1
+    }
+
+    // ── Notes (clipped to note area, drawn on top of strings) ──
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(bx + LABEL_W, by + LABEL_ROW, NOTE_AREA, bh - LABEL_ROW)
+    ctx.clip()
+
+    if (!isEnd) {
+      const barNotes = track.notes.filter(
+        n => n.startBeat >= barStart && n.startBeat < barStart + track.beatsPerBar,
+      )
+
+      for (const note of barNotes) {
+        const beat      = note.startBeat - barStart
+        const nx        = bx + LABEL_W + (beat / track.beatsPerBar) * NOTE_AREA
+        const ny        = STR_Y[note.stringIndex]
+        const noteW     = Math.max(20, (note.durationBeats / track.beatsPerBar) * NOTE_AREA * 0.92)
+        const noteActive = isActive &&
+          currentBeat >= note.startBeat &&
+          currentBeat < note.startBeat + note.durationBeats
+        const nc = TAB_STR[note.stringIndex]
+
+        if (noteActive) {
+          const ag = ctx.createRadialGradient(nx + noteW / 2, ny, 0, nx + noteW / 2, ny, noteW * 0.80)
+          ag.addColorStop(0, nc.glow)
+          ag.addColorStop(1, 'transparent')
+          ctx.fillStyle = ag
+          ctx.fillRect(nx - noteW * 0.12, ny - NOTE_H * 1.2, noteW * 1.24, NOTE_H * 2.4)
+        }
+
+        ctx.globalAlpha = isActive ? 1 : 0.48
+        rr(ctx, nx, ny - NOTE_H / 2, noteW, NOTE_H, 6,
+          noteActive ? nc.noteActiveBg : nc.noteBg,
+          noteActive ? nc.noteActiveBd : nc.noteBd,
+          noteActive ? 2.5 : 1,
+        )
+
+        if (noteW > 14) {
+          const fontSize    = Math.min(Math.round(NOTE_H * 0.56), 22)
+          ctx.font          = `bold ${fontSize}px ${MONO}`
+          ctx.fillStyle     = noteActive ? nc.noteActiveText : nc.noteText
+          ctx.textAlign     = 'center'
+          ctx.textBaseline  = 'middle'
+          ctx.fillText(String(note.fret), nx + noteW / 2, ny)
+        }
+        ctx.globalAlpha = 1
+      }
+    }
+
+    ctx.textBaseline = 'alphabetic'
+    ctx.restore()
+
+    // ── Playhead (only in active bar) ──
+    if (isActive) {
+      const phX = bx + LABEL_W + (beatInBar / track.beatsPerBar) * NOTE_AREA
+
+      // Beat pulse
+      const beatFracOfBeat = currentBeat % 1
+      const isDownbeat     = Math.floor(currentBeat) % track.beatsPerBar === 0
+      const pulseFade      = Math.max(0, 1 - beatFracOfBeat * 9)
+      if (pulseFade > 0) {
+        const pa = pulseFade * (isDownbeat ? 0.24 : 0.11)
+        const pg = ctx.createLinearGradient(phX - 12, 0, phX + 12, 0)
+        pg.addColorStop(0,   'transparent')
+        pg.addColorStop(0.5, `rgba(139,92,246,${pa})`)
+        pg.addColorStop(1,   'transparent')
+        ctx.fillStyle = pg
+        ctx.fillRect(phX - 12, STR_Y[0] - 16, 24, STR_Y[3] - STR_Y[0] + 32)
+      }
+
+      ctx.save()
+      ctx.shadowColor = '#7c4dff'
+      ctx.shadowBlur  = 12
+      ctx.strokeStyle = '#8b5cf6'
+      ctx.lineWidth   = 2.5
+      ctx.beginPath()
+      ctx.moveTo(phX, STR_Y[0] - 16)
+      ctx.lineTo(phX, STR_Y[3] + 16)
+      ctx.stroke()
+      ctx.restore()
+
+      const tri = 7
+      ctx.fillStyle = '#8b5cf6'
+      ctx.beginPath()
+      ctx.moveTo(phX - tri, STR_Y[0] - 16)
+      ctx.lineTo(phX + tri, STR_Y[0] - 16)
+      ctx.lineTo(phX,       STR_Y[0] - 16 + tri * 1.2)
+      ctx.fill()
+      ctx.beginPath()
+      ctx.moveTo(phX - tri, STR_Y[3] + 16)
+      ctx.lineTo(phX + tri, STR_Y[3] + 16)
+      ctx.lineTo(phX,       STR_Y[3] + 16 - tri * 1.2)
+      ctx.fill()
+    }
+
+    // ── Left label panel (always on top) ──
+    ctx.fillStyle = 'rgba(28,34,52,0.97)'
+    ctx.fillRect(bx, by, LABEL_W, bh)
+    ctx.strokeStyle = 'rgba(50,62,90,0.70)'
+    ctx.lineWidth   = 1
+    ctx.beginPath()
+    ctx.moveTo(bx + LABEL_W, by)
+    ctx.lineTo(bx + LABEL_W, by + bh)
+    ctx.stroke()
+
+    for (let si = 0; si < 4; si++) {
+      const col = isActive ? TAB_STR[si].noteActiveText : 'rgba(55,68,105,0.80)'
+      ctx.font         = `bold ${Math.round(STR_GAP * 0.36)}px ${MONO}`
+      ctx.fillStyle    = col
+      ctx.textAlign    = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(STRING_NAMES[si], bx + LABEL_W / 2, STR_Y[si])
+    }
+    ctx.textBaseline = 'alphabetic'
+  }
+
+  // ── Render current bar (full height) ─────────────────────────────────────
+  drawBar(currBar, x, y, w, h, true)
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // HEADER
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -758,7 +999,11 @@ export function drawVideoFrame(
   ctx.fillStyle = 'rgba(30,38,60,0.80)'
   ctx.fillRect(0, TAB_Y, w, 1)
 
-  drawScrollingTab(ctx, 0, TAB_Y, w, TAB_H, track, currentBeat)
+  if (ar === '9:16') {
+    drawBarView(ctx, 0, TAB_Y, w, TAB_H, track, currentBeat)
+  } else {
+    drawScrollingTab(ctx, 0, TAB_Y, w, TAB_H, track, currentBeat)
+  }
   drawFooter(ctx, 0, h - FOOTER_H, w, FOOTER_H, track, currentBeat)
 }
 
