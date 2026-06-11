@@ -53,7 +53,7 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
   const barFraction = (currentBeat % track.beatsPerBar) / track.beatsPerBar
 
   return (
-    <div className="relative rounded-xl border border-border bg-background overflow-hidden" style={{ height: 300 }}>
+    <div className="relative rounded-xl border border-border bg-background overflow-hidden" style={{ height: 196 }}>
       {/* Read-only notation — one bar at a time */}
       <div className="absolute inset-0 bottom-14 overflow-hidden pointer-events-none select-none">
         <TabNotationView
