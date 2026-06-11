@@ -195,10 +195,15 @@ export async function renderTabNotationToPng(
       ctx.setLineDash([])
     }
 
-    // Notes
+    // Notes — clipped to the note area so beat-0 boxes never overlap string labels
     const barNotes = track.notes.filter(
       n => n.startBeat >= barStart && n.startBeat < barStart + track.beatsPerBar,
     )
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(barX + LABEL_W, barY, BAR_W - LABEL_W, BAR_H + 4)
+    ctx.clip()
 
     for (const note of barNotes) {
       const beat = note.startBeat - barStart
@@ -206,11 +211,15 @@ export async function renderTabNotationToPng(
       const ny   = barY + FIRST_STR + STRING_Y[note.stringIndex]
 
       rr(ctx, nx - NOTE_BOX_W / 2, ny - NOTE_BOX_H / 2, NOTE_BOX_W, NOTE_BOX_H, 3, D.noteBox, D.noteBorder, 1)
-      ctx.font      = `bold 12px ${MONO}`
-      ctx.fillStyle = D.noteFret
-      ctx.textAlign = 'center'
-      ctx.fillText(String(note.fret), nx, ny + 4)
+      ctx.font          = `bold 12px ${MONO}`
+      ctx.fillStyle     = D.noteFret
+      ctx.textAlign     = 'center'
+      ctx.textBaseline  = 'middle'
+      ctx.fillText(String(note.fret), nx, ny)
     }
+
+    ctx.textBaseline = 'alphabetic'
+    ctx.restore()
   }
 
   // Footer credit

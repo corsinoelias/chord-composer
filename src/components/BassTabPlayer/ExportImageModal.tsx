@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import type { BassTrack } from '../../lib/bassTab/types'
-import { exportTabNotationAsPng, exportPianoRollAsPng } from '../../lib/bassTab/tabImageExporter'
+import { renderTabNotationToPng, renderPianoRollToPng } from '../../lib/bassTab/tabImageExporter'
 
 type ImageView = 'tab' | 'grid'
 
@@ -23,16 +23,30 @@ const S = {
 }
 const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
 
+function sanitize(s: string) {
+  return s.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'bass-tab'
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a   = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
 export function ExportImageModal({ track, onClose }: Props) {
   const [imageView, setImageView] = useState<ImageView>('tab')
+  const [filename,  setFilename]  = useState(() => sanitize(track.name))
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState<string | null>(null)
 
   const handleExport = async () => {
     setLoading(true); setError(null)
     try {
-      if (imageView === 'tab') await exportTabNotationAsPng(track, { barsPerRow: 4 })
-      else                     await exportPianoRollAsPng(track)
+      const blob = imageView === 'tab'
+        ? await renderTabNotationToPng(track, { barsPerRow: 4 })
+        : await renderPianoRollToPng(track)
+      downloadBlob(blob, `${sanitize(filename) || sanitize(track.name)}.png`)
       onClose()
     } catch {
       setError('Export failed. Try again.')
@@ -104,6 +118,40 @@ export function ExportImageModal({ track, onClose }: Props) {
               </button>
             )
           })}
+        </div>
+
+        {/* Filename input */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ color: S.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            Filename
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+            <input
+              type="text"
+              value={filename}
+              onChange={e => setFilename(e.target.value)}
+              placeholder={sanitize(track.name)}
+              style={{
+                flex: 1, height: 34, padding: '0 10px',
+                background: S.surface, border: `1px solid ${S.border}`,
+                borderRight: 'none',
+                borderRadius: '6px 0 0 6px',
+                color: S.text, fontSize: 13, fontFamily: FONT,
+                outline: 'none',
+              }}
+              onFocus={e => { e.currentTarget.style.borderColor = S.primary }}
+              onBlur={e => { e.currentTarget.style.borderColor = S.border }}
+            />
+            <span style={{
+              height: 34, padding: '0 10px',
+              background: 'hsl(224 24% 9%)', border: `1px solid ${S.border}`,
+              borderRadius: '0 6px 6px 0',
+              color: S.muted, fontSize: 12, fontFamily: FONT,
+              display: 'flex', alignItems: 'center',
+            }}>
+              .png
+            </span>
+          </div>
         </div>
 
         {/* Track info */}

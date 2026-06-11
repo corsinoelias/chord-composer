@@ -26,8 +26,13 @@ function fmtTime(s: number) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 }
 
+function sanitize(s: string) {
+  return s.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'bass-tab'
+}
+
 export function ExportVideoModal({ track, sound, onClose }: Props) {
   const [aratio,   setAratio]   = useState<AspectRatio>('16:9')
+  const [filename, setFilename] = useState(() => sanitize(track.name))
   const [loading,  setLoading]  = useState(false)
   const [progress, setProgress] = useState(0)
   const [done,     setDone]     = useState(false)
@@ -64,7 +69,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
       },
       (blob) => {
         setLoading(false); setDone(true); setProgress(1)
-        const safe = track.name.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'bass-tab'
+        const safe = sanitize(filename) || sanitize(track.name)
         const ext  = aratio === '9:16' ? 'short' : 'video'
         const url  = URL.createObjectURL(blob)
         const a    = document.createElement('a')
@@ -77,7 +82,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
         setError(err.message || 'Video export failed.')
       },
     )
-  }, [track, sound, aratio, onClose])
+  }, [track, sound, aratio, filename, onClose])
 
   const handleCancel = () => {
     handleRef.current?.cancel()
@@ -156,6 +161,42 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
                   </button>
                 )
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Filename input (only before export) */}
+        {!loading && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ color: S.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+              Filename
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                type="text"
+                value={filename}
+                onChange={e => setFilename(e.target.value)}
+                placeholder={sanitize(track.name)}
+                style={{
+                  flex: 1, height: 34, padding: '0 10px',
+                  background: S.surface, border: `1px solid ${S.border}`,
+                  borderRight: 'none',
+                  borderRadius: '6px 0 0 6px',
+                  color: S.text, fontSize: 13, fontFamily: FONT,
+                  outline: 'none',
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = S.primary }}
+                onBlur={e => { e.currentTarget.style.borderColor = S.border }}
+              />
+              <span style={{
+                height: 34, padding: '0 10px',
+                background: 'hsl(224 24% 9%)', border: `1px solid ${S.border}`,
+                borderRadius: '0 6px 6px 0',
+                color: S.muted, fontSize: 12, fontFamily: FONT,
+                display: 'flex', alignItems: 'center',
+              }}>
+                .webm
+              </span>
             </div>
           </div>
         )}

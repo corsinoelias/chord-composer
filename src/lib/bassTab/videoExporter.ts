@@ -311,35 +311,97 @@ function drawFretboard(
 // SCROLLING TAB
 // ════════════════════════════════════════════════════════════════════════════
 
+// Per-string color accents for the scrolling tab
+const TAB_STR = [
+  { body: 'rgba(50,68,118,0.75)',  hi: 'rgba(75,100,165,0.40)', glow: 'rgba(60,100,240,0.28)',  noteBg: '#0d1530', noteBd: '#2a4080', noteActiveBg: '#14204a', noteActiveBd: '#4a70f0', noteText: '#8aa4e8', noteActiveText: '#b0c8ff' },
+  { body: 'rgba(35,88,100,0.75)',  hi: 'rgba(55,128,148,0.40)', glow: 'rgba(40,160,190,0.28)',  noteBg: '#0d2028', noteBd: '#1a5060', noteActiveBg: '#142c38', noteActiveBd: '#38aac0', noteText: '#7ab8c8', noteActiveText: '#a0d8e8' },
+  { body: 'rgba(35,88,55,0.75)',   hi: 'rgba(55,128,78,0.40)',  glow: 'rgba(40,170,90,0.28)',   noteBg: '#0d2016', noteBd: '#1a5030', noteActiveBg: '#142820', noteActiveBd: '#38a870', noteText: '#7ab890', noteActiveText: '#a0d8b0' },
+  { body: 'rgba(68,48,120,0.80)',  hi: 'rgba(105,72,174,0.45)', glow: 'rgba(139,92,246,0.35)',  noteBg: '#18102e', noteBd: '#4a2878', noteActiveBg: '#221440', noteActiveBd: '#8b5cf6', noteText: '#9880c8', noteActiveText: '#c4adff' },
+]
+
 function drawScrollingTab(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number,
   track: BassTrack,
   currentBeat: number,
 ) {
-  const LABEL_W   = 44
-  const PAD_V     = h * 0.12
-  const strArea   = h - PAD_V * 2
-  const STR_GAP   = strArea / 3
-  const STR_Y     = [0, STR_GAP, STR_GAP * 2, STR_GAP * 3].map(d => y + PAD_V + d)
-  const PPB       = (w - LABEL_W) / 8           // 8 beats visible
-  const CURSOR_X  = x + LABEL_W + PPB * 2       // cursor at beat 2 from left (25% of note area)
-  const totalBeats = track.totalBars * track.beatsPerBar
+  const LABEL_W    = 44
+  const PAD_V      = h * 0.12
+  const strArea    = h - PAD_V * 2
+  const STR_GAP    = strArea / 3
+  const STR_Y      = [0, STR_GAP, STR_GAP * 2, STR_GAP * 3].map(d => y + PAD_V + d)
+  const PPB        = (w - LABEL_W) / 8
+  const CURSOR_X   = x + LABEL_W + PPB * 2
+  const NOTE_H     = STR_GAP * 0.62
+  const TRAIL_FADE = 0.35   // beats over which a trail fades
 
-  // ── Background with subtle row tinting ──
+  // ── 1. Background + row tints ──────────────────────────────────────────────
   ctx.fillStyle = '#0c1020'
   ctx.fillRect(x, y, w, h)
 
   for (let si = 0; si < 4; si++) {
     const ry = si === 0 ? y : STR_Y[si] - STR_GAP / 2
     const rh = si === 3 ? y + h - ry : STR_GAP
-    ctx.fillStyle = si % 2 === 0 ? 'rgba(255,255,255,0.0)' : 'rgba(255,255,255,0.025)'
+    ctx.fillStyle = si % 2 === 0 ? 'rgba(255,255,255,0.0)' : 'rgba(255,255,255,0.022)'
     ctx.fillRect(x + LABEL_W, ry, w - LABEL_W, rh)
   }
 
-  // ── Cursor glow (radial, soft) ──
+  // ── 2. String lines (BEFORE notes so notes draw on top) ──────────────────
+  for (let si = 0; si < 4; si++) {
+    const sy  = STR_Y[si]
+    const ts  = TAB_STR[si]
+    const sw  = STRINGS[si].totalW
+
+    ctx.strokeStyle = STRINGS[si].shadow
+    ctx.lineWidth   = sw + 1
+    ctx.beginPath()
+    ctx.moveTo(x + LABEL_W, sy + sw * 0.3)
+    ctx.lineTo(x + w,       sy + sw * 0.3)
+    ctx.stroke()
+
+    ctx.strokeStyle = ts.body
+    ctx.lineWidth   = sw
+    ctx.beginPath()
+    ctx.moveTo(x + LABEL_W, sy)
+    ctx.lineTo(x + w,       sy)
+    ctx.stroke()
+
+    ctx.strokeStyle = ts.hi
+    ctx.lineWidth   = sw * 0.35
+    ctx.beginPath()
+    ctx.moveTo(x + LABEL_W, sy - sw * 0.28)
+    ctx.lineTo(x + w,       sy - sw * 0.28)
+    ctx.stroke()
+  }
+
+  // ── 3. Active string glow ──────────────────────────────────────────────────
+  for (let si = 0; si < 4; si++) {
+    const hasActive = track.notes.some(
+      n => n.stringIndex === si && currentBeat >= n.startBeat && currentBeat < n.startBeat + n.durationBeats,
+    )
+    if (!hasActive) continue
+    const sy  = STR_Y[si]
+    const sg  = ctx.createLinearGradient(x + LABEL_W, sy, x + w, sy)
+    const col = TAB_STR[si].glow
+    sg.addColorStop(0,   'transparent')
+    sg.addColorStop(0.08, col)
+    sg.addColorStop(0.92, col)
+    sg.addColorStop(1,   'transparent')
+    ctx.save()
+    ctx.shadowColor = col
+    ctx.shadowBlur  = 6
+    ctx.strokeStyle = sg
+    ctx.lineWidth   = 3
+    ctx.beginPath()
+    ctx.moveTo(x + LABEL_W, sy)
+    ctx.lineTo(x + w,       sy)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  // ── 4. Cursor glow ────────────────────────────────────────────────────────
   const centerY = (STR_Y[0] + STR_Y[3]) / 2
-  for (const [glowW, alpha] of [[80, 0.10], [44, 0.18], [22, 0.10]] as [number, number][]) {
+  for (const [glowW, alpha] of [[80, 0.08], [44, 0.15], [22, 0.09]] as [number, number][]) {
     const cg = ctx.createRadialGradient(CURSOR_X, centerY, 0, CURSOR_X, centerY, glowW)
     cg.addColorStop(0, `rgba(124,77,255,${alpha})`)
     cg.addColorStop(1, 'transparent')
@@ -347,41 +409,43 @@ function drawScrollingTab(
     ctx.fillRect(CURSOR_X - glowW, y, glowW * 2, h)
   }
 
-  // ── Clip note area ──
+  // ── 5. Clip note area ─────────────────────────────────────────────────────
   ctx.save()
   ctx.beginPath()
   ctx.rect(x + LABEL_W, y, w - LABEL_W, h)
   ctx.clip()
 
-  // ── Bar lines + numbers ──
-  const visBeatStart = currentBeat - 2 - 1
-  const visBeatEnd   = currentBeat + 8 + 1
+  // ── 6. Bar lines + numbers ────────────────────────────────────────────────
+  const visBeatStart = currentBeat - 3
+  const visBeatEnd   = currentBeat + 9
   const firstBar     = Math.max(0, Math.floor(visBeatStart / track.beatsPerBar))
   const lastBar      = Math.min(track.totalBars, Math.ceil(visBeatEnd / track.beatsPerBar))
 
   for (let bar = firstBar; bar <= lastBar; bar++) {
     const barBeat = bar * track.beatsPerBar
     const bx      = CURSOR_X + (barBeat - currentBeat) * PPB
-
     if (bx < x + LABEL_W - 4 || bx > x + w + 4) continue
 
-    // Double bar at start of section
     const section = track.sections?.find(s => s.startBar === bar)
     if (section) {
+      // Section: full-height translucent stripe + double bar + pill
+      ctx.fillStyle = 'rgba(124,77,255,0.05)'
+      ctx.fillRect(bx, y, PPB * track.beatsPerBar, h)
+
       ctx.fillStyle = '#7c4dff'
       ctx.fillRect(bx - 3, STR_Y[0] - 12, 2, STR_Y[3] - STR_Y[0] + 24)
       ctx.fillRect(bx + 2, STR_Y[0] - 12, 4, STR_Y[3] - STR_Y[0] + 24)
 
-      // Section pill
-      const label  = section.name.toUpperCase()
-      ctx.font     = `bold ${Math.round(STR_GAP * 0.30)}px ${FONT}`
-      const tw     = ctx.measureText(label).width
-      rr(ctx, bx + 6, STR_Y[0] - 28, tw + 10, 18, 4, '#2d1a6e', '#7c4dff', 1)
+      const label = section.name.toUpperCase()
+      ctx.font    = `bold ${Math.round(STR_GAP * 0.30)}px ${FONT}`
+      ctx.textBaseline = 'alphabetic'
+      const tw    = ctx.measureText(label).width
+      rr(ctx, bx + 6, STR_Y[0] - 30, tw + 12, 20, 5, '#2d1a6e', '#7c4dff', 1)
       ctx.fillStyle = '#c4b0ff'
       ctx.textAlign = 'left'
-      ctx.fillText(label, bx + 11, STR_Y[0] - 14)
+      ctx.fillText(label, bx + 12, STR_Y[0] - 14)
     } else if (bar > 0) {
-      ctx.strokeStyle = 'rgba(80,96,140,0.60)'
+      ctx.strokeStyle = 'rgba(80,96,140,0.55)'
       ctx.lineWidth   = 1.5
       ctx.beginPath()
       ctx.moveTo(bx, STR_Y[0] - 10)
@@ -389,27 +453,17 @@ function drawScrollingTab(
       ctx.stroke()
     }
 
-    // Bar number
     if (bar < track.totalBars) {
       ctx.font      = `${Math.round(STR_GAP * 0.28)}px ${MONO}`
-      ctx.fillStyle = 'rgba(90,104,140,0.75)'
+      ctx.fillStyle = 'rgba(90,104,140,0.70)'
       ctx.textAlign = 'left'
-      ctx.fillText(String(bar + 1), bx + 4, STR_Y[0] - 12)
-    }
+      ctx.textBaseline = 'alphabetic'
+      ctx.fillText(String(bar + 1), bx + 4, STR_Y[0] - 13)
 
-    // End of track double bar
-    if (bar === track.totalBars) {
-      ctx.fillStyle = 'rgba(80,96,140,0.50)'
-      ctx.fillRect(bx - 4, STR_Y[0] - 10, 3, STR_Y[3] - STR_Y[0] + 20)
-      ctx.fillRect(bx + 1, STR_Y[0] - 10, 6, STR_Y[3] - STR_Y[0] + 20)
-    }
-
-    // Beat subdivisions
-    if (bar < track.totalBars) {
       for (let b = 1; b < track.beatsPerBar; b++) {
         const tx = bx + b * PPB
         if (tx < x + LABEL_W || tx > x + w) continue
-        ctx.strokeStyle = 'rgba(40,52,80,0.70)'
+        ctx.strokeStyle = 'rgba(35,46,75,0.75)'
         ctx.lineWidth   = 0.75
         ctx.setLineDash([3, 4])
         ctx.beginPath()
@@ -419,83 +473,86 @@ function drawScrollingTab(
         ctx.setLineDash([])
       }
     }
+
+    if (bar === track.totalBars) {
+      ctx.fillStyle = 'rgba(80,96,140,0.50)'
+      ctx.fillRect(bx - 4, STR_Y[0] - 10, 3, STR_Y[3] - STR_Y[0] + 20)
+      ctx.fillRect(bx + 1, STR_Y[0] - 10, 6, STR_Y[3] - STR_Y[0] + 20)
+    }
   }
 
-  // ── Notes ──
-  const NOTE_H = STR_GAP * 0.60
+  // ── 7. Note trails (ghost of recently-ended notes) ────────────────────────
   for (const note of track.notes) {
-    // Skip notes far outside the visible window
-    if (note.startBeat + note.durationBeats < currentBeat - 3) continue
+    const noteEnd  = note.startBeat + note.durationBeats
+    const trailAge = currentBeat - noteEnd
+    if (trailAge <= 0 || trailAge > TRAIL_FADE) continue
+
+    const opacity = (1 - trailAge / TRAIL_FADE) * 0.40
+    const nx      = CURSOR_X + (note.startBeat - currentBeat) * PPB
+    const ny      = STR_Y[note.stringIndex]
+    const noteW   = Math.max(20, note.durationBeats * PPB * 0.88)
+    const nc      = TAB_STR[note.stringIndex]
+
+    ctx.globalAlpha = opacity
+    rr(ctx, nx, ny - NOTE_H / 2, noteW, NOTE_H, 5, nc.noteActiveBg + '99', nc.noteActiveBd, 1)
+    ctx.globalAlpha = 1
+  }
+
+  // ── 8. Notes (ON TOP of strings) ─────────────────────────────────────────
+  for (const note of track.notes) {
+    if (note.startBeat + note.durationBeats < currentBeat - TRAIL_FADE - 0.1) continue
     if (note.startBeat > currentBeat + 10) continue
 
-    const nx     = CURSOR_X + (note.startBeat - currentBeat) * PPB
-    const ny     = STR_Y[note.stringIndex]
-    const noteW  = Math.max(20, note.durationBeats * PPB * 0.88)
+    const nx       = CURSOR_X + (note.startBeat - currentBeat) * PPB
+    const ny       = STR_Y[note.stringIndex]
+    const noteW    = Math.max(20, note.durationBeats * PPB * 0.88)
     const isActive = currentBeat >= note.startBeat && currentBeat < note.startBeat + note.durationBeats
+    const nc       = TAB_STR[note.stringIndex]
 
     if (isActive) {
-      // Active glow
-      const ag = ctx.createRadialGradient(nx + noteW / 2, ny, 0, nx + noteW / 2, ny, noteW * 0.75)
-      ag.addColorStop(0, 'rgba(124,77,255,0.22)')
+      // Per-string radial glow
+      const ag = ctx.createRadialGradient(nx + noteW / 2, ny, 0, nx + noteW / 2, ny, noteW * 0.85)
+      ag.addColorStop(0, nc.glow)
       ag.addColorStop(1, 'transparent')
       ctx.fillStyle = ag
-      ctx.fillRect(nx - noteW * 0.2, ny - NOTE_H, noteW * 1.4, NOTE_H * 2)
+      ctx.fillRect(nx - noteW * 0.25, ny - NOTE_H * 1.1, noteW * 1.5, NOTE_H * 2.2)
     }
 
     rr(ctx, nx, ny - NOTE_H / 2, noteW, NOTE_H, 5,
-      isActive ? '#2d1a6e' : '#131c34',
-      isActive ? '#8b5cf6' : '#2a3556',
+      isActive ? nc.noteActiveBg : nc.noteBg,
+      isActive ? nc.noteActiveBd : nc.noteBd,
       isActive ? 2 : 1,
     )
 
-    if (noteW > 16) {
-      const fontSize = Math.min(Math.round(NOTE_H * 0.58), 16)
-      ctx.font      = `bold ${fontSize}px ${MONO}`
-      ctx.fillStyle = isActive ? '#c4adff' : '#8896b8'
-      ctx.textAlign = 'center'
-      ctx.fillText(String(note.fret), nx + noteW / 2, ny + fontSize * 0.37)
+    if (noteW > 14) {
+      const fontSize = Math.min(Math.round(NOTE_H * 0.56), 15)
+      ctx.font          = `bold ${fontSize}px ${MONO}`
+      ctx.fillStyle     = isActive ? nc.noteActiveText : nc.noteText
+      ctx.textAlign     = 'center'
+      ctx.textBaseline  = 'middle'         // ← centers text vertically in the note box
+      ctx.fillText(String(note.fret), nx + noteW / 2, ny)
     }
   }
 
+  ctx.textBaseline = 'alphabetic'   // reset for everything else
   ctx.restore()
 
-  // ── String lines (drawn over clips so they span full width) ──
-  for (let si = 0; si < 4; si++) {
-    const sy = STR_Y[si]
-    const s  = STRINGS[si]
-
-    // Shadow
-    ctx.strokeStyle = s.shadow
-    ctx.lineWidth   = s.totalW + 1
-    ctx.beginPath()
-    ctx.moveTo(x + LABEL_W, sy + s.totalW * 0.3)
-    ctx.lineTo(x + w, sy + s.totalW * 0.3)
-    ctx.stroke()
-
-    // Body
-    ctx.strokeStyle = 'rgba(70,85,120,0.80)'
-    ctx.lineWidth   = s.totalW
-    ctx.beginPath()
-    ctx.moveTo(x + LABEL_W, sy)
-    ctx.lineTo(x + w, sy)
-    ctx.stroke()
-
-    // Highlight
-    ctx.strokeStyle = 'rgba(100,120,170,0.45)'
-    ctx.lineWidth   = s.totalW * 0.35
-    ctx.beginPath()
-    ctx.moveTo(x + LABEL_W, sy - s.totalW * 0.28)
-    ctx.lineTo(x + w, sy - s.totalW * 0.28)
-    ctx.stroke()
-
-    // String label
-    ctx.font      = `bold ${Math.round(STR_GAP * 0.34)}px ${MONO}`
-    ctx.fillStyle = 'rgba(80,95,130,0.85)'
-    ctx.textAlign = 'center'
-    ctx.fillText(STRING_NAMES[si], x + LABEL_W / 2, sy + 5)
+  // ── 9. Beat pulse at cursor ────────────────────────────────────────────────
+  const beatFrac   = currentBeat % 1
+  const isDownbeat = Math.floor(currentBeat % track.beatsPerBar) === 0
+  const pulseFade  = Math.max(0, 1 - beatFrac * 9)
+  if (pulseFade > 0) {
+    const pulseAlpha = pulseFade * (isDownbeat ? 0.22 : 0.10)
+    const pulseH     = STR_Y[3] - STR_Y[0] + 28
+    const pg = ctx.createLinearGradient(CURSOR_X - 8, 0, CURSOR_X + 8, 0)
+    pg.addColorStop(0,   'transparent')
+    pg.addColorStop(0.5, `rgba(139,92,246,${pulseAlpha})`)
+    pg.addColorStop(1,   'transparent')
+    ctx.fillStyle = pg
+    ctx.fillRect(CURSOR_X - 8, STR_Y[0] - 14, 16, pulseH)
   }
 
-  // ── Cursor line ──
+  // ── 10. Cursor line ────────────────────────────────────────────────────────
   ctx.save()
   ctx.shadowColor = '#7c4dff'
   ctx.shadowBlur  = 10
@@ -507,7 +564,6 @@ function drawScrollingTab(
   ctx.stroke()
   ctx.restore()
 
-  // Cursor triangle markers
   ctx.fillStyle = '#8b5cf6'
   const triSize = 6
   ctx.beginPath()
@@ -521,8 +577,8 @@ function drawScrollingTab(
   ctx.lineTo(CURSOR_X, STR_Y[3] + 14 - triSize * 1.2)
   ctx.fill()
 
-  // Left divider
-  ctx.fillStyle = 'rgba(30,38,60,0.95)'
+  // ── 11. Left label panel ───────────────────────────────────────────────────
+  ctx.fillStyle = 'rgba(28,34,52,0.96)'
   ctx.fillRect(x, y, LABEL_W, h)
   ctx.strokeStyle = 'rgba(50,62,90,0.80)'
   ctx.lineWidth   = 1
@@ -530,6 +586,18 @@ function drawScrollingTab(
   ctx.moveTo(x + LABEL_W, y)
   ctx.lineTo(x + LABEL_W, y + h)
   ctx.stroke()
+
+  // String labels (always on top of panel)
+  for (let si = 0; si < 4; si++) {
+    const sy  = STR_Y[si]
+    const col = TAB_STR[si].noteActiveText
+    ctx.font          = `bold ${Math.round(STR_GAP * 0.34)}px ${MONO}`
+    ctx.fillStyle     = col
+    ctx.textAlign     = 'center'
+    ctx.textBaseline  = 'middle'
+    ctx.fillText(STRING_NAMES[si], x + LABEL_W / 2, sy)
+  }
+  ctx.textBaseline = 'alphabetic'
 }
 
 // ════════════════════════════════════════════════════════════════════════════
