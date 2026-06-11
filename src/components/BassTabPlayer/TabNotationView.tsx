@@ -50,6 +50,8 @@ export interface TabNotationViewProps {
   onBeginEdit?: () => void
   onSectionChange?: (sections: TrackSection[]) => void
   fitWidth?: boolean
+  barView?: boolean
+  visibleBars?: number
   onFitZoomChange?: (z: number) => void
 }
 
@@ -61,7 +63,7 @@ export function TabNotationView({
   selectedNoteId, sound, noteDuration,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote,
   onCursorBeatChange, onBeginEdit, onSectionChange,
-  fitWidth = false, onFitZoomChange,
+  fitWidth = false, barView = false, visibleBars, onFitZoomChange,
 }: TabNotationViewProps) {
   const isMobile         = useIsMobile()
   const containerRef     = useRef<HTMLDivElement>(null)
@@ -109,7 +111,13 @@ export function TabNotationView({
   const fitZoom       = fitWidth && containerW > 0 && totalBeats > 0
     ? Math.max(0.2, (containerW - LABEL_W) / (totalBeats * PPB))
     : null
-  const effectiveZoom = fitZoom ?? zoom
+  const barViewZoom    = barView && containerW > 0 && track.beatsPerBar > 0
+    ? Math.max(0.2, (containerW - LABEL_W) / (track.beatsPerBar * PPB))
+    : null
+  const visibleBarsZoom = visibleBars && containerW > 0 && track.beatsPerBar > 0
+    ? Math.max(0.2, (containerW - LABEL_W) / (visibleBars * track.beatsPerBar * PPB))
+    : null
+  const effectiveZoom = barViewZoom ?? visibleBarsZoom ?? fitZoom ?? zoom
   const pxPerBeat     = PPB * effectiveZoom
   const svgW          = svgTotalWidth(track.totalBars, track.beatsPerBar, pxPerBeat)
 
@@ -123,13 +131,19 @@ export function TabNotationView({
 
   // ── Auto-scroll ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isPlaying || !scrollRef.current) return
+    if (!scrollRef.current) return
+    if (barView) {
+      const bar = Math.floor(currentBeat / track.beatsPerBar)
+      scrollRef.current.scrollLeft = bar * track.beatsPerBar * pxPerBeat
+      return
+    }
+    if (!isPlaying) return
     const el = scrollRef.current
     const px = beatToX(currentBeat, pxPerBeat)
     const w  = el.clientWidth
     if (px > el.scrollLeft + w * 0.7) el.scrollLeft = px - w * 0.3
     else if (px < el.scrollLeft)       el.scrollLeft = Math.max(0, px - 20)
-  }, [currentBeat, isPlaying, pxPerBeat])
+  }, [currentBeat, isPlaying, pxPerBeat, barView, track.beatsPerBar])
 
   useEffect(() => {
     if (!editCursor || !scrollRef.current) return
@@ -342,7 +356,7 @@ export function TabNotationView({
       <div
         ref={scrollRef}
         style={{
-          flex: 1, overflowX: fitWidth ? 'hidden' : 'auto', overflowY: 'hidden',
+          flex: 1, overflowX: fitWidth || barView || visibleBars ? 'hidden' : 'auto', overflowY: 'hidden',
           position: 'relative', background: 'hsl(224 24% 8%)',
           minHeight: TOTAL_H,
         }}

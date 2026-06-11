@@ -47,12 +47,17 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
 
   if (!trackRef.current || !preset) return null
 
+  const track       = trackRef.current
+  const currentBar  = Math.floor(currentBeat / track.beatsPerBar) + 1
+  const totalBars   = track.totalBars
+  const barFraction = (currentBeat % track.beatsPerBar) / track.beatsPerBar
+
   return (
     <div className="relative rounded-xl border border-border bg-background overflow-hidden" style={{ height: 300 }}>
-      {/* Read-only notation scroll area */}
+      {/* Read-only notation — one bar at a time */}
       <div className="absolute inset-0 bottom-14 overflow-hidden pointer-events-none select-none">
         <TabNotationView
-          track={trackRef.current}
+          track={track}
           zoom={1}
           currentBeat={currentBeat}
           cursorBeat={currentBeat}
@@ -65,8 +70,42 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
           onDeleteNote={noop}
           onSelectNote={noop}
           onCursorBeatChange={noop}
-          fitWidth={true}
+          visibleBars={2}
         />
+      </div>
+
+      {/* Bar progress strip */}
+      <div
+        className="absolute left-0 right-0 pointer-events-none"
+        style={{ bottom: 56, height: 2, background: 'hsl(224 20% 18%)' }}
+      >
+        <div
+          style={{
+            height: '100%',
+            background: 'hsl(262 83% 58%)',
+            width: `${((currentBar - 1 + barFraction) / totalBars) * 100}%`,
+            transition: 'width 0.08s linear',
+            boxShadow: '2px 0 6px hsl(262 83% 58% / 0.6)',
+          }}
+        />
+      </div>
+
+      {/* Bar counter overlay — top-right of notation area */}
+      <div
+        className="absolute top-2 right-2 pointer-events-none"
+        style={{
+          background: 'hsl(224 24% 8% / 0.85)',
+          border: '1px solid hsl(224 15% 20%)',
+          borderRadius: 6,
+          padding: '2px 7px',
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: 11,
+          color: 'hsl(220 10% 50%)',
+          lineHeight: 1.6,
+        }}
+      >
+        <span style={{ color: 'hsl(220 14% 72%)' }}>{currentBar}</span>
+        <span style={{ opacity: 0.4 }}>/{totalBars}</span>
       </div>
 
       {/* Bottom bar: play + song info + CTA */}
@@ -92,7 +131,7 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
           className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
         >
           Open editor
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
     </div>
