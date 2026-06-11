@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react'
 import {
   Play, Square, SkipBack, RotateCcw,
   Undo2, Redo2, Trash2, Download, Share2, Bell, BellOff, Music, Upload,
-  ChevronDown, ChevronUp, Waves, Piano, MoreHorizontal,
+  ChevronDown, ChevronUp, Waves, Piano, MoreHorizontal, ImageIcon, Video,
 } from 'lucide-react'
 import { type BassSound } from '../../lib/bassTab/types'
 
@@ -72,6 +72,8 @@ interface TransportProps {
   onMidiInputToggle?: () => void
   // Feature 8: export WAV
   onExportWav?: () => void
+  onExportImage?: () => void
+  onExportVideo?: () => void
   // Feature 2: loop range (toggle on/off)
   loopRangeActive?: boolean
   onToggleLoopRange?: () => void
@@ -91,7 +93,7 @@ export function BassTabTransport(props: TransportProps) {
     desktopCompact = false, onToggleDesktopCompact,
     onBeatsPerBarChange,
     midiInputAvailable, midiInputActive, midiDeviceName, onMidiInputToggle,
-    onExportWav,
+    onExportWav, onExportImage, onExportVideo,
     loopRangeActive, onToggleLoopRange,
     onRecord,
   } = props
@@ -491,6 +493,8 @@ export function BassTabTransport(props: TransportProps) {
                   onExportAscii={onExportAscii}
                   onExportMidi={onExportMidi}
                   onExportWav={onExportWav}
+                  onExportImage={onExportImage}
+                  onExportVideo={onExportVideo}
                 />
                 <IconBtn onClick={onShareUrl} title="Copy share URL">
                   <Share2 size={14} />
@@ -863,8 +867,9 @@ function DurationBtn({ label, sub, title, active, prominent, onClick }: {
 }
 
 // ── ExportDropdown ─────────────────────────────────────────────────────────
-function ExportDropdown({ onExportAscii, onExportMidi, onExportWav }: {
+function ExportDropdown({ onExportAscii, onExportMidi, onExportWav, onExportImage, onExportVideo }: {
   onExportAscii: () => void; onExportMidi: () => void; onExportWav?: () => void
+  onExportImage?: () => void; onExportVideo?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [pos,  setPos]  = useState({ top: 0, right: 0 })
@@ -929,6 +934,14 @@ function ExportDropdown({ onExportAscii, onExportMidi, onExportWav }: {
           {onExportWav && (
             <DropdownItem icon={<Waves size={13} />} label="Audio  (.wav)"
               onClick={() => { onExportWav(); setOpen(false) }} />
+          )}
+          {onExportImage && (
+            <DropdownItem icon={<ImageIcon size={13} />} label="Image  (.png)"
+              onClick={() => { onExportImage(); setOpen(false) }} />
+          )}
+          {onExportVideo && (
+            <DropdownItem icon={<Video size={13} />} label="Video  (.webm)"
+              onClick={() => { onExportVideo(); setOpen(false) }} />
           )}
         </div>
       )}

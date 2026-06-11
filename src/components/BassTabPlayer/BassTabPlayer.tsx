@@ -10,6 +10,8 @@ import { TabNotationView } from './TabNotationView'
 import { snapToGrid, findNoteAtBeat, clampDuration } from '../../lib/bassTab/bassTheory'
 import { startPlayback, stopPlayback, setMasterVolume, previewNote } from '../../lib/bassTab/bassAudio'
 import { RecordingOverlay } from './RecordingOverlay'
+import { ExportImageModal } from './ExportImageModal'
+import { ExportVideoModal } from './ExportVideoModal'
 import { toAsciiTab, encodeTrackToHash, decodeTrackFromHash, copyToClipboard, exportMidiFile } from '../../lib/bassTab/exportTab'
 import { exportTrackAsWav } from '../../lib/bassTab/exportAudio'
 import { BassTabTransport } from './BassTabTransport'
@@ -131,6 +133,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
   const [fretboardVisible, setFretboardVisible] = useState(true)
   const [recordingOpen, setRecordingOpen]       = useState(false)
+  const [exportImageOpen, setExportImageOpen]   = useState(false)
+  const [exportVideoOpen, setExportVideoOpen]   = useState(false)
 
   // Auto-compact on short desktop screens
   useEffect(() => {
@@ -691,6 +695,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         midiDeviceName={midiInput.devices.find(d => d.id === midiInput.selectedDeviceId)?.name ?? null}
         onMidiInputToggle={midiInput.toggle}
         onExportWav={handleExportWav}
+        onExportImage={() => setExportImageOpen(true)}
+        onExportVideo={() => setExportVideoOpen(true)}
         loopRangeActive={!!loopRange}
         onToggleLoopRange={handleToggleLoopRange}
         onRecord={() => { stopPlayback(); setIsPlaying(false); setRecordingOpen(true) }}
@@ -1132,6 +1138,16 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         >
           {toast}
         </div>
+      )}
+
+      {/* ── Export image modal ───────────────────────────────────────────── */}
+      {exportImageOpen && (
+        <ExportImageModal track={track} onClose={() => setExportImageOpen(false)} />
+      )}
+
+      {/* ── Export video modal ───────────────────────────────────────────── */}
+      {exportVideoOpen && (
+        <ExportVideoModal track={track} sound={sound} onClose={() => setExportVideoOpen(false)} />
       )}
 
       {/* ── Recording overlay ─────────────────────────────────────────────── */}
