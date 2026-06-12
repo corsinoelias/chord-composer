@@ -207,7 +207,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     bassSustain: false,
-    volumes: { piano: 0.75, bass: 2, drums: 2 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },
 
@@ -222,18 +222,11 @@ export const MUSICAL_STYLES: StylePattern[] = [
     category: 'Pop',
     bpm: 75,
     bpmRange: [65, 85],
-    description: 'Minimalista con borde de caja. Bombo solo en tiempo 1, hi-hat con pie.',
+    description: 'Pop con kick en 1, 3 y "&" del 3. Snare en 2 y 4, hi-hat en corcheas.',
     rhythm: {
-      // Bombo: solo un golpe potente en tiempo 1
-      kick:       [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      // Snare center: no se usa
-      snare:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      // Borde de caja: golpes en cada tiempo (corcheas: 1, 2, 3, 4)
-      snareStick: [0.8, 0, 0.6, 0, 0.7, 0, 0.6, 0, 0.8, 0, 0.6, 0, 0.7, 0, 0.6, 0],
-      // Hi-hat mano: no se toca
-      hihat:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      // Hi-hat pie: corcheas constantes (golpes cerrando)
-      hihatFoot:  [0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0],
+      kick:       [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
+      snare:      [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      hihat:      [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0],
       // Bajo: nota sostenida con movimiento
       bass:       [1, 0, 0.2, 0, 0.3, 0, 0.1, 0, 0.8, 0, 0.2, 0, 0.3, 0, 0.1, 0],
       // Piano: arpegios suaves
@@ -251,7 +244,37 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     bassSustain: false,
-    volumes: { piano: 0.75, bass: 2, drums: 2 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0 },
+    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
+  },
+
+  // ============================================
+  // POP 3 - 90 BPM
+  // ============================================
+  {
+    id: 'pop_3',
+    name: 'Pop 3',
+    category: 'Pop',
+    bpm: 90,
+    bpmRange: [80, 100],
+    description: 'Pop con kick sincopado en "&" del 2 y en el 3. Hi-hat constante.',
+    rhythm: {
+      kick:   [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      snare:  [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      hihat:  [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0],
+      bass:   [1, 0, 0.8, 0, 1, 0, 0.8, 0, 1, 0, 0.7, 0, 0.9, 0, 0.7, 0],
+      guitar: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      piano:  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0.6, 0.8, 0.9],
+        crash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, 0],
+      },
+    },
+    bassSustain: false,
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },
 
@@ -294,7 +317,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         ride: [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 1, 0.8, 1,],
       },
     },
-    volumes: { piano: 0.75, bass: 2, drums: 2, guitar: 0.7 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'electric' },
   },
 
@@ -334,7 +357,38 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     bassSustain: false,
-    volumes: { piano: 0.75, bass: 2, drums: 2, guitar: 0.7 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
+    instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
+  },
+
+  // ============================================
+  // HIP-HOP 2 (Boom Bap) - 90 BPM
+  // ============================================
+  {
+    id: 'hiphop_2',
+    name: 'Hip-Hop 2',
+    category: 'HipHop',
+    bpm: 90,
+    bpmRange: [80, 105],
+    description: 'Boom bap. Kick sincopado denso, open hihat en "&" del 4.',
+    rhythm: {
+      kick:      [1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+      snare:     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      hihat:     [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0, 0],
+      hihatOpen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0],
+      bass:      [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+      piano:     [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+      guitar:    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    },
+    fill: {
+      position: 8,
+      pattern: {
+        hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0.8, 0.9, 1, 0.9, 0.8, 0.7, 0.6],
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0],
+      },
+    },
+    bassSustain: false,
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
   },
 
@@ -357,10 +411,10 @@ export const MUSICAL_STYLES: StylePattern[] = [
       kick:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
       // C: - - - - | X - - - | - - - - | X - - - (caja en 2 y 4)
       snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // H: x x x x | x x x x | x x x x | x x x x (semicorcheas)
-      hihat: [0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
-      // H abierto: en & del 2 y 4
-      hihatOpen: [0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0, 0, 0, 0.6, 0],
+      // H: cerrado en tiempos, abierto en upbeats (&)
+      hihat: [0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 0, 0, 0],
+      // H abierto: en "&" de cada tiempo (classic disco feel)
+      hihatOpen: [0, 0, 0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 0],
       // B: X - X - | - X - X | X - - X | - X - - (octavas sincopadas)
       bass:  [1, 0, 0.8, 0, 0, 0.7, 0, 0.6, 1, 0, 0, 0.7, 0, 0.6, 0, 0],
       // P: - - X - | - - X - | - - X - | - - X - (acordes "chic" en "&")
@@ -375,7 +429,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         crash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, 0],
       },
     },
-    volumes: { piano: 0.65, bass: 2, drums: 2, guitar: 0.6 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
   },
 
@@ -415,7 +469,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         hihat: [0.8, 0, 0.4, 0, 0.8, 0, 0.4, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       },
     },
-    volumes: { piano: 0.7, bass: 2, drums: 2, guitar: 0.7 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'electric' },
   },
 
@@ -453,7 +507,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         floorTom: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
       },
     },
-    volumes: { piano: 0.75, bass: 2, drums: 2, guitar: 1 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'nylon' },
   },
 
@@ -472,11 +526,11 @@ export const MUSICAL_STYLES: StylePattern[] = [
     bpmRange: [120, 180],
     description: 'Doble bombo en corcheas, potencia total. Bajo y guitarra en unísono.',
     rhythm: {
-      // B: X-X-X-X-|X-X-X-X-|X-X-X-X-|X-X-X-X- (doble bombo en corcheas)
-      kick:  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
-      // C: - - - - | X - - - | - - - - | X - - - (caja en 2 y 4)
-      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // H: x-x-x-x-|x-x-x-x-|x-x-x-x-|x-x-x-x- (corcheas)
+      // Kick sincopado: 1 &a 2 &a 3e _ _ _ a
+      kick:  [1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1],
+      // Caja en 2 y 4, push en "&" del 4
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+      // Hi-hat: corcheas constantes
       hihat: [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0],
       // Crash: acento en tiempo 1
       crash: [0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -496,7 +550,38 @@ export const MUSICAL_STYLES: StylePattern[] = [
         crash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       },
     },
-    volumes: { piano: 0.5, bass: 2, drums: 2, guitar: 0.85 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
+    instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
+  },
+
+  // ============================================
+  // METAL 2 (Kick en grupos) - 140 BPM
+  // ============================================
+  {
+    id: 'metal_2',
+    name: 'Metal 2',
+    category: 'Metal',
+    bpm: 140,
+    bpmRange: [120, 180],
+    description: 'Kick en ráfagas agrupadas, hi-hat en corcheas.',
+    rhythm: {
+      kick:   [1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1],
+      snare:  [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      hihat:  [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0],
+      crash:  [0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      bass:   [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      piano:  [0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      guitar: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+    },
+    fill: {
+      position: 8,
+      pattern: {
+        kick:  [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        crash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      },
+    },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
   },
 
@@ -531,7 +616,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     bassSustain: true,
-    volumes: { piano: 0.6, bass: 2, drums: 2, guitar: 0.85 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },
 
@@ -565,7 +650,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     bassSustain: true,
-    volumes: { piano: 1.5, bass: 2, drums: 2, guitar: 0.75 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },
 
@@ -596,7 +681,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6],
       },
     },
-    volumes: { piano: 1, bass: 2, drums: 2, guitar: 0.65 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'electric' },
   },
 
@@ -626,7 +711,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6],
       },
     },
-    volumes: { piano: 1, bass: 1.5, drums: 2, guitar: 0.8 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },
   // ============================================
@@ -642,9 +727,10 @@ export const MUSICAL_STYLES: StylePattern[] = [
     description: 'Medium swing. Guitarra chop estilo big band.',
     rhythm: {
       kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-      snare: [0, 0, 0, 0, 0.8, 0, 0.5, 0, 0, 0, 0, 0, 0.8, 0, 0.5, 0],
-      // Ride: swing pattern "spang-a-lang"
-      hihat: [0.8, 0, 0.4, 0.7, 0, 0.4, 0.8, 0, 0.8, 0, 0.4, 0.7, 0, 0.4, 0.8, 0],
+      snare: [0, 0, 0.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.4, 0, 0, 0],
+      hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      hihatFoot: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      ride:  [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0],
       bass:  [1, 0, 0.3, 0, 0.8, 0, 0.3, 0, 1, 0, 0.3, 0, 0.8, 0, 0.3, 0],
       piano: [0, 0, 0.4, 0, 0.8, 0, 0.4, 0, 0, 0, 0.4, 0, 0.8, 0, 0.4, 0],
       // G: X - - | X - - | X - - | X - - (Chop percusivo en cada tiempo)
@@ -657,7 +743,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
         hihat: [0.8, 0, 0.4, 0.7, 0, 0.4, 0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       },
     },
-    volumes: { piano: 0.65, bass: 2, drums: 2, guitar: 0.55 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'nylon' },
   },
 ];
