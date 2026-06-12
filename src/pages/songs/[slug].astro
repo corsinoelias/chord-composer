@@ -145,12 +145,18 @@ const capoText = song.capo ? ` with a capo on the ${ordinal(song.capo)} fret` : 
 const yearText = song.year ? ` (${song.year})` : ''
 const genreText = song.genre[0] ?? 'popular'
 
+const KNOWN_BANDS = new Set(['Oasis', 'The Beatles', 'Led Zeppelin', 'Pink Floyd', 'Oasis Ministry', 'Elevation Worship', 'Hillsong', 'Bethel Music', 'Radiohead', 'Coldplay', 'U2', 'Metallica', 'AC/DC']);
+
 const analysisText =
   `${song.title} by ${song.artist}${yearText} is a ${tempoDesc} ${genreText} song written in ${fullKeyName}${capoText}. ` +
   `${fullKeyName.charAt(0).toUpperCase() + fullKeyName.slice(1)} is ${keyMood}. ` +
   `The chord chart uses ${uniqueChords.length} chord${uniqueChords.length !== 1 ? 's' : ''} — ${uniqueChords.join(', ')} — at ${song.bpm} BPM.`
 
 const songFaq = [
+  {
+    q: `Who wrote ${song.title}?`,
+    a: `${song.title} was written and recorded by ${song.artist}${song.year ? ` and released in ${song.year}` : ''}.${song.album ? ` It appears on the album "${song.album}".` : ''}`,
+  },
   {
     q: `What key is ${song.title} in?`,
     a: `${song.title} is in ${fullKeyName}.${song.capo ? ` On guitar, place a capo on the ${ordinal(song.capo)} fret to play in the original recorded key.` : ''}`,
@@ -174,7 +180,6 @@ const songFaq = [
 ]
 // ────────────────────────────────────────────────────────────────────────────
 
-const KNOWN_BANDS = new Set(['Oasis', 'The Beatles', 'Led Zeppelin', 'Pink Floyd', 'Oasis Ministry', 'Elevation Worship', 'Hillsong', 'Bethel Music', 'Radiohead', 'Coldplay', 'U2', 'Metallica', 'AC/DC']);
 const composerType = KNOWN_BANDS.has(song.artist) ? 'MusicGroup' : 'Person';
 
 const musicSchema = {
@@ -391,6 +396,39 @@ const breadcrumbSchema = {
                   </details>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <!-- Practice tools -->
+          <section class="mt-10 pt-8 border-t border-border">
+            <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Practice tools</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <a
+                href={`/metronome/?bpm=${song.bpm}`}
+                class="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              >
+                <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V12m0-4V6M9 6h6M12 22l-4-6h8l-4 6z"/><line x1="5" y1="3" x2="19" y2="3"/></svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Metronome</p>
+                  <p class="text-xs text-muted-foreground">Practice at {song.bpm} BPM</p>
+                </div>
+                <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary ml-auto shrink-0 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              <a
+                href="/tuner/"
+                class="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              >
+                <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="12" x2="15" y2="15"/></svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Guitar Tuner</p>
+                  <p class="text-xs text-muted-foreground">Tune before you play</p>
+                </div>
+                <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary ml-auto shrink-0 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
             </div>
           </section>
 

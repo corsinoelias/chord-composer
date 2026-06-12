@@ -38,13 +38,7 @@ export function parseLyricsToSections(raw: string): EditorSection[] {
       const label = trimmed.replace(/:$/, '');
       current = makeSection(label.charAt(0).toUpperCase() + label.slice(1));
     } else if (trimmed === '') {
-      // Blank line = section break (only if current has content)
-      if (current.lines.length > 0) {
-        sections.push(current);
-        // Auto-name: try to infer next label
-        const nextNum = sections.length + 1;
-        current = makeSection(`Section ${nextNum}`);
-      }
+      // Blank lines are ignored — sections split only on section labels (Verse, Chorus…)
     } else {
       current.lines.push(makeLine(line));
     }

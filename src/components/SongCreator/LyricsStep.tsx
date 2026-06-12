@@ -35,15 +35,15 @@ export default function LyricsStep({ initialText, onNext, onBack }: Props) {
     <div className="max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold text-foreground mb-1">Paste your lyrics</h2>
       <p className="text-sm text-muted-foreground mb-6">
-        Separate sections with a blank line or name them (Verse 1, Chorus, Bridge…)
+        Name your sections (Verse 1, Chorus, Bridge…) to separate them.
       </p>
 
       {/* Hint */}
       <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 mb-5">
         <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground">
-          Just paste the plain lyrics here. You'll add the chords in the next step by clicking on words.
-          Label your sections with words like <strong className="text-foreground">Verse</strong>, <strong className="text-foreground">Chorus</strong>, <strong className="text-foreground">Bridge</strong> on a line by themselves.
+          Paste the lyrics here. You'll add chords in the next step.
+          Put section names like <strong className="text-foreground">Verse 1</strong>, <strong className="text-foreground">Chorus</strong>, <strong className="text-foreground">Bridge</strong> on their own line to split sections. Blank lines are ignored.
         </p>
       </div>
 
