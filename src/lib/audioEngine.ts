@@ -1245,7 +1245,11 @@ export function scheduleProgression(
   
   // Calculate total slots
   const totalSlots = chordSegments.reduce((sum, seg) => sum + seg.slotCount, 0);
-  
+  // For progressions ≥ 8 bars, use 8-bar phrase length so fills land at the end of the
+  // full phrase rather than mid-phrase (e.g. 34-beat progression: bar 4 fill was wrong)
+  const totalBars = Math.floor(totalSlots / 16);
+  const phraseLength = totalBars >= 8 ? 8 : 4;
+
   // Schedule a batch of slots (one chord segment at a time for efficiency)
   const scheduleSegment = (segmentStartTime: number) => {
     if (cancelled) return;
@@ -1317,7 +1321,7 @@ export function scheduleProgression(
     
     // NO cache - always regenerate pattern to pick up live edits immediately
     const getPatternForBar = (barNum: number) => {
-      return generateBarPattern(currentStyle, barNum, 4, false, forceFill);
+      return generateBarPattern(currentStyle, barNum, phraseLength, false, forceFill);
     };
     
     // Schedule each slot in this chord segment
@@ -1616,13 +1620,16 @@ export async function renderProgressionOffline(
   
   const slotDuration = beatDuration / 4;
   let globalSlotIndex = 0;
-  
+
+  const offlineTotalBars = Math.floor((totalBeats * 4) / 16);
+  const offlinePhraseLength = offlineTotalBars >= 8 ? 8 : 4;
+
   // Cache for patterns by bar number
   const patternCache: Map<number, ReturnType<typeof generateBarPattern>> = new Map();
-  
+
   const getPatternForBar = (barNum: number) => {
     if (!patternCache.has(barNum)) {
-      patternCache.set(barNum, generateBarPattern(style, barNum, 4, false));
+      patternCache.set(barNum, generateBarPattern(style, barNum, offlinePhraseLength, false));
     }
     return patternCache.get(barNum)!;
   };
