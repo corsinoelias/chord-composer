@@ -46,7 +46,7 @@ interface ResolvedSection {
 }
 
 // ─── Inner component (needs PlaybackContext) ──────────────────────────────────
-function SongChordPlayerInner({ song }: { song: Song }) {
+function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: boolean }) {
   const { state, play, stop, setBpm: setContextBpm, updatePlaybackOptions } = usePlayback();
   const { isPlaying, currentChordIndex } = state;
   const [isLoading, setIsLoading] = useState(false);
@@ -193,45 +193,8 @@ function SongChordPlayerInner({ song }: { song: Song }) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="pb-24">
-      {/* ─ Header card ─ */}
-      <div className="rounded-xl border border-border bg-card mb-6 overflow-hidden">
-
-        {/* Meta */}
-        <div className="px-5 py-4 border-b border-border">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Music2 className="w-4 h-4 text-primary shrink-0" />
-                <h1 className="text-xl font-bold text-foreground">{song.title}</h1>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {song.artist}
-                {song.album && <span className="mx-1.5">·</span>}
-                {song.album && <span className="italic">{song.album}</span>}
-                {song.year && <span className="ml-1.5 text-xs">({song.year})</span>}
-              </p>
-            </div>
-
-            {/* Key / Capo badges */}
-            <div className="flex flex-wrap gap-1.5 justify-end shrink-0">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
-                Key: {displayKey}{transpose !== 0 && <span className="ml-1 opacity-60 font-normal">({transpose > 0 ? '+' : ''}{transpose})</span>}
-              </span>
-              {song.capo && (
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border">
-                  Capo: {song.capo}{song.capo === 1 ? 'st' : song.capo === 2 ? 'nd' : song.capo === 3 ? 'rd' : 'th'} fret
-                </span>
-              )}
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border">
-                {bpm} BPM
-              </span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
+    <div className={inline ? '' : 'pb-24'}>
+      {/* ─ Player bar: top when inline, fixed-bottom when not ─ */}
       <SongPlayerBar
         song={song}
         isPlaying={isPlaying}
@@ -248,10 +211,46 @@ function SongChordPlayerInner({ song }: { song: Song }) {
         onExportWav={handleExportWav}
         onExportMidi={handleExportMidi}
         editorUrl={editorUrl}
+        inline={inline}
       />
 
+      {/* ─ Header card (only on full-page, redundant inside dialog) ─ */}
+      {!inline && (
+        <div className="rounded-xl border border-border bg-card mb-6 overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Music2 className="w-4 h-4 text-primary shrink-0" />
+                  <h1 className="text-xl font-bold text-foreground">{song.title}</h1>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {song.artist}
+                  {song.album && <span className="mx-1.5">·</span>}
+                  {song.album && <span className="italic">{song.album}</span>}
+                  {song.year && <span className="ml-1.5 text-xs">({song.year})</span>}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 justify-end shrink-0">
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  Key: {displayKey}{transpose !== 0 && <span className="ml-1 opacity-60 font-normal">({transpose > 0 ? '+' : ''}{transpose})</span>}
+                </span>
+                {song.capo && (
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border">
+                    Capo: {song.capo}{song.capo === 1 ? 'st' : song.capo === 2 ? 'nd' : song.capo === 3 ? 'rd' : 'th'} fret
+                  </span>
+                )}
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border">
+                  {bpm} BPM
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─ Song chart ─ */}
-      <div className="space-y-6">
+      <div className={`space-y-6 ${inline ? 'mt-4 px-5 pb-5' : ''}`}>
         {displayedSections.map((section, si) => {
           const collapsed = collapsedSections.has(si);
 
@@ -412,10 +411,10 @@ function SongChordPlayerInner({ song }: { song: Song }) {
 }
 
 // ─── Public export (wraps with PlaybackProvider) ──────────────────────────────
-export default function SongChordPlayer({ song }: { song: Song }) {
+export default function SongChordPlayer({ song, inline }: { song: Song; inline?: boolean }) {
   return (
     <PlaybackProvider>
-      <SongChordPlayerInner song={song} />
+      <SongChordPlayerInner song={song} inline={inline} />
     </PlaybackProvider>
   );
 }

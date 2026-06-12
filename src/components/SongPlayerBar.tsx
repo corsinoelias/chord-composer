@@ -17,6 +17,7 @@ interface SongPlayerBarProps {
   onExportWav: () => void;
   onExportMidi: () => void;
   editorUrl: string;
+  inline?: boolean;
 }
 
 export function SongPlayerBar({
@@ -35,9 +36,10 @@ export function SongPlayerBar({
   onExportWav,
   onExportMidi,
   editorUrl,
+  inline = false,
 }: SongPlayerBarProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+    <div className={`${inline ? 'border-b mb-2' : 'fixed bottom-0 left-0 right-0 z-50 border-t shadow-[0_-4px_20px_rgba(0,0,0,0.08)]'} border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80`}>
       {/* Progress bar */}
       <div className="h-0.5 bg-muted">
         <div

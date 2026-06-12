@@ -506,14 +506,14 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
 
       {/* ── Preview modal ── */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center gap-2 mb-4">
-            <Music2 className="w-4 h-4 text-primary" />
-            <span className="font-semibold text-foreground">{meta.title || 'Preview'}</span>
-            {meta.artist && <span className="text-sm text-muted-foreground">— {meta.artist}</span>}
+        <DialogContent className="w-[calc(100%-1rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+          <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
+            <Music2 className="w-4 h-4 text-primary shrink-0" />
+            <span className="font-semibold text-foreground truncate">{meta.title || 'Preview'}</span>
+            {meta.artist && <span className="text-sm text-muted-foreground truncate">— {meta.artist}</span>}
           </div>
           <PlaybackProvider>
-            <SongChordPlayer song={previewSong} />
+            <SongChordPlayer song={previewSong} inline />
           </PlaybackProvider>
         </DialogContent>
       </Dialog>
