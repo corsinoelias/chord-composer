@@ -1024,7 +1024,7 @@ const Index = ({ songId }: IndexProps) => {
           songTitle={songTitle}
           transposition={transposition}
           customStyles={customStyles}
-          onPlay={startPlayback}
+          onPlay={handlePlayWithCountdown}
           onStop={stopPlaybackCompletely}
           onReset={() => { stopPlaybackCompletely(); }}
           onExport={handleExport}
