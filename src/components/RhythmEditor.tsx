@@ -52,7 +52,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { MelodicPatternGrid } from '@/components/MelodicPatternGrid';
-import { type MelodicData, emptyMelodicData, createVariation } from '@/lib/bassScale';
+import { emptyMelodicData, createVariation, resolveVariation, scalePatternIsEmpty, DEGREES, type Degree, type InstrumentMelodic } from '@/lib/bassScale';
 
 // All possible instruments in the editor
 const ALL_INSTRUMENTS = [
@@ -84,8 +84,6 @@ interface RhythmEditorProps {
   onStyleChange?: (style: StylePattern) => void;
   onStyleSelect?: (styleId: string) => void;
   onDelete?: (styleId: string) => void;
-  melodic?: MelodicData;
-  onMelodicChange?: (melodic: MelodicData) => void;
   referenceRootMidi?: number;
   referenceQuality?: string;
 }
@@ -123,8 +121,6 @@ export function RhythmEditor({
   onStyleChange,
   onStyleSelect,
   onDelete,
-  melodic,
-  onMelodicChange,
   referenceRootMidi = 60,
   referenceQuality = 'maj',
 }: RhythmEditorProps) {
@@ -140,15 +136,27 @@ export function RhythmEditor({
   const [activeInstruments, setActiveInstruments] = useState<Set<InstrumentKey>>(new Set());
   const [savedNonFillInstruments, setSavedNonFillInstruments] = useState<Set<InstrumentKey> | null>(null); // Save state before Fill mode
   const [activeTab, setActiveTab] = useState<'drums' | 'bass' | 'piano' | 'guitar'>('drums');
+  // Tracks which variation is currently viewed in the editor per instrument (for live preview)
+  const activeVarIdRef = useRef<Partial<Record<'bass' | 'piano' | 'guitar', string>>>({});
 
   // Auto-create "Var 1" when switching to a melodic tab with no variations yet
   useEffect(() => {
     if (activeTab === 'drums') return;
     const inst = activeTab as 'bass' | 'piano' | 'guitar';
-    const base = melodic ?? emptyMelodicData();
+    const base = editedStyle.melodic ?? emptyMelodicData();
     if (base[inst].variations.length === 0) {
       const firstVar = createVariation('Var 1');
-      onMelodicChange?.({ ...base, [inst]: { ...base[inst], variations: [firstVar] } });
+      if (inst === 'bass') {
+        firstVar.octaveOffsets = Object.fromEntries(
+          DEGREES.map(d => [d, -1])
+        ) as Partial<Record<Degree, number>>;
+      }
+      const newMelodic = { ...base, [inst]: { ...base[inst], variations: [firstVar], enabled: true } };
+      setEditedStyle(prev => ({ ...prev, melodic: newMelodic }));
+    } else if (!base[inst].enabled) {
+      // Auto-enable when variations already exist
+      const newMelodic = { ...base, [inst]: { ...base[inst], enabled: true } };
+      setEditedStyle(prev => ({ ...prev, melodic: newMelodic }));
     }
   }, [activeTab]);
 
@@ -361,6 +369,16 @@ export function RhythmEditor({
     }
   }, [isLocalPlaying]);
 
+  // Resolves a specific variation by ID for local preview, bypassing the enabled flag
+  const resolveActiveVar = (inst: InstrumentMelodic | undefined, varId: string | undefined) => {
+    if (!inst || !inst.variations.length) return null;
+    const v = varId
+      ? (inst.variations.find(x => x.id === varId) ?? inst.variations[0])
+      : inst.variations[0];
+    if (!v || scalePatternIsEmpty(v.pattern)) return null;
+    return { pattern: v.pattern, loopBars: v.loopBars, octaveOffsets: v.octaveOffsets };
+  };
+
   const startLocalPlayback = useCallback(async () => {
     // Stop main playback if it's running
     if (isMainPlaying) {
@@ -396,11 +414,14 @@ export function RhythmEditor({
       transposition: 0,
       onChordChange: () => {},
       onLoopEnd: () => {
-        // Reset loop start time on each loop for precise sync
         loopStartTimeRef.current = ctx.currentTime;
       },
       getStyle: () => editedStyleRef.current,
+      getBpm: () => editedStyleRef.current.bpm,
       forceFill: showFillRef.current,
+      getBassScale: () => resolveActiveVar(editedStyleRef.current.melodic?.bass, activeVarIdRef.current['bass']),
+      getPianoScale: () => resolveActiveVar(editedStyleRef.current.melodic?.piano, activeVarIdRef.current['piano']),
+      getGuitarScale: () => resolveActiveVar(editedStyleRef.current.melodic?.guitar, activeVarIdRef.current['guitar']),
     });
     
     playbackRef.current = { cancel };
@@ -707,12 +728,8 @@ export function RhythmEditor({
       editedStyleRef.current = updated;
       return updated;
     });
-    
-    // If local playback is active, restart it with the new BPM
-    if (isLocalPlaying) {
-      // Use setTimeout to let the state update propagate
-      setTimeout(() => startLocalPlayback(), 0);
-    }
+    // No restart — editedStyleRef is updated immediately and the scheduler
+    // reads getBpm() dynamically at each chord segment boundary.
   };
 
   const handleFillToggle = (checked: boolean) => {
@@ -1438,12 +1455,16 @@ export function RhythmEditor({
           ) : (
           <div className="flex-1 overflow-auto p-4">
             <MelodicPatternGrid
-              melodic={(melodic ?? emptyMelodicData())[activeTab as 'bass' | 'piano' | 'guitar']}
+              melodic={(editedStyle.melodic ?? emptyMelodicData())[activeTab as 'bass' | 'piano' | 'guitar']}
               referenceRootMidi={referenceRootMidi}
               referenceQuality={referenceQuality}
+              naturalOctave={activeTab === 'bass' ? -1 : 0}
+              currentStep={displayStep}
+              isPlaying={isPlaying}
+              onActiveVarChange={id => { activeVarIdRef.current[activeTab as 'bass' | 'piano' | 'guitar'] = id; }}
               onChange={updated => {
-                const base = melodic ?? emptyMelodicData();
-                onMelodicChange?.({ ...base, [activeTab]: updated });
+                const base = editedStyle.melodic ?? emptyMelodicData();
+                setEditedStyle(prev => ({ ...prev, melodic: { ...base, [activeTab]: updated } }));
               }}
             />
           </div>

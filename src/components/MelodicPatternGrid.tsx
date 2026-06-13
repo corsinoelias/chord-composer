@@ -1,11 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   DEGREES, CHORD_TONES, BASS_SCALE_PRESETS, getScaleNoteNames, scalePatternIsEmpty,
   createVariation, type Degree, type DegreePattern, type ScaleVariation, type InstrumentMelodic,
 } from '@/lib/bassScale';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,6 +14,10 @@ interface MelodicPatternGridProps {
   referenceRootMidi: number;
   referenceQuality: string;
   onChange: (melodic: InstrumentMelodic) => void;
+  naturalOctave?: number;
+  currentStep?: number;
+  isPlaying?: boolean;
+  onActiveVarChange?: (id: string) => void;
 }
 
 export function MelodicPatternGrid({
@@ -23,6 +25,10 @@ export function MelodicPatternGrid({
   referenceRootMidi,
   referenceQuality,
   onChange,
+  naturalOctave = 0,
+  currentStep,
+  isPlaying,
+  onActiveVarChange,
 }: MelodicPatternGridProps) {
   const { variations, enabled } = melodic;
   const [activeVarId, setActiveVarId] = useState<string>(() => variations[0]?.id ?? '');
@@ -33,6 +39,11 @@ export function MelodicPatternGrid({
   const resolvedActiveId = variations.find(v => v.id === activeVarId)
     ? activeVarId
     : (variations[0]?.id ?? '');
+
+  useEffect(() => {
+    if (resolvedActiveId) onActiveVarChange?.(resolvedActiveId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedActiveId]);
 
   const activeVariation = variations.find(v => v.id === resolvedActiveId);
   const totalSlots = (activeVariation?.loopBars ?? 1) * 16;
@@ -53,7 +64,8 @@ export function MelodicPatternGrid({
   const handleOctaveChange = (degree: Degree, delta: number) => {
     if (!activeVariation) return;
     const cur = activeVariation.octaveOffsets ?? {};
-    const next = Math.max(-2, Math.min(2, (cur[degree] ?? 0) + delta));
+    const stored = cur[degree] ?? naturalOctave;
+    const next = Math.max(naturalOctave - 2, Math.min(naturalOctave + 2, stored + delta));
     const updated = { ...cur, [degree]: next };
     update(variations.map(v => v.id === resolvedActiveId ? { ...v, octaveOffsets: updated } : v));
   };
@@ -145,19 +157,6 @@ export function MelodicPatternGrid({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Enable + header controls */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Switch id="mel-enable" checked={enabled} onCheckedChange={v => update(variations, v)} />
-          <Label htmlFor="mel-enable" className="text-sm">{enabled ? 'Activo' : 'Inactivo'}</Label>
-        </div>
-        {!enabled && (
-          <span className="text-xs text-muted-foreground">
-            Inactivo: usa el patrón del estilo como fallback.
-          </span>
-        )}
-      </div>
-
       {/* Variation tabs */}
       <div className="flex items-center gap-1 flex-wrap border-b pb-2">
         {variations.map(v => (
@@ -178,7 +177,7 @@ export function MelodicPatternGrid({
                   value={editingName}
                   onChange={e => setEditingName(e.target.value)}
                   onBlur={commitRename}
-                  className="h-5 w-24 text-xs px-1"
+                  className="h-5 w-24 text-xs px-1 bg-background text-foreground"
                 />
                 <button type="submit"><Check className="h-3 w-3" /></button>
               </form>
@@ -256,7 +255,8 @@ export function MelodicPatternGrid({
             {DEGREES.map(degree => {
               const isChordTone = CHORD_TONES.has(degree);
               const degSlots = activeVariation.pattern[degree] ?? [];
-              const octave = activeVariation.octaveOffsets?.[degree] ?? 0;
+              const storedOctave = activeVariation.octaveOffsets?.[degree] ?? naturalOctave;
+              const displayOctave = storedOctave - naturalOctave;
               return (
                 <div key={degree} className="flex items-center">
                   <div className={cn('w-28 flex-shrink-0 flex items-center gap-1 pr-2', isChordTone ? 'font-semibold' : 'text-muted-foreground')}>
@@ -267,16 +267,16 @@ export function MelodicPatternGrid({
                     <div className="flex items-center gap-px ml-auto">
                       <button
                         onClick={() => handleOctaveChange(degree, -1)}
-                        disabled={octave <= -2}
+                        disabled={displayOctave <= -2}
                         className="w-4 h-4 rounded text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
                         title="Bajar octava"
                       >▾</button>
-                      <span className={cn('text-[9px] w-5 text-center', octave !== 0 ? 'text-primary font-bold' : 'text-muted-foreground')}>
-                        {octave > 0 ? `+${octave}` : octave}
+                      <span className={cn('text-[9px] w-5 text-center', displayOctave !== 0 ? 'text-primary font-bold' : 'text-muted-foreground')}>
+                        {displayOctave > 0 ? `+${displayOctave}` : displayOctave}
                       </span>
                       <button
                         onClick={() => handleOctaveChange(degree, +1)}
-                        disabled={octave >= 2}
+                        disabled={displayOctave >= 2}
                         className="w-4 h-4 rounded text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
                         title="Subir octava"
                       >▴</button>
@@ -284,6 +284,7 @@ export function MelodicPatternGrid({
                   </div>
                   {Array.from({ length: totalSlots }, (_, slot) => {
                     const active = (degSlots[slot] ?? 0) > 0;
+                    const isCurrent = isPlaying && currentStep !== undefined && currentStep >= 0 && (currentStep % totalSlots) === slot;
                     return (
                       <button
                         key={slot}
@@ -291,6 +292,7 @@ export function MelodicPatternGrid({
                         className={cn(
                           'w-7 h-8 border transition-colors rounded-sm',
                           slot % 4 === 0 && slot > 0 && 'border-l-2',
+                          isCurrent && !active && 'bg-primary/20',
                           active
                             ? isChordTone ? 'bg-primary border-primary' : 'bg-blue-400 border-blue-400 dark:bg-blue-600 dark:border-blue-600'
                             : isChordTone ? 'border-primary/25 hover:bg-primary/10' : 'border-muted-foreground/15 hover:bg-muted',

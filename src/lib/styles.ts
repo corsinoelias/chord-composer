@@ -90,6 +90,8 @@ export interface StylePattern {
   instrumentSounds?: InstrumentSounds;
   // Bass sustain: if true, bass notes sustain until next note
   bassSustain?: boolean;
+  // Melodic scale patterns for bass, piano, guitar (per-style variations)
+  melodic?: import('./bassScale').MelodicData;
 }
 
 // Convert slot (0-15) to beat position (0-3.9375)
