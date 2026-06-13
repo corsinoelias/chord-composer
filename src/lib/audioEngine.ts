@@ -1162,6 +1162,8 @@ export interface PlaybackOptions {
   getBassScale?:   (sectionId: string) => import('./bassScale').BassScaleData | null;
   getPianoScale?:  (sectionId: string) => import('./bassScale').BassScaleData | null;
   getGuitarScale?: (sectionId: string) => import('./bassScale').BassScaleData | null;
+  getSections?: () => Section[];
+  getLoopingSectionId?: () => string | null;
 }
 
 /**
@@ -1193,6 +1195,8 @@ export function scheduleProgression(
     getBassScale,
     getPianoScale,
     getGuitarScale,
+    getSections,
+    getLoopingSectionId,
   } = options;
 
   const ctx = getAudioContext();
@@ -1220,33 +1224,45 @@ export function scheduleProgression(
     beatOffset: number;
     sectionId: string;
   }
+
+  // Section boundaries within the flat chordSegments array
+  interface SectionBoundary {
+    sectionId: string;
+    startIdx: number;
+    endIdx: number; // exclusive — boundary fires when currentSegmentIndex === endIdx
+  }
   
-  const buildChordSegments = (): ChordSegment[] => {
+  const buildChordSegments = (secs: Section[] = sections): ChordSegment[] => {
     const segments: ChordSegment[] = [];
     let globalChordIndex = 0;
     let beatOffset = 0;
-    
-    sections.forEach(section => {
+    secs.forEach(section => {
       for (let repeat = 0; repeat < section.repeatCount; repeat++) {
         section.chords.forEach((chord) => {
           const slotCount = chord.duration * 4;
-          segments.push({
-            chord,
-            slotCount,
-            globalChordIndex,
-            beatOffset,
-            sectionId: section.id,
-          });
+          segments.push({ chord, slotCount, globalChordIndex, beatOffset, sectionId: section.id });
           beatOffset += chord.duration;
           globalChordIndex++;
         });
       }
     });
-    
     return segments;
   };
-  
-  const chordSegments = buildChordSegments();
+
+  const buildSectionBoundaries = (segs: ChordSegment[]): SectionBoundary[] => {
+    const boundaries: SectionBoundary[] = [];
+    let i = 0;
+    while (i < segs.length) {
+      const sectionId = segs[i].sectionId;
+      const startIdx = i;
+      while (i < segs.length && segs[i].sectionId === sectionId) i++;
+      boundaries.push({ sectionId, startIdx, endIdx: i });
+    }
+    return boundaries;
+  };
+
+  let chordSegments = buildChordSegments();
+  let sectionBoundaries = buildSectionBoundaries(chordSegments);
   let currentSegmentIndex = 0;
   let globalSlotIndex = 0; // Continuous slot counter for rhythm pattern (0-15, wrapping)
   let lastChordIndex = -1;
@@ -1265,19 +1281,37 @@ export function scheduleProgression(
     // Re-read BPM each segment so live changes take effect on the next chord
     const slotDuration = (60 / getCurrentBpm()) / 4;
 
-    // Check if we've finished all segments
+    // Section-boundary check: did we just finish a section?
+    if (currentSegmentIndex > 0) {
+      const crossed = sectionBoundaries.find(b => b.endIdx === currentSegmentIndex);
+      if (crossed) {
+        const loopingId = getLoopingSectionId?.() ?? null;
+        if (loopingId === crossed.sectionId) {
+          // Loop this section: jump back to its first segment
+          currentSegmentIndex = crossed.startIdx;
+          lastChordIndex = -1;
+        }
+      }
+    }
+
+    // Check if we've finished all segments (song-level loop)
     if (currentSegmentIndex >= chordSegments.length) {
       if (loop) {
         onLoopEnd?.();
+        // Rebuild segments from latest sections so structural changes take effect
+        if (getSections) {
+          const latest = getSections();
+          if (latest.length > 0 && latest.some(s => s.chords.length > 0)) {
+            chordSegments = buildChordSegments(latest);
+            sectionBoundaries = buildSectionBoundaries(chordSegments);
+          }
+        }
         currentSegmentIndex = 0;
         globalSlotIndex = 0;
         lastChordIndex = -1;
-        // Schedule next loop iteration
         const delayMs = Math.max(0, (segmentStartTime - ctx.currentTime) * 1000);
         nextBarTimeout = window.setTimeout(() => {
-          if (!cancelled) {
-            scheduleSegment(ctx.currentTime + 0.05);
-          }
+          if (!cancelled) scheduleSegment(ctx.currentTime + 0.05);
         }, delayMs);
       }
       return;

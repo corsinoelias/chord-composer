@@ -427,12 +427,6 @@ const Index = ({ songId }: IndexProps) => {
     stopPlayback();
   }, [stopPlayback]);
 
-  const handleChangeWhilePlaying = useCallback(() => {
-    if (isPlaying) {
-      stopPlaybackCompletely();
-      setTimeout(() => startPlayback(), 50);
-    }
-  }, [isPlaying, stopPlaybackCompletely, startPlayback]);
 
   // Section handlers
   const handleAddSection = () => {
@@ -716,28 +710,27 @@ const Index = ({ songId }: IndexProps) => {
     // Section drag is no longer handled here (using buttons instead)
   };
 
-  // Restart on changes
+  // All changes applied seamlessly — no restart ever needed
   useEffect(() => {
-    const hasChords = sections.some(s => s.chords.length > 0);
-    if (isPlaying && hasChords) handleChangeWhilePlaying();
-    else if (isPlaying && !hasChords) stopPlaybackCompletely();
+    if (isPlaying && !sections.some(s => s.chords.length > 0)) {
+      stopPlaybackCompletely();
+    } else {
+      updatePlaybackOptions({ sections });
+    }
   }, [sections]);
 
-  // Changes that REQUIRE restart (structure changes)
-  useEffect(() => {
-    if (isPlaying) handleChangeWhilePlaying();
-  }, [bpm, selectedStyleId, loopingSectionIndex]);
-
-  // Changes that DO NOT require restart (update options dynamically)
   useEffect(() => {
     if (isPlaying) {
-      updatePlaybackOptions({ 
+      updatePlaybackOptions({
+        bpm,
+        styleId: selectedStyleId,
+        loopingSectionIndex,
         metronome: metronomeEnabled,
         instruments,
-        transposition 
+        transposition,
       });
     }
-  }, [metronomeEnabled, instruments, transposition, isPlaying, updatePlaybackOptions]);
+  }, [bpm, selectedStyleId, loopingSectionIndex, metronomeEnabled, instruments, transposition, isPlaying, updatePlaybackOptions]);
 
   const handleExport = useCallback(async () => {
     const hasChords = sections.some(s => s.chords.length > 0);

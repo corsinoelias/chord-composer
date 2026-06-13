@@ -52,6 +52,7 @@ interface PlayOptions {
   customStyles?: StylePattern[];
   loopingSectionIndex?: number | null;
   melodic?: MelodicData;
+  sections?: Section[];
 }
 
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
@@ -187,11 +188,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     sectionsRef.current = sections;
     optionsRef.current = options;
 
-    const loopIdx = options.loopingSectionIndex;
-    const loopSection = (loopIdx !== null && loopIdx !== undefined) ? sections[loopIdx] : undefined;
-    const sectionsToPlay = loopSection ? [loopSection] : sections;
-
-    const hasChords = sectionsToPlay.some(s => (s?.chords?.length ?? 0) > 0);
+    const hasChords = sections.some(s => (s?.chords?.length ?? 0) > 0);
     if (!hasChords) {
       releasePlaybackMutex();
       return;
@@ -223,7 +220,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
 
     const style = getStyle();
 
-    const { cancel } = scheduleProgression(sectionsToPlay, options.bpm, {
+    const { cancel } = scheduleProgression(sections, options.bpm, {
       loop: true,
       metronome: options.metronome,
       instruments: options.instruments,
@@ -255,6 +252,17 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
         if (!mel) return null;
         const sec = sectionsRef.current.find(s => s.id === sectionId);
         return resolveVariation(mel.guitar, sec?.guitarVariationId);
+      },
+      getSections: () => {
+        const opts = optionsRef.current;
+        return opts?.sections ?? sectionsRef.current;
+      },
+      getLoopingSectionId: () => {
+        const opts = optionsRef.current;
+        const loopIdx = opts?.loopingSectionIndex;
+        if (loopIdx == null) return null;
+        const all = opts?.sections ?? sectionsRef.current;
+        return all[loopIdx]?.id ?? null;
       },
     });
 
