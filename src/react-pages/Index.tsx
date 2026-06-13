@@ -774,7 +774,13 @@ const Index = ({ songId }: IndexProps) => {
     if (loopingSectionIndex !== null) {
       const sec = sections[loopingSectionIndex];
       if (!sec || sec.chords.length === 0) return null;
-      return sec.chords[currentChordIndex % sec.chords.length];
+      // currentChordIndex is a global index; subtract this section's start offset
+      let sectionOffset = 0;
+      for (let i = 0; i < loopingSectionIndex; i++) {
+        sectionOffset += sections[i].chords.length * sections[i].repeatCount;
+      }
+      const localIdx = (currentChordIndex - sectionOffset) % sec.chords.length;
+      return sec.chords[Math.max(0, localIdx)];
     }
     let idx = currentChordIndex;
     for (const sec of sections) {
@@ -809,9 +815,6 @@ const Index = ({ songId }: IndexProps) => {
 
   // Calculate global chord offset for each section (with repeats)
   const getGlobalOffset = (sectionIndex: number) => {
-    // When looping, offset is always 0
-    if (loopingSectionIndex !== null) return 0;
-    
     let offset = 0;
     for (let i = 0; i < sectionIndex; i++) {
       offset += sections[i].chords.length * sections[i].repeatCount;
@@ -1084,7 +1087,7 @@ const Index = ({ songId }: IndexProps) => {
                   key={section.id}
                   section={section}
                   sectionIndex={sectionIndex}
-                  currentChordIndex={loopingSectionIndex === sectionIndex || loopingSectionIndex === null ? currentChordIndex : -1}
+                  currentChordIndex={currentChordIndex}
                   globalChordOffset={getGlobalOffset(sectionIndex)}
                   totalSections={sections.length}
                   isLooping={loopingSectionIndex === sectionIndex}
