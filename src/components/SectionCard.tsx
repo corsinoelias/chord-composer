@@ -6,8 +6,10 @@ import {
 } from '@dnd-kit/sortable';
 import { type Section } from '@/lib/sections';
 import { type Chord } from '@/lib/musicTheory';
+import { type MelodicData } from '@/lib/bassScale';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Repeat, Pencil } from 'lucide-react';
 import { SortableChord } from './SortableChord';
@@ -36,6 +38,8 @@ interface SectionCardProps {
   onMoveUp: () => void;
   onMoveDown: () => void;
   onSetProgression: (chords: Chord[]) => void;
+  melodic?: MelodicData;
+  onVariationChange?: (instrument: 'bass' | 'piano' | 'guitar', variationId: string) => void;
 }
 
 // Section color palette
@@ -82,6 +86,8 @@ export const SectionCard = memo(function SectionCard({
   onMoveUp,
   onMoveDown,
   onSetProgression,
+  melodic,
+  onVariationChange,
 }: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
@@ -310,6 +316,34 @@ export const SectionCard = memo(function SectionCard({
             </div>
           </div>
         </div>
+
+        {/* Variation selectors — only when an instrument has 2+ variations */}
+        {melodic && (['bass', 'piano', 'guitar'] as const).some(inst => melodic[inst].enabled && melodic[inst].variations.length >= 2) && (
+          <div className="px-2 sm:px-3 py-1.5 border-b border-border/20 bg-muted/20 flex items-center gap-2 flex-wrap">
+            {(['bass', 'piano', 'guitar'] as const).map(inst => {
+              const data = melodic[inst];
+              if (!data.enabled || data.variations.length < 2) return null;
+              const currentId = inst === 'bass' ? section.bassVariationId : inst === 'piano' ? section.pianoVariationId : section.guitarVariationId;
+              const current = data.variations.find(v => v.id === currentId) ?? data.variations[0];
+              const label = inst === 'bass' ? 'Bajo' : inst === 'piano' ? 'Piano' : 'Guitarra';
+              return (
+                <div key={inst} className="flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground">{label}:</span>
+                  <Select value={current?.id ?? ''} onValueChange={id => onVariationChange?.(inst, id)}>
+                    <SelectTrigger className="h-5 w-24 text-[10px] px-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {data.variations.map(v => (
+                        <SelectItem key={v.id} value={v.id} className="text-xs">{v.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Chords */}
         <div ref={setDroppableRef} className="p-2 sm:p-3">

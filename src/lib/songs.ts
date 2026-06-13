@@ -6,6 +6,7 @@
 
 import type { Section } from './sections';
 import type { InstrumentState } from './instruments';
+import type { MelodicData, DegreePattern } from './bassScale';
 
 export interface Song {
   id: string;
@@ -18,6 +19,7 @@ export interface Song {
   transposition: number;
   instrumentSettings: InstrumentState[];
   metronomeEnabled: boolean;
+  melodic?: MelodicData;
 }
 
 export function generateSongId(): string {
@@ -58,6 +60,32 @@ export function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Migrate a raw song JSON object from any previous schema version to the current Song shape.
+ * Safe to call on already-migrated songs (no-op when fields are current).
+ */
+export function migrateLegacySong(raw: unknown): Song {
+  const r = raw as Record<string, unknown>;
+
+  // v1 → v2: bassScalePattern/bassScaleLoopBars/bassScaleEnabled → melodic
+  if (r.bassScalePattern && !r.melodic) {
+    const firstVar = {
+      id: `sv_mig_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: 'Var 1',
+      pattern: r.bassScalePattern as DegreePattern,
+      loopBars: (r.bassScaleLoopBars as 1 | 2 | 4) ?? 1,
+    };
+    const melodic: MelodicData = {
+      bass: { variations: [firstVar], enabled: (r.bassScaleEnabled as boolean) ?? false },
+      piano: { variations: [], enabled: false },
+      guitar: { variations: [], enabled: false },
+    };
+    r.melodic = melodic;
+  }
+
+  return r as unknown as Song;
 }
 
 /**

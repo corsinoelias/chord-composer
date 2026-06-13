@@ -51,6 +51,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { MelodicPatternGrid } from '@/components/MelodicPatternGrid';
+import { type MelodicData, emptyMelodicData, createVariation } from '@/lib/bassScale';
 
 // All possible instruments in the editor
 const ALL_INSTRUMENTS = [
@@ -82,6 +84,10 @@ interface RhythmEditorProps {
   onStyleChange?: (style: StylePattern) => void;
   onStyleSelect?: (styleId: string) => void;
   onDelete?: (styleId: string) => void;
+  melodic?: MelodicData;
+  onMelodicChange?: (melodic: MelodicData) => void;
+  referenceRootMidi?: number;
+  referenceQuality?: string;
 }
 
 const VELOCITY_LEVELS = [0, 0.3, 0.5, 0.7, 1];
@@ -107,16 +113,20 @@ function cloneStyle(style: StylePattern): StylePattern {
   return JSON.parse(JSON.stringify(style));
 }
 
-export function RhythmEditor({ 
-  open, 
-  onClose, 
-  style, 
+export function RhythmEditor({
+  open,
+  onClose,
+  style,
   allStyles,
-  isNewStyle, 
-  onSave, 
+  isNewStyle,
+  onSave,
   onStyleChange,
   onStyleSelect,
   onDelete,
+  melodic,
+  onMelodicChange,
+  referenceRootMidi = 60,
+  referenceQuality = 'maj',
 }: RhythmEditorProps) {
   // Use centralized playback state
   const { state: playbackState, stop: stopMainPlayback } = usePlayback();
@@ -129,6 +139,19 @@ export function RhythmEditor({
   const [showFill, setShowFill] = useState(false);
   const [activeInstruments, setActiveInstruments] = useState<Set<InstrumentKey>>(new Set());
   const [savedNonFillInstruments, setSavedNonFillInstruments] = useState<Set<InstrumentKey> | null>(null); // Save state before Fill mode
+  const [activeTab, setActiveTab] = useState<'drums' | 'bass' | 'piano' | 'guitar'>('drums');
+
+  // Auto-create "Var 1" when switching to a melodic tab with no variations yet
+  useEffect(() => {
+    if (activeTab === 'drums') return;
+    const inst = activeTab as 'bass' | 'piano' | 'guitar';
+    const base = melodic ?? emptyMelodicData();
+    if (base[inst].variations.length === 0) {
+      const firstVar = createVariation('Var 1');
+      onMelodicChange?.({ ...base, [inst]: { ...base[inst], variations: [firstVar] } });
+    }
+  }, [activeTab]);
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [styleToDelete, setStyleToDelete] = useState<StylePattern | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -964,7 +987,32 @@ export function RhythmEditor({
                 </Button>
               </div>
             </div>
-          
+
+          {/* Tab Navigation */}
+          <div className="px-4 border-b border-border flex gap-0">
+            {([
+              { key: 'drums', label: 'Batería' },
+              { key: 'piano', label: 'Piano' },
+              { key: 'bass', label: 'Bajo' },
+              { key: 'guitar', label: 'Guitarra' },
+            ] as const).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+                  activeTab === tab.key
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === 'drums' ? (
+          <>
           {/* Main/Fill Toggle */}
           <div className="p-2 sm:p-3 border-b border-border bg-muted/30 flex flex-wrap items-center gap-2 sm:gap-4">
             <div className="flex items-center gap-2">
@@ -1375,7 +1423,7 @@ export function RhythmEditor({
                 ))}
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Switch
                 checked={editedStyle.bassSustain || false}
@@ -1386,6 +1434,20 @@ export function RhythmEditor({
               <Label htmlFor="bass-sustain" className="text-[10px] sm:text-xs cursor-pointer">Bass Sustain</Label>
             </div>
           </div>
+          </>
+          ) : (
+          <div className="flex-1 overflow-auto p-4">
+            <MelodicPatternGrid
+              melodic={(melodic ?? emptyMelodicData())[activeTab as 'bass' | 'piano' | 'guitar']}
+              referenceRootMidi={referenceRootMidi}
+              referenceQuality={referenceQuality}
+              onChange={updated => {
+                const base = melodic ?? emptyMelodicData();
+                onMelodicChange?.({ ...base, [activeTab]: updated });
+              }}
+            />
+          </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

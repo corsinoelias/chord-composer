@@ -11,6 +11,7 @@ import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleD
 import { type StylePattern, generateBarPattern, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
 import { type Section } from './sections';
 import { buildEffectsChain } from './audioEffects';
+import { getScale as getBassScale_getScale } from './bassScale';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
@@ -1158,6 +1159,9 @@ export interface PlaybackOptions {
   getInstruments?: () => InstrumentState[];
   getTransposition?: () => number;
   getBpm?: () => number;
+  getBassScale?:   (sectionId: string) => import('./bassScale').BassScaleData | null;
+  getPianoScale?:  (sectionId: string) => import('./bassScale').BassScaleData | null;
+  getGuitarScale?: (sectionId: string) => import('./bassScale').BassScaleData | null;
 }
 
 /**
@@ -1186,6 +1190,9 @@ export function scheduleProgression(
     getInstruments,
     getTransposition,
     getBpm: getBpmGetter,
+    getBassScale,
+    getPianoScale,
+    getGuitarScale,
   } = options;
 
   const ctx = getAudioContext();
@@ -1208,9 +1215,10 @@ export function scheduleProgression(
   // Each chord gets exactly as many slots as its duration in beats * 4 (16th notes per beat)
   interface ChordSegment {
     chord: Chord;
-    slotCount: number; // Number of 16th note slots for this chord
+    slotCount: number;
     globalChordIndex: number;
-    beatOffset: number; // Beat offset within the full progression for bar numbering
+    beatOffset: number;
+    sectionId: string;
   }
   
   const buildChordSegments = (): ChordSegment[] => {
@@ -1221,13 +1229,13 @@ export function scheduleProgression(
     sections.forEach(section => {
       for (let repeat = 0; repeat < section.repeatCount; repeat++) {
         section.chords.forEach((chord) => {
-          // Each beat = 4 slots (16th notes)
           const slotCount = chord.duration * 4;
           segments.push({
             chord,
             slotCount,
             globalChordIndex,
-            beatOffset
+            beatOffset,
+            sectionId: section.id,
           });
           beatOffset += chord.duration;
           globalChordIndex++;
@@ -1276,7 +1284,7 @@ export function scheduleProgression(
     }
     
     const segment = chordSegments[currentSegmentIndex];
-    const { chord, slotCount, globalChordIndex, beatOffset } = segment;
+    const { chord, slotCount, globalChordIndex, beatOffset, sectionId } = segment;
     
     // Get current style and dynamic parameters
     const currentStyle = getStyle ? getStyle() : style;
@@ -1374,7 +1382,22 @@ export function scheduleProgression(
         }
       }
       
-      // Piano - uses velocity from pattern
+      // Piano - scale pattern (custom) or style pattern (fallback)
+      const pianoScaleData = getPianoScale?.(sectionId);
+      if (pianoScaleData && pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound) {
+        const { pattern: scalePattern, loopBars: pLoopBars, octaveOffsets: pOctaveOffsets } = pianoScaleData;
+        const slotInLoop = currentGlobalSlot % (pLoopBars * 16);
+        const scale = getBassScale_getScale(chord.quality);
+        const noteDuration = slotDuration * 3;
+        for (const degStr of Object.keys(scalePattern)) {
+          const deg = Number(degStr) as 1|2|3|4|5|6|7;
+          const velocity = (scalePattern[deg]?.[slotInLoop] ?? 0);
+          if (velocity <= 0) continue;
+          const noteMidi = midiNotes[0] + scale[deg - 1] + (pOctaveOffsets?.[deg] ?? 0) * 12;
+          playPianoNote(ctx, masterGain!, midiToFrequency(noteMidi), slotTime, noteDuration,
+            pianoSound, pianoState.volume * currentStyle.volumes.piano * velocity, noteMidi);
+        }
+      } else {
       const pianoVelocity = pattern.piano[patternSlot];
       if (pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound && pianoVelocity > 0) {
         // Check if this slot is an arpeggio
@@ -1412,19 +1435,43 @@ export function scheduleProgression(
           });
         }
       }
-      
-      // Bass - uses velocity from pattern
-      const bassVelocity = pattern.bass[patternSlot];
-      if (bassState && isInstrumentAudible(bassState, instruments) && bassSound && bassVelocity > 0) {
-        const bassNote = midiNotes[0];
-        const noteDuration = currentStyle.bassSustain ? beatDuration * 2 : slotDuration * 2;
-        const bassVol = bassState.volume * currentStyle.volumes.bass * bassVelocity;
-        if (bassSound.useSamples && bassSound.samplePath) {
-          const adjustedMidi = bassNote + bassSound.octaveOffset * 12;
-          scheduleSampledNoteByDir(ctx, masterGain!, bassSound.samplePath, adjustedMidi, slotTime, noteDuration, bassVol);
-        } else {
-          const frequency = midiToFrequency(bassNote);
-          playBassNote(ctx, masterGain!, frequency, slotTime, noteDuration, bassSound, bassVol);
+      } // end piano scale else
+
+      // Bass - scale pattern (custom) or style pattern (fallback)
+      const bassScaleData = getBassScale?.(sectionId);
+      if (bassScaleData && bassState && isInstrumentAudible(bassState, instruments) && bassSound) {
+        const { pattern: scalePattern, loopBars, octaveOffsets: bOctaveOffsets } = bassScaleData;
+        const loopSlots = loopBars * 16;
+        const slotInLoop = currentGlobalSlot % loopSlots;
+        const scale = getBassScale_getScale(chord.quality);
+        const noteDuration = slotDuration * 3;
+        for (const degStr of Object.keys(scalePattern)) {
+          const deg = Number(degStr) as 1|2|3|4|5|6|7;
+          const degSlots = scalePattern[deg];
+          if (!degSlots) continue;
+          const velocity = degSlots[slotInLoop] ?? 0;
+          if (velocity <= 0) continue;
+          const noteMidi = midiNotes[0] + scale[deg - 1] + (bOctaveOffsets?.[deg] ?? 0) * 12;
+          const bassVol = bassState.volume * currentStyle.volumes.bass * velocity;
+          if (bassSound.useSamples && bassSound.samplePath) {
+            scheduleSampledNoteByDir(ctx, masterGain!, bassSound.samplePath, noteMidi + (bassSound.octaveOffset ?? 0) * 12, slotTime, noteDuration, bassVol);
+          } else {
+            playBassNote(ctx, masterGain!, midiToFrequency(noteMidi), slotTime, noteDuration, bassSound, bassVol);
+          }
+        }
+      } else {
+        const bassVelocity = pattern.bass[patternSlot];
+        if (bassState && isInstrumentAudible(bassState, instruments) && bassSound && bassVelocity > 0) {
+          const bassNote = midiNotes[0];
+          const noteDuration = currentStyle.bassSustain ? beatDuration * 2 : slotDuration * 2;
+          const bassVol = bassState.volume * currentStyle.volumes.bass * bassVelocity;
+          if (bassSound.useSamples && bassSound.samplePath) {
+            const adjustedMidi = bassNote + bassSound.octaveOffset * 12;
+            scheduleSampledNoteByDir(ctx, masterGain!, bassSound.samplePath, adjustedMidi, slotTime, noteDuration, bassVol);
+          } else {
+            const frequency = midiToFrequency(bassNote);
+            playBassNote(ctx, masterGain!, frequency, slotTime, noteDuration, bassSound, bassVol);
+          }
         }
       }
       
@@ -1467,7 +1514,22 @@ export function scheduleProgression(
         }
       }
       
-      // Guitar - uses its own pattern (no fallback to piano)
+      // Guitar - scale pattern (custom) or style pattern (fallback)
+      const guitarScaleData = getGuitarScale?.(sectionId);
+      if (guitarScaleData && guitarState && isInstrumentAudible(guitarState, instruments) && guitarSound) {
+        const { pattern: scalePattern, loopBars: gLoopBars, octaveOffsets: gOctaveOffsets } = guitarScaleData;
+        const slotInLoop = currentGlobalSlot % (gLoopBars * 16);
+        const scale = getBassScale_getScale(chord.quality);
+        const noteDuration = slotDuration * 3;
+        for (const degStr of Object.keys(scalePattern)) {
+          const deg = Number(degStr) as 1|2|3|4|5|6|7;
+          const velocity = (scalePattern[deg]?.[slotInLoop] ?? 0);
+          if (velocity <= 0) continue;
+          const noteMidi = midiNotes[0] + scale[deg - 1] + (gOctaveOffsets?.[deg] ?? 0) * 12;
+          const vol = guitarState.volume * (currentStyle.volumes.guitar ?? currentStyle.volumes.piano) * velocity;
+          playGuitarNote(ctx, masterGain!, midiToFrequency(noteMidi), slotTime, noteDuration, guitarSound, vol, noteMidi);
+        }
+      } else {
       const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? 0;
       if (guitarState && isInstrumentAudible(guitarState, instruments) && guitarSound && guitarVelocity > 0) {
         // Check if this slot is an arpeggio
@@ -1505,8 +1567,9 @@ export function scheduleProgression(
           });
         }
       }
+      } // end guitar scale else
     }
-    
+
     // Update global slot index
     globalSlotIndex += slotCount;
     

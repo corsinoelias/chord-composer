@@ -9,6 +9,7 @@ import { type Section } from '@/lib/sections';
 import { type InstrumentState, getDefaultInstrumentStates } from '@/lib/instruments';
 import { type StylePattern, MUSICAL_STYLES, getStyleByIdWithOverrides } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
+import { type MelodicData, resolveVariation } from '@/lib/bassScale';
 import {
   ensureSamplesLoaded,
   scheduleProgression,
@@ -50,6 +51,7 @@ interface PlayOptions {
   liveEditedStyle?: StylePattern | null;
   customStyles?: StylePattern[];
   loopingSectionIndex?: number | null;
+  melodic?: MelodicData;
 }
 
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
@@ -236,6 +238,24 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       getInstruments: () => optionsRef.current?.instruments ?? options.instruments,
       getTransposition: () => optionsRef.current?.transposition ?? 0,
       getBpm: () => optionsRef.current?.bpm ?? options.bpm,
+      getBassScale: (sectionId: string) => {
+        const mel = optionsRef.current?.melodic;
+        if (!mel) return null;
+        const sec = sectionsRef.current.find(s => s.id === sectionId);
+        return resolveVariation(mel.bass, sec?.bassVariationId);
+      },
+      getPianoScale: (sectionId: string) => {
+        const mel = optionsRef.current?.melodic;
+        if (!mel) return null;
+        const sec = sectionsRef.current.find(s => s.id === sectionId);
+        return resolveVariation(mel.piano, sec?.pianoVariationId);
+      },
+      getGuitarScale: (sectionId: string) => {
+        const mel = optionsRef.current?.melodic;
+        if (!mel) return null;
+        const sec = sectionsRef.current.find(s => s.id === sectionId);
+        return resolveVariation(mel.guitar, sec?.guitarVariationId);
+      },
     });
 
     cancelRef.current = cancel;

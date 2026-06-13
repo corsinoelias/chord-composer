@@ -1,6 +1,6 @@
 import { supabase, ensureAuth } from './supabase';
 import type { Song } from './songs';
-import { generateSongId } from './songs';
+import { generateSongId, migrateLegacySong } from './songs';
 
 export async function getSongsFromCloud(): Promise<Song[]> {
   const userId = await ensureAuth();
@@ -14,7 +14,7 @@ export async function getSongsFromCloud(): Promise<Song[]> {
     console.error('Cloud getSongs error:', error.message);
     return [];
   }
-  return (data ?? []).map(row => row.data as Song);
+  return (data ?? []).map(row => migrateLegacySong(row.data));
 }
 
 export async function getSongFromCloud(id: string): Promise<Song | null> {
@@ -26,7 +26,7 @@ export async function getSongFromCloud(id: string): Promise<Song | null> {
     .eq('id', id)
     .single();
   if (error) return null;
-  return data ? (data.data as Song) : null;
+  return data ? migrateLegacySong(data.data) : null;
 }
 
 export async function saveSongToCloud(song: Song): Promise<void> {

@@ -11,6 +11,9 @@ export interface Section {
   name: string;
   chords: Chord[];
   repeatCount: number;
+  bassVariationId?: string;
+  pianoVariationId?: string;
+  guitarVariationId?: string;
 }
 
 export function generateSectionId(): string {

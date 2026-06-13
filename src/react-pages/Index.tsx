@@ -17,7 +17,7 @@ import {
   SortableContext,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { type Chord, generateChordId } from '@/lib/musicTheory';
+import { type Chord, generateChordId, chordToMidiNotes } from '@/lib/musicTheory';
 import { type Section, createSection, getSectionDisplayName } from '@/lib/sections';
 import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { getStyleByIdWithOverrides, MUSICAL_STYLES, type StylePattern } from '@/lib/styles';
@@ -50,6 +50,7 @@ import { WaveformVisualizer } from '@/components/WaveformVisualizer';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { MixingConsole } from '@/components/MixingConsole';
+import { type MelodicData, emptyMelodicData } from '@/lib/bassScale';
 import { Button } from '@/components/ui/button';
 import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'lucide-react';
 import { toast } from 'sonner';
@@ -142,6 +143,7 @@ const Index = ({ songId }: IndexProps) => {
   const [showCountdown, setShowCountdown] = useState(false);
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
   const [mixingConsoleOpen, setMixingConsoleOpen] = useState(false);
+  const [melodic, setMelodic] = useState<MelodicData>(emptyMelodicData);
   const [animatingSections, setAnimatingSections] = useState<{ index: number; direction: 'up' | 'down' }[]>([]);
   
   // Refs for current values (used in callbacks)
@@ -154,6 +156,7 @@ const Index = ({ songId }: IndexProps) => {
   const loopingSectionRef = useRef<number | null>(null);
   const liveEditedStyleRef = useRef<StylePattern | null>(null);
   const customStylesRef = useRef<StylePattern[]>([]);
+  const melodicRef = useRef<MelodicData>(emptyMelodicData());
   
   // Sync refs immediately (not in useEffect) to avoid race conditions
   sectionsRef.current = sections;
@@ -165,12 +168,21 @@ const Index = ({ songId }: IndexProps) => {
   useEffect(() => { transpositionRef.current = transposition; }, [transposition]);
   useEffect(() => { liveEditedStyleRef.current = liveEditedStyle; }, [liveEditedStyle]);
   useEffect(() => { customStylesRef.current = customStyles; }, [customStyles]);
+  melodicRef.current = melodic;
 
   // Memoize current style to avoid recalculating on every render
   const currentStyle = useMemo(() => {
     if (liveEditedStyle) return liveEditedStyle;
     return getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0];
   }, [selectedStyleId, customStyles, liveEditedStyle]);
+
+  const bassReferenceChord = useMemo(() => {
+    const allChords = sections.flatMap(s => s.chords);
+    const idx = isPlaying && currentChordIndex >= 0 ? currentChordIndex : 0;
+    const chord = allChords[idx] ?? allChords[0];
+    if (!chord) return { rootMidi: 48, quality: 'maj' };
+    return { rootMidi: (chordToMidiNotes(chord)[0] ?? 48) + transposition, quality: chord.quality };
+  }, [sections, currentChordIndex, isPlaying, transposition]);
 
   // Sync instruments with current style when style changes
   useStyleInstruments({
@@ -217,6 +229,13 @@ const Index = ({ songId }: IndexProps) => {
     }
   }, [liveEditedStyle, isPlaying, updatePlaybackOptions]);
 
+  // Update melodic patterns in playback engine when changed during playback
+  useEffect(() => {
+    if (isPlaying) {
+      updatePlaybackOptions({ melodic });
+    }
+  }, [melodic, isPlaying, updatePlaybackOptions]);
+
   // Load song from URL param
   useEffect(() => {
     if (songId && songId !== currentSongId) {
@@ -237,6 +256,7 @@ const Index = ({ songId }: IndexProps) => {
           setCurrentSongId(song.id);
           setSongCreatedAt(song.createdAt);
           setLastSavedAt(new Date(song.updatedAt));
+          if (song.melodic) setMelodic(song.melodic);
         } else {
           toast.error('Song not found');
           window.location.href = '/app';
@@ -305,6 +325,7 @@ const Index = ({ songId }: IndexProps) => {
         transposition,
         instrumentSettings: instruments,
         metronomeEnabled,
+        melodic,
       };
 
       saveSongWithSync(song);
@@ -317,7 +338,7 @@ const Index = ({ songId }: IndexProps) => {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, songCreatedAt]);
+  }, [currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, melodic, songCreatedAt]);
 
   // Handle export from Songs page
   useEffect(() => {
@@ -389,6 +410,7 @@ const Index = ({ songId }: IndexProps) => {
       liveEditedStyle: liveEditedStyleRef.current,
       customStyles: customStylesRef.current,
       loopingSectionIndex: loopIdx,
+      melodic: melodicRef.current,
     });
   }, [play]);
 
@@ -1087,6 +1109,15 @@ const Index = ({ songId }: IndexProps) => {
                     };
                     setSections(newSections);
                   }}
+                  melodic={melodic}
+                  onVariationChange={(instrument, variationId) => {
+                    setSections(prev => prev.map((s, i) => i !== sectionIndex ? s : {
+                      ...s,
+                      bassVariationId: instrument === 'bass' ? variationId : s.bassVariationId,
+                      pianoVariationId: instrument === 'piano' ? variationId : s.pianoVariationId,
+                      guitarVariationId: instrument === 'guitar' ? variationId : s.guitarVariationId,
+                    }));
+                  }}
                 />
               ))}
             </div>
@@ -1208,6 +1239,10 @@ const Index = ({ songId }: IndexProps) => {
           setEditingNewStyle(null);
           setRhythmEditorOpen(false);
         }}
+        melodic={melodic}
+        onMelodicChange={setMelodic}
+        referenceRootMidi={bassReferenceChord.rootMidi}
+        referenceQuality={bassReferenceChord.quality}
       />
 
       <CreateRhythmModal
