@@ -80,6 +80,16 @@ export function MelodicPatternGrid({
     updateActivePattern({ ...activeVariation.pattern, [degree]: padded });
   };
 
+  const handleChordHitClick = (slot: number) => {
+    if (!activeVariation) return;
+    const cur = activeVariation.chordHit ?? Array(totalSlots).fill(0);
+    const padded = cur.length < totalSlots
+      ? [...cur, ...Array(totalSlots - cur.length).fill(0)]
+      : [...cur];
+    padded[slot] = padded[slot] > 0 ? 0 : 1;
+    update(variations.map(v => v.id === resolvedActiveId ? { ...v, chordHit: padded } : v));
+  };
+
   const handleLoopBarsChange = (bars: 1 | 2 | 4) => {
     if (!activeVariation) return;
     const newSlots = bars * 16;
@@ -90,7 +100,14 @@ export function MelodicPatternGrid({
         ? slots.slice(0, newSlots)
         : [...slots, ...Array(newSlots - slots.length).fill(0)];
     }
-    update(variations.map(v => v.id === resolvedActiveId ? { ...v, loopBars: bars, pattern: adjusted } : v));
+    const adjustedChordHit = activeVariation.chordHit
+      ? activeVariation.chordHit.length >= newSlots
+        ? activeVariation.chordHit.slice(0, newSlots)
+        : [...activeVariation.chordHit, ...Array(newSlots - activeVariation.chordHit.length).fill(0)]
+      : undefined;
+    update(variations.map(v =>
+      v.id === resolvedActiveId ? { ...v, loopBars: bars, pattern: adjusted, chordHit: adjustedChordHit } : v
+    ));
   };
 
   const handlePreset = (name: string) => {
@@ -251,6 +268,39 @@ export function MelodicPatternGrid({
                 </div>
               ))}
             </div>
+
+            {/* Chord hit row — plays all chord tones simultaneously */}
+            {(() => {
+              const chordHitSlots = activeVariation.chordHit ?? [];
+              return (
+                <div className="flex items-center mb-1">
+                  <div className="w-28 flex-shrink-0 flex items-center gap-1 pr-2">
+                    <span className="text-sm font-mono w-3">♩</span>
+                    <span className="text-xs rounded px-1 min-w-[28px] text-center bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold">
+                      Acorde
+                    </span>
+                  </div>
+                  {Array.from({ length: totalSlots }, (_, slot) => {
+                    const active = (chordHitSlots[slot] ?? 0) > 0;
+                    const isCurrent = isPlaying && currentStep !== undefined && currentStep >= 0 && (currentStep % totalSlots) === slot;
+                    return (
+                      <button
+                        key={slot}
+                        onClick={() => handleChordHitClick(slot)}
+                        className={cn(
+                          'w-7 h-8 border transition-colors rounded-sm',
+                          slot % 4 === 0 && slot > 0 && 'border-l-2',
+                          isCurrent && !active && 'bg-amber-500/20',
+                          active
+                            ? 'bg-amber-500 border-amber-500'
+                            : 'border-amber-400/25 hover:bg-amber-500/10',
+                        )}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             {DEGREES.map(degree => {
               const isChordTone = CHORD_TONES.has(degree);

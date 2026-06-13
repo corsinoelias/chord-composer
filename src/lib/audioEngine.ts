@@ -1464,10 +1464,18 @@ export function scheduleProgression(
       // Piano - scale pattern (custom) or style pattern (fallback)
       const pianoScaleData = getPianoScale?.(sectionId);
       if (pianoScaleData && pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound) {
-        const { pattern: scalePattern, loopBars: pLoopBars, octaveOffsets: pOctaveOffsets } = pianoScaleData;
+        const { pattern: scalePattern, chordHit: pChordHit, loopBars: pLoopBars, octaveOffsets: pOctaveOffsets } = pianoScaleData;
         const slotInLoop = currentGlobalSlot % (pLoopBars * 16);
         const scale = getBassScale_getScale(chord.quality);
         const noteDuration = slotDuration * 3;
+        // Full chord hit — plays all chord tones (7th, 9th, etc. included)
+        const chordHitVelocity = pChordHit?.[slotInLoop] ?? 0;
+        if (chordHitVelocity > 0) {
+          midiNotes.forEach(noteMidi => {
+            playPianoNote(ctx, masterGain!, midiToFrequency(noteMidi), slotTime, noteDuration,
+              pianoSound, pianoState.volume * currentStyle.volumes.piano * chordHitVelocity, noteMidi);
+          });
+        }
         for (const degStr of Object.keys(scalePattern)) {
           const deg = Number(degStr) as 1|2|3|4|5|6|7;
           const velocity = (scalePattern[deg]?.[slotInLoop] ?? 0);
@@ -1596,10 +1604,18 @@ export function scheduleProgression(
       // Guitar - scale pattern (custom) or style pattern (fallback)
       const guitarScaleData = getGuitarScale?.(sectionId);
       if (guitarScaleData && guitarState && isInstrumentAudible(guitarState, instruments) && guitarSound) {
-        const { pattern: scalePattern, loopBars: gLoopBars, octaveOffsets: gOctaveOffsets } = guitarScaleData;
+        const { pattern: scalePattern, chordHit: gChordHit, loopBars: gLoopBars, octaveOffsets: gOctaveOffsets } = guitarScaleData;
         const slotInLoop = currentGlobalSlot % (gLoopBars * 16);
         const scale = getBassScale_getScale(chord.quality);
         const noteDuration = slotDuration * 3;
+        // Full chord hit — plays all chord tones (7th, 9th, etc. included)
+        const chordHitVelocity = gChordHit?.[slotInLoop] ?? 0;
+        if (chordHitVelocity > 0) {
+          midiNotes.forEach(noteMidi => {
+            const vol = guitarState.volume * (currentStyle.volumes.guitar ?? currentStyle.volumes.piano) * chordHitVelocity;
+            playGuitarNote(ctx, masterGain!, midiToFrequency(noteMidi), slotTime, noteDuration, guitarSound, vol, noteMidi);
+          });
+        }
         for (const degStr of Object.keys(scalePattern)) {
           const deg = Number(degStr) as 1|2|3|4|5|6|7;
           const velocity = (scalePattern[deg]?.[slotInLoop] ?? 0);

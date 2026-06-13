@@ -16,6 +16,7 @@ export type DegreePattern = Partial<Record<Degree, number[]>>;
 
 export interface BassScaleData {
   pattern: DegreePattern;
+  chordHit?: number[]; // velocity per slot — plays ALL chord tones simultaneously
   loopBars: 1 | 2 | 4;
   octaveOffsets?: Partial<Record<Degree, number>>;
 }
@@ -24,6 +25,7 @@ export interface ScaleVariation {
   id: string;
   name: string;
   pattern: DegreePattern;
+  chordHit?: number[]; // velocity per slot — plays ALL chord tones simultaneously
   loopBars: 1 | 2 | 4;
   octaveOffsets?: Partial<Record<Degree, number>>;
 }
@@ -64,8 +66,9 @@ export function resolveVariation(
   const v = variationId
     ? (melodic.variations.find(x => x.id === variationId) ?? melodic.variations[0])
     : melodic.variations[0];
-  if (!v || scalePatternIsEmpty(v.pattern)) return null;
-  return { pattern: v.pattern, loopBars: v.loopBars, octaveOffsets: v.octaveOffsets };
+  const hasContent = !scalePatternIsEmpty(v?.pattern ?? {}) || (v?.chordHit ?? []).some(x => x > 0);
+  if (!v || !hasContent) return null;
+  return { pattern: v.pattern, chordHit: v.chordHit, loopBars: v.loopBars, octaveOffsets: v.octaveOffsets };
 }
 
 export function getScale(quality: string): number[] {
