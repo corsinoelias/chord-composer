@@ -20,6 +20,7 @@ let currentlyPlaying = false;
 let playbackStoppedCallback: (() => void) | null = null;
 let playbackMutex = false; // Prevent multiple simultaneous playback instances
 let sampleLoadingComplete = false; // Track if initial load completed
+let drumSamplePromise: Promise<void> | null = null; // Critical — no synthesis fallback
 
 /**
  * Get the analyser node for visualization
@@ -269,24 +270,32 @@ export function getAudioContext(): AudioContext {
 
     // Only load samples once per app lifecycle; buffers can be reused across contexts.
     if (!sampleLoadingComplete) {
+      // Bass dirs — fire and forget, lazy per sampleEngine
       for (const dir of ['modo', 'slap', 'finger', 'muted']) {
         preloadSampleDir(audioContext, dir).catch(() => {})
       }
-      sampleLoadPromise = Promise.all([
-        loadAcousticSamples(audioContext),
-        loadPianoSamples(audioContext),
-        loadGuitarSamples(audioContext),
-      ])
+
+      // CRITICAL: drums have no synthesis fallback — must be ready before first beat
+      drumSamplePromise = loadAcousticSamples(audioContext);
+
+      // BACKGROUND: piano and guitar both have synthesis fallbacks, load after drums
+      // so they don't compete for bandwidth on the critical path
+      const backgroundLoad = drumSamplePromise.then(() =>
+        Promise.all([
+          loadPianoSamples(audioContext!),
+          loadGuitarSamples(audioContext!),
+        ])
+      );
+
+      sampleLoadPromise = backgroundLoad
         .then(() => {
           sampleLoadingComplete = true;
-          console.log('All samples loaded and ready');
         })
-        .catch((err) => {
-          console.error('Sample loading failed:', err);
-          // Mark as complete even on error to prevent infinite waiting
+        .catch(() => {
           sampleLoadingComplete = true;
         });
     } else {
+      drumSamplePromise = Promise.resolve();
       sampleLoadPromise = Promise.resolve();
     }
   }
@@ -325,24 +334,26 @@ export async function preloadAudio(): Promise<void> {
 }
 
 /**
- * Ensures samples are loaded before playback with timeout
+ * Ensures samples are loaded before playback with timeout.
+ * Only blocks on drums — they have no synthesis fallback.
+ * Piano and guitar load in the background and fall back to synthesis until ready.
  */
 export async function ensureSamplesLoaded(): Promise<void> {
   const ctx = getAudioContext();
-  
+
   // Resume if suspended (critical for mobile)
   if (ctx.state === 'suspended') {
     await ctx.resume();
   }
-  
-  if (sampleLoadPromise && !sampleLoadingComplete) {
+
+  if (drumSamplePromise) {
     try {
       await Promise.race([
-        sampleLoadPromise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+        drumSamplePromise,
+        new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
       ]);
     } catch (err) {
-      console.warn('Sample loading timeout, proceeding with synthesis fallback');
+      console.warn('Drum sample loading timeout, proceeding anyway');
     }
   }
 }
