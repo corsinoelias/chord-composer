@@ -238,19 +238,22 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       getBassScale: (sectionId: string) => {
         const mel = optionsRef.current?.melodic;
         if (!mel) return null;
-        const sec = sectionsRef.current.find(s => s.id === sectionId);
+        const liveSections = optionsRef.current?.sections ?? sectionsRef.current;
+        const sec = liveSections.find(s => s.id === sectionId);
         return resolveVariation(mel.bass, sec?.bassVariationId);
       },
       getPianoScale: (sectionId: string) => {
         const mel = optionsRef.current?.melodic;
         if (!mel) return null;
-        const sec = sectionsRef.current.find(s => s.id === sectionId);
+        const liveSections = optionsRef.current?.sections ?? sectionsRef.current;
+        const sec = liveSections.find(s => s.id === sectionId);
         return resolveVariation(mel.piano, sec?.pianoVariationId);
       },
       getGuitarScale: (sectionId: string) => {
         const mel = optionsRef.current?.melodic;
         if (!mel) return null;
-        const sec = sectionsRef.current.find(s => s.id === sectionId);
+        const liveSections = optionsRef.current?.sections ?? sectionsRef.current;
+        const sec = liveSections.find(s => s.id === sectionId);
         return resolveVariation(mel.guitar, sec?.guitarVariationId);
       },
       getSections: () => {

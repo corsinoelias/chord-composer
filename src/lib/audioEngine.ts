@@ -1271,12 +1271,46 @@ export function scheduleProgression(
   const totalSlots = chordSegments.reduce((sum, seg) => sum + seg.slotCount, 0);
   // For progressions ≥ 8 bars, use 8-bar phrase length so fills land at the end of the
   // full phrase rather than mid-phrase (e.g. 34-beat progression: bar 4 fill was wrong)
-  const totalBars = Math.floor(totalSlots / 16);
-  const phraseLength = totalBars >= 8 ? 8 : 4;
+  let phraseLength = Math.floor(totalSlots / 16) >= 8 ? 8 : 4;
+
+  // Reference used to detect section changes between chord boundaries
+  let lastKnownSections: Section[] | null = getSections ? getSections() : null;
 
   // Schedule a batch of slots (one chord segment at a time for efficiency)
   const scheduleSegment = (segmentStartTime: number) => {
     if (cancelled) return;
+
+    // Rebuild chord segments immediately when sections change so the very next
+    // chord played matches what the user sees — no need to wait for loop end.
+    if (getSections) {
+      const latestSections = getSections();
+      if (latestSections !== lastKnownSections && latestSections.length > 0 && latestSections.some(s => s.chords.length > 0)) {
+        const prevSegment = currentSegmentIndex < chordSegments.length ? chordSegments[currentSegmentIndex] : null;
+        const newSegments = buildChordSegments(latestSections);
+        const newBoundaries = buildSectionBoundaries(newSegments);
+
+        if (prevSegment) {
+          // Keep playing from the same chord if it still exists (chord was edited, not deleted)
+          const matchIdx = newSegments.findIndex(s => s.chord.id === prevSegment.chord.id);
+          if (matchIdx >= 0) {
+            currentSegmentIndex = matchIdx;
+          } else {
+            // Chord was removed — snap to closest valid index
+            currentSegmentIndex = Math.min(currentSegmentIndex, newSegments.length - 1);
+            lastChordIndex = -1;
+          }
+        } else {
+          currentSegmentIndex = 0;
+          lastChordIndex = -1;
+        }
+
+        chordSegments = newSegments;
+        sectionBoundaries = newBoundaries;
+        lastKnownSections = latestSections;
+        const newTotalSlots = newSegments.reduce((sum, seg) => sum + seg.slotCount, 0);
+        phraseLength = Math.floor(newTotalSlots / 16) >= 8 ? 8 : 4;
+      }
+    }
 
     // Re-read BPM each segment so live changes take effect on the next chord
     const slotDuration = (60 / getCurrentBpm()) / 4;
