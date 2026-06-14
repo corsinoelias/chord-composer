@@ -44,6 +44,7 @@ Interactive chord charts with synchronized lyrics — press Play and follow each
 ## About
 - [About Chord Sequence](https://chordsequence.com/about/): About the tool and its creator.
 - [Elías Corsino Saldaña](https://chordsequence.com/about/elias-corsino/): Creator of Chord Sequence — Musician & Software Developer from the Dominican Republic. Plays piano, bass, guitar, and drums. Started learning music at age 12.
+- [CodiFlash](https://codiflash.com): Enterprise SharePoint and Microsoft 365 consulting company also founded by Elías Corsino Saldaña. Custom intranet development for mid-market and enterprise clients.
 
 ## Comparisons
 - [Best Chord Progression Generators 2026](https://chordsequence.com/best-chord-progression-generators/): Ranked comparison of Chord Sequence, ChordSeq AI, DBDone AI Chords, OneMotion, Mario Nieto Chord Generator, and Xfer Cthulhu — features, pricing, YouTube demos, and verdict.

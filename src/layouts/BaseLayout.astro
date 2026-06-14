@@ -61,6 +61,7 @@ const websiteSchema = {
 const orgSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
+  '@id': 'https://chordsequence.com/#organization',
   name: 'Chord Sequence',
   alternateName: 'Chord Player',
   url: 'https://chordsequence.com',
@@ -68,8 +69,15 @@ const orgSchema = {
   areaServed: 'Worldwide',
   description: 'Free online chord progression builder for songwriters, producers, and music students. 37 chord types, 13+ rhythm styles, WAV export. No account required.',
   logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
+  parentOrganization: {
+    '@type': 'Organization',
+    '@id': 'https://codiflash.com/#organization',
+    name: 'CodiFlash',
+    url: 'https://codiflash.com',
+  },
   founder: {
     '@type': 'Person',
+    '@id': 'https://chordsequence.com/about/elias-corsino/#person',
     name: 'Elías Corsino Saldaña',
     url: 'https://chordsequence.com/about/elias-corsino/',
     jobTitle: 'Musician & Software Developer',
@@ -78,6 +86,9 @@ const orgSchema = {
   sameAs: [
     'https://www.linkedin.com/in/elias-corsino-salda%C3%B1a-945138182/',
     'https://www.instagram.com/corsinoeliaas/',
+    'https://github.com/codiflash',
+    'https://www.youtube.com/@eliascorsino',
+    'https://www.fiverr.com/eliascorsino',
   ],
 };
 ---

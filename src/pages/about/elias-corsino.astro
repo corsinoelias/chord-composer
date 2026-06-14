@@ -8,6 +8,7 @@ const author = AUTHORS['elias-corsino'];
 const personSchema = {
   '@context': 'https://schema.org',
   '@type': 'Person',
+  '@id': 'https://chordsequence.com/about/elias-corsino/#person',
   name: author.name,
   url: author.url,
   jobTitle: author.role,
@@ -17,8 +18,25 @@ const personSchema = {
     url: 'https://chordsequence.com/images/elias-corsino.jpg',
   },
   nationality: { '@type': 'Country', name: 'Dominican Republic' },
-  sameAs: [author.linkedin, author.instagram],
-  knowsAbout: ['Music Theory', 'Chord Progressions', 'Piano', 'Bass Guitar', 'Guitar', 'Drums', 'Software Development', 'Web Development'],
+  worksFor: {
+    '@type': 'Organization',
+    '@id': 'https://codiflash.com/#organization',
+    name: 'CodiFlash',
+    url: 'https://codiflash.com',
+  },
+  sameAs: [
+    author.linkedin,
+    author.instagram,
+    'https://github.com/codiflash',
+    'https://www.youtube.com/@eliascorsino',
+    'https://www.fiverr.com/eliascorsino',
+    'https://codiflash.com/en/about/',
+  ],
+  knowsAbout: [
+    'Music Theory', 'Chord Progressions', 'Piano', 'Bass Guitar',
+    'Guitar', 'Drums', 'Software Development', 'Web Development',
+    'SharePoint', 'Microsoft 365',
+  ],
 };
 
 const breadcrumbSchema = {
