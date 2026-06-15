@@ -154,7 +154,7 @@ const Index = ({ songId }: IndexProps) => {
   const loopingSectionRef = useRef<number | null>(null);
   const liveEditedStyleRef = useRef<StylePattern | null>(null);
   const customStylesRef = useRef<StylePattern[]>([]);
-  
+
   // Sync refs immediately (not in useEffect) to avoid race conditions
   sectionsRef.current = sections;
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
@@ -171,6 +171,10 @@ const Index = ({ songId }: IndexProps) => {
     if (liveEditedStyle) return liveEditedStyle;
     return getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0];
   }, [selectedStyleId, customStyles, liveEditedStyle]);
+
+  // Keep melodicRef in sync so startPlayback always gets the current melodic data
+  const melodicRef = useRef(currentStyle.melodic);
+  melodicRef.current = currentStyle.melodic;
 
   const bassReferenceChord = useMemo(() => {
     const allChords = sections.flatMap(s => s.chords);
@@ -419,7 +423,7 @@ const Index = ({ songId }: IndexProps) => {
       liveEditedStyle: liveEditedStyleRef.current,
       customStyles: customStylesRef.current,
       loopingSectionIndex: loopIdx,
-      melodic: currentStyle.melodic,
+      melodic: melodicRef.current,
     });
   }, [play]);
 

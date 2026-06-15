@@ -88,8 +88,6 @@ export interface StylePattern {
   };
   // Instrument sound types for this style
   instrumentSounds?: InstrumentSounds;
-  // Bass sustain: if true, bass notes sustain until next note
-  bassSustain?: boolean;
   // Melodic scale patterns for bass, piano, guitar (per-style variations)
   melodic?: import('./bassScale').MelodicData;
 }
@@ -208,7 +206,6 @@ export const MUSICAL_STYLES: StylePattern[] = [
         hihatFoot:  [0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0],
       },
     },
-    bassSustain: false,
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },
@@ -245,7 +242,6 @@ export const MUSICAL_STYLES: StylePattern[] = [
         hihatFoot:  [0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0, 0, 0, 0, 0, 0],
       },
     },
-    bassSustain: false,
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },
@@ -275,7 +271,6 @@ export const MUSICAL_STYLES: StylePattern[] = [
         crash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, 0],
       },
     },
-    bassSustain: false,
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },
@@ -358,7 +353,6 @@ export const MUSICAL_STYLES: StylePattern[] = [
         snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0],
       },
     },
-    bassSustain: false,
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
   },
@@ -389,7 +383,6 @@ export const MUSICAL_STYLES: StylePattern[] = [
         snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0],
       },
     },
-    bassSustain: false,
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
   },
@@ -746,7 +739,6 @@ export const MUSICAL_STYLES: StylePattern[] = [
         hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.4],
       },
     },
-    bassSustain: true,
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },
@@ -780,7 +772,6 @@ export const MUSICAL_STYLES: StylePattern[] = [
         snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.4, 0],
       },
     },
-    bassSustain: true,
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },

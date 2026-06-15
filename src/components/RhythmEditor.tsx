@@ -88,6 +88,37 @@ interface RhythmEditorProps {
   referenceQuality?: string;
 }
 
+// Migrate rhythm.bass/piano/guitar into melodic variations so they appear in their own tabs
+function migrateRhythmToMelodic(style: StylePattern): StylePattern {
+  const melodic = {
+    bass:   { ...(style.melodic?.bass   ?? { variations: [], enabled: false }) },
+    piano:  { ...(style.melodic?.piano  ?? { variations: [], enabled: false }) },
+    guitar: { ...(style.melodic?.guitar ?? { variations: [], enabled: false }) },
+  };
+  let changed = false;
+
+  if (style.rhythm.bass?.some(v => v > 0) && melodic.bass.variations.length === 0) {
+    const v = createVariation('Default');
+    v.pattern[1] = [...style.rhythm.bass];
+    melodic.bass = { variations: [v], enabled: true };
+    changed = true;
+  }
+  if (style.rhythm.piano?.some(v => v > 0) && melodic.piano.variations.length === 0) {
+    const v = createVariation('Default');
+    v.chordHit = [...style.rhythm.piano];
+    melodic.piano = { variations: [v], enabled: true };
+    changed = true;
+  }
+  if (style.rhythm.guitar?.some(v => v > 0) && melodic.guitar.variations.length === 0) {
+    const v = createVariation('Default');
+    v.chordHit = [...style.rhythm.guitar];
+    melodic.guitar = { variations: [v], enabled: true };
+    changed = true;
+  }
+
+  return changed ? { ...style, melodic } : style;
+}
+
 const VELOCITY_LEVELS = [0, 0.3, 0.5, 0.7, 1];
 const VELOCITY_COLORS = [
   'bg-secondary',
@@ -229,7 +260,7 @@ export function RhythmEditor({
       }
     }
     
-    const cloned = cloneStyle(styleToLoad);
+    const cloned = migrateRhythmToMelodic(cloneStyle(styleToLoad));
     setEditedStyle(cloned);
     setOriginalStyleName(style.name); // Keep original name for dropdown
     editedStyleRef.current = cloned;
@@ -1008,22 +1039,23 @@ export function RhythmEditor({
           {/* Tab Navigation */}
           <div className="px-4 border-b border-border flex gap-0">
             {([
-              { key: 'drums', label: 'Batería' },
-              { key: 'piano', label: 'Piano' },
-              { key: 'bass', label: 'Bajo' },
-              { key: 'guitar', label: 'Guitarra' },
+              { key: 'drums', label: 'Drums', Icon: Drum },
+              { key: 'piano', label: 'Piano', Icon: Piano },
+              { key: 'bass', label: 'Bass', Icon: Music },
+              { key: 'guitar', label: 'Guitar', Icon: Guitar },
             ] as const).map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={cn(
-                  'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+                  'px-3 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5',
                   activeTab === tab.key
                     ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground',
                 )}
               >
-                {tab.label}
+                <tab.Icon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{tab.label}</span>
               </button>
             ))}
           </div>
@@ -1167,7 +1199,7 @@ export function RhythmEditor({
               
               {/* Grid Rows */}
               <div className="space-y-0.5 sm:space-y-1">
-                {sortedActiveInstruments.map(instrument => {
+                {sortedActiveInstruments.filter(i => i.category === 'drums').map(instrument => {
                   const basePattern = editedStyle.rhythm[instrument.key] || createEmptyPattern();
                   const fillPattern = editedStyle.fill.pattern[instrument.key];
                   const Icon = instrument.icon;
@@ -1195,8 +1227,8 @@ export function RhythmEditor({
                                 ? (isInFillZone ? (fillPattern?.[step] ?? 0) : basePattern[step])
                                 : basePattern[step];
 
-                              // Check if this cell is an arpeggio (only for piano/guitar)
-                              const supportsArpeggio = instrument.key === 'piano' || instrument.key === 'guitar';
+                              // Piano/guitar are filtered out of drums grid, so arpeggio never applies here
+                              const supportsArpeggio = false;
                               const arpeggioKey = instrument.key as 'piano' | 'guitar';
                               const arpeggioCell: ArpeggioCell | null = supportsArpeggio 
                                 ? (showFill 
@@ -1298,7 +1330,7 @@ export function RhythmEditor({
                                           <Separator />
                                           <div className="flex items-center justify-between">
                                             <Label className="text-xs font-medium flex items-center gap-1">
-                                              <span>♪</span> Arpegio
+                                              <span>♪</span> Arpeggio
                                             </Label>
                                             <Switch
                                               checked={isArpeggio}
@@ -1312,13 +1344,13 @@ export function RhythmEditor({
                                             <div className="space-y-2 pt-1">
                                               {/* Type selector */}
                                               <div className="flex items-center justify-between gap-2">
-                                                <Label className="text-[10px] text-muted-foreground">Tipo</Label>
+                                                <Label className="text-[10px] text-muted-foreground">Type</Label>
                                                 <div className="flex gap-1">
                                                   {([
-                                                    { value: 'up', label: '↑', title: 'Ascendente' },
-                                                    { value: 'down', label: '↓', title: 'Descendente' },
-                                                    { value: 'updown', label: '↕', title: 'Ida-vuelta' },
-                                                    { value: 'random', label: '⟳', title: 'Aleatorio' },
+                                                    { value: 'up', label: '↑', title: 'Ascending' },
+                                                    { value: 'down', label: '↓', title: 'Descending' },
+                                                    { value: 'updown', label: '↕', title: 'Up-Down' },
+                                                    { value: 'random', label: '⟳', title: 'Random' },
                                                   ] as const).map(opt => (
                                                     <Button
                                                       key={opt.value}
@@ -1336,13 +1368,13 @@ export function RhythmEditor({
                                               
                                               {/* Speed selector */}
                                               <div className="flex items-center justify-between gap-2">
-                                                <Label className="text-[10px] text-muted-foreground">Velocidad</Label>
+                                                <Label className="text-[10px] text-muted-foreground">Speed</Label>
                                                 <div className="flex gap-1">
                                                   {([
-                                                    { value: 'slow', label: '1x', title: 'Lento' },
+                                                    { value: 'slow', label: '1x', title: 'Slow' },
                                                     { value: 'normal', label: '2x', title: 'Normal' },
-                                                    { value: 'fast', label: '4x', title: 'Rápido' },
-                                                    { value: 'veryfast', label: '8x', title: 'Muy rápido' },
+                                                    { value: 'fast', label: '4x', title: 'Fast' },
+                                                    { value: 'veryfast', label: '8x', title: 'Very fast' },
                                                   ] as const).map(opt => (
                                                     <Button
                                                       key={opt.value}
@@ -1361,7 +1393,7 @@ export function RhythmEditor({
                                           )}
                                           
                                           <p className="text-[10px] text-muted-foreground">
-                                            Las notas suenan secuencialmente en vez de juntas
+                                            Notes play sequentially instead of together
                                           </p>
                                         </>
                                       )}
@@ -1428,7 +1460,7 @@ export function RhythmEditor({
           {/* Footer / Legend */}
           <div className="p-2 sm:p-3 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:justify-between">
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Click: velocidad | ♪: arpegio</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Click: velocity | ♪: arpeggio</span>
               <Separator orientation="vertical" className="h-4 hidden sm:block" />
               <div className="flex items-center gap-1 sm:gap-2">
                 <span className="text-[10px] sm:text-xs text-muted-foreground">Vel:</span>
@@ -1441,15 +1473,6 @@ export function RhythmEditor({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={editedStyle.bassSustain || false}
-                onCheckedChange={v => setEditedStyle(prev => ({ ...prev, bassSustain: v }))}
-                id="bass-sustain"
-                className="scale-90 sm:scale-100"
-              />
-              <Label htmlFor="bass-sustain" className="text-[10px] sm:text-xs cursor-pointer">Bass Sustain</Label>
-            </div>
           </div>
           </>
           ) : (

@@ -22,6 +22,17 @@ let playbackMutex = false; // Prevent multiple simultaneous playback instances
 let sampleLoadingComplete = false; // Track if initial load completed
 let drumSamplePromise: Promise<void> | null = null; // Critical — no synthesis fallback
 
+// Chord schedule for rAF-based visual sync
+let _chordSchedule: { audioTime: number; chordIndex: number }[] = [];
+
+export function getChordSchedule(): { audioTime: number; chordIndex: number }[] {
+  return _chordSchedule;
+}
+
+export function clearChordSchedule(): void {
+  _chordSchedule = [];
+}
+
 /**
  * Get the analyser node for visualization
  */
@@ -1391,16 +1402,11 @@ export function scheduleProgression(
     
     const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
     
-    // Schedule chord change callback (only at start of chord)
+    // Schedule chord change — track in schedule array for rAF-based visual sync
     if (globalChordIndex !== lastChordIndex) {
       lastChordIndex = globalChordIndex;
-      if (onChordChange) {
-        const delayMs = Math.max(0, (segmentStartTime - ctx.currentTime) * 1000);
-        const timeout = window.setTimeout(() => {
-          if (!cancelled) onChordChange(globalChordIndex);
-        }, delayMs);
-        timeouts.push(timeout);
-      }
+      _chordSchedule.push({ audioTime: segmentStartTime, chordIndex: globalChordIndex });
+      if (_chordSchedule.length > 500) _chordSchedule = _chordSchedule.slice(-250);
     }
     
     // Calculate segment duration for scheduling
@@ -1550,7 +1556,7 @@ export function scheduleProgression(
         const bassVelocity = pattern.bass[patternSlot];
         if (bassState && isInstrumentAudible(bassState, instruments) && bassSound && bassVelocity > 0) {
           const bassNote = midiNotes[0];
-          const noteDuration = currentStyle.bassSustain ? beatDuration * 2 : slotDuration * 2;
+          const noteDuration = slotDuration * 2;
           const bassVol = bassState.volume * currentStyle.volumes.bass * bassVelocity;
           if (bassSound.useSamples && bassSound.samplePath) {
             const adjustedMidi = bassNote + bassSound.octaveOffset * 12;
@@ -1948,7 +1954,7 @@ export async function renderProgressionOffline(
           } else if (bassState && !bassState.muted && bassSound && bassVelocity > 0) {
             const bassNote = midiNotes[0];
             const volume = bassState.volume * style.volumes.bass * bassVelocity;
-            const noteDuration = style.bassSustain ? beatDuration * 2 : slotDuration * 2;
+            const noteDuration = slotDuration * 2;
             if (bassSound.useSamples && bassSound.samplePath) {
               offlineBassPromises.push(
                 scheduleSampledNoteByDirAsync(offlineCtx, offlineMasterGain, bassSound.samplePath, bassNote + bassSound.octaveOffset * 12, slotTime, noteDuration, volume)
@@ -2265,6 +2271,7 @@ export async function renderProgressionOffline(
  * Stops all audio playback
  */
 export function stopPlayback(): void {
+  clearChordSchedule();
   // Release mutex first
   releasePlaybackMutex();
 

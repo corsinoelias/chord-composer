@@ -136,7 +136,7 @@ export function MelodicPatternGrid({
     const n: ScaleVariation = {
       ...activeVariation,
       id: `sv_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      name: `${activeVariation.name} (copia)`,
+      name: `${activeVariation.name} (copy)`,
     };
     const updated = [...variations, n];
     update(updated);
@@ -164,9 +164,9 @@ export function MelodicPatternGrid({
   if (variations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground">
-        <p className="text-sm">No hay variaciones todavía.</p>
+        <p className="text-sm">No variations yet.</p>
         <Button size="sm" onClick={handleNewVariation}>
-          <Plus className="h-4 w-4 mr-1" /> Crear primera variación
+          <Plus className="h-4 w-4 mr-1" /> Create first variation
         </Button>
       </div>
     );
@@ -236,18 +236,18 @@ export function MelodicPatternGrid({
           >
             <SelectTrigger className="w-28 h-7 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="1" className="text-xs">1 compás</SelectItem>
-              <SelectItem value="2" className="text-xs">2 compases</SelectItem>
-              <SelectItem value="4" className="text-xs">4 compases</SelectItem>
+              <SelectItem value="1" className="text-xs">1 bar</SelectItem>
+              <SelectItem value="2" className="text-xs">2 bars</SelectItem>
+              <SelectItem value="4" className="text-xs">4 bars</SelectItem>
             </SelectContent>
           </Select>
 
           <div className="flex gap-1 ml-auto">
-            <Button variant="ghost" size="sm" className="h-7 px-2 gap-1" onClick={handleDuplicate} title="Duplicar">
+            <Button variant="ghost" size="sm" className="h-7 px-2 gap-1" onClick={handleDuplicate} title="Duplicate">
               <Copy className="h-3 w-3" />
             </Button>
             {variations.length > 1 && (
-              <Button variant="ghost" size="sm" className="h-7 px-2 gap-1 text-destructive hover:text-destructive" onClick={handleDelete} title="Eliminar">
+              <Button variant="ghost" size="sm" className="h-7 px-2 gap-1 text-destructive hover:text-destructive" onClick={handleDelete} title="Delete">
                 <Trash2 className="h-3 w-3" />
               </Button>
             )}
@@ -277,7 +277,7 @@ export function MelodicPatternGrid({
                   <div className="w-28 flex-shrink-0 flex items-center gap-1 pr-2">
                     <span className="text-sm font-mono w-3">♩</span>
                     <span className="text-xs rounded px-1 min-w-[28px] text-center bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold">
-                      Acorde
+                      Chord
                     </span>
                   </div>
                   {Array.from({ length: totalSlots }, (_, slot) => {
@@ -363,7 +363,7 @@ export function MelodicPatternGrid({
           className="self-start h-7 gap-1 text-destructive hover:text-destructive text-xs"
           onClick={() => updateActivePattern({})}
         >
-          <Trash2 className="h-3 w-3" /> Limpiar patrón
+          <Trash2 className="h-3 w-3" /> Clear pattern
         </Button>
       )}
     </div>

@@ -18,6 +18,8 @@ import {
   acquirePlaybackMutex,
   releasePlaybackMutex,
   getAudioContext,
+  getChordSchedule,
+  clearChordSchedule,
 } from '@/lib/audioEngine';
 
 interface PlaybackState {
@@ -75,6 +77,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   });
 
   const cancelRef = useRef<(() => void) | null>(null);
+  const rafRef = useRef<number>();
   const optionsRef = useRef<PlayOptions | null>(null);
   const sectionsRef = useRef<Section[]>([]);
   const audioPreloaded = useRef(false);
@@ -184,6 +187,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       cancelRef.current();
       cancelRef.current = null;
     }
+    clearChordSchedule();
     
     sectionsRef.current = sections;
     optionsRef.current = options;
@@ -226,8 +230,8 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       instruments: options.instruments,
       style,
       transposition: options.transposition,
-      onChordChange: (index) => setState(prev => ({ ...prev, currentChordIndex: index })),
-      onLoopEnd: () => setState(prev => ({ ...prev, currentChordIndex: 0 })),
+      onChordChange: undefined,
+      onLoopEnd: undefined,
       onStepChange: (step) => setState(prev => ({ ...prev, currentStep: step })),
       getStyle,
       // Dynamic getters for real-time updates without restart
@@ -301,6 +305,36 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       stopAudioPlayback();
     };
   }, []);
+
+  // rAF-based chord index sync — reads directly from the Web Audio clock, no setTimeout drift
+  useEffect(() => {
+    if (!state.isPlaying) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      return;
+    }
+    const loop = () => {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const schedule = getChordSchedule();
+        let found = -1;
+        for (let i = schedule.length - 1; i >= 0; i--) {
+          if (schedule[i].audioTime <= now) {
+            found = schedule[i].chordIndex;
+            break;
+          }
+        }
+        if (found >= 0) {
+          setState(prev => prev.currentChordIndex === found ? prev : { ...prev, currentChordIndex: found });
+        }
+      } catch {
+        // Audio context not yet initialized
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [state.isPlaying]);
 
   const value: PlaybackContextValue = {
     state,
