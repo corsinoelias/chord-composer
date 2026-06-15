@@ -26,9 +26,10 @@ interface ChordEditModalProps {
   onDuplicate?: () => void;
   onPreview?: (chord: Partial<Chord>) => void;
   songKey?: string;
+  transposition?: number;
 }
 
-export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDuplicate, onPreview, songKey }: ChordEditModalProps) {
+export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDuplicate, onPreview, songKey, transposition = 0 }: ChordEditModalProps) {
   const [root, setRoot] = useState<RootNote>('C');
   const [accidental, setAccidental] = useState<Accidental>('');
   const [quality, setQuality] = useState<ChordQuality>('maj');
@@ -47,9 +48,9 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
     id: 'modal-preview', root, accidental, quality, duration,
   }), [root, accidental, quality, duration]);
 
-  const activeNotes = useMemo(() => getChordNotes(previewChord), [previewChord]);
-  const guitarVoicing = useMemo(() => getGuitarVoicing(previewChord, 0), [previewChord]);
-  const chordDisplayName = useMemo(() => getTransposedChordName(previewChord, 0), [previewChord]);
+  const activeNotes = useMemo(() => getChordNotes(previewChord, transposition), [previewChord, transposition]);
+  const guitarVoicing = useMemo(() => getGuitarVoicing(previewChord, transposition), [previewChord, transposition]);
+  const chordDisplayName = useMemo(() => getTransposedChordName(previewChord, transposition), [previewChord, transposition]);
 
   // Sync state when chord changes or modal opens
   useEffect(() => {
@@ -89,7 +90,7 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-lg bg-card border-border flex flex-col max-h-[90vh]">
         <DialogHeader className="shrink-0">
-          <DialogTitle className="text-foreground">Edit Chord</DialogTitle>
+          <DialogTitle className="text-foreground">{chordDisplayName}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4 overflow-y-auto flex-1 pr-1">

@@ -40,6 +40,7 @@ interface SectionCardProps {
   onSetProgression: (chords: Chord[]) => void;
   melodic?: MelodicData;
   onVariationChange?: (instrument: 'bass' | 'piano' | 'guitar', variationId: string) => void;
+  transposition?: number;
 }
 
 // Section color palette
@@ -88,6 +89,7 @@ export const SectionCard = memo(function SectionCard({
   onSetProgression,
   melodic,
   onVariationChange,
+  transposition = 0,
 }: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
@@ -379,6 +381,7 @@ export const SectionCard = memo(function SectionCard({
                       onSelectToggle={(ctrl) => onChordSelect(index, ctrl)}
                       onDelete={() => onChordDelete(index)}
                       onDuplicate={() => onChordDuplicate(index)}
+                      transposition={transposition}
                     />
                   )
                 })}

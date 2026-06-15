@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react';
-import { type Chord, formatChord } from '@/lib/musicTheory';
+import { type Chord } from '@/lib/musicTheory';
+import { getTransposedChordName } from '@/lib/chordNotes';
 import { X, Copy } from 'lucide-react';
 
 interface ChordBlockProps {
@@ -10,6 +11,7 @@ interface ChordBlockProps {
   onDuplicate?: () => void;
   isDragging?: boolean;
   fixedWidth?: boolean;
+  transposition?: number;
 }
 
 /**
@@ -32,7 +34,8 @@ export const ChordBlock = memo(function ChordBlock({
   onDelete,
   onDuplicate,
   isDragging,
-  fixedWidth = false
+  fixedWidth = false,
+  transposition = 0,
 }: ChordBlockProps) {
   const colorVar = useMemo(() => getChordColorVar(chord.quality), [chord.quality]);
 
@@ -74,7 +77,7 @@ export const ChordBlock = memo(function ChordBlock({
         className="font-mono font-bold text-sm sm:text-base"
         style={{ color: isPlaying ? `hsl(${colorVar})` : 'hsl(var(--foreground))' }}
       >
-        {formatChord(chord)}
+        {getTransposedChordName(chord, transposition)}
       </span>
       
       {/* Duration indicator - visual dots */}

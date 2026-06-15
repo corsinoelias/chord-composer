@@ -27,8 +27,8 @@ const personSchema = {
   sameAs: [
     author.linkedin,
     author.instagram,
+    author.youtube,
     'https://github.com/codiflash',
-    'https://www.youtube.com/@eliascorsino',
     'https://www.fiverr.com/eliascorsino',
     'https://codiflash.com/en/about/',
   ],
@@ -99,6 +99,14 @@ const breadcrumbSchema = {
             class="text-xs font-medium text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
           >
             Instagram ↗
+          </a>
+          <a
+            href={author.youtube}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-xs font-medium text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
+          >
+            YouTube ↗
           </a>
         </div>
       </div>

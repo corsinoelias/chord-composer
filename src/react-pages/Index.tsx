@@ -1087,6 +1087,7 @@ const Index = ({ songId }: IndexProps) => {
                   key={section.id}
                   section={section}
                   sectionIndex={sectionIndex}
+                  transposition={transposition}
                   currentChordIndex={currentChordIndex}
                   globalChordOffset={getGlobalOffset(sectionIndex)}
                   totalSections={sections.length}
@@ -1135,6 +1136,7 @@ const Index = ({ songId }: IndexProps) => {
                 <ChordBlock
                   chord={activeChord.chord}
                   isPlaying={false}
+                  transposition={transposition}
                   onDelete={() => {}}
                   onDuplicate={() => {}}
                   isDragging
@@ -1196,6 +1198,7 @@ const Index = ({ songId }: IndexProps) => {
         onDelete={editingChord ? () => handleChordDelete(editingChord.sectionIndex, editingChord.chordIndex) : undefined}
         onDuplicate={editingChord ? () => handleChordDuplicate(editingChord.sectionIndex, editingChord.chordIndex) : undefined}
         onPreview={handleChordPreview}
+        transposition={transposition}
       />
 
       <AddChordModal

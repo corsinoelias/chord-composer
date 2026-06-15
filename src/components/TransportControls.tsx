@@ -1,11 +1,10 @@
-import { memo, useState } from 'react';
-import { Play, Square, Download, Loader2, Volume2, VolumeX, Settings2, Grid3X3, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { memo } from 'react';
+import { Play, Square, Download, Loader2, Volume2, VolumeX, Settings2, Grid3X3, Plus, ChevronDown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,7 +66,6 @@ export const TransportControls = memo(function TransportControls({
   onCreateNewRhythm,
   hasChords,
 }: TransportControlsProps) {
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const isMobile = useIsMobile();
 
   return (
@@ -254,7 +252,7 @@ export const TransportControls = memo(function TransportControls({
               <Grid3X3 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               <span className="hidden xs:inline">Rhythm</span>
             </Button>
-            
+
             {onCreateNewRhythm && (
               <Button variant="ghost" size="sm" onClick={onCreateNewRhythm} className="gap-1 sm:gap-1.5 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
                 <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -262,70 +260,51 @@ export const TransportControls = memo(function TransportControls({
               </Button>
             )}
 
-            {/* Advanced toggle */}
-            <div className="ml-auto">
-              <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm text-muted-foreground">
-                    {advancedOpen ? <ChevronUp className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
-                    <span className="hidden xs:inline">More</span>
-                  </Button>
-                </CollapsibleTrigger>
-              </Collapsible>
+            <div className="h-6 w-px bg-border/70 mx-0.5 sm:mx-1 hidden xs:block" />
+
+            {/* Transpose Control */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide whitespace-nowrap hidden sm:block">
+                Transpose
+              </Label>
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onTranspositionChange(transposition - 1)}
+                      disabled={transposition <= -12}
+                      className="h-7 sm:h-8 w-7 sm:w-8 p-0"
+                      aria-label="Transpose down one semitone"
+                    >
+                      -
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Transpose down</TooltipContent>
+                </Tooltip>
+                <span className={`w-8 sm:w-10 text-center font-mono text-xs sm:text-sm font-medium ${transposition !== 0 ? 'text-primary' : ''}`}>
+                  {transposition > 0 ? `+${transposition}` : transposition}
+                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onTranspositionChange(transposition + 1)}
+                      disabled={transposition >= 12}
+                      className="h-7 sm:h-8 w-7 sm:w-8 p-0"
+                      aria-label="Transpose up one semitone"
+                    >
+                      +
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Transpose up</TooltipContent>
+                </Tooltip>
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Advanced Options - Collapsible */}
-        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-          <CollapsibleContent>
-            <div className="px-3 sm:px-4 md:px-5 pb-3 sm:pb-4 md:pb-5 pt-0">
-              <div className="flex flex-wrap items-center gap-3 sm:gap-4 p-2 sm:p-3 rounded-xl bg-muted/30 border border-border/50">
-                {/* Transpose Control */}
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wide whitespace-nowrap">
-                    Transpose
-                  </Label>
-                  <div className="flex items-center gap-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onTranspositionChange(transposition - 1)}
-                          disabled={transposition <= -12}
-                          className="h-7 sm:h-8 w-7 sm:w-8 p-0"
-                          aria-label="Transpose down one semitone"
-                        >
-                          -
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Transpose down</TooltipContent>
-                    </Tooltip>
-                    <span className="w-8 sm:w-10 text-center font-mono text-xs sm:text-sm font-medium">
-                      {transposition > 0 ? `+${transposition}` : transposition}
-                    </span>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onTranspositionChange(transposition + 1)}
-                          disabled={transposition >= 12}
-                          className="h-7 sm:h-8 w-7 sm:w-8 p-0"
-                          aria-label="Transpose up one semitone"
-                        >
-                          +
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Transpose up</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
       </div>
     </TooltipProvider>
   );
