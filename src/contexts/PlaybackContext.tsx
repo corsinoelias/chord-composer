@@ -7,7 +7,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { type Section } from '@/lib/sections';
 import { type InstrumentState, getDefaultInstrumentStates } from '@/lib/instruments';
-import { type StylePattern, MUSICAL_STYLES, getStyleByIdWithOverrides } from '@/lib/styles';
+import { type StylePattern, MUSICAL_STYLES, resolveActiveStyle } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
 import { type MelodicData, resolveVariation } from '@/lib/bassScale';
 import {
@@ -215,26 +215,17 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     // Setup Media Session for background playback
     setupMediaSession('Chord Progression');
 
-    let _getStyleCallCount = 0;
     const getStyle = () => {
       const opts = optionsRef.current;
-      if (!opts) {
-        console.log('[AUDIO] getStyle() — opts is null, returning MUSICAL_STYLES[0]');
-        return MUSICAL_STYLES[0];
-      }
-      if (opts.liveEditedStyle) {
-        console.log(`[AUDIO] getStyle() — liveEditedStyle is set ("${opts.liveEditedStyle.id}"), returning it`);
-        return opts.liveEditedStyle;
-      }
-      const resolved = getStyleByIdWithOverrides(opts.styleId, opts.customStyles || getCustomStyles(), getStyleOverride) || MUSICAL_STYLES[0];
-      if (_getStyleCallCount < 5) {
-        console.log(`[AUDIO] getStyle() call #${_getStyleCallCount + 1} — opts.styleId: "${opts.styleId}" → resolved: "${resolved.id}", bpm: ${opts.bpm}`);
-        _getStyleCallCount++;
-      }
-      return resolved;
+      if (!opts) return MUSICAL_STYLES[0];
+      return resolveActiveStyle(
+        opts.styleId,
+        opts.liveEditedStyle,
+        opts.customStyles ?? getCustomStyles(),
+        getStyleOverride,
+      );
     };
 
-    console.log(`[AUDIO] play() starting — options.styleId: "${options.styleId}", bpm: ${options.bpm}`);
     const style = getStyle();
 
     const { cancel } = scheduleProgression(sections, options.bpm, {

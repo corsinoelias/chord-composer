@@ -20,7 +20,7 @@ import {
 import { type Chord, generateChordId, chordToMidiNotes } from '@/lib/musicTheory';
 import { type Section, createSection, getSectionDisplayName } from '@/lib/sections';
 import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
-import { getStyleByIdWithOverrides, MUSICAL_STYLES, type StylePattern } from '@/lib/styles';
+import { getStyleByIdWithOverrides, resolveActiveStyle, MUSICAL_STYLES, type StylePattern } from '@/lib/styles';
 import { getCustomStyles, getStyleOverride, saveStyleOverride, saveCustomStyle, isCustomStyle, initCustomStylesCache } from '@/lib/customStyles';
 import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAudio } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
@@ -151,37 +151,31 @@ const Index = ({ songId }: IndexProps) => {
   const [animatingSections, setAnimatingSections] = useState<{ index: number; direction: 'up' | 'down' }[]>([]);
   
   // Refs for current values (used in callbacks)
-  const sectionsRef = useRef<Section[]>([]);
-  const bpmRef = useRef(100);
-  const metronomeRef = useRef(true);
-  const instrumentsRef = useRef<InstrumentState[]>(getDefaultInstrumentStates());
-  const transpositionRef = useRef(0);
+  const sectionsRef = useRef<Section[]>(sections);
+  const bpmRef = useRef(bpm);
+  const metronomeRef = useRef(metronomeEnabled);
+  const instrumentsRef = useRef<InstrumentState[]>(instruments);
+  const transpositionRef = useRef(transposition);
   const styleRef = useRef(selectedStyleId);
   const loopingSectionRef = useRef<number | null>(null);
   const liveEditedStyleRef = useRef<StylePattern | null>(null);
-  const customStylesRef = useRef<StylePattern[]>([]);
+  const customStylesRef = useRef<StylePattern[]>(customStyles);
 
-  // Sync refs immediately (not in useEffect) to avoid race conditions
+  // Sync refs during render (not in useEffect) — eliminates 1-render lag
   sectionsRef.current = sections;
-  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
-  useEffect(() => { metronomeRef.current = metronomeEnabled; }, [metronomeEnabled]);
-  useEffect(() => { instrumentsRef.current = instruments; }, [instruments]);
-  useEffect(() => { styleRef.current = selectedStyleId; }, [selectedStyleId]);
+  bpmRef.current = bpm;
+  metronomeRef.current = metronomeEnabled;
+  instrumentsRef.current = instruments;
+  styleRef.current = selectedStyleId;
   loopingSectionRef.current = loopingSectionIndex;
-  useEffect(() => { transpositionRef.current = transposition; }, [transposition]);
-  useEffect(() => { liveEditedStyleRef.current = liveEditedStyle; }, [liveEditedStyle]);
-  useEffect(() => { customStylesRef.current = customStyles; }, [customStyles]);
+  transpositionRef.current = transposition;
+  liveEditedStyleRef.current = liveEditedStyle;
+  customStylesRef.current = customStyles;
 
-  // Memoize current style to avoid recalculating on every render
-  const currentStyle = useMemo(() => {
-    if (liveEditedStyle) return liveEditedStyle;
-    const style = getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0];
-    const melodicBass = (style as StylePattern & { melodic?: { bass?: { variations?: unknown[]; enabled?: boolean } } }).melodic?.bass;
-    console.log(
-      `[SONG] currentStyle resolved — id: "${style.id}", bpm: ${style.bpm}, melodic.bass: ${melodicBass ? `${melodicBass.variations?.length ?? 0} vars, enabled: ${melodicBass.enabled}` : 'none'}`,
-    );
-    return style;
-  }, [selectedStyleId, customStyles, liveEditedStyle]);
+  const currentStyle = useMemo(
+    () => resolveActiveStyle(selectedStyleId, liveEditedStyle, customStyles, getStyleOverride),
+    [selectedStyleId, customStyles, liveEditedStyle],
+  );
 
   // Keep melodicRef in sync so startPlayback always gets the current melodic data
   const melodicRef = useRef(currentStyle.melodic);
@@ -233,35 +227,19 @@ const Index = ({ songId }: IndexProps) => {
     return closestCenter(args);
   }, []);
 
-  // Update playback options when liveEditedStyle changes during playback
+  // Single effect to keep all playback options in sync during playback
   useEffect(() => {
-    if (isPlaying) {
-      updatePlaybackOptions({ liveEditedStyle });
-    }
-  }, [liveEditedStyle, isPlaying, updatePlaybackOptions]);
-
-  // Update melodic patterns in playback engine when style changes during playback
-  useEffect(() => {
-    if (isPlaying) {
-      updatePlaybackOptions({ melodic: currentStyle.melodic });
-    }
-  }, [currentStyle.melodic, isPlaying, updatePlaybackOptions]);
-
-  // Keep sections in sync so getBassScale/getPianoScale/getGuitarScale always read current variationIds
-  useEffect(() => {
-    if (isPlaying) {
-      updatePlaybackOptions({ sections });
-    }
-  }, [sections, isPlaying, updatePlaybackOptions]);
-
-  // Keep styleId + customStyles in sync so getStyle() uses the current style during playback
-  // (critical when a new song loads while audio is running)
-  useEffect(() => {
-    if (isPlaying) {
-      console.log(`[SONG] updatePlaybackOptions styleId: "${selectedStyleId}"`);
-      updatePlaybackOptions({ styleId: selectedStyleId, customStyles });
-    }
-  }, [selectedStyleId, customStyles, isPlaying, updatePlaybackOptions]);
+    if (!isPlaying) return;
+    updatePlaybackOptions({
+      bpm, styleId: selectedStyleId, customStyles, liveEditedStyle,
+      melodic: currentStyle.melodic, instruments, transposition,
+      metronome: metronomeEnabled, loopingSectionIndex,
+    });
+  }, [
+    isPlaying, bpm, selectedStyleId, customStyles, liveEditedStyle,
+    currentStyle.melodic, instruments, transposition, metronomeEnabled,
+    loopingSectionIndex, updatePlaybackOptions,
+  ]);
 
   // Load song from URL param
   useEffect(() => {
@@ -756,27 +734,12 @@ const Index = ({ songId }: IndexProps) => {
     // Section drag is no longer handled here (using buttons instead)
   };
 
-  // All changes applied seamlessly — no restart ever needed
+  // Stop playback when all chords are removed; sections sync is handled by the consolidated effect above
   useEffect(() => {
     if (isPlaying && !sections.some(s => s.chords.length > 0)) {
       stopPlaybackCompletely();
-    } else {
-      updatePlaybackOptions({ sections });
     }
   }, [sections]);
-
-  useEffect(() => {
-    if (isPlaying) {
-      updatePlaybackOptions({
-        bpm,
-        styleId: selectedStyleId,
-        loopingSectionIndex,
-        metronome: metronomeEnabled,
-        instruments,
-        transposition,
-      });
-    }
-  }, [bpm, selectedStyleId, loopingSectionIndex, metronomeEnabled, instruments, transposition, isPlaying, updatePlaybackOptions]);
 
   const handleExport = useCallback(async () => {
     const hasChords = sections.some(s => s.chords.length > 0);
@@ -786,7 +749,7 @@ const Index = ({ songId }: IndexProps) => {
     toast.info('Rendering audio...');
 
     try {
-      const style = liveEditedStyle || getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0];
+      const style = resolveActiveStyle(selectedStyleId, liveEditedStyle, customStyles, getStyleOverride);
       const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition);
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
       await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);

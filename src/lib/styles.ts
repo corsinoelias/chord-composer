@@ -884,16 +884,28 @@ export function getStyleById(id: string, customStyles: StylePattern[] = []): Sty
  * This version checks for overrides of built-in styles
  */
 export function getStyleByIdWithOverrides(
-  id: string, 
+  id: string,
   customStyles: StylePattern[] = [],
   overrideGetter: (id: string) => StylePattern | null
 ): StylePattern | undefined {
-  // First check if there's an override for this built-in style
   const override = overrideGetter(id);
   if (override) return override;
-  
-  // Then check custom styles, then built-in
   return customStyles.find(s => s.id === id) || MUSICAL_STYLES.find(s => s.id === id);
+}
+
+/**
+ * Single source of truth for resolving the active playback style.
+ * Used in both Index.tsx (currentStyle useMemo) and PlaybackContext (getStyle getter)
+ * so both always compute the same result from the same inputs.
+ */
+export function resolveActiveStyle(
+  selectedStyleId: string,
+  liveEditedStyle: StylePattern | null | undefined,
+  customStyles: StylePattern[],
+  overrideGetter: (id: string) => StylePattern | null,
+): StylePattern {
+  if (liveEditedStyle) return liveEditedStyle;
+  return getStyleByIdWithOverrides(selectedStyleId, customStyles, overrideGetter) ?? MUSICAL_STYLES[0];
 }
 
 /**

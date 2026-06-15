@@ -234,12 +234,13 @@ export function RhythmEditor({
       const currentJson = JSON.stringify(editedStyle);
       setHasUnsavedChanges(currentJson !== originalStyleRef.current);
     }
-    // Only propagate live edits when the editor is open — emitting when closed
-    // would overwrite liveEditedStyle with stale placeholder style on page load.
-    if (open) {
+    // Only propagate after the editor has been initialized (initializedStyleIdRef is set
+    // by the init effect, which only runs when open=true). This prevents emitting
+    // on page load (when closed) and prevents the cascade caused by adding `open` to deps.
+    if (initializedStyleIdRef.current) {
       onStyleChange?.(editedStyle);
     }
-  }, [editedStyle, onStyleChange, open]);
+  }, [editedStyle, onStyleChange]);
 
   useEffect(() => {
     showFillRef.current = showFill;
