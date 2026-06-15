@@ -9,10 +9,24 @@ export async function initCustomStylesCache(): Promise<{
   customStyles: StylePattern[];
   styleOverrides: Record<string, StylePattern>;
 }> {
+  console.log('[STYLES] initCustomStylesCache — loading settings…');
   const settings = await getUserSettings();
   _customStyles = settings.customStyles;
   _styleOverrides = settings.styleOverrides;
-  return settings;
+
+  const overrideKeys = Object.keys(_styleOverrides);
+  console.log(
+    `[STYLES] Cache ready — customStyles: ${_customStyles.length}, overrides: [${overrideKeys.join(', ')}]`,
+  );
+  overrideKeys.forEach(key => {
+    const ov = _styleOverrides[key];
+    const melodicBass = (ov as StylePattern & { melodic?: { bass?: { variations?: unknown[] } } }).melodic?.bass?.variations?.length ?? 0;
+    const melodicPiano = (ov as StylePattern & { melodic?: { piano?: { variations?: unknown[] } } }).melodic?.piano?.variations?.length ?? 0;
+    const melodicGuitar = (ov as StylePattern & { melodic?: { guitar?: { variations?: unknown[] } } }).melodic?.guitar?.variations?.length ?? 0;
+    console.log(`[STYLES]   override["${key}"] — bpm: ${ov.bpm}, melodic bass:${melodicBass} piano:${melodicPiano} guitar:${melodicGuitar}`);
+  });
+
+  return { customStyles: _customStyles, styleOverrides: _styleOverrides };
 }
 
 // ==================== CUSTOM STYLES ====================
@@ -22,6 +36,7 @@ export function getCustomStyles(): StylePattern[] {
 }
 
 export async function saveCustomStyle(style: StylePattern): Promise<void> {
+  console.log(`[STYLES] saveCustomStyle — id: ${style.id}`);
   const existing = _customStyles.findIndex(s => s.id === style.id);
   if (existing >= 0) {
     _customStyles[existing] = style;
@@ -32,6 +47,7 @@ export async function saveCustomStyle(style: StylePattern): Promise<void> {
 }
 
 export async function deleteCustomStyle(styleId: string): Promise<void> {
+  console.log(`[STYLES] deleteCustomStyle — id: ${styleId}`);
   _customStyles = _customStyles.filter(s => s.id !== styleId);
   await saveUserSettings({ customStyles: _customStyles });
 }
@@ -56,15 +72,21 @@ export function getStyleOverrides(): Record<string, StylePattern> {
 }
 
 export function getStyleOverride(originalId: string): StylePattern | null {
-  return _styleOverrides[originalId] ?? null;
+  const ov = _styleOverrides[originalId] ?? null;
+  if (ov) {
+    console.log(`[STYLES] getStyleOverride("${originalId}") — found override`);
+  }
+  return ov;
 }
 
 export async function saveStyleOverride(originalId: string, style: StylePattern): Promise<void> {
+  console.log(`[STYLES] saveStyleOverride("${originalId}") — bpm: ${style.bpm}`);
   _styleOverrides[originalId] = style;
   await saveUserSettings({ styleOverrides: _styleOverrides });
 }
 
 export async function deleteStyleOverride(originalId: string): Promise<void> {
+  console.log(`[STYLES] deleteStyleOverride("${originalId}")`);
   delete _styleOverrides[originalId];
   await saveUserSettings({ styleOverrides: _styleOverrides });
 }

@@ -9,10 +9,22 @@ export const supabase: SupabaseClient | null =
     : null;
 
 export async function ensureAuth(): Promise<string | null> {
-  if (!supabase) return null;
+  if (!supabase) {
+    console.log('[AUTH] Supabase not configured — running without auth');
+    return null;
+  }
   const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) return session.user.id;
-  const { data } = await supabase.auth.signInAnonymously();
+  if (session?.user) {
+    console.log(`[AUTH] Existing session — user_id: ${session.user.id} (anon: ${session.user.is_anonymous})`);
+    return session.user.id;
+  }
+  console.log('[AUTH] No session found — signing in anonymously…');
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error) {
+    console.error('[AUTH] Anonymous sign-in failed:', error.message);
+    return null;
+  }
+  console.log(`[AUTH] New anonymous session — user_id: ${data.user?.id}`);
   return data.user?.id ?? null;
 }
 

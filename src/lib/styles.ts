@@ -479,7 +479,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
     id: 'merengue',
     name: 'Merengue',
     category: 'Latin',
-    bpm: 130,
+    bpm: 150,
     bpmRange: [115, 145],
     description: 'Feel suave y sofisticado. Patrón de clave 3-2, bajo anticipatorio.',
     rhythm: {

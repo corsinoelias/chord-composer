@@ -95,11 +95,16 @@ const Index = ({ songId }: IndexProps) => {
   });
   const [customStyles, setCustomStyles] = useState<StylePattern[]>(getCustomStyles());
 
-  // Determine initial style — prefer ?style= URL param, then merengue, then rock_basic
+  // Determine initial style — prefer ?style= URL param, then merengue (only for new songs)
   const getInitialStyleId = () => {
     const styleParam = new URLSearchParams(window.location.search).get('style');
     const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
     if (styleParam && allStyles.some(s => s.id === styleParam)) return styleParam;
+    // When loading an existing song the real styleId arrives async from Supabase.
+    // Use a neutral placeholder so the pre-load render doesn't apply the wrong style
+    // overrides. For new songs (no id in path) default to merengue as before.
+    const hasSongInUrl = window.location.pathname.includes('/editor/song_');
+    if (hasSongInUrl) return 'rock_basic';
     return allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic';
   };
 
@@ -111,7 +116,8 @@ const Index = ({ songId }: IndexProps) => {
       if (!isNaN(parsed) && parsed >= 40 && parsed <= 300) return parsed;
     }
     const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
-    const initialId = allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic';
+    const hasSongInUrl = window.location.pathname.includes('/editor/song_');
+    const initialId = hasSongInUrl ? 'rock_basic' : (allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic');
     return allStyles.find(s => s.id === initialId)?.bpm ?? 100;
   });
   const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
@@ -169,7 +175,12 @@ const Index = ({ songId }: IndexProps) => {
   // Memoize current style to avoid recalculating on every render
   const currentStyle = useMemo(() => {
     if (liveEditedStyle) return liveEditedStyle;
-    return getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0];
+    const style = getStyleByIdWithOverrides(selectedStyleId, customStyles, getStyleOverride) || MUSICAL_STYLES[0];
+    const melodicBass = (style as StylePattern & { melodic?: { bass?: { variations?: unknown[]; enabled?: boolean } } }).melodic?.bass;
+    console.log(
+      `[SONG] currentStyle resolved — id: "${style.id}", bpm: ${style.bpm}, melodic.bass: ${melodicBass ? `${melodicBass.variations?.length ?? 0} vars, enabled: ${melodicBass.enabled}` : 'none'}`,
+    );
+    return style;
   }, [selectedStyleId, customStyles, liveEditedStyle]);
 
   // Keep melodicRef in sync so startPlayback always gets the current melodic data
@@ -236,11 +247,32 @@ const Index = ({ songId }: IndexProps) => {
     }
   }, [currentStyle.melodic, isPlaying, updatePlaybackOptions]);
 
+  // Keep sections in sync so getBassScale/getPianoScale/getGuitarScale always read current variationIds
+  useEffect(() => {
+    if (isPlaying) {
+      updatePlaybackOptions({ sections });
+    }
+  }, [sections, isPlaying, updatePlaybackOptions]);
+
+  // Keep styleId + customStyles in sync so getStyle() uses the current style during playback
+  // (critical when a new song loads while audio is running)
+  useEffect(() => {
+    if (isPlaying) {
+      console.log(`[SONG] updatePlaybackOptions styleId: "${selectedStyleId}"`);
+      updatePlaybackOptions({ styleId: selectedStyleId, customStyles });
+    }
+  }, [selectedStyleId, customStyles, isPlaying, updatePlaybackOptions]);
+
   // Load song from URL param
   useEffect(() => {
     if (songId && songId !== currentSongId) {
+      console.log(`[SONG] Loading song: ${songId}`);
       getSongById(songId).then(song => {
         if (song) {
+          console.log(`[SONG] Song loaded — styleId: "${song.styleId}", bpm: ${song.bpm}, sections: ${song.sections.length}`);
+          song.sections.forEach((s, i) => {
+            console.log(`[SONG]   section[${i}] "${s.name}" — bassVar: ${s.bassVariationId ?? 'none'}, pianoVar: ${s.pianoVariationId ?? 'none'}, guitarVar: ${s.guitarVariationId ?? 'none'}`);
+          });
           setSections(song.sections.length > 0 ? song.sections : [{
             ...createSection('Section A'),
             chords: defaultChords
@@ -258,6 +290,7 @@ const Index = ({ songId }: IndexProps) => {
           setLastSavedAt(new Date(song.updatedAt));
           // Migrate legacy song.melodic → style (one-time, only if style has no melodic yet)
           if (song.melodic) {
+            console.log(`[SONG] Migrating legacy song.melodic to style override for "${song.styleId}"`);
             const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
             const targetStyle = getStyleByIdWithOverrides(song.styleId, allStyles, getStyleOverride);
             if (targetStyle && !targetStyle.melodic) {
@@ -272,6 +305,7 @@ const Index = ({ songId }: IndexProps) => {
             }
           }
         } else {
+          console.warn(`[SONG] Song not found: ${songId}`);
           toast.error('Song not found');
           window.location.href = '/app';
         }
@@ -326,8 +360,8 @@ const Index = ({ songId }: IndexProps) => {
 
     setIsSaving(true);
 
-    // Debounce save by 1.5 seconds
-    saveTimeoutRef.current = setTimeout(() => {
+    // Debounce save by 1.5 seconds, then await write before marking saved
+    saveTimeoutRef.current = setTimeout(async () => {
       const song: Song = {
         id: currentSongId,
         title: songTitle,
@@ -341,7 +375,13 @@ const Index = ({ songId }: IndexProps) => {
         metronomeEnabled,
       };
 
-      saveSongWithSync(song);
+      console.log(`[SONG] Auto-save firing — styleId: "${selectedStyleId}", bpm: ${bpm}`);
+      sections.forEach((s, i) => {
+        console.log(`[SONG]   section[${i}] "${s.name}" — bassVar: ${s.bassVariationId ?? 'none'}, pianoVar: ${s.pianoVariationId ?? 'none'}`);
+      });
+
+      await saveSongWithSync(song);
+      console.log('[SONG] Auto-save complete');
       setLastSavedAt(new Date());
       setIsSaving(false);
     }, 1500);
@@ -371,9 +411,11 @@ const Index = ({ songId }: IndexProps) => {
   }, [stopPlayback]);
 
 
-  // Load custom styles from Supabase on mount
+  // Load custom styles on mount
   useEffect(() => {
-    initCustomStylesCache().then(({ customStyles: cs }) => {
+    console.log('[SONG] initCustomStylesCache starting…');
+    initCustomStylesCache().then(({ customStyles: cs, styleOverrides }) => {
+      console.log(`[SONG] initCustomStylesCache done — ${cs.length} custom styles, overrides: [${Object.keys(styleOverrides).join(', ')}]`);
       setCustomStyles(cs);
     });
   }, []);

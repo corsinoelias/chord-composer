@@ -1378,6 +1378,9 @@ export function scheduleProgression(
     
     // Get current style and dynamic parameters
     const currentStyle = getStyle ? getStyle() : style;
+    if (currentSegmentIndex === 0) {
+      console.log(`[AUDIO] scheduleSegment bar#0 — currentStyle.id: "${currentStyle.id}", bpm: ${getCurrentBpm()}`);
+    }
     const instruments = getInstrumentStates();
     const transposition = getCurrentTransposition();
     const metronomeOn = isMetronomeEnabled();

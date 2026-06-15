@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -211,7 +211,7 @@ export function RhythmEditor({
   const playbackRef = useRef<{ cancel: () => void } | null>(null);
   const editedStyleRef = useRef<StylePattern>(editedStyle);
   const showFillRef = useRef(showFill);
-  const isInitializedRef = useRef(false);
+  const initializedStyleIdRef = useRef<string>('');
   const stepAnimationRef = useRef<number | null>(null);
   const loopStartTimeRef = useRef<number>(0);
   
@@ -234,8 +234,12 @@ export function RhythmEditor({
       const currentJson = JSON.stringify(editedStyle);
       setHasUnsavedChanges(currentJson !== originalStyleRef.current);
     }
-    onStyleChange?.(editedStyle);
-  }, [editedStyle, onStyleChange]);
+    // Only propagate live edits when the editor is open — emitting when closed
+    // would overwrite liveEditedStyle with stale placeholder style on page load.
+    if (open) {
+      onStyleChange?.(editedStyle);
+    }
+  }, [editedStyle, onStyleChange, open]);
 
   useEffect(() => {
     showFillRef.current = showFill;
@@ -244,12 +248,13 @@ export function RhythmEditor({
   // Initialize from style prop
   useEffect(() => {
     if (!open) {
-      isInitializedRef.current = false;
+      initializedStyleIdRef.current = '';
       return;
     }
-    
-    if (isInitializedRef.current) return;
-    isInitializedRef.current = true;
+
+    // Re-initialize whenever the active style ID changes (e.g. user switches style in the list)
+    if (initializedStyleIdRef.current === style.id && !isNewStyle) return;
+    initializedStyleIdRef.current = style.id;
     
     // For built-in styles, check if there's an override
     let styleToLoad = style;
@@ -260,7 +265,7 @@ export function RhythmEditor({
       }
     }
     
-    const cloned = migrateRhythmToMelodic(cloneStyle(styleToLoad));
+    const cloned = cloneStyle(styleToLoad);
     setEditedStyle(cloned);
     setOriginalStyleName(style.name); // Keep original name for dropdown
     editedStyleRef.current = cloned;
@@ -285,40 +290,6 @@ export function RhythmEditor({
     setCurrentStep(-1);
   }, [style, open, isNewStyle]);
 
-  // Re-initialize when style changes via dropdown
-  useEffect(() => {
-    if (open && isInitializedRef.current) {
-      // For built-in styles, check if there's an override
-      let styleToLoad = style;
-      if (!isCustomStyle(style.id)) {
-        const override = getStyleOverride(style.id);
-        if (override) {
-          styleToLoad = override;
-        }
-      }
-      
-      const cloned = cloneStyle(styleToLoad);
-      setEditedStyle(cloned);
-      setOriginalStyleName(style.name);
-      editedStyleRef.current = cloned;
-      originalStyleRef.current = JSON.stringify(cloned); // Store original for change detection
-      setHasUnsavedChanges(false);
-      
-      const active = new Set<InstrumentKey>();
-      Object.entries(cloned.rhythm).forEach(([key, pattern]) => {
-        if (pattern && pattern.some((v: number) => v > 0)) {
-          active.add(key as InstrumentKey);
-        }
-      });
-      active.add('kick');
-      active.add('snare');
-      active.add('hihat');
-      active.add('bass');
-      active.add('piano');
-      active.add('guitar');
-      setActiveInstruments(active);
-    }
-  }, [style.id]);
 
   useEffect(() => {
     if (!open) {
@@ -862,6 +833,13 @@ export function RhythmEditor({
     onClose();
   }, [isLocalPlaying, stopLocalPlayback, stopPreview, onClose]);
 
+  // Migration as computed view: shows rhythm.bass/piano/guitar as degree-1/chordHit rows
+  // without modifying editedStyle — so liveEditedStyle stays clean until the user makes a real edit
+  const migratedMelodic = useMemo(
+    () => migrateRhythmToMelodic(editedStyle).melodic ?? emptyMelodicData(),
+    [editedStyle]
+  );
+
   return (
     <>
       <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) handleCloseAttempt(); }}>
@@ -993,6 +971,32 @@ export function RhythmEditor({
               
               {/* Playback & Save Controls */}
               <div className="flex items-center gap-1 sm:gap-2 ml-auto">
+                {/* Reset to default (only for built-in styles with a saved override) */}
+                {hasOverride && !hasUnsavedChanges && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      deleteStyleOverride(style.id);
+                      const original = MUSICAL_STYLES.find(s => s.id === style.id);
+                      if (original) {
+                        const cloned = cloneStyle(original);
+                        setEditedStyle(cloned);
+                        editedStyleRef.current = cloned;
+                        originalStyleRef.current = JSON.stringify(cloned);
+                        setHasUnsavedChanges(false);
+                        onStyleChange?.(cloned);
+                      }
+                      toast.success('Reset to default');
+                    }}
+                    className="gap-1 px-2 sm:px-3"
+                    title="Remove customizations and restore the original built-in style"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                    <span className="hidden sm:inline">Reset</span>
+                  </Button>
+                )}
+
                 {/* Discard Changes button (only when there are unsaved changes) */}
                 {hasUnsavedChanges && (
                   <Button
@@ -1478,7 +1482,7 @@ export function RhythmEditor({
           ) : (
           <div className="flex-1 overflow-auto p-4">
             <MelodicPatternGrid
-              melodic={(editedStyle.melodic ?? emptyMelodicData())[activeTab as 'bass' | 'piano' | 'guitar']}
+              melodic={migratedMelodic[activeTab as 'bass' | 'piano' | 'guitar']}
               referenceRootMidi={referenceRootMidi}
               referenceQuality={referenceQuality}
               naturalOctave={activeTab === 'bass' ? -1 : 0}
@@ -1486,8 +1490,7 @@ export function RhythmEditor({
               isPlaying={isPlaying}
               onActiveVarChange={id => { activeVarIdRef.current[activeTab as 'bass' | 'piano' | 'guitar'] = id; }}
               onChange={updated => {
-                const base = editedStyle.melodic ?? emptyMelodicData();
-                setEditedStyle(prev => ({ ...prev, melodic: { ...base, [activeTab]: updated } }));
+                setEditedStyle(prev => ({ ...prev, melodic: { ...(prev.melodic ?? emptyMelodicData()), [activeTab]: updated } }));
               }}
             />
           </div>
