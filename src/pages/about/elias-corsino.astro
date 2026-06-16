@@ -39,6 +39,35 @@ const personSchema = {
   ],
 };
 
+const videoSchemas = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    name: 'Elías Corsino Playing Bass Guitar',
+    description: 'Elías Corsino playing bass guitar — musician and creator of Chord Sequence.',
+    thumbnailUrl: 'https://img.youtube.com/vi/lblASojOL-w/maxresdefault.jpg',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/lblASojOL-w',
+    url: 'https://www.youtube.com/watch?v=lblASojOL-w',
+    author: {
+      '@type': 'Person',
+      '@id': 'https://chordsequence.com/about/elias-corsino/#person',
+    },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    name: 'Elías Corsino Bass Performance',
+    description: 'Elías Corsino bass performance — musician and creator of Chord Sequence.',
+    thumbnailUrl: 'https://img.youtube.com/vi/obW-ymxaBbI/maxresdefault.jpg',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/obW-ymxaBbI',
+    url: 'https://www.youtube.com/watch?v=obW-ymxaBbI',
+    author: {
+      '@type': 'Person',
+      '@id': 'https://chordsequence.com/about/elias-corsino/#person',
+    },
+  },
+];
+
 const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
@@ -61,6 +90,9 @@ const breadcrumbSchema = {
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(personSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    {videoSchemas.map((vs) => (
+      <script is:inline type="application/ld+json" set:html={JSON.stringify(vs)} />
+    ))}
   </Fragment>
 
   <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
@@ -112,67 +144,131 @@ const breadcrumbSchema = {
       </div>
     </div>
 
+    <!-- Stats row -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
+      {[
+        { value: '12', label: 'age he started' },
+        { value: '4', label: 'instruments' },
+        { value: '4', label: 'genres played' },
+        { value: '1', label: 'app built' },
+      ].map(({ value, label }) => (
+        <div class="rounded-xl border border-border bg-card/40 px-4 py-5 text-center">
+          <p class="text-3xl font-bold text-foreground">{value}</p>
+          <p class="text-xs text-muted-foreground mt-1">{label}</p>
+        </div>
+      ))}
+    </div>
+
     <div class="prose prose-invert max-w-none space-y-6 text-muted-foreground leading-relaxed">
       <p>
-        Elías Corsino Saldaña is a musician and software developer from the Dominican Republic.
-        He started learning music at age 12 — first drawn to the piano by the way a single chord
-        could shift a room's entire mood — then picked up bass, guitar, and drums as his hunger
-        for understanding harmony kept growing.
+        At 12, Elías heard someone play a chord on piano. Not a song — just the chord, hanging
+        in the air. Something clicked that didn't unclick. He's been chasing that feeling across
+        four instruments ever since.
       </p>
 
       <p>
-        Bass became his main instrument. Playing in bands across genres — pop, R&amp;B, worship,
-        and jazz — forced him to think about harmony from the bottom up. A bassist has to know
-        exactly which chord the band is on, which note is the root, and where the progression
-        is going next. That experience gave him an intuitive, practical understanding of chord
-        progressions that no textbook can fully replicate.
+        Piano came first, then bass, guitar, and drums — each one because he wanted to understand
+        harmony from a different angle. Not collect instruments, just hear things differently.
       </p>
 
       <p>
-        Over the years, he noticed a gap. Most music theory resources were either too academic
-        — dense textbooks full of sheet music that non-readers couldn't use — or too shallow,
-        explaining what a chord was without ever explaining why it worked in context. He wanted
-        something in between: a tool that let you <em>hear</em> theory in action, instantly,
-        without needing a piano in the room or a DAW open on your computer.
+        Bass became the main one. Partly by accident — bands always need a bassist — but it
+        turned out to be the best music theory class he never paid for. The bass player can't
+        hide. You have to know <em>exactly</em> which chord is happening, where the root sits,
+        and what's coming next. Get that wrong, and the whole band notices.
       </p>
 
       <p>
-        As a software developer, he had the skills to build it. As a working musician, he knew
-        exactly what it needed to feel like. That's why he built{' '}
-        <strong class="text-foreground">Chord Sequence</strong> — a free, browser-based chord
-        progression builder that runs entirely in your browser, requires no account, and lets
-        any musician — beginner or professional — hear any progression in seconds.
+        Years of playing pop, R&amp;B, worship, and jazz in real bands made chord progressions
+        feel less like theory and more like a language. The kind you stop translating in your
+        head and just start speaking.
       </p>
 
+      <blockquote class="not-prose border-l-4 border-primary/40 pl-5 py-1 my-8">
+        <p class="text-lg text-foreground/80 italic leading-relaxed">
+          "Every article on this site was written with a bass in my hands at some point."
+        </p>
+      </blockquote>
+
       <p>
-        The music theory articles on this site come from the same place. Every explanation of
-        ii–V–I, every section on why the vi chord feels melancholic, every breakdown of what
-        makes a lo-fi progression sound the way it does — these are written from years of
-        playing these chords on real instruments, in real songs, with real musicians.
+        The frustrating part was that every tool for learning chord progressions was built for
+        people who already knew a lot. Too academic, or too shallow. He wanted something you
+        could open in a browser, drop in a ii–V–I, and <em>hear</em> what the theory actually
+        sounds like — in thirty seconds, no account, no tutorial. So he built{' '}
+        <strong class="text-foreground">Chord Sequence</strong>.
       </p>
 
-      <h2 class="text-2xl font-bold text-foreground mt-10 mb-4">Instruments</h2>
-      <p>
-        Piano was where Elías learned to hear harmony as a whole — all voices at once, every
-        chord spread out under his hands. Bass taught him to think about roots and movement.
-        Guitar showed him how the same chord could be voiced in a dozen different ways, each
-        with its own character. Drums gave him the rhythmic context that makes a progression
-        feel alive rather than mechanical. All four feed directly into how Chord Sequence works:
-        the playback styles, the chord voicing choices, the way rhythm interacts with harmony
-        in the app's audio engine.
-      </p>
+      <h2 class="text-2xl font-bold text-foreground mt-10 mb-6">The Instruments</h2>
+
+      <div class="not-prose grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[
+          {
+            name: 'Piano',
+            icon: '🎹',
+            desc: 'Where it started. All voices at once — harmony as a whole picture, nothing hidden.',
+          },
+          {
+            name: 'Bass',
+            icon: '🎸',
+            desc: 'Main instrument. Forces you to understand roots, movement, and intention — or the whole band falls apart.',
+          },
+          {
+            name: 'Guitar',
+            icon: '🎵',
+            desc: 'The humbling one. Same chord, twelve different voicings, each with its own personality.',
+          },
+          {
+            name: 'Drums',
+            icon: '🥁',
+            desc: 'The reason progressions feel alive instead of academic. Rhythm is where theory becomes music.',
+          },
+        ].map(({ name, icon, desc }) => (
+          <div class="rounded-xl border border-border bg-card/40 p-5">
+            <p class="text-2xl mb-2">{icon}</p>
+            <p class="font-semibold text-foreground mb-1">{name}</p>
+            <p class="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <h2 class="text-2xl font-bold text-foreground mt-10 mb-6">Watch Me Play</h2>
+      <div class="not-prose grid gap-6">
+        <div>
+          <div class="relative aspect-video w-full rounded-xl overflow-hidden bg-black/30">
+            <iframe
+              src="https://www.youtube-nocookie.com/embed/lblASojOL-w"
+              title="Elías Corsino playing bass guitar"
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+              class="absolute inset-0 w-full h-full"
+            ></iframe>
+          </div>
+        </div>
+        <div>
+          <div class="relative aspect-video w-full rounded-xl overflow-hidden bg-black/30">
+            <iframe
+              src="https://www.youtube-nocookie.com/embed/obW-ymxaBbI"
+              title="Elías Corsino bass performance"
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+              class="absolute inset-0 w-full h-full"
+            ></iframe>
+          </div>
+        </div>
+      </div>
 
       <h2 class="text-2xl font-bold text-foreground mt-10 mb-4">About Chord Sequence</h2>
       <p>
-        Chord Sequence is a free, browser-based chord progression builder. No account required
-        — just open it, add your chords, and hit play. It supports 37 chord types, 13+ rhythm
-        styles with real audio samples, real-time transposition, and WAV export ready to drop
-        into any DAW.
+        Chord Sequence is a free, browser-based chord progression builder — no account, no
+        install, no credit card. Open it, add chords, hit play. It supports 37 chord types,
+        13+ rhythm styles with real audio samples, real-time transposition, and WAV export
+        ready to drop into any DAW.
       </p>
       <p>
-        The app runs entirely in your browser. No data is sent to any server — your progressions
-        live in your browser's local storage until you decide to export them. It works offline
-        after the first load, and it's free — no subscription, no account, no credit card.
+        Everything runs in your browser. Your progressions stay in local storage until you
+        export them — nothing is sent anywhere. It works offline after the first load.
       </p>
     </div>
 
