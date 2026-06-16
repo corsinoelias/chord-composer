@@ -378,8 +378,9 @@ export function RhythmEditor({
     const v = varId
       ? (inst.variations.find(x => x.id === varId) ?? inst.variations[0])
       : inst.variations[0];
-    if (!v || scalePatternIsEmpty(v.pattern)) return null;
-    return { pattern: v.pattern, loopBars: v.loopBars, octaveOffsets: v.octaveOffsets };
+    const hasContent = !scalePatternIsEmpty(v?.pattern ?? {}) || (v?.chordHit ?? []).some(x => x > 0);
+    if (!v || !hasContent) return null;
+    return { pattern: v.pattern, chordHit: v.chordHit, loopBars: v.loopBars, octaveOffsets: v.octaveOffsets };
   };
 
   const startLocalPlayback = useCallback(async () => {
@@ -1489,7 +1490,10 @@ export function RhythmEditor({
               naturalOctave={activeTab === 'bass' ? -1 : 0}
               currentStep={displayStep}
               isPlaying={isPlaying}
-              onActiveVarChange={id => { activeVarIdRef.current[activeTab as 'bass' | 'piano' | 'guitar'] = id; }}
+              onActiveVarChange={id => {
+                activeVarIdRef.current[activeTab as 'bass' | 'piano' | 'guitar'] = id;
+                if (!isLocalPlaying && !isMainPlaying) startLocalPlayback();
+              }}
               onChange={updated => {
                 setEditedStyle(prev => ({ ...prev, melodic: { ...(prev.melodic ?? emptyMelodicData()), [activeTab]: updated } }));
               }}
