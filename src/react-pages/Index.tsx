@@ -234,11 +234,12 @@ const Index = ({ songId }: IndexProps) => {
       bpm, styleId: selectedStyleId, customStyles, liveEditedStyle,
       melodic: currentStyle.melodic, instruments, transposition,
       metronome: metronomeEnabled, loopingSectionIndex,
+      sections,
     });
   }, [
     isPlaying, bpm, selectedStyleId, customStyles, liveEditedStyle,
     currentStyle.melodic, instruments, transposition, metronomeEnabled,
-    loopingSectionIndex, updatePlaybackOptions,
+    loopingSectionIndex, updatePlaybackOptions, sections,
   ]);
 
   // Load song from URL param
