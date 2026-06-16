@@ -95,6 +95,40 @@ const steps = [
   { n: '2', title: 'Pick a rhythm style', desc: 'Choose from 13+ rhythm styles — pop, jazz, lo-fi, worship, and more. Each style gives your progression a different feel.' },
   { n: '3', title: 'Play, transpose & export', desc: 'Hit Play to hear your progression with real audio. Transpose to any key. Export to WAV in one click.' },
 ];
+
+const webPageSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  '@id': 'https://chordsequence.com/#webpage',
+  url: 'https://chordsequence.com/',
+  name: 'Chord Sequence — Free Online Chord Progression Builder',
+  description: 'Build, play, and export chord progressions for free. 37 chord types, 13+ rhythm styles, transpose, and WAV export — no account required. Works in any browser.',
+  inLanguage: 'en',
+  isPartOf: {
+    '@type': 'WebSite',
+    '@id': 'https://chordsequence.com/#website',
+  },
+  about: {
+    '@type': 'WebApplication',
+    '@id': 'https://chordsequence.com/#app',
+    name: 'Chord Sequence',
+    url: 'https://chordsequence.com',
+  },
+};
+
+const songListSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  '@id': 'https://chordsequence.com/#song-list',
+  name: 'Songs with Chord Charts — Chord Sequence',
+  url: 'https://chordsequence.com/songs/',
+  itemListElement: SONGS.map((song, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    name: `${song.title} — ${song.artist}`,
+    url: `https://chordsequence.com/songs/${song.slug}/`,
+  })),
+};
 ---
 
 <BaseLayout
@@ -103,6 +137,10 @@ const steps = [
   canonicalUrl="https://chordsequence.com/"
   ogImageAlt="Chord Sequence — Free Online Chord Progression Builder"
 >
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webPageSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(songListSchema)} />
+  </Fragment>
 
   <!-- ─── HERO ─────────────────────────────────────────────────────────── -->
   <section class="relative overflow-hidden py-16 sm:py-20 lg:py-28">

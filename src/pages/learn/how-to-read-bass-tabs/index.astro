@@ -3,8 +3,8 @@ export const prerender = true;
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { BassTabPreview } from '../../../components/BassTabPlayer/BassTabPreview';
 
-const TITLE       = 'How to Read Bass Tabs: Complete Guide with Interactive Examples';
-const DESCRIPTION = 'Learn to read bass guitar tablature from scratch. Understand the 4 strings, fret numbers, and timing — with interactive playback examples for Billie Jean, Beat It, and Le Freak.';
+const TITLE       = 'How to Read Bass Tabs — Complete Guide with Examples';
+const DESCRIPTION = 'Learn to read bass guitar tabs from scratch. Fret numbers, symbols, and rhythm explained with interactive Billie Jean, Beat It, and Le Freak examples.';
 const CANONICAL   = 'https://chordsequence.com/learn/how-to-read-bass-tabs/';
 const PUB_DATE    = '2026-06-11';
 const MOD_DATE    = '2026-06-11';
@@ -55,52 +55,39 @@ const faqs = [
 
 const articleSchema = {
   '@context': 'https://schema.org',
-  '@type': 'Article',
+  '@type': 'TechArticle',
+  '@id': `${CANONICAL}#article`,
   headline: TITLE,
   description: DESCRIPTION,
-  image: OG_IMAGE,
+  image: {
+    '@type': 'ImageObject',
+    url: OG_IMAGE,
+    width: 1200,
+    height: 630,
+  },
   datePublished: PUB_DATE,
   dateModified:  MOD_DATE,
   author: {
     '@type': 'Person',
-    name: 'Elias Corsino',
+    '@id': 'https://chordsequence.com/about/elias-corsino/#person',
+    name: 'Elías Corsino Saldaña',
     url: 'https://chordsequence.com/about/elias-corsino/',
   },
   publisher: {
     '@type': 'Organization',
-    name: 'ChordSequence',
-    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png' },
+    '@id': 'https://chordsequence.com/#organization',
+    name: 'Chord Sequence',
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://chordsequence.com/logo-schema.png',
+      width: 696,
+      height: 696,
+    },
   },
-  mainEntityOfPage: { '@type': 'WebPage', '@id': CANONICAL },
-};
-
-const howToSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'HowTo',
-  name: 'How to Read a Bass Tab',
-  description: 'Learn to read bass guitar tablature in three steps.',
-  image: OG_IMAGE,
-  step: [
-    {
-      '@type': 'HowToStep',
-      position: 1,
-      name: 'Identify the 4 string lines',
-      text: 'A bass tab has four horizontal lines. The bottom line is the E string (thickest, lowest pitch). Going up: A, D, G (thinnest, highest). Read the line that matches the string you want to play.',
-      image: 'https://chordsequence.com/learn/bass-tabs/billie-jean-tab.png',
-    },
-    {
-      '@type': 'HowToStep',
-      position: 2,
-      name: 'Read the fret numbers',
-      text: 'Numbers on each string tell you which fret to press. 0 means open string — no fret. Read left to right: earlier numbers are played first. Numbers stacked vertically are played at the same time.',
-    },
-    {
-      '@type': 'HowToStep',
-      position: 3,
-      name: 'Follow the rhythm',
-      text: 'Use an interactive tab player or listen to the original song to understand timing. Space between numbers hints at rhythm, but listening is the most reliable way to lock in the groove.',
-    },
-  ],
+  mainEntityOfPage: {
+    '@type': 'WebPage',
+    '@id': CANONICAL,
+  },
 };
 
 const faqSchema = {
@@ -116,6 +103,7 @@ const faqSchema = {
 const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
+  '@id': `${CANONICAL}#breadcrumb`,
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home',  item: 'https://chordsequence.com/' },
     { '@type': 'ListItem', position: 2, name: 'Learn', item: 'https://chordsequence.com/learn/' },
@@ -128,15 +116,15 @@ const breadcrumbSchema = {
   title={TITLE}
   description={DESCRIPTION}
   canonicalUrl={CANONICAL}
+  ogImage={OG_IMAGE}
+  ogImageAlt="Bass tab notation showing 4 strings with fret numbers — Billie Jean example"
+  ogType="article"
 >
   <Fragment slot="head">
-    <meta property="og:type"        content="article" />
-    <meta property="og:image"       content={OG_IMAGE} />
     <meta property="article:published_time" content={PUB_DATE} />
     <meta property="article:modified_time"  content={MOD_DATE} />
-    <meta property="article:author"         content="Elias Corsino" />
+    <meta property="article:author"         content="Elías Corsino Saldaña" />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(howToSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>

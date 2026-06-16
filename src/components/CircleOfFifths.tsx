@@ -13,11 +13,11 @@ import { Play, Square } from 'lucide-react';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
-const KEYS       = ['C','G','D','A','E','B','F♯','D♭','A♭','E♭','B♭','F'];
+const KEYS       = ['C','G','D','A','E','B','F♯','C♯','G♯','D♯','A♯','F'];
 const KEYS_FULL  = ['C major','G major','D major','A major','E major','B major',
-                    'F♯ / G♭ major','D♭ major','A♭ major','E♭ major','B♭ major','F major'];
-const REL_MINORS = ['Am','Em','Bm','F♯m','C♯m','G♯m','E♭m','B♭m','Fm','Cm','Gm','Dm'];
-const PAR_MINORS_OF_MAJOR = ['Cm','Gm','Dm','Am','Em','Bm','F♯m','C♯m','G♯m','E♭m','B♭m','Fm'];
+                    'F♯ major','C♯ major','G♯ major','D♯ major','A♯ major','F major'];
+const REL_MINORS = ['Am','Em','Bm','F♯m','C♯m','G♯m','D♯m','A♯m','Fm','Cm','Gm','Dm'];
+const PAR_MINORS_OF_MAJOR = ['Cm','Gm','Dm','Am','Em','Bm','F♯m','C♯m','G♯m','D♯m','A♯m','Fm'];
 
 const DIATONIC_MAJ: string[][] = [
   ['C',  'Dm',  'Em',  'F',  'G',  'Am',  'B°'],
@@ -27,11 +27,11 @@ const DIATONIC_MAJ: string[][] = [
   ['E',  'F♯m', 'G♯m', 'A',  'B',  'C♯m', 'D♯°'],
   ['B',  'C♯m', 'D♯m', 'E',  'F♯', 'G♯m', 'A♯°'],
   ['F♯', 'G♯m', 'A♯m', 'B',  'C♯', 'D♯m', 'F°'],
-  ['D♭', 'E♭m', 'Fm',  'G♭', 'A♭', 'B♭m', 'C°'],
-  ['A♭', 'B♭m', 'Cm',  'D♭', 'E♭', 'Fm',  'G°'],
-  ['E♭', 'Fm',  'Gm',  'A♭', 'B♭', 'Cm',  'D°'],
-  ['B♭', 'Cm',  'Dm',  'E♭', 'F',  'Gm',  'A°'],
-  ['F',  'Gm',  'Am',  'B♭', 'C',  'Dm',  'E°'],
+  ['C♯', 'D♯m', 'Fm',  'F♯', 'G♯', 'A♯m', 'C°'],
+  ['G♯', 'A♯m', 'Cm',  'C♯', 'D♯', 'Fm',  'G°'],
+  ['D♯', 'Fm',  'Gm',  'G♯', 'A♯', 'Cm',  'D°'],
+  ['A♯', 'Cm',  'Dm',  'D♯', 'F',  'Gm',  'A°'],
+  ['F',  'Gm',  'Am',  'A♯', 'C',  'Dm',  'E°'],
 ];
 const DIATONIC_MIN: string[][] = [
   ['Am', 'B°',  'C',  'Dm', 'Em', 'F',  'G'],
@@ -40,12 +40,12 @@ const DIATONIC_MIN: string[][] = [
   ['F♯m','G♯°', 'A',  'Bm', 'C♯m','D',  'E'],
   ['C♯m','D♯°', 'E',  'F♯m','G♯m','A',  'B'],
   ['G♯m','A♯°', 'B',  'C♯m','D♯m','E',  'F♯'],
-  ['E♭m','F°',  'G♭', 'A♭m','B♭m','C♭', 'D♭'],
-  ['B♭m','C°',  'D♭', 'E♭m','Fm', 'G♭', 'A♭'],
-  ['Fm', 'G°',  'A♭', 'B♭m','Cm', 'D♭', 'E♭'],
-  ['Cm', 'D°',  'E♭', 'Fm', 'Gm', 'A♭', 'B♭'],
-  ['Gm', 'A°',  'B♭', 'Cm', 'Dm', 'E♭', 'F'],
-  ['Dm', 'E°',  'F',  'Gm', 'Am', 'B♭', 'C'],
+  ['D♯m','F°',  'G',  'G♯m','A♯m','C',  'D'],
+  ['A♯m','C°',  'D',  'D♯m','Fm', 'G',  'A'],
+  ['Fm', 'G°',  'G♯', 'A♯m','Cm', 'C♯', 'D♯'],
+  ['Cm', 'D°',  'D♯', 'Fm', 'Gm', 'G♯', 'A♯'],
+  ['Gm', 'A°',  'A♯', 'Cm', 'Dm', 'D♯', 'F'],
+  ['Dm', 'E°',  'F',  'Gm', 'Am', 'A♯', 'C'],
 ];
 
 const ROMAN_MAJ  = ['I',  'ii',  'iii', 'IV', 'V',  'vi',  'vii°'];
@@ -223,11 +223,7 @@ function CircleOfFifthsInner() {
 
         {KEYS.map((key,i) => {
           const [lx,ly] = pt(R_O_STROKE, keyAngle(i));
-          return key === 'F♯' ? (
-            <text key={`ol${i}`} textAnchor="middle" fontSize="7" fontWeight="700" fill="#fff" style={noPtr}>
-              <tspan x={lx} y={ly-3.5}>F♯</tspan><tspan x={lx} dy="9">G♭</tspan>
-            </text>
-          ) : (
+          return (
             <text key={`ol${i}`} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
               fontSize="9" fontWeight="700" fill="#fff" style={noPtr}>{key}</text>
           );

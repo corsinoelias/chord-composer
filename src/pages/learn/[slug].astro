@@ -189,27 +189,34 @@ const author = authorSlug ? AUTHORS[authorSlug] : null;
 
 const articleSchema = {
   '@context': 'https://schema.org',
-  '@type': 'Article',
+  '@type': 'TechArticle',
+  '@id': `${canonicalLearnUrl}#article`,
   headline: post.data.title,
   description: post.data.description,
-  image: post.data.image ?? 'https://chordsequence.com/og-image.png',
+  image: post.data.image
+    ? { '@type': 'ImageObject', url: post.data.image, width: 1200, height: 630 }
+    : { '@type': 'ImageObject', url: 'https://chordsequence.com/og-image.png', width: 1200, height: 630 },
   datePublished: post.data.pubDate.toISOString(),
   dateModified: (post.data.updatedDate ?? post.data.pubDate).toISOString(),
   author: author
     ? {
         '@type': 'Person',
+        '@id': `${author.url}#person`,
         name: author.name,
         url: author.url,
         image: {
           '@type': 'ImageObject',
           url: `https://chordsequence.com${author.avatar}`,
+          width: 400,
+          height: 400,
         },
         description: author.bio,
         sameAs: [author.linkedin, author.instagram, author.youtube],
       }
-    : { '@type': 'Organization', name: 'Chord Sequence', url: 'https://chordsequence.com' },
+    : { '@type': 'Organization', '@id': 'https://chordsequence.com/#organization', name: 'Chord Sequence', url: 'https://chordsequence.com' },
   publisher: {
     '@type': 'Organization',
+    '@id': 'https://chordsequence.com/#organization',
     name: 'Chord Sequence',
     url: 'https://chordsequence.com',
     logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
@@ -221,6 +228,7 @@ const articleSchema = {
 const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
+  '@id': `${canonicalLearnUrl}#breadcrumb`,
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
     { '@type': 'ListItem', position: 2, name: 'Learn', item: 'https://chordsequence.com/learn/' },
@@ -265,7 +273,7 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
 ---
 
 <BaseLayout
-  title={`${post.data.title} | Chord Sequence`}
+  title={`${post.data.seoTitle ?? post.data.title} | Chord Sequence`}
   description={post.data.description}
   canonicalUrl={canonicalLearnUrl}
   ogType="article"
@@ -288,7 +296,7 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
     <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-8">
       <a href="/" class="hover:text-foreground transition-colors">Home</a>
       <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-      <a href="/learn" class="hover:text-foreground transition-colors">Learn</a>
+      <a href="/learn/" class="hover:text-foreground transition-colors">Learn</a>
       <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
       <span class="text-foreground truncate">{post.data.title}</span>
     </nav>
@@ -373,7 +381,7 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
     <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
       <h2 class="text-xl font-semibold text-foreground mb-2">Try it in Chord Player</h2>
       <p class="text-sm text-muted-foreground mb-5">Build the progressions from this article in the free interactive editor.</p>
-      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
         Open Chord Player →
       </a>
     </div>

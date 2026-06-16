@@ -8,10 +8,36 @@ const author = AUTHORS['elias-corsino'];
 const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
+  '@id': 'https://chordsequence.com/about/#breadcrumb',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
     { '@type': 'ListItem', position: 2, name: 'About', item: 'https://chordsequence.com/about/' },
   ],
+};
+
+const aboutPageSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'AboutPage',
+  '@id': 'https://chordsequence.com/about/#webpage',
+  url: 'https://chordsequence.com/about/',
+  name: 'About Chord Sequence — Free Music Tools for Every Musician',
+  description: 'Chord Sequence is a suite of free browser-based music tools built by Elías Corsino Saldaña — a musician and developer from the Dominican Republic.',
+  inLanguage: 'en',
+  isPartOf: {
+    '@type': 'WebSite',
+    '@id': 'https://chordsequence.com/#website',
+    url: 'https://chordsequence.com/',
+  },
+  about: {
+    '@type': 'Person',
+    '@id': 'https://chordsequence.com/about/elias-corsino/#person',
+    name: 'Elías Corsino Saldaña',
+    url: 'https://chordsequence.com/about/elias-corsino/',
+  },
+  breadcrumb: {
+    '@type': 'BreadcrumbList',
+    '@id': 'https://chordsequence.com/about/#breadcrumb',
+  },
 };
 
 const tools = [
@@ -96,10 +122,11 @@ const values = [
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(aboutPageSchema)} />
   </Fragment>
 
   <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
-    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+    <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
       <a href="/" class="hover:text-foreground transition-colors">Home</a>
       <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
       <span class="text-foreground">About</span>
@@ -201,11 +228,14 @@ const values = [
         <div class="flex items-center gap-4 mb-4">
           <img
             src={author.avatar}
-            alt={author.name}
+            alt={`${author.name}, musician and creator of Chord Sequence`}
             class="w-14 h-14 rounded-full object-cover shrink-0"
+            width="56"
+            height="56"
+            loading="lazy"
           />
           <div>
-            <a href="/about/elias-corsino" class="font-semibold text-foreground hover:text-primary transition-colors">
+            <a href="/about/elias-corsino/" class="font-semibold text-foreground hover:text-primary transition-colors">
               {author.name}
             </a>
             <p class="text-sm text-muted-foreground">{author.role}</p>
@@ -237,33 +267,10 @@ const values = [
           >
             YouTube ↗
           </a>
-          <a href="/about/elias-corsino" class="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <a href="/about/elias-corsino/" class="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
             Full bio →
           </a>
         </div>
-      </div>
-    </section>
-
-    <!-- Tech stack -->
-    <section class="mb-16">
-      <h2 class="text-2xl font-bold text-foreground mb-4">Built with</h2>
-      <div class="grid sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
-        {[
-          { label: 'Astro', desc: 'Server-side rendering and static generation' },
-          { label: 'React', desc: 'Interactive editor and player islands' },
-          { label: 'Tailwind CSS', desc: 'Styling' },
-          { label: 'Web Audio API', desc: 'Real-time synthesis and sample playback' },
-          { label: 'Supabase', desc: 'Community song library database' },
-          { label: 'Netlify', desc: 'Hosting and edge CDN' },
-        ].map((t) => (
-          <div class="flex items-start gap-2 rounded-lg border border-border bg-card px-4 py-3">
-            <div class="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5"></div>
-            <div>
-              <span class="font-semibold text-foreground">{t.label}</span>
-              <span class="text-muted-foreground"> — {t.desc}</span>
-            </div>
-          </div>
-        ))}
       </div>
     </section>
 
@@ -343,7 +350,7 @@ const values = [
     <div class="rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
       <h2 class="text-xl font-semibold text-foreground mb-2">Try it now</h2>
       <p class="text-sm text-muted-foreground mb-5">No signup. No download. Works in any browser.</p>
-      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
         Open Chord Player →
       </a>
     </div>
