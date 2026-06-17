@@ -17,14 +17,14 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 220 20% 10%;
 
-    --primary: 262 83% 58%;
+    --primary: 262 83% 52%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 92%;
     --secondary-foreground: 220 20% 20%;
 
     --muted: 220 14% 92%;
-    --muted-foreground: 220 10% 46%;
+    --muted-foreground: 220 10% 42%;
 
     --accent: 262 83% 95%;
     --accent-foreground: 262 83% 40%;
@@ -37,7 +37,7 @@ All colors MUST be HSL.
 
     --border: 220 13% 87%;
     --input: 220 13% 87%;
-    --ring: 262 83% 58%;
+    --ring: 262 83% 52%;
 
     --radius: 0.5rem;
 
@@ -51,14 +51,14 @@ All colors MUST be HSL.
 
     --sidebar-background: 220 20% 97%;
     --sidebar-foreground: 220 20% 10%;
-    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary: 262 83% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 262 83% 95%;
     --sidebar-accent-foreground: 262 83% 40%;
     --sidebar-border: 220 13% 87%;
-    --sidebar-ring: 262 83% 58%;
+    --sidebar-ring: 262 83% 52%;
 
-    --chart-1: 262 83% 58%;
+    --chart-1: 262 83% 52%;
     --chart-2: 172 66% 50%;
     --chart-3: 43 96% 56%;
     --chart-4: 340 75% 55%;
@@ -79,8 +79,8 @@ All colors MUST be HSL.
     --shadow-xl: 0 20px 25px -5px hsl(220 20% 10% / 0.08), 0 10px 10px -5px hsl(220 20% 10% / 0.04);
     --shadow-2xl: 0 25px 50px -12px hsl(220 20% 10% / 0.20);
 
-    --shadow-glow: 0 0 20px hsl(262 83% 58% / 0.3);
-    --shadow-glow-sm: 0 0 10px hsl(262 83% 58% / 0.2);
+    --shadow-glow: 0 0 20px hsl(262 83% 52% / 0.3);
+    --shadow-glow-sm: 0 0 10px hsl(262 83% 52% / 0.2);
 
     --tracking-normal: 0em;
     --spacing: 0.25rem;

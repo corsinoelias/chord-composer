@@ -2,7 +2,7 @@
 export const SITE_ORIGIN = 'https://chordsequence.com';
 
 export const SEO_OG = {
-  imageUrl: `${SITE_ORIGIN}/og-image.png`,
+  imageUrl: `${SITE_ORIGIN}/og-image.jpg`,
   imageWidth: 1200,
   imageHeight: 630,
   imageAlt:

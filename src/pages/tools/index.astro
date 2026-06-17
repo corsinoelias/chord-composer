@@ -1,6 +1,7 @@
 ---
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import AppCta from '../../components/AppCta.astro';
 
 const SITE = 'https://chordsequence.com'
 
@@ -117,12 +118,10 @@ const toolsSchema = {
       </div>
     </div>
 
-    <div class="mt-12 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
-      <h2 class="text-xl font-semibold text-foreground mb-2">Need the full editor?</h2>
-      <p class="text-sm text-muted-foreground mb-5">Combine all these tools in the Chord Player — drag chords, pick styles, and export to WAV.</p>
-      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
-        Open Chord Player →
-      </a>
-    </div>
+    <AppCta
+      class="mt-12"
+      heading="Need the full editor?"
+      description="Combine all these tools in the Chord Player — drag chords, pick styles, and export to WAV."
+    />
   </main>
 </BaseLayout>

@@ -31,7 +31,7 @@ export interface InstrumentSounds {
 export interface StylePattern {
   id: string;
   name: string;
-  category: 'Pop' | 'Rock' | 'Funk' | 'Reggae' | 'HipHop' | 'Disco' | 'Blues' | 'Latin' | 'Metal' | 'Folk' | 'Country' | 'Jazz' | 'Soul' | 'Indie' | 'LoFi';
+  category: 'Pop' | 'Rock' | 'Funk' | 'Reggae' | 'HipHop' | 'Disco' | 'Blues' | 'Latin' | 'Metal' | 'Folk' | 'Country' | 'Jazz' | 'Soul' | 'Indie' | 'LoFi' | 'Gospel';
   bpm: number;
   bpmRange: [number, number];
   description: string;
@@ -867,6 +867,107 @@ export const MUSICAL_STYLES: StylePattern[] = [
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'nylon' },
+  },
+
+  // ============================================
+  // 22. CORITOS (Gospel Latinoamericano) - 151 BPM
+  // ============================================
+  // Ride sincopado, caja+hihat en tiempos 2 y 4. Bajo I-V.
+  {
+    id: 'coritos',
+    name: 'Coritos',
+    category: 'Gospel',
+    bpm: 151,
+    bpmRange: [100, 180],
+    description: 'Gospel evangélico latinoamericano. Ride sincopado, bajo I–V.',
+    rhythm: {
+      kick:  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+      snare: [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
+      hihat: [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
+      bass:  [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      piano: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      ride:  [1,0,1,0, 0,1,1,1, 1,0,1,0, 1,1,1,0],
+    },
+    fill: {
+      position: 0,
+      pattern: {
+        kick:     [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+        snare:    [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+        hihat:    [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
+        ride:     [1,0,1,0, 0,1,1,0, 1,0,1,0, 0,1,1,0],
+        crash:    [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+        tom1:     [0,0,0,0, 0,0,0,0, 1,0,1,0, 1,0,1,0],
+        floorTom: [0,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,1,0],
+      },
+    },
+    volumes: { piano: 1, bass: 1, drums: 0.75 },
+    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    melodic: {
+      bass: {
+        enabled: true,
+        variations: [
+          {
+            id: 'cor_bass_1', name: 'Var 1', loopBars: 1,
+            pattern: {
+              1: [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
+              5: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+            },
+            octaveOffsets: { 1: 0, 2: -1, 3: -1, 4: -1, 5: -1, 6: -1, 7: -1, 8: -1 },
+          },
+          {
+            id: 'cor_bass_2', name: 'Var 2', loopBars: 1,
+            pattern: {
+              1: [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
+              5: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+              7: [0,0,0,0, 0,0,1,0, 0,0,0,0, 0,0,1,0],
+            },
+            octaveOffsets: { 1: 0, 5: -1, 7: -1, 8: -1 },
+          },
+          {
+            id: 'cor_bass_3', name: 'Var 3', loopBars: 1,
+            pattern: {
+              1: [1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+              2: [0,0,0,0, 1,0,0,0, 0,0,0,0, 0,0,0,0],
+              3: [0,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
+              5: [0,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,0,0],
+            },
+          },
+          {
+            id: 'cor_bass_4', name: 'Var 4', loopBars: 1,
+            pattern: {
+              1: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
+            },
+          },
+        ],
+      },
+      piano: {
+        enabled: true,
+        variations: [
+          {
+            id: 'cor_piano_1', name: 'Var 1', loopBars: 1,
+            pattern: {},
+            chordHit: [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
+          },
+        ],
+      },
+      guitar: {
+        enabled: true,
+        variations: [
+          {
+            id: 'cor_guitar_1', name: 'Var 1', loopBars: 1,
+            pattern: {
+              5: [0,0,0,0, 0,0,0,0, 1,0,0,0, 1,0,0,0],
+              8: [0,0,0,0, 0,0,1,0, 0,0,0,0, 0,0,0,0],
+            },
+            chordHit: [1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+          },
+          {
+            id: 'cor_guitar_2', name: 'Var 2', loopBars: 1,
+            pattern: {},
+          },
+        ],
+      },
+    },
   },
 ];
 

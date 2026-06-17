@@ -2,6 +2,7 @@
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { AUTHORS } from '../../data/authors';
+import AppCta from '../../components/AppCta.astro';
 
 const author = AUTHORS['elias-corsino'];
 
@@ -325,12 +326,10 @@ const aboutPageSchema = {
       </p>
     </div>
 
-    <div class="mt-12 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
-      <h2 class="text-xl font-semibold text-foreground mb-2">Try the app Elías built</h2>
-      <p class="text-sm text-muted-foreground mb-5">Free, no account needed. Build chord progressions and hear them instantly.</p>
-      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
-        Open Chord Player →
-      </a>
-    </div>
+    <AppCta
+      class="mt-12"
+      heading="Try the app Elías built"
+      description="Free, no account needed. Build chord progressions and hear them instantly."
+    />
   </main>
 </BaseLayout>

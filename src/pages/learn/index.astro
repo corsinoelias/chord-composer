@@ -2,6 +2,7 @@
 export const prerender = true;
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import AppCta from '../../components/AppCta.astro';
 
 const allPosts = await getCollection('learn', ({ data }) => !data.draft);
 allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
@@ -164,12 +165,10 @@ const learnSchema = {
       </div>
     </div>
 
-    <div class="mt-12 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
-      <h2 class="text-xl font-semibold text-foreground mb-2">Ready to try what you've learned?</h2>
-      <p class="text-sm text-muted-foreground mb-5">Build any progression you read about in the interactive editor.</p>
-      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
-        Open Chord Player →
-      </a>
-    </div>
+    <AppCta
+      class="mt-12"
+      heading="Ready to try what you've learned?"
+      description="Build any progression you read about in the interactive editor."
+    />
   </main>
 </BaseLayout>

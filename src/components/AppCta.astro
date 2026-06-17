@@ -1,0 +1,31 @@
+---
+interface Props {
+  heading: string;
+  description: string;
+  buttonText?: string;
+  href?: string;
+  class?: string;
+}
+
+const {
+  heading,
+  description,
+  buttonText = 'Open free Chord Player',
+  href = '/app/',
+  class: className,
+} = Astro.props;
+---
+
+<div class:list={['rounded-xl border border-primary/20 bg-primary/5 p-8 text-center', className]}>
+  <h2 class="text-xl font-semibold text-foreground mb-2">{heading}</h2>
+  <p class="text-sm text-muted-foreground mb-5">{description}</p>
+  <a
+    href={href}
+    class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+  >
+    {buttonText}
+    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+      <path d="M5 12h14M12 5l7 7-7 7"/>
+    </svg>
+  </a>
+</div>

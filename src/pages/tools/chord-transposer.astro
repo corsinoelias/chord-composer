@@ -83,7 +83,8 @@ const breadcrumbSchema = {
         Open Chord Player, add your chords, and use the transposition slider to shift the entire song up or down in real time — while the audio keeps playing.
       </p>
       <a href="/app" class="inline-flex items-center gap-2 px-7 py-3.5 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
-        Open Chord Transposer →
+        Open free Chord Player
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>
     </div>
 
@@ -155,7 +156,7 @@ const breadcrumbSchema = {
     <!-- FAQ -->
     <section class="mb-14">
       <h2 class="text-2xl font-bold text-foreground mb-6">Frequently asked questions</h2>
-      <dl class="space-y-3">
+      <div class="space-y-3">
         {faqItems.map((q) => (
           <div class="rounded-xl border border-border bg-card overflow-hidden">
             <details class="group">
@@ -169,7 +170,7 @@ const breadcrumbSchema = {
             </details>
           </div>
         ))}
-      </dl>
+      </div>
     </section>
 
     <!-- RELATED TOOLS -->

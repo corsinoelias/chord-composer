@@ -3,6 +3,7 @@ export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { CircleOfFifths } from '../../components/CircleOfFifths';
 import RelatedTools from '../../components/RelatedTools.astro';
+import AppCta from '../../components/AppCta.astro';
 
 const webAppSchema = {
   '@context': 'https://schema.org',
@@ -103,19 +104,11 @@ const breadcrumbSchema = {
       </div>
     </section>
 
-    <!-- CTA -->
-    <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
-      <h2 class="text-xl font-semibold text-foreground mb-2">Build a progression from your key</h2>
-      <p class="text-sm text-muted-foreground mb-5">
-        Pick chords from the table above and arrange them in the Chord Player — add rhythm, transpose, and export to WAV.
-      </p>
-      <a
-        href="/app/"
-        class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
-      >
-        Open Chord Player →
-      </a>
-    </div>
+    <AppCta
+      class="mt-16"
+      heading="Build a progression from your key"
+      description="Pick chords from the table above and arrange them in the Chord Player — add rhythm, transpose, and export to WAV."
+    />
 
     <!-- RELATED TOOLS -->
     <RelatedTools tools={[

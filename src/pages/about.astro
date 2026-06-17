@@ -2,6 +2,7 @@
 export const prerender = true;
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { AUTHORS } from '../data/authors';
+import AppCta from '../components/AppCta.astro';
 
 const author = AUTHORS['elias-corsino'];
 
@@ -346,13 +347,9 @@ const values = [
       <a href="/terms/" class="hover:text-foreground transition-colors">Terms of Service</a>
     </div>
 
-    <!-- CTA -->
-    <div class="rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
-      <h2 class="text-xl font-semibold text-foreground mb-2">Try it now</h2>
-      <p class="text-sm text-muted-foreground mb-5">No signup. No download. Works in any browser.</p>
-      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
-        Open Chord Player →
-      </a>
-    </div>
+    <AppCta
+      heading="Try it now"
+      description="No signup. No download. Works in any browser."
+    />
   </main>
 </BaseLayout>

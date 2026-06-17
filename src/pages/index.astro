@@ -142,6 +142,7 @@ const songListSchema = {
     <script is:inline type="application/ld+json" set:html={JSON.stringify(songListSchema)} />
   </Fragment>
 
+  <main>
   <!-- ─── HERO ─────────────────────────────────────────────────────────── -->
   <section class="relative overflow-hidden py-16 sm:py-20 lg:py-28">
     <!-- Background glow -->
@@ -444,7 +445,7 @@ const songListSchema = {
         </h2>
       </div>
 
-      <dl class="space-y-4">
+      <div class="space-y-4">
         {faqSchema.mainEntity.map((q: any) => (
           <div class="rounded-xl border border-border bg-card overflow-hidden">
             <details class="group">
@@ -458,7 +459,7 @@ const songListSchema = {
             </details>
           </div>
         ))}
-      </dl>
+      </div>
     </div>
   </section>
 
@@ -516,4 +517,5 @@ const songListSchema = {
       </a>
     </div>
   </section>
+  </main>
 </BaseLayout>

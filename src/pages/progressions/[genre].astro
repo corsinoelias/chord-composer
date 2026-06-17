@@ -3,6 +3,7 @@ export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
 import { GENRES, getGenre } from '../../data/progressions';
+import AppCta from '../../components/AppCta.astro';
 
 export function getStaticPaths() {
   return GENRES.map((g) => ({
@@ -150,13 +151,10 @@ const breadcrumbSchema = {
       </div>
     )}
 
-    <!-- CTA -->
-    <div class="mt-12 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
-      <h2 class="text-xl font-semibold text-foreground mb-2">Build your own {genre.name} progression</h2>
-      <p class="text-sm text-muted-foreground mb-5">Open the editor, add any of these chords, and customize the rhythm and tempo.</p>
-      <a href="/app" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
-        Open Chord Player →
-      </a>
-    </div>
+    <AppCta
+      class="mt-12"
+      heading={`Build your own ${genre.name} progression`}
+      description="Open the editor, add any of these chords, and customize the rhythm and tempo."
+    />
   </main>
 </BaseLayout>

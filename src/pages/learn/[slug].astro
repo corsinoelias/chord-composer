@@ -6,6 +6,7 @@ import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
 import CircleOfFifthsIsland from '../../components/CircleOfFifthsIsland.astro';
 import { AUTHORS } from '../../data/authors';
 import ArticleAuthorBox from '../../components/ArticleAuthorBox.astro';
+import AppCta from '../../components/AppCta.astro';
 
 interface RelatedLink {
   href: string;
@@ -170,17 +171,6 @@ const { post } = Astro.props;
 const { Content } = await post.render();
 const related = ARTICLE_RELATED[post.slug];
 const faqItems = ARTICLE_FAQ[post.slug];
-const faqSchema = faqItems
-  ? {
-      '@context': 'https://schema.org',
-      '@type': 'FAQPage',
-      mainEntity: faqItems.map((f) => ({
-        '@type': 'Question',
-        name: f.question,
-        acceptedAnswer: { '@type': 'Answer', text: f.answer },
-      })),
-    }
-  : null;
 
 const canonicalLearnUrl = `https://chordsequence.com/learn/${post.slug}/`;
 
@@ -189,13 +179,13 @@ const author = authorSlug ? AUTHORS[authorSlug] : null;
 
 const articleSchema = {
   '@context': 'https://schema.org',
-  '@type': 'TechArticle',
+  '@type': 'Article',
   '@id': `${canonicalLearnUrl}#article`,
   headline: post.data.title,
   description: post.data.description,
   image: post.data.image
     ? { '@type': 'ImageObject', url: post.data.image, width: 1200, height: 630 }
-    : { '@type': 'ImageObject', url: 'https://chordsequence.com/og-image.png', width: 1200, height: 630 },
+    : { '@type': 'ImageObject', url: 'https://chordsequence.com/og-image.jpg', width: 1200, height: 630 },
   datePublished: post.data.pubDate.toISOString(),
   dateModified: (post.data.updatedDate ?? post.data.pubDate).toISOString(),
   author: author
@@ -221,6 +211,7 @@ const articleSchema = {
     url: 'https://chordsequence.com',
     logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
   },
+  educationalLevel: 'Beginner',
   inLanguage: 'en',
   mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalLearnUrl },
 };
@@ -285,7 +276,6 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
     <meta property="article:author" content={author?.url ?? 'https://chordsequence.com/about/elias-corsino/'} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
-    {faqSchema && <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />}
     {extraSchemas.map(schema => (
       <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
     ))}
@@ -353,7 +343,8 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
         href="/app/"
         class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
       >
-        Try in Chord Player →
+        Open free Chord Player
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>
     </div>
 
@@ -377,14 +368,11 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
       <Content components={{ ChordEmbed: ChordEmbedIsland, CircleOfFifths: CircleOfFifthsIsland }} />
     </article>
 
-    <!-- CTA -->
-    <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
-      <h2 class="text-xl font-semibold text-foreground mb-2">Try it in Chord Player</h2>
-      <p class="text-sm text-muted-foreground mb-5">Build the progressions from this article in the free interactive editor.</p>
-      <a href="/app/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
-        Open Chord Player →
-      </a>
-    </div>
+    <AppCta
+      class="mt-16"
+      heading="Try it in Chord Player"
+      description="Build the progressions from this article in the free interactive editor."
+    />
 
     <!-- Related tool callout -->
     {related?.tool && (
