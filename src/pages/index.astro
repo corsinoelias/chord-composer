@@ -475,11 +475,12 @@ const songListSchema = {
         </p>
       </div>
 
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {[
           { href: '/learn/what-is-a-chord-progression/', title: 'What is a chord progression?', desc: 'The complete beginner guide to harmonic movement and why progressions work.' },
           { href: '/learn/jazz-chord-progressions/', title: 'Jazz chord progressions', desc: 'ii–V–I, turnarounds, bossa nova, and modal jazz — with interactive players.' },
           { href: '/learn/circle-of-fifths-explained/', title: 'Circle of fifths explained', desc: 'How key relationships work and how to use them in your songwriting.' },
+          { href: '/best-chord-progression-generators/', title: 'Best chord progression generators', desc: 'Free vs paid tools compared — browser apps and DAW plugins for 2026.' },
         ].map((a) => (
           <a href={a.href} class="group rounded-xl border border-border bg-card p-6 hover:border-primary/40 transition-colors">
             <h3 class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors mb-2">{a.title}</h3>

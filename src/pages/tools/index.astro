@@ -104,11 +104,12 @@ const toolsSchema = {
     <!-- Related reading -->
     <div class="mt-12 pt-10 border-t border-border">
       <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Related reading</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[
           { href: '/learn/how-to-transpose-chords/', title: 'How to transpose chords', desc: 'The theory behind the Transposer — semitones, keys, and practical tips' },
           { href: '/learn/circle-of-fifths-explained/', title: 'Circle of fifths explained', desc: 'Key signatures, relative minors, and how jazz follows the circle' },
           { href: '/learn/music-theory-basics-for-songwriters/', title: 'Music theory basics', desc: 'Intervals, scales, diatonic chords — everything you need to know' },
+          { href: '/best-chord-progression-generators/', title: 'Best chord progression generators', desc: '6 free and paid tools compared — browser apps and DAW plugins for 2026' },
         ].map((a) => (
           <a href={a.href} class="group rounded-xl border border-border bg-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors">
             <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors mb-1">{a.title}</p>

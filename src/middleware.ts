@@ -12,9 +12,12 @@ const SECURITY_HEADERS: Record<string, string> = {
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = new URL(context.request.url);
 
-  // Rewrite /editor/<songId> → /editor/ so the SPA island handles the ID
+  // Rewrite /editor/<songId> → /editor/ so the SPA island handles the ID.
+  // X-Robots-Tag at HTTP level speeds up deindexing of any shared editor URLs Google crawled.
   if (/^\/editor\/.+/.test(pathname)) {
-    return context.rewrite('/editor/');
+    const response = await context.rewrite('/editor/');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return response;
   }
 
   const response = await next();

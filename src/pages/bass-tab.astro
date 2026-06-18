@@ -23,6 +23,16 @@ const webAppSchema = {
   browserRequirements: 'Requires a modern browser with Web Audio API support',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 };
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://chordsequence.com/tools/' },
+    { '@type': 'ListItem', position: 3, name: 'Bass Tab Player', item: 'https://chordsequence.com/bass-tab/' },
+  ],
+};
 ---
 
 <BaseLayout
@@ -33,6 +43,17 @@ const webAppSchema = {
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
+  <nav class="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background/95 backdrop-blur text-sm sticky top-0 z-10">
+    <a href="/" class="text-muted-foreground hover:text-foreground transition-colors">Home</a>
+    <svg class="h-3 w-3 text-muted-foreground/50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    <a href="/tools/" class="text-muted-foreground hover:text-foreground transition-colors">Tools</a>
+    <svg class="h-3 w-3 text-muted-foreground/50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    <span class="text-foreground font-medium">Bass Tab Player</span>
+    <div class="ml-auto hidden sm:block">
+      <a href="/learn/how-to-read-bass-tabs/" class="text-xs text-primary hover:text-primary/80 transition-colors">How to read bass tabs →</a>
+    </div>
+  </nav>
   <BassTabPlayer client:only="react" />
 </BaseLayout>
