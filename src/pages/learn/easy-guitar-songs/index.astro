@@ -1,24 +1,64 @@
 ---
 export const prerender = true;
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import ChordEmbedIsland from '../../../components/ChordEmbedIsland.astro';
 
-const canonicalUrl = 'https://chordsequence.com/learn/easy-guitar-songs/';
+const TITLE       = 'Easy Guitar Songs for Beginners — 27 Songs You Can Play Today';
+const DESCRIPTION = '27 easy guitar songs for beginners, sorted by difficulty from 2-chord songs to acoustic classics. Every song includes chords, BPM, a real practice tip, and a free interactive player.';
+const CANONICAL   = 'https://chordsequence.com/learn/easy-guitar-songs/';
+const PUB_DATE    = '2026-06-18';
+const MOD_DATE    = '2026-06-18';
 
-// ── Song data ─────────────────────────────────────────────────────────────────
-const songGroups = [
+type Level = 'beginner' | 'easy' | 'intermediate';
+
+interface Song {
+  title: string;
+  artist: string;
+  chords: string[];
+  capo: number | null;
+  bpm: number;
+  level: Level;
+  strumHint: string;
+  tip: string;
+  editorUrl: string;
+  chartUrl: string | null;
+}
+
+interface SongGroup {
+  id: string;
+  badge: string;
+  title: string;
+  subtitle: string;
+  intro: string;
+  embedChords: string;
+  embedBpm: number;
+  embedStyle: string;
+  embedTitle: string;
+  songs: Song[];
+}
+
+const songGroups: SongGroup[] = [
   {
     id: 'two-chords',
-    level: '🟢',
+    badge: '🟢 Beginner',
     title: '2-chord songs',
-    subtitle: 'The easiest songs on guitar. Learn 2 chords and you can play these today.',
+    subtitle: 'The fastest way to play a real song. Learn 2 shapes and you can play all of these today.',
+    intro: 'Two chords is not a limitation — it\'s a foundation. Every song here sounds complete because the progression loops: chord 1 to chord 2, back to chord 1. Your only job is to make the change clean and keep time. Start here if you\'ve never played a full song before.',
+    embedChords: 'G D',
+    embedBpm: 68,
+    embedStyle: 'folk_strum',
+    embedTitle: 'The 2-chord loop — G and D',
     songs: [
       {
         title: "Knockin' on Heaven's Door",
         artist: 'Bob Dylan',
         chords: ['G', 'D'],
         capo: null,
-        tip: "The verse uses G and D the whole way through. That's it.",
-        editorUrl: '/editor/?chords=G-D&bpm=70&style=folk_strum',
+        bpm: 68,
+        level: 'beginner',
+        strumHint: '4 slow downstrokes on G, 4 on D',
+        tip: "The entire verse uses just G and D, cycling at 68 BPM. You have almost two full beats on each chord — plenty of time to move your fingers cleanly. Start by nailing the G-to-D change, then add a simple four-downstroke pattern per chord. Once that's automatic, try adding an upstroke on beat 4 for a slightly more musical feel.",
+        editorUrl: '/editor/?chords=G-D&bpm=68&style=folk_strum',
         chartUrl: null,
       },
       {
@@ -26,43 +66,60 @@ const songGroups = [
         artist: 'Sublime',
         chords: ['D', 'G'],
         capo: null,
-        tip: 'Two chords, a relaxed strum, and you sound exactly like the song.',
-        editorUrl: '/editor/?chords=D-G&bpm=90&style=rock_basic',
+        bpm: 91,
+        level: 'beginner',
+        strumHint: 'Loose, relaxed downstroke — keep it light',
+        tip: "Alternate between D and G throughout the entire song at about 91 BPM. The loose, relaxed groove is what makes it sound like Sublime, so keep your strumming light and let the notes ring openly. Use a pick for brightness or your thumb for a more mellow, reggae-influenced tone. Once the changes feel automatic, experiment with lightly muting between strums to get closer to the original feel.",
+        editorUrl: '/editor/?chords=D-G&bpm=91&style=rock_basic',
         chartUrl: null,
       },
       {
         title: 'A Horse with No Name',
         artist: 'America',
-        chords: ['Em', 'D6'],
+        chords: ['Em', 'Dadd9'],
         capo: null,
-        tip: 'Only two chords but it sounds amazing. A great first song.',
-        editorUrl: '/editor/?chords=Em-D&bpm=80&style=folk_strum',
+        bpm: 85,
+        level: 'beginner',
+        strumHint: 'Gentle arpeggiated strum — let strings ring out',
+        tip: "Em and Dadd9 share several notes, making the transition almost seamless once your fingers know the shapes. The hypnotic feel comes from that shared resonance and a steady, patient strum. Once both shapes feel comfortable, the challenge is staying in the groove rather than rushing the change — a perfect exercise in patience and left-hand consistency.",
+        editorUrl: '/editor/?chords=Em-D&bpm=85&style=folk_strum',
+        chartUrl: null,
+      },
+      {
+        title: 'Eleanor Rigby',
+        artist: 'The Beatles',
+        chords: ['Em', 'C'],
+        capo: null,
+        bpm: 69,
+        level: 'beginner',
+        strumHint: 'Brisk, driving downstrokes — let each chord ring',
+        tip: "Em and C alternate throughout this Beatles classic, giving it a melancholy, urgent feel. Both are simple open chord shapes and the song moves at a steady 69 BPM. The recorded version uses strings, but on acoustic guitar it translates beautifully — strum briskly and let the chords ring. One of the few 2-chord songs that genuinely sounds impressive even when played simply.",
+        editorUrl: '/editor/?chords=Em-C&bpm=69&style=folk_strum',
         chartUrl: null,
       },
     ],
   },
   {
     id: 'three-chords',
-    level: '🟢',
+    badge: '🟢 Beginner',
     title: '3-chord songs',
-    subtitle: 'Learn G, C, and D — and you can play all of these.',
+    subtitle: 'Learn G, C, D — and you can play every song in this section plus hundreds more.',
+    intro: 'Three chords unlock a massive portion of the popular music catalog. The I–IV–V progression (G–C–D in the key of G) appears in blues, rock, country, and folk songs spanning seven decades. Learn these three shapes and you\'ll be able to play songs you recognize within your first week.',
+    embedChords: 'G C D',
+    embedBpm: 80,
+    embedStyle: 'folk_strum',
+    embedTitle: 'The 3-chord foundation — G, C, D',
     songs: [
-      {
-        title: 'Brown Eyed Girl',
-        artist: 'Van Morrison',
-        chords: ['G', 'C', 'D', 'Em'],
-        capo: null,
-        tip: 'The famous intro riff uses G, C, D, Em. The verses are mostly G, C, G, D.',
-        editorUrl: '/editor/?chords=G-C-D-Em&bpm=150&style=rock_basic',
-        chartUrl: null,
-      },
       {
         title: 'Sweet Home Alabama',
         artist: 'Lynyrd Skynyrd',
         chords: ['D', 'C', 'G'],
         capo: null,
-        tip: 'D, C, G — over and over. One of the most satisfying guitar songs to play.',
-        editorUrl: '/editor/?chords=D-C-G&bpm=100&style=rock_basic',
+        bpm: 99,
+        level: 'beginner',
+        strumHint: '4 downstrokes per chord, steady and driving',
+        tip: "The classic D–C–G riff that opens the song is one of the most recognizable sequences in rock. Once you know where those three shapes are, you essentially know the song — the same pattern repeats through the verses and chorus. Focus on making the D-to-C transition clean first; that's where most beginners hesitate. At 99 BPM, the changes move quickly enough to feel satisfying without being overwhelming.",
+        editorUrl: '/editor/?chords=D-C-G&bpm=99&style=rock_basic',
         chartUrl: null,
       },
       {
@@ -70,8 +127,11 @@ const songGroups = [
         artist: 'Bob Dylan',
         chords: ['G', 'C', 'D'],
         capo: null,
-        tip: 'A folk classic with only 3 chords. Perfect for a beginner playing their first song around a campfire.',
-        editorUrl: '/editor/?chords=G-C-D&bpm=80&style=folk_strum',
+        bpm: 77,
+        level: 'beginner',
+        strumHint: 'Gentle folk strum, relaxed and even',
+        tip: "G, C, and D are the entire song — verse and chorus alike. The verse moves G–C–G–D and the chorus uses the same shapes in a slightly different order. At 77 BPM with two full beats per chord, this is one of the most beginner-friendly folk songs you can learn. A great first song to play all the way through from beginning to end without stopping.",
+        editorUrl: '/editor/?chords=G-C-D&bpm=77&style=folk_strum',
         chartUrl: null,
       },
       {
@@ -79,25 +139,60 @@ const songGroups = [
         artist: 'Creedence Clearwater Revival',
         chords: ['D', 'A', 'G'],
         capo: null,
-        tip: 'Very straightforward strumming, great for practicing chord changes.',
-        editorUrl: '/editor/?chords=D-A-G&bpm=180&style=rock_basic',
+        bpm: 93,
+        level: 'beginner',
+        strumHint: '4 downstrokes per bar to start, build up to 8',
+        tip: "D, A, and G cycle through this rock classic at around 93 BPM. Start at half tempo and build once the chord changes are automatic. The strumming pattern is a steady eight-note down-strum, but simplifying to four downstrokes per bar still sounds great. One of the best 3-chord songs for practicing clean, consistent chord changes under a tight rhythm.",
+        editorUrl: '/editor/?chords=D-A-G&bpm=93&style=rock_basic',
+        chartUrl: null,
+      },
+      {
+        title: 'Brown Eyed Girl',
+        artist: 'Van Morrison',
+        chords: ['G', 'C', 'D', 'Em'],
+        capo: null,
+        bpm: 150,
+        level: 'easy',
+        strumHint: 'Down-up strumming, brisk and consistent',
+        tip: "The verse uses G, C, D, and Em — G, C, and D do most of the work, with Em appearing mainly in the chorus. At 150 BPM the record sounds fast, but chord changes are less frequent than the tempo suggests; you often stay on one chord for a full measure. Learn the G–C–D pattern first and you'll have most of the song. One of the most crowd-pleasing songs a beginner can learn.",
+        editorUrl: '/editor/?chords=G-C-D-Em&bpm=150&style=rock_basic',
+        chartUrl: null,
+      },
+      {
+        title: 'Riptide',
+        artist: 'Vance Joy',
+        chords: ['Am', 'G', 'C'],
+        capo: null,
+        bpm: 100,
+        level: 'easy',
+        strumHint: 'Pattern: D DU UDU — or simplify to D DU',
+        tip: "Am, G, and C cycle through Riptide in a nearly hypnotic loop at 100 BPM. The chord changes are predictable enough that most beginners can play the full song in a single practice session. Vance Joy plays it with a specific picking pattern, but a simple strum works perfectly. Once chord changes are automatic, the picking pattern becomes the satisfying next challenge.",
+        editorUrl: '/editor/?chords=Am-G-C&bpm=100&style=pop_basic',
         chartUrl: null,
       },
     ],
   },
   {
     id: 'four-chords',
-    level: '🟡',
-    title: 'The magic 4 chords — C, Am, F, G',
-    subtitle: 'These 4 chords appear in hundreds of pop songs. Learn them once, play forever.',
+    badge: '🟡 Easy',
+    title: 'The magic 4 chords',
+    subtitle: 'C, G, Am, F — or any rotation of the same idea — powers hundreds of pop songs.',
+    intro: 'The most important discovery in beginner guitar is this: the same four chords appear in an enormous number of popular songs. Sometimes it\'s C–G–Am–F. Sometimes it\'s D–A–Bm–G. Sometimes it\'s Am–F–C–G. These are all the same underlying progression (I–V–vi–IV) in different keys. Once you understand that, every 4-chord song on this list stops feeling like a new thing to learn and starts feeling like a new angle on something you already know.',
+    embedChords: 'C G Am F',
+    embedBpm: 90,
+    embedStyle: 'pop_basic',
+    embedTitle: 'The 4-chord loop — C, G, Am, F',
     songs: [
       {
         title: 'Let It Be',
         artist: 'The Beatles',
         chords: ['C', 'G', 'Am', 'F'],
         capo: null,
-        tip: 'The most iconic 4-chord song ever written. Slow tempo makes it beginner-friendly.',
-        editorUrl: '/editor/?chords=C-G-Am-F&bpm=76&style=pop_basic',
+        bpm: 72,
+        level: 'easy',
+        strumHint: 'Slow, deliberate — 2 beats per chord minimum',
+        tip: "C, G, Am, and F from the very first note to the last, at a relaxed 72 BPM. F can be tricky as a full barre chord — beginners can use a simplified Fmaj7 shape (index and ring finger only) that fits the song just as well. Two beats on each chord gives you plenty of time to move cleanly. This is one of the most important songs any guitarist can learn to play.",
+        editorUrl: '/editor/?chords=C-G-Am-F&bpm=72&style=pop_basic',
         chartUrl: null,
       },
       {
@@ -105,8 +200,11 @@ const songGroups = [
         artist: 'Adele',
         chords: ['A', 'E', 'F#m', 'D'],
         capo: null,
-        tip: 'The same 4-chord pattern throughout. The arpeggiated picking sounds impressive but is easy to learn.',
-        editorUrl: '/editor/?chords=A-E-F%23m-D&bpm=68&style=pop_basic',
+        bpm: 68,
+        level: 'easy',
+        strumHint: 'Gentle fingerpicking or slow strum, very measured',
+        tip: "The A–E–F#m–D pattern repeats through verse and chorus at a slow 68 BPM. F#m is a barre chord — beginners can substitute a simplified partial-barre or use capo 2 and play Em–B–G#m–F# instead. The piano arpeggios in the original translate beautifully to fingerpicking on guitar, but a gentle strum sounds equally good. A great song for practicing slow, deliberate chord changes.",
+        editorUrl: '/editor/?chords=A-E-F%23m-D&bpm=68&style=folk_strum',
         chartUrl: null,
       },
       {
@@ -114,7 +212,10 @@ const songGroups = [
         artist: 'Bob Marley',
         chords: ['C', 'G', 'Am', 'F'],
         capo: null,
-        tip: 'Same progression as Let It Be. Once you learn one, you get the other for free.',
+        bpm: 75,
+        level: 'easy',
+        strumHint: 'Reggae feel: accent the offbeat, not the downbeat',
+        tip: "C, G, Am, and F — the same four chords as Let It Be, just reordered and at a slower reggae tempo. The interesting challenge is the reggae strum pattern: accent the offbeat (the 'and' between beats) rather than the downbeat. That rhythmic shift is exactly what gives it the Bob Marley feel. A great lesson in how rhythm, not just chord choice, creates a song's character.",
         editorUrl: '/editor/?chords=C-G-Am-F&bpm=75&style=pop_basic',
         chartUrl: null,
       },
@@ -123,7 +224,10 @@ const songGroups = [
         artist: 'U2',
         chords: ['D', 'A', 'Bm', 'G'],
         capo: null,
-        tip: 'Four chords in a loop, slow tempo. Beautiful song that sounds harder than it is.',
+        bpm: 110,
+        level: 'easy',
+        strumHint: 'Light, steady strumming — let the song breathe',
+        tip: "D, A, Bm, and G cycle throughout the entire song at 110 BPM. Bm is a barre chord — practice just the D-to-Bm transition for a few minutes every day until it becomes automatic. The bass and synth carry much of the tension in the recording; on guitar, play with a light touch and focus on keeping time. The same D–A–Bm–G pattern also drives 'Someone Like You' and dozens of other stadium songs.",
         editorUrl: '/editor/?chords=D-A-Bm-G&bpm=110&style=pop_basic',
         chartUrl: null,
       },
@@ -132,7 +236,10 @@ const songGroups = [
         artist: 'Oasis',
         chords: ['Em', 'G', 'Dsus4', 'A7sus4'],
         capo: 2,
-        tip: 'Capo on fret 2. The chord shapes are easy — it\'s the strumming rhythm that takes practice.',
+        bpm: 87,
+        level: 'easy',
+        strumHint: 'Syncopated strum — listen closely to the recording',
+        tip: "Capo on fret 2. The shapes — Em, G, Dsus4, A7sus4 — look intimidating, but Dsus4 is just a D chord with your pinky added to string 1 fret 3, and A7sus4 creates an open, floating sound by removing one finger from A. All four shapes are actually simpler than their names suggest. The strumming rhythm is the real challenge — listen to the recording and count along until it clicks in your body, not just your head.",
         editorUrl: '/editor/?chords=Em-G-D-A&bpm=87&style=pop_basic',
         chartUrl: '/songs/wonderwall-oasis/',
       },
@@ -141,25 +248,72 @@ const songGroups = [
         artist: 'Leonard Cohen',
         chords: ['C', 'Am', 'F', 'G'],
         capo: null,
-        tip: 'Slow, beautiful, and very manageable for beginners. Play it fingerstyle or with a gentle strum.',
-        editorUrl: '/editor/?chords=C-Am-F-G&bpm=60&style=folk_strum',
+        bpm: 58,
+        level: 'easy',
+        strumHint: 'Waltz feel (3/4 time): 3 beats per chord',
+        tip: "C, Am, F, and G in a slow 3/4 waltz feel at 58 BPM. The 3/4 timing means counting to three instead of four, which changes how your strumming feels. This is also a great song for learning dynamics — the verse is quiet and intimate, the chorus opens up. Multiple artists have covered Hallelujah in different keys; any version of C–Am–F–G captures the essence.",
+        editorUrl: '/editor/?chords=C-Am-F-G&bpm=58&style=folk_strum',
         chartUrl: '/songs/hallelujah-leonard-cohen/',
+      },
+      {
+        title: 'Take Me to Church',
+        artist: 'Hozier',
+        chords: ['Am', 'F', 'C', 'G'],
+        capo: null,
+        bpm: 69,
+        level: 'easy',
+        strumHint: 'Strong, deliberate downstrokes — play with conviction',
+        tip: "Am, F, C, and G in a minor-key arrangement — one of the most distinctive chord progressions of the 2010s. At 69 BPM, the changes are slow and deliberate. The original has a heavy, dramatic piano quality; on guitar, recreate that by strumming with authority and letting each chord ring fully before moving to the next. The Am-to-F transition is among the easiest chord changes in this section.",
+        editorUrl: '/editor/?chords=Am-F-C-G&bpm=69&style=pop_basic',
+        chartUrl: null,
+      },
+      {
+        title: 'Thinking Out Loud',
+        artist: 'Ed Sheeran',
+        chords: ['D', 'G', 'Em', 'A'],
+        capo: null,
+        bpm: 79,
+        level: 'easy',
+        strumHint: 'Shuffle feel (swing the eighth notes slightly)',
+        tip: "D, G, Em, and A cycle through verse and chorus at a slow 79 BPM. Ed Sheeran plays it with a shuffle feel (slightly swung eighth notes), but a straight strum works well for beginners. All four are open chord shapes and the changes are gradual enough that you have time to think. A great song to learn once you're comfortable with C–G–Am–F — same concept, slightly different chords.",
+        editorUrl: '/editor/?chords=D-G-Em-A&bpm=79&style=pop_basic',
+        chartUrl: null,
+      },
+      {
+        title: 'Counting Stars',
+        artist: 'OneRepublic',
+        chords: ['Am', 'C', 'G', 'F'],
+        capo: null,
+        bpm: 122,
+        level: 'easy',
+        strumHint: 'Down-up pattern at a faster tempo — build speed slowly',
+        tip: "Am, C, G, and F alternate through the verse at 122 BPM — one of the more up-tempo entries in this section. Start slow and build speed as the changes become automatic. A simple down-up pattern captures the feel of the song. One of the most searched beginner guitar songs of the 2010s: the progression is satisfying, all four chords are open shapes, and the song is immediately recognizable.",
+        editorUrl: '/editor/?chords=Am-C-G-F&bpm=122&style=pop_basic',
+        chartUrl: null,
       },
     ],
   },
   {
     id: 'acoustic',
-    level: '🟡',
+    badge: '🟡 Easy · 🔴 Intermediate',
     title: 'Acoustic classics',
-    subtitle: 'A little harder but totally worth it. Each one is a crowd-pleaser.',
+    subtitle: 'A little harder — more chords, richer fingerpicking, and higher rewards.',
+    intro: 'These songs take longer to learn than the earlier sections, but each one is worth the effort. They use 5–7 chord shapes, slightly faster tempos, or fingerpicking patterns that require both hands to be more precise. Hotel California at the end of this section is the hardest song on the full list — treat it as a longer-term goal rather than a this-week project.',
+    embedChords: 'Em G Am C',
+    embedBpm: 70,
+    embedStyle: 'folk_strum',
+    embedTitle: 'Acoustic vocabulary — Em, G, Am, C',
     songs: [
       {
         title: 'Wish You Were Here',
         artist: 'Pink Floyd',
         chords: ['Em', 'G', 'Am', 'C', 'D'],
         capo: null,
-        tip: 'The intro picking pattern is the hardest part. The chord changes are easy once you\'ve done them a few times.',
-        editorUrl: '/editor/?chords=Em-G-Am-C-D&bpm=60&style=folk_strum',
+        bpm: 59,
+        level: 'easy',
+        strumHint: 'The intro is fingerpicked; the verse can be strummed',
+        tip: "Em, G, Am, C, and D at a slow, introspective 59 BPM. The intro involves a single-note picking pattern that's the hardest part — but the chord section itself is accessible to most beginners. Practice the chord changes on their own first, then learn the intro once the shapes are automatic. One of the most rewarding acoustic songs to be able to play all the way through.",
+        editorUrl: '/editor/?chords=Em-G-Am-C-D&bpm=59&style=folk_strum',
         chartUrl: null,
       },
       {
@@ -167,8 +321,35 @@ const songGroups = [
         artist: 'Eric Clapton',
         chords: ['A', 'E', 'F#m', 'D'],
         capo: null,
-        tip: 'Fingerpicking pattern but you can also strum it simply. One of the most beautiful songs on acoustic guitar.',
+        bpm: 80,
+        level: 'easy',
+        strumHint: 'Fingerpicked ballad — or strum gently if needed',
+        tip: "A, E, F#m, and D at 80 BPM. F#m is a barre chord — beginners can substitute an open F#m shape or use capo to avoid it. Clapton wrote this as a fingerpicked ballad and the picking pattern is part of what makes it distinctive, but a gentle strum works equally well while you build the muscle memory. A deeply emotional song that rewards careful, measured playing.",
         editorUrl: '/editor/?chords=A-E-F%23m-D&bpm=80&style=folk_strum',
+        chartUrl: null,
+      },
+      {
+        title: 'Fast Car',
+        artist: 'Tracy Chapman',
+        chords: ['C', 'G', 'Am', 'F'],
+        capo: null,
+        bpm: 99,
+        level: 'easy',
+        strumHint: 'Driving, relentless forward strum — momentum is everything',
+        tip: "C, G, Am, and F — the same 4-chord loop as Let It Be and Hallelujah — but played with a more energetic, driving feel at 99 BPM. The magic of Fast Car is momentum: the chords themselves are simple, but the relentless forward motion of the strumming creates the feeling of the song. A beautiful song that sounds much harder than it is to play.",
+        editorUrl: '/editor/?chords=C-G-Am-F&bpm=99&style=folk_strum',
+        chartUrl: null,
+      },
+      {
+        title: 'Patience',
+        artist: "Guns N' Roses",
+        chords: ['C', 'G', 'A', 'D', 'Am', 'F'],
+        capo: null,
+        bpm: 57,
+        level: 'easy',
+        strumHint: 'Slow fingerpicking — or gentle arpeggiated strum',
+        tip: "C, G, A, D with Am and F in the chorus, played very slowly at around 57 BPM. The verse uses mostly C, G, and D — the hardest part is the subtle fingerpicking pattern Slash plays throughout. A gentle strum or simple arpeggio works fine while you're learning the chord positions. One of the few Guns N' Roses songs that's genuinely beginner-accessible.",
+        editorUrl: '/editor/?chords=C-G-A-D&bpm=57&style=folk_strum',
         chartUrl: null,
       },
       {
@@ -176,223 +357,522 @@ const songGroups = [
         artist: 'Eagles',
         chords: ['Bm', 'F#', 'A', 'E', 'G', 'D', 'Em'],
         capo: null,
-        tip: 'More chords than the others but each chord change is slow enough that you have time to move. The iconic intro arpeggio is worth learning.',
+        bpm: 75,
+        level: 'intermediate',
+        strumHint: 'The iconic intro is fingerpicked — separate challenge from the chords',
+        tip: "Seven chords including F# (a barre chord) — the hardest song on this list by complexity. The iconic intro fingerpicking pattern is a separate challenge entirely from the chord progression. Start by learning just the verse chords (Bm, F#, A, E, G, D, Em) before attempting the intro. At 75 BPM the changes are slow enough to manage once you know all the shapes. Treat this as your 'level up' song — something to work toward after the rest of this page feels comfortable.",
         editorUrl: '/editor/?chords=Bm-F%23-A-E-G-D-Em&bpm=75&style=folk_strum',
+        chartUrl: null,
+      },
+    ],
+  },
+  {
+    id: 'iconic',
+    badge: '🟡 Easy',
+    title: 'Iconic first songs',
+    subtitle: 'The songs everyone wants to play first — and most of them are easier than they sound.',
+    intro: 'These are the songs people ask about most when they first pick up a guitar. Some are iconic because of their emotional weight, some because of their cultural ubiquity, and some simply because they\'re the first song someone played for them. The good news: most of them are built on the same 4–5 chord shapes you already know from the earlier sections.',
+    embedChords: 'G Em C D',
+    embedBpm: 75,
+    embedStyle: 'folk_strum',
+    embedTitle: 'Iconic chord foundation — G, Em, C, D',
+    songs: [
+      {
+        title: 'Nothing Else Matters',
+        artist: 'Metallica',
+        chords: ['Em', 'Am', 'C', 'D', 'G'],
+        capo: null,
+        bpm: 69,
+        level: 'easy',
+        strumHint: 'The intro is open-string arpeggios — let every note ring',
+        tip: "The intro is just open strings and a slow Em arpeggio — some people play this as their very first guitar piece because it sounds impressive with almost no technique. The full song uses Em, Am, C, D, and G at a slow 69 BPM. The emotional weight comes from the resonance of the open strings, so let everything ring out instead of muting. A song that rewards patience and a light touch.",
+        editorUrl: '/editor/?chords=Em-Am-C-D-G&bpm=69&style=folk_strum',
+        chartUrl: null,
+      },
+      {
+        title: 'Wake Me Up When September Ends',
+        artist: 'Green Day',
+        chords: ['G', 'Cadd9', 'Em', 'D'],
+        capo: null,
+        bpm: 79,
+        level: 'easy',
+        strumHint: 'Gentle strum in the verse, fuller in the chorus',
+        tip: "G, Cadd9, Em, and D at 79 BPM. Cadd9 is a beginner-friendly variant of C that shares two fingers with G — the G-to-Cadd9 change is almost effortless once you feel it. This is a great song for learning how to transition between open-string chords smoothly, and for practicing dynamics: the verse is gentle, the chorus opens up into fuller strumming.",
+        editorUrl: '/editor/?chords=G-Cadd9-Em-D&bpm=79&style=folk_strum',
+        chartUrl: null,
+      },
+      {
+        title: 'Stand By Me',
+        artist: 'Ben E. King',
+        chords: ['G', 'Em', 'C', 'D'],
+        capo: null,
+        bpm: 72,
+        level: 'easy',
+        strumHint: 'Steady, unhurried strumming — match the bass groove',
+        tip: "G, Em, C, and D — four classic open shapes at a steady 72 BPM. The chord sequence is the I–vi–IV–V progression, one of the most fundamental patterns in popular music. Learn it here and you'll recognize the same structure in dozens of other songs. A beautiful 1961 classic that sounds great on acoustic guitar and gets an immediate reaction from anyone listening.",
+        editorUrl: '/editor/?chords=G-Em-C-D&bpm=72&style=folk_strum',
+        chartUrl: null,
+      },
+      {
+        title: 'Take Me Home, Country Roads',
+        artist: 'John Denver',
+        chords: ['G', 'D', 'Em', 'C'],
+        capo: null,
+        bpm: 81,
+        level: 'easy',
+        strumHint: 'Waltz strum or steady down-up — both work well',
+        tip: "G, D, Em, and C at 81 BPM — nearly the same chord sequence as Stand By Me in a different order. Once you've learned one, the other follows quickly. The strumming can be a simple waltz feel or a straight down-up pattern; both fit the song. One of the best campfire songs there is — even people who don't play guitar will sing along and keep you motivated.",
+        editorUrl: '/editor/?chords=G-D-Em-C&bpm=81&style=folk_strum',
+        chartUrl: null,
+      },
+      {
+        title: 'Good Riddance (Time of Your Life)',
+        artist: 'Green Day',
+        chords: ['G', 'Cadd9', 'Dsus4', 'Em', 'Am', 'C'],
+        capo: null,
+        bpm: 92,
+        level: 'easy',
+        strumHint: 'Fingerpicking pattern: thumb on bass, index/middle on treble strings',
+        tip: "G, Cadd9, and Dsus4 through the verse; Em, Am, and C in the bridge — all at 92 BPM. The song is traditionally played fingerstyle, making it a natural bridge between strumming songs and fingerpicking technique. The arpeggio pattern (thumb on the bass string, index on string 3, middle on string 2) is a foundational fingerpicking move used across dozens of songs — worth learning here.",
+        editorUrl: '/editor/?chords=G-Cadd9-D&bpm=92&style=folk_strum',
         chartUrl: null,
       },
     ],
   },
 ];
 
-// ── Schema ────────────────────────────────────────────────────────────────────
+const allSongs = songGroups.flatMap(g => g.songs);
+const totalSongs = allSongs.length;
+
+const levelConfig: Record<Level, { icon: string; label: string }> = {
+  beginner:     { icon: '🟢', label: 'Beginner' },
+  easy:         { icon: '🟡', label: 'Easy' },
+  intermediate: { icon: '🔴', label: 'Intermediate' },
+};
+
+// ── Schema ──────────────────────────────────────────────────────────────────
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  '@id': `${CANONICAL}#article`,
+  headline: TITLE,
+  description: DESCRIPTION,
+  datePublished: PUB_DATE,
+  dateModified: MOD_DATE,
+  author: {
+    '@type': 'Person',
+    '@id': 'https://chordsequence.com/about/elias-corsino/#person',
+    name: 'Elías Corsino Saldaña',
+    url: 'https://chordsequence.com/about/elias-corsino/',
+  },
+  publisher: {
+    '@type': 'Organization',
+    '@id': 'https://chordsequence.com/#organization',
+    name: 'Chord Sequence',
+    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': CANONICAL },
+};
+
+const itemListSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Easy Guitar Songs for Beginners',
+  description: `${totalSongs} easy guitar songs organized by difficulty — from 2-chord songs to acoustic classics.`,
+  numberOfItems: totalSongs,
+  itemListElement: allSongs.map((s, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    name: `${s.title} — ${s.artist}`,
+    ...(s.chartUrl ? { url: `https://chordsequence.com${s.chartUrl}` } : {}),
+  })),
+};
+
+const faqItems = [
+  {
+    q: 'What is the easiest song to learn on guitar for beginners?',
+    a: "Knockin' on Heaven's Door by Bob Dylan is one of the easiest — just G and D, both open chords at a slow 68 BPM. A Horse with No Name by America is another great choice: two chords that share notes, making the transition nearly seamless. Both songs can be played within your first hour of practice.",
+  },
+  {
+    q: 'How many chords do I need to play popular songs?',
+    a: 'Just 4 chords — C, G, Am, and F — unlock hundreds of popular songs. Add G, D, and Em and you have access to most of the 3-chord rock and folk catalog. You can play every song on this page with 8 chord shapes total.',
+  },
+  {
+    q: 'What are the best guitar songs for beginners?',
+    a: "The best beginner songs have slow chord changes, open chord shapes, and fewer than 5 chords. Knockin' on Heaven's Door (2 chords), Blowin' in the Wind (3 chords), Let It Be (4 chords), and Wish You Were Here (5 chords) represent the ideal difficulty progression — each adds one more chord and one more level of challenge.",
+  },
+  {
+    q: 'Do I need to read music to play guitar songs?',
+    a: 'No. Almost all guitarists learn using chord charts and tabs, not music notation. A chord chart shows you which chord shape to hold and when to change it. You can play real songs on your first day without reading a single note.',
+  },
+  {
+    q: 'What guitar should I use to learn these songs?',
+    a: 'Any acoustic or electric guitar works. Steel-string acoustics are the most common choice for beginners learning these songs. Classical guitars (nylon string) are gentler on fingertips but slightly harder to form chord shapes on. Electric guitars have the same chord shapes as acoustic — whatever you own is the right guitar to start with.',
+  },
+  {
+    q: 'How long does it take to learn a beginner guitar song?',
+    a: 'A 2-chord song like Knockin\' on Heaven\'s Door is playable in one or two practice sessions — sometimes in a single afternoon. A 4-chord song usually takes a week of daily 20-minute sessions to play through comfortably. "Playing it" and "playing it well" are different timelines: the first is achievable in days, the second takes months. Start with the first goal.',
+  },
+  {
+    q: 'Do I need to know music theory to play these songs?',
+    a: "Not at all. Chord shapes are the only language you need for every song on this page. Understanding why C–G–Am–F works (it's the I–V–vi–IV progression in C major) is interesting and eventually useful, but it's not required. If you're curious, check our guide to chord progressions after you've played a few songs.",
+  },
+  {
+    q: "What's the difference between strumming and fingerpicking?",
+    a: 'Strumming moves a pick or your thumb across multiple strings at once — it\'s the foundation of most guitar playing and what all the songs on this list use by default. Fingerpicking means plucking individual strings with specific fingers, which creates a more delicate, arpeggiated sound. Good Riddance, Nothing Else Matters, and Patience on this list are traditionally played fingerstyle, but all of them can be strummed. Learn strumming first.',
+  },
+];
+
 const faqSchema = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'What is the easiest song to learn on guitar for beginners?',
-      acceptedAnswer: { '@type': 'Answer', text: "Knockin' on Heaven's Door by Bob Dylan is one of the easiest guitar songs for beginners — it only uses G and D, both open chords that are very easy to learn. Sweet Home Alabama (D, C, G) and What I Got by Sublime are also great starting points." },
-    },
-    {
-      '@type': 'Question',
-      name: 'How many chords do I need to play popular songs?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Just 4 chords — C, G, Am, and F — are enough to play hundreds of popular songs. These chords appear in Let It Be, No Woman No Cry, Someone Like You, and many more. Many songs use only 2 or 3 chords.' },
-    },
-    {
-      '@type': 'Question',
-      name: 'What are the best guitar songs for beginners?',
-      acceptedAnswer: { '@type': 'Answer', text: "The best beginner guitar songs are ones with few chords, slow chord changes, and a simple strumming pattern. Great options include Knockin' on Heaven's Door (2 chords), Brown Eyed Girl (3 chords), Let It Be (4 chords), and Wish You Were Here (5 chords)." },
-    },
-    {
-      '@type': 'Question',
-      name: 'Do I need to read music to play guitar songs?',
-      acceptedAnswer: { '@type': 'Answer', text: 'No. Most guitarists learn using chord charts and tabs, not traditional music notation. A chord chart shows you which chords to play and when. You can start playing real songs on your first day without reading a single note.' },
-    },
-  ],
+  mainEntity: faqItems.map(f => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
 };
 
 const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
+  '@id': `${CANONICAL}#breadcrumb`,
   itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 1, name: 'Home',  item: 'https://chordsequence.com/' },
     { '@type': 'ListItem', position: 2, name: 'Learn', item: 'https://chordsequence.com/learn/' },
-    { '@type': 'ListItem', position: 3, name: 'Easy guitar songs for beginners', item: canonicalUrl },
+    { '@type': 'ListItem', position: 3, name: 'Easy Guitar Songs for Beginners', item: CANONICAL },
   ],
 };
-
-const totalSongs = songGroups.reduce((sum, g) => sum + g.songs.length, 0);
 ---
 
 <BaseLayout
-  title="Easy Guitar Songs for Beginners — {totalSongs} Songs You Can Play Today | Chord Sequence"
-  description={`${totalSongs} easy guitar songs for beginners — from 2-chord songs to acoustic classics. Chord charts, tips, and a free interactive player for every song.`}
-  canonicalUrl={canonicalUrl}
+  title={TITLE}
+  description={DESCRIPTION}
+  canonicalUrl={CANONICAL}
   ogType="article"
   author="Elías Corsino Saldaña"
 >
   <Fragment slot="head">
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    <meta property="article:published_time" content={PUB_DATE} />
+    <meta property="article:modified_time"  content={MOD_DATE} />
+    <meta property="article:author"         content="Elías Corsino Saldaña" />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
 
   <main class="mx-auto max-w-4xl px-4 sm:px-6 py-14 sm:py-20">
 
     <!-- Breadcrumb -->
-    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+    <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-muted-foreground mb-10">
       <a href="/" class="hover:text-foreground transition-colors">Home</a>
-      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="opacity-40">/</span>
       <a href="/learn/" class="hover:text-foreground transition-colors">Learn</a>
-      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="opacity-40">/</span>
       <span class="text-foreground">Easy guitar songs</span>
     </nav>
 
     <!-- Hero -->
-    <div class="mb-14">
-      <div class="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-6">
-        🎸 {totalSongs} songs · Updated 2025
+    <header class="mb-10">
+      <div class="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-5">
+        🎸 {totalSongs} songs · Updated June 2026
       </div>
-      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-5">
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
         Easy guitar songs<br class="hidden sm:block" /> for beginners
       </h1>
-      <p class="text-xl text-muted-foreground mb-4 max-w-2xl">
-        Every song here is playable by a complete beginner.
-        We start with <strong class="text-foreground">2 chords</strong> and build up from there.
+      <p class="text-sm text-muted-foreground mb-6">
+        By <a href="/about/elias-corsino/" class="text-foreground hover:text-primary transition-colors font-medium">Elías Corsino Saldaña</a>
+        · Updated June 2026 · ~12 min read
       </p>
-      <p class="text-muted-foreground max-w-2xl">
-        Each song shows you exactly which chords you need, plus a free interactive player
-        so you can hear how they sound before you pick up your guitar.
-      </p>
-    </div>
-
-    <!-- Quick start -->
-    <div class="rounded-2xl border border-primary/20 bg-primary/5 p-6 mb-14">
-      <p class="text-sm font-semibold text-primary uppercase tracking-wide mb-2">🔑 Start here</p>
-      <p class="text-lg font-semibold text-foreground mb-1">Don't know any chords yet?</p>
-      <p class="text-muted-foreground text-sm mb-4">
-        Learn Em, Am, G, C, and D first — 5 chords that unlock most of the songs on this page.
-        Takes about a week of daily practice.
-      </p>
-      <div class="flex flex-wrap gap-3">
-        <a
-          href="/learn/beginner-guitar-chords/"
-          class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors"
-        >
-          Learn the 8 beginner chords →
-        </a>
-        <a
-          href="/editor/?chords=Em-Am-G-C-D&bpm=80&style=pop_basic"
-          class="inline-flex items-center gap-1.5 px-4 py-2 border border-primary/30 text-primary text-sm font-medium rounded-xl hover:bg-primary/10 transition-colors"
-        >
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-          Hear them first
-        </a>
+      <div class="space-y-4 text-lg text-muted-foreground max-w-2xl">
+        <p>
+          Whether you picked up a guitar yesterday or a month ago, the hardest question is always the same: <em>what do I actually play?</em> Scales are fine, theory is fine, but what beginners really want is to sit down and play something that sounds like a real song.
+        </p>
+        <p>
+          This list was built around one rule: every song here is playable by someone who has just learned their first chord shapes. <strong class="text-foreground">"Easy" has a real definition.</strong> A beginner-friendly song has at least three of these: a slow or moderate tempo (under 120 BPM), fewer than five chords, open chord shapes only (no barre chords, or a capo to avoid them), and chord changes that happen slowly — at least one beat per change, often two.
+        </p>
+        <p>
+          We start with 2-chord songs because they're the fastest way to feel like you're actually playing music. Then we add a third chord, then a fourth. By the time you reach the acoustic classics section, you'll have built a real vocabulary of chord shapes and changes — and you'll recognize that many of the "hard" songs use the same four chords as the easy ones.
+        </p>
+        <p>
+          Each song includes a free interactive player so you can hear how the chords sound before you pick up your guitar. That's not a substitute for playing — it's a preview that makes learning faster. You don't need to read music or understand theory to use this page. Chord shapes and a sense of rhythm are all you need.
+        </p>
       </div>
-    </div>
+    </header>
 
-    <!-- Song groups -->
-    <div class="space-y-16">
-      {songGroups.map((group) => (
-        <section id={group.id} class="scroll-mt-24">
-          <div class="mb-6">
-            <h2 class="text-2xl font-bold text-foreground mb-1">
-              {group.level} {group.title}
-            </h2>
-            <p class="text-muted-foreground">{group.subtitle}</p>
-          </div>
-
-          <div class="space-y-4">
-            {group.songs.map((song) => (
-              <div class="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-colors">
-                <div class="flex flex-col sm:flex-row sm:items-start gap-4">
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-start gap-3 mb-2 flex-wrap">
-                      <div>
-                        <h3 class="font-semibold text-foreground">{song.title}</h3>
-                        <p class="text-sm text-muted-foreground">{song.artist}{song.capo ? ` · Capo ${song.capo}` : ''}</p>
-                      </div>
-                    </div>
-
-                    <!-- Chords -->
-                    <div class="flex flex-wrap gap-1.5 mb-3">
-                      {song.chords.map(c => (
-                        <span class="text-xs font-bold font-mono px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
-                          {c}
-                        </span>
-                      ))}
-                    </div>
-
-                    <p class="text-sm text-muted-foreground">{song.tip}</p>
-                  </div>
-
-                  <!-- Actions -->
-                  <div class="flex sm:flex-col gap-2 shrink-0">
-                    <a
-                      href={song.editorUrl}
-                      class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-primary-foreground transition-all whitespace-nowrap"
-                    >
-                      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                      Hear it
-                    </a>
-                    {song.chartUrl && (
-                      <a
-                        href={song.chartUrl}
-                        class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 border border-border rounded-lg text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors whitespace-nowrap"
-                      >
-                        Full chart →
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-
-    <!-- Tips -->
-    <section class="mt-16 rounded-2xl border border-border bg-card p-6 sm:p-8">
-      <h2 class="text-xl font-bold text-foreground mb-6">How to actually learn these songs</h2>
-      <div class="grid sm:grid-cols-2 gap-6">
+    <!-- Table of contents -->
+    <nav aria-label="Page contents" class="rounded-2xl border border-border bg-card p-6 mb-14">
+      <p class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">On this page</p>
+      <ol class="space-y-2 text-sm">
         {[
-          {
-            title: 'Pick one song and stick with it',
-            desc: "Don't try to learn 5 songs at once. Pick the one you want to play most, learn it completely, then move on.",
-          },
-          {
-            title: 'Practice the hardest chord change',
-            desc: 'Find the trickiest switch (usually to F or Bm) and practice just that transition — back and forth — for a few minutes each day.',
-          },
-          {
-            title: 'Play slowly at first',
-            desc: "Speed comes naturally once your fingers know where to go. Play slow enough that every chord rings clean — then speed up.",
-          },
-          {
-            title: 'Use a metronome or backing track',
-            desc: 'It forces you to keep time. Even just tapping your foot helps. The free chord player above is perfect for this.',
-          },
-        ].map(tip => (
+          { href: '#how-we-pick', label: 'How we pick beginner songs' },
+          { href: '#two-chords',   label: '2-chord songs (4 songs)' },
+          { href: '#three-chords', label: '3-chord songs (5 songs)' },
+          { href: '#four-chords',  label: 'The 4-chord magic (9 songs)' },
+          { href: '#acoustic',     label: 'Acoustic classics (5 songs)' },
+          { href: '#iconic',       label: 'Iconic first songs (4 songs)' },
+          { href: '#reference',    label: 'Quick reference table' },
+          { href: '#practice',     label: 'How to practice these songs' },
+          { href: '#next-steps',   label: 'What to learn next' },
+          { href: '#faq',          label: 'Common questions' },
+        ].map(item => (
+          <li class="flex items-center gap-2">
+            <span class="text-primary/50 font-mono text-xs">{String(item.href.replace('#', '')).padEnd(0)}</span>
+            <a href={item.href} class="text-muted-foreground hover:text-foreground transition-colors">{item.label}</a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+
+    <!-- How we pick songs -->
+    <section id="how-we-pick" class="rounded-2xl border border-border bg-card/40 p-6 sm:p-8 mb-14 scroll-mt-24">
+      <h2 class="text-xl font-bold text-foreground mb-4">How we pick beginner songs</h2>
+      <p class="text-muted-foreground text-sm mb-5">A song earns a spot on this list by meeting most of these criteria:</p>
+      <div class="grid sm:grid-cols-2 gap-4">
+        {[
+          { label: 'Tempo under 120 BPM', desc: 'Or commonly played slower than the original recording.' },
+          { label: '2–5 chord shapes', desc: 'Fewer chords means faster progress and more time playing music.' },
+          { label: 'Open chord shapes', desc: 'No full barre chords unless a capo makes them avoidable.' },
+          { label: 'Slow chord changes', desc: 'At least 2 beats per chord — enough time to move cleanly.' },
+        ].map(c => (
           <div class="flex gap-3">
-            <svg class="w-5 h-5 text-primary shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+            <svg class="w-4 h-4 text-primary shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
             <div>
-              <p class="font-semibold text-foreground text-sm mb-1">{tip.title}</p>
-              <p class="text-sm text-muted-foreground">{tip.desc}</p>
+              <p class="text-sm font-semibold text-foreground">{c.label}</p>
+              <p class="text-xs text-muted-foreground mt-0.5">{c.desc}</p>
             </div>
           </div>
         ))}
       </div>
     </section>
 
+    <!-- Song groups -->
+    <div class="space-y-20">
+      {songGroups.map((group) => (
+        <section id={group.id} class="scroll-mt-24">
+          <!-- Group header -->
+          <div class="mb-6">
+            <span class="text-xs font-semibold uppercase tracking-wide text-primary mb-2 block">{group.badge}</span>
+            <h2 class="text-3xl font-bold text-foreground mb-2">{group.title}</h2>
+            <p class="text-muted-foreground max-w-2xl">{group.subtitle}</p>
+          </div>
+
+          <!-- Group intro -->
+          <p class="text-muted-foreground mb-8 max-w-2xl leading-relaxed">{group.intro}</p>
+
+          <!-- ChordEmbed preview -->
+          <div class="mb-8">
+            <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Hear the foundation:</p>
+            <ChordEmbedIsland
+              chords={group.embedChords}
+              bpm={group.embedBpm}
+              style={group.embedStyle}
+              title={group.embedTitle}
+            />
+          </div>
+
+          <!-- Song cards -->
+          <div class="space-y-4">
+            {group.songs.map((song) => {
+              const lvl = levelConfig[song.level];
+              return (
+                <article class="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-colors">
+                  <div class="flex flex-col sm:flex-row sm:items-start gap-4">
+                    <div class="flex-1 min-w-0">
+                      <!-- Title row -->
+                      <div class="flex flex-wrap items-start gap-x-3 gap-y-1 mb-2">
+                        <div>
+                          <h3 class="font-semibold text-foreground">{song.title}</h3>
+                          <p class="text-sm text-muted-foreground">
+                            {song.artist}{song.capo ? ` · Capo ${song.capo}` : ''}
+                            {' · '}{song.bpm} BPM
+                          </p>
+                        </div>
+                        <span class={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${
+                          song.level === 'beginner' ? 'bg-green-500/10 text-green-400' :
+                          song.level === 'intermediate' ? 'bg-red-500/10 text-red-400' :
+                          'bg-yellow-500/10 text-yellow-400'
+                        }`}>
+                          {lvl.icon} {lvl.label}
+                        </span>
+                      </div>
+
+                      <!-- Chords -->
+                      <div class="flex flex-wrap gap-1.5 mb-3">
+                        {song.chords.map(c => (
+                          <span class="text-xs font-bold font-mono px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+
+                      <!-- Tip -->
+                      <p class="text-sm text-muted-foreground leading-relaxed mb-2">{song.tip}</p>
+
+                      <!-- Strum hint -->
+                      <p class="text-xs text-muted-foreground/70 italic">Strum: {song.strumHint}</p>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex sm:flex-col gap-2 shrink-0">
+                      <a
+                        href={song.editorUrl}
+                        class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-primary-foreground transition-all whitespace-nowrap"
+                      >
+                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        Hear it
+                      </a>
+                      {song.chartUrl && (
+                        <a
+                          href={song.chartUrl}
+                          class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 border border-border rounded-lg text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors whitespace-nowrap"
+                        >
+                          Full chart →
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+
+    <!-- Reference table -->
+    <section id="reference" class="mt-20 scroll-mt-24">
+      <h2 class="text-2xl font-bold text-foreground mb-2">Quick reference — all {totalSongs} songs</h2>
+      <p class="text-muted-foreground mb-6 text-sm">Sort by difficulty, BPM, or chord count to find your next song.</p>
+      <div class="overflow-x-auto rounded-xl border border-border">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-border bg-card">
+              <th class="text-left px-4 py-3 text-muted-foreground font-medium">Song</th>
+              <th class="text-left px-4 py-3 text-muted-foreground font-medium">Artist</th>
+              <th class="text-left px-4 py-3 text-muted-foreground font-medium hidden sm:table-cell">Chords</th>
+              <th class="text-left px-4 py-3 text-muted-foreground font-medium hidden md:table-cell">BPM</th>
+              <th class="text-left px-4 py-3 text-muted-foreground font-medium hidden md:table-cell">Capo</th>
+              <th class="text-left px-4 py-3 text-muted-foreground font-medium">Level</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allSongs.map((song, i) => {
+              const lvl = levelConfig[song.level];
+              return (
+                <tr class={`border-b border-border last:border-0 hover:bg-card/50 transition-colors ${i % 2 === 0 ? '' : 'bg-card/20'}`}>
+                  <td class="px-4 py-3 font-medium text-foreground">
+                    {song.chartUrl
+                      ? <a href={song.chartUrl} class="hover:text-primary transition-colors">{song.title}</a>
+                      : song.title}
+                  </td>
+                  <td class="px-4 py-3 text-muted-foreground">{song.artist}</td>
+                  <td class="px-4 py-3 hidden sm:table-cell">
+                    <span class="font-mono text-xs text-primary/80">{song.chords.join(' · ')}</span>
+                  </td>
+                  <td class="px-4 py-3 text-muted-foreground hidden md:table-cell">{song.bpm}</td>
+                  <td class="px-4 py-3 text-muted-foreground hidden md:table-cell">{song.capo ?? '—'}</td>
+                  <td class="px-4 py-3">
+                    <span class="text-xs">{lvl.icon} {lvl.label}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Practice tips -->
+    <section id="practice" class="mt-20 rounded-2xl border border-border bg-card p-6 sm:p-8 scroll-mt-24">
+      <h2 class="text-2xl font-bold text-foreground mb-8">How to actually learn these songs</h2>
+      <div class="space-y-6">
+        {[
+          {
+            n: '1',
+            title: 'Pick one song and commit to it',
+            desc: "Don't rotate through five songs in one session. Choose the song you most want to play, learn it completely — from first chord to last — then move on. Spending 30 minutes on one song gets you further than 5 minutes on six songs. The psychological reward of playing something all the way through is also what keeps you coming back.",
+          },
+          {
+            n: '2',
+            title: 'Practice the hardest chord change in isolation',
+            desc: "Identify the trickiest transition in your song — usually a move to F, Bm, or F#m — and practice just that change, back and forth, for several minutes before playing the full song. This targeted practice is five times faster than running through the whole song and hoping the hard part improves on its own.",
+          },
+          {
+            n: '3',
+            title: 'Start at half tempo, then build',
+            desc: "Speed comes after your fingers know where to go — not before. Start at half the song's BPM and play through the changes cleanly. Once every transition is automatic at half tempo, bring it up to 75%, then full speed. Playing at full speed before your muscle memory is ready just reinforces mistakes.",
+          },
+          {
+            n: '4',
+            title: 'Use a metronome or backing track',
+            desc: "Timing is the difference between chord shapes and music. Even tapping your foot helps. The free chord player on this page is built for exactly this — set it to your song's chords and BPM and play along. Hearing drums and bass in the background makes your chord changes lock in faster than playing alone.",
+          },
+          {
+            n: '5',
+            title: 'Record yourself, then listen back',
+            desc: "Your ear hears things when you record that you miss while you're playing. A one-minute phone recording after each practice session reveals if chord changes are clean, if your timing is steady, and whether any chord is buzzing instead of ringing. It takes 30 seconds and removes all the guessing.",
+          },
+          {
+            n: '6',
+            title: 'Learn the intro first, then the verse',
+            desc: "The intro of most beginner songs uses the same chord shapes as the verse. Learning the intro gives you a quick win in the first 10 minutes of practice — something that sounds complete — which motivates you to keep going. Once the intro is playable, the verse is usually 80% already there.",
+          },
+        ].map(tip => (
+          <div class="flex gap-4">
+            <span class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/15 text-primary text-sm font-bold flex items-center justify-center">{tip.n}</span>
+            <div>
+              <p class="font-semibold text-foreground mb-1">{tip.title}</p>
+              <p class="text-sm text-muted-foreground leading-relaxed">{tip.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- What to learn next -->
+    <section id="next-steps" class="mt-16 scroll-mt-24">
+      <h2 class="text-xl font-bold text-foreground mb-2">What to learn next</h2>
+      <p class="text-muted-foreground text-sm mb-6">Once the songs on this page feel comfortable, these are the most useful next steps.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          {
+            title: 'Beginner guitar chords',
+            desc: 'Diagrams and fingering for the 8 essential open chord shapes',
+            href: '/learn/beginner-guitar-chords/',
+          },
+          {
+            title: 'Chord inversions',
+            desc: 'Use slash chords (G/B, C/E) to make any progression sound smoother',
+            href: '/learn/chord-inversions/',
+          },
+          {
+            title: 'What is a chord progression?',
+            desc: 'Understand why these songs use the same chords and how to write your own',
+            href: '/learn/what-is-a-chord-progression/',
+          },
+        ].map(link => (
+          <a
+            href={link.href}
+            class="rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors group"
+          >
+            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{link.title}</p>
+            <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{link.desc}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+
     <!-- FAQ -->
-    <section class="mt-16">
+    <section id="faq" class="mt-16 scroll-mt-24">
       <h2 class="text-2xl font-bold text-foreground mb-8">Common questions</h2>
       <div class="space-y-6">
-        {faqSchema.mainEntity.map(faq => (
-          <div class="border-b border-border pb-6 last:border-0">
-            <h3 class="font-semibold text-foreground mb-2">{faq.name}</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed">{faq.acceptedAnswer.text}</p>
+        {faqItems.map(faq => (
+          <div class="border-b border-border pb-6 last:border-0 last:pb-0">
+            <h3 class="font-semibold text-foreground mb-2">{faq.q}</h3>
+            <p class="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
           </div>
         ))}
       </div>
@@ -400,52 +880,44 @@ const totalSongs = songGroups.reduce((sum, g) => sum + g.songs.length, 0);
 
     <!-- Bottom CTA -->
     <section class="mt-16 rounded-2xl bg-primary/5 border border-primary/20 p-8 text-center">
-      <h2 class="text-2xl font-bold text-foreground mb-3">Hear any progression for free</h2>
-      <p class="text-muted-foreground mb-6 max-w-md mx-auto">
-        Open the chord player, type in any chords from the songs above, and hear exactly how they sound —
-        with a real drum and bass backing.
+      <h2 class="text-2xl font-bold text-foreground mb-3">Hear any progression before you play it</h2>
+      <p class="text-muted-foreground mb-6 max-w-md mx-auto text-sm">
+        Open the free chord player, type in any chords from the songs above, and hear exactly how they sound —
+        with drums and bass. No account needed.
       </p>
       <a
-        href="/editor/?chords=C-Am-F-G&bpm=90&style=pop_basic"
-        class="inline-flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground text-lg font-semibold rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+        href="/editor/?chords=C-G-Am-F&bpm=90&style=pop_basic"
+        class="inline-flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground text-base font-semibold rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
       >
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         Try the free chord player
       </a>
-      <p class="mt-3 text-sm text-muted-foreground">Free · No account · Works on phone and desktop</p>
+      <p class="mt-3 text-xs text-muted-foreground">Free · No account · Works on phone and desktop</p>
     </section>
 
-    <!-- Internal links -->
-    <section class="mt-12 pt-8 border-t border-border">
-      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">More for beginners</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {[
-          { title: 'Guitar chords for beginners', desc: '8 essential chords with diagrams', href: '/learn/beginner-guitar-chords/' },
-          { title: 'Song chord charts', desc: 'Full chords + lyrics with play-along', href: '/songs/' },
-          { title: 'Chord transposer', desc: 'Change any song to your key', href: '/tools/chord-transposer/' },
-        ].map(link => (
-          <a
-            href={link.href}
-            class="rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors group"
-          >
-            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{link.title}</p>
-            <p class="text-xs text-muted-foreground mt-0.5">{link.desc}</p>
-          </a>
-        ))}
-      </div>
-    </section>
-
-    <!-- Author + Further reading -->
+    <!-- Author box -->
     <div class="mt-10 pt-8 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div class="flex items-center gap-3">
-        <img src="/images/elias-corsino.jpg" alt="Elías Corsino Saldaña" width="36" height="36" class="w-9 h-9 rounded-full object-cover shrink-0" loading="lazy" />
+        <img
+          src="/images/elias-corsino.jpg"
+          alt="Elías Corsino Saldaña"
+          width="36"
+          height="36"
+          class="w-9 h-9 rounded-full object-cover shrink-0"
+          loading="lazy"
+        />
         <div>
-          <a href="/about/elias-corsino/" class="text-sm font-medium text-foreground hover:text-primary transition-colors">Elías Corsino Saldaña</a>
-          <p class="text-xs text-muted-foreground">Musician & Software Developer</p>
+          <a href="/about/elias-corsino/" class="text-sm font-medium text-foreground hover:text-primary transition-colors">
+            Elías Corsino Saldaña
+          </a>
+          <p class="text-xs text-muted-foreground">Musician & Software Developer · Bass, Piano, Guitar, Drums</p>
         </div>
       </div>
       <p class="text-xs text-muted-foreground">
-        Further reading: <a href="https://en.wikipedia.org/wiki/Guitar_chord" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Guitar chord — Wikipedia</a> · <a href="https://en.wikipedia.org/wiki/Tablature" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Tablature — Wikipedia</a>
+        Further reading:
+        <a href="https://en.wikipedia.org/wiki/Guitar_chord" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline ml-1">Guitar chord — Wikipedia</a>
+        {' · '}
+        <a href="https://en.wikipedia.org/wiki/Tablature" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Tablature — Wikipedia</a>
       </p>
     </div>
 
