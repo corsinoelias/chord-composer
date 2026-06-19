@@ -33,6 +33,14 @@ export const CHORD_QUALITIES = [
   '7#5', '7b5', '9#5', '9b5',
   // Power chord
   '5',
+  // Suspended dominant
+  '7sus4',
+  // Lydian
+  'maj7#11',
+  // Six-nine
+  '6/9',
+  // Minor add9
+  'minadd9',
 ] as const;
 export type ChordQuality = typeof CHORD_QUALITIES[number];
 
@@ -101,6 +109,14 @@ const QUALITY_INTERVALS: Record<ChordQuality, number[]> = {
   '9b5': [0, 4, 6, 10, 14],
   // Power chord
   '5': [0, 7],
+  // Suspended dominant
+  '7sus4': [0, 5, 7, 10],
+  // Lydian
+  'maj7#11': [0, 4, 7, 11, 18],
+  // Six-nine
+  '6/9': [0, 4, 7, 9, 14],
+  // Minor add9
+  'minadd9': [0, 3, 7, 14],
 };
 
 /** Returns the pitch class (0-11) of a bass note string like 'E', 'F#', 'Bb'. */
@@ -257,4 +273,12 @@ export const QUALITY_LABELS: Record<ChordQuality, string> = {
   '9b5': '9♭5',
   // Power chord
   '5': 'Power5',
+  // Suspended dominant
+  '7sus4': '7sus4',
+  // Lydian
+  'maj7#11': 'Maj7♯11',
+  // Six-nine
+  '6/9': '6/9',
+  // Minor add9
+  'minadd9': 'mAdd9',
 };
