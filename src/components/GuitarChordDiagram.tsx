@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { GuitarVoicing } from '@/data/guitarChords';
 
 // ─── SVG coordinate constants (reverse-engineered from reference SVGs) ────────
@@ -25,7 +26,7 @@ interface Props {
   className?: string;
 }
 
-export function GuitarChordDiagram({ voicing, chordName, className = '' }: Props) {
+export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing, chordName, className = '' }: Props) {
   const { frets, fingers, barre, baseFret } = voicing;
 
   // Row index for an absolute fret (0-indexed within the 4 visible rows)
@@ -158,4 +159,4 @@ export function GuitarChordDiagram({ voicing, chordName, className = '' }: Props
       </svg>
     </div>
   );
-}
+});

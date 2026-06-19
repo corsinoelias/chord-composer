@@ -184,81 +184,75 @@ async function loadAcousticSamples(ctx: AudioContext): Promise<void> {
 }
 
 /**
- * Loads all piano samples (1.mp3 to 88.mp3 = MIDI notes 21-108)
+ * Loads all piano samples (1.mp3 to 88.mp3 = MIDI notes 21-108).
+ * Uses a concurrency pool of 8 to avoid spiking CPU with 88 simultaneous
+ * decodeAudioData calls. Middle octaves (C3-C7, keys 28-76) load first.
  */
 async function loadPianoSamples(ctx: AudioContext): Promise<void> {
-  const loadPromises: Promise<void>[] = [];
-  
-  for (let i = 1; i <= 88; i++) {
-    const midiNote = i + 20; // 1.mp3 = MIDI 21 (A0), 88.mp3 = MIDI 108 (C8)
-    loadPromises.push(
-      (async () => {
-        try {
-          const response = await fetch(`/audio/piano/${i}.mp3`);
-          if (!response.ok) {
-            console.warn(`Piano sample ${i}.mp3 not found`);
-            pianoSamples[midiNote] = null;
-            return;
-          }
-          const arrayBuffer = await response.arrayBuffer();
-          pianoSamples[midiNote] = await ctx.decodeAudioData(arrayBuffer);
-        } catch (error) {
-          console.warn(`Failed to load piano sample ${i}.mp3:`, error);
-          pianoSamples[midiNote] = null;
-        }
-      })()
-    );
-  }
-  
-  await Promise.all(loadPromises);
+  // Sort keys so middle octaves (most used) load first
+  const keys = Array.from({ length: 88 }, (_, i) => i + 1).sort((a, b) => {
+    const inRange = (k: number) => { const m = k + 20; return m >= 48 && m <= 96; };
+    if (inRange(a) && !inRange(b)) return -1;
+    if (!inRange(a) && inRange(b)) return 1;
+    return 0;
+  });
+
+  const queue = [...keys];
+  const CONCURRENCY = 8;
+
+  const worker = async () => {
+    while (queue.length > 0) {
+      const i = queue.shift()!;
+      const midiNote = i + 20;
+      try {
+        const response = await fetch(`/audio/piano/${i}.mp3`);
+        pianoSamples[midiNote] = response.ok
+          ? await ctx.decodeAudioData(await response.arrayBuffer())
+          : null;
+      } catch {
+        pianoSamples[midiNote] = null;
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   pianoSamplesLoaded = true;
-  console.log('Piano samples loaded');
 }
 
-/**
- * Loads guitar samples for all types (acoustic, electric, nylon)
- */
-async function loadGuitarSamples(ctx: AudioContext): Promise<void> {
-  const guitarTypes = [
-    {
-      path: 'guitar-acoustic',
-      notes: ['A2', 'A3', 'A4', 'As2', 'As3', 'As4', 'B2', 'B3', 'B4', 'C3', 'C4', 'C5', 'Cs3', 'Cs4', 'D3', 'D4', 'Ds3', 'Ds4', 'E2', 'E3', 'E4', 'F3', 'F4', 'Fs3', 'Fs4', 'G3', 'G4', 'Gs3', 'Gs4']
-    },
-    {
-      path: 'guitar-electric',
-      notes: ['A2', 'A3', 'A4', 'A5', 'C3', 'C4', 'C5', 'C6', 'Cs2', 'Ds3', 'Ds4', 'Ds5', 'E2', 'Fs2', 'Fs3', 'Fs4', 'Fs5']
-    },
-    {
-      path: 'guitar-nylon',
-      notes: ['A2', 'A3', 'A4', 'A5', 'As5', 'B1', 'B2', 'B3', 'B4', 'Cs3', 'Cs4', 'Cs5', 'D2', 'D3', 'E2', 'E3', 'E4', 'E5', 'Fs2', 'Fs3', 'Fs4', 'Fs5', 'G3', 'G5', 'Gs2', 'Gs4', 'Gs5']
-    }
-  ];
-  
-  const loadPromises: Promise<void>[] = [];
-  
-  for (const guitarType of guitarTypes) {
-    for (const noteKey of guitarType.notes) {
-      loadPromises.push(
-        (async () => {
-          try {
-            const response = await fetch(`/audio/${guitarType.path}/${noteKey}.mp3`);
-            if (!response.ok) {
-              guitarSamples[guitarType.path][noteKey] = null;
-              return;
-            }
-            const arrayBuffer = await response.arrayBuffer();
-            guitarSamples[guitarType.path][noteKey] = await ctx.decodeAudioData(arrayBuffer);
-          } catch (error) {
-            guitarSamples[guitarType.path][noteKey] = null;
-          }
-        })()
-      );
-    }
-  }
-  
-  await Promise.all(loadPromises);
-  guitarSamplesLoaded = true;
-  console.log('Guitar samples loaded');
+const GUITAR_TYPE_NOTES: Record<string, string[]> = {
+  'guitar-acoustic': ['A2', 'A3', 'A4', 'As2', 'As3', 'As4', 'B2', 'B3', 'B4', 'C3', 'C4', 'C5', 'Cs3', 'Cs4', 'D3', 'D4', 'Ds3', 'Ds4', 'E2', 'E3', 'E4', 'F3', 'F4', 'Fs3', 'Fs4', 'G3', 'G4', 'Gs3', 'Gs4'],
+  'guitar-electric': ['A2', 'A3', 'A4', 'A5', 'C3', 'C4', 'C5', 'C6', 'Cs2', 'Ds3', 'Ds4', 'Ds5', 'E2', 'Fs2', 'Fs3', 'Fs4', 'Fs5'],
+  'guitar-nylon':    ['A2', 'A3', 'A4', 'A5', 'As5', 'B1', 'B2', 'B3', 'B4', 'Cs3', 'Cs4', 'Cs5', 'D2', 'D3', 'E2', 'E3', 'E4', 'E5', 'Fs2', 'Fs3', 'Fs4', 'Fs5', 'G3', 'G5', 'Gs2', 'Gs4', 'Gs5'],
+};
+
+const guitarTypeLoading: Record<string, Promise<void> | null> = {
+  'guitar-acoustic': null,
+  'guitar-electric': null,
+  'guitar-nylon':    null,
+};
+
+async function loadGuitarSampleType(ctx: AudioContext, path: string): Promise<void> {
+  const notes = GUITAR_TYPE_NOTES[path];
+  if (!notes) return;
+  await Promise.all(
+    notes.map(async noteKey => {
+      try {
+        const response = await fetch(`/audio/${path}/${noteKey}.mp3`);
+        guitarSamples[path][noteKey] = response.ok
+          ? await ctx.decodeAudioData(await response.arrayBuffer())
+          : null;
+      } catch {
+        guitarSamples[path][noteKey] = null;
+      }
+    })
+  );
+}
+
+export function ensureGuitarSampleType(samplePath: string): void {
+  if (!audioContext) return;
+  if (guitarTypeLoading[samplePath]) return;
+  guitarTypeLoading[samplePath] = loadGuitarSampleType(audioContext, samplePath)
+    .catch(() => {});
 }
 
 /**
@@ -291,10 +285,12 @@ export function getAudioContext(): AudioContext {
 
       // BACKGROUND: piano and guitar both have synthesis fallbacks, load after drums
       // so they don't compete for bandwidth on the critical path
+      // Guitar: only load the default type (electric) — others load on demand via ensureGuitarSampleType
+      guitarTypeLoading['guitar-electric'] = loadGuitarSampleType(audioContext!, 'guitar-electric');
       const backgroundLoad = drumSamplePromise.then(() =>
         Promise.all([
           loadPianoSamples(audioContext!),
-          loadGuitarSamples(audioContext!),
+          guitarTypeLoading['guitar-electric']!,
         ])
       );
 
@@ -603,10 +599,13 @@ function playGuitarSample(
   volume: number,
   samplePath: string
 ): void {
+  // Trigger lazy load if this type hasn't been loaded yet
+  ensureGuitarSampleType(samplePath);
+
   const match = findClosestGuitarSample(samplePath, midiNote);
-  
+
   if (!match) {
-    // Fallback to synthesis
+    // Fallback to synthesis (also used while samples are still loading)
     const frequency = midiToFrequency(midiNote);
     playGuitarSynth(ctx, destination, frequency, startTime, duration, volume);
     return;
