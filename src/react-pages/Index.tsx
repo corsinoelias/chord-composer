@@ -459,42 +459,42 @@ const Index = ({ songId }: IndexProps) => {
     setSections(prev => [...prev, newSection]);
   };
 
-  const handleDeleteSection = (index: number) => {
-    if (sections.length === 1) {
+  const handleDeleteSection = useCallback((index: number) => {
+    if (sectionsRef.current.length === 1) {
       toast.error('Cannot delete the only section');
       return;
     }
-    if (loopingSectionIndex === index) {
+    if (loopingSectionRef.current === index) {
       setLoopingSectionIndex(null);
     }
     setSections(prev => prev.filter((_, i) => i !== index));
-  };
+  }, []);
 
-  const handleDuplicateSection = (index: number) => {
-    const section = sections[index];
-    const newSection = { 
-      ...createSection(section.name + ' Copy'), 
-      chords: section.chords.map(c => ({ ...c, id: generateChordId() })), 
-      repeatCount: section.repeatCount 
+  const handleDuplicateSection = useCallback((index: number) => {
+    const section = sectionsRef.current[index];
+    const newSection = {
+      ...createSection(section.name + ' Copy'),
+      chords: section.chords.map(c => ({ ...c, id: generateChordId() })),
+      repeatCount: section.repeatCount
     };
     setSections(prev => [...prev.slice(0, index + 1), newSection, ...prev.slice(index + 1)]);
-  };
+  }, []);
 
-  const handleSectionNameChange = (index: number, name: string) => {
+  const handleSectionNameChange = useCallback((index: number, name: string) => {
     setSections(prev => prev.map((s, i) => i === index ? { ...s, name } : s));
-  };
+  }, []);
 
-  const handleToggleSectionLoop = (index: number) => {
+  const handleToggleSectionLoop = useCallback((index: number) => {
     setLoopingSectionIndex(prev => {
       const next = prev === index ? null : index;
       loopingSectionRef.current = next;
       return next;
     });
-  };
+  }, []);
 
-  const handleRepeatChange = (sectionIndex: number, repeatCount: number) => {
+  const handleRepeatChange = useCallback((sectionIndex: number, repeatCount: number) => {
     setSections(prev => prev.map((s, i) => i === sectionIndex ? { ...s, repeatCount: Math.max(1, repeatCount) } : s));
-  };
+  }, []);
 
 
   // Chord handlers
@@ -504,14 +504,15 @@ const Index = ({ songId }: IndexProps) => {
     toast.success(`Added ${chord.root}${chord.accidental}${chord.quality} to ${addChordSection.name}`);
   };
 
-  const handleChordClick = (sectionIndex: number, chordIndex: number) => {
-    const chord = sections[sectionIndex].chords[chordIndex];
+  const handleChordClick = useCallback((sectionIndex: number, chordIndex: number) => {
+    const chord = sectionsRef.current[sectionIndex]?.chords[chordIndex];
+    if (!chord) return;
     if (!isPlaying) {
       playChordPreview(chord);
     }
     setPreviewChord(chord);
     setEditingChord({ sectionIndex, chordIndex, chord });
-  };
+  }, [isPlaying]);
 
   const handleChordPreview = useCallback((partialChord: Partial<Chord>) => {
     if (isPlaying) return;
@@ -535,27 +536,27 @@ const Index = ({ songId }: IndexProps) => {
     setEditingChord(null);
   };
 
-  const handleChordDelete = (sectionIndex: number, chordIndex: number) => {
-    // Count total chords across all sections
-    const totalChords = sections.reduce((sum, s) => sum + s.chords.length, 0);
+  const handleChordDelete = useCallback((sectionIndex: number, chordIndex: number) => {
+    const totalChords = sectionsRef.current.reduce((sum, s) => sum + s.chords.length, 0);
     if (totalChords <= 1) {
       toast.error('Cannot delete the last chord');
       return;
     }
-    setSections(prev => prev.map((s, i) => 
+    setSections(prev => prev.map((s, i) =>
       i === sectionIndex ? { ...s, chords: s.chords.filter((_, j) => j !== chordIndex) } : s
     ));
-  };
+  }, []);
 
-  const handleChordDuplicate = (sectionIndex: number, chordIndex: number) => {
-    const chord = sections[sectionIndex].chords[chordIndex];
+  const handleChordDuplicate = useCallback((sectionIndex: number, chordIndex: number) => {
+    const chord = sectionsRef.current[sectionIndex]?.chords[chordIndex];
+    if (!chord) return;
     const newChord = { ...chord, id: generateChordId() };
-    setSections(prev => prev.map((s, i) => 
-      i === sectionIndex 
-        ? { ...s, chords: [...s.chords.slice(0, chordIndex + 1), newChord, ...s.chords.slice(chordIndex + 1)] } 
+    setSections(prev => prev.map((s, i) =>
+      i === sectionIndex
+        ? { ...s, chords: [...s.chords.slice(0, chordIndex + 1), newChord, ...s.chords.slice(chordIndex + 1)] }
         : s
     ));
-  };
+  }, []);
 
   // ── Multi-select ────────────────────────────────────────────────────────────
 
@@ -832,40 +833,49 @@ const Index = ({ songId }: IndexProps) => {
     return offset;
   };
 
-  // Handler for moving sections up/down
-  const handleMoveSection = (fromIndex: number, direction: 'up' | 'down') => {
+  const handleMoveSection = useCallback((fromIndex: number, direction: 'up' | 'down') => {
     const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
-    if (toIndex < 0 || toIndex >= sections.length) return;
-    
-    // Trigger swap animation for both sections
+    if (toIndex < 0 || toIndex >= sectionsRef.current.length) return;
     setAnimatingSections([
       { index: fromIndex, direction },
       { index: toIndex, direction: direction === 'up' ? 'down' : 'up' }
     ]);
-    
-    // Clear animation after it completes
-    setTimeout(() => {
-      setAnimatingSections([]);
-    }, 350);
-    
+    setTimeout(() => setAnimatingSections([]), 350);
     setSections(prev => {
       const newSections = [...prev];
       const [removed] = newSections.splice(fromIndex, 1);
       newSections.splice(toIndex, 0, removed);
       return newSections;
     });
-    
-    // Update looping section index if needed
-    if (loopingSectionIndex !== null) {
-      if (loopingSectionIndex === fromIndex) {
-        setLoopingSectionIndex(toIndex);
-      } else if (fromIndex < loopingSectionIndex && toIndex >= loopingSectionIndex) {
-        setLoopingSectionIndex(loopingSectionIndex - 1);
-      } else if (fromIndex > loopingSectionIndex && toIndex <= loopingSectionIndex) {
-        setLoopingSectionIndex(loopingSectionIndex + 1);
-      }
-    }
-  };
+    setLoopingSectionIndex(prev => {
+      if (prev === null) return prev;
+      if (prev === fromIndex) return toIndex;
+      if (fromIndex < prev && toIndex >= prev) return prev - 1;
+      if (fromIndex > prev && toIndex <= prev) return prev + 1;
+      return prev;
+    });
+  }, []);
+
+  const handleMoveSectionUp = useCallback((si: number) => handleMoveSection(si, 'up'), [handleMoveSection]);
+  const handleMoveSectionDown = useCallback((si: number) => handleMoveSection(si, 'down'), [handleMoveSection]);
+
+  const handleSectionAddChord = useCallback((sectionIndex: number) => {
+    const section = sectionsRef.current[sectionIndex];
+    if (section) setAddChordSection({ index: sectionIndex, name: section.name });
+  }, []);
+
+  const handleSetProgression = useCallback((sectionIndex: number, chords: Chord[]) => {
+    setSections(prev => prev.map((s, i) => i === sectionIndex ? { ...s, chords } : s));
+  }, []);
+
+  const handleSectionVariationChange = useCallback((sectionIndex: number, instrument: 'bass' | 'piano' | 'guitar', variationId: string) => {
+    setSections(prev => prev.map((s, i) => i !== sectionIndex ? s : {
+      ...s,
+      bassVariationId: instrument === 'bass' ? variationId : s.bassVariationId,
+      pianoVariationId: instrument === 'piano' ? variationId : s.pianoVariationId,
+      guitarVariationId: instrument === 'guitar' ? variationId : s.guitarVariationId,
+    }));
+  }, []);
 
   // Handler for loading a progression template
   const handleLoadTemplate = (chords: Chord[]) => {
@@ -1105,35 +1115,21 @@ const Index = ({ songId }: IndexProps) => {
                   styleId={selectedStyleId}
                   swapAnimation={animatingSections.find(a => a.index === sectionIndex)?.direction || null}
                   selectedChordIds={selectedChordIds}
-                  onAddChord={() => setAddChordSection({ index: sectionIndex, name: section.name })}
-                  onChordClick={(chordIndex) => handleChordClick(sectionIndex, chordIndex)}
-                  onChordSelect={(chordIndex, ctrl) => handleChordSelect(sectionIndex, chordIndex, ctrl)}
-                  onChordDelete={(chordIndex) => handleChordDelete(sectionIndex, chordIndex)}
-                  onChordDuplicate={(chordIndex) => handleChordDuplicate(sectionIndex, chordIndex)}
-                  onRepeatChange={(count) => handleRepeatChange(sectionIndex, count)}
-                  onNameChange={(name) => handleSectionNameChange(sectionIndex, name)}
-                  onDelete={() => handleDeleteSection(sectionIndex)}
-                  onDuplicate={() => handleDuplicateSection(sectionIndex)}
-                  onToggleLoop={() => handleToggleSectionLoop(sectionIndex)}
-                  onMoveUp={() => handleMoveSection(sectionIndex, 'up')}
-                  onMoveDown={() => handleMoveSection(sectionIndex, 'down')}
-                  onSetProgression={(chords) => {
-                    const newSections = [...sections];
-                    newSections[sectionIndex] = {
-                      ...newSections[sectionIndex],
-                      chords: chords
-                    };
-                    setSections(newSections);
-                  }}
+                  onAddChord={handleSectionAddChord}
+                  onChordClick={handleChordClick}
+                  onChordSelect={handleChordSelect}
+                  onChordDelete={handleChordDelete}
+                  onChordDuplicate={handleChordDuplicate}
+                  onRepeatChange={handleRepeatChange}
+                  onNameChange={handleSectionNameChange}
+                  onDelete={handleDeleteSection}
+                  onDuplicate={handleDuplicateSection}
+                  onToggleLoop={handleToggleSectionLoop}
+                  onMoveUp={handleMoveSectionUp}
+                  onMoveDown={handleMoveSectionDown}
+                  onSetProgression={handleSetProgression}
                   melodic={currentStyle.melodic}
-                  onVariationChange={(instrument, variationId) => {
-                    setSections(prev => prev.map((s, i) => i !== sectionIndex ? s : {
-                      ...s,
-                      bassVariationId: instrument === 'bass' ? variationId : s.bassVariationId,
-                      pianoVariationId: instrument === 'piano' ? variationId : s.pianoVariationId,
-                      guitarVariationId: instrument === 'guitar' ? variationId : s.guitarVariationId,
-                    }));
-                  }}
+                  onVariationChange={handleSectionVariationChange}
                 />
               ))}
             </div>

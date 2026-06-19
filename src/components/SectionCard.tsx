@@ -25,21 +25,21 @@ interface SectionCardProps {
   styleId: string;
   swapAnimation?: 'up' | 'down' | null;
   selectedChordIds: Set<string>;
-  onAddChord: () => void;
-  onChordClick: (chordIndex: number) => void;
-  onChordSelect: (chordIndex: number, ctrl: boolean) => void;
-  onChordDelete: (chordIndex: number) => void;
-  onChordDuplicate: (chordIndex: number) => void;
-  onRepeatChange: (repeatCount: number) => void;
-  onNameChange: (name: string) => void;
-  onDelete: () => void;
-  onDuplicate: () => void;
-  onToggleLoop: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onSetProgression: (chords: Chord[]) => void;
+  onAddChord: (sectionIndex: number) => void;
+  onChordClick: (sectionIndex: number, chordIndex: number) => void;
+  onChordSelect: (sectionIndex: number, chordIndex: number, ctrl: boolean) => void;
+  onChordDelete: (sectionIndex: number, chordIndex: number) => void;
+  onChordDuplicate: (sectionIndex: number, chordIndex: number) => void;
+  onRepeatChange: (sectionIndex: number, repeatCount: number) => void;
+  onNameChange: (sectionIndex: number, name: string) => void;
+  onDelete: (sectionIndex: number) => void;
+  onDuplicate: (sectionIndex: number) => void;
+  onToggleLoop: (sectionIndex: number) => void;
+  onMoveUp: (sectionIndex: number) => void;
+  onMoveDown: (sectionIndex: number) => void;
+  onSetProgression: (sectionIndex: number, chords: Chord[]) => void;
   melodic?: MelodicData;
-  onVariationChange?: (instrument: 'bass' | 'piano' | 'guitar', variationId: string) => void;
+  onVariationChange?: (sectionIndex: number, instrument: 'bass' | 'piano' | 'guitar', variationId: string) => void;
   transposition?: number;
 }
 
@@ -104,7 +104,7 @@ export const SectionCard = memo(function SectionCard({
 
   const handleNameSubmit = () => {
     if (editName.trim()) {
-      onNameChange(editName.trim());
+      onNameChange(sectionIndex, editName.trim());
     } else {
       setEditName(section.name);
     }
@@ -142,12 +142,12 @@ export const SectionCard = memo(function SectionCard({
 
   const handleMoveUp = () => {
     triggerHaptic();
-    onMoveUp();
+    onMoveUp(sectionIndex);
   };
 
   const handleMoveDown = () => {
     triggerHaptic();
-    onMoveDown();
+    onMoveDown(sectionIndex);
   };
 
   // Determine animation class
@@ -252,7 +252,7 @@ export const SectionCard = memo(function SectionCard({
                   variant={isLooping ? "default" : "ghost"}
                   size="icon"
                   className="h-7 w-7"
-                  onClick={onToggleLoop}
+                  onClick={() => onToggleLoop(sectionIndex)}
                   style={isLooping ? { backgroundColor: `hsl(${colorHsl} 50%)` } : {}}
                   aria-label={isLooping ? `Stop looping ${section.name}` : `Loop ${section.name}`}
                 >
@@ -267,14 +267,14 @@ export const SectionCard = memo(function SectionCard({
               <TooltipTrigger asChild>
                 <div className="relative">
                   <button
-                    onClick={() => onRepeatChange(section.repeatCount === 1 ? 2 : section.repeatCount + 1)}
+                    onClick={() => onRepeatChange(sectionIndex, section.repeatCount === 1 ? 2 : section.repeatCount + 1)}
                     className="w-7 h-7 rounded-full bg-background border border-border/60 flex items-center justify-center text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
                   >
                     ×{section.repeatCount}
                   </button>
                   {section.repeatCount > 1 && (
                     <button
-                      onClick={() => onRepeatChange(section.repeatCount - 1)}
+                      onClick={() => onRepeatChange(sectionIndex, section.repeatCount - 1)}
                       className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center hover:scale-110 transition-transform"
                     >
                       -
@@ -293,7 +293,7 @@ export const SectionCard = memo(function SectionCard({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 opacity-50 hover:opacity-100"
-                    onClick={onDuplicate}
+                    onClick={() => onDuplicate(sectionIndex)}
                     aria-label={`Duplicate ${section.name}`}
                   >
                     <Copy className="h-3.5 w-3.5" />
@@ -307,7 +307,7 @@ export const SectionCard = memo(function SectionCard({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 opacity-50 hover:opacity-100 hover:text-destructive"
-                    onClick={onDelete}
+                    onClick={() => onDelete(sectionIndex)}
                     aria-label={`Delete ${section.name}`}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -331,7 +331,7 @@ export const SectionCard = memo(function SectionCard({
               return (
                 <div key={inst} className="flex items-center gap-1">
                   <span className="text-[10px] text-muted-foreground">{label}:</span>
-                  <Select value={current?.id ?? ''} onValueChange={id => onVariationChange?.(inst, id)}>
+                  <Select value={current?.id ?? ''} onValueChange={id => onVariationChange?.(sectionIndex, inst, id)}>
                     <SelectTrigger className="h-5 w-24 text-[10px] px-1.5">
                       <SelectValue />
                     </SelectTrigger>
@@ -377,10 +377,10 @@ export const SectionCard = memo(function SectionCard({
                       isPlaying={localPlayingIndex === index}
                       isSelected={selectedChordIds.has(compoundId)}
                       hasSelection={selectedChordIds.size > 0}
-                      onClick={() => onChordClick(index)}
-                      onSelectToggle={(ctrl) => onChordSelect(index, ctrl)}
-                      onDelete={() => onChordDelete(index)}
-                      onDuplicate={() => onChordDuplicate(index)}
+                      onClick={() => onChordClick(sectionIndex, index)}
+                      onSelectToggle={(ctrl) => onChordSelect(sectionIndex, index, ctrl)}
+                      onDelete={() => onChordDelete(sectionIndex, index)}
+                      onDuplicate={() => onChordDuplicate(sectionIndex, index)}
                       transposition={transposition}
                     />
                   )
@@ -394,7 +394,7 @@ export const SectionCard = memo(function SectionCard({
             <Button
               variant="outline"
               size="sm"
-              onClick={onAddChord}
+              onClick={() => onAddChord(sectionIndex)}
               className="border-dashed border-border/60 hover:border-primary/50 hover:bg-primary/5 transition-all h-7 text-xs px-2"
             >
               <Plus className="h-3 w-3 mr-1" />
@@ -404,7 +404,7 @@ export const SectionCard = memo(function SectionCard({
             {/* Chord Suggestions per section */}
             <ChordSuggestions
               styleId={styleId}
-              onSetProgression={onSetProgression}
+              onSetProgression={(chords) => onSetProgression(sectionIndex, chords)}
             />
 
             {/* Mobile: Show duplicate/delete actions */}
@@ -413,7 +413,7 @@ export const SectionCard = memo(function SectionCard({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 opacity-50 hover:opacity-100"
-                onClick={onDuplicate}
+                onClick={() => onDuplicate(sectionIndex)}
                 aria-label={`Duplicate ${section.name}`}
               >
                 <Copy className="h-3 w-3" />
@@ -422,7 +422,7 @@ export const SectionCard = memo(function SectionCard({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 opacity-50 hover:opacity-100 hover:text-destructive"
-                onClick={onDelete}
+                onClick={() => onDelete(sectionIndex)}
                 aria-label={`Delete ${section.name}`}
               >
                 <Trash2 className="h-3 w-3" />
