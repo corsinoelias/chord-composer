@@ -12,6 +12,7 @@ interface ChordBlockProps {
   isDragging?: boolean;
   fixedWidth?: boolean;
   transposition?: number;
+  isOutOfScale?: boolean;
 }
 
 /**
@@ -36,6 +37,7 @@ export const ChordBlock = memo(function ChordBlock({
   isDragging,
   fixedWidth = false,
   transposition = 0,
+  isOutOfScale = false,
 }: ChordBlockProps) {
   const colorVar = useMemo(() => getChordColorVar(chord.quality), [chord.quality]);
 
@@ -45,11 +47,12 @@ export const ChordBlock = memo(function ChordBlock({
         group relative flex flex-col items-center justify-center
         rounded-lg border transition-all duration-100
         cursor-grab active:cursor-grabbing select-none
-        ${isPlaying 
-          ? 'shadow-lg' 
+        ${isPlaying
+          ? 'shadow-lg'
           : 'hover:shadow-md'
         }
         ${isDragging ? 'opacity-50 scale-95' : ''}
+        ${isOutOfScale && !isPlaying ? 'opacity-35 grayscale-[60%]' : ''}
       `}
       style={{
         width: fixedWidth ? '3.5rem' : `${Math.max(chord.duration * 3.5, 3.5)}rem`,

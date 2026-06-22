@@ -4,6 +4,7 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
 import CircleOfFifthsIsland from '../../components/CircleOfFifthsIsland.astro';
+import InversionDemoIsland from '../../components/InversionDemoIsland.astro';
 import { AUTHORS } from '../../data/authors';
 import ArticleAuthorBox from '../../components/ArticleAuthorBox.astro';
 import AppCta from '../../components/AppCta.astro';
@@ -365,7 +366,7 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
       prose-td:text-muted-foreground prose-td:py-3
       prose-blockquote:border-primary prose-blockquote:text-muted-foreground
     ">
-      <Content components={{ ChordEmbed: ChordEmbedIsland, CircleOfFifths: CircleOfFifthsIsland }} />
+      <Content components={{ ChordEmbed: ChordEmbedIsland, CircleOfFifths: CircleOfFifthsIsland, InversionDemo: InversionDemoIsland }} />
     </article>
 
     <AppCta

@@ -6,6 +6,8 @@ import {
 } from '@dnd-kit/sortable';
 import { type Section } from '@/lib/sections';
 import { type Chord } from '@/lib/musicTheory';
+import { isNoteInScale, chordRootToPitchClass } from '@/lib/scales';
+import { type ScaleFilterState } from './ScaleSelector';
 import { type MelodicData } from '@/lib/bassScale';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +43,7 @@ interface SectionCardProps {
   melodic?: MelodicData;
   onVariationChange?: (sectionIndex: number, instrument: 'bass' | 'piano' | 'guitar', variationId: string) => void;
   transposition?: number;
+  scaleFilter?: ScaleFilterState | null;
 }
 
 // Section color palette
@@ -90,6 +93,7 @@ export const SectionCard = memo(function SectionCard({
   melodic,
   onVariationChange,
   transposition = 0,
+  scaleFilter,
 }: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
@@ -382,6 +386,14 @@ export const SectionCard = memo(function SectionCard({
                       onDelete={() => onChordDelete(sectionIndex, index)}
                       onDuplicate={() => onChordDuplicate(sectionIndex, index)}
                       transposition={transposition}
+                      isOutOfScale={
+                        scaleFilter != null &&
+                        !isNoteInScale(
+                          chordRootToPitchClass(chord.root, chord.accidental),
+                          scaleFilter.rootPitchClass,
+                          scaleFilter.intervals,
+                        )
+                      }
                     />
                   )
                 })}

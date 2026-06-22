@@ -1,0 +1,95 @@
+---
+export const prerender = true;
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { ScalesTool } from '../../components/ScalesTool';
+import RelatedTools from '../../components/RelatedTools.astro';
+import AppCta from '../../components/AppCta.astro';
+
+const webAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Guitar Scale Chart — Interactive Fretboard',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Web',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  url: 'https://chordsequence.com/tools/scales/',
+  description: 'Free interactive guitar scale chart. Visualize 277 scales and modes on a guitar fretboard. Major, Minor, Pentatonic, Blues, Church Modes, and more.',
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://chordsequence.com/tools/' },
+    { '@type': 'ListItem', position: 3, name: 'Guitar Scale Chart', item: 'https://chordsequence.com/tools/scales/' },
+  ],
+};
+---
+
+<BaseLayout
+  title="Guitar Scale Chart — Interactive Fretboard | Chord Sequence"
+  description="Free interactive guitar scale chart with 277 scales and modes. Visualize any scale on a guitar fretboard — Major, Minor, Pentatonic, Blues, Church Modes, Melodic Minor, and more. No signup required."
+  canonicalUrl="https://chordsequence.com/tools/scales/"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-4xl px-4 sm:px-6 py-12 sm:py-20">
+
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href="/tools/" class="hover:text-foreground transition-colors">Tools</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">Guitar Scale Chart</span>
+    </nav>
+
+    <header class="mb-10">
+      <h1 class="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
+        Guitar Scale Chart
+      </h1>
+      <p class="text-muted-foreground text-lg max-w-2xl">
+        Visualize any scale on a guitar fretboard. Choose from 277 scales and modes — from Major and Pentatonic to exotic Balinese, Byzantine, and Slonimsky scales.
+      </p>
+    </header>
+
+    <!-- React island -->
+    <ScalesTool client:load />
+
+    <!-- Educational content -->
+    <section class="mt-16 prose prose-sm dark:prose-invert max-w-none">
+      <h2>How to use the Scale Chart</h2>
+      <p>
+        Select a <strong>root note</strong> (tonic) and a <strong>scale type</strong> from the dropdowns above.
+        The fretboard will highlight every position where a scale note appears.
+        <strong>Filled circles</strong> are scale notes; the <strong>colored root note</strong> marks the tonic.
+      </p>
+
+      <h2>Scale categories</h2>
+      <ul>
+        <li><strong>Essential</strong> — Major, Minor, Pentatonic, Blues, Whole Tone, Chromatic.</li>
+        <li><strong>Church Modes</strong> — Ionian, Dorian, Phrygian, Lydian, Mixolydian, Aeolian, Locrian.</li>
+        <li><strong>Melodic Minor Modes</strong> — Jazz Minor, Lydian Augmented, Altered Scale (Superlocrian), and more.</li>
+        <li><strong>Harmonic Minor Modes</strong> — Phrygian Dominant, Lydian #2, Aeolian Harmonic, and more.</li>
+        <li><strong>Pentatonic Modes</strong> — The five rotations of the pentatonic scale.</li>
+        <li><strong>Arpeggios</strong> — Major, Minor, 7th, 9th, 11th, 13th chord tones.</li>
+        <li><strong>World</strong> — Arabic, Balinese, Byzantine, Egyptian, Gypsy, Japanese, Persian, and more.</li>
+        <li><strong>Advanced</strong> — Slonimsky, Melakarta, and other theoretical scales.</li>
+      </ul>
+    </section>
+
+    <AppCta />
+    <RelatedTools tools={[
+      { href: '/tools/circle-of-fifths/', label: 'Circle of Fifths', desc: 'Explore key signatures, diatonic chords, and relative minors interactively.', icon: 'circle' },
+      { href: '/tools/key-detector/', label: 'Key Detector', desc: 'Find the key of a chord progression automatically.', icon: 'key' },
+      { href: '/tools/chord-transposer/', label: 'Chord Transposer', desc: 'Transpose any chord progression to a new key in seconds.', icon: 'transpose' },
+      { href: '/editor/', label: 'Chord Progression Editor', desc: 'Create and play chord progressions with 100+ rhythm styles.', icon: 'chords' },
+      { href: '/tools/bass-guitar-tab/', label: 'Bass Guitar Tab', desc: 'Write and play bass lines with a piano-roll editor.', icon: 'bass-tab' },
+      { href: '/tuner/', label: 'Guitar Tuner', desc: 'Free online chromatic tuner using your microphone.', icon: 'tuner' },
+    ]} />
+  </main>
+</BaseLayout>

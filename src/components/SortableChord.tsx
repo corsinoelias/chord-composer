@@ -15,6 +15,7 @@ interface SortableChordProps {
   onDuplicate: () => void;
   onSelectToggle: (ctrl: boolean) => void;
   transposition?: number;
+  isOutOfScale?: boolean;
 }
 
 export function SortableChord({
@@ -29,6 +30,7 @@ export function SortableChord({
   onDuplicate,
   onSelectToggle,
   transposition = 0,
+  isOutOfScale = false,
 }: SortableChordProps) {
   const {
     attributes,
@@ -76,6 +78,7 @@ export function SortableChord({
         isDragging={isDragging}
         fixedWidth
         transposition={transposition}
+        isOutOfScale={isOutOfScale}
       />
     </div>
   );

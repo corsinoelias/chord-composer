@@ -1,0 +1,15 @@
+---
+import InversionDemo from './InversionDemo';
+
+interface Props {
+  chord: string;
+  root: string;
+  first: string;
+  second: string;
+  third?: string;
+}
+
+const { chord, root, first, second, third } = Astro.props;
+---
+
+<InversionDemo client:visible chord={chord} root={root} first={first} second={second} third={third} />
