@@ -8,7 +8,14 @@ export interface NotePosition {
   midi: number;
 }
 
+export interface ScalePosition {
+  anchor: number;
+  label: string;   // 'Open' | 'II' | 'V' …
+  path: NotePosition[];
+}
+
 const TUNING = [64, 59, 55, 50, 45, 40]; // E4 B3 G3 D3 A2 E2
+const ROMAN  = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
 // ── Audio ─────────────────────────────────────────────────────────────────────
 
@@ -49,50 +56,43 @@ function playGuitarNote(midi: number, durationMs: number) {
 
 // ── Scale builders ─────────────────────────────────────────────────────────────
 
-/** 1 octave: root + intervals + octave-root */
+/** 1 octave: intervals + octave root */
 export function buildScaleNotes(rootPitchClass: number, intervals: number[]): number[] {
   const base = 48 + rootPitchClass;
   return [...intervals.map(i => base + i), base + 12];
 }
 
 /**
- * Greedy position algorithm.
- * anchor = max(0, first_fret − 1)  →  hand position
- * zone   = [anchor, anchor + 4]    →  comfortable 4-fret span
- * Ascending  → prefer thinner strings (lower stringIndex)
- * Descending → prefer thicker strings (higher stringIndex)
+ * Build an ascending path starting at a given anchor fret.
+ * anchor = the lowest fret the left hand sits on (index finger position).
+ * All notes are placed within [anchor, anchor+4] when possible.
  */
-export function buildScalePath(notes: number[], direction: PlayDirection): NotePosition[] {
+export function buildScalePathAtAnchor(notes: number[], anchor: number): NotePosition[] {
   const path: NotePosition[] = [];
-  let anchor = 0;
 
   for (let i = 0; i < notes.length; i++) {
     const midi = notes[i];
     const all: NotePosition[] = TUNING
-      .map((openMidi, si) => ({ stringIndex: si, fret: midi - openMidi, midi }))
+      .map((open, si) => ({ stringIndex: si, fret: midi - open, midi }))
       .filter(c => c.fret >= 0 && c.fret <= 12);
 
     if (!all.length) continue;
 
     if (i === 0) {
-      const candidates = all.filter(c => c.fret <= (direction === 'asc' ? 9 : 7));
-      const pool = candidates.length ? candidates : all;
-      const start = direction === 'asc'
-        ? pool.reduce((b, c) => c.stringIndex > b.stringIndex ? c : b)
-        : pool.reduce((b, c) => c.stringIndex < b.stringIndex ? c : b);
-      anchor = Math.max(0, start.fret - 1);
-      path.push(start);
+      // First note: thickest string available in the zone
+      let pool = all.filter(c => c.fret >= anchor && c.fret <= anchor + 4);
+      if (!pool.length) pool = all;
+      path.push(pool.reduce((b, c) => c.stringIndex > b.stringIndex ? c : b));
       continue;
     }
 
     const prev = path[path.length - 1];
-    const inDir = (c: NotePosition) =>
-      direction === 'asc' ? c.stringIndex <= prev.stringIndex
-                           : c.stringIndex >= prev.stringIndex;
+    // Ascending: move toward thinner strings (lower stringIndex)
+    const inAsc = (c: NotePosition) => c.stringIndex <= prev.stringIndex;
 
-    let pool = all.filter(c => c.fret >= anchor && c.fret <= anchor + 4 && inDir(c));
+    let pool = all.filter(c => c.fret >= anchor && c.fret <= anchor + 4 && inAsc(c));
     if (!pool.length) pool = all.filter(c => c.fret >= anchor && c.fret <= anchor + 4);
-    if (!pool.length) pool = all.filter(inDir);
+    if (!pool.length) pool = all.filter(inAsc);
     if (!pool.length) pool = all;
 
     path.push(pool
@@ -103,12 +103,51 @@ export function buildScalePath(notes: number[], direction: PlayDirection): NoteP
   return path;
 }
 
+/**
+ * Find all distinct playable positions for a scale in standard tuning.
+ * Returns 3-6 positions, ordered from low to high on the neck.
+ */
+export function findScalePositions(rootPitchClass: number, intervals: number[]): ScalePosition[] {
+  const notes   = buildScaleNotes(rootPitchClass, intervals);
+  const results: ScalePosition[] = [];
+  const seen    = new Set<string>();
+
+  for (let anchor = 0; anchor <= 11; anchor++) {
+    // All notes must be reachable within the 4-fret span on at least one string
+    const allFit = notes.every(midi =>
+      TUNING.some(open => {
+        const fret = midi - open;
+        return fret >= anchor && fret <= anchor + 4;
+      })
+    );
+    if (!allFit) continue;
+
+    const path = buildScalePathAtAnchor(notes, anchor);
+    const sig  = path.map(p => `${p.stringIndex}-${p.fret}`).join(',');
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+
+    const minFret = Math.min(...path.map(p => p.fret));
+    const label   = minFret === 0 ? 'Open' : (ROMAN[minFret] ?? `${minFret}`);
+    results.push({ anchor, label, path });
+  }
+
+  // Fallback: should never be empty for standard scales
+  if (!results.length) {
+    const path = buildScalePathAtAnchor(notes, 0);
+    results.push({ anchor: 0, label: 'Open', path });
+  }
+
+  return results;
+}
+
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 interface UseScalePlaybackOptions {
   rootPitchClass: number;
   intervals: number[];
   bpm: number;
+  anchorFret: number;
 }
 
 interface UseScalePlaybackReturn {
@@ -124,13 +163,13 @@ export function useScalePlayback({
   rootPitchClass,
   intervals,
   bpm,
+  anchorFret,
 }: UseScalePlaybackOptions): UseScalePlaybackReturn {
   const [isPlaying, setIsPlaying]      = useState(false);
   const [activePosition, setActivePos] = useState<NotePosition | null>(null);
   const [currentNoteIndex, setNoteIdx] = useState(0);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopFlag   = useRef(false);
-  // Live ref so BPM changes take effect on the next note without stopping playback
   const bpmRef     = useRef(bpm);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
 
@@ -144,16 +183,18 @@ export function useScalePlayback({
     setNoteIdx(0);
   }, []);
 
-  // Stop when the scale itself changes
-  useEffect(() => { stop(); }, [rootPitchClass, intervals, stop]);
+  // Stop on scale or position change
+  useEffect(() => { stop(); }, [rootPitchClass, intervals, anchorFret, stop]);
 
   const play = useCallback((direction: PlayDirection, loop = false) => {
     stop();
     stopFlag.current = false;
 
-    const notes    = buildScaleNotes(rootPitchClass, intervals);
-    const sequence = direction === 'desc' ? [...notes].reverse() : notes;
-    const path     = buildScalePath(sequence, direction);
+    // Always build an ascending path at the selected anchor;
+    // descending just reverses the same shape.
+    const notes   = buildScaleNotes(rootPitchClass, intervals);
+    const ascPath = buildScalePathAtAnchor(notes, anchorFret);
+    const path    = direction === 'desc' ? [...ascPath].reverse() : ascPath;
 
     setIsPlaying(true);
 
@@ -182,7 +223,7 @@ export function useScalePlayback({
 
     tick();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rootPitchClass, intervals, stop]);
+  }, [rootPitchClass, intervals, anchorFret, stop]);
 
   useEffect(() => () => { stop(); }, [stop]);
 
