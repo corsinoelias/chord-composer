@@ -328,6 +328,470 @@ export const SONGS: Song[] = [
       },
     ],
   },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Oceans (Where Feet May Fail) — Hillsong United
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    slug: 'oceans-hillsong-united',
+    title: 'Oceans (Where Feet May Fail)',
+    artist: 'Hillsong United',
+    album: 'Zion',
+    year: 2013,
+    genre: ['worship', 'contemporary christian'],
+    key: 'D',
+    bpm: 72,
+    style: 'folk_strum',
+    description:
+      'Oceans (Where Feet May Fail) by Hillsong United — chord chart with lyrics. Key of D. Play the iconic worship anthem section by section with interactive audio.',
+    tags: ['worship', 'hillsong united', 'contemporary christian', 'oceans'],
+    relatedProgressions: ['worship', 'pop'],
+    sections: [
+      {
+        name: 'Verse 1',
+        lines: [
+          '[D]You call me out upon the [A]waters',
+          'The great un[Bm]known where feet may [G]fail',
+          '[D]And there I find You in the [A]mystery',
+          'In oceans [Bm]deep my faith will [G]stand',
+        ],
+      },
+      {
+        name: 'Chorus',
+        lines: [
+          '[D]And I will call upon Your [A]name',
+          'And keep my [Bm]eyes above the [G]waves',
+          '[D]When oceans rise my soul will [A]rest in Your embrace',
+          'For I am [Bm]Yours and You are [G]mine',
+        ],
+      },
+      {
+        name: 'Verse 2',
+        lines: [
+          '[D]Your grace abounds in [A]deepest waters',
+          'Your sov\'reign [Bm]hand will be my [G]guide',
+          '[D]Where feet may fail and fear [A]surrounds me',
+          'You\'ve never [Bm]failed and You won\'t [G]start now',
+        ],
+      },
+      {
+        name: 'Bridge',
+        lines: [
+          '[Bm]Spirit lead me where my trust is with[G]out borders',
+          '[D]Let me walk upon the [A]waters',
+          '[Bm]Wherever You would call [G]me',
+          '[D]Take me deeper than my feet could ever [A]wander',
+          '[Bm]And my faith will be made [G]stronger',
+          '[D]In the presence of my [A]Savior',
+        ],
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Way Maker — Leeland
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    slug: 'way-maker-leeland',
+    title: 'Way Maker',
+    artist: 'Leeland',
+    album: 'Way Maker',
+    year: 2019,
+    genre: ['worship', 'contemporary christian'],
+    key: 'A',
+    bpm: 96,
+    style: 'pop_basic',
+    description:
+      'Way Maker by Leeland — chord chart with lyrics. Key of A (I–V–vi–IV). Play every section with interactive audio. Originally written by Sinach.',
+    tags: ['worship', 'leeland', 'sinach', 'contemporary christian', 'way maker'],
+    relatedProgressions: ['worship', 'pop'],
+    sections: [
+      {
+        name: 'Verse 1',
+        lines: [
+          '[A]You are here moving in our [E]midst',
+          'I worship [F#m]You, I worship [D]You',
+          '[A]You are here working in this [E]place',
+          'I worship [F#m]You, I worship [D]You',
+        ],
+      },
+      {
+        name: 'Chorus',
+        lines: [
+          '[A]Way maker, miracle [E]worker',
+          'Promise [F#m]keeper, light in the [D]darkness',
+          '[A]My God, that is who You [E]are',
+          '[F#m]That is who You [D]are',
+        ],
+      },
+      {
+        name: 'Verse 2',
+        lines: [
+          '[A]You are here touching every [E]heart',
+          'I worship [F#m]You, I worship [D]You',
+          '[A]You are here healing every [E]heart',
+          'I worship [F#m]You, I worship [D]You',
+        ],
+      },
+      {
+        name: 'Bridge',
+        lines: [
+          '[A]Even when I don\'t see it You\'re work[E]ing',
+          'Even when I don\'t feel it You\'re [F#m]working',
+          '[D]You never stop, You never stop working',
+          '[A]You never stop, You never stop [E]working',
+        ],
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Goodness of God — Bethel Music / Jenn Johnson
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    slug: 'goodness-of-god-bethel-music',
+    title: 'Goodness of God',
+    artist: 'Bethel Music',
+    album: 'Victory',
+    year: 2019,
+    genre: ['worship', 'contemporary christian'],
+    key: 'C',
+    bpm: 68,
+    style: 'folk_strum',
+    description:
+      'Goodness of God by Bethel Music — chord chart with lyrics. Key of C. Play this beloved worship anthem with interactive audio and full chord-over-lyrics.',
+    tags: ['worship', 'bethel music', 'jenn johnson', 'contemporary christian', 'goodness of god'],
+    relatedProgressions: ['worship', 'pop'],
+    sections: [
+      {
+        name: 'Verse 1',
+        lines: [
+          '[C]I love You, Lord',
+          '[G]Oh Your mercy never fails me',
+          '[Am]All my days I\'ve been held in Your [F]hands',
+          '[C]From the moment that I wake up',
+          '[G]Until I lay my head',
+          '[Am]Oh I will sing of the goodness of [F]God',
+        ],
+      },
+      {
+        name: 'Chorus',
+        lines: [
+          '[C]All my life You have been faith[G]ful',
+          '[Am]All my life You have been so, so [F]good',
+          '[C]With every breath that I am [G]able',
+          '[Am]Oh I will sing of the goodness of [F]God',
+        ],
+      },
+      {
+        name: 'Verse 2',
+        lines: [
+          '[C]I love Your voice',
+          '[G]You have led me through the fire',
+          '[Am]And in the darkest night You are [F]close like no other',
+          '[C]I\'ve known You as a Father',
+          '[G]I\'ve known You as a Friend',
+          '[Am]And I have lived in the goodness of [F]God',
+        ],
+      },
+      {
+        name: 'Bridge',
+        lines: [
+          '[Am]Your goodness is running after, it\'s running after [F]me',
+          '[C]Your goodness is running after, it\'s running after [G]me',
+          '[Am]With my life laid down I\'m surrendered now I give You every[F]thing',
+          '[C]\'Cause Your goodness is running after, it\'s running after [G]me',
+        ],
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Reckless Love — Cory Asbury
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    slug: 'reckless-love-cory-asbury',
+    title: 'Reckless Love',
+    artist: 'Cory Asbury',
+    album: 'Reckless Love',
+    year: 2017,
+    genre: ['worship', 'contemporary christian'],
+    key: 'C',
+    bpm: 68,
+    style: 'folk_strum',
+    description:
+      'Reckless Love by Cory Asbury — chord chart with lyrics. Key of C. Play the full worship song with interactive chord audio and complete lyrics.',
+    tags: ['worship', 'cory asbury', 'contemporary christian', 'reckless love'],
+    relatedProgressions: ['worship', 'pop'],
+    sections: [
+      {
+        name: 'Verse 1',
+        lines: [
+          '[Am]Before I spoke a [F]word You were singing over [C]me',
+          '[G]You have been so, so [Am]good to me',
+          '[Am]Before I took a [F]breath You breathed Your life in [C]me',
+          '[G]You have been so, so [Am]kind to me',
+        ],
+      },
+      {
+        name: 'Chorus',
+        lines: [
+          '[C]Oh the overwhelming, never-ending, [G]reckless love of God',
+          '[Am]Oh it chases me down, fights \'til I\'m [F]found, leaves the ninety-nine',
+          '[C]And I couldn\'t earn it, and I don\'t deserve it',
+          '[G]Still You give Yourself [Am]away',
+          '[F]Oh the overwhelming, never-ending, [C]reckless love of God',
+        ],
+      },
+      {
+        name: 'Verse 2',
+        lines: [
+          '[Am]When I was Your [F]foe still Your love fought [C]for me',
+          '[G]You have been so, so [Am]good to me',
+          '[Am]When I felt no [F]worth You paid it all for [C]me',
+          '[G]You have been so, so [Am]kind to me',
+        ],
+      },
+      {
+        name: 'Bridge',
+        lines: [
+          '[Am]There\'s no shadow You won\'t [F]light up',
+          '[C]Mountain You won\'t climb up [G]coming after me',
+          '[Am]There\'s no wall You won\'t kick [F]down',
+          '[C]Lie You won\'t tear down [G]coming after me',
+        ],
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 10,000 Reasons (Bless the Lord) — Matt Redman
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    slug: '10000-reasons-matt-redman',
+    title: '10,000 Reasons (Bless the Lord)',
+    artist: 'Matt Redman',
+    album: '10,000 Reasons',
+    year: 2011,
+    genre: ['worship', 'contemporary christian'],
+    key: 'G',
+    bpm: 73,
+    style: 'folk_strum',
+    description:
+      '10,000 Reasons (Bless the Lord) by Matt Redman — chord chart with lyrics. Key of G. Grammy-winning worship anthem with full interactive chord audio.',
+    tags: ['worship', 'matt redman', 'contemporary christian', '10000 reasons', 'bless the lord'],
+    relatedProgressions: ['worship', 'pop'],
+    sections: [
+      {
+        name: 'Chorus',
+        lines: [
+          '[G]Bless the [D]Lord oh my [Em7]soul, oh my [C]soul',
+          '[G]Worship His [D]holy [G]name',
+          '[C]Sing like never be[G]fore, oh my [Em7]soul',
+          'I\'ll wor[C]ship Your holy [D]name',
+        ],
+      },
+      {
+        name: 'Verse 1',
+        lines: [
+          'The [G]sun comes up it\'s a new [D]day dawning',
+          'It\'s [Em7]time to sing Your [C]song again',
+          'What[G]ever may pass and what[D]ever lies before me',
+          '[Em7]Let me be singing when the [C]evening [D]comes',
+        ],
+      },
+      {
+        name: 'Verse 2',
+        lines: [
+          'You\'re [G]rich in love and You\'re [D]slow to anger',
+          'Your [Em7]name is great and Your [C]heart is kind',
+          'For [G]all Your goodness I will keep on [D]singing',
+          'Ten thou[Em7]sand reasons for my [C]heart to [D]find',
+        ],
+      },
+      {
+        name: 'Verse 3',
+        lines: [
+          'And [G]on that day when my [D]strength is failing',
+          'The [Em7]end draws near and my [C]time has come',
+          'Still [G]my soul will sing Your [D]praise unending',
+          'Ten thou[Em7]sand years and then for[C]ever[D]more',
+        ],
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // What A Beautiful Name — Hillsong Worship
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    slug: 'what-a-beautiful-name-hillsong-worship',
+    title: 'What A Beautiful Name',
+    artist: 'Hillsong Worship',
+    album: 'Let There Be Light',
+    year: 2016,
+    genre: ['worship', 'contemporary christian'],
+    key: 'D',
+    capo: 1,
+    bpm: 68,
+    style: 'folk_strum',
+    description:
+      'What A Beautiful Name by Hillsong Worship — chord chart with lyrics. Key of D (capo 1st fret sounds in Eb). Play the Grammy-winning anthem with interactive audio.',
+    tags: ['worship', 'hillsong worship', 'contemporary christian', 'what a beautiful name'],
+    relatedProgressions: ['worship', 'pop'],
+    sections: [
+      {
+        name: 'Verse 1',
+        lines: [
+          '[D]You were the Word at the [A]beginning',
+          '[Bm]One with God the Lord Most [G]High',
+          '[D]Your hidden glory in cre[A]ation',
+          '[Bm]Now revealed in You our [G]Christ',
+        ],
+      },
+      {
+        name: 'Pre-chorus',
+        lines: [
+          '[D]What a beautiful [A]name it is',
+          '[Bm]What a beautiful name it [G]is',
+          'The name of [D]Jesus Christ my [A]King',
+          '[Bm]What a beautiful name it [G]is',
+        ],
+      },
+      {
+        name: 'Chorus',
+        lines: [
+          '[D]What a beautiful [A]name it is',
+          'Nothing com[G]pares to this',
+          '[D]What a beautiful name it [A]is',
+          'The name of [G]Jesus',
+        ],
+      },
+      {
+        name: 'Verse 2',
+        lines: [
+          '[D]You didn\'t want heaven with[A]out us',
+          '[Bm]So Jesus You brought heaven [G]down',
+          '[D]My sin was great Your love was [A]greater',
+          '[Bm]What could separate us [G]now',
+        ],
+      },
+      {
+        name: 'Bridge',
+        lines: [
+          '[Bm]Death could not hold You, the veil tore be[G]fore You',
+          '[D]You silence the boast of sin and [A]grave',
+          '[Bm]The heavens are roaring the praise of Your [G]glory',
+          '[D]For You are raised to [A]life again',
+        ],
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Build My Life — Pat Barrett
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    slug: 'build-my-life-pat-barrett',
+    title: 'Build My Life',
+    artist: 'Pat Barrett',
+    album: 'Build My Life',
+    year: 2016,
+    genre: ['worship', 'contemporary christian'],
+    key: 'G',
+    bpm: 74,
+    style: 'folk_strum',
+    description:
+      'Build My Life by Pat Barrett — chord chart with lyrics. Key of G. Play this modern worship anthem with interactive audio and full chord-over-lyrics.',
+    tags: ['worship', 'pat barrett', 'housefires', 'contemporary christian', 'build my life'],
+    relatedProgressions: ['worship', 'pop'],
+    sections: [
+      {
+        name: 'Verse 1',
+        lines: [
+          '[G]Worthy of every [Em]song we could ever [C]sing',
+          '[D]Worthy of all the [G]praise we could ever [Em]bring',
+          '[C]Worthy of every [D]breath we could ever [G]breathe',
+          '[Em]We live for You, [C]we live for [D]You',
+        ],
+      },
+      {
+        name: 'Verse 2',
+        lines: [
+          '[G]Jesus the name a[Em]bove every other [C]name',
+          '[D]Jesus the only [G]one who could ever [Em]save',
+          '[C]Worthy of every [D]breath we could ever [G]breathe',
+          '[Em]We live for You, [C]we live for [D]You',
+        ],
+      },
+      {
+        name: 'Chorus',
+        lines: [
+          '[G]Holy, there is no one like [D]You',
+          '[Em]There is none beside [C]You',
+          '[G]Open up my eyes in wonder and [D]show me who You are',
+          '[Em]And fill me with Your [C]heart',
+          '[G]And lead me in Your love to [D]those around me',
+        ],
+      },
+      {
+        name: 'Bridge',
+        lines: [
+          '[G]I will build my life u[Em]pon Your love',
+          'It is a [C]firm foundation',
+          '[G]I will put my trust in [D]You alone',
+          '[Em]And I will not be [C]shaken',
+        ],
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Great Are You Lord — All Sons & Daughters
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    slug: 'great-are-you-lord-all-sons-daughters',
+    title: 'Great Are You Lord',
+    artist: 'All Sons & Daughters',
+    album: 'Season One',
+    year: 2012,
+    genre: ['worship', 'contemporary christian'],
+    key: 'G',
+    bpm: 76,
+    style: 'folk_strum',
+    description:
+      'Great Are You Lord by All Sons & Daughters — chord chart with lyrics. Key of G. Play this anthemic worship song with interactive audio and full lyrics.',
+    tags: ['worship', 'all sons and daughters', 'contemporary christian', 'great are you lord'],
+    relatedProgressions: ['worship', 'pop'],
+    sections: [
+      {
+        name: 'Verse',
+        lines: [
+          '[G]You give life, You are [D]love',
+          '[Em7]You bring light to the dark[Csus2]ness',
+          '[G]You give hope, You restore [D]every heart that is broken',
+          '[Em7]Great are You, [Csus2]Lord',
+        ],
+      },
+      {
+        name: 'Chorus',
+        lines: [
+          '[G]It\'s Your breath in our [D]lungs',
+          '[Em7]So we pour out our [Csus2]praise',
+          '[G]We pour out our [D]praise',
+          '[Em7]We pour out our [Csus2]praise to You [G]only',
+        ],
+      },
+      {
+        name: 'Bridge',
+        lines: [
+          '[Bm7]All the earth will shout Your [G]praise',
+          '[D]Our hearts will cry, these bones will [A]sing',
+          '[Bm7]Great are You, [G]Lord',
+        ],
+      },
+    ],
+  },
 ];
 
 export function getSong(slug: string): Song | undefined {

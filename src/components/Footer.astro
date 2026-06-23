@@ -5,10 +5,10 @@ const columns = [
   {
     label: 'Create',
     links: [
+      { label: 'Chord Progression Generator', href: '/chord-progression-generator/' },
       { label: 'My library', href: '/app/' },
       { label: 'Progression editor', href: '/editor/' },
       { label: 'Song charts', href: '/songs/' },
-      { label: 'Add a song', href: '/songs/new/' },
     ],
   },
   {
@@ -32,10 +32,10 @@ const columns = [
   {
     label: 'Songs',
     links: [
-      { label: 'Holy Forever', href: '/songs/holy-forever-chris-tomlin/' },
-      { label: 'Wonderwall', href: '/songs/wonderwall-oasis/' },
-      { label: 'Hallelujah', href: '/songs/hallelujah-leonard-cohen/' },
-      { label: 'All Songs', href: '/songs/' },
+      { label: 'Oceans — Hillsong United', href: '/songs/oceans-hillsong-united/' },
+      { label: 'Way Maker — Leeland', href: '/songs/way-maker-leeland/' },
+      { label: 'Goodness of God', href: '/songs/goodness-of-god-bethel-music/' },
+      { label: 'All Song Charts', href: '/songs/' },
     ],
   },
   {
@@ -68,7 +68,7 @@ const columns = [
           <span class="font-bold text-foreground tracking-tight">ChordSequence</span>
         </a>
         <p class="text-sm text-muted-foreground leading-relaxed">
-          Free online chord progression builder for songwriters, producers, and music students.
+          Free online chord progression generator for songwriters, producers, and music students.
         </p>
         <a
           href="/editor/?chords=C-Am-F-G&bpm=100&style=pop_basic"
@@ -101,7 +101,7 @@ const columns = [
 
     <div class="border-t border-border mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
       <p class="text-xs text-muted-foreground">
-        © {currentYear} ChordSequence. Free online chord progression builder.
+        © {currentYear} ChordSequence. Free online chord progression generator.
       </p>
       <div class="flex items-center gap-4">
         <a href="/about/" class="text-xs text-muted-foreground hover:text-foreground transition-colors">About</a>

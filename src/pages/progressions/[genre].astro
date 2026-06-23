@@ -16,6 +16,11 @@ const { genre } = Astro.props;
 
 const genreCanonicalUrl = `https://chordsequence.com/progressions/${genre.slug}/`;
 
+const generatorMetaDescription = `${genre.name} chord progression generator — ${genre.progressions.length} progressions with real audio, playable in your browser. Customize key, tempo, and rhythm. Free, no account needed.`;
+
+const firstProgression = genre.progressions[0];
+const editorUrl = `/editor/?chords=${firstProgression.chords.replace(/ /g, '-')}&bpm=${firstProgression.bpm}&style=${firstProgression.style}`;
+
 function toAnchorId(title: string): string {
   return title
     .toLowerCase()
@@ -29,7 +34,7 @@ function toAnchorId(title: string): string {
 const itemListSchema = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
-  name: `${genre.name} Chord Progressions`,
+  name: `${genre.name} Chord Progression Generator`,
   description: genre.description,
   url: genreCanonicalUrl,
   numberOfItems: genre.progressions.length,
@@ -52,14 +57,14 @@ const breadcrumbSchema = {
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
     { '@type': 'ListItem', position: 2, name: 'Progressions', item: 'https://chordsequence.com/progressions/' },
-    { '@type': 'ListItem', position: 3, name: `${genre.name} Chord Progressions`, item: genreCanonicalUrl },
+    { '@type': 'ListItem', position: 3, name: `${genre.name} Chord Progression Generator`, item: genreCanonicalUrl },
   ],
 };
 ---
 
 <BaseLayout
-  title={`${genre.name} Chord Progressions — Play & Export | Chord Sequence`}
-  description={genre.metaDescription}
+  title={`${genre.name} Chord Progression Generator — Play Free | Chord Sequence`}
+  description={generatorMetaDescription}
   canonicalUrl={genreCanonicalUrl}
 >
   <Fragment slot="head">
@@ -79,7 +84,7 @@ const breadcrumbSchema = {
 
     <header class="mb-10">
       <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
-        {genre.name} chord progressions
+        {genre.name} Chord Progression Generator
       </h1>
       <p class="text-lg text-muted-foreground mb-4">{genre.description}</p>
       {genre.learnLink && (
@@ -154,8 +159,10 @@ const breadcrumbSchema = {
 
     <AppCta
       class="mt-12"
-      heading={`Build your own ${genre.name} progression`}
-      description="Open the editor, add any of these chords, and customize the rhythm and tempo."
+      heading={`Generate your own ${genre.name} chord progression`}
+      description={`Starts with ${firstProgression.title} — change any chord, adjust the tempo, and export as WAV. Free, no account needed.`}
+      buttonText="Open Chord Progression Generator"
+      href={editorUrl}
     />
   </main>
 </BaseLayout>

@@ -31,6 +31,9 @@ const ARTICLE_FAQ: Record<string, FAQItem[]> = {
     { question: 'What is a chord progression?', answer: 'A chord progression is a sequence of two or more chords played in succession that forms the harmonic foundation of a song. Chord progressions give music its emotional direction and are one of the primary building blocks of songwriting.' },
     { question: 'What is the most common chord progression?', answer: 'The most common chord progression is I–V–vi–IV (for example, C–G–Am–F in the key of C major). It is used in thousands of pop songs across every decade and is sometimes called the Axis progression.' },
     { question: 'How many chords do you need for a chord progression?', answer: 'A chord progression needs at least two chords, but most songs use three or four. The I–IV–V uses three chords and is the foundation of the blues, rock and roll, and folk music. The I–V–vi–IV uses four chords and drives the majority of modern pop.' },
+    { question: 'How do I generate my own chord progression?', answer: 'To generate a chord progression, pick a key, then choose 3–4 chords from its diatonic set (I, ii, iii, IV, V, vi). The easiest starting point is I–V–vi–IV. You can use a free chord progression generator like Chord Sequence to hear your progression instantly with real instrument sounds and adjust BPM, rhythm style, and transposition without any music theory knowledge.' },
+    { question: 'What is the difference between a chord progression and a chord sequence?', answer: 'In everyday use, chord progression and chord sequence mean the same thing — an ordered series of chords. Some theorists reserve "progression" for harmonically functional movement (chords pulling toward each other) and "sequence" for repeated patterns. For songwriting purposes, the terms are interchangeable.' },
+    { question: 'Can a chord progression be copyrighted?', answer: 'No. Chord progressions cannot be copyrighted — only specific melodies, lyrics, and recordings can be. The I–V–vi–IV progression has been used in thousands of different songs simultaneously because the sequence of chords itself is not protected. What you do with those chords (melody, rhythm, arrangement) is what becomes your original work.' },
   ],
   'chord-progressions-for-beginners': [
     { question: 'What is the easiest chord progression for beginners?', answer: 'The easiest chord progression for beginners is I–V–vi–IV (C–G–Am–F in the key of C). It uses only four open chords and appears in hundreds of pop songs. Once you can switch between these four chords, you can play the majority of popular music.' },
@@ -52,6 +55,7 @@ const ARTICLE_FAQ: Record<string, FAQItem[]> = {
   ],
   'chord-inversions': [
     { question: 'What is a chord inversion?', answer: 'A chord inversion is a rearrangement of a chord so that a note other than the root sits at the bottom (in the bass). A C major chord (C–E–G) in root position has C in the bass. In first inversion (C/E), the third (E) is in the bass. In second inversion (C/G), the fifth (G) is in the bass. The chord quality — major, minor, etc. — stays exactly the same; only the bass note changes.' },
+    { question: 'What is a chord jump?', answer: 'A chord jump is a large interval leap in the bass line between two chords in root position — typically a fourth, fifth, or more. When the bass jumps instead of stepping, the progression can feel abrupt or disconnected. Chord inversions are the main tool for eliminating chord jumps: placing the third or fifth in the bass creates a stepwise bass movement instead of a leap. George Harrison\'s "Something" is a classic example — G/F# and Em/D replace what would otherwise be large chord jumps between G, Em, and C.' },
     { question: 'What does the slash in a chord name mean (like C/E or G/B)?', answer: 'Slash chord notation specifies the bass note separately from the chord. The chord name comes before the slash and the bass note comes after. C/E means "play a C major chord with E in the bass." G/B means "play a G major chord with B in the bass." In both cases, B and E are the thirds of their respective chords, making these first inversions. Not all slash chords are inversions — sometimes the bass note is a note that doesn\'t belong to the chord at all (called a pedal tone).' },
     { question: 'Why use chord inversions in songwriting?', answer: 'Chord inversions let you control the bass line independently from the chord harmony. By using inversions, you can create smooth, stepwise bass movement — called voice leading — instead of large leaps between chords. The most common use is a descending bass line: for example, C – C/B – Am – Am/G creates a bass line that descends C → B → A → G while the harmony changes gradually. This technique appears in countless pop, rock, and classical songs.' },
     { question: 'What are the easiest chord inversions to learn on guitar?', answer: 'The four most useful inversions on guitar are: G/B (G major with B in bass — use between C and Am), D/F# (D major with F# in bass — use between G and Em), C/E (C major with E in bass — common before Am or Dm), and Am/G (A minor with G in bass — creates a descending A → G bass movement). Each of these appears constantly in pop and rock and is worth learning as a standalone chord shape.' },
@@ -60,6 +64,9 @@ const ARTICLE_FAQ: Record<string, FAQItem[]> = {
     { question: 'What is the most important jazz chord progression?', answer: 'The ii–V–I is the most important chord progression in jazz. In C major it is Dm7–G7–Cmaj7. The dominant seventh chord (G7) creates strong tension through its tritone interval, which resolves naturally to the tonic major seventh (Cmaj7). This progression appears in virtually every jazz standard ever written.' },
     { question: 'What is a jazz turnaround?', answer: 'A jazz turnaround is a short chord progression — typically two to four chords — used at the end of a section to create tension that leads back to the top of the form. The most common turnaround is I–VI–ii–V (Cmaj7–A7–Dm7–G7 in C major). The VI7 chord creates a secondary dominant that pulls toward the ii chord, which then resolves through V back to I.' },
     { question: 'What is tritone substitution in jazz?', answer: 'Tritone substitution replaces a dominant seventh chord with another dominant seventh whose root is a tritone (six semitones) away. G7 can be replaced by Db7 because they share the same tritone interval (B and F, or Cb and F). The substitution creates a chromatic descending bass line — G, Db, C — which is smoother and more colorful than the standard root movement.' },
+    { question: 'What chords are used in jazz progressions?', answer: 'Jazz progressions primarily use 7th chords: major 7th (Cmaj7), dominant 7th (G7), minor 7th (Dm7), and half-diminished (Dm7♭5). Plain triads are rare in jazz — the 7th is almost always present, and 9ths, 11ths, and 13ths are added for color. The most common chord combination is the ii7–V7–Imaj7, which forms the backbone of virtually every standard.' },
+    { question: 'How do I start learning jazz chord progressions?', answer: 'Start with the ii–V–I in C major: Dm7–G7–Cmaj7. Once it feels comfortable, learn it in all 12 keys by moving through the cycle of fifths (C, F, Bb, Eb, Ab, Db, Gb, B, E, A, D, G). Then add the turnaround (I–VI–ii–V) and the jazz blues form. These three patterns cover the structure of the majority of jazz standards.' },
+    { question: 'What is the difference between jazz and pop chord progressions?', answer: 'Pop progressions use plain triads (C, G, Am, F) and stay in one key throughout. Jazz progressions use 7th chords (Cmaj7, G7, Dm7), pass through multiple keys in a single chorus via ii–V–I movements, and frequently use chromatic substitutions like tritone subs and secondary dominants. Jazz harmony is more complex but follows predictable patterns once you internalize the ii–V–I.' },
   ],
   'circle-of-fifths-explained': [
     { question: 'What is the circle of fifths?', answer: 'The circle of fifths is a diagram that arranges all 12 musical keys in a circle based on their harmonic relationships. Moving clockwise, each key is a perfect fifth above the previous one. The circle shows which keys share the most notes (adjacent keys), which chords belong to each key, and how to modulate from one key to another.' },
@@ -280,6 +287,17 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
     {extraSchemas.map(schema => (
       <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
     ))}
+    {faqItems && faqItems.length > 0 && (
+      <script is:inline type="application/ld+json" set:html={JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: faqItems.map((item: FAQItem) => ({
+          '@type': 'Question',
+          name: item.question,
+          acceptedAnswer: { '@type': 'Answer', text: item.answer },
+        })),
+      })} />
+    )}
   </Fragment>
 
   <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
@@ -368,6 +386,20 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
     ">
       <Content components={{ ChordEmbed: ChordEmbedIsland, CircleOfFifths: CircleOfFifthsIsland, InversionDemo: InversionDemoIsland }} />
     </article>
+
+    {faqItems && faqItems.length > 0 && (
+      <section class="mt-16 pt-8 border-t border-border" aria-label="Frequently asked questions">
+        <h2 class="text-2xl font-bold text-foreground mb-8">Frequently Asked Questions</h2>
+        <dl class="space-y-6">
+          {faqItems.map((item: FAQItem) => (
+            <div class="border border-border rounded-xl p-5">
+              <dt class="text-base font-semibold text-foreground mb-2">{item.question}</dt>
+              <dd class="text-sm text-muted-foreground leading-relaxed">{item.answer}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    )}
 
     <AppCta
       class="mt-16"
