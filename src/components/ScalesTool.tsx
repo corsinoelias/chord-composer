@@ -53,15 +53,13 @@ export function ScalesTool() {
 
   const currentPosition = scalePositions[positionIndex] ?? scalePositions[0];
   const displayPath     = currentPosition?.path ?? [];
-  const anchorFret      = currentPosition?.anchor ?? 0;
+  const totalNotes      = displayPath.length;
 
-  const { isPlaying, activePosition, currentNoteIndex, totalNotes, play, stop } =
-    useScalePlayback({
-      rootPitchClass: filter?.rootPitchClass ?? 0,
-      intervals:      filter?.intervals ?? [],
-      bpm,
-      anchorFret,
-    });
+  const { isPlaying, activePosition, currentNoteIndex, play, stop } =
+    useScalePlayback({ bpm });
+
+  // Stop playback whenever the scale or position changes
+  useEffect(() => { stop(); }, [filter, positionIndex, stop]);
 
   const noteNames = filter ? getScaleNoteNames(filter.rootPitchClass, filter.intervals) : [];
 
@@ -186,7 +184,7 @@ export function ScalesTool() {
               size="sm"
               variant={isPlaying ? 'secondary' : 'default'}
               className="gap-2 min-w-24"
-              onClick={() => isPlaying ? stop() : play(direction, loop)}
+              onClick={() => isPlaying ? stop() : play(direction, displayPath, loop)}
             >
               {isPlaying
                 ? <><Square className="h-3.5 w-3.5 fill-current" /> Stop</>

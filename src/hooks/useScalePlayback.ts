@@ -56,10 +56,14 @@ function playGuitarNote(midi: number, durationMs: number) {
 
 // ── Scale builders ─────────────────────────────────────────────────────────────
 
-/** 1 octave: intervals + octave root */
+/** Build notes array from an explicit root MIDI pitch. Produces 1 octave + octave root. */
+function buildScaleNotesAtBase(rootMidi: number, intervals: number[]): number[] {
+  return [...intervals.map(i => rootMidi + i), rootMidi + 12];
+}
+
+/** 1 octave starting at C3 register (rootPitchClass 0 → MIDI 48). */
 export function buildScaleNotes(rootPitchClass: number, intervals: number[]): number[] {
-  const base = 48 + rootPitchClass;
-  return [...intervals.map(i => base + i), base + 12];
+  return buildScaleNotesAtBase(48 + rootPitchClass, intervals);
 }
 
 /**
@@ -104,38 +108,115 @@ export function buildScalePathAtAnchor(notes: number[], anchor: number): NotePos
 }
 
 /**
- * Find all distinct playable positions for a scale in standard tuning.
- * Returns 3-6 positions, ordered from low to high on the neck.
+ * A shape is comfortable if no single string requires a stretch > maxSpan frets.
+ * Open strings (fret 0) are excluded — they don't require a finger position.
+ */
+function isComfortableShape(path: NotePosition[], maxSpan = 3): boolean {
+  const byString = new Map<number, number[]>();
+  for (const p of path) {
+    if (!byString.has(p.stringIndex)) byString.set(p.stringIndex, []);
+    byString.get(p.stringIndex)!.push(p.fret);
+  }
+  for (const frets of byString.values()) {
+    const fretted = frets.filter(f => f > 0);
+    if (fretted.length > 1 && Math.max(...fretted) - Math.min(...fretted) > maxSpan) return false;
+  }
+  return true;
+}
+
+/**
+ * Find all distinct, comfortable positions for a scale in standard tuning.
+ * Tries two octave registers and two comfort levels to cover the full neck
+ * while always producing shapes where the octave moves "forward" on the neck.
+ *
+ * Strategy:
+ *  Pass 1 — strict comfort (span ≤ 3 per string) + octave ≥ root fret
+ *  Pass 2 — relaxed comfort (span ≤ 4) + octave ≥ root fret  (if pass 1 empty)
+ *  Fallback — any comfortable shape, pick the one with smallest backward distance
  */
 export function findScalePositions(rootPitchClass: number, intervals: number[]): ScalePosition[] {
-  const notes   = buildScaleNotes(rootPitchClass, intervals);
   const results: ScalePosition[] = [];
-  const seen    = new Set<string>();
+  const sigsSeen = new Set<string>();
 
-  for (let anchor = 0; anchor <= 11; anchor++) {
-    // All notes must be reachable within the 4-fret span on at least one string
-    const allFit = notes.every(midi =>
-      TUNING.some(open => {
-        const fret = midi - open;
-        return fret >= anchor && fret <= anchor + 4;
-      })
-    );
-    if (!allFit) continue;
+  function tryPass(maxSpan: number) {
+    for (const rootMidi of [48 + rootPitchClass, 60 + rootPitchClass]) {
+      const notes = buildScaleNotesAtBase(rootMidi, intervals);
 
-    const path = buildScalePathAtAnchor(notes, anchor);
-    const sig  = path.map(p => `${p.stringIndex}-${p.fret}`).join(',');
-    if (seen.has(sig)) continue;
-    seen.add(sig);
+      for (let anchor = 0; anchor <= 11; anchor++) {
+        const allFit = notes.every(midi =>
+          TUNING.some(open => { const f = midi - open; return f >= anchor && f <= anchor + 4; })
+        );
+        if (!allFit) continue;
 
-    const minFret = Math.min(...path.map(p => p.fret));
-    const label   = minFret === 0 ? 'Open' : (ROMAN[minFret] ?? `${minFret}`);
-    results.push({ anchor, label, path });
+        const path = buildScalePathAtAnchor(notes, anchor);
+        if (!isComfortableShape(path, maxSpan)) continue;
+
+        // Octave must land at an equal or higher fret than the root
+        if (path[path.length - 1].fret < path[0].fret) continue;
+
+        if (path.some(p => p.fret > 15)) continue;
+
+        const sig = path.map(p => `${p.stringIndex}-${p.fret}`).join(',');
+        if (sigsSeen.has(sig)) continue;
+        sigsSeen.add(sig);
+
+        const noteSet = new Set(sig.split(','));
+        const tooSimilar = results.some(r => {
+          const rSet = new Set(r.path.map(p => `${p.stringIndex}-${p.fret}`));
+          return [...noteSet].filter(s => rSet.has(s)).length >= path.length - 1;
+        });
+        if (tooSimilar) continue;
+
+        const minFret = Math.min(...path.map(p => p.fret));
+        const label   = minFret === 0 ? 'Open' : (ROMAN[minFret] ?? `${minFret}`);
+        results.push({ anchor, label, path });
+      }
+    }
   }
 
-  // Fallback: should never be empty for standard scales
+  tryPass(3); // prefer strict comfort shapes
+  if (!results.length) tryPass(4); // fall back to slightly wider stretch
+
+  results.sort((a, b) =>
+    Math.min(...a.path.map(p => p.fret)) - Math.min(...b.path.map(p => p.fret))
+  );
+
+  // Final fallback: some scale+root combos have no forward-moving shape at all.
+  // Show the most comfortable (span ≤ 4) shape with minimum backward distance.
   if (!results.length) {
-    const path = buildScalePathAtAnchor(notes, 0);
-    results.push({ anchor: 0, label: 'Open', path });
+    let bestPath: NotePosition[] | null = null;
+    let bestBackward = Infinity;
+    let bestAnchor = 0;
+
+    for (let anchor = 0; anchor <= 11; anchor++) {
+      const notes = buildScaleNotesAtBase(48 + rootPitchClass, intervals);
+      const allFit = notes.every(midi =>
+        TUNING.some(open => { const f = midi - open; return f >= anchor && f <= anchor + 4; })
+      );
+      if (!allFit) continue;
+      const path = buildScalePathAtAnchor(notes, anchor);
+      if (!isComfortableShape(path, 4)) continue;
+      if (path.some(p => p.fret > 15)) continue;
+      const backward = path[0].fret - path[path.length - 1].fret;
+      if (backward < bestBackward) {
+        bestBackward = backward;
+        bestPath = path;
+        bestAnchor = anchor;
+      }
+    }
+
+    if (!bestPath) {
+      const notes = buildScaleNotesAtBase(48 + rootPitchClass, intervals);
+      bestPath = buildScalePathAtAnchor(notes, 0);
+      bestAnchor = 0;
+    }
+
+    const minFret = Math.min(...bestPath.map(p => p.fret));
+    results.push({
+      anchor: bestAnchor,
+      label: minFret === 0 ? 'Open' : (ROMAN[minFret] ?? `${minFret}`),
+      path: bestPath,
+    });
   }
 
   return results;
@@ -143,28 +224,15 @@ export function findScalePositions(rootPitchClass: number, intervals: number[]):
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-interface UseScalePlaybackOptions {
-  rootPitchClass: number;
-  intervals: number[];
-  bpm: number;
-  anchorFret: number;
-}
-
 interface UseScalePlaybackReturn {
   isPlaying: boolean;
   activePosition: NotePosition | null;
   currentNoteIndex: number;
-  totalNotes: number;
-  play: (direction: PlayDirection, loop?: boolean) => void;
+  play: (direction: PlayDirection, path: NotePosition[], loop?: boolean) => void;
   stop: () => void;
 }
 
-export function useScalePlayback({
-  rootPitchClass,
-  intervals,
-  bpm,
-  anchorFret,
-}: UseScalePlaybackOptions): UseScalePlaybackReturn {
+export function useScalePlayback({ bpm }: { bpm: number }): UseScalePlaybackReturn {
   const [isPlaying, setIsPlaying]      = useState(false);
   const [activePosition, setActivePos] = useState<NotePosition | null>(null);
   const [currentNoteIndex, setNoteIdx] = useState(0);
@@ -172,8 +240,6 @@ export function useScalePlayback({
   const stopFlag   = useRef(false);
   const bpmRef     = useRef(bpm);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
-
-  const totalNotes = intervals.length + 1;
 
   const stop = useCallback(() => {
     stopFlag.current = true;
@@ -183,18 +249,11 @@ export function useScalePlayback({
     setNoteIdx(0);
   }, []);
 
-  // Stop on scale or position change
-  useEffect(() => { stop(); }, [rootPitchClass, intervals, anchorFret, stop]);
-
-  const play = useCallback((direction: PlayDirection, loop = false) => {
+  const play = useCallback((direction: PlayDirection, path: NotePosition[], loop = false) => {
     stop();
     stopFlag.current = false;
 
-    // Always build an ascending path at the selected anchor;
-    // descending just reverses the same shape.
-    const notes   = buildScaleNotes(rootPitchClass, intervals);
-    const ascPath = buildScalePathAtAnchor(notes, anchorFret);
-    const path    = direction === 'desc' ? [...ascPath].reverse() : ascPath;
+    const sequence = direction === 'desc' ? [...path].reverse() : path;
 
     setIsPlaying(true);
 
@@ -206,7 +265,7 @@ export function useScalePlayback({
         setNoteIdx(0);
         return;
       }
-      if (idx >= path.length) {
+      if (idx >= sequence.length) {
         if (loop) { idx = 0; tick(); return; }
         setIsPlaying(false);
         setActivePos(null);
@@ -214,18 +273,17 @@ export function useScalePlayback({
         return;
       }
       const ms = Math.round(60_000 / bpmRef.current);
-      setActivePos(path[idx]);
+      setActivePos(sequence[idx]);
       setNoteIdx(idx);
-      playGuitarNote(path[idx].midi, ms * 0.88);
+      playGuitarNote(sequence[idx].midi, ms * 0.88);
       idx++;
       timeoutRef.current = setTimeout(tick, ms);
     };
 
     tick();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rootPitchClass, intervals, anchorFret, stop]);
+  }, [stop]);
 
   useEffect(() => () => { stop(); }, [stop]);
 
-  return { isPlaying, activePosition, currentNoteIndex, totalNotes, play, stop };
+  return { isPlaying, activePosition, currentNoteIndex, play, stop };
 }
