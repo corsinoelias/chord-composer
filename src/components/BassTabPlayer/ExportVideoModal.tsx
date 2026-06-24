@@ -103,9 +103,9 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
   const [previewBeat, setPreviewBeat] = useState(0)
 
   const quality: VideoQuality  = 'fhd'
-  const canvasRef  = useRef<HTMLCanvasElement>(null)
-  const handleRef  = useRef<VideoExportHandle | null>(null)
-  const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const handleRef = useRef<VideoExportHandle | null>(null)
+  const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const totalBeats  = track.totalBars * track.beatsPerBar
   const totalSec    = totalBeats * (60 / track.bpm)
@@ -151,8 +151,9 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
     handleRef.current = startVideoExport(
       track, sound, canvas,
       {
-        aspectRatio: aratio,
+        aspectRatio:  aratio,
         quality,
+        countInBeats: track.beatsPerBar,
         onProgress: (beat, total) => {
           const frac = beat / total
           setProgress(frac)
@@ -330,6 +331,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
             ref={canvasRef}
             style={{ width: '100%', height: 'auto', display: 'block', maxHeight: canvasMaxH, objectFit: 'contain' }}
           />
+
           {/* Animated preview bar indicator */}
           {!loading && !done && (
             <div style={{

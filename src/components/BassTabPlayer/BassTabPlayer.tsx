@@ -144,7 +144,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isShortScreen, isMobile])
 
-
   const handleLoadPreset = useCallback((preset: Preset) => {
     const { sound: presetSound } = handleLoadPresetFull(preset)
     setIsPlaying(false)

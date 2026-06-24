@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes bass-count-in {
+  0%   { transform: scale(1.5); opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0.85; }
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */

@@ -8,6 +8,7 @@ export type VideoQuality = 'hd' | 'fhd'
 export interface VideoExportOptions {
   aspectRatio: AspectRatio
   quality?: VideoQuality
+  countInBeats?: number
   onProgress?: (beat: number, totalBeats: number) => void
 }
 
@@ -71,6 +72,74 @@ function fmtTime(s: number) {
   const m = Math.floor(s / 60)
   const sec = Math.floor(s % 60)
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
+
+// ── Count-in audio (metronome clicks rendered offline) ────────────────────────
+
+async function renderCountInAudio(bpm: number, beatsPerBar: number, sampleRate: number): Promise<AudioBuffer> {
+  const beatDur  = 60 / bpm
+  const totalDur = beatsPerBar * beatDur + 0.3
+  const offCtx   = new OfflineAudioContext(2, Math.ceil(totalDur * sampleRate), sampleRate)
+
+  for (let beat = 0; beat < beatsPerBar; beat++) {
+    const t    = beat * beatDur
+    const freq = beat === 0 ? 1200 : 900
+    const vol  = beat === 0 ? 0.7  : 0.5
+
+    const osc = offCtx.createOscillator()
+    osc.type  = 'sine'
+    osc.frequency.value = freq
+
+    const env = offCtx.createGain()
+    env.gain.setValueAtTime(0, t)
+    env.gain.linearRampToValueAtTime(vol, t + 0.005)
+    env.gain.exponentialRampToValueAtTime(0.001, t + 0.1)
+
+    osc.connect(env)
+    env.connect(offCtx.destination)
+    osc.start(t)
+    osc.stop(t + 0.15)
+  }
+
+  return offCtx.startRendering()
+}
+
+function concatAudioBuffers(a: AudioBuffer, b: AudioBuffer): AudioBuffer {
+  const nCh = Math.max(a.numberOfChannels, b.numberOfChannels)
+  const out  = new AudioBuffer({
+    numberOfChannels: nCh,
+    length:           a.length + b.length,
+    sampleRate:       a.sampleRate,
+  })
+  for (let ch = 0; ch < nCh; ch++) {
+    const data = out.getChannelData(ch)
+    if (ch < a.numberOfChannels) data.set(a.getChannelData(ch), 0)
+    if (ch < b.numberOfChannels) data.set(b.getChannelData(ch), a.length)
+  }
+  return out
+}
+
+// ── Count-in overlay drawn on top of the frame ───────────────────────────────
+
+function drawCountInOverlay(
+  ctx: CanvasRenderingContext2D,
+  w: number, h: number,
+  beatNum: number,
+) {
+  ctx.fillStyle = 'rgba(10, 14, 22, 0.62)'
+  ctx.fillRect(0, 0, w, h)
+
+  const size = Math.round(Math.min(w, h) * 0.32)
+  ctx.save()
+  ctx.shadowColor  = 'rgba(139, 92, 246, 0.95)'
+  ctx.shadowBlur   = size * 0.35
+  ctx.font         = `900 ${size}px ${MONO}`
+  ctx.textAlign    = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle    = '#c4a8ff'
+  ctx.fillText(String(beatNum), w / 2, h / 2)
+  ctx.restore()
+  ctx.textBaseline = 'alphabetic'
 }
 
 // ── Active frets ──────────────────────────────────────────────────────────────
@@ -1094,14 +1163,23 @@ async function exportWithWebCodecs(
     canvas.height = h
     const ctx2d = canvas.getContext('2d')!
 
-    const totalBeats  = track.totalBars * track.beatsPerBar
-    const totalSec    = totalBeats * (60 / track.bpm)
-    const totalFrames = Math.ceil(totalSec * FPS)
-    const bps         = bitrate(q)
+    const totalBeats    = track.totalBars * track.beatsPerBar
+    const countInBeats  = opts.countInBeats ?? 0
+    const beatDur       = 60 / track.bpm
+    const countInSec    = countInBeats * beatDur
+    const trackSec      = totalBeats * beatDur
+    const totalSec      = countInSec + trackSec
+    const totalFrames   = Math.ceil(totalSec * FPS)
+    const bps           = bitrate(q)
 
-    // Pre-render audio then resample to 48 kHz (Opus requirement)
-    const rawAudio    = await renderTrackOffline(track, sound)
+    // Pre-render track audio + count-in clicks, then resample to 48 kHz (Opus requirement)
+    const rawTrack  = await renderTrackOffline(track, sound)
     if (signal.cancelled) return
+    const rawCountIn = countInBeats > 0
+      ? await renderCountInAudio(track.bpm, countInBeats, rawTrack.sampleRate)
+      : null
+    if (signal.cancelled) return
+    const rawAudio    = rawCountIn ? concatAudioBuffers(rawCountIn, rawTrack) : rawTrack
     const audioBuffer = await resampleTo48k(rawAudio)
     if (signal.cancelled) return
 
@@ -1138,12 +1216,20 @@ async function exportWithWebCodecs(
       if (signal.cancelled || encErr) break
 
       const t         = i / FPS
-      const beat      = Math.min(t * (track.bpm / 60), totalBeats)
       const timestamp = Math.round(t * 1_000_000)
       const duration  = Math.round(1_000_000 / FPS)
 
-      drawVideoFrame(ctx2d, w, h, track, beat, opts.aspectRatio)
-      opts.onProgress?.(beat, totalBeats)
+      if (t < countInSec) {
+        // Count-in frame: show track at beat 0 + big number overlay
+        const beatNum = Math.floor(t / beatDur) + 1
+        drawVideoFrame(ctx2d, w, h, track, 0, opts.aspectRatio)
+        drawCountInOverlay(ctx2d, w, h, beatNum)
+        opts.onProgress?.(0, totalBeats)
+      } else {
+        const beat = Math.min((t - countInSec) * (track.bpm / 60), totalBeats)
+        drawVideoFrame(ctx2d, w, h, track, beat, opts.aspectRatio)
+        opts.onProgress?.(beat, totalBeats)
+      }
 
       // ImageBitmap is more reliable than passing canvas directly to VideoFrame
       const bitmap = await createImageBitmap(canvas)
@@ -1230,14 +1316,22 @@ function exportWithMediaRecorder(
   const ctx = canvas.getContext('2d')!
 
   const totalBeats    = track.totalBars * track.beatsPerBar
-  const totalDuration = totalBeats * (60 / track.bpm)
+  const countInBeats  = opts.countInBeats ?? 0
+  const beatDur       = 60 / track.bpm
+  const countInSec    = countInBeats * beatDur
+  const totalDuration = countInSec + totalBeats * beatDur
 
   drawVideoFrame(ctx, w, h, track, 0, opts.aspectRatio)
 
   ;(async () => {
     try {
-      const audioBuffer = await renderTrackOffline(track, sound)
+      const rawTrack   = await renderTrackOffline(track, sound)
       if (signal.cancelled) return
+      const rawCountIn = countInBeats > 0
+        ? await renderCountInAudio(track.bpm, countInBeats, rawTrack.sampleRate)
+        : null
+      if (signal.cancelled) return
+      const audioBuffer = rawCountIn ? concatAudioBuffers(rawCountIn, rawTrack) : rawTrack
 
       audioCtx = new AudioContext()
       const source = audioCtx.createBufferSource()
@@ -1270,9 +1364,16 @@ function exportWithMediaRecorder(
       const animate = () => {
         if (signal.cancelled) return
         const elapsed = audioCtx!.currentTime - t0
-        const beat    = elapsed * (track.bpm / 60)
-        drawVideoFrame(ctx, w, h, track, Math.min(beat, totalBeats), opts.aspectRatio)
-        opts.onProgress?.(beat, totalBeats)
+        if (elapsed < countInSec) {
+          const beatNum = Math.floor(elapsed / beatDur) + 1
+          drawVideoFrame(ctx, w, h, track, 0, opts.aspectRatio)
+          drawCountInOverlay(ctx, w, h, beatNum)
+          opts.onProgress?.(0, totalBeats)
+        } else {
+          const beat = Math.min((elapsed - countInSec) * (track.bpm / 60), totalBeats)
+          drawVideoFrame(ctx, w, h, track, beat, opts.aspectRatio)
+          opts.onProgress?.(beat, totalBeats)
+        }
         if (elapsed < totalDuration + 0.15) {
           rafId = requestAnimationFrame(animate)
         } else {

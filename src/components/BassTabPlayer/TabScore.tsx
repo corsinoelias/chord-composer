@@ -586,6 +586,15 @@ export function TabScore({
     )
   }, [editCursor, fretBuffer, pxPerBeat])
 
+  const activeNoteIds = useMemo(() => {
+    if (!isPlaying) return new Set<string>()
+    return new Set(
+      track.notes
+        .filter(n => currentBeat >= n.startBeat && currentBeat < n.startBeat + n.durationBeats)
+        .map(n => n.id),
+    )
+  }, [isPlaying, currentBeat, track.notes])
+
   const activeBeat = isPlaying ? currentBeat : cursorBeat
   const cursorX    = beatToX(activeBeat, pxPerBeat)
 
@@ -615,6 +624,17 @@ export function TabScore({
           onPointerDown={handlePointerDown}
           style={{ display: 'block', cursor: isPlaying ? 'default' : 'crosshair', userSelect: 'none' }}
         >
+          <defs>
+            <filter id="note-glow" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="2.5" result="blur"/>
+              <feFlood floodColor="hsl(262,83%,70%)" floodOpacity="0.9" result="color"/>
+              <feComposite in="color" in2="blur" operator="in" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
           {header}
           {sectionEls}
 
@@ -675,6 +695,7 @@ export function TabScore({
             const nx         = beatToX(note.startBeat, pxPerBeat)
             const ny         = ABOVE_H + STRING_Y[note.stringIndex]
             const isSelected = note.id === selectedNoteId
+            const isActive   = activeNoteIds.has(note.id)
             const rw         = note.fret >= 10 ? 22 : 16
             const isCursorOn = editCursor?.beat === note.startBeat && editCursor?.stringIndex === note.stringIndex
 
@@ -683,6 +704,7 @@ export function TabScore({
                 key={note.id}
                 data-note-id={note.id}
                 style={{ cursor: 'pointer' }}
+                filter={isActive ? 'url(#note-glow)' : undefined}
                 onPointerDown={e => {
                   e.stopPropagation()
                   clearTimeout(fretTimerRef.current!)
@@ -697,14 +719,22 @@ export function TabScore({
                 <rect
                   x={nx - rw / 2} y={ny - 7}
                   width={rw} height={14} rx={2}
-                  fill={isSelected ? 'hsl(262 83% 40%)' : isCursorOn ? 'hsl(262 60% 25%)' : 'hsl(224 24% 11%)'}
-                  stroke={isSelected ? 'hsl(262 60% 68%)' : isCursorOn ? 'hsl(262 83% 58%)' : '#383858'}
-                  strokeWidth={1}
+                  fill={
+                    isActive   ? 'hsl(262 83% 52%)' :
+                    isSelected ? 'hsl(262 83% 40%)' :
+                    isCursorOn ? 'hsl(262 60% 25%)' : 'hsl(224 24% 11%)'
+                  }
+                  stroke={
+                    isActive   ? 'hsl(262 90% 82%)' :
+                    isSelected ? 'hsl(262 60% 68%)' :
+                    isCursorOn ? 'hsl(262 83% 58%)' : '#383858'
+                  }
+                  strokeWidth={isActive ? 1.5 : 1}
                 />
                 <text
                   x={nx} y={ny + 4.5}
                   textAnchor="middle" fontSize={9} fontWeight="bold"
-                  fill={isSelected ? '#e8deff' : '#b8b0d0'}
+                  fill={isActive ? 'white' : isSelected ? '#e8deff' : '#b8b0d0'}
                   fontFamily="ui-monospace,'SF Mono',monospace"
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
