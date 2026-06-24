@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import type { BassTrack, BassSound } from '../../lib/bassTab/types'
-import { startVideoExport, drawVideoFrame, type AspectRatio, type VideoQuality, type VideoExportHandle } from '../../lib/bassTab/videoExporter'
+import { startVideoExport, drawVideoFrame, dims as exportDims, type AspectRatio, type VideoQuality, type VideoExportHandle, type UIViewMode } from '../../lib/bassTab/videoExporter'
 
 interface Props {
   track: BassTrack
@@ -49,11 +49,6 @@ function formatSuffix(ar: AspectRatio): string {
   return ''
 }
 
-function previewDims(ar: AspectRatio): { w: number; h: number } {
-  if (ar === '16:9') return { w: 640, h: 360 }
-  if (ar === '9:16') return { w: 360, h: 640 }
-  return { w: 400, h: 400 }
-}
 
 // ── Format thumbnail shapes ───────────────────────────────────────────────────
 function FormatThumb({ ar, active }: { ar: AspectRatio; active: boolean }) {
@@ -94,6 +89,8 @@ const FORMAT_OPTS: { id: AspectRatio; label: string; desc: string }[] = [
 
 export function ExportVideoModal({ track, sound, onClose }: Props) {
   const [aratio,      setAratio]      = useState<AspectRatio>('16:9')
+  const [viewMode,    setViewMode]    = useState<UIViewMode>('tab')
+  const [barsPerPage, setBarsPerPage] = useState<1 | 2 | 4>(2)
   const [basename,    setBasename]    = useState(() => sanitize(track.name))
   const [loading,     setLoading]     = useState(false)
   const [progress,    setProgress]    = useState(0)
@@ -133,13 +130,14 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
   useEffect(() => {
     if (loading || !canvasRef.current) return
     const canvas = canvasRef.current
-    const { w, h } = previewDims(aratio)
+    // Use exact export dimensions so preview matches the real video (WYSIWYG)
+    const { w, h } = exportDims(aratio, quality)
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width  = w
       canvas.height = h
     }
-    drawVideoFrame(canvas.getContext('2d')!, w, h, track, previewBeat, aratio)
-  }, [aratio, track, loading, previewBeat])
+    drawVideoFrame(canvas.getContext('2d')!, w, h, track, previewBeat, aratio, viewMode, barsPerPage)
+  }, [aratio, quality, track, loading, previewBeat, viewMode, barsPerPage])
 
   // ── Export ──────────────────────────────────────────────────────────────────
   const handleExport = useCallback(() => {
@@ -153,6 +151,8 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
       {
         aspectRatio:  aratio,
         quality,
+        viewMode,
+        barsPerPage,
         countInBeats: track.beatsPerBar,
         onProgress: (beat, total) => {
           const frac = beat / total
@@ -172,7 +172,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
         setError(err.message || 'Video export failed.')
       },
     )
-  }, [track, sound, aratio, quality, fullName, totalFrames])
+  }, [track, sound, aratio, quality, viewMode, barsPerPage, fullName, totalFrames])
 
   const handleCancel = () => {
     handleRef.current?.cancel()
@@ -285,6 +285,69 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
                 })}
               </div>
             </div>
+
+            {/* ── View mode selector ── */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ color: S.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                Vista
+              </div>
+              <div style={{ display: 'flex', gap: 5 }}>
+                {(
+                  [
+                    { id: 'tab',    label: 'Tab',    desc: 'Notación' },
+                    { id: 'score',  label: 'Score',  desc: 'Con barras' },
+                    { id: 'grid',   label: 'Grid',   desc: 'Piano roll' },
+                    { id: 'guitar', label: 'Guitar', desc: 'Fretboard' },
+                  ] as { id: UIViewMode; label: string; desc: string }[]
+                ).map(opt => {
+                  const active = viewMode === opt.id
+                  return (
+                    <button key={opt.id} onClick={() => setViewMode(opt.id)}
+                      style={{
+                        flex: 1, padding: '7px 4px', borderRadius: 8,
+                        cursor: 'pointer', textAlign: 'center',
+                        background: active ? S.primaryBg : S.surface,
+                        border: `1px solid ${active ? S.primary : S.border}`,
+                        color: active ? S.primaryText : S.text,
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      <div style={{ fontSize: 11, fontWeight: 700 }}>{opt.label}</div>
+                      <div style={{ fontSize: 9, color: active ? S.primaryText + 'aa' : S.muted, marginTop: 2 }}>{opt.desc}</div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* ── Bars per page ── */}
+            {viewMode !== 'guitar' && aratio !== '9:16' && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ color: S.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  Compases por página
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {([1, 2, 4] as (1 | 2 | 4)[]).map(n => {
+                    const active = barsPerPage === n
+                    return (
+                      <button key={n} onClick={() => setBarsPerPage(n)}
+                        style={{
+                          flex: 1, padding: '7px 4px', borderRadius: 8,
+                          cursor: 'pointer', textAlign: 'center',
+                          background: active ? S.primaryBg : S.surface,
+                          border: `1px solid ${active ? S.primary : S.border}`,
+                          color: active ? S.primaryText : S.text,
+                          fontSize: 13, fontWeight: 700,
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        {n} {n === 1 ? 'compás' : 'compases'}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* ── Smart filename ── */}
             <div style={{ marginBottom: 12 }}>

@@ -38,8 +38,15 @@ function transposeNote(n: string, s: number, flats: boolean) {
   return (flats ? FLATS : SHARPS)[((i + s) % 12 + 12) % 12];
 }
 function transposeChordStr(c: string, s: number, flats: boolean) {
-  const m = c.match(/^([A-G][#b]?)(.*)/); if (!m) return c;
-  return transposeNote(m[1], s, flats) + m[2];
+  const slash = c.indexOf('/')
+  const [chordPart, bassPart] = slash !== -1 ? [c.slice(0, slash), c.slice(slash + 1)] : [c, undefined]
+  const m = chordPart.match(/^([A-G][#b]?)(.*)/)
+  if (!m) return c
+  const transposed = transposeNote(m[1], s, flats) + m[2]
+  if (!bassPart) return transposed
+  const bm = bassPart.match(/^([A-G][#b]?)(.*)/)
+  if (!bm) return transposed + '/' + bassPart
+  return transposed + '/' + transposeNote(bm[1], s, flats) + bm[2]
 }
 function transposeKey(key: string, s: number) {
   const minor = key.endsWith('m') && key.length > 1;
@@ -61,7 +68,8 @@ function stringToChord(str: string): Chord | null {
 }
 function chordToString(c: Chord): string {
   const q = c.quality === 'maj' ? '' : c.quality === 'min' ? 'm' : c.quality;
-  return `${c.root}${c.accidental}${q}`;
+  const base = `${c.root}${c.accidental}${q}`;
+  return c.bassNote ? `${base}/${c.bassNote}` : base;
 }
 
 // ── ID helpers ────────────────────────────────────────────────────────────────
@@ -233,7 +241,9 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
   }, []);
 
   const openChordModal = (sid: string, lid: string, tid: string, currentChord: string, duration: number) => {
-    const chord = currentChord ? stringToChord(currentChord) : null;
+    const parsed = currentChord ? stringToChord(currentChord) : null;
+    // Inject token duration so the modal shows the actual chord duration, not the parser default
+    const chord = parsed ? { ...parsed, duration } : null;
     setEditingChord({ sectionId: sid, lineId: lid, tokenId: tid, chord, duration });
   };
 
@@ -713,7 +723,9 @@ function TokenChip({ token, sectionId, lineId, onOpenModal, onRemove, onPreview 
   if (token.isSpace) return <span className="text-sm select-none">{token.text}</span>;
 
   const hasChord = !!token.chord;
-  const durLabel = hasChord && token.duration !== 4 ? `${token.duration}b` : null;
+  const durLabel = hasChord && token.duration !== 4
+    ? (token.duration === 0.5 ? '½b' : token.duration % 1 === 0.5 ? `${Math.floor(token.duration)}½b` : `${token.duration}b`)
+    : null;
 
   // Draggable — only when this token has a chord
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({

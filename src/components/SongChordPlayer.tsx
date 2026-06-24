@@ -23,8 +23,15 @@ function transposeNote(n: string, s: number, flats: boolean) {
   return (flats ? FLATS : SHARPS)[((i + s) % 12 + 12) % 12];
 }
 function transposeChordStr(c: string, s: number, flats: boolean) {
-  const m = c.match(/^([A-G][#b]?)(.*)/); if (!m) return c;
-  return transposeNote(m[1], s, flats) + m[2];
+  const slash = c.indexOf('/')
+  const [chordPart, bassPart] = slash !== -1 ? [c.slice(0, slash), c.slice(slash + 1)] : [c, undefined]
+  const m = chordPart.match(/^([A-G][#b]?)(.*)/)
+  if (!m) return c
+  const transposed = transposeNote(m[1], s, flats) + m[2]
+  if (!bassPart) return transposed
+  const bm = bassPart.match(/^([A-G][#b]?)(.*)/)
+  if (!bm) return transposed + '/' + bassPart
+  return transposed + '/' + transposeNote(bm[1], s, flats) + bm[2]
 }
 function transposeKey(key: string, s: number) {
   const minor = key.endsWith('m') && key.length > 1;

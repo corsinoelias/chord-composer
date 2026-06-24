@@ -12,10 +12,20 @@ const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const FLATS  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
 const FLAT_KEYS = new Set(['F','Bb','Eb','Ab','Db','Gb','Dm','Gm','Cm','Fm','Bbm','Ebm']);
 function noteIndex(n: string) { const i = SHARPS.indexOf(n); return i !== -1 ? i : FLATS.indexOf(n); }
+function transposeNote(note: string, s: number, flats: boolean): string {
+  const i = noteIndex(note); if (i === -1) return note;
+  return (flats ? FLATS : SHARPS)[((i + s) % 12 + 12) % 12];
+}
 function transposeChordStr(c: string, s: number, flats: boolean) {
-  const m = c.match(/^([A-G][#b]?)(.*)/); if (!m) return c;
-  const i = noteIndex(m[1]); if (i === -1) return c;
-  return (flats ? FLATS : SHARPS)[((i + s) % 12 + 12) % 12] + m[2];
+  const slash = c.indexOf('/')
+  const [chordPart, bassPart] = slash !== -1 ? [c.slice(0, slash), c.slice(slash + 1)] : [c, undefined]
+  const m = chordPart.match(/^([A-G][#b]?)(.*)/)
+  if (!m) return c
+  const transposed = transposeNote(m[1], s, flats) + m[2]
+  if (!bassPart) return transposed
+  const bm = bassPart.match(/^([A-G][#b]?)(.*)/)
+  if (!bm) return transposed + '/' + bassPart
+  return transposed + '/' + transposeNote(bm[1], s, flats) + bm[2]
 }
 function transposeKey(key: string, s: number) {
   const minor = key.endsWith('m') && key.length > 1;

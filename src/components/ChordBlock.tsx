@@ -3,6 +3,14 @@ import { type Chord } from '@/lib/musicTheory';
 import { getTransposedChordName } from '@/lib/chordNotes';
 import { X, Copy } from 'lucide-react';
 
+/** Split a transposed chord name into [chordPart, bassNotePart | null] */
+function splitChordName(chord: Chord, transposition: number): [string, string | null] {
+  const full = getTransposedChordName(chord, transposition)
+  const slash = full.indexOf('/')
+  if (slash === -1) return [full, null]
+  return [full.slice(0, slash), full.slice(slash)]  // bass part keeps the '/'
+}
+
 interface ChordBlockProps {
   chord: Chord;
   isPlaying: boolean;
@@ -40,6 +48,10 @@ export const ChordBlock = memo(function ChordBlock({
   isOutOfScale = false,
 }: ChordBlockProps) {
   const colorVar = useMemo(() => getChordColorVar(chord.quality), [chord.quality]);
+  const [chordPart, bassPart] = useMemo(
+    () => splitChordName(chord, transposition),
+    [chord, transposition],
+  );
 
   return (
     <div
@@ -75,14 +87,24 @@ export const ChordBlock = memo(function ChordBlock({
             : undefined,
       }}
     >
-      {/* Chord name */}
-      <span 
-        className="font-mono font-bold text-sm sm:text-base"
-        style={{ color: isPlaying ? `hsl(${colorVar})` : 'hsl(var(--foreground))' }}
-      >
-        {getTransposedChordName(chord, transposition)}
-      </span>
-      
+      {/* Chord name — split into two lines for slash chords */}
+      <div className="flex flex-col items-center leading-none gap-px">
+        <span
+          className={`font-mono font-bold leading-none ${bassPart ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'}`}
+          style={{ color: isPlaying ? `hsl(${colorVar})` : 'hsl(var(--foreground))' }}
+        >
+          {chordPart}
+        </span>
+        {bassPart && (
+          <span
+            className="font-mono font-semibold text-[10px] sm:text-xs leading-none"
+            style={{ color: isPlaying ? `hsl(${colorVar} / 0.8)` : 'hsl(var(--muted-foreground))' }}
+          >
+            {bassPart}
+          </span>
+        )}
+      </div>
+
       {/* Duration indicator - visual dots */}
       <div className="flex gap-0.5 mt-0.5">
         {Array.from({ length: Math.min(chord.duration, 8) }).map((_, i) => (

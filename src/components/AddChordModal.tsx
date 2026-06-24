@@ -21,6 +21,8 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
   const [accidental, setAccidental] = useState<Accidental>('');
   const [quality, setQuality] = useState<ChordQuality>('maj');
   const [duration, setDuration] = useState(2);
+  const [bassRoot, setBassRoot] = useState<RootNote | null>(null);
+  const [bassAccidental, setBassAccidental] = useState<Accidental>('');
 
   // Play a preview sound when chord changes - uses the same engine as ChordEditModal
   const playChordPreview = useCallback((r: RootNote, acc: Accidental, q: ChordQuality) => {
@@ -45,7 +47,8 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
 
   const handleAdd = () => {
     const newChord = createChord(root, accidental, quality, duration);
-    onAdd(newChord);
+    const bassNote = bassRoot ? `${bassRoot}${bassAccidental}` : undefined;
+    onAdd({ ...newChord, bassNote });
     onClose();
   };
 
@@ -57,7 +60,8 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
 
   const previewChord = useMemo<Chord>(() => ({
     id: 'modal-preview', root, accidental, quality, duration,
-  }), [root, accidental, quality, duration]);
+    bassNote: bassRoot ? `${bassRoot}${bassAccidental}` : undefined,
+  }), [root, accidental, quality, duration, bassRoot, bassAccidental]);
 
   const activeNotes = useMemo(() => getChordNotes(previewChord), [previewChord]);
   const guitarVoicing = useMemo(() => getGuitarVoicing(previewChord, 0), [previewChord]);
@@ -142,21 +146,72 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
             </div>
           </div>
 
+          {/* Bass Note (slash chord) */}
+          <div>
+            <label className="block text-xs text-muted-foreground mb-2">Bass Note</label>
+            <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                onClick={() => { setBassRoot(null); setBassAccidental(''); }}
+                className={`px-2.5 h-9 rounded-md font-mono text-xs transition-all duration-150 ${
+                  bassRoot === null
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                }`}
+              >
+                Default
+              </button>
+              {ROOT_NOTES.map(note => (
+                <button
+                  key={note}
+                  type="button"
+                  onClick={() => setBassRoot(note)}
+                  className={`w-9 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
+                    bassRoot === note
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                  }`}
+                >
+                  {note}
+                </button>
+              ))}
+            </div>
+            {bassRoot !== null && (
+              <div className="flex gap-1 mt-1.5">
+                {ACCIDENTALS.map(acc => (
+                  <button
+                    key={acc || 'natural'}
+                    type="button"
+                    onClick={() => setBassAccidental(acc)}
+                    className={`w-12 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
+                      bassAccidental === acc
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                    }`}
+                  >
+                    {accidentalLabels[acc]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Duration */}
           <div>
             <label className="block text-xs text-muted-foreground mb-2">
-              Duration: {duration} {duration === 1 ? 'beat' : 'beats'}
+              Duration: {duration === 0.5 ? '½' : duration % 1 === 0.5 ? `${Math.floor(duration)}½` : duration} {duration === 1 ? 'beat' : 'beats'}
             </label>
             <input
               type="range"
-              min={1}
+              min={0.5}
               max={8}
+              step={0.5}
               value={duration}
-              onChange={(e) => setDuration(parseInt(e.target.value))}
+              onChange={(e) => setDuration(parseFloat(e.target.value))}
               className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
             />
             <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>1</span>
+              <span>½</span>
               <span>8</span>
             </div>
           </div>

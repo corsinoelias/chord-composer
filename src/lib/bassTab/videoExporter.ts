@@ -1,15 +1,27 @@
 import type { BassTrack, BassSound } from './types'
 import { renderTrackOffline } from './bassAudio'
 import { Muxer, ArrayBufferTarget } from 'webm-muxer'
+import {
+  renderTabPage, renderScorePage, renderGridPage,
+  renderTabPageStatic, renderTabPageDynamic,
+  renderGridPageStatic, renderGridPageDynamic,
+  renderScoreExtrasStatic, renderScoreNotHeadsDynamic,
+  DEFAULT_BARS_PER_PAGE,
+} from './videoPageRenderer'
 
 export type AspectRatio = '16:9' | '9:16' | '1:1'
 export type VideoQuality = 'hd' | 'fhd'
 
+export type UIViewMode = 'tab' | 'score' | 'grid' | 'guitar'
+export type TabViewMode = UIViewMode  // kept for any remaining references
+
 export interface VideoExportOptions {
-  aspectRatio: AspectRatio
-  quality?: VideoQuality
+  aspectRatio:  AspectRatio
+  quality?:     VideoQuality
   countInBeats?: number
-  onProgress?: (beat: number, totalBeats: number) => void
+  viewMode?:    UIViewMode
+  barsPerPage?: 1 | 2 | 4
+  onProgress?:  (beat: number, totalBeats: number) => void
 }
 
 export interface VideoExportHandle {
@@ -18,7 +30,7 @@ export interface VideoExportHandle {
 
 // ── Dimensions ────────────────────────────────────────────────────────────────
 
-function dims(ar: AspectRatio, q: VideoQuality = 'hd') {
+export function dims(ar: AspectRatio, q: VideoQuality = 'hd') {
   const scale = q === 'fhd' ? 1.5 : 1
   if (ar === '16:9') return { w: Math.round(1280 * scale), h: Math.round(720  * scale) }
   if (ar === '9:16') return { w: Math.round(720  * scale), h: Math.round(1280 * scale) }
@@ -31,8 +43,20 @@ function bitrate(q: VideoQuality): number {
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
 
-const MONO = 'ui-monospace, "Cascadia Code", "SF Mono", monospace'
+const MONO = '"Space Mono", ui-monospace, "Cascadia Code", monospace'
 const FONT = 'system-ui, ui-sans-serif, sans-serif'
+
+async function ensureFontsLoaded(): Promise<void> {
+  if (typeof document === 'undefined') return
+  try {
+    await Promise.all([
+      document.fonts.load(`400 16px "Space Mono"`),
+      document.fonts.load(`700 16px "Space Mono"`),
+    ])
+  } catch {
+    // best-effort; fallback fonts are defined in MONO constant
+  }
+}
 
 // ── String rendering data ─────────────────────────────────────────────────────
 
@@ -160,10 +184,11 @@ function drawFretboard(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number,
   activeFrets: (number | null)[],
+  maxFrets = 12,
 ) {
   const LABEL_W  = 46
   const NUT_W    = 10
-  const FRETS    = 12
+  const FRETS    = maxFrets
   const PAD_V    = h * 0.10
   const strArea  = h - PAD_V * 2
   const strGap   = strArea / 3
@@ -957,6 +982,19 @@ function drawHeader(
   ctx.fillStyle = bg
   ctx.fillRect(x, y, w, h)
 
+  // Beat pulse — flash on each beat onset, decays within first 25% of the beat
+  const beatFrac = currentBeat - Math.floor(currentBeat)
+  const pulseAlpha = Math.max(0, 0.22 - beatFrac * 0.88)
+  if (pulseAlpha > 0.001) {
+    const pg = ctx.createLinearGradient(x, y, x + w, y)
+    pg.addColorStop(0,   `rgba(139,92,246,0)`)
+    pg.addColorStop(0.3, `rgba(139,92,246,${pulseAlpha.toFixed(3)})`)
+    pg.addColorStop(0.7, `rgba(139,92,246,${pulseAlpha.toFixed(3)})`)
+    pg.addColorStop(1,   `rgba(139,92,246,0)`)
+    ctx.fillStyle = pg
+    ctx.fillRect(x, y, w, h)
+  }
+
   // Left accent bar
   const accentW = Math.max(3, Math.round(w * 0.003))
   const accent = ctx.createLinearGradient(x, y, x, y + h)
@@ -1025,6 +1063,7 @@ function drawFooter(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number,
   track: BassTrack, currentBeat: number,
+  barsPerPage = DEFAULT_BARS_PER_PAGE,
 ) {
   const totalBeats = track.totalBars * track.beatsPerBar
   const progress   = Math.min(currentBeat / totalBeats, 1)
@@ -1034,23 +1073,41 @@ function drawFooter(
   ctx.fillStyle = 'rgba(50,62,90,0.60)'
   ctx.fillRect(x, y, w, 1)
 
-  const PAD  = Math.round(w * 0.016)
-  const barH = Math.max(4, Math.round(h * 0.22))
-  const barY = y + (h - barH) / 2
-  const barW = w - PAD * 2
+  // Page indicator text — left side
+  const curBar    = Math.floor(currentBeat / track.beatsPerBar) + 1
+  const pageIdx   = Math.floor((curBar - 1) / barsPerPage)
+  const totalPages = Math.ceil(track.totalBars / barsPerPage)
+  const pageBarStart = pageIdx * barsPerPage + 1
+  const pageBarEnd   = Math.min(pageBarStart + barsPerPage - 1, track.totalBars)
+  const labelSize  = Math.max(8, Math.round(h * 0.38))
+  ctx.font = `${labelSize}px ${MONO}`
+  ctx.fillStyle = 'rgba(100,110,160,0.75)'
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+  ctx.fillText(
+    `Bars ${pageBarStart}–${pageBarEnd} / ${track.totalBars}  ·  Page ${pageIdx + 1}/${totalPages}`,
+    x + Math.round(w * 0.016),
+    y + h / 2,
+  )
 
-  rr(ctx, x + PAD, barY, barW, barH, barH / 2, '#141c2e')
+  // Progress bar — right 60% of footer
+  const PAD  = Math.round(w * 0.016)
+  const barW = Math.round(w * 0.55)
+  const barH = Math.max(3, Math.round(h * 0.18))
+  const barY = y + (h - barH) / 2
+  const barX = x + w - PAD - barW
+
+  rr(ctx, barX, barY, barW, barH, barH / 2, '#141c2e')
 
   const fillW = barW * progress
   if (fillW > 0) {
-    const pg = ctx.createLinearGradient(x + PAD, 0, x + PAD + fillW, 0)
+    const pg = ctx.createLinearGradient(barX, 0, barX + fillW, 0)
     pg.addColorStop(0, '#4c1d95')
     pg.addColorStop(1, '#8b5cf6')
-    rr(ctx, x + PAD, barY, fillW, barH, barH / 2, undefined)
+    rr(ctx, barX, barY, fillW, barH, barH / 2, undefined)
     ctx.fillStyle = pg
     ctx.fill()
 
-    const tipX = x + PAD + fillW
+    const tipX = barX + fillW
     const tipY = barY + barH / 2
     const tg   = ctx.createRadialGradient(tipX, tipY, 0, tipX, tipY, barH * 2)
     tg.addColorStop(0, 'rgba(139,92,246,0.70)')
@@ -1066,42 +1123,170 @@ function drawFooter(
 // FULL FRAME
 // ════════════════════════════════════════════════════════════════════════════
 
+function frameDims(ar: AspectRatio, h: number) {
+  const is169 = ar === '16:9'
+  const is11  = ar === '1:1'
+  // Scale header/footer proportionally to video resolution (baseline = 720p)
+  const scale    = Math.max(1, h / 720)
+  const HEADER_H = Math.round((is169 ? 52 : is11 ? 60 : 70) * scale)
+  const FOOTER_H = Math.round((is169 ? 28 : is11 ? 32 : 48) * scale)
+  return { HEADER_H, FOOTER_H, CONTENT_H: h - HEADER_H - FOOTER_H }
+}
+
+function frameLayout(ar: AspectRatio, h: number, viewMode: UIViewMode) {
+  const { HEADER_H, FOOTER_H, CONTENT_H } = frameDims(ar, h)
+  // 9:16 → no fretboard (bar view fills all content)
+  // guitar → bigger fretboard (52%) + mini-tab below
+  // tab/score/grid → fretboard (30%) + notation below
+  const FRET_H = ar === '9:16'
+    ? 0
+    : viewMode === 'guitar'
+      ? Math.round(CONTENT_H * 0.52)
+      : Math.round(CONTENT_H * 0.30)
+  const TAB_Y = HEADER_H + FRET_H
+  const TAB_H = CONTENT_H - FRET_H
+  return { HEADER_H, FOOTER_H, CONTENT_H, FRET_H, TAB_Y, TAB_H }
+}
+
+function pageStartFor(beat: number, beatsPerBar: number, barsPerPage: number): number {
+  const page = Math.floor(beat / (barsPerPage * beatsPerBar))
+  return page * barsPerPage * beatsPerBar
+}
+
 export function drawVideoFrame(
   ctx: CanvasRenderingContext2D,
   w: number, h: number,
   track: BassTrack,
   currentBeat: number,
   ar: AspectRatio,
+  viewMode: UIViewMode = 'tab',
+  barsPerPage: number = DEFAULT_BARS_PER_PAGE,
 ) {
   ctx.clearRect(0, 0, w, h)
   ctx.fillStyle = '#0a0e16'
   ctx.fillRect(0, 0, w, h)
 
-  const activeFrets = getActiveFrets(track, currentBeat)
-
-  const is169 = ar === '16:9'
-  const is11  = ar === '1:1'
-
-  const HEADER_H = is169 ? 52 : is11 ? 60 : 70
-  const FOOTER_H = is169 ? 28 : is11 ? 32 : 48
-  const FRET_H   = is169 ? Math.round((h - HEADER_H - FOOTER_H) * 0.46)
-                 : is11  ? Math.round((h - HEADER_H - FOOTER_H) * 0.42)
-                         : Math.round((h - HEADER_H - FOOTER_H) * 0.36)
-  const TAB_Y    = HEADER_H + FRET_H
-  const TAB_H    = h - TAB_Y - FOOTER_H
+  const { HEADER_H, FOOTER_H, FRET_H, TAB_Y, TAB_H } = frameLayout(ar, h, viewMode)
 
   drawHeader(ctx, 0, 0, w, HEADER_H, track, currentBeat)
-  drawFretboard(ctx, 0, HEADER_H, w, FRET_H, activeFrets)
 
-  ctx.fillStyle = 'rgba(30,38,60,0.80)'
-  ctx.fillRect(0, TAB_Y, w, 1)
+  // Fretboard — always visible for 16:9 and 1:1
+  if (FRET_H > 0) {
+    const activeFrets    = getActiveFrets(track, currentBeat)
+    const maxFretInTrack = track.notes.reduce((m, n) => Math.max(m, n.fret), 0)
+    drawFretboard(ctx, 0, HEADER_H, w, FRET_H, activeFrets, Math.max(12, Math.min(maxFretInTrack + 2, 22)))
+    ctx.fillStyle = 'rgba(30,38,60,0.80)'
+    ctx.fillRect(0, TAB_Y, w, 1)
+  }
 
+  // Notation area below fretboard
   if (ar === '9:16') {
     drawBarView(ctx, 0, TAB_Y, w, TAB_H, track, currentBeat)
   } else {
-    drawScrollingTab(ctx, 0, TAB_Y, w, TAB_H, track, currentBeat)
+    const psb = pageStartFor(currentBeat, track.beatsPerBar, barsPerPage)
+    if (viewMode === 'guitar') {
+      renderTabPage(ctx, 0, TAB_Y, w, TAB_H, track, psb, currentBeat, barsPerPage)
+    } else if (viewMode === 'grid') {
+      renderGridPage(ctx, 0, TAB_Y, w, TAB_H, track, psb, currentBeat, barsPerPage)
+    } else if (viewMode === 'score') {
+      renderScorePage(ctx, 0, TAB_Y, w, TAB_H, track, psb, currentBeat, barsPerPage)
+    } else {
+      renderTabPage(ctx, 0, TAB_Y, w, TAB_H, track, psb, currentBeat, barsPerPage)
+    }
   }
-  drawFooter(ctx, 0, h - FOOTER_H, w, FOOTER_H, track, currentBeat)
+
+  drawFooter(ctx, 0, h - FOOTER_H, w, FOOTER_H, track, currentBeat, barsPerPage)
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// PRE-RENDER PIPELINE
+// Pre-renders static page backgrounds to OffscreenCanvas (one per page).
+// Per frame: blit page + fast dynamic overlay + header/footer.
+// ════════════════════════════════════════════════════════════════════════════
+
+interface PreRenderedPages {
+  canvases: OffscreenCanvas[]
+  barsPerPage: number
+  HEADER_H: number
+  FOOTER_H: number
+  CONTENT_H: number
+  FRET_H: number
+  TAB_Y: number
+  TAB_H: number
+}
+
+function preRenderPages(
+  track: BassTrack, w: number, h: number,
+  viewMode: UIViewMode, ar: AspectRatio, barsPerPage: number,
+): PreRenderedPages {
+  const { HEADER_H, FOOTER_H, CONTENT_H, FRET_H, TAB_Y, TAB_H } = frameLayout(ar, h, viewMode)
+
+  const totalPages = Math.ceil(track.totalBars / barsPerPage)
+  const canvases: OffscreenCanvas[] = []
+
+  for (let i = 0; i < totalPages; i++) {
+    const oc  = new OffscreenCanvas(w, TAB_H)
+    const ctx = oc.getContext('2d') as unknown as CanvasRenderingContext2D
+    const psb = i * barsPerPage * track.beatsPerBar
+
+    if (viewMode === 'grid') {
+      renderGridPageStatic(ctx, 0, 0, w, TAB_H, track, psb, barsPerPage)
+    } else if (viewMode === 'score') {
+      renderTabPageStatic(ctx, 0, 0, w, TAB_H, track, psb, barsPerPage)
+      renderScoreExtrasStatic(ctx, 0, 0, w, TAB_H, track, psb, barsPerPage)
+    } else {
+      renderTabPageStatic(ctx, 0, 0, w, TAB_H, track, psb, barsPerPage)
+    }
+    canvases.push(oc)
+  }
+
+  return { canvases, barsPerPage, HEADER_H, FOOTER_H, CONTENT_H, FRET_H, TAB_Y, TAB_H }
+}
+
+function drawFrameFast(
+  ctx: CanvasRenderingContext2D,
+  w: number, h: number,
+  track: BassTrack,
+  currentBeat: number,
+  ar: AspectRatio,
+  viewMode: UIViewMode,
+  pre: PreRenderedPages,
+) {
+  ctx.clearRect(0, 0, w, h)
+  ctx.fillStyle = '#0a0e16'
+  ctx.fillRect(0, 0, w, h)
+
+  const bpp     = pre.barsPerPage * track.beatsPerBar
+  const pageIdx = Math.min(
+    Math.floor(currentBeat / bpp),
+    pre.canvases.length - 1,
+  )
+  const psb     = pageIdx * bpp
+
+  // Blit pre-rendered static notation page
+  ctx.drawImage(pre.canvases[pageIdx], 0, pre.TAB_Y)
+
+  // Fretboard — dynamic (active frets change per frame), always above notation
+  if (pre.FRET_H > 0) {
+    const activeFrets    = getActiveFrets(track, currentBeat)
+    const maxFretInTrack = track.notes.reduce((m, n) => Math.max(m, n.fret), 0)
+    drawFretboard(ctx, 0, pre.HEADER_H, w, pre.FRET_H, activeFrets, Math.max(12, Math.min(maxFretInTrack + 2, 22)))
+    ctx.fillStyle = 'rgba(30,38,60,0.80)'
+    ctx.fillRect(0, pre.TAB_Y, w, 1)
+  }
+
+  // Dynamic notation overlay: cursor + active notes
+  if (viewMode === 'grid') {
+    renderGridPageDynamic(ctx, 0, pre.TAB_Y, w, pre.TAB_H, track, psb, currentBeat, pre.barsPerPage)
+  } else if (viewMode === 'score') {
+    renderTabPageDynamic(ctx, 0, pre.TAB_Y, w, pre.TAB_H, track, psb, currentBeat, pre.barsPerPage)
+    renderScoreNotHeadsDynamic(ctx, 0, pre.TAB_Y, w, pre.TAB_H, track, psb, currentBeat, pre.barsPerPage)
+  } else {
+    renderTabPageDynamic(ctx, 0, pre.TAB_Y, w, pre.TAB_H, track, psb, currentBeat, pre.barsPerPage)
+  }
+
+  drawHeader(ctx, 0, 0, w, pre.HEADER_H, track, currentBeat)
+  drawFooter(ctx, 0, h - pre.FOOTER_H, w, pre.FOOTER_H, track, currentBeat, pre.barsPerPage)
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1157,8 +1342,13 @@ async function exportWithWebCodecs(
   onError: (err: Error) => void,
 ) {
   try {
-    const q = opts.quality ?? 'hd'
-    const { w, h } = dims(opts.aspectRatio, q)
+    await ensureFontsLoaded()
+    if (signal.cancelled) return
+
+    const q            = opts.quality ?? 'hd'
+    const barsPerPage  = opts.barsPerPage ?? DEFAULT_BARS_PER_PAGE
+    const viewMode     = opts.viewMode ?? 'tab'
+    const { w, h }     = dims(opts.aspectRatio, q)
     canvas.width  = w
     canvas.height = h
     const ctx2d = canvas.getContext('2d')!
@@ -1171,6 +1361,13 @@ async function exportWithWebCodecs(
     const totalSec      = countInSec + trackSec
     const totalFrames   = Math.ceil(totalSec * FPS)
     const bps           = bitrate(q)
+
+    // Pre-render static page backgrounds (skip for guitar and 9:16 — fully dynamic)
+    const canUsePreRender = viewMode !== 'guitar' && opts.aspectRatio !== '9:16'
+    const preRendered = canUsePreRender
+      ? preRenderPages(track, w, h, viewMode, opts.aspectRatio, barsPerPage)
+      : null
+    if (signal.cancelled) return
 
     // Pre-render track audio + count-in clicks, then resample to 48 kHz (Opus requirement)
     const rawTrack  = await renderTrackOffline(track, sound)
@@ -1220,14 +1417,21 @@ async function exportWithWebCodecs(
       const duration  = Math.round(1_000_000 / FPS)
 
       if (t < countInSec) {
-        // Count-in frame: show track at beat 0 + big number overlay
         const beatNum = Math.floor(t / beatDur) + 1
-        drawVideoFrame(ctx2d, w, h, track, 0, opts.aspectRatio)
+        if (preRendered) {
+          drawFrameFast(ctx2d, w, h, track, 0, opts.aspectRatio, viewMode, preRendered)
+        } else {
+          drawVideoFrame(ctx2d, w, h, track, 0, opts.aspectRatio, viewMode, barsPerPage)
+        }
         drawCountInOverlay(ctx2d, w, h, beatNum)
         opts.onProgress?.(0, totalBeats)
       } else {
         const beat = Math.min((t - countInSec) * (track.bpm / 60), totalBeats)
-        drawVideoFrame(ctx2d, w, h, track, beat, opts.aspectRatio)
+        if (preRendered) {
+          drawFrameFast(ctx2d, w, h, track, beat, opts.aspectRatio, viewMode, preRendered)
+        } else {
+          drawVideoFrame(ctx2d, w, h, track, beat, opts.aspectRatio, viewMode, barsPerPage)
+        }
         opts.onProgress?.(beat, totalBeats)
       }
 
@@ -1309,8 +1513,10 @@ function exportWithMediaRecorder(
   let audioCtx: AudioContext | null  = null
   let recorder: MediaRecorder | null = null
 
-  const q = opts.quality ?? 'hd'
-  const { w, h } = dims(opts.aspectRatio, q)
+  const q           = opts.quality ?? 'hd'
+  const barsPerPage = opts.barsPerPage ?? DEFAULT_BARS_PER_PAGE
+  const viewMode    = opts.viewMode ?? 'tab'
+  const { w, h }    = dims(opts.aspectRatio, q)
   canvas.width  = w
   canvas.height = h
   const ctx = canvas.getContext('2d')!
@@ -1321,10 +1527,18 @@ function exportWithMediaRecorder(
   const countInSec    = countInBeats * beatDur
   const totalDuration = countInSec + totalBeats * beatDur
 
-  drawVideoFrame(ctx, w, h, track, 0, opts.aspectRatio)
+  drawVideoFrame(ctx, w, h, track, 0, opts.aspectRatio, viewMode, barsPerPage)
 
   ;(async () => {
     try {
+      await ensureFontsLoaded()
+      if (signal.cancelled) return
+
+      const canUsePreRender = viewMode !== 'guitar' && opts.aspectRatio !== '9:16'
+      const preRendered = canUsePreRender
+        ? preRenderPages(track, w, h, viewMode, opts.aspectRatio, barsPerPage)
+        : null
+
       const rawTrack   = await renderTrackOffline(track, sound)
       if (signal.cancelled) return
       const rawCountIn = countInBeats > 0
@@ -1366,12 +1580,20 @@ function exportWithMediaRecorder(
         const elapsed = audioCtx!.currentTime - t0
         if (elapsed < countInSec) {
           const beatNum = Math.floor(elapsed / beatDur) + 1
-          drawVideoFrame(ctx, w, h, track, 0, opts.aspectRatio)
+          if (preRendered) {
+            drawFrameFast(ctx, w, h, track, 0, opts.aspectRatio, viewMode, preRendered)
+          } else {
+            drawVideoFrame(ctx, w, h, track, 0, opts.aspectRatio, viewMode, barsPerPage)
+          }
           drawCountInOverlay(ctx, w, h, beatNum)
           opts.onProgress?.(0, totalBeats)
         } else {
           const beat = Math.min((elapsed - countInSec) * (track.bpm / 60), totalBeats)
-          drawVideoFrame(ctx, w, h, track, beat, opts.aspectRatio)
+          if (preRendered) {
+            drawFrameFast(ctx, w, h, track, beat, opts.aspectRatio, viewMode, preRendered)
+          } else {
+            drawVideoFrame(ctx, w, h, track, beat, opts.aspectRatio, viewMode, barsPerPage)
+          }
           opts.onProgress?.(beat, totalBeats)
         }
         if (elapsed < totalDuration + 0.15) {
@@ -1412,7 +1634,7 @@ export function startVideoExport(
   const { w: pw, h: ph } = dims(opts.aspectRatio, opts.quality ?? 'hd')
   canvas.width  = pw
   canvas.height = ph
-  drawVideoFrame(canvas.getContext('2d')!, pw, ph, track, 0, opts.aspectRatio)
+  drawVideoFrame(canvas.getContext('2d')!, pw, ph, track, 0, opts.aspectRatio, opts.viewMode, opts.barsPerPage ?? DEFAULT_BARS_PER_PAGE)
 
   let mrCleanup: (() => void) | null = null
 
