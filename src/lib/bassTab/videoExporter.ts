@@ -1,10 +1,13 @@
 import type { BassTrack, BassSound } from './types'
 import { renderTrackOffline } from './bassAudio'
+import { Muxer, ArrayBufferTarget } from 'webm-muxer'
 
-export type AspectRatio = '16:9' | '9:16'
+export type AspectRatio = '16:9' | '9:16' | '1:1'
+export type VideoQuality = 'hd' | 'fhd'
 
 export interface VideoExportOptions {
   aspectRatio: AspectRatio
+  quality?: VideoQuality
   onProgress?: (beat: number, totalBeats: number) => void
 }
 
@@ -14,8 +17,15 @@ export interface VideoExportHandle {
 
 // ── Dimensions ────────────────────────────────────────────────────────────────
 
-function dims(ar: AspectRatio) {
-  return ar === '16:9' ? { w: 1280, h: 720 } : { w: 720, h: 1280 }
+function dims(ar: AspectRatio, q: VideoQuality = 'hd') {
+  const scale = q === 'fhd' ? 1.5 : 1
+  if (ar === '16:9') return { w: Math.round(1280 * scale), h: Math.round(720  * scale) }
+  if (ar === '9:16') return { w: Math.round(720  * scale), h: Math.round(1280 * scale) }
+  /* 1:1 */           return { w: q === 'fhd' ? 1080 : 720, h: q === 'fhd' ? 1080 : 720 }
+}
+
+function bitrate(q: VideoQuality): number {
+  return q === 'fhd' ? 12_000_000 : 6_000_000
 }
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
@@ -837,8 +847,29 @@ function drawBarView(
     ctx.textBaseline = 'alphabetic'
   }
 
-  // ── Render current bar (full height) ─────────────────────────────────────
-  drawBar(currBar, x, y, w, h, true)
+  // ── Render current bar (top 2/3) + next bar preview (bottom 1/3) ─────────
+  const CURR_H = Math.round(h * 0.67)
+  const NEXT_H = h - CURR_H
+  drawBar(currBar, x, y, w, CURR_H, true)
+
+  // Divider
+  ctx.fillStyle = 'rgba(50,62,90,0.55)'
+  ctx.fillRect(x, y + CURR_H, w, 1)
+
+  // "Next" label
+  const nextLabelSize = Math.round(NEXT_H * 0.18)
+  ctx.font         = `bold ${nextLabelSize}px ${FONT}`
+  ctx.fillStyle    = 'rgba(109,40,217,0.55)'
+  ctx.textAlign    = 'right'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('NEXT', x + w - Math.round(w * 0.025), y + CURR_H + NEXT_H * 0.14)
+  ctx.textBaseline = 'alphabetic'
+
+  if (currBar + 1 < track.totalBars) {
+    ctx.globalAlpha = 0.50
+    drawBar(currBar + 1, x, y + CURR_H, w, NEXT_H, false)
+    ctx.globalAlpha = 1
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -850,53 +881,71 @@ function drawHeader(
   x: number, y: number, w: number, h: number,
   track: BassTrack, currentBeat: number,
 ) {
-  // Background
-  ctx.fillStyle = '#0c1020'
+  // Background gradient (slightly lighter at top)
+  const bg = ctx.createLinearGradient(x, y, x, y + h)
+  bg.addColorStop(0, '#111827')
+  bg.addColorStop(1, '#0c1020')
+  ctx.fillStyle = bg
   ctx.fillRect(x, y, w, h)
-  // Bottom separator
-  ctx.fillStyle = 'rgba(50,62,90,0.60)'
+
+  // Left accent bar
+  const accentW = Math.max(3, Math.round(w * 0.003))
+  const accent = ctx.createLinearGradient(x, y, x, y + h)
+  accent.addColorStop(0, '#a78bfa')
+  accent.addColorStop(1, '#6d28d9')
+  ctx.fillStyle = accent
+  ctx.fillRect(x, y, accentW, h)
+
+  // Bottom separator with glow tint
+  const sep = ctx.createLinearGradient(x, y + h - 1, x + w, y + h - 1)
+  sep.addColorStop(0,    'rgba(109,40,217,0.0)')
+  sep.addColorStop(0.15, 'rgba(109,40,217,0.55)')
+  sep.addColorStop(0.85, 'rgba(109,40,217,0.55)')
+  sep.addColorStop(1,    'rgba(109,40,217,0.0)')
+  ctx.fillStyle = sep
   ctx.fillRect(x, y + h - 1, w, 1)
 
-  const my = y + h / 2
+  const PAD    = accentW + Math.round(w * 0.018)
+  const topY   = y + h * 0.34
+  const botY   = y + h * 0.72
 
-  // Logo dot
-  ctx.save()
-  ctx.shadowColor = '#7c4dff'
-  ctx.shadowBlur  = 8
-  ctx.fillStyle   = '#7c4dff'
-  ctx.beginPath()
-  ctx.arc(x + 20, my, 5, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
-
-  // Track name
-  const nameSize = Math.round(h * 0.35)
-  ctx.font      = `bold ${nameSize}px ${FONT}`
-  ctx.fillStyle = '#dde3f0'
+  // Track name (top line)
+  const nameSize = Math.round(h * 0.36)
+  ctx.font      = `700 ${nameSize}px ${FONT}`
+  ctx.fillStyle = '#e2e8f4'
   ctx.textAlign = 'left'
-  ctx.fillText(track.name, x + 36, my + nameSize * 0.36)
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillText(track.name, x + PAD, topY + nameSize * 0.36)
 
-  // Meta info
-  const metaSize = Math.round(h * 0.26)
-  const nameW    = ctx.measureText(track.name).width
+  // Meta line (bottom)
+  const metaSize = Math.round(h * 0.24)
   ctx.font      = `${metaSize}px ${FONT}`
-  ctx.fillStyle = 'rgba(80,95,130,0.90)'
-  ctx.fillText(`${track.bpm} BPM  ·  ${track.beatsPerBar}/4  ·  ${track.totalBars} bars`, x + 44 + nameW, my + metaSize * 0.36)
+  ctx.fillStyle = 'rgba(100,116,160,0.90)'
+  ctx.fillText(`${track.bpm} BPM · ${track.beatsPerBar}/4 · ${track.totalBars} bars`, x + PAD, botY + metaSize * 0.36)
 
-  // Bar:beat counter (right side, prominent)
+  // Right: bar:beat counter
   const bar  = Math.floor(currentBeat / track.beatsPerBar) + 1
   const beat = Math.floor(currentBeat % track.beatsPerBar) + 1
-  const ctrSize = Math.round(h * 0.38)
-  ctx.font      = `bold ${ctrSize}px ${MONO}`
-  ctx.fillStyle = '#7c4dff'
+  const ctrSize = Math.round(h * 0.40)
+  ctx.font      = `700 ${ctrSize}px ${MONO}`
+  ctx.fillStyle = '#a78bfa'
   ctx.textAlign = 'right'
-  ctx.fillText(`${bar}:${beat}`, x + w - 18, my + ctrSize * 0.36)
 
-  // Credit (subtle)
-  const credSize = Math.round(h * 0.22)
-  ctx.font      = `${credSize}px ${FONT}`
-  ctx.fillStyle = 'rgba(50,62,90,0.80)'
-  ctx.fillText('chordsequence.com', x + w - 18, my + ctrSize * 0.36 + credSize + 2)
+  // Subtle glow behind counter
+  ctx.save()
+  ctx.shadowColor = '#7c4dff'
+  ctx.shadowBlur  = Math.round(h * 0.25)
+  ctx.fillText(`${bar}:${beat}`, x + w - Math.round(w * 0.018), topY + ctrSize * 0.36)
+  ctx.restore()
+
+  // chordsequence.com brand (below counter)
+  const brandSize = Math.round(h * 0.20)
+  ctx.font      = `${brandSize}px ${FONT}`
+  ctx.fillStyle = 'rgba(109,40,217,0.70)'
+  ctx.textAlign = 'right'
+  ctx.fillText('chordsequence.com', x + w - Math.round(w * 0.018), botY + brandSize * 0.36)
+
+  ctx.textBaseline = 'alphabetic'
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -908,26 +957,21 @@ function drawFooter(
   x: number, y: number, w: number, h: number,
   track: BassTrack, currentBeat: number,
 ) {
-  const totalBeats  = track.totalBars * track.beatsPerBar
-  const totalSec    = (totalBeats / track.bpm) * 60
-  const elapsedSec  = (currentBeat / track.bpm) * 60
-  const progress    = Math.min(currentBeat / totalBeats, 1)
+  const totalBeats = track.totalBars * track.beatsPerBar
+  const progress   = Math.min(currentBeat / totalBeats, 1)
 
-  // Background
   ctx.fillStyle = '#080c14'
   ctx.fillRect(x, y, w, h)
   ctx.fillStyle = 'rgba(50,62,90,0.60)'
   ctx.fillRect(x, y, w, 1)
 
-  const PAD  = 20
-  const barY = y + h * 0.32
-  const barH = Math.round(h * 0.14)
+  const PAD  = Math.round(w * 0.016)
+  const barH = Math.max(4, Math.round(h * 0.22))
+  const barY = y + (h - barH) / 2
   const barW = w - PAD * 2
 
-  // Track background
   rr(ctx, x + PAD, barY, barW, barH, barH / 2, '#141c2e')
 
-  // Fill
   const fillW = barW * progress
   if (fillW > 0) {
     const pg = ctx.createLinearGradient(x + PAD, 0, x + PAD + fillW, 0)
@@ -937,33 +981,16 @@ function drawFooter(
     ctx.fillStyle = pg
     ctx.fill()
 
-    // Glow dot at progress tip
     const tipX = x + PAD + fillW
     const tipY = barY + barH / 2
-    const tg   = ctx.createRadialGradient(tipX, tipY, 0, tipX, tipY, 14)
-    tg.addColorStop(0, 'rgba(139,92,246,0.75)')
+    const tg   = ctx.createRadialGradient(tipX, tipY, 0, tipX, tipY, barH * 2)
+    tg.addColorStop(0, 'rgba(139,92,246,0.70)')
     tg.addColorStop(1, 'transparent')
     ctx.fillStyle = tg
     ctx.beginPath()
-    ctx.arc(tipX, tipY, 14, 0, Math.PI * 2)
+    ctx.arc(tipX, tipY, barH * 2, 0, Math.PI * 2)
     ctx.fill()
   }
-
-  // Time labels
-  const textY   = barY + barH + Math.round(h * 0.28)
-  const txtSize = Math.round(h * 0.20)
-  ctx.font      = `bold ${txtSize}px ${MONO}`
-  ctx.fillStyle = 'rgba(80,95,130,0.85)'
-  ctx.textAlign = 'left'
-  ctx.fillText(fmtTime(elapsedSec), x + PAD, textY)
-
-  ctx.textAlign = 'right'
-  ctx.fillText(fmtTime(totalSec), x + w - PAD, textY)
-
-  ctx.textAlign = 'center'
-  ctx.font      = `${txtSize}px ${FONT}`
-  ctx.fillStyle = 'rgba(50,62,90,0.70)'
-  ctx.fillText(`${track.bpm} BPM`, x + w / 2, textY)
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -984,10 +1011,12 @@ export function drawVideoFrame(
   const activeFrets = getActiveFrets(track, currentBeat)
 
   const is169 = ar === '16:9'
+  const is11  = ar === '1:1'
 
-  const HEADER_H = is169 ? 52  : 70
-  const FOOTER_H = is169 ? 64  : 120
+  const HEADER_H = is169 ? 52 : is11 ? 60 : 70
+  const FOOTER_H = is169 ? 28 : is11 ? 32 : 48
   const FRET_H   = is169 ? Math.round((h - HEADER_H - FOOTER_H) * 0.46)
+                 : is11  ? Math.round((h - HEADER_H - FOOTER_H) * 0.42)
                          : Math.round((h - HEADER_H - FOOTER_H) * 0.36)
   const TAB_Y    = HEADER_H + FRET_H
   const TAB_H    = h - TAB_Y - FOOTER_H
@@ -995,7 +1024,6 @@ export function drawVideoFrame(
   drawHeader(ctx, 0, 0, w, HEADER_H, track, currentBeat)
   drawFretboard(ctx, 0, HEADER_H, w, FRET_H, activeFrets)
 
-  // Thin separator between fretboard and tab
   ctx.fillStyle = 'rgba(30,38,60,0.80)'
   ctx.fillRect(0, TAB_Y, w, 1)
 
@@ -1008,8 +1036,172 @@ export function drawVideoFrame(
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// EXPORT PIPELINE
+// EXPORT PIPELINE — WebCodecs (primary) + MediaRecorder (fallback)
 // ════════════════════════════════════════════════════════════════════════════
+
+const FPS = 30
+
+function supportsWebCodecs(): boolean {
+  return (
+    typeof VideoEncoder !== 'undefined' &&
+    typeof AudioEncoder !== 'undefined' &&
+    typeof VideoFrame   !== 'undefined' &&
+    typeof AudioData    !== 'undefined'
+  )
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Chrome's AudioEncoder (Opus) only accepts 48000 Hz. Resample if needed.
+async function resampleTo48k(buf: AudioBuffer): Promise<AudioBuffer> {
+  if (buf.sampleRate === 48000) return buf
+  const length = Math.ceil(buf.duration * 48000)
+  const offCtx = new OfflineAudioContext(buf.numberOfChannels, length, 48000)
+  const src    = offCtx.createBufferSource()
+  src.buffer   = buf
+  src.connect(offCtx.destination)
+  src.start(0)
+  return offCtx.startRendering()
+}
+
+// Pick the best VP9 codec string the encoder actually supports.
+async function pickVP9Codec(w: number, h: number, fps: number, bps: number): Promise<string> {
+  for (const codec of ['vp09.00.41.08', 'vp09.00.31.08', 'vp09.00.20.08', 'vp09.00.10.08']) {
+    try {
+      const res = await VideoEncoder.isConfigSupported({ codec, width: w, height: h, bitrate: bps, framerate: fps })
+      if (res.supported) return codec
+    } catch {}
+  }
+  throw new Error('VP9 VideoEncoder not supported in this browser')
+}
+
+// ── WebCodecs path ────────────────────────────────────────────────────────────
+// Renders every frame precisely, muxes with perfect A/V sync and seekable index.
+
+async function exportWithWebCodecs(
+  track: BassTrack,
+  sound: BassSound,
+  canvas: HTMLCanvasElement,
+  opts: VideoExportOptions,
+  signal: { cancelled: boolean },
+  onDone:  (blob: Blob) => void,
+  onError: (err: Error) => void,
+) {
+  try {
+    const q = opts.quality ?? 'hd'
+    const { w, h } = dims(opts.aspectRatio, q)
+    canvas.width  = w
+    canvas.height = h
+    const ctx2d = canvas.getContext('2d')!
+
+    const totalBeats  = track.totalBars * track.beatsPerBar
+    const totalSec    = totalBeats * (60 / track.bpm)
+    const totalFrames = Math.ceil(totalSec * FPS)
+    const bps         = bitrate(q)
+
+    // Pre-render audio then resample to 48 kHz (Opus requirement)
+    const rawAudio    = await renderTrackOffline(track, sound)
+    if (signal.cancelled) return
+    const audioBuffer = await resampleTo48k(rawAudio)
+    if (signal.cancelled) return
+
+    const sampleRate  = audioBuffer.sampleRate   // always 48000 now
+    const numChannels = audioBuffer.numberOfChannels
+
+    // Check codec support before setting up the muxer
+    const videoCodec = await pickVP9Codec(w, h, FPS, bps)
+    if (signal.cancelled) return
+
+    const muxer = new Muxer({
+      target: new ArrayBufferTarget(),
+      video: { codec: 'V_VP9', width: w, height: h, frameRate: FPS },
+      audio: { codec: 'A_OPUS', numberOfChannels: numChannels, sampleRate },
+      firstTimestampBehavior: 'offset',
+    })
+
+    let encErr: Error | null = null
+
+    const videoEncoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error:  e => { encErr = e instanceof Error ? e : new Error(String(e)) },
+    })
+    videoEncoder.configure({ codec: videoCodec, width: w, height: h, bitrate: bps, framerate: FPS })
+
+    const audioEncoder = new AudioEncoder({
+      output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+      error:  e => { encErr = e instanceof Error ? e : new Error(String(e)) },
+    })
+    audioEncoder.configure({ codec: 'opus', numberOfChannels: numChannels, sampleRate, bitrate: 192_000 })
+
+    // ── Video frames ──────────────────────────────────────────────────────────
+    for (let i = 0; i < totalFrames; i++) {
+      if (signal.cancelled || encErr) break
+
+      const t         = i / FPS
+      const beat      = Math.min(t * (track.bpm / 60), totalBeats)
+      const timestamp = Math.round(t * 1_000_000)
+      const duration  = Math.round(1_000_000 / FPS)
+
+      drawVideoFrame(ctx2d, w, h, track, beat, opts.aspectRatio)
+      opts.onProgress?.(beat, totalBeats)
+
+      // ImageBitmap is more reliable than passing canvas directly to VideoFrame
+      const bitmap = await createImageBitmap(canvas)
+      const frame  = new VideoFrame(bitmap, { timestamp, duration })
+      bitmap.close()
+      videoEncoder.encode(frame, { keyFrame: i % (FPS * 2) === 0 })
+      frame.close()
+
+      if (i % 8 === 0) await new Promise<void>(r => setTimeout(r, 0))
+    }
+
+    if (signal.cancelled) { videoEncoder.close(); audioEncoder.close(); return }
+    if (encErr) throw encErr
+
+    // ── Audio chunks (f32-planar at 48 kHz) ──────────────────────────────────
+    const channelData = Array.from({ length: numChannels }, (_, ch) => audioBuffer.getChannelData(ch))
+    const CHUNK = 4096
+
+    for (let offset = 0; offset < audioBuffer.length; offset += CHUNK) {
+      if (signal.cancelled || encErr) break
+
+      const length    = Math.min(CHUNK, audioBuffer.length - offset)
+      const timestamp = Math.round((offset / sampleRate) * 1_000_000)
+
+      const buf = new Float32Array(length * numChannels)
+      for (let ch = 0; ch < numChannels; ch++) {
+        buf.set(channelData[ch].subarray(offset, offset + length), ch * length)
+      }
+
+      const ad = new AudioData({
+        format: 'f32-planar', sampleRate,
+        numberOfFrames: length, numberOfChannels: numChannels,
+        timestamp, data: buf,
+      })
+      audioEncoder.encode(ad)
+      ad.close()
+    }
+
+    if (signal.cancelled) { videoEncoder.close(); audioEncoder.close(); return }
+    if (encErr) throw encErr
+
+    await videoEncoder.flush()
+    await audioEncoder.flush()
+    muxer.finalize()
+
+    if (signal.cancelled) return
+
+    const { buffer } = muxer.target as { buffer: ArrayBuffer }
+    onDone(new Blob([buffer], { type: 'video/webm' }))
+
+  } catch (err) {
+    if (!signal.cancelled) onError(err instanceof Error ? err : new Error(String(err)))
+  }
+}
+
+// ── MediaRecorder fallback ────────────────────────────────────────────────────
+// Used when WebCodecs is not available (Firefox, older Safari).
+// Known limitations: no seek index, real-time speed, potential A/V drift.
 
 function pickMimeType(): string {
   for (const mt of ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']) {
@@ -1018,65 +1210,57 @@ function pickMimeType(): string {
   return ''
 }
 
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const a   = document.createElement('a')
-  a.href = url; a.download = filename; a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 60_000)
-}
-
-export function startVideoExport(
+function exportWithMediaRecorder(
   track: BassTrack,
   sound: BassSound,
   canvas: HTMLCanvasElement,
   opts: VideoExportOptions,
+  signal: { cancelled: boolean },
   onDone:  (blob: Blob) => void,
   onError: (err: Error) => void,
-): VideoExportHandle {
-  let cancelled = false
-  let rafId     = 0
-  let audioCtx: AudioContext | null   = null
-  let recorder:  MediaRecorder | null = null
+): { cleanup: () => void } {
+  let rafId    = 0
+  let audioCtx: AudioContext | null  = null
+  let recorder: MediaRecorder | null = null
 
-  const { w, h }   = dims(opts.aspectRatio)
-  canvas.width     = w
-  canvas.height    = h
-  const ctx        = canvas.getContext('2d')!
+  const q = opts.quality ?? 'hd'
+  const { w, h } = dims(opts.aspectRatio, q)
+  canvas.width  = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')!
 
   const totalBeats    = track.totalBars * track.beatsPerBar
-  const beatDur       = 60 / track.bpm
-  const totalDuration = totalBeats * beatDur
+  const totalDuration = totalBeats * (60 / track.bpm)
 
-  // Initial preview frame
   drawVideoFrame(ctx, w, h, track, 0, opts.aspectRatio)
 
   ;(async () => {
     try {
       const audioBuffer = await renderTrackOffline(track, sound)
-      if (cancelled) return
+      if (signal.cancelled) return
 
-      audioCtx          = new AudioContext()
-      const source      = audioCtx.createBufferSource()
-      source.buffer     = audioBuffer
-      const gain        = audioCtx.createGain()
-      gain.gain.value   = 0.88
-      const audioDest   = audioCtx.createMediaStreamDestination()
+      audioCtx = new AudioContext()
+      const source = audioCtx.createBufferSource()
+      source.buffer = audioBuffer
+      const gain = audioCtx.createGain()
+      gain.gain.value = 0.88
+      const audioDest = audioCtx.createMediaStreamDestination()
       source.connect(gain)
       gain.connect(audioDest)
 
-      const videoStream    = canvas.captureStream(30)
+      const videoStream    = canvas.captureStream(FPS)
       const combinedStream = new MediaStream([
         ...videoStream.getVideoTracks(),
         ...audioDest.stream.getAudioTracks(),
       ])
 
       const mimeType = pickMimeType()
-      recorder       = new MediaRecorder(combinedStream, mimeType ? { mimeType } : undefined)
+      const recOpts: MediaRecorderOptions = { videoBitsPerSecond: bitrate(q), ...(mimeType ? { mimeType } : {}) }
+      recorder = new MediaRecorder(combinedStream, recOpts)
       const chunks: Blob[] = []
       recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
       recorder.onstop = () => {
-        if (cancelled) return
-        onDone(new Blob(chunks, { type: mimeType || 'video/webm' }))
+        if (!signal.cancelled) onDone(new Blob(chunks, { type: mimeType || 'video/webm' }))
       }
 
       recorder.start(100)
@@ -1084,13 +1268,11 @@ export function startVideoExport(
       source.start(0)
 
       const animate = () => {
-        if (cancelled) return
-        const elapsed  = audioCtx!.currentTime - t0
-        const beat     = elapsed * (track.bpm / 60)
-
+        if (signal.cancelled) return
+        const elapsed = audioCtx!.currentTime - t0
+        const beat    = elapsed * (track.bpm / 60)
         drawVideoFrame(ctx, w, h, track, Math.min(beat, totalBeats), opts.aspectRatio)
         opts.onProgress?.(beat, totalBeats)
-
         if (elapsed < totalDuration + 0.15) {
           rafId = requestAnimationFrame(animate)
         } else {
@@ -1098,17 +1280,14 @@ export function startVideoExport(
           audioCtx?.close()
         }
       }
-
       rafId = requestAnimationFrame(animate)
-
     } catch (err) {
-      if (!cancelled) onError(err instanceof Error ? err : new Error(String(err)))
+      if (!signal.cancelled) onError(err instanceof Error ? err : new Error(String(err)))
     }
   })()
 
   return {
-    cancel() {
-      cancelled = true
+    cleanup() {
       cancelAnimationFrame(rafId)
       try { recorder?.stop() } catch {}
       audioCtx?.close()
@@ -1116,23 +1295,43 @@ export function startVideoExport(
   }
 }
 
-export function exportTrackAsVideo(
-  track: BassTrack,
-  sound: BassSound,
-  canvas: HTMLCanvasElement,
-  opts: VideoExportOptions,
-): { handle: VideoExportHandle; promise: Promise<void> } {
-  let handle!: VideoExportHandle
-  const promise = new Promise<void>((resolve, reject) => {
-    handle = startVideoExport(track, sound, canvas, opts,
-      blob => {
-        const safe = track.name.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'bass-tab'
-        const ext  = opts.aspectRatio === '9:16' ? 'short' : 'video'
-        downloadBlob(blob, `${safe}-${ext}.webm`)
-        resolve()
-      },
-      reject,
-    )
-  })
-  return { handle, promise }
+// ── Public API ────────────────────────────────────────────────────────────────
+
+export function startVideoExport(
+  track:   BassTrack,
+  sound:   BassSound,
+  canvas:  HTMLCanvasElement,
+  opts:    VideoExportOptions,
+  onDone:  (blob: Blob) => void,
+  onError: (err: Error) => void,
+): VideoExportHandle {
+  const signal = { cancelled: false }
+
+  // Draw initial preview frame
+  const { w: pw, h: ph } = dims(opts.aspectRatio, opts.quality ?? 'hd')
+  canvas.width  = pw
+  canvas.height = ph
+  drawVideoFrame(canvas.getContext('2d')!, pw, ph, track, 0, opts.aspectRatio)
+
+  let mrCleanup: (() => void) | null = null
+
+  if (supportsWebCodecs()) {
+    exportWithWebCodecs(track, sound, canvas, opts, signal, onDone, err => {
+      if (signal.cancelled) return
+      // WebCodecs failed — fall back to MediaRecorder transparently
+      console.warn('[video export] WebCodecs failed, falling back to MediaRecorder:', err.message)
+      const { cleanup } = exportWithMediaRecorder(track, sound, canvas, opts, signal, onDone, onError)
+      mrCleanup = cleanup
+    })
+  } else {
+    const { cleanup } = exportWithMediaRecorder(track, sound, canvas, opts, signal, onDone, onError)
+    mrCleanup = cleanup
+  }
+
+  return {
+    cancel() {
+      signal.cancelled = true
+      mrCleanup?.()
+    },
+  }
 }

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { importMidi, type MidiImportResult } from '../../lib/import/midiImport'
 import { BassTabSeekBar } from './BassTabSeekBar'
 import { MobileBarView } from './MobileBarView'
@@ -131,8 +132,9 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const [fretboardVisible, setFretboardVisible] = useState(true)
-  const [recordingOpen, setRecordingOpen]       = useState(false)
+  const [fretboardVisible, setFretboardVisible]   = useState(true)
+  const [editingTrackName, setEditingTrackName]   = useState(false)
+  const [recordingOpen, setRecordingOpen]         = useState(false)
   const [exportImageOpen, setExportImageOpen]   = useState(false)
   const [exportVideoOpen, setExportVideoOpen]   = useState(false)
 
@@ -567,7 +569,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div
         style={{
-          flexShrink: 0, height: 44,
+          flexShrink: 0, height: 50,
           background: 'hsl(224 20% 8%)',
           borderBottom: '1px solid hsl(224 15% 18%)',
           display: 'flex', alignItems: 'center', gap: 8,
@@ -594,15 +596,77 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           )}
         </a>
 
-        <span style={{ color: 'hsl(224 15% 35%)', fontSize: 16, fontWeight: 300 }}>/</span>
+        <span style={{ color: 'hsl(224 15% 35%)', fontSize: 14, fontWeight: 300, flexShrink: 0 }}>/</span>
+
+        {!isMobile && (
+          <>
+            <a href="/tools/" style={{
+              fontSize: 13, color: 'hsl(220 10% 48%)', textDecoration: 'none',
+              flexShrink: 0, transition: 'color 0.12s',
+            }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 68%)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 48%)'}
+            >
+              Tools
+            </a>
+            <span style={{ color: 'hsl(224 15% 30%)', fontSize: 14, fontWeight: 300, flexShrink: 0 }}>/</span>
+          </>
+        )}
 
         <span style={{
-          fontSize: 13, fontWeight: 500, color: 'hsl(262 60% 75%)',
-          background: 'hsl(262 40% 15%)', padding: '2px 10px', borderRadius: 20,
+          fontSize: 12, fontWeight: 500, color: 'hsl(262 60% 75%)',
+          background: 'hsl(262 40% 15%)', padding: '2px 9px', borderRadius: 20,
           border: '1px solid hsl(262 40% 22%)',
+          flexShrink: 0,
         }}>
           Bass Tab
         </span>
+
+        <span style={{ color: 'hsl(224 15% 28%)', fontSize: 12, flexShrink: 0 }}>—</span>
+
+        {editingTrackName ? (
+          <input
+            defaultValue={track.name}
+            onBlur={e => { setTrack(t => ({ ...t, name: e.target.value || t.name })); setEditingTrackName(false) }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { setTrack(t => ({ ...t, name: (e.target as HTMLInputElement).value || t.name })); setEditingTrackName(false) }
+              if (e.key === 'Escape') setEditingTrackName(false)
+            }}
+            autoFocus
+            style={{
+              background: 'hsl(224 18% 17%)',
+              border: '1px solid hsl(262 50% 40%)',
+              borderRadius: 6,
+              color: 'hsl(220 14% 88%)',
+              fontSize: 13, fontWeight: 500,
+              padding: '2px 8px',
+              outline: 'none',
+              width: 180, maxWidth: 220,
+              fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+            }}
+          />
+        ) : (
+          <span
+            onClick={() => setEditingTrackName(true)}
+            title="Click to rename"
+            style={{
+              fontSize: 13, fontWeight: 500,
+              color: 'hsl(220 14% 68%)',
+              cursor: 'text',
+              padding: '2px 4px',
+              borderRadius: 4,
+              maxWidth: 200,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              transition: 'color 0.12s',
+            }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 14% 88%)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 14% 68%)'}
+          >
+            {track.name}
+          </span>
+        )}
 
         <div style={{ flex: 1 }} />
 
@@ -703,7 +767,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       />
 
       {/* ── Seek bar ──────────────────────────────────────────────────────── */}
-      <div style={{ padding: '0 8px' }}>
+      <div style={{ padding: '4px 12px 0' }}>
         <BassTabSeekBar
           currentBeat={currentBeat}
           totalBeats={track.totalBars * track.beatsPerBar}
@@ -718,10 +782,11 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       {/* ── View bar (desktop) ────────────────────────────────────────────── */}
       {!isMobile && (
         <div style={{
-          display: 'flex', alignItems: 'stretch',
-          height: 30, flexShrink: 0,
+          display: 'flex', alignItems: 'center',
+          height: 44, flexShrink: 0,
           background: 'hsl(224 20% 9%)',
           borderBottom: '1px solid hsl(224 15% 16%)',
+          padding: '0 10px', gap: 4,
         }}>
           {([
             { id: 'tab',    label: 'Tab',         icon: <TabIcon /> },
@@ -734,10 +799,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
               <button key={v.id} onClick={() => setActiveView(v.id)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '0 14px', height: '100%',
+                  padding: '0 12px', height: 30,
                   background: active ? 'hsl(262 50% 18%)' : 'transparent',
-                  border: 'none',
-                  borderBottom: `2px solid ${active ? 'hsl(262 83% 58%)' : 'transparent'}`,
+                  border: `1px solid ${active ? 'hsl(262 50% 35%)' : 'transparent'}`,
+                  borderRadius: 20,
                   color: active ? 'hsl(262 80% 85%)' : 'hsl(220 10% 42%)',
                   fontSize: 11, fontWeight: active ? 600 : 400,
                   cursor: 'pointer', transition: 'all 0.12s',
@@ -745,6 +810,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                   letterSpacing: '0.02em',
                   userSelect: 'none',
                 }}
+                onMouseEnter={e => { if (activeView !== v.id) (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 62%)' }}
+                onMouseLeave={e => { if (activeView !== v.id) (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 42%)' }}
               >
                 {v.icon}
                 <span>{v.label}</span>
@@ -767,20 +834,19 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
               <button
                 onClick={() => setFretboardVisible(v => !v)}
                 style={{
-                  width: '100%', height: 16, background: 'hsl(224 20% 10%)', border: 'none',
+                  width: '100%', height: 22, background: 'hsl(224 20% 10%)', border: 'none',
                   borderBottom: fretboardVisible ? 'none' : '1px solid hsl(224 15% 18%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  color: 'hsl(220 10% 32%)', fontSize: 9,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                  color: 'hsl(220 10% 34%)', fontSize: 10,
                   fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
                   cursor: 'pointer', userSelect: 'none', letterSpacing: '0.04em',
-                  transition: 'background 0.1s',
+                  transition: 'background 0.1s, color 0.1s',
                 }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 13%)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 10%)'}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 13%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 50%)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 10%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 34%)' }}
               >
-                <span>{fretboardVisible ? '▲' : '▼'}</span>
-                <span>Strings</span>
-                <span>{fretboardVisible ? '▲' : '▼'}</span>
+                {fretboardVisible ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                <span>Fretboard</span>
               </button>
               <div style={{
                 overflow: 'hidden',
@@ -856,10 +922,11 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       {/* ── Mobile bottom navigation ──────────────────────────────────────── */}
       {isMobile && (
         <div style={{
-          flexShrink: 0, height: 58,
+          flexShrink: 0, height: 62,
           background: 'hsl(224 20% 9%)',
           borderTop: '1px solid hsl(224 15% 16%)',
-          display: 'flex',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          padding: '0 12px',
         }}>
           {([
             { id: 'tab',    label: 'Edit',  icon: <TabIcon /> },
@@ -872,12 +939,14 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                 key={tab.id}
                 onClick={() => setActiveView(tab.id)}
                 style={{
-                  flex: 1, height: '100%',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  background: 'transparent', border: 'none', cursor: 'pointer',
-                  borderTop: `2px solid ${isActive ? 'hsl(262 83% 58%)' : 'transparent'}`,
+                  flex: 1, height: 44,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
+                  background: isActive ? 'hsl(262 50% 18%)' : 'transparent',
+                  border: `1px solid ${isActive ? 'hsl(262 50% 32%)' : 'transparent'}`,
+                  borderRadius: 12,
+                  cursor: 'pointer',
                   color: isActive ? 'hsl(262 80% 85%)' : 'hsl(220 10% 42%)',
-                  transition: 'color 0.15s, border-color 0.15s',
+                  transition: 'all 0.15s',
                   touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
                   fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
                 }}
@@ -1203,9 +1272,9 @@ function StatusBar({ isPlaying, selectedNote, currentBeat, beatsPerBar, loop, gu
 
   return (
     <div style={{
-      height: 26, background: 'hsl(224 20% 7%)',
+      height: 30, background: 'hsl(224 20% 7%)',
       borderTop: '1px solid hsl(224 15% 16%)',
-      display: 'flex', alignItems: 'center', gap: 16,
+      display: 'flex', alignItems: 'center', gap: 18,
       paddingLeft: 16, paddingRight: 16,
       fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
       overflow: 'hidden',

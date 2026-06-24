@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import type { BassTrack, BassSound } from '../../lib/bassTab/types'
-import { startVideoExport, drawVideoFrame, type AspectRatio, type VideoExportHandle } from '../../lib/bassTab/videoExporter'
+import { startVideoExport, drawVideoFrame, type AspectRatio, type VideoQuality, type VideoExportHandle } from '../../lib/bassTab/videoExporter'
 
 interface Props {
   track: BassTrack
@@ -19,6 +19,8 @@ const S = {
   surface:     'hsl(224 18% 15%)',
   danger:      'hsl(0 72% 51%)',
   dangerBg:    'hsl(0 60% 20%)',
+  green:       'hsl(142 71% 45%)',
+  greenBg:     'hsl(142 50% 12%)',
 }
 const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
 
@@ -30,59 +32,146 @@ function sanitize(s: string) {
   return s.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'bass-tab'
 }
 
+function estimateMB(q: VideoQuality, totalSec: number): number {
+  const bps = q === 'fhd' ? 12_000_000 : 6_000_000
+  return Math.round((bps / 8 * totalSec) / 1_000_000)
+}
+
+function resLabel(ar: AspectRatio, q: VideoQuality): string {
+  if (ar === '16:9') return q === 'fhd' ? '1920×1080' : '1280×720'
+  if (ar === '9:16') return q === 'fhd' ? '1080×1920' : '720×1280'
+  return q === 'fhd' ? '1080×1080' : '720×720'
+}
+
+function formatSuffix(ar: AspectRatio): string {
+  if (ar === '9:16') return '-short'
+  if (ar === '1:1')  return '-square'
+  return ''
+}
+
+function previewDims(ar: AspectRatio): { w: number; h: number } {
+  if (ar === '16:9') return { w: 640, h: 360 }
+  if (ar === '9:16') return { w: 360, h: 640 }
+  return { w: 400, h: 400 }
+}
+
+// ── Format thumbnail shapes ───────────────────────────────────────────────────
+function FormatThumb({ ar, active }: { ar: AspectRatio; active: boolean }) {
+  const color  = active ? 'hsl(262 80% 72%)' : 'hsl(220 10% 38%)'
+  const border = active ? 'hsl(262 83% 58%)' : 'hsl(224 15% 28%)'
+
+  const shapes: Record<AspectRatio, { w: number; h: number }> = {
+    '16:9': { w: 32, h: 18 },
+    '9:16': { w: 18, h: 32 },
+    '1:1':  { w: 24, h: 24 },
+  }
+  const { w, h } = shapes[ar]
+
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: 3,
+      border: `2px solid ${border}`,
+      background: active ? 'hsl(262 60% 22%)' : 'hsl(224 20% 14%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      transition: 'all 0.12s', flexShrink: 0,
+    }}>
+      {/* inner accent line */}
+      <div style={{
+        width: '55%', height: 2, borderRadius: 1,
+        background: color, opacity: 0.7,
+      }} />
+    </div>
+  )
+}
+
+const FORMAT_OPTS: { id: AspectRatio; label: string; desc: string }[] = [
+  { id: '16:9', label: '16:9', desc: 'YouTube · Desktop' },
+  { id: '9:16', label: '9:16', desc: 'Reels · Shorts'   },
+  { id: '1:1',  label: '1:1',  desc: 'Instagram · Post'  },
+]
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function ExportVideoModal({ track, sound, onClose }: Props) {
-  const [aratio,   setAratio]   = useState<AspectRatio>('16:9')
-  const [filename, setFilename] = useState(() => sanitize(track.name))
-  const [loading,  setLoading]  = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [done,     setDone]     = useState(false)
-  const [error,    setError]    = useState<string | null>(null)
+  const [aratio,      setAratio]      = useState<AspectRatio>('16:9')
+  const [basename,    setBasename]    = useState(() => sanitize(track.name))
+  const [loading,     setLoading]     = useState(false)
+  const [progress,    setProgress]    = useState(0)
+  const [frameInfo,   setFrameInfo]   = useState({ cur: 0, total: 0 })
+  const [done,        setDone]        = useState(false)
+  const [error,       setError]       = useState<string | null>(null)
+  const [previewBeat, setPreviewBeat] = useState(0)
 
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const handleRef = useRef<VideoExportHandle | null>(null)
+  const quality: VideoQuality  = 'fhd'
+  const canvasRef  = useRef<HTMLCanvasElement>(null)
+  const handleRef  = useRef<VideoExportHandle | null>(null)
+  const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const totalBeats = track.totalBars * track.beatsPerBar
-  const totalSec   = totalBeats * (60 / track.bpm)
-  const elapsed    = totalSec * progress
+  const totalBeats  = track.totalBars * track.beatsPerBar
+  const totalSec    = totalBeats * (60 / track.bpm)
+  const totalFrames = Math.ceil(totalSec * 30)
+  const estMB       = estimateMB(quality, totalSec)
+  const suffix      = formatSuffix(aratio)
+  const fullName    = `${basename || sanitize(track.name)}${suffix}.webm`
 
-  // Draw static preview frame when aspect ratio changes (only when not recording)
+  // ── Animated preview ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (loading) return
+    timerRef.current = setInterval(() => {
+      setPreviewBeat(b => {
+        const next = b + track.beatsPerBar
+        return next >= totalBeats ? 0 : next
+      })
+    }, 1800)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [loading, track.beatsPerBar, totalBeats])
+
+  // Reset beat when format changes
+  useEffect(() => { setPreviewBeat(0) }, [aratio])
+
+  // Draw preview frame
   useEffect(() => {
     if (loading || !canvasRef.current) return
     const canvas = canvasRef.current
-    const { w, h } = aratio === '16:9' ? { w: 640, h: 360 } : { w: 360, h: 640 }
-    canvas.width  = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d')!
-    drawVideoFrame(ctx, w, h, track, 0, aratio)
-  }, [aratio, track, loading])
+    const { w, h } = previewDims(aratio)
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width  = w
+      canvas.height = h
+    }
+    drawVideoFrame(canvas.getContext('2d')!, w, h, track, previewBeat, aratio)
+  }, [aratio, track, loading, previewBeat])
 
+  // ── Export ──────────────────────────────────────────────────────────────────
   const handleExport = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     setLoading(true); setError(null); setDone(false); setProgress(0)
+    setFrameInfo({ cur: 0, total: totalFrames })
 
     handleRef.current = startVideoExport(
       track, sound, canvas,
       {
         aspectRatio: aratio,
-        onProgress: (beat, total) => setProgress(beat / total),
+        quality,
+        onProgress: (beat, total) => {
+          const frac = beat / total
+          setProgress(frac)
+          setFrameInfo(fi => ({ ...fi, cur: Math.round(frac * totalFrames) }))
+        },
       },
       (blob) => {
         setLoading(false); setDone(true); setProgress(1)
-        const safe = sanitize(filename) || sanitize(track.name)
-        const ext  = aratio === '9:16' ? 'short' : 'video'
-        const url  = URL.createObjectURL(blob)
-        const a    = document.createElement('a')
-        a.href = url; a.download = `${safe}-${ext}.webm`; a.click()
+        const url = URL.createObjectURL(blob)
+        const a   = document.createElement('a')
+        a.href = url; a.download = fullName; a.click()
         setTimeout(() => URL.revokeObjectURL(url), 60_000)
-        setTimeout(() => onClose(), 1400)
       },
       (err) => {
         setLoading(false)
         setError(err.message || 'Video export failed.')
       },
     )
-  }, [track, sound, aratio, filename, onClose])
+  }, [track, sound, aratio, quality, fullName, totalFrames])
 
   const handleCancel = () => {
     handleRef.current?.cancel()
@@ -90,7 +179,14 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
     setLoading(false); setProgress(0); setDone(false)
   }
 
-  const canvasMaxH = aratio === '9:16' ? 290 : 200
+  const handleReset = () => {
+    setDone(false); setProgress(0); setError(null)
+  }
+
+  const canvasMaxH = aratio === '9:16' ? 260 : aratio === '1:1' ? 220 : 180
+
+  // ── Current bar indicator for preview ──────────────────────────────────────
+  const previewBar  = Math.floor(previewBeat / track.beatsPerBar) + 1
 
   return (
     <div
@@ -105,162 +201,201 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
       <div
         style={{
           background: S.bg, border: `1px solid ${S.border}`,
-          borderRadius: 14, padding: '22px 24px',
-          width: aratio === '9:16' ? 390 : 380,
-          maxWidth: '96vw', maxHeight: '96dvh', overflow: 'auto',
+          borderRadius: 14, padding: '20px 22px',
+          width: 400, maxWidth: '96vw', maxHeight: '96dvh', overflow: 'auto',
           boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
         }}
         onPointerDown={e => e.stopPropagation()}
       >
-        {/* Title */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+
+        {/* ── Header with badges ── */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: 8,
+              width: 34, height: 34, borderRadius: 9, flexShrink: 0,
               background: S.primaryBg, border: `1px solid ${S.primary}44`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <VideoIcon color={S.primary} />
             </div>
             <div>
-              <div style={{ color: S.text, fontWeight: 600, fontSize: 14 }}>Export Video</div>
-              <div style={{ color: S.muted, fontSize: 11, marginTop: 1 }}>{track.name}</div>
+              <div style={{ color: S.text, fontWeight: 600, fontSize: 14, lineHeight: 1.3 }}>
+                Exportar Video
+              </div>
+              <div style={{ color: S.muted, fontSize: 11, marginTop: 1, marginBottom: 6 }}>
+                {track.name}
+              </div>
+              {/* Info badges */}
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                {([
+                  fmtTime(totalSec),
+                  `${track.bpm} BPM`,
+                  `~${estMB} MB`,
+                  resLabel(aratio, quality),
+                ] as string[]).map(label => (
+                  <span key={label} style={{
+                    fontSize: 9, fontWeight: 600, letterSpacing: '0.04em',
+                    padding: '2px 7px', borderRadius: 20,
+                    background: S.surface, border: `1px solid ${S.border}`,
+                    color: S.muted,
+                  }}>
+                    {label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
           {!loading && (
-            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: S.muted, cursor: 'pointer', padding: 4 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: S.muted, cursor: 'pointer', padding: 4, flexShrink: 0 }}>
               <CloseIcon />
             </button>
           )}
         </div>
 
-        {/* Aspect ratio selector (only before export) */}
+        {/* ── Format selector (visual thumbnails) ── */}
         {!loading && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ color: S.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-              Format
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ color: S.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                Formato
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {FORMAT_OPTS.map(opt => {
+                  const active = aratio === opt.id
+                  return (
+                    <button key={opt.id} onClick={() => setAratio(opt.id)}
+                      style={{
+                        flex: 1, padding: '10px 8px 8px', borderRadius: 9,
+                        cursor: 'pointer', textAlign: 'center',
+                        background: active ? S.primaryBg : S.surface,
+                        border: `1px solid ${active ? S.primary : S.border}`,
+                        color: active ? S.primaryText : S.text,
+                        transition: 'all 0.12s',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
+                      }}
+                    >
+                      <FormatThumb ar={opt.id} active={active} />
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700 }}>{opt.label}</div>
+                        <div style={{ fontSize: 9, color: active ? S.primaryText + 'aa' : S.muted, marginTop: 1 }}>{opt.desc}</div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {([
-                { id: '16:9' as AspectRatio, label: '16:9', desc: 'YouTube · Desktop · 1280×720' },
-                { id: '9:16' as AspectRatio, label: '9:16', desc: 'Reels · Shorts · 720×1280'   },
-              ]).map(opt => {
-                const active = aratio === opt.id
-                return (
-                  <button key={opt.id} onClick={() => setAratio(opt.id)}
-                    style={{
-                      flex: 1, padding: '9px 8px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
-                      background: active ? S.primaryBg : S.surface,
-                      border: `1px solid ${active ? S.primary : S.border}`,
-                      color: active ? S.primaryText : S.text,
-                      transition: 'all 0.12s',
-                    }}
-                  >
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>{opt.label}</div>
-                    <div style={{ fontSize: 10, color: active ? S.primaryText + 'aa' : S.muted, marginTop: 3 }}>{opt.desc}</div>
-                  </button>
-                )
-              })}
+
+            {/* ── Smart filename ── */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ color: S.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                Nombre de archivo
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', borderRadius: 7, overflow: 'hidden', border: `1px solid ${S.border}` }}>
+                <input
+                  type="text"
+                  value={basename}
+                  onChange={e => setBasename(e.target.value)}
+                  placeholder={sanitize(track.name)}
+                  style={{
+                    flex: 1, height: 34, padding: '0 10px',
+                    background: S.surface, border: 'none',
+                    color: S.text, fontSize: 13, fontFamily: FONT, outline: 'none',
+                  }}
+                  onFocus={e => { e.currentTarget.parentElement!.style.borderColor = S.primary }}
+                  onBlur={e => { e.currentTarget.parentElement!.style.borderColor = S.border }}
+                />
+                <span style={{
+                  height: 34, padding: '0 10px', whiteSpace: 'nowrap',
+                  background: 'hsl(224 24% 9%)', borderLeft: `1px solid ${S.border}`,
+                  color: S.muted, fontSize: 11, fontFamily: FONT,
+                  display: 'flex', alignItems: 'center', gap: 1,
+                }}>
+                  {suffix && <span style={{ color: 'hsl(262 60% 62%)' }}>{suffix}</span>}
+                  <span>.webm</span>
+                </span>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
-        {/* Filename input (only before export) */}
-        {!loading && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ color: S.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-              Filename
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <input
-                type="text"
-                value={filename}
-                onChange={e => setFilename(e.target.value)}
-                placeholder={sanitize(track.name)}
-                style={{
-                  flex: 1, height: 34, padding: '0 10px',
-                  background: S.surface, border: `1px solid ${S.border}`,
-                  borderRight: 'none',
-                  borderRadius: '6px 0 0 6px',
-                  color: S.text, fontSize: 13, fontFamily: FONT,
-                  outline: 'none',
-                }}
-                onFocus={e => { e.currentTarget.style.borderColor = S.primary }}
-                onBlur={e => { e.currentTarget.style.borderColor = S.border }}
-              />
-              <span style={{
-                height: 34, padding: '0 10px',
-                background: 'hsl(224 24% 9%)', border: `1px solid ${S.border}`,
-                borderRadius: '0 6px 6px 0',
-                color: S.muted, fontSize: 12, fontFamily: FONT,
-                display: 'flex', alignItems: 'center',
-              }}>
-                .webm
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Canvas preview / recording */}
+        {/* ── Canvas preview / recording ── */}
         <div style={{
-          borderRadius: 8, overflow: 'hidden',
-          border: `1px solid ${loading ? S.primary + '55' : S.border}`,
-          background: '#0a0e16', lineHeight: 0, marginBottom: 12,
-          maxHeight: canvasMaxH,
-          display: 'flex', justifyContent: 'center',
+          borderRadius: 8, overflow: 'hidden', marginBottom: 10, lineHeight: 0,
+          border: `1px solid ${loading ? S.primary + '55' : done ? S.green + '55' : S.border}`,
+          background: '#0a0e16', position: 'relative',
+          maxHeight: canvasMaxH, display: 'flex', justifyContent: 'center',
           transition: 'border-color 0.2s',
         }}>
           <canvas
             ref={canvasRef}
-            style={{
-              width: '100%', height: 'auto', display: 'block',
-              maxHeight: canvasMaxH, objectFit: 'contain',
-            }}
+            style={{ width: '100%', height: 'auto', display: 'block', maxHeight: canvasMaxH, objectFit: 'contain' }}
           />
+          {/* Animated preview bar indicator */}
+          {!loading && !done && (
+            <div style={{
+              position: 'absolute', bottom: 6, right: 8,
+              fontSize: 10, fontWeight: 600, fontFamily: 'ui-monospace, monospace',
+              color: 'rgba(160,140,220,0.70)',
+              background: 'rgba(8,10,20,0.65)', borderRadius: 4, padding: '2px 6px',
+              pointerEvents: 'none',
+            }}>
+              Bar {previewBar} / {track.totalBars}
+            </div>
+          )}
         </div>
 
-        {/* Progress bar (only while recording) */}
+        {/* ── Progress (during export) ── */}
         {loading && (
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ background: 'hsl(224 24% 7%)', borderRadius: 6, height: 5, overflow: 'hidden', marginBottom: 7 }}>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ background: 'hsl(224 24% 7%)', borderRadius: 6, height: 5, overflow: 'hidden', marginBottom: 6 }}>
               <div style={{
                 height: '100%', borderRadius: 6,
                 background: `linear-gradient(90deg, hsl(262 70% 45%), hsl(262 83% 68%))`,
                 width: `${progress * 100}%`,
-                transition: 'width 0.2s linear',
+                transition: 'width 0.15s linear',
                 boxShadow: `0 0 10px hsl(262 83% 58% / 0.55)`,
               }} />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: S.muted }}>
-              <span style={{ color: done ? 'hsl(142 71% 55%)' : S.primary, fontWeight: 600 }}>
-                {done ? '✓ Done' : 'Recording…'}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+              <span style={{ color: S.primary, fontWeight: 600 }}>
+                Procesando… {Math.round(progress * 100)}%
               </span>
-              <span style={{ fontFamily: 'ui-monospace, monospace' }}>
-                {fmtTime(elapsed)} / {fmtTime(totalSec)}
+              <span style={{ color: S.muted, fontFamily: 'ui-monospace, monospace', fontSize: 10 }}>
+                Frame {frameInfo.cur.toLocaleString()} / {frameInfo.total.toLocaleString()}
               </span>
             </div>
           </div>
         )}
 
-        {/* Spec info (before export) */}
-        {!loading && (
-          <div style={{ color: S.muted, fontSize: 10, textAlign: 'center', marginBottom: 14 }}>
-            {aratio === '16:9' ? '1280×720' : '720×1280'} · 30fps · VP9 · WebM · ~{fmtTime(totalSec)} long
+        {/* ── Done banner ── */}
+        {done && (
+          <div style={{
+            background: S.greenBg, border: `1px solid ${S.green}55`,
+            borderRadius: 8, padding: '10px 14px', marginBottom: 10,
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <CheckIcon color={S.green} />
+            <div>
+              <div style={{ color: S.green, fontSize: 13, fontWeight: 600 }}>Video exportado</div>
+              <div style={{ color: S.muted, fontSize: 11, marginTop: 2 }}>
+                {resLabel(aratio, quality)} · ~{estMB} MB · descargado automáticamente
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Error */}
+        {/* ── Error ── */}
         {error && (
           <div style={{
             background: S.dangerBg, border: `1px solid ${S.danger}55`,
-            borderRadius: 7, padding: '8px 12px', marginBottom: 12,
+            borderRadius: 7, padding: '8px 12px', marginBottom: 10,
             color: 'hsl(0 80% 80%)', fontSize: 12,
           }}>
             {error}
           </div>
         )}
 
-        {/* Actions */}
+        {/* ── Actions ── */}
         <div style={{ display: 'flex', gap: 8 }}>
           {loading ? (
             <button onClick={handleCancel}
@@ -271,8 +406,33 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
                 cursor: 'pointer', fontFamily: FONT,
               }}
             >
-              Cancel
+              Cancelar
             </button>
+          ) : done ? (
+            <>
+              <button onClick={handleReset}
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 8,
+                  background: S.surface, border: `1px solid ${S.border}`,
+                  color: S.muted, fontSize: 13, fontWeight: 500,
+                  cursor: 'pointer', fontFamily: FONT,
+                }}
+              >
+                Exportar de nuevo
+              </button>
+              <button onClick={onClose}
+                style={{
+                  flex: 2, padding: '9px 0', borderRadius: 8,
+                  background: S.green, border: 'none',
+                  color: 'white', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: FONT,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                }}
+              >
+                <CheckIcon color="white" size={13} />
+                Listo
+              </button>
+            </>
           ) : (
             <>
               <button onClick={onClose}
@@ -285,10 +445,9 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
                 onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'hsl(224 15% 36%)'; el.style.color = S.text }}
                 onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = S.border; el.style.color = S.muted }}
               >
-                Cancel
+                Cancelar
               </button>
-              <button
-                onClick={handleExport}
+              <button onClick={handleExport}
                 style={{
                   flex: 2, padding: '9px 0', borderRadius: 8,
                   background: S.primary, border: 'none',
@@ -302,7 +461,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
                 onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
               >
                 <VideoIcon color="white" size={13} />
-                Export Video
+                Exportar Video
               </button>
             </>
           )}
@@ -312,7 +471,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
   )
 }
 
-// ── Icons ──────────────────────────────────────────────────────────────────
+// ── Icons ──────────────────────────────────────────────────────────────────────
 
 function VideoIcon({ color, size = 16 }: { color: string; size?: number }) {
   return (
@@ -327,6 +486,14 @@ function CloseIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M18 6 6 18M6 6l12 12"/>
+    </svg>
+  )
+}
+
+function CheckIcon({ color, size = 16 }: { color: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6 9 17l-5-5"/>
     </svg>
   )
 }

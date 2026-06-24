@@ -412,44 +412,48 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          COUNTDOWN  — same layout as recording but with big number overlay
+          COUNTDOWN  — clean centered overlay, chord-editor style
       ══════════════════════════════════════════════════════════════════════ */}
       {phase === 'countdown' && (
-        <>
-          {/* Beat dots */}
-          <div style={{ flexShrink: 0, padding: '10px 0 6px', display: 'flex', justifyContent: 'center', gap: 12 }}>
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 28, padding: 24,
+        }}>
+          {/* Beat pulse dots */}
+          <div style={{ display: 'flex', gap: 10 }}>
             {Array.from({ length: track.beatsPerBar }, (_, i) => (
-              <div key={i} style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{
-                  width: beatPulse === i ? 16 : 9, height: beatPulse === i ? 16 : 9,
-                  borderRadius: '50%', background: beatPulse === i ? R.red : R.border,
-                  transition: 'all 0.08s',
-                }} />
-              </div>
+              <div key={i} style={{
+                width: beatPulse === i ? 14 : 8, height: beatPulse === i ? 14 : 8,
+                borderRadius: '50%',
+                background: beatPulse === i ? R.primary : R.border,
+                transition: 'all 0.08s',
+              }} />
             ))}
           </div>
 
-          {/* Countdown number overlaid on top of fretboard area */}
-          <div style={{ flexShrink: 0, position: 'relative' }}>
-            {/* Transparent placeholder to reserve tab preview space */}
-            <div style={{ padding: '0 10px', marginBottom: 4 }}>
-              <div style={{
-                height: 90, borderRadius: 10,
-                background: R.surface, border: `1px solid ${R.border}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <span style={{ fontSize: 11, color: R.muted }}>
-                  {countdownNum <= 0 ? '¡Grabando!' : 'Prepárate para tocar...'}
-                </span>
-              </div>
-            </div>
+          {/* Giant animated countdown number */}
+          <div
+            key={countdownNum}
+            className="countdown-pop"
+            style={{
+              fontSize: 160, fontWeight: 900, lineHeight: 1,
+              color: R.primary,
+              fontVariantNumeric: 'tabular-nums', userSelect: 'none',
+              textShadow: `0 0 60px ${R.primary}55`,
+            }}
+          >
+            {countdownNum}
           </div>
 
+          <p style={{ fontSize: 13, color: R.muted, letterSpacing: '0.04em' }}>
+            Prepárate para tocar...
+          </p>
+
           {/* Duration picker */}
-          <div style={{ flexShrink: 0, padding: '0 10px 4px' }}>
+          <div style={{ width: '100%', maxWidth: 380 }}>
             <div style={{
               fontSize: 9, fontWeight: 700, letterSpacing: '0.07em',
-              textTransform: 'uppercase', color: R.muted, marginBottom: 5,
+              textTransform: 'uppercase', color: R.muted, marginBottom: 8, textAlign: 'center',
             }}>Duración de nota</div>
             <div style={{ display: 'flex', gap: 4 }}>
               {DURATION_OPTS.map(o => {
@@ -458,12 +462,12 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
                   <button key={o.v} onClick={() => { setNoteDuration(o.v); durationRef.current = o.v }}
                     title={o.title}
                     style={{
-                      flex: 1, height: 42,
+                      flex: 1, height: 48,
                       background: active ? R.primaryBg : R.surface,
                       border: `1px solid ${active ? R.primary : R.border}`,
-                      borderRadius: 8,
+                      borderRadius: 10,
                       color: active ? 'hsl(262 80% 85%)' : R.muted,
-                      fontSize: 18, cursor: 'pointer',
+                      fontSize: 20, cursor: 'pointer',
                       touchAction: 'manipulation',
                       WebkitTapHighlightColor: 'transparent',
                       transition: 'all 0.1s',
@@ -475,35 +479,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
               })}
             </div>
           </div>
-
-          {/* BassTabFretboard visible during countdown (non-interactive) */}
-          <div style={{ flexShrink: 0, padding: '4px 0 0', position: 'relative' }}>
-            <BassTabFretboard
-              activeFrets={[null, null, null, null]}
-              attackSignals={[null, null, null, null]}
-              maxHeight={300}
-            />
-            {/* Big countdown number overlay */}
-            <div style={{
-              position: 'absolute', inset: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              pointerEvents: 'none',
-              background: 'hsl(224 24% 5% / 0.55)',
-            }}>
-              <div style={{
-                fontSize: 96, fontWeight: 900, lineHeight: 1,
-                color: countdownNum <= 1 ? R.red : R.text,
-                fontVariantNumeric: 'tabular-nums', userSelect: 'none',
-                textShadow: `0 0 40px ${countdownNum <= 1 ? R.red : 'white'}66`,
-                transition: 'color 0.1s',
-              }}>
-                {countdownNum}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ flex: 1 }} />
-        </>
+        </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
@@ -705,6 +681,8 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
       <style>{`
         .rec-blink { animation: rec-blink 1s ease-in-out infinite; }
         @keyframes rec-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+        .countdown-pop { animation: countdown-pop 0.18s cubic-bezier(0.2, 0, 0, 1.4); }
+        @keyframes countdown-pop { 0% { transform: scale(1.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
       `}</style>
     </div>
   )

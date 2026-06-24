@@ -134,8 +134,8 @@ export function BassTabTransport(props: TransportProps) {
       ══════════════════════════════════════════════════════════════════════ */}
       {isMobile && (
         <div style={{
-          height: 56, display: 'flex', alignItems: 'center', gap: 6,
-          padding: '0 10px',
+          height: 62, display: 'flex', alignItems: 'center', gap: 6,
+          padding: '0 14px',
           borderBottom: compact ? 'none' : `1px solid ${T.border}`,
         }}>
 
@@ -144,16 +144,23 @@ export function BassTabTransport(props: TransportProps) {
             onClick={isPlaying ? onStop : onPlay}
             title={isPlaying ? 'Stop' : 'Play'}
             style={{
-              width: 44, height: 44, borderRadius: 22, flexShrink: 0,
-              background: isPlaying ? T.dangerBg : T.primaryBg,
-              border: `1px solid ${isPlaying ? T.danger : T.primary}`,
-              color: isPlaying ? T.danger : T.primaryText,
+              width: 52, height: 52, borderRadius: 26, flexShrink: 0,
+              position: 'relative',
+              background: isPlaying ? T.danger : T.primary,
+              border: 'none',
+              color: 'white',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', transition: 'all 0.12s',
-              boxShadow: isPlaying ? `0 0 12px ${T.danger}55` : `0 0 12px ${T.primary}44`,
+              cursor: 'pointer', transition: 'all 0.15s',
+              boxShadow: isPlaying ? 'none' : `0 0 22px ${T.primary}66, 0 4px 12px rgba(0,0,0,0.3)`,
             }}
           >
-            {isPlaying ? <Square size={18} /> : <Play size={18} />}
+            {isPlaying && (
+              <span className="animate-ping" style={{
+                position: 'absolute', inset: 0, borderRadius: 26,
+                background: T.danger, opacity: 0.25, pointerEvents: 'none',
+              }} />
+            )}
+            {isPlaying ? <Square size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}
           </button>
 
           {/* Record button */}
@@ -402,7 +409,7 @@ export function BassTabTransport(props: TransportProps) {
             {/* ── Row 1: Playback + File operations ── */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 4,
-              padding: '0 10px', height: 44,
+              padding: '0 14px', height: 52,
               borderBottom: `1px solid ${T.border}`,
               overflowX: 'auto', overflowY: 'hidden',
             }}>
@@ -412,16 +419,23 @@ export function BassTabTransport(props: TransportProps) {
                   onClick={isPlaying ? onStop : onPlay}
                   title={isPlaying ? 'Stop  Space' : 'Play  Space'}
                   style={{
-                    width: 34, height: 34, borderRadius: 7,
-                    background: isPlaying ? T.dangerBg : T.primaryBg,
-                    border: `1px solid ${isPlaying ? T.danger : T.primary}`,
-                    color: isPlaying ? T.danger : T.primaryText,
+                    width: 46, height: 46, borderRadius: 23, flexShrink: 0,
+                    position: 'relative',
+                    background: isPlaying ? T.danger : T.primary,
+                    border: 'none',
+                    color: 'white',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', flexShrink: 0, transition: 'all 0.12s',
-                    boxShadow: isPlaying ? `0 0 8px ${T.danger}44` : `0 0 8px ${T.primary}33`,
+                    cursor: 'pointer', transition: 'all 0.15s',
+                    boxShadow: isPlaying ? 'none' : `0 0 18px ${T.primary}55, 0 3px 10px rgba(0,0,0,0.25)`,
                   }}
                 >
-                  {isPlaying ? <Square size={14} /> : <Play size={14} />}
+                  {isPlaying && (
+                    <span className="animate-ping" style={{
+                      position: 'absolute', inset: 0, borderRadius: 23,
+                      background: T.danger, opacity: 0.25, pointerEvents: 'none',
+                    }} />
+                  )}
+                  {isPlaying ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
                 </button>
                 <IconBtn onClick={onRewind} title="Rewind to start">
                   <SkipBack size={14} />
@@ -521,7 +535,7 @@ export function BassTabTransport(props: TransportProps) {
             {/* ── Row 2: Composition tools (always visible) ── */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '0 10px', height: 40,
+              padding: '0 14px', height: 44,
               overflowX: 'auto', overflowY: 'hidden',
             }}>
               <LabeledControl label="Duration">
