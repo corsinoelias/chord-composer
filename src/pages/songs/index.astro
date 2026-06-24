@@ -4,6 +4,7 @@ import { getPublishedSongs } from '@/lib/publicSongs';
 import AppCta from '../../components/AppCta.astro';
 
 const songs = await getPublishedSongs();
+const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(Astro.url.hostname);
 
 const KNOWN_BANDS = new Set(['Oasis', 'The Beatles', 'Led Zeppelin', 'Pink Floyd', 'Oasis Ministry', 'Elevation Worship', 'Hillsong', 'Bethel Music', 'Radiohead', 'Coldplay', 'U2', 'Metallica', 'AC/DC']);
 
@@ -96,13 +97,15 @@ const itemListSchema = {
       <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
         {songs.length} {songs.length === 1 ? 'song' : 'songs'}
       </h2>
-      <a
-        href="/songs/new/"
-        class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
-      >
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-        Add a song
-      </a>
+      {isLocalhost && (
+        <a
+          href="/songs/new/"
+          class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Add a song
+        </a>
+      )}
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

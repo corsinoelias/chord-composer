@@ -46,6 +46,7 @@ if (pub) {
   song = staticSong;
 }
 
+const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(Astro.url.hostname);
 const canonicalUrl = `https://chordsequence.com/songs/${song.slug}/`;
 const allChords = extractChordsFromSong(song);
 const uniqueChords = [...new Set(allChords)];
@@ -240,12 +241,10 @@ const breadcrumbSchema = {
       <!-- Image export -->
       <SongImageButton client:load song={song} />
 
-      <!-- Edit -->
-      {isCommunity ? (
-        <CommunityEditButton client:only="react" songSlug={slug} createdBy={communityCreatedBy} />
-      ) : (
+      <!-- Edit (localhost only) -->
+      {isLocalhost && (
         <a
-          href={`/songs/new/?from-static=${song.slug}`}
+          href={isCommunity ? `/songs/new/?edit=${song.slug}` : `/songs/new/?from-static=${song.slug}`}
           class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 transition-colors hover:border-primary/40"
         >
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

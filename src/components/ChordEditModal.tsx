@@ -44,6 +44,7 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
   const [duration, setDuration] = useState(2);
   const [bassRoot, setBassRoot] = useState<RootNote | null>(null);
   const [bassAccidental, setBassAccidental] = useState<Accidental>('');
+  const [hoverValue, setHoverValue] = useState<number | null>(null);
 
   const diatonicChords = useMemo(
     () => songKey ? getDiatonicChords(songKey) : [],
@@ -279,24 +280,71 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
           </div>
 
           {/* Duration */}
-          <div>
-            <label className="block text-xs text-muted-foreground mb-2">
-              Duration: {duration === 0.5 ? '½' : duration % 1 === 0.5 ? `${Math.floor(duration)}½` : duration} {duration === 1 ? 'beat' : 'beats'}
-            </label>
-            <input
-              type="range"
-              min={0.5}
-              max={8}
-              step={0.5}
-              value={duration}
-              onChange={(e) => setDuration(parseFloat(e.target.value))}
-              className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>½</span>
-              <span>8</span>
-            </div>
-          </div>
+          {(() => {
+            const displayVal = hoverValue ?? duration;
+            const formatDur = (d: number) => {
+              const f = Math.floor(d), h = d % 1 >= 0.5;
+              const num = f > 0 ? (h ? `${f}½` : `${f}`) : '½';
+              return `${num} ${d === 1 ? 'beat' : 'beats'}`;
+            };
+            const getState = (n: number, val: number): 'full' | 'half' | 'empty' => {
+              const f = Math.floor(val);
+              if (n <= f) return 'full';
+              if (n === f + 1 && val % 1 >= 0.5) return 'half';
+              return 'empty';
+            };
+            return (
+              <div>
+                <label className="block text-xs text-muted-foreground mb-2">
+                  Duration — <span className="text-foreground font-medium">{formatDur(duration)}</span>
+                </label>
+                <div className="relative">
+                  {hoverValue !== null && (
+                    <div className="absolute -top-7 right-0 z-10 text-xs font-semibold text-foreground bg-card border border-border rounded-lg px-2.5 py-1 shadow-md pointer-events-none">
+                      {formatDur(hoverValue)}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {Array.from({ length: 8 }, (_, i) => {
+                      const n = i + 1;
+                      const state = getState(n, displayVal);
+                      const isChange = hoverValue !== null && state !== getState(n, duration);
+                      const colorClass = state === 'empty'
+                        ? 'text-muted-foreground/30'
+                        : isChange ? 'text-primary/50' : 'text-primary';
+                      return (
+                        <button
+                          key={n}
+                          type="button"
+                          onMouseMove={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const isLeft = e.clientX - rect.left < rect.width / 2;
+                            setHoverValue(Math.max(isLeft ? n - 0.5 : n, 0.5));
+                          }}
+                          onMouseLeave={() => setHoverValue(null)}
+                          onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const isLeft = e.clientX - rect.left < rect.width / 2;
+                            setDuration(Math.max(isLeft ? n - 0.5 : n, 0.5));
+                          }}
+                          className="active:scale-95"
+                        >
+                          <svg width="22" height="22" viewBox="0 0 20 20" className={colorClass}>
+                            {state === 'full' && <circle cx="10" cy="10" r="10" fill="currentColor" />}
+                            {state === 'half' && <>
+                              <circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                              <path d="M10,1 A9,9 0 0,0 10,19 Z" fill="currentColor" />
+                            </>}
+                            {state === 'empty' && <circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" strokeWidth="1.5" />}
+                          </svg>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Chord visualization */}
           <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3">

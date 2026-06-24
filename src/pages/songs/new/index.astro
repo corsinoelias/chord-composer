@@ -1,7 +1,9 @@
 ---
-export const prerender = true;
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SongCreatorIsland from '../../../components/SongCreatorIsland.astro';
+
+const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(Astro.url.hostname);
+if (!isLocalhost) return Astro.redirect('/songs/');
 ---
 
 <BaseLayout
