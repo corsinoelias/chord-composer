@@ -240,6 +240,16 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
     setSections(p => p.map(s => s.id !== sid ? s : { ...s, lines: s.lines.map(l => l.id !== lid ? l : { ...l, tokens: l.tokens.map(t => t.id !== tid ? t : { ...t, ...patch }) }) }));
   }, []);
 
+  const duplicateToken = useCallback((sid: string, lid: string, tid: string) => {
+    setSections(p => p.map(s => s.id !== sid ? s : {
+      ...s,
+      lines: s.lines.map(l => l.id !== lid ? l : {
+        ...l,
+        tokens: l.tokens.flatMap(t => t.id !== tid ? [t] : [t, { ...t, id: nid() }]),
+      }),
+    }));
+  }, []);
+
   const openChordModal = (sid: string, lid: string, tid: string, currentChord: string, duration: number) => {
     const parsed = currentChord ? stringToChord(currentChord) : null;
     // Inject token duration so the modal shows the actual chord duration, not the parser default
@@ -425,6 +435,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
                     onOpenChordModal={openChordModal}
                     onPreviewChord={previewChord}
                     onUpdateToken={updateToken}
+                    onDuplicateChord={duplicateToken}
                   />
                 ))}
               </div>
@@ -573,6 +584,7 @@ interface SortableSectionProps {
   onOpenChordModal: (sid: string, lid: string, tid: string, chord: string, duration: number) => void;
   onPreviewChord: (chord: string) => void;
   onUpdateToken: (sid: string, lid: string, tid: string, patch: Partial<WordToken>) => void;
+  onDuplicateChord: (sid: string, lid: string, tid: string) => void;
 }
 
 function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSectionProps) {
@@ -679,6 +691,7 @@ function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSe
                             onOpenModal={() => props.onOpenChordModal(section.id, line.id, token.id, token.chord, token.duration)}
                             onRemove={() => props.onUpdateToken(section.id, line.id, token.id, { chord: '', duration: 4 })}
                             onPreview={() => props.onPreviewChord(token.chord)}
+                            onDuplicate={() => props.onDuplicateChord(section.id, line.id, token.id)}
                           />
                         ))
                       )}
@@ -717,9 +730,10 @@ interface ChipProps {
   onOpenModal: () => void;
   onRemove: () => void;
   onPreview: () => void;
+  onDuplicate: () => void;
 }
 
-function TokenChip({ token, sectionId, lineId, onOpenModal, onRemove, onPreview }: ChipProps) {
+function TokenChip({ token, sectionId, lineId, onOpenModal, onRemove, onPreview, onDuplicate }: ChipProps) {
   if (token.isSpace) return <span className="text-sm select-none">{token.text}</span>;
 
   const hasChord = !!token.chord;
@@ -768,6 +782,15 @@ function TokenChip({ token, sectionId, lineId, onOpenModal, onRemove, onPreview 
             >
               {token.chord}
               {durLabel && <span className="text-[10px] font-normal opacity-60">{durLabel}</span>}
+            </button>
+
+            {/* Duplicate on hover */}
+            <button
+              onMouseDown={e => { e.stopPropagation(); onDuplicate(); }}
+              className="opacity-0 group-hover/chip:opacity-100 p-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+              title="Duplicate chord"
+            >
+              <Copy className="w-3 h-3" />
             </button>
 
             {/* Remove on hover */}
