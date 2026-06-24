@@ -51,8 +51,7 @@ import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { MixingConsole } from '@/components/MixingConsole';
 import { Button } from '@/components/ui/button';
-import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders, Layers } from 'lucide-react';
-import { ScaleSelector, type ScaleFilterState } from '@/components/ScaleSelector';
+import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -150,9 +149,6 @@ const Index = ({ songId }: IndexProps) => {
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
   const [mixingConsoleOpen, setMixingConsoleOpen] = useState(false);
   const [animatingSections, setAnimatingSections] = useState<{ index: number; direction: 'up' | 'down' }[]>([]);
-  const [scaleFilter, setScaleFilter] = useState<ScaleFilterState | null>(null);
-  const [scaleBarOpen, setScaleBarOpen] = useState(false);
-  
   // Refs for current values (used in callbacks)
   const sectionsRef = useRef<Section[]>(sections);
   const bpmRef = useRef(bpm);
@@ -990,20 +986,6 @@ const Index = ({ songId }: IndexProps) => {
                 <span className="hidden sm:inline text-xs">Mix</span>
               </Button>
               
-              {/* Scale filter button */}
-              <Button
-                variant={scaleFilter ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setScaleBarOpen(v => !v)}
-                className="gap-1 h-8 px-2"
-                aria-label="Scale filter"
-              >
-                <Layers className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline text-xs">
-                  {scaleFilter ? `${['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][scaleFilter.rootPitchClass]} Scale` : 'Scale'}
-                </span>
-              </Button>
-
               {/* Templates button */}
               <Button
                 variant="outline"
@@ -1110,19 +1092,6 @@ const Index = ({ songId }: IndexProps) => {
           </div>
         )}
 
-        {/* Scale filter panel */}
-        {scaleBarOpen && (
-          <div className="rounded-xl border border-border bg-card/60 px-4 py-3">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">
-              Scale filter — dimmed chords are outside the scale
-            </p>
-            <ScaleSelector
-              value={scaleFilter}
-              onChange={(v) => { setScaleFilter(v); if (!v) setScaleBarOpen(false); }}
-            />
-          </div>
-        )}
-
         {/* Sections - DndContext only for chord drag & drop */}
         <DndContext
           sensors={sensors}
@@ -1158,9 +1127,6 @@ const Index = ({ songId }: IndexProps) => {
                   onMoveUp={handleMoveSectionUp}
                   onMoveDown={handleMoveSectionDown}
                   onSetProgression={handleSetProgression}
-                  melodic={currentStyle.melodic}
-                  onVariationChange={handleSectionVariationChange}
-                  scaleFilter={scaleFilter}
                 />
               ))}
             </div>

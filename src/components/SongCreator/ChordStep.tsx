@@ -591,6 +591,7 @@ function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSe
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 } as React.CSSProperties;
   const [nameFocused, setNameFocused] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   const hasChords = section.lines.some(l => l.tokens.some(t => t.chord));
 
@@ -598,9 +599,16 @@ function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSe
     <div ref={setNodeRef} style={style}
       className={`rounded-2xl border bg-card shadow-sm hover:shadow-md transition-all ${isPlaying ? 'border-primary/50 bg-primary/5 shadow-primary/10' : 'border-border'}`}>
       {/* Section header */}
-      <div className={`flex items-center gap-2 px-4 py-2.5 border-b rounded-t-2xl transition-colors ${isPlaying ? 'border-primary/30 bg-primary/5' : 'border-border/60 bg-muted/20'}`}>
+      <div className={`flex items-center gap-2 px-4 py-2.5 transition-colors ${collapsed ? 'rounded-2xl' : 'border-b rounded-t-2xl'} ${isPlaying ? 'border-primary/30 bg-primary/5' : 'border-border/60 bg-muted/20'}`}>
         <button {...attributes} {...listeners} className="text-muted-foreground/30 hover:text-muted-foreground cursor-grab active:cursor-grabbing shrink-0 touch-none transition-colors">
           <GripVertical className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={() => setCollapsed(v => !v)}
+          className="text-muted-foreground/40 hover:text-muted-foreground shrink-0 transition-colors"
+          title={collapsed ? 'Expand' : 'Collapse'}
+        >
+          {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
         </button>
 
         <div className="relative flex-1 min-w-0">
@@ -650,7 +658,7 @@ function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSe
       </div>
 
       {/* Lines */}
-      <div className="p-4 space-y-3">
+      {!collapsed && <div className="p-4 space-y-3">
         {section.lines.map(line => (
           <div key={line.id} className="group">
             {props.editingLineId === line.id ? (
@@ -717,7 +725,7 @@ function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSe
           className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary border border-dashed border-border/50 hover:border-primary/40 rounded-xl py-2 transition-colors mt-1">
           <Plus className="w-3 h-3" /> Add line
         </button>
-      </div>
+      </div>}
     </div>
   );
 }

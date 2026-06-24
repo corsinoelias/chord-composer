@@ -109,7 +109,7 @@ export function parseLineToTokens(line: string): WordToken[] {
 export function tokensToRawLine(tokens: WordToken[]): string {
   return tokens.map(t => {
     if (t.chord && !t.isSpace) {
-      return t.duration !== 2 ? `[${t.chord}:${t.duration}]${t.text}` : `[${t.chord}]${t.text}`;
+      return t.duration !== 4 ? `[${t.chord}:${t.duration}]${t.text}` : `[${t.chord}]${t.text}`;
     }
     return t.text;
   }).join('');
