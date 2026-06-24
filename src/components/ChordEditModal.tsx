@@ -50,8 +50,8 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
     [songKey]
   );
 
-  const triggerPreview = (newRoot: RootNote, newAccidental: Accidental, newQuality: ChordQuality) => {
-    onPreview?.({ root: newRoot, accidental: newAccidental, quality: newQuality });
+  const triggerPreview = (newRoot: RootNote, newAccidental: Accidental, newQuality: ChordQuality, newBassNote?: string) => {
+    onPreview?.({ root: newRoot, accidental: newAccidental, quality: newQuality, bassNote: newBassNote ?? bassNote });
   };
 
   const previewChord = useMemo<Chord>(() => ({
@@ -234,7 +234,7 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
             <div className="flex flex-wrap gap-1">
               <button
                 type="button"
-                onClick={() => { setBassRoot(null); setBassAccidental(''); }}
+                onClick={() => { setBassRoot(null); setBassAccidental(''); onPreview?.({ root, accidental, quality, bassNote: undefined }); }}
                 className={`px-2.5 h-9 rounded-md font-mono text-xs transition-all duration-150 ${
                   bassRoot === null
                     ? 'bg-primary text-primary-foreground shadow-sm'
@@ -247,7 +247,7 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
                 <button
                   key={note}
                   type="button"
-                  onClick={() => { setBassRoot(note); }}
+                  onClick={() => { setBassRoot(note); onPreview?.({ root, accidental, quality, bassNote: `${note}${bassAccidental}` }); }}
                   className={`w-9 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
                     bassRoot === note
                       ? 'bg-primary text-primary-foreground shadow-sm'
@@ -264,7 +264,7 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
                   <button
                     key={acc || 'natural'}
                     type="button"
-                    onClick={() => setBassAccidental(acc)}
+                    onClick={() => { setBassAccidental(acc); onPreview?.({ root, accidental, quality, bassNote: bassRoot ? `${bassRoot}${acc}` : undefined }); }}
                     className={`w-12 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
                       bassAccidental === acc
                         ? 'bg-primary text-primary-foreground shadow-sm'

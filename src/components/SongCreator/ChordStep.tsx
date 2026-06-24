@@ -722,6 +722,28 @@ function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSe
   );
 }
 
+// ── DurationDots ──────────────────────────────────────────────────────────────
+function DurationDots({ duration }: { duration: number }) {
+  const full = Math.floor(duration)
+  const half = duration % 1 >= 0.5
+  const isDefault = duration === 4
+  return (
+    <span className={`flex items-center gap-[3px] ${isDefault ? 'opacity-30' : 'opacity-75'}`}>
+      {Array.from({ length: Math.min(full, 8) }, (_, i) => (
+        <svg key={i} width="7" height="7" viewBox="0 0 6 6">
+          <circle cx="3" cy="3" r="3" fill="currentColor" />
+        </svg>
+      ))}
+      {half && (
+        <svg width="7" height="7" viewBox="0 0 6 6">
+          <circle cx="3" cy="3" r="2.5" fill="none" stroke="currentColor" strokeWidth="1" />
+          <path d="M3,0.5 A2.5,2.5 0 0,1 3,5.5 Z" fill="currentColor" />
+        </svg>
+      )}
+    </span>
+  )
+}
+
 // ── TokenChip ─────────────────────────────────────────────────────────────────
 interface ChipProps {
   token: WordToken;
@@ -737,9 +759,6 @@ function TokenChip({ token, sectionId, lineId, onOpenModal, onRemove, onPreview,
   if (token.isSpace) return <span className="text-sm select-none">{token.text}</span>;
 
   const hasChord = !!token.chord;
-  const durLabel = hasChord && token.duration !== 4
-    ? (token.duration === 0.5 ? '½b' : token.duration % 1 === 0.5 ? `${Math.floor(token.duration)}½b` : `${token.duration}b`)
-    : null;
 
   // Draggable — only when this token has a chord
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
@@ -777,11 +796,11 @@ function TokenChip({ token, sectionId, lineId, onOpenModal, onRemove, onPreview,
               {...attributes}
               {...listeners}
               onClick={handleChordClick}
-              className={`inline-flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/60 rounded-lg px-2 py-0.5 transition-all hover:shadow-sm leading-none
+              className={`inline-flex flex-col items-center gap-[3px] text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/60 rounded-lg px-2 py-1 transition-all hover:shadow-sm leading-none
                 ${isDragging ? 'opacity-30 cursor-grabbing' : 'cursor-grab active:cursor-grabbing'}`}
             >
-              {token.chord}
-              {durLabel && <span className="text-[10px] font-normal opacity-60">{durLabel}</span>}
+              <DurationDots duration={token.duration} />
+              <span>{token.chord}</span>
             </button>
 
             {/* Duplicate on hover */}
