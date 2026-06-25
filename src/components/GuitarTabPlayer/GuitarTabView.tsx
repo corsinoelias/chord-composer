@@ -55,7 +55,8 @@ export function GuitarTabView({
   const [editCursor, setEditCursorState]   = useState<EditCursor | null>(null)
   const [fretBuffer,  setFretBufferState]  = useState('')
   const [hoveredNote, setHoveredNote]      = useState<string | null>(null)
-  const [techPickNote, setTechPickNote]    = useState<string | null>(null)
+  const [noteDuration, setNoteDuration]    = useState(1)   // beats per note
+  const noteDurationRef = useRef(1)
 
   const editCursorRef = useRef<EditCursor | null>(null)
   const fretBufferRef = useRef('')
@@ -64,6 +65,7 @@ export function GuitarTabView({
 
   useEffect(() => { trackRef.current = track }, [track])
   useEffect(() => { soundRef.current = sound },  [sound])
+  useEffect(() => { noteDurationRef.current = noteDuration }, [noteDuration])
 
   const setEditCursor = useCallback((v: EditCursor | null) => {
     editCursorRef.current = v; setEditCursorState(v)
@@ -106,7 +108,7 @@ export function GuitarTabView({
     const fret = parseInt(buf, 10)
     if (isNaN(fret) || fret < 0 || fret > 24) return
     const { notes } = trackRef.current
-    const nd  = 1
+    const nd  = noteDurationRef.current
     const tb  = trackRef.current.totalBars * trackRef.current.beatsPerBar
     const snd = soundRef.current
     const existing = findNoteAtBeat(notes, cursor.stringIndex, cursor.beat)
@@ -124,7 +126,7 @@ export function GuitarTabView({
       onAddNote(note); onSelectNote(note.id)
       previewNote(cursor.stringIndex, fret, snd, trackRef.current.capo)
     }
-    const next = Math.min(cursor.beat + 1, tb - SNAP)
+    const next = Math.min(cursor.beat + noteDurationRef.current, tb - SNAP)
     setEditCursor({ ...cursor, beat: next })
     onCursorBeatChange(next)
   }, [onBeginEdit, onUpdateNote, onAddNote, onSelectNote, onNotePreview, onCursorBeatChange, setFretBuffer, setEditCursor])
@@ -483,28 +485,35 @@ export function GuitarTabView({
         </svg>
       </div>
 
-      {/* ── Status bar */}
-      {editCursor && !isPlaying && (
-        <div style={{ flexShrink: 0, height: 28, background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 16, paddingLeft: 14, paddingRight: 14, fontFamily: "ui-monospace, 'SF Mono', monospace", fontSize: 11 }}>
-          <span style={{ color: STRING_COLORS[editCursor.stringIndex], fontWeight: 700 }}>
-            {STRING_NAMES[editCursor.stringIndex]}
-          </span>
-          <span style={{ color: '#64748b' }}>
-            bar {Math.floor(editCursor.beat / track.beatsPerBar) + 1} · beat {(editCursor.beat % track.beatsPerBar + 1).toFixed(editCursor.beat % 1 === 0 ? 0 : 2)}
-          </span>
-          {fretBuffer
-            ? <span style={{ color: '#1e293b' }}>fret: <strong style={{ color: '#7c3aed', fontSize: 13 }}>{fretBuffer}</strong>_</span>
-            : <span style={{ color: '#94a3b8' }}>type fret · x=mute · ←→ move · ↑↓ string · Del delete</span>
-          }
-          {/* Technique picker for selected note */}
-          {selectedNoteId && track.notes.find(n => n.id === selectedNoteId) && !fretBuffer && (
-            <TechniquePicker
-              current={track.notes.find(n => n.id === selectedNoteId)?.technique}
-              onChange={t => { onBeginEdit?.(); onUpdateNote(selectedNoteId, { technique: t }) }}
-            />
-          )}
-        </div>
-      )}
+      {/* ── Status bar (always visible) */}
+      <div style={{ flexShrink: 0, minHeight: 32, background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 12, paddingLeft: 14, paddingRight: 14, flexWrap: 'wrap' }}>
+
+        {/* Duration selector — always visible */}
+        <DurationSelector value={noteDuration} onChange={v => { setNoteDuration(v); noteDurationRef.current = v }} />
+
+        {editCursor && !isPlaying && (
+          <>
+            <div style={{ width: 1, height: 18, background: '#e2e8f0' }} />
+            <span style={{ fontFamily: "ui-monospace, 'SF Mono', monospace", fontSize: 11, color: STRING_COLORS[editCursor.stringIndex], fontWeight: 700 }}>
+              {STRING_NAMES[editCursor.stringIndex]}
+            </span>
+            <span style={{ fontFamily: "ui-monospace, 'SF Mono', monospace", fontSize: 11, color: '#64748b' }}>
+              bar {Math.floor(editCursor.beat / track.beatsPerBar) + 1} · beat {(editCursor.beat % track.beatsPerBar + 1).toFixed(editCursor.beat % 1 === 0 ? 0 : 2)}
+            </span>
+            {fretBuffer
+              ? <span style={{ fontFamily: "ui-monospace, 'SF Mono', monospace", fontSize: 11, color: '#1e293b' }}>fret: <strong style={{ color: '#7c3aed', fontSize: 13 }}>{fretBuffer}</strong>_</span>
+              : <span style={{ fontFamily: "ui-monospace, 'SF Mono', monospace", fontSize: 11, color: '#94a3b8' }}>type fret · x=mute · ←→ move · ↑↓ str</span>
+            }
+            {/* Technique picker for selected note */}
+            {selectedNoteId && track.notes.find(n => n.id === selectedNoteId) && !fretBuffer && (
+              <TechniquePicker
+                current={track.notes.find(n => n.id === selectedNoteId)?.technique}
+                onChange={t => { onBeginEdit?.(); onUpdateNote(selectedNoteId, { technique: t }) }}
+              />
+            )}
+          </>
+        )}
+      </div>
 
       {/* ── Mobile numpad */}
       {editCursor && !isPlaying && (
@@ -540,6 +549,30 @@ function TechniquePicker({ current, onChange }: { current?: GuitarTechnique; onC
         <button key={String(o.value)} title={o.title}
           onClick={() => onChange(o.value)}
           style={{ width: 24, height: 20, borderRadius: 4, border: `1px solid ${current === o.value ? '#7c3aed' : '#e2e8f0'}`, background: current === o.value ? '#ede9fe' : '#ffffff', color: current === o.value ? '#7c3aed' : '#64748b', fontSize: 11, fontFamily: 'ui-monospace, monospace', cursor: 'pointer', fontWeight: 600, lineHeight: 1 }}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── Duration selector ─────────────────────────────────────────────────────────
+
+const DURATION_OPTS = [
+  { v: 4,    label: '𝅝',   title: 'Whole note (4 beats)'   },
+  { v: 2,    label: '𝅗𝅥',  title: 'Half note (2 beats)'    },
+  { v: 1,    label: '♩',   title: 'Quarter note (1 beat)'  },
+  { v: 0.5,  label: '♪',   title: 'Eighth note (½ beat)'   },
+  { v: 0.25, label: '𝅘𝅥𝅮', title: '16th note (¼ beat)'    },
+]
+
+function DurationSelector({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+      <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 2 }}>Duration</span>
+      {DURATION_OPTS.map(o => (
+        <button key={o.v} title={o.title} onClick={() => onChange(o.v)}
+          style={{ width: 26, height: 22, borderRadius: 4, border: `1px solid ${value === o.v ? '#7c3aed' : '#e2e8f0'}`, background: value === o.v ? '#ede9fe' : '#ffffff', color: value === o.v ? '#7c3aed' : '#94a3b8', fontSize: 16, cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {o.label}
         </button>
       ))}

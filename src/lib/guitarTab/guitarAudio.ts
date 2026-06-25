@@ -3,10 +3,13 @@ import { fretToFrequency } from './guitarTheory'
 
 let audioCtx: AudioContext | null = null
 let masterGain: GainNode | null = null
-let scheduledNodes: OscillatorNode[] = []
 let isPlayingFlag = false
 let animFrameId: number | null = null
 let playStartAudioTime = 0
+
+// Track oscillators with their scheduled stop time so we can prune finished ones
+interface ScheduledOsc { osc: OscillatorNode; stopAt: number }
+let scheduledNodes: ScheduledOsc[] = []
 
 function ensureCtx(): AudioContext {
   if (!audioCtx || audioCtx.state === 'closed') {
@@ -28,7 +31,6 @@ function scheduleGuitarNote(
   velocity: number,
   sound: GuitarSound,
 ) {
-  // Primary oscillator — triangle for warmth, sawtooth for brighter sounds
   const osc1 = ctx.createOscillator()
   osc1.type = sound === 'synth' ? 'sawtooth' : 'triangle'
   osc1.frequency.setValueAtTime(freq, startTime)
@@ -55,7 +57,6 @@ function scheduleGuitarNote(
     : 2000
   filter.Q.value = 0.8
 
-  // Guitar pluck envelope: very fast attack, fast decay into low sustain
   const env = ctx.createGain()
   const attack  = 0.003
   const decay   = sound === 'nylon' ? 0.30 : sound === 'acoustic' ? 0.20 : 0.12
@@ -80,7 +81,12 @@ function scheduleGuitarNote(
   osc1.start(startTime); osc1.stop(stopAt)
   osc2.start(startTime); osc2.stop(stopAt)
   osc3.start(startTime); osc3.stop(stopAt)
-  scheduledNodes.push(osc1, osc2, osc3)
+
+  scheduledNodes.push(
+    { osc: osc1, stopAt },
+    { osc: osc2, stopAt },
+    { osc: osc3, stopAt },
+  )
 }
 
 function scheduleMetronomeClick(ctx: AudioContext, t: number, isDown: boolean) {
@@ -95,7 +101,7 @@ function scheduleMetronomeClick(ctx: AudioContext, t: number, isDown: boolean) {
   env.connect(ctx.destination)
   osc.start(t)
   osc.stop(t + 0.12)
-  scheduledNodes.push(osc)
+  scheduledNodes.push({ osc, stopAt: t + 0.15 })
 }
 
 export function previewNote(stringIndex: number, fret: number, sound: GuitarSound, capo = 0): void {
@@ -137,24 +143,42 @@ export async function startPlayback(
   }
   const endAudioTime = () => playStartAudioTime + (loopEnd() - fromBeat) * beatDur
 
-  const segEnd = loopEnd()
-  for (const note of track.notes) {
-    if (note.startBeat < fromBeat || note.startBeat >= segEnd) continue
-    const noteStart = playStartAudioTime + (note.startBeat - fromBeat) * beatDur
-    const noteDur   = Math.max(0.05, note.durationBeats * beatDur)
-    const freq      = fretToFrequency(note.stringIndex, note.fret, track.capo)
-    scheduleGuitarNote(ctx, masterGain!, freq, noteStart, noteDur, note.velocity, sound)
-  }
+  // Pre-sort notes once for efficient lookahead scheduling — never schedule everything at once
+  const sortedNotes = [...track.notes]
+    .filter(n => n.startBeat >= fromBeat && n.startBeat < loopEnd())
+    .sort((a, b) => a.startBeat - b.startBeat)
 
+  let nextNoteIdx   = 0
   let nextMetroBeat = Math.ceil(fromBeat)
-  const METRO_LOOKAHEAD = 0.3
+  const LOOKAHEAD   = 0.5 // only schedule this many seconds of audio at a time
 
   function tick() {
     if (!isPlayingFlag) return
-    const elapsed = ctx.currentTime - playStartAudioTime
+    const now     = ctx.currentTime
+    const elapsed = now - playStartAudioTime
     const beat    = fromBeat + elapsed / beatDur
 
-    const lookaheadCutoff = ctx.currentTime + METRO_LOOKAHEAD
+    const lookaheadCutoff = now + LOOKAHEAD
+
+    // Prune finished oscillators periodically to keep array small
+    if (scheduledNodes.length > 60) {
+      scheduledNodes = scheduledNodes.filter(s => s.stopAt > now - 0.1)
+    }
+
+    // Schedule only notes within the lookahead window
+    while (nextNoteIdx < sortedNotes.length) {
+      const note = sortedNotes[nextNoteIdx]
+      const noteAudioTime = playStartAudioTime + (note.startBeat - fromBeat) * beatDur
+      if (noteAudioTime > lookaheadCutoff) break
+      if (!note.muted) {
+        const noteDur = Math.max(0.05, note.durationBeats * beatDur)
+        const freq    = fretToFrequency(note.stringIndex, note.fret, track.capo)
+        scheduleGuitarNote(ctx, masterGain!, freq, noteAudioTime, noteDur, note.velocity, sound)
+      }
+      nextNoteIdx++
+    }
+
+    // Schedule metronome clicks within lookahead window
     while (nextMetroBeat < loopEnd()) {
       const clickTime = playStartAudioTime + (nextMetroBeat - fromBeat) * beatDur
       if (clickTime > lookaheadCutoff) break
@@ -166,7 +190,7 @@ export async function startPlayback(
 
     onBeatUpdate(Math.min(beat, loopEnd()))
 
-    if (ctx.currentTime >= endAudioTime()) {
+    if (now >= endAudioTime()) {
       if (getLoop()) {
         const range = getLoopRange()
         startPlayback(track, range ? range.startBeat : 0, sound, onBeatUpdate, onEnd, getLoop, getMetronome, getLoopRange)
@@ -187,7 +211,10 @@ export async function startPlayback(
 export function stopPlayback() {
   isPlayingFlag = false
   if (animFrameId !== null) { cancelAnimationFrame(animFrameId); animFrameId = null }
-  for (const osc of scheduledNodes) { try { osc.stop() } catch { /* already stopped */ } }
+  const now = audioCtx ? audioCtx.currentTime : 0
+  for (const s of scheduledNodes) {
+    if (s.stopAt > now) { try { s.osc.stop(now) } catch { /* already stopped */ } }
+  }
   scheduledNodes = []
 }
 

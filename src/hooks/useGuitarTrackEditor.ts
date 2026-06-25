@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { GuitarNote, GuitarTrack, TrackSection } from '../lib/guitarTab/types'
 import { stopPlayback } from '../lib/guitarTab/guitarAudio'
 import type { GuitarPreset } from '../data/guitarPresets'
@@ -12,8 +12,14 @@ export function useGuitarTrackEditor(initial: GuitarTrack) {
   const [track, setTrack]     = useState<GuitarTrack>(initial)
   const [history, setHistory] = useState<History>({ past: [], future: [] })
 
+  // Debounce localStorage writes — JSON.stringify of large tracks is expensive
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(track)) } catch {}
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(track)) } catch {}
+    }, 800)
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
   }, [track])
 
   // Auto-expand totalBars when notes extend beyond current end
@@ -106,6 +112,8 @@ export function useGuitarTrackEditor(initial: GuitarTrack) {
     })
   }, [])
 
+  const resetHistory = useCallback(() => setHistory({ past: [], future: [] }), [])
+
   const handleClearAll = useCallback(() => {
     setTrack(t => {
       if (t.notes.length === 0) return t
@@ -139,6 +147,6 @@ export function useGuitarTrackEditor(initial: GuitarTrack) {
     addNote, updateNote, deleteNote, beginEdit,
     insertBar, deleteBar,
     handleSectionChange, handleBpmChange, handleBeatsPerBarChange, handleCapoChange,
-    handleLoadPreset, handleClearAll, handleUndo, handleRedo,
+    handleLoadPreset, handleClearAll, handleUndo, handleRedo, resetHistory,
   }
 }

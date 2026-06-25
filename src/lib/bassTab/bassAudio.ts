@@ -4,7 +4,8 @@ import { scheduleSampledNote, scheduleSampledNoteAsync, preloadAllSampledSounds,
 
 let audioCtx: AudioContext | null = null
 let masterGain: GainNode | null = null
-let scheduledOscillators: OscillatorNode[] = []
+interface ScheduledOsc { osc: OscillatorNode; stopAt: number }
+let scheduledOscillators: ScheduledOsc[] = []
 let isPlayingFlag = false
 let animFrameId: number | null = null
 let playStartAudioTime = 0
@@ -84,7 +85,7 @@ function scheduleNote(
   const stopAt = endTime + 0.05
   osc1.start(startTime); osc1.stop(stopAt)
   osc2.start(startTime); osc2.stop(stopAt)
-  scheduledOscillators.push(osc1, osc2)
+  scheduledOscillators.push({ osc: osc1, stopAt }, { osc: osc2, stopAt })
 }
 
 function scheduleMetronomeClick(ctx: AudioContext, t: number, isDown: boolean) {
@@ -99,7 +100,7 @@ function scheduleMetronomeClick(ctx: AudioContext, t: number, isDown: boolean) {
   env.connect(ctx.destination)
   osc.start(t)
   osc.stop(t + 0.12)
-  scheduledOscillators.push(osc)
+  scheduledOscillators.push({ osc, stopAt: t + 0.15 })
 }
 
 // Preview a single note immediately (for fretboard taps / note selection)
@@ -165,28 +166,42 @@ export async function startPlayback(
   }
   const endAudioTime = () => playStartAudioTime + (loopEnd() - fromBeat) * beatDur
 
-  // Schedule all notes for this playback segment
-  const segEnd = loopEnd()
-  for (const note of track.notes) {
-    if (note.startBeat < fromBeat || note.startBeat >= segEnd) continue
-    const noteStart = playStartAudioTime + (note.startBeat - fromBeat) * beatDur
-    const noteDur   = Math.max(0.05, note.durationBeats * beatDur)
-    const freq      = fretToFrequency(note.stringIndex, note.fret)
-    scheduleNote(ctx, masterGain!, freq, noteStart, noteDur, note.velocity, sound)
-  }
+  // Pre-sort notes for lookahead scheduling — never schedule everything at once
+  const sortedNotes = [...track.notes]
+    .filter(n => n.startBeat >= fromBeat && n.startBeat < loopEnd())
+    .sort((a, b) => a.startBeat - b.startBeat)
 
-  // Dynamic metronome: schedule one beat at a time with a 0.3s lookahead
+  let nextNoteIdx   = 0
   let nextMetroBeat = Math.ceil(fromBeat)
-  const METRO_LOOKAHEAD = 0.3
+  const LOOKAHEAD   = 0.5 // seconds of audio to schedule ahead at a time
 
   function tick() {
     if (!isPlayingFlag) return
 
-    const elapsed = ctx.currentTime - playStartAudioTime
+    const now     = ctx.currentTime
+    const elapsed = now - playStartAudioTime
     const beat    = fromBeat + elapsed / beatDur
 
-    // Advance metronome schedule into the lookahead window
-    const lookaheadCutoff = ctx.currentTime + METRO_LOOKAHEAD
+    const lookaheadCutoff = now + LOOKAHEAD
+
+    // Prune finished oscillators periodically
+    if (scheduledOscillators.length > 60) {
+      scheduledOscillators = scheduledOscillators.filter(s => s.stopAt > now - 0.1)
+    }
+
+    // Schedule notes within the lookahead window
+    while (nextNoteIdx < sortedNotes.length) {
+      const note = sortedNotes[nextNoteIdx]
+      const noteAudioTime = playStartAudioTime + (note.startBeat - fromBeat) * beatDur
+      if (noteAudioTime > lookaheadCutoff) break
+      const noteDur = Math.max(0.05, note.durationBeats * beatDur)
+      const freq    = fretToFrequency(note.stringIndex, note.fret)
+      const midi    = Math.round(69 + 12 * Math.log2(freq / 440))
+      scheduleNote(ctx, masterGain!, freq, noteAudioTime, noteDur, note.velocity, sound, midi)
+      nextNoteIdx++
+    }
+
+    // Schedule metronome clicks within lookahead window
     while (nextMetroBeat < loopEnd()) {
       const clickTime = playStartAudioTime + (nextMetroBeat - fromBeat) * beatDur
       if (clickTime > lookaheadCutoff) break
@@ -256,7 +271,10 @@ export async function renderTrackOffline(track: BassTrack, sound: BassSound): Pr
 export function stopPlayback() {
   isPlayingFlag = false
   if (animFrameId !== null) { cancelAnimationFrame(animFrameId); animFrameId = null }
-  for (const osc of scheduledOscillators) { try { osc.stop() } catch { /* already stopped */ } }
+  const now = audioCtx ? audioCtx.currentTime : 0
+  for (const s of scheduledOscillators) {
+    if (s.stopAt > now) { try { s.osc.stop(now) } catch { /* already stopped */ } }
+  }
   scheduledOscillators = []
   stopAllSampledNodes()
 }

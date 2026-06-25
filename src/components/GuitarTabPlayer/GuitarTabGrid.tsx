@@ -115,6 +115,9 @@ export function GuitarTabGrid({
   useLayoutEffect(() => {
     const el = outerRef.current
     if (!el) return
+    const { width, height } = el.getBoundingClientRect()
+    setContainerW(width)
+    if (height > RULER_H) setRowH(Math.max(ROW_H_MIN, Math.floor((height - RULER_H) / 6)))
     const ro = new ResizeObserver(entries => {
       const rect = entries[0]?.contentRect
       const h = rect?.height ?? (ROW_H_MIN * 6 + RULER_H)
@@ -123,7 +126,6 @@ export function GuitarTabGrid({
       setContainerW(w)
     })
     ro.observe(el)
-    setContainerW(el.getBoundingClientRect().width)
     return () => ro.disconnect()
   }, [])
 
@@ -364,7 +366,7 @@ export function GuitarTabGrid({
           style={{ flex: 1, overflowX: fitWidth ? 'hidden' : 'auto', overflowY: 'hidden', cursor: 'crosshair' }}
           onWheel={handleWheel}
         >
-          <div style={{ width: totalWidth, minWidth: totalWidth }}>
+          <div style={{ width: totalWidth, minWidth: totalWidth, minHeight: '100%' }}>
 
             {/* Ruler */}
             <div

@@ -3,6 +3,7 @@ import type { GuitarNote, GuitarTrack, GuitarSound, GuitarStringIndex, LoopRange
 import { DEFAULT_TRACK } from '../../lib/guitarTab/types'
 import { startPlayback, stopPlayback, setMasterVolume, previewNote } from '../../lib/guitarTab/guitarAudio'
 import { toAsciiTab, exportMidiFile, copyToClipboard } from '../../lib/guitarTab/exportTab'
+import { importMidiFile } from '../../lib/guitarTab/midiImport'
 import { useGuitarTrackEditor } from '../../hooks/useGuitarTrackEditor'
 import { GuitarTabGrid } from './GuitarTabGrid'
 import { GuitarTabView } from './GuitarTabView'
@@ -41,7 +42,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
     addNote, updateNote, deleteNote, beginEdit,
     insertBar, deleteBar,
     handleBpmChange, handleBeatsPerBarChange, handleCapoChange,
-    handleLoadPreset, handleClearAll, handleUndo, handleRedo,
+    handleLoadPreset, handleClearAll, handleUndo, handleRedo, resetHistory,
   } = useGuitarTrackEditor(initialTrack)
 
   const [isPlaying, setIsPlaying]     = useState(false)
@@ -60,6 +61,8 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   const [showFretboard, setShowFretboard]     = useState(true)
   const [viewMode, setViewMode]       = useState<'tab' | 'grid'>('tab')
   const [toastMsg, setToastMsg]       = useState<string | null>(null)
+  const [editingName, setEditingName] = useState(false)
+  const midiInputRef = useRef<HTMLInputElement | null>(null)
 
   const loopRef    = useRef(loop)
   const metroRef   = useRef(metronome)
@@ -192,6 +195,28 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
     showToast(`Recorded ${notes.length} note${notes.length !== 1 ? 's' : ''}`)
   }, [beginEdit, setTrack])
 
+  // ── MIDI import ───────────────────────────────────────────────────────────
+  const handleMidiImport = useCallback((file: File) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const buf = e.target!.result as ArrayBuffer
+        const result = importMidiFile(buf, file.name.replace(/\.mid$/i, ''))
+        stopPlayback(); setIsPlaying(false)
+        setTrack(result.track)
+        resetHistory()
+        const removed = result.totalRaw - result.noteCount - result.skipped
+        const msg = `Imported ${result.noteCount} notes`
+          + (removed > 0 ? ` — ${removed} drums/other tracks removed` : '')
+          + (result.noteCount >= 400 ? ' (capped at 400)' : '')
+        showToast(msg)
+      } catch (err) {
+        showToast('Error reading MIDI file — is it a valid .mid?')
+      }
+    }
+    reader.readAsArrayBuffer(file)
+  }, [setTrack])
+
   // ── Export ────────────────────────────────────────────────────────────────
   const handleExportAscii = useCallback(async () => {
     const ascii = toAsciiTab(track)
@@ -224,7 +249,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   const totalBeats = track.totalBars * track.beatsPerBar
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: '#ffffff', fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif", color: '#1e293b' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', minHeight: 0, background: '#ffffff', fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif", color: '#1e293b' }}>
 
       {/* Transport */}
       <GuitarTransport
@@ -260,10 +285,37 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
         onExportAscii={handleExportAscii}
         onExportMidi={handleExportMidi}
         onRecord={() => setShowRecording(true)}
+        onImportMidi={() => midiInputRef.current?.click()}
       />
 
-      {/* View toggles + preset picker */}
-      <div style={{ display: 'flex', gap: 6, padding: '6px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', flexWrap: 'wrap' }}>
+      {/* Hidden MIDI file input */}
+      <input
+        ref={midiInputRef}
+        type="file" accept=".mid,.midi" style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleMidiImport(f); e.target.value = '' }}
+      />
+
+      {/* Track name + view toggles */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', flexWrap: 'wrap' }}>
+        {/* Editable track name */}
+        {editingName ? (
+          <input
+            autoFocus
+            defaultValue={track.name}
+            onBlur={e => { setTrack(t => ({ ...t, name: e.target.value.trim() || 'New Guitar Tab' })); setEditingName(false) }}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur() }}
+            style={{ height: 24, padding: '0 6px', border: '1px solid #7c3aed', borderRadius: 5, fontSize: 12, fontWeight: 600, color: '#1e293b', background: '#ffffff', outline: 'none', minWidth: 140 }}
+          />
+        ) : (
+          <button
+            onClick={() => setEditingName(true)}
+            title="Click to rename"
+            style={{ height: 24, padding: '0 8px', border: '1px solid transparent', borderRadius: 5, fontSize: 12, fontWeight: 600, color: '#374151', background: 'transparent', cursor: 'text', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            {track.name || 'New Guitar Tab'}
+          </button>
+        )}
+        <div style={{ width: 1, height: 20, background: '#e2e8f0', flexShrink: 0 }} />
         {/* View mode toggle */}
         <div style={{ display: 'flex', borderRadius: 7, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
           <ViewToggle label="Tab" active={viewMode === 'tab'} onClick={() => setViewMode('tab')} style={{ borderRadius: 0, border: 'none' }} />

@@ -46,6 +46,7 @@ interface TransportProps {
   onClearAll: () => void
   onExportAscii: () => void
   onExportMidi: () => void
+  onImportMidi?: () => void
   onRecord?: () => void
 }
 
@@ -63,7 +64,7 @@ export function GuitarTransport({
   onBpmChange, onSoundChange, onCapoChange, onBarsChange,
   onZoomIn, onZoomOut,
   onFretChange, onVolumeChange, onUndo, onRedo, onClearAll,
-  onExportAscii, onExportMidi, onRecord,
+  onExportAscii, onExportMidi, onImportMidi, onRecord,
 }: TransportProps) {
   const [showExport, setShowExport] = useState(false)
   const [bpmInput, setBpmInput]     = useState(String(bpm))
@@ -168,6 +169,12 @@ export function GuitarTransport({
               <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 4, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: 6, zIndex: 50, minWidth: 140, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <ExportItem label="Copy as ASCII Tab" onClick={() => { onExportAscii(); setShowExport(false) }} />
                 <ExportItem label="Export MIDI" onClick={() => { onExportMidi(); setShowExport(false) }} />
+                {onImportMidi && (
+                  <>
+                    <div style={{ height: 1, background: '#f1f5f9', margin: '3px 0' }} />
+                    <ExportItem label="Import MIDI…" onClick={() => { onImportMidi(); setShowExport(false) }} />
+                  </>
+                )}
               </div>
             )}
           </div>

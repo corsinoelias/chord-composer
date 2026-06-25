@@ -4,30 +4,49 @@ import { GUITAR_STRINGS } from './guitarTheory'
 export function toAsciiTab(track: GuitarTrack): string {
   if (!track.notes.length) return 'No notes yet.'
 
-  const totalBeats = track.totalBars * track.beatsPerBar
+  const totalBeats  = track.totalBars * track.beatsPerBar
   const colsPerBeat = 4
   const totalCols   = totalBeats * colsPerBeat
 
-  // Row 0 = high e (string index 0), row 5 = low E (string index 5)
   const rows = GUITAR_STRINGS.map(() => Array<string>(totalCols).fill('-'))
 
-  for (const note of track.notes) {
-    const col    = Math.round(note.startBeat * colsPerBeat)
-    const label  = String(note.fret)
-    for (let i = 0; i < label.length; i++) {
-      if (col + i < totalCols) rows[note.stringIndex][col + i] = label[i]
+  // Sort by startBeat so we can find the next note per string for technique markers
+  const byString: (typeof track.notes[number])[][] = Array.from({ length: 6 }, () => [])
+  for (const n of track.notes) byString[n.stringIndex].push(n)
+  for (const row of byString) row.sort((a, b) => a.startBeat - b.startBeat)
+
+  for (let si = 0; si < 6; si++) {
+    const row = byString[si]
+    for (let ni = 0; ni < row.length; ni++) {
+      const note = row[ni]
+      const col  = Math.round(note.startBeat * colsPerBeat)
+      const label = note.muted ? 'x' : String(note.fret)
+
+      // Write fret/mute chars
+      for (let i = 0; i < label.length; i++) {
+        if (col + i < totalCols) rows[si][col + i] = label[i]
+      }
+
+      // Write technique marker right after this note (before the next note)
+      const tech = note.technique
+      if (tech && tech !== 'x') {
+        const techCol = col + label.length
+        if (techCol < totalCols) rows[si][techCol] = tech
+      }
     }
   }
 
-  // Insert bar dividers
   const barBeat = track.beatsPerBar * colsPerBeat
-  return GUITAR_STRINGS.map((s, i) => {
+  const lines = GUITAR_STRINGS.map((s, i) => {
     const segments: string[] = []
     for (let bar = 0; bar < track.totalBars; bar++) {
       segments.push(rows[i].slice(bar * barBeat, (bar + 1) * barBeat).join(''))
     }
     return `${s.displayName}|${segments.join('|')}|`
-  }).join('\n')
+  })
+
+  const header = track.name ? `# ${track.name}\n# BPM: ${track.bpm} | Capo: ${track.capo}\n\n` : ''
+  return header + lines.join('\n')
 }
 
 export function exportMidiFile(track: GuitarTrack): Uint8Array {
