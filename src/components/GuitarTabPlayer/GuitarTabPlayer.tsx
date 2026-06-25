@@ -8,6 +8,7 @@ import { useGuitarTrackEditor } from '../../hooks/useGuitarTrackEditor'
 import { GuitarTabGrid } from './GuitarTabGrid'
 import { GuitarTabView } from './GuitarTabView'
 import { GuitarFretboard } from './GuitarFretboard'
+import { GuitarPhotoFretboard } from './GuitarPhotoFretboard'
 import { GuitarTransport } from './GuitarTransport'
 import { GuitarChordHelper } from './GuitarChordHelper'
 import { GuitarSeekBar } from './GuitarSeekBar'
@@ -59,7 +60,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   const [ctxMenu, setCtxMenu]         = useState<CtxMenu | null>(null)
   const [showChordHelper, setShowChordHelper] = useState(true)
   const [showFretboard, setShowFretboard]     = useState(true)
-  const [viewMode, setViewMode]       = useState<'tab' | 'grid'>('tab')
+  const [viewMode, setViewMode]       = useState<'tab' | 'grid' | 'fretboard'>('tab')
   const [toastMsg, setToastMsg]       = useState<string | null>(null)
   const [editingName, setEditingName] = useState(false)
   const midiInputRef = useRef<HTMLInputElement | null>(null)
@@ -321,6 +322,8 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
           <ViewToggle label="Tab" active={viewMode === 'tab'} onClick={() => setViewMode('tab')} style={{ borderRadius: 0, border: 'none' }} />
           <div style={{ width: 1, background: '#e2e8f0' }} />
           <ViewToggle label="Grid" active={viewMode === 'grid'} onClick={() => setViewMode('grid')} style={{ borderRadius: 0, border: 'none' }} />
+          <div style={{ width: 1, background: '#e2e8f0' }} />
+          <ViewToggle label="Fretboard" active={viewMode === 'fretboard'} onClick={() => setViewMode('fretboard')} style={{ borderRadius: 0, border: 'none' }} />
         </div>
         <ViewToggle label="Fretboard" active={showFretboard} onClick={() => setShowFretboard(v => !v)} />
         <ViewToggle label="Chords" active={showChordHelper} onClick={() => setShowChordHelper(v => !v)} />
@@ -381,7 +384,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
             onBeginEdit={beginEdit}
             onNotePreview={handleNotePreview}
           />
-        ) : (
+        ) : viewMode === 'grid' ? (
           <GuitarTabGrid
             track={track}
             zoom={zoom}
@@ -398,6 +401,11 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
             onBeginEdit={beginEdit}
             onNotePreview={handleNotePreview}
             onLongPressNote={handleLongPress}
+          />
+        ) : (
+          <GuitarPhotoFretboard
+            activeFrets={activeFrets}
+            attackSignals={attackSignals}
           />
         )}
       </div>
