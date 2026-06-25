@@ -1,0 +1,190 @@
+---
+export const prerender = true;
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import RelatedTools from '../../../components/RelatedTools.astro';
+
+const features = [
+  { icon: '🎵', title: 'Real-time playback', desc: 'Hit play and hear your guitar line instantly. Adjust BPM on the fly without stopping.' },
+  { icon: '🎸', title: '6-string standard tuning', desc: 'All six strings from high e to low E, with color-coded rows so you always know where you are.' },
+  { icon: '✏️', title: 'Drag & resize notes', desc: 'Draw notes with a click, drag to move across strings or beats, resize to change duration.' },
+  { icon: '🎶', title: 'Chord Helper', desc: 'Insert full guitar chords (Em, C, G, D, Am and more) in one click at the cursor position.' },
+  { icon: '🔊', title: 'Multiple sounds', desc: 'Acoustic, Nylon, Clean Electric, Synth — choose the tone that fits your song.' },
+  { icon: '🎚️', title: 'Capo support', desc: 'Set a capo from 0 to 7 and the player transposes all pitches automatically during playback.' },
+  { icon: '📤', title: 'Export', desc: 'Copy as ASCII tab for sharing, or export to MIDI for use in your DAW.' },
+  { icon: '⌨️', title: 'Keyboard-friendly', desc: 'Ctrl+C/V to copy-paste notes, Shift+drag for rubber-band selection, Ctrl+Z to undo.' },
+];
+
+const faqs = [
+  { q: 'What is a guitar tab?', a: 'A guitar tab (tablature) shows you exactly which string and fret to play, using six horizontal lines (one per string) with numbers indicating the fret. Zero means open string — no fret pressed. It\'s the fastest way to learn songs without reading sheet music.' },
+  { q: 'How do I read a guitar tab?', a: 'The six lines represent the six strings. The top line is the high e string (thinnest), the bottom line is the low E string (thickest). Numbers show which fret to press. Read left to right — numbers stacked vertically are played simultaneously (a chord).' },
+  { q: 'What is the Chord Helper?', a: 'The Chord Helper panel shows common guitar chords (Em, Am, C, G, D, F, and more). Click any chord button and all the notes for that chord are inserted at the current cursor position in the grid. Perfect for building chord-based arrangements quickly.' },
+  { q: 'What does the capo setting do?', a: 'Setting a capo shifts the pitch of every note during playback, as if you had placed a physical capo on that fret. The fret numbers in the grid stay the same (relative to the capo), but the sound is higher. Capo 2 means every note sounds two semitones higher.' },
+  { q: 'Is this guitar tab player free?', a: 'Yes, completely free. No account required. Open it in any modern browser on desktop or mobile.' },
+  { q: 'Can I export my tab?', a: 'Yes. Use the Export button to copy your tab as ASCII text (the classic tabbing format), or export to MIDI for use in a DAW like GarageBand, Logic, or Ableton.' },
+];
+
+const webAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Guitar Tab Player',
+  url: 'https://chordsequence.com/tools/guitar-tab/',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Any',
+  description: 'Free online 6-string guitar tab player and editor. Chord Helper, capo support, acoustic/clean/nylon sounds, MIDI export.',
+  featureList: ['6-string guitar tab editor', 'Chord Helper', 'Capo support', 'Acoustic, Nylon, Clean, Synth sounds', 'ASCII tab export', 'MIDI export', 'Undo/redo'],
+  browserRequirements: 'Requires a modern browser with Web Audio API support',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+};
+---
+
+<BaseLayout
+  title="Free Guitar Tab Player — Play, Learn & Create Guitar Tabs Online"
+  description="Free online guitar tab player and editor. 6 strings, Chord Helper, capo support, acoustic & clean sounds. Draw notes, insert chords, export to ASCII or MIDI. No signup."
+  canonicalUrl="https://chordsequence.com/tools/guitar-tab/"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+  </Fragment>
+
+  <main>
+
+    <!-- ── HERO ── -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pt-14 pb-10 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Free Online Tool</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4 leading-tight">
+        Guitar Tab Player
+      </h1>
+      <p class="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
+        Play, learn, and create 6-string guitar tabs in your browser — no install, no account.
+        Insert chords with one click, set a capo, and hear your tab in real time.
+      </p>
+      <div class="flex flex-wrap items-center justify-center gap-3">
+        <a href="/guitar-tab/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+          Open Guitar Tab Editor →
+        </a>
+        <a href="#features" class="inline-flex items-center gap-2 px-6 py-3 border border-border text-foreground font-medium rounded-lg hover:border-primary/50 transition-colors">
+          See features
+        </a>
+      </div>
+    </section>
+
+    <!-- ── HOW TO READ ── -->
+    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-16">
+      <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-5">How to read a guitar tab</h2>
+      <div class="space-y-5 text-muted-foreground leading-relaxed">
+        <p>
+          A <strong class="text-foreground">guitar tab</strong> uses six horizontal lines — one for each string.
+          The top line is the high <span class="font-mono font-bold text-sky-600">e</span> string (thinnest),
+          and the bottom line is the low <span class="font-mono font-bold text-red-600">E</span> string (thickest).
+          Numbers tell you which fret to press. <span class="font-mono font-bold text-foreground">0</span> means open string.
+        </p>
+      </div>
+
+      <!-- Tab example -->
+      <div class="my-8 rounded-2xl overflow-hidden border border-border shadow-sm">
+        <div class="flex items-center gap-3 px-5 py-4 bg-muted/40 border-b border-border">
+          <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-base shrink-0">🎸</div>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-foreground">Smoke on the Water — Deep Purple</p>
+            <p class="text-xs text-muted-foreground">Opening riff · Electric guitar</p>
+          </div>
+        </div>
+        <div class="bg-white px-5 sm:px-8 py-6 overflow-x-auto font-mono text-sm sm:text-base leading-8 select-none border-b border-border">
+          <div class="flex items-center gap-4"><span class="text-sky-600 font-bold w-3 shrink-0">e</span><span class="text-gray-400">|--------------|</span></div>
+          <div class="flex items-center gap-4"><span class="text-violet-600 font-bold w-3 shrink-0">B</span><span class="text-gray-400">|--------------|</span></div>
+          <div class="flex items-center gap-4"><span class="text-emerald-600 font-bold w-3 shrink-0">G</span><span class="text-gray-400">|--<span class="text-gray-900 font-bold">0</span>--<span class="text-gray-900 font-bold">3</span>--<span class="text-gray-900 font-bold">5</span>--|</span></div>
+          <div class="flex items-center gap-4"><span class="text-amber-600 font-bold w-3 shrink-0">D</span><span class="text-gray-400">|--<span class="text-gray-900 font-bold">0</span>--<span class="text-gray-900 font-bold">3</span>--<span class="text-gray-900 font-bold">5</span>--|</span></div>
+          <div class="flex items-center gap-4"><span class="text-orange-600 font-bold w-3 shrink-0">A</span><span class="text-gray-400">|--------------|</span></div>
+          <div class="flex items-center gap-4"><span class="text-red-600 font-bold w-3 shrink-0">E</span><span class="text-gray-400">|--------------|</span></div>
+        </div>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3.5 bg-muted/30 text-xs text-muted-foreground">
+          <span class="flex items-center gap-1.5"><span class="font-mono font-bold text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded">0</span>open string — don't press</span>
+          <span class="flex items-center gap-1.5"><span class="font-mono font-bold text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded">3</span>press fret 3</span>
+          <span class="flex items-center gap-1.5"><span class="text-sky-600 font-bold font-mono">e</span>thinnest string, highest pitch</span>
+          <span class="flex items-center gap-1.5"><span class="text-red-600 font-bold font-mono">E</span>thickest string, lowest pitch</span>
+        </div>
+      </div>
+
+      <div class="space-y-5">
+        {[
+          { n: 1, title: 'Find your strings', text: 'Six lines = six strings. Top = high e (thinnest). Bottom = low E (thickest). Same physical order as on your guitar, from top to bottom.' },
+          { n: 2, title: 'Read the fret numbers', text: '0 means open — just pluck without pressing. Any other number means press that fret. Read left to right.' },
+          { n: 3, title: 'Vertical notes = chord', text: 'Numbers stacked on the same column are played at the same time — that\'s a chord. Use the Chord Helper to insert common shapes instantly.' },
+        ].map(s => (
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mt-0.5">{s.n}</div>
+            <div>
+              <p class="font-semibold text-foreground mb-1">{s.title}</p>
+              <p class="text-muted-foreground text-sm leading-relaxed">{s.text}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- ── FEATURES ── -->
+    <section id="features" class="bg-muted/30 border-y border-border py-16">
+      <div class="mx-auto max-w-5xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-2 text-center">Everything you need to learn guitar</h2>
+        <p class="text-muted-foreground text-center mb-10 max-w-xl mx-auto">
+          Built for guitarists of all levels — from beginners inserting their first chord to players transcribing their own lines.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {features.map(f => (
+            <div class="rounded-xl border border-border bg-card p-5">
+              <div class="text-2xl mb-3">{f.icon}</div>
+              <h3 class="font-semibold text-foreground mb-1 text-sm">{f.title}</h3>
+              <p class="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div class="mt-8 text-center">
+          <a href="/guitar-tab/" class="inline-flex items-center gap-2 px-7 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+            Open Guitar Tab Editor →
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── FAQ ── -->
+    <section class="bg-muted/30 border-t border-border py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-10 text-center">Frequently asked questions</h2>
+        <div class="space-y-6">
+          {faqs.map(f => (
+            <div class="rounded-xl border border-border bg-card p-6">
+              <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
+              <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- ── RELATED TOOLS ── -->
+    <RelatedTools tools={[
+      { href: '/tools/bass-guitar-tab/', icon: 'bass', label: 'Bass Tab Player', desc: '4-string bass tablature editor with the same drag-and-draw interface.' },
+      { href: '/tuner/', icon: 'tuner', label: 'Online Tuner', desc: 'Tune your guitar before playing. Works via your device microphone.' },
+      { href: '/metronome/', icon: 'metronome', label: 'Metronome', desc: 'Practice your riffs with a steady tempo. Tap tempo included.' },
+    ]} />
+
+    <!-- ── BOTTOM CTA ── -->
+    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-16 text-center">
+      <h2 class="text-2xl font-bold text-foreground mb-3">Ready to play?</h2>
+      <p class="text-muted-foreground mb-6 max-w-md mx-auto">
+        Open the editor and start learning guitar tabs today. Free, no account needed.
+      </p>
+      <a href="/guitar-tab/" class="inline-flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground font-bold rounded-xl text-lg hover:bg-primary/90 transition-colors">
+        Open Guitar Tab Player →
+      </a>
+    </section>
+
+  </main>
+</BaseLayout>

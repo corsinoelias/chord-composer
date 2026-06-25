@@ -1,0 +1,49 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { GuitarTabPlayer } from '../components/GuitarTabPlayer/GuitarTabPlayer';
+
+const webAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Guitar Tab Player',
+  url: 'https://chordsequence.com/guitar-tab/',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Any',
+  description: 'Free online 6-string guitar tablature editor. Draw notes on any string and fret, drag to move, resize to change duration, and hear playback in real time.',
+  featureList: [
+    'Draw notes on any string and fret (6 strings)',
+    'Drag to reposition, resize to change duration',
+    'Real-time audio playback',
+    'Multiple guitar sounds: Acoustic, Nylon, Clean, Synth',
+    'Capo support (frets 0–7)',
+    'Chord Helper — insert full chords in one click',
+    'ASCII tab export',
+    'MIDI export',
+  ],
+  browserRequirements: 'Requires a modern browser with Web Audio API support',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://chordsequence.com/tools/' },
+    { '@type': 'ListItem', position: 3, name: 'Guitar Tab Player', item: 'https://chordsequence.com/guitar-tab/' },
+  ],
+};
+---
+
+<BaseLayout
+  title="Guitar Tab Player — 6-String Guitar Tablature Editor"
+  description="Free online 6-string guitar tablature editor. Draw notes, insert chords with one click, capo support, multiple sounds. No signup required."
+  canonicalUrl="https://chordsequence.com/guitar-tab/"
+  showNav={false}
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+  <GuitarTabPlayer client:only="react" />
+</BaseLayout>
