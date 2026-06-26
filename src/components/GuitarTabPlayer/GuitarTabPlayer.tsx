@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import type { GuitarNote, GuitarTrack, GuitarSound, GuitarStringIndex, LoopRange } from '../../lib/guitarTab/types'
 import { DEFAULT_TRACK } from '../../lib/guitarTab/types'
-import { startPlayback, stopPlayback, setMasterVolume, previewNote } from '../../lib/guitarTab/guitarAudio'
+import { startPlayback, stopPlayback, setMasterVolume, previewNote, startRecordingMetronome, prepareSoundfont } from '../../lib/guitarTab/guitarAudio'
 import { toAsciiTab, exportMidiFile, copyToClipboard } from '../../lib/guitarTab/exportTab'
 import { importMidiFile } from '../../lib/guitarTab/midiImport'
+import { parseGpFile } from '../../lib/guitarTab/gpImport'
 import { useGuitarTrackEditor } from '../../hooks/useGuitarTrackEditor'
 import { GuitarTabGrid } from './GuitarTabGrid'
 import { GuitarTabView } from './GuitarTabView'
@@ -12,10 +13,14 @@ import { GuitarPhotoFretboard } from './GuitarPhotoFretboard'
 import { GuitarTransport } from './GuitarTransport'
 import { GuitarChordHelper } from './GuitarChordHelper'
 import { GuitarSeekBar } from './GuitarSeekBar'
+import { GuitarNotationView } from './GuitarNotationView'
 import { GuitarRecordingOverlay } from './GuitarRecordingOverlay'
 import { GUITAR_PRESETS } from '../../data/guitarPresets'
 
 const STORAGE_KEY = 'guitar-tab-track-v1'
+
+const STRING_COLORS = ['#0284c7','#7c3aed','#059669','#d97706','#ea580c','#dc2626']
+const STRING_NAMES  = ['e','B','G','D','A','E']
 
 function loadTrack(): GuitarTrack {
   try {
@@ -60,14 +65,27 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   const [ctxMenu, setCtxMenu]         = useState<CtxMenu | null>(null)
   const [showChordHelper, setShowChordHelper] = useState(true)
   const [showFretboard, setShowFretboard]     = useState(true)
-  const [viewMode, setViewMode]       = useState<'tab' | 'grid' | 'fretboard'>('tab')
+  const [viewMode, setViewMode]       = useState<'tab' | 'grid' | 'notation' | 'fretboard'>('tab')
   const [toastMsg, setToastMsg]       = useState<string | null>(null)
   const [editingName, setEditingName] = useState(false)
+
+  // ── New features ──────────────────────────────────────────────────────────────
+  const [playbackSpeed, setPlaybackSpeed] = useState(1)
+  const [countIn, setCountIn]             = useState<0 | 1 | 2>(0)
+  const [isCountingIn, setIsCountingIn]   = useState(false)
+  const [countdownBeat, setCountdownBeat] = useState<number | null>(null)
+  const [mutedStrings, setMutedStrings]   = useState<boolean[]>(Array(6).fill(false))
+  const [soloedStrings, setSoloedStrings] = useState<boolean[]>(Array(6).fill(false))
+  const [noteColors, setNoteColors]       = useState(false)
+  const [showMixer, setShowMixer]         = useState(false)
+
+  const countInStopRef    = useRef<(() => void) | null>(null)
   const midiInputRef      = useRef<HTMLInputElement | null>(null)
+  const gpInputRef        = useRef<HTMLInputElement | null>(null)
   const presetsSelectRef  = useRef<HTMLSelectElement | null>(null)
 
-  const loopRef    = useRef(loop)
-  const metroRef   = useRef(metronome)
+  const loopRef      = useRef(loop)
+  const metroRef     = useRef(metronome)
   const loopRangeRef = useRef(loopRange)
   loopRef.current      = loop
   metroRef.current     = metronome
@@ -75,10 +93,28 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
 
   useEffect(() => { setMasterVolume(volume) }, [volume])
 
+  // Pre-load soundfont when SF2 is selected so first note plays without delay
+  useEffect(() => {
+    if (sound === 'sf2') prepareSoundfont().catch(() => {})
+  }, [sound])
+
   const showToast = (msg: string) => {
     setToastMsg(msg)
     setTimeout(() => setToastMsg(null), 2500)
   }
+
+  // ── Mute/Solo applied to track before playback ────────────────────────────
+  const filteredTrack = useMemo<GuitarTrack>(() => {
+    const soloActive = soloedStrings.some(Boolean)
+    if (!mutedStrings.some(Boolean) && !soloActive) return track
+    return {
+      ...track,
+      notes: track.notes.map(n => ({
+        ...n,
+        muted: n.muted || mutedStrings[n.stringIndex] || (soloActive && !soloedStrings[n.stringIndex]),
+      })),
+    }
+  }, [track, mutedStrings, soloedStrings])
 
   // ── Attack signals for fretboard animation ────────────────────────────────
   const [attackSignals, setAttackSignals] = useState<({ fret: number; v: number } | null)[]>(
@@ -111,20 +147,47 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   }, [track.notes])
 
   // ── Playback ──────────────────────────────────────────────────────────────
-  const handlePlay = useCallback(async () => {
+  const doPlay = useCallback(async () => {
     setIsPlaying(true)
+    const bpmWithSpeed = playbackSpeed !== 1 ? Math.round(filteredTrack.bpm * playbackSpeed) : filteredTrack.bpm
+    const playTrack = bpmWithSpeed !== filteredTrack.bpm ? { ...filteredTrack, bpm: bpmWithSpeed } : filteredTrack
     prevBeatRef.current = cursorBeat
     await startPlayback(
-      track, cursorBeat, sound,
+      playTrack, cursorBeat, sound,
       onBeatUpdate,
       () => { setIsPlaying(false); setCurrentBeat(0) },
       () => loopRef.current,
       () => metroRef.current,
       () => loopRangeRef.current,
     )
-  }, [track, cursorBeat, sound, onBeatUpdate])
+  }, [filteredTrack, playbackSpeed, cursorBeat, sound, onBeatUpdate])
+
+  const handlePlay = useCallback(async () => {
+    if (countIn > 0) {
+      setIsCountingIn(true)
+      setCountdownBeat(1)
+      const totalCountBeats = countIn * filteredTrack.beatsPerBar
+      const { stop } = startRecordingMetronome(
+        filteredTrack.bpm,
+        filteredTrack.beatsPerBar,
+        totalCountBeats,
+        (beat) => setCountdownBeat((beat % filteredTrack.beatsPerBar) + 1),
+        () => {
+          setIsCountingIn(false)
+          setCountdownBeat(null)
+          doPlay()
+        },
+      )
+      countInStopRef.current = stop
+    } else {
+      doPlay()
+    }
+  }, [countIn, filteredTrack.bpm, filteredTrack.beatsPerBar, doPlay])
 
   const handleStop = useCallback(() => {
+    if (countInStopRef.current) { countInStopRef.current(); countInStopRef.current = null }
+    setIsCountingIn(false)
+    setCountdownBeat(null)
     stopPlayback()
     setIsPlaying(false)
     setCurrentBeat(0)
@@ -212,8 +275,27 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
           + (removed > 0 ? ` — ${removed} drums/other tracks removed` : '')
           + (result.noteCount >= 400 ? ' (capped at 400)' : '')
         showToast(msg)
-      } catch (err) {
+      } catch {
         showToast('Error reading MIDI file — is it a valid .mid?')
+      }
+    }
+    reader.readAsArrayBuffer(file)
+  }, [setTrack])
+
+  // ── GP import ────────────────────────────────────────────────────────────
+  const handleGpImport = useCallback((file: File) => {
+    const reader = new FileReader()
+    showToast('Parsing file…')
+    reader.onload = async (e) => {
+      try {
+        const buf = e.target!.result as ArrayBuffer
+        const partial = await parseGpFile(buf)
+        stopPlayback(); setIsPlaying(false)
+        setTrack(t => ({ ...t, ...partial }))
+        resetHistory()
+        showToast(`Imported ${partial.notes?.length ?? 0} notes from ${partial.name ?? 'file'}`)
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : 'Error parsing file')
       }
     }
     reader.readAsArrayBuffer(file)
@@ -235,10 +317,76 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
     a.click(); URL.revokeObjectURL(url)
   }, [track])
 
+  // ── Export as image ───────────────────────────────────────────────────────
+  const handleExportImage = useCallback((format: 'svg' | 'png') => {
+    const svgEl = document.querySelector('[data-export-svg] svg') as SVGSVGElement | null
+      ?? document.querySelector('svg[data-export-svg]') as SVGSVGElement | null
+    if (!svgEl) {
+      showToast('Switch to Tab or Notation view to export')
+      return
+    }
+    svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    const w = svgEl.width.baseVal.value || svgEl.getBoundingClientRect().width
+    const h = svgEl.height.baseVal.value || svgEl.getBoundingClientRect().height
+    bg.setAttribute('width', String(w)); bg.setAttribute('height', String(h)); bg.setAttribute('fill', '#ffffff')
+    svgEl.insertBefore(bg, svgEl.firstChild)
+    const svgStr = new XMLSerializer().serializeToString(svgEl)
+    svgEl.removeChild(bg)
+    if (format === 'svg') {
+      const blob = new Blob([svgStr], { type: 'image/svg+xml' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url; a.download = `${track.name || 'guitar-tab'}.svg`
+      a.click(); URL.revokeObjectURL(url)
+      showToast('SVG downloaded!')
+      return
+    }
+    const encoded = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr)
+    const img = new window.Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = w * 2; canvas.height = h * 2
+      const c = canvas.getContext('2d')!
+      c.fillStyle = '#ffffff'; c.fillRect(0, 0, canvas.width, canvas.height)
+      c.scale(2, 2); c.drawImage(img, 0, 0)
+      canvas.toBlob(blob => {
+        if (!blob) { showToast('PNG export failed'); return }
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a'); a.href = url; a.download = `${track.name || 'guitar-tab'}.png`
+        a.click(); URL.revokeObjectURL(url)
+        showToast('PNG downloaded!')
+      })
+    }
+    img.src = encoded
+  }, [track.name])
+
   // ── Bars change ───────────────────────────────────────────────────────────
   const handleBarsChange = useCallback((bars: number) => {
     setTrack(t => ({ ...t, totalBars: Math.max(1, bars) }))
   }, [setTrack])
+
+  // ── String mute/solo helpers ──────────────────────────────────────────────
+  const toggleMute = useCallback((si: number) => {
+    setMutedStrings(prev => {
+      const next = [...prev]
+      next[si] = !next[si]
+      if (next[si]) { // muting clears solo
+        setSoloedStrings(s => { const n = [...s]; n[si] = false; return n })
+      }
+      return next
+    })
+  }, [])
+
+  const toggleSolo = useCallback((si: number) => {
+    setSoloedStrings(prev => {
+      const next = [...prev]
+      next[si] = !next[si]
+      if (next[si]) { // soloing clears mute on that string
+        setMutedStrings(s => { const n = [...s]; n[si] = false; return n })
+      }
+      return next
+    })
+  }, [])
 
   // ── Click outside context menu ────────────────────────────────────────────
   useEffect(() => {
@@ -249,6 +397,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   }, [ctxMenu])
 
   const totalBeats = track.totalBars * track.beatsPerBar
+  const soloActive = soloedStrings.some(Boolean)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', minHeight: 0, background: '#ffffff', fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif", color: '#1e293b' }}>
@@ -371,7 +520,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
 
       {/* Transport */}
       <GuitarTransport
-        isPlaying={isPlaying}
+        isPlaying={isPlaying || isCountingIn}
         loop={loop}
         metronome={metronome}
         bpm={track.bpm}
@@ -380,6 +529,8 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
         totalBars={track.totalBars}
         zoom={zoom}
         volume={volume}
+        playbackSpeed={playbackSpeed}
+        countIn={countIn}
         selectedNoteFret={selectedNote?.fret ?? null}
         hasSelectedNote={!!selectedNote}
         canUndo={canUndo}
@@ -404,28 +555,77 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
         onExportMidi={handleExportMidi}
         onRecord={() => setShowRecording(true)}
         onImportMidi={() => midiInputRef.current?.click()}
+        onImportGp={() => gpInputRef.current?.click()}
+        onSpeedChange={setPlaybackSpeed}
+        onCountInChange={setCountIn}
+        onExportImage={handleExportImage}
       />
 
-      {/* Hidden MIDI file input */}
+      {/* Hidden file inputs */}
       <input
         ref={midiInputRef}
         type="file" accept=".mid,.midi" style={{ display: 'none' }}
         onChange={e => { const f = e.target.files?.[0]; if (f) handleMidiImport(f); e.target.value = '' }}
       />
+      <input
+        ref={gpInputRef}
+        type="file" accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7,.musicxml,.xml" style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleGpImport(f); e.target.value = '' }}
+      />
 
-      {/* View toggles */}
+      {/* View toggles + string mixer toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', borderRadius: 7, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-          <ViewToggle label="Tab"    active={viewMode === 'tab'}      onClick={() => setViewMode('tab')}      style={{ borderRadius: 0, border: 'none' }} />
+          <ViewToggle label="Tab"      active={viewMode === 'tab'}      onClick={() => setViewMode('tab')}      style={{ borderRadius: 0, border: 'none' }} />
           <div style={{ width: 1, background: '#e2e8f0' }} />
-          <ViewToggle label="Grid"   active={viewMode === 'grid'}     onClick={() => setViewMode('grid')}     style={{ borderRadius: 0, border: 'none' }} />
+          <ViewToggle label="Grid"     active={viewMode === 'grid'}     onClick={() => setViewMode('grid')}     style={{ borderRadius: 0, border: 'none' }} />
           <div style={{ width: 1, background: '#e2e8f0' }} />
-          <ViewToggle label="Guitar" active={viewMode === 'fretboard'} onClick={() => setViewMode('fretboard')} style={{ borderRadius: 0, border: 'none' }} />
+          <ViewToggle label="Notation" active={viewMode === 'notation'} onClick={() => setViewMode('notation')} style={{ borderRadius: 0, border: 'none' }} />
+          <div style={{ width: 1, background: '#e2e8f0' }} />
+          <ViewToggle label="Guitar"   active={viewMode === 'fretboard'} onClick={() => setViewMode('fretboard')} style={{ borderRadius: 0, border: 'none' }} />
         </div>
         <ViewToggle label="Fretboard" active={showFretboard}   onClick={() => setShowFretboard(v => !v)} />
         <ViewToggle label="Chords"    active={showChordHelper}  onClick={() => setShowChordHelper(v => !v)} />
         <ViewToggle label="Loop"      active={!!loopRange}      onClick={() => setLoopRange(r => r ? null : { startBeat: 0, endBeat: Math.ceil(totalBeats / 2) })} />
+        <ViewToggle label="Colors"    active={noteColors}       onClick={() => setNoteColors(v => !v)} />
+        <ViewToggle label="Mixer"     active={showMixer}        onClick={() => setShowMixer(v => !v)} />
       </div>
+
+      {/* String mixer panel */}
+      {showMixer && (
+        <div style={{ flexShrink: 0, background: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 4 }}>Strings</span>
+          {STRING_NAMES.map((name, si) => {
+            const col   = STRING_COLORS[si]
+            const muted = mutedStrings[si]
+            const soloed = soloedStrings[si]
+            const dimmed = (!soloed && soloActive) || muted
+            return (
+              <div key={si} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: 11, fontWeight: 700, color: dimmed ? '#cbd5e1' : col }}>{name}</span>
+                <div style={{ display: 'flex', gap: 2 }}>
+                  <button
+                    onClick={() => toggleMute(si)}
+                    title={muted ? 'Unmute' : 'Mute'}
+                    style={{ width: 22, height: 18, fontSize: 9, fontWeight: 700, borderRadius: 3, border: `1px solid ${muted ? '#dc2626' : '#e2e8f0'}`, background: muted ? '#fee2e2' : '#fff', color: muted ? '#dc2626' : '#94a3b8', cursor: 'pointer', lineHeight: 1 }}
+                  >M</button>
+                  <button
+                    onClick={() => toggleSolo(si)}
+                    title={soloed ? 'Unsolo' : 'Solo'}
+                    style={{ width: 22, height: 18, fontSize: 9, fontWeight: 700, borderRadius: 3, border: `1px solid ${soloed ? '#16a34a' : '#e2e8f0'}`, background: soloed ? '#dcfce7' : '#fff', color: soloed ? '#16a34a' : '#94a3b8', cursor: 'pointer', lineHeight: 1 }}
+                  >S</button>
+                </div>
+              </div>
+            )
+          })}
+          {(mutedStrings.some(Boolean) || soloActive) && (
+            <button
+              onClick={() => { setMutedStrings(Array(6).fill(false)); setSoloedStrings(Array(6).fill(false)) }}
+              style={{ marginLeft: 8, fontSize: 10, color: '#7c3aed', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+            >Reset</button>
+          )}
+        </div>
+      )}
 
       {/* Seek bar */}
       <GuitarSeekBar
@@ -449,7 +649,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
       )}
 
       {/* Main editor view */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
         {viewMode === 'tab' ? (
           <GuitarTabView
             track={track}
@@ -459,6 +659,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
             isPlaying={isPlaying}
             selectedNoteId={selectedNoteId}
             sound={sound}
+            noteColors={noteColors}
             onAddNote={addNote}
             onUpdateNote={updateNote}
             onDeleteNote={deleteNote}
@@ -485,11 +686,38 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
             onNotePreview={handleNotePreview}
             onLongPressNote={handleLongPress}
           />
+        ) : viewMode === 'notation' ? (
+          <GuitarNotationView
+            track={track}
+            zoom={zoom}
+          />
         ) : (
           <GuitarPhotoFretboard
             activeFrets={activeFrets}
             attackSignals={attackSignals}
           />
+        )}
+
+        {/* Count-in overlay */}
+        {isCountingIn && countdownBeat !== null && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(0,0,0,0.55)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            zIndex: 20, pointerEvents: 'none',
+          }}>
+            <div style={{
+              fontSize: 80, fontWeight: 900, color: '#ffffff',
+              lineHeight: 1, fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+              textShadow: '0 0 40px rgba(124,58,237,0.8)',
+              animation: 'countInPulse 0.08s ease-out',
+            }}>
+              {countdownBeat}
+            </div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 10, letterSpacing: '0.1em', fontWeight: 600 }}>
+              COUNT IN
+            </div>
+          </div>
         )}
       </div>
 
@@ -511,7 +739,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
         />
       )}
 
-      {/* Context menu (fret edit on long-press) */}
+      {/* Context menu */}
       {ctxMenu && (
         <div
           onPointerDown={e => e.stopPropagation()}
@@ -543,6 +771,9 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
           {toastMsg}
         </div>
       )}
+
+      {/* Count-in pulse animation */}
+      <style>{`@keyframes countInPulse { from { transform: scale(1.3); opacity: 0.5 } to { transform: scale(1); opacity: 1 } }`}</style>
     </div>
   )
 }

@@ -29,3 +29,6 @@ dist-ssr
 *.sw?
 .astro/content-modules.mjs
 .netlify/
+
+# Downloaded soundfont assets (run `npm run fetch-soundfonts` to regenerate)
+public/soundfonts/

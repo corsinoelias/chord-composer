@@ -21,10 +21,36 @@ function ensureCtx(): AudioContext {
   return audioCtx
 }
 
+// ── Soundfont (soundfont-player) ──────────────────────────────────────────────
+type SfPlayer = {
+  play: (note: string, when?: number, opts?: { duration?: number; gain?: number }) => unknown
+  connect: (dest: AudioNode) => SfPlayer
+}
+let sfPlayer: SfPlayer | null = null
+let sfLoading: Promise<void> | null = null
+
+const STRING_MIDI_BASE = [64, 59, 55, 50, 45, 40] // e B G D A E (high→low)
+const MIDI_NAMES = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B']
+function midiToNoteName(m: number) { return MIDI_NAMES[m % 12] + (Math.floor(m / 12) - 1) }
+
+export async function prepareSoundfont(): Promise<void> {
+  if (sfPlayer) return
+  if (sfLoading) { await sfLoading; return }
+  const ctx = ensureCtx()
+  sfLoading = (async () => {
+    const sf = await import('soundfont-player') as {
+      instrument: (ctx: AudioContext, name: string, opts?: object) => Promise<SfPlayer>
+    }
+    sfPlayer = await sf.instrument(ctx, 'acoustic_guitar_steel', {
+      soundfont: 'MusyngKite',
+      nameToUrl: () => '/soundfonts/acoustic_guitar_steel-mp3.js',
+    })
+    if (masterGain) sfPlayer.connect(masterGain)
+  })()
+  await sfLoading
+}
+
 // ── Karplus-Strong plucked string synthesis ───────────────────────────────────
-// Models a plucked string by seeding a delay-line with noise and averaging
-// adjacent samples each period. High frequencies die first, leaving the warm
-// fundamental — which is exactly how a real guitar string sounds.
 function karplusStrong(
   sampleRate: number,
   freq: number,
@@ -38,7 +64,6 @@ function karplusStrong(
   const ring = new Float32Array(period)
 
   if (sound === 'nylon') {
-    // Pre-filter excitation to simulate soft fingertip (removes harshness)
     for (let i = 0; i < period; i++) ring[i] = Math.random() * 2 - 1
     for (let pass = 0; pass < 4; pass++) {
       let prev = ring[period - 1]
@@ -49,7 +74,6 @@ function karplusStrong(
       }
     }
   } else {
-    // White noise for bright pick/pluck attack
     for (let i = 0; i < period; i++) ring[i] = Math.random() * 2 - 1
   }
 
@@ -60,12 +84,10 @@ function karplusStrong(
   for (let i = 0; i < totalSamples; i++) {
     const next = (pos + 1) % period
     output[i] = ring[pos]
-    // KS averaging step: each cycle the delay line acts as a lossy lowpass
     ring[pos] = damping * (ring[pos] + ring[next]) * 0.5
     pos = next
   }
 
-  // Soft release fade to avoid click at buffer end
   const fadeSamples = Math.min(Math.floor(sampleRate * 0.06), totalSamples)
   for (let i = 0; i < fadeSamples; i++) {
     output[totalSamples - fadeSamples + i] *= 1 - i / fadeSamples
@@ -74,7 +96,6 @@ function karplusStrong(
   return output
 }
 
-// ── Schedule a Karplus-Strong guitar note ─────────────────────────────────────
 function scheduleKSNote(
   ctx: AudioContext,
   dest: AudioNode,
@@ -82,18 +103,11 @@ function scheduleKSNote(
   startTime: number,
   duration: number,
   velocity: number,
+  damping: number,
   sound: GuitarSound,
 ) {
   const sr = ctx.sampleRate
-
-  // Frequency-dependent damping so ALL notes decay in the same target time
-  // regardless of pitch. Per-second energy = damping^freq, so to reach 1%
-  // in T seconds: damping = 0.01^(1/(freq × T)).
-  // Without this, low strings (82 Hz) ring ~5× longer than high strings at
-  // equal damping, which sounds muddy and annoying.
   const decayTime = sound === 'nylon' ? 2.5 : sound === 'clean' ? 1.2 : 1.8
-  const damping = Math.pow(0.01, 1 / (freq * decayTime))
-
   const ksDur = Math.min(duration + decayTime * 0.6, decayTime + 0.4)
   const ksData = karplusStrong(sr, freq, ksDur, velocity, damping, sound)
 
@@ -103,66 +117,38 @@ function scheduleKSNote(
   const src = ctx.createBufferSource()
   src.buffer = buf
 
-  // Build a per-sound EQ chain after the raw KS output
   let chain: AudioNode = src
 
   if (sound === 'acoustic') {
-    // Wooden body: low-mid resonance
     const body = ctx.createBiquadFilter()
-    body.type = 'peaking'
-    body.frequency.value = 190
-    body.gain.value = 6
-    body.Q.value = 1.3
+    body.type = 'peaking'; body.frequency.value = 190; body.gain.value = 6; body.Q.value = 1.3
     chain.connect(body); chain = body
-
-    // Tame very high content (real acoustic isn't as bright as raw noise)
     const shelf = ctx.createBiquadFilter()
-    shelf.type = 'highshelf'
-    shelf.frequency.value = 4500
-    shelf.gain.value = -5
+    shelf.type = 'highshelf'; shelf.frequency.value = 4500; shelf.gain.value = -5
     chain.connect(shelf); chain = shelf
-
   } else if (sound === 'nylon') {
-    // Dark, warm lowpass
     const lp = ctx.createBiquadFilter()
-    lp.type = 'lowpass'
-    lp.frequency.value = 1800
-    lp.Q.value = 0.6
+    lp.type = 'lowpass'; lp.frequency.value = 1800; lp.Q.value = 0.6
     chain.connect(lp); chain = lp
-
-    // Warmth boost
     const warmth = ctx.createBiquadFilter()
-    warmth.type = 'peaking'
-    warmth.frequency.value = 260
-    warmth.gain.value = 5
-    warmth.Q.value = 0.9
+    warmth.type = 'peaking'; warmth.frequency.value = 260; warmth.gain.value = 5; warmth.Q.value = 0.9
     chain.connect(warmth); chain = warmth
-
   } else if (sound === 'clean') {
-    // Remove sub-bass mud
     const hp = ctx.createBiquadFilter()
-    hp.type = 'highpass'
-    hp.frequency.value = 90
+    hp.type = 'highpass'; hp.frequency.value = 90
     chain.connect(hp); chain = hp
-
-    // Presence sparkle
     const pres = ctx.createBiquadFilter()
-    pres.type = 'peaking'
-    pres.frequency.value = 2800
-    pres.gain.value = 4
-    pres.Q.value = 1.4
+    pres.type = 'peaking'; pres.frequency.value = 2800; pres.gain.value = 4; pres.Q.value = 1.4
     chain.connect(pres); chain = pres
   }
 
   chain.connect(dest)
-
   const stopAt = startTime + ksDur + 0.05
   src.start(startTime)
   src.stop(stopAt)
   scheduledNodes.push({ node: src, stopAt })
 }
 
-// ── Synth: oscillator-based (intentionally electronic) ───────────────────────
 function scheduleSynthNote(
   ctx: AudioContext,
   dest: AudioNode,
@@ -171,42 +157,23 @@ function scheduleSynthNote(
   duration: number,
   velocity: number,
 ) {
-  const osc1 = ctx.createOscillator()
-  osc1.type = 'sawtooth'
-  osc1.frequency.setValueAtTime(freq, startTime)
-
-  const osc2 = ctx.createOscillator()
-  osc2.type = 'sine'
-  osc2.frequency.setValueAtTime(freq * 2, startTime)
-
-  const osc3 = ctx.createOscillator()
-  osc3.type = 'sine'
-  osc3.frequency.setValueAtTime(freq * 3, startTime)
-
+  const osc1 = ctx.createOscillator(); osc1.type = 'sawtooth'; osc1.frequency.setValueAtTime(freq, startTime)
+  const osc2 = ctx.createOscillator(); osc2.type = 'sine'; osc2.frequency.setValueAtTime(freq * 2, startTime)
+  const osc3 = ctx.createOscillator(); osc3.type = 'sine'; osc3.frequency.setValueAtTime(freq * 3, startTime)
   const gain2 = ctx.createGain(); gain2.gain.value = 0.20
   const gain3 = ctx.createGain(); gain3.gain.value = 0.08
-
-  const filter = ctx.createBiquadFilter()
-  filter.type = 'lowpass'
-  filter.frequency.value = 2000
-  filter.Q.value = 0.8
-
+  const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 2000; filter.Q.value = 0.8
   const env = ctx.createGain()
   const attack = 0.003, decay = 0.12, sustain = 0.15, release = 0.20
   const endTime = startTime + Math.max(duration, 0.08)
   const releaseStart = Math.max(startTime + attack + decay, endTime - release)
-
   env.gain.setValueAtTime(0, startTime)
   env.gain.linearRampToValueAtTime(velocity, startTime + attack)
   env.gain.exponentialRampToValueAtTime(Math.max(0.001, velocity * sustain), startTime + attack + decay)
   env.gain.setValueAtTime(Math.max(0.001, velocity * sustain), releaseStart)
   env.gain.linearRampToValueAtTime(0.0001, endTime + release)
-
-  osc1.connect(filter)
-  osc2.connect(gain2); gain2.connect(filter)
-  osc3.connect(gain3); gain3.connect(filter)
+  osc1.connect(filter); osc2.connect(gain2); gain2.connect(filter); osc3.connect(gain3); gain3.connect(filter)
   filter.connect(env); env.connect(dest)
-
   const stopAt = endTime + release + 0.05
   osc1.start(startTime); osc1.stop(stopAt)
   osc2.start(startTime); osc2.stop(stopAt)
@@ -214,7 +181,6 @@ function scheduleSynthNote(
   scheduledNodes.push({ node: osc1, stopAt }, { node: osc2, stopAt }, { node: osc3, stopAt })
 }
 
-// ── Main note dispatcher ──────────────────────────────────────────────────────
 function scheduleGuitarNote(
   ctx: AudioContext,
   dest: AudioNode,
@@ -223,11 +189,18 @@ function scheduleGuitarNote(
   duration: number,
   velocity: number,
   sound: GuitarSound,
+  midiNote?: number,
 ) {
+  if (sound === 'sf2' && sfPlayer && midiNote != null) {
+    sfPlayer.play(midiToNoteName(midiNote), startTime, { duration, gain: velocity })
+    return
+  }
   if (sound === 'synth') {
     scheduleSynthNote(ctx, dest, freq, startTime, duration, velocity)
   } else {
-    scheduleKSNote(ctx, dest, freq, startTime, duration, velocity, sound)
+    const decayTime = sound === 'nylon' ? 2.5 : sound === 'clean' ? 1.2 : 1.8
+    const damping = Math.pow(0.01, 1 / (freq * decayTime))
+    scheduleKSNote(ctx, dest, freq, startTime, duration, velocity, damping, sound)
   }
 }
 
@@ -249,6 +222,15 @@ function scheduleMetronomeClick(ctx: AudioContext, t: number, isDown: boolean) {
 export function previewNote(stringIndex: number, fret: number, sound: GuitarSound, capo = 0): void {
   const ctx = ensureCtx()
   if (!masterGain) return
+
+  if (sound === 'sf2') {
+    if (sfPlayer) {
+      const midi = STRING_MIDI_BASE[stringIndex] + fret + capo
+      sfPlayer.play(midiToNoteName(midi), ctx.currentTime + 0.01, { duration: 1.5, gain: 0.75 })
+    }
+    return
+  }
+
   const freq = fretToFrequency(stringIndex, fret, capo)
   const play = () => {
     scheduleGuitarNote(ctx, masterGain!, freq, ctx.currentTime + 0.01, 0.5, 0.75, sound)
@@ -272,6 +254,9 @@ export async function startPlayback(
   isPlayingFlag = true
 
   if (ctx.state !== 'running') await ctx.resume()
+  if (!isPlayingFlag) return
+
+  if (sound === 'sf2') await prepareSoundfont()
   if (!isPlayingFlag) return
 
   playStartAudioTime = ctx.currentTime + 0.05
@@ -310,9 +295,10 @@ export async function startPlayback(
       const noteAudioTime = playStartAudioTime + (note.startBeat - fromBeat) * beatDur
       if (noteAudioTime > lookaheadCutoff) break
       if (!note.muted) {
-        const noteDur = Math.max(0.05, note.durationBeats * beatDur)
-        const freq    = fretToFrequency(note.stringIndex, note.fret, track.capo)
-        scheduleGuitarNote(ctx, masterGain!, freq, noteAudioTime, noteDur, note.velocity, sound)
+        const noteDur  = Math.max(0.05, note.durationBeats * beatDur)
+        const freq     = fretToFrequency(note.stringIndex, note.fret, track.capo)
+        const midiNote = STRING_MIDI_BASE[note.stringIndex] + note.fret + (track.capo ?? 0)
+        scheduleGuitarNote(ctx, masterGain!, freq, noteAudioTime, noteDur, note.velocity, sound, midiNote)
       }
       nextNoteIdx++
     }

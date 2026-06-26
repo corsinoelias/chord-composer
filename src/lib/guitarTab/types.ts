@@ -42,7 +42,7 @@ export interface GuitarTrack {
   sections?: TrackSection[]
 }
 
-export type GuitarSound = 'acoustic' | 'clean' | 'nylon' | 'synth'
+export type GuitarSound = 'acoustic' | 'clean' | 'nylon' | 'synth' | 'sf2'
 export type SnapValue = 0.25 | 0.5 | 1.0
 
 export const SNAP_OPTIONS: { label: string; value: SnapValue }[] = [

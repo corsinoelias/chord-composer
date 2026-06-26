@@ -31,6 +31,7 @@ interface TabViewProps {
   isPlaying: boolean
   selectedNoteId: string | null
   sound: GuitarSound
+  noteColors?: boolean
   onAddNote: (note: GuitarNote) => void
   onUpdateNote: (id: string, patch: Partial<GuitarNote>) => void
   onDeleteNote: (id: string) => void
@@ -44,7 +45,7 @@ interface EditCursor { beat: number; stringIndex: GuitarStringIndex }
 
 export function GuitarTabView({
   track, zoom, currentBeat, cursorBeat, isPlaying,
-  selectedNoteId, sound,
+  selectedNoteId, sound, noteColors = false,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote,
   onCursorBeatChange, onBeginEdit, onNotePreview,
 }: TabViewProps) {
@@ -293,6 +294,7 @@ export function GuitarTabView({
         <svg
           width={svgW}
           height={TOTAL_H}
+          data-export-svg="tab"
           style={{ display: 'block', cursor: isPlaying ? 'default' : 'crosshair', userSelect: 'none' }}
           onClick={handleSvgClick}
         >
@@ -387,7 +389,8 @@ export function GuitarTabView({
             const isHovered  = note.id === hoveredNote
 
             const strColor = STRING_COLORS[note.stringIndex]
-            const textColor = isActive ? strColor : isSelected ? '#7c3aed' : '#1e293b'
+            const textColor = isActive ? strColor : isSelected ? '#7c3aed' : noteColors ? strColor : '#1e293b'
+            const bgColor   = isActive ? '#fffbf0' : isSelected ? '#f5f3ff' : noteColors ? `${strColor}14` : isHovered ? '#f8fafc' : '#ffffff'
             const label = note.muted ? 'x' : String(note.fret)
             const numW  = label.length > 1 ? 18 : 14
 
@@ -397,10 +400,10 @@ export function GuitarTabView({
 
             return (
               <g key={note.id}>
-                {/* White gap on string line behind the number */}
+                {/* Gap on string line behind the number */}
                 <rect
                   x={x - numW / 2 - 1} y={y - 10} width={numW + 2} height={20}
-                  fill={isActive ? '#fffbf0' : isSelected ? '#f5f3ff' : isHovered ? '#f8fafc' : '#ffffff'}
+                  fill={bgColor}
                   rx={2} style={{ pointerEvents: 'none' }} />
 
                 {/* Active glow */}

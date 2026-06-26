@@ -28,6 +28,9 @@ export default defineConfig({
   output: 'server',
 
   vite: {
+    optimizeDeps: {
+      include: ['vexflow'],
+    },
     server: {
       historyApiFallback: {
         rewrites: [
