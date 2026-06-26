@@ -27,20 +27,30 @@ for (const { url, dest } of SOUNDFONTS) {
     continue
   }
   fs.mkdirSync(path.dirname(destPath), { recursive: true })
-  await new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(destPath)
-    https.get(url, res => {
-      if (res.statusCode !== 200) {
-        reject(new Error(`HTTP ${res.statusCode} fetching ${url}`))
-        return
-      }
-      res.pipe(file)
-      file.on('finish', () => {
+  try {
+    await new Promise((resolve, reject) => {
+      const file = fs.createWriteStream(destPath)
+      https.get(url, res => {
+        if (res.statusCode !== 200) {
+          file.close()
+          fs.rmSync(destPath, { force: true })
+          reject(new Error(`HTTP ${res.statusCode} fetching ${url}`))
+          return
+        }
+        res.pipe(file)
+        file.on('finish', () => {
+          file.close()
+          const kb = (fs.statSync(destPath).size / 1024).toFixed(0)
+          console.log(`[soundfonts] downloaded ${dest} (${kb}KB)`)
+          resolve()
+        })
+      }).on('error', err => {
         file.close()
-        const kb = (fs.statSync(destPath).size / 1024).toFixed(0)
-        console.log(`[soundfonts] downloaded ${dest} (${kb}KB)`)
-        resolve()
+        fs.rmSync(destPath, { force: true })
+        reject(err)
       })
-    }).on('error', reject)
-  })
+    })
+  } catch (err) {
+    console.warn(`[soundfonts] skipped ${dest}: ${err.message}`)
+  }
 }
