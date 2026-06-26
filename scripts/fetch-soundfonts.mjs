@@ -2,12 +2,21 @@ import https from 'https'
 import fs from 'fs'
 import path from 'path'
 
-const SOUNDFONTS = [
-  {
-    url: 'https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/MusyngKite/acoustic_guitar_steel-mp3.js',
-    dest: 'public/soundfonts/acoustic_guitar_steel-mp3.js',
-  },
+const INSTRUMENTS = [
+  'acoustic_guitar_steel',
+  'acoustic_guitar_nylon',
+  'electric_guitar_clean',
+  'electric_guitar_jazz',
+  'electric_guitar_muted',
+  'distortion_guitar',
+  'overdriven_guitar',
+  'guitar_harmonics',
 ]
+
+const SOUNDFONTS = INSTRUMENTS.map(name => ({
+  url: `https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/MusyngKite/${name}-mp3.js`,
+  dest: `public/soundfonts/${name}-mp3.js`,
+}))
 
 const root = new URL('..', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')
 

@@ -26,28 +26,44 @@ type SfPlayer = {
   play: (note: string, when?: number, opts?: { duration?: number; gain?: number }) => unknown
   connect: (dest: AudioNode) => SfPlayer
 }
-let sfPlayer: SfPlayer | null = null
-let sfLoading: Promise<void> | null = null
+
+const SF2_INSTRUMENTS: Record<string, string> = {
+  'sf2':           'acoustic_guitar_steel',
+  'sf2-nylon':     'acoustic_guitar_nylon',
+  'sf2-clean':     'electric_guitar_clean',
+  'sf2-jazz':      'electric_guitar_jazz',
+  'sf2-muted':     'electric_guitar_muted',
+  'sf2-distortion':'distortion_guitar',
+  'sf2-overdrive': 'overdriven_guitar',
+  'sf2-harmonics': 'guitar_harmonics',
+}
+
+const sfPlayers = new Map<string, SfPlayer>()
+const sfLoadings = new Map<string, Promise<void>>()
 
 const STRING_MIDI_BASE = [64, 59, 55, 50, 45, 40] // e B G D A E (high→low)
 const MIDI_NAMES = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B']
 function midiToNoteName(m: number) { return MIDI_NAMES[m % 12] + (Math.floor(m / 12) - 1) }
 
-export async function prepareSoundfont(): Promise<void> {
-  if (sfPlayer) return
-  if (sfLoading) { await sfLoading; return }
+export async function prepareSoundfont(sound: string): Promise<void> {
+  if (sfPlayers.has(sound)) return
+  if (sfLoadings.has(sound)) { await sfLoadings.get(sound); return }
   const ctx = ensureCtx()
-  sfLoading = (async () => {
+  const instrument = SF2_INSTRUMENTS[sound]
+  if (!instrument) return
+  const loading = (async () => {
     const sf = await import('soundfont-player') as {
       instrument: (ctx: AudioContext, name: string, opts?: object) => Promise<SfPlayer>
     }
-    sfPlayer = await sf.instrument(ctx, 'acoustic_guitar_steel', {
+    const player = await sf.instrument(ctx, instrument, {
       soundfont: 'MusyngKite',
-      nameToUrl: () => '/soundfonts/acoustic_guitar_steel-mp3.js',
+      nameToUrl: () => `/soundfonts/${instrument}-mp3.js`,
     })
-    if (masterGain) sfPlayer.connect(masterGain)
+    if (masterGain) player.connect(masterGain)
+    sfPlayers.set(sound, player)
   })()
-  await sfLoading
+  sfLoadings.set(sound, loading)
+  await loading
 }
 
 // ── Karplus-Strong plucked string synthesis ───────────────────────────────────
@@ -191,7 +207,8 @@ function scheduleGuitarNote(
   sound: GuitarSound,
   midiNote?: number,
 ) {
-  if (sound === 'sf2' && sfPlayer && midiNote != null) {
+  const sfPlayer = sfPlayers.get(sound)
+  if (sound in SF2_INSTRUMENTS && sfPlayer && midiNote != null) {
     sfPlayer.play(midiToNoteName(midiNote), startTime, { duration, gain: velocity })
     return
   }
@@ -223,7 +240,8 @@ export function previewNote(stringIndex: number, fret: number, sound: GuitarSoun
   const ctx = ensureCtx()
   if (!masterGain) return
 
-  if (sound === 'sf2') {
+  if (sound in SF2_INSTRUMENTS) {
+    const sfPlayer = sfPlayers.get(sound)
     if (sfPlayer) {
       const midi = STRING_MIDI_BASE[stringIndex] + fret + capo
       sfPlayer.play(midiToNoteName(midi), ctx.currentTime + 0.01, { duration: 1.5, gain: 0.75 })
@@ -256,7 +274,7 @@ export async function startPlayback(
   if (ctx.state !== 'running') await ctx.resume()
   if (!isPlayingFlag) return
 
-  if (sound === 'sf2') await prepareSoundfont()
+  if (sound in SF2_INSTRUMENTS) await prepareSoundfont(sound)
   if (!isPlayingFlag) return
 
   playStartAudioTime = ctx.currentTime + 0.05

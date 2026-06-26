@@ -56,11 +56,18 @@ interface TransportProps {
 }
 
 const SOUNDS: { value: GuitarSound; label: string }[] = [
-  { value: 'acoustic', label: 'Acoustic' },
-  { value: 'nylon',    label: 'Nylon' },
-  { value: 'clean',    label: 'Clean' },
-  { value: 'synth',    label: 'Synth' },
-  { value: 'sf2',      label: 'Sampled ★' },
+  { value: 'acoustic',        label: 'Acoustic' },
+  { value: 'nylon',           label: 'Nylon' },
+  { value: 'clean',           label: 'Clean' },
+  { value: 'synth',           label: 'Synth' },
+  { value: 'sf2',             label: 'Steel ★' },
+  { value: 'sf2-nylon',       label: 'Nylon ★' },
+  { value: 'sf2-clean',       label: 'Clean ★' },
+  { value: 'sf2-jazz',        label: 'Jazz ★' },
+  { value: 'sf2-muted',       label: 'Muted ★' },
+  { value: 'sf2-distortion',  label: 'Distorted ★' },
+  { value: 'sf2-overdrive',   label: 'Overdrive ★' },
+  { value: 'sf2-harmonics',   label: 'Harmonics ★' },
 ]
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2]

@@ -95,7 +95,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
 
   // Pre-load soundfont when SF2 is selected so first note plays without delay
   useEffect(() => {
-    if (sound === 'sf2') prepareSoundfont().catch(() => {})
+    if (sound.startsWith('sf2')) prepareSoundfont(sound).catch(() => {})
   }, [sound])
 
   const showToast = (msg: string) => {
