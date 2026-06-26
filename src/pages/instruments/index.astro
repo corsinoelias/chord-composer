@@ -48,10 +48,10 @@ const faqSchema = {
     },
     {
       '@type': 'Question',
-      name: 'Which virtual instrument is available right now?',
+      name: 'Which virtual instruments are available right now?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'The Virtual Bass Guitar is live now — you can play it at chordsequence.com/bass-guitar/. Piano, Drums, and Guitar are in development.',
+        text: 'The Virtual Bass Guitar and Virtual Guitar are both live now. You can play them at chordsequence.com/bass-guitar/ and chordsequence.com/guitar/. Piano and Drums are in development.',
       },
     },
   ],
@@ -61,13 +61,13 @@ const faqs = [
   { q: 'Are the virtual instruments free?', a: 'Yes — every instrument on Chord Sequence is free to use in any modern browser. No account, no download.' },
   { q: 'What is a virtual instrument?', a: 'A virtual instrument is a software recreation of a real instrument that you play in the browser. It uses real audio samples or synthesis to produce authentic-sounding tones without physical hardware.' },
   { q: 'Can I use these instruments on mobile?', a: 'Yes. All instruments run in any modern browser including Safari on iOS and Chrome on Android. No plugin required.' },
-  { q: 'Which virtual instrument is available right now?', a: 'The Virtual Bass Guitar is live now — you can play it at chordsequence.com/bass-guitar/. Piano, Drums, and Guitar are in development.' },
+  { q: 'Which virtual instruments are available right now?', a: 'The Virtual Bass Guitar and Virtual Guitar are both live now. You can play them at chordsequence.com/bass-guitar/ and chordsequence.com/guitar/. Piano and Drums are in development.' },
 ]
 ---
 
 <BaseLayout
   title="Virtual Instruments — Play Online Free | Chord Sequence"
-  description="Free virtual instruments you can play in the browser. No download, no account. Virtual bass guitar available now — piano, drums, and guitar coming soon."
+  description="Free virtual instruments you can play in the browser. No download, no account. Virtual bass guitar and guitar available now — piano and drums coming soon."
   canonicalUrl="https://chordsequence.com/instruments/"
 >
   <Fragment slot="head">
@@ -97,8 +97,9 @@ const faqs = [
         experiment with chord voicings on piano, or sketch drum grooves without leaving the browser.
       </p>
       <p class="text-muted-foreground leading-relaxed">
-        The <strong class="text-foreground">Virtual Bass Guitar</strong> is available now with four sample banks
-        (Fender Pick, Finger, Slap, Muted) and a full tab editor. Piano, Drums, and Guitar are in development.
+        The <strong class="text-foreground">Virtual Bass Guitar</strong> and <strong class="text-foreground">Virtual Guitar</strong> are live now —
+        the guitar ships with 8 sample banks (Steel, Nylon, Clean, Jazz, Muted, Distorted, Overdrive, Harmonics) and a full tab editor.
+        Piano and Drums are coming soon.
       </p>
     </section>
 
@@ -114,7 +115,10 @@ const faqs = [
 
             <!-- Image / emoji fallback -->
             <div class="relative bg-muted/40 aspect-video flex items-center justify-center overflow-hidden">
-              <span class="text-6xl select-none" aria-hidden="true">{inst.emoji}</span>
+              {inst.image
+                ? <img src={inst.image} alt={inst.imageAlt} class="w-full h-full object-cover" loading="lazy" />
+                : <span class="text-6xl select-none" aria-hidden="true">{inst.emoji}</span>
+              }
               {inst.status === 'coming-soon' && (
                 <div class="absolute inset-0 bg-background/60 flex items-center justify-center">
                   <span class="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-semibold border border-border">

@@ -246,8 +246,10 @@ export function previewNote(stringIndex: number, fret: number, sound: GuitarSoun
     if (sfPlayer) {
       const midi = STRING_MIDI_BASE[stringIndex] + fret + capo
       sfPlayer.play(midiToNoteName(midi), ctx.currentTime + 0.01, { duration: 1.5, gain: 0.75 * SF2_GAIN })
+      return
     }
-    return
+    // Not loaded yet — start loading and fall through to synth
+    prepareSoundfont(sound).catch(() => {})
   }
 
   const freq = fretToFrequency(stringIndex, fret, capo)

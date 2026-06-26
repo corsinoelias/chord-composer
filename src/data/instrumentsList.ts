@@ -13,6 +13,7 @@ export interface InstrumentListing {
   tags: string[]
   featureHighlights: string[]
   emoji: string
+  image?: string
 }
 
 export const INSTRUMENTS_LIST: InstrumentListing[] = [
@@ -35,6 +36,27 @@ export const INSTRUMENTS_LIST: InstrumentListing[] = [
       'Export to ASCII tab or MIDI — no account needed',
     ],
     emoji: '🎸',
+    image: '/images/instruments/bass-guitar.png',
+  },
+  {
+    id: 'guitar',
+    name: 'Guitar',
+    slug: 'guitar',
+    tagline: 'Play a virtual 6-string guitar in your browser — 8 sampled sounds',
+    description: 'A full virtual guitar with 8 real sampled tones: Steel, Nylon, Clean, Jazz, Muted, Distorted, Overdrive, and Harmonics. Includes a tab editor with chord helper, capo support, and MIDI export.',
+    imagePath: '/images/instruments/guitar.png',
+    imageAlt: 'Virtual guitar interface showing 6-string fretboard and tab editor',
+    status: 'available',
+    url: '/guitar/',
+    tags: ['8 sounds', 'Tab editor', 'Real samples'],
+    featureHighlights: [
+      'Steel, Nylon, Clean, Jazz, Muted, Distorted, Overdrive and Harmonics sample banks',
+      'Draw guitar tabs in Grid or Tab notation view',
+      'Chord helper — insert full chords in one click',
+      'Export to ASCII tab or MIDI — no account needed',
+    ],
+    emoji: '🎸',
+    image: '/images/instruments/guitar.png',
   },
   {
     id: 'piano',
@@ -63,19 +85,5 @@ export const INSTRUMENTS_LIST: InstrumentListing[] = [
     tags: ['Acoustic Kit', 'Groove patterns', 'Coming soon'],
     featureHighlights: [],
     emoji: '🥁',
-  },
-  {
-    id: 'guitar',
-    name: 'Guitar',
-    slug: 'guitar',
-    tagline: 'Virtual acoustic & electric guitar — coming soon',
-    description: 'Acoustic, electric, and nylon guitar sounds playable in the browser. Coming soon.',
-    imagePath: '/images/instruments/guitar.webp',
-    imageAlt: 'Virtual acoustic guitar',
-    status: 'coming-soon',
-    url: '/instruments/',
-    tags: ['Acoustic', 'Electric', 'Coming soon'],
-    featureHighlights: [],
-    emoji: '🎸',
   },
 ]
