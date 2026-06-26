@@ -7,6 +7,7 @@ import ChordAside from '../../components/ChordAside';
 import { SONGS, extractChordsFromSong } from '../../data/songs';
 import type { Song } from '../../data/songs';
 import { getPublicSongBySlug } from '@/lib/publicSongs';
+import { fetchCoverImage } from '@/lib/coverImage';
 
 const { slug } = Astro.params;
 
@@ -48,6 +49,7 @@ if (pub) {
 
 const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(Astro.url.hostname);
 const canonicalUrl = `https://chordsequence.com/songs/${song.slug}/`;
+const coverImage = await fetchCoverImage(song.slug, song.artist, song.title);
 const allChords = extractChordsFromSong(song);
 const uniqueChords = [...new Set(allChords)];
 // Build a rich SEO description using lyrics, chords and song metadata.
@@ -194,6 +196,7 @@ const musicSchema = {
   datePublished: song.year?.toString(),
   genre: song.genre.join(', '),
   url: canonicalUrl,
+  image: coverImage ?? undefined,
 };
 
 const breadcrumbSchema = {
@@ -215,6 +218,8 @@ const breadcrumbSchema = {
   title={`${song.title} Chords & Lyrics — ${song.artist} | Chord Sequence`}
   description={seoDescription}
   canonicalUrl={canonicalUrl}
+  ogImage={coverImage ?? undefined}
+  ogImageAlt={`${song.title} by ${song.artist} — album cover`}
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(musicSchema)} />
@@ -262,6 +267,38 @@ const breadcrumbSchema = {
       <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
       <span class="text-foreground truncate">{song.title}</span>
     </nav>
+
+    <!-- Song header: title + cover + share -->
+    <div class="flex items-start gap-4 mb-5">
+      {coverImage && (
+        <img
+          src={coverImage}
+          alt={`${song.title} by ${song.artist} — album cover`}
+          class="w-16 h-16 rounded-xl object-cover shrink-0 shadow-sm border border-border"
+          loading="eager"
+          width="64"
+          height="64"
+        />
+      )}
+      <div class="flex-1 min-w-0">
+        <h1 class="text-2xl sm:text-3xl font-bold text-foreground leading-tight">{song.title}</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">
+          {song.artist}{song.year ? ` · ${song.year}` : ''}{song.album ? ` · ${song.album}` : ''}
+        </p>
+      </div>
+      <button
+        id="share-btn"
+        class="shrink-0 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 transition-colors hover:border-primary/40"
+        title="Share this song"
+      >
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+          <polyline points="16 6 12 2 8 6"/>
+          <line x1="12" y1="2" x2="12" y2="15"/>
+        </svg>
+        <span id="share-label">Share</span>
+      </button>
+    </div>
 
     <!-- Song stats -->
     <div class="flex flex-wrap gap-2 mb-6">
@@ -520,6 +557,25 @@ const breadcrumbSchema = {
 
     allTriggers.forEach(el => {
       el.addEventListener('click', () => switchTab(el.dataset.tab!));
+    });
+
+    // Share button
+    const shareBtn = document.getElementById('share-btn');
+    const shareLabel = document.getElementById('share-label');
+    shareBtn?.addEventListener('click', async () => {
+      const url = window.location.href;
+      const title = document.title;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title, url });
+        } else {
+          await navigator.clipboard.writeText(url);
+          if (shareLabel) {
+            shareLabel.textContent = 'Copied!';
+            setTimeout(() => { shareLabel.textContent = 'Share'; }, 2000);
+          }
+        }
+      } catch {}
     });
   </script>
 </BaseLayout>
