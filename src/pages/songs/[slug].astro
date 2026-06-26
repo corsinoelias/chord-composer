@@ -196,7 +196,7 @@ const musicSchema = {
   datePublished: song.year?.toString(),
   genre: song.genre.join(', '),
   url: canonicalUrl,
-  image: coverImage ?? undefined,
+  image: `https://chordsequence.com/og/songs/${song.slug}/`,
 };
 
 const breadcrumbSchema = {
@@ -218,8 +218,8 @@ const breadcrumbSchema = {
   title={`${song.title} Chords & Lyrics — ${song.artist} | Chord Sequence`}
   description={seoDescription}
   canonicalUrl={canonicalUrl}
-  ogImage={coverImage ?? undefined}
-  ogImageAlt={`${song.title} by ${song.artist} — album cover`}
+  ogImage={`https://chordsequence.com/og/songs/${song.slug}/`}
+  ogImageAlt={`${song.title} by ${song.artist} — chords in Key of ${song.key}`}
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(musicSchema)} />
