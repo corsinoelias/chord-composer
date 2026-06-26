@@ -274,10 +274,10 @@ export function BassTabTransport(props: TransportProps) {
                 <div style={labelStyle}>Sound</div>
                 <div style={{ display: 'flex', gap: 3 }}>
                   {([
-                    { value: 'fender',   label: 'Fender' },
-                    { value: 'finger',   label: 'Finger' },
-                    { value: 'slap',     label: 'Slap' },
-                    { value: 'muted',    label: 'Muted' },
+                    { value: 'fender', label: 'Fender' },
+                    { value: 'finger', label: 'Finger' },
+                    { value: 'slap',   label: 'Slap' },
+                    { value: 'muted',  label: 'Muted' },
                   ] as const).map(opt => {
                     const active = sound === opt.value
                     return (
@@ -549,10 +549,10 @@ export function BassTabTransport(props: TransportProps) {
               <LabeledControl label="Sound">
                 <SegmentedBtns
                   options={[
-                    { value: 'fender',   label: 'Fender' },
-                    { value: 'finger',   label: 'Finger' },
-                    { value: 'slap',     label: 'Slap' },
-                    { value: 'muted',    label: 'Muted' },
+                    { value: 'fender', label: 'Fender' },
+                    { value: 'finger', label: 'Finger' },
+                    { value: 'slap',   label: 'Slap' },
+                    { value: 'muted',  label: 'Muted' },
                   ]}
                   value={sound}
                   onChange={v => onSoundChange(v as BassSound)}

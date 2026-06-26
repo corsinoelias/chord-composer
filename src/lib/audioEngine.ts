@@ -6,6 +6,35 @@
  */
 
 import { type Chord, chordToMidiNotes, midiToFrequency } from './musicTheory';
+
+// ── Soundfont-player for guitar SF2 sounds ───────────────────────────────────
+type SfPlayer = {
+  play: (note: string, when?: number, opts?: { duration?: number; gain?: number }) => unknown
+  connect: (dest: AudioNode) => SfPlayer
+}
+const SF2_NOTE_NAMES = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B']
+const SF2_GAIN = 4.0 // soundfont MP3s are recorded at ~-18dBFS; boost to match local sample levels
+function sf2NoteName(midi: number) { return SF2_NOTE_NAMES[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1) }
+const sfGuitarPlayers = new Map<string, SfPlayer>()
+const sfGuitarLoadings = new Map<string, Promise<void>>()
+
+export function ensureGuitarSoundfont(soundTypeId: string, instrument: string): void {
+  if (sfGuitarPlayers.has(soundTypeId) || sfGuitarLoadings.has(soundTypeId)) return
+  if (!audioContext) return
+  const loading = (async () => {
+    const sf = await import('soundfont-player') as {
+      instrument: (ctx: AudioContext, name: string, opts?: object) => Promise<SfPlayer>
+    }
+    const player = await sf.instrument(audioContext!, instrument, {
+      soundfont: 'MusyngKite',
+      nameToUrl: () => `/soundfonts/${instrument}-mp3.js`,
+    })
+    if (masterGain) player.connect(masterGain)
+    sfGuitarPlayers.set(soundTypeId, player)
+  })()
+  sfGuitarLoadings.set(soundTypeId, loading)
+}
+// ─────────────────────────────────────────────────────────────────────────────
 import { type InstrumentState, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
 import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir } from './bassTab/sampleEngine';
 import { type StylePattern, generateBarPattern, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
@@ -696,6 +725,16 @@ function playGuitarNote(
   volume: number,
   midiNote?: number
 ): void {
+  if (soundType.sf2Instrument && midiNote !== undefined) {
+    const sfPlayer = sfGuitarPlayers.get(soundType.id)
+    if (sfPlayer) {
+      sfPlayer.play(sf2NoteName(midiNote), startTime, { duration, gain: volume * 0.8 * SF2_GAIN })
+    } else {
+      ensureGuitarSoundfont(soundType.id, soundType.sf2Instrument)
+      playGuitarSynth(ctx, destination, frequency, startTime, duration, volume)
+    }
+    return
+  }
   if (soundType.useSamples && soundType.samplePath && midiNote !== undefined) {
     playGuitarSample(ctx, destination, midiNote, startTime, duration, volume, soundType.samplePath);
   } else {
@@ -1401,6 +1440,8 @@ export function scheduleProgression(
     const bassSound = getSoundType('bass', bassSoundId);
     const drumsSound = getSoundType('drums', drumsSoundId);
     const guitarSound = getSoundType('guitar', guitarSoundId);
+
+    if (guitarSound?.sf2Instrument) ensureGuitarSoundfont(guitarSoundId, guitarSound.sf2Instrument)
     
     const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
     

@@ -42,6 +42,7 @@ const sfPlayers = new Map<string, SfPlayer>()
 const sfLoadings = new Map<string, Promise<void>>()
 
 const STRING_MIDI_BASE = [64, 59, 55, 50, 45, 40] // e B G D A E (high→low)
+const SF2_GAIN = 4.0 // soundfont MP3s are recorded at ~-18dBFS; boost to match local synth levels
 const MIDI_NAMES = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B']
 function midiToNoteName(m: number) { return MIDI_NAMES[m % 12] + (Math.floor(m / 12) - 1) }
 
@@ -209,7 +210,7 @@ function scheduleGuitarNote(
 ) {
   const sfPlayer = sfPlayers.get(sound)
   if (sound in SF2_INSTRUMENTS && sfPlayer && midiNote != null) {
-    sfPlayer.play(midiToNoteName(midiNote), startTime, { duration, gain: velocity })
+    sfPlayer.play(midiToNoteName(midiNote), startTime, { duration, gain: velocity * SF2_GAIN })
     return
   }
   if (sound === 'synth') {
@@ -244,7 +245,7 @@ export function previewNote(stringIndex: number, fret: number, sound: GuitarSoun
     const sfPlayer = sfPlayers.get(sound)
     if (sfPlayer) {
       const midi = STRING_MIDI_BASE[stringIndex] + fret + capo
-      sfPlayer.play(midiToNoteName(midi), ctx.currentTime + 0.01, { duration: 1.5, gain: 0.75 })
+      sfPlayer.play(midiToNoteName(midi), ctx.currentTime + 0.01, { duration: 1.5, gain: 0.75 * SF2_GAIN })
     }
     return
   }

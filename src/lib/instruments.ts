@@ -27,6 +27,8 @@ export interface SoundType {
   useSamples?: boolean;
   // Optional: sample folder path (e.g., 'guitar-acoustic')
   samplePath?: string;
+  // Optional: soundfont-player instrument name (e.g., 'acoustic_guitar_steel')
+  sf2Instrument?: string;
 }
 
 export interface InstrumentState {
@@ -251,7 +253,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
   {
     id: 'guitar',
     name: 'Guitar',
-    defaultSoundType: 'electric',
+    defaultSoundType: 'sf2-steel',
     soundTypes: [
       {
         id: 'acoustic',
@@ -288,6 +290,94 @@ export const INSTRUMENTS: InstrumentConfig[] = [
         releaseTime: 0.4,
         useSamples: true,
         samplePath: 'guitar-nylon',
+      },
+      {
+        id: 'sf2-steel',
+        name: 'Steel ★',
+        oscillatorType: 'triangle',
+        octaveOffset: 0,
+        attackTime: 0.01,
+        decayTime: 0.15,
+        sustainLevel: 0.6,
+        releaseTime: 0.3,
+        sf2Instrument: 'acoustic_guitar_steel',
+      },
+      {
+        id: 'sf2-nylon',
+        name: 'Nylon ★',
+        oscillatorType: 'sine',
+        octaveOffset: 0,
+        attackTime: 0.015,
+        decayTime: 0.2,
+        sustainLevel: 0.5,
+        releaseTime: 0.4,
+        sf2Instrument: 'acoustic_guitar_nylon',
+      },
+      {
+        id: 'sf2-clean',
+        name: 'Clean ★',
+        oscillatorType: 'sawtooth',
+        octaveOffset: 0,
+        attackTime: 0.005,
+        decayTime: 0.1,
+        sustainLevel: 0.7,
+        releaseTime: 0.2,
+        sf2Instrument: 'electric_guitar_clean',
+      },
+      {
+        id: 'sf2-jazz',
+        name: 'Jazz ★',
+        oscillatorType: 'sine',
+        octaveOffset: 0,
+        attackTime: 0.008,
+        decayTime: 0.12,
+        sustainLevel: 0.65,
+        releaseTime: 0.25,
+        sf2Instrument: 'electric_guitar_jazz',
+      },
+      {
+        id: 'sf2-muted',
+        name: 'Muted ★',
+        oscillatorType: 'sawtooth',
+        octaveOffset: 0,
+        attackTime: 0.003,
+        decayTime: 0.06,
+        sustainLevel: 0.3,
+        releaseTime: 0.1,
+        sf2Instrument: 'electric_guitar_muted',
+      },
+      {
+        id: 'sf2-distortion',
+        name: 'Distorted ★',
+        oscillatorType: 'sawtooth',
+        octaveOffset: 0,
+        attackTime: 0.005,
+        decayTime: 0.1,
+        sustainLevel: 0.8,
+        releaseTime: 0.3,
+        sf2Instrument: 'distortion_guitar',
+      },
+      {
+        id: 'sf2-overdrive',
+        name: 'Overdrive ★',
+        oscillatorType: 'sawtooth',
+        octaveOffset: 0,
+        attackTime: 0.005,
+        decayTime: 0.1,
+        sustainLevel: 0.75,
+        releaseTime: 0.25,
+        sf2Instrument: 'overdriven_guitar',
+      },
+      {
+        id: 'sf2-harmonics',
+        name: 'Harmonics ★',
+        oscillatorType: 'sine',
+        octaveOffset: 0,
+        attackTime: 0.02,
+        decayTime: 0.3,
+        sustainLevel: 0.4,
+        releaseTime: 0.5,
+        sf2Instrument: 'guitar_harmonics',
       },
     ],
   },

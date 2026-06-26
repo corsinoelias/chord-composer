@@ -111,7 +111,6 @@ export function previewNote(stringIndex: number, fret: number, sound: BassSound)
   const midiNote = Math.round(69 + 12 * Math.log2(freq / 440))
   const schedule = () => {
     if (isSampledSound(sound)) {
-      // Only load the one sample needed for this specific note
       preloadSamplesForMidis(ctx, sound, [midiNote]).then(() => {
         scheduleNote(ctx, masterGain!, freq, ctx.currentTime + 0.01, 0.5, 0.75, sound)
       }).catch(() => {})
@@ -145,7 +144,6 @@ export async function startPlayback(
   if (ctx.state !== 'running') {
     await ctx.resume()
   }
-  // Preload only the samples actually used by this track (avoids downloading all 30 files)
   if (isSampledSound(sound) && track.notes.length > 0) {
     const midiNotes = track.notes.map(n =>
       Math.round(69 + 12 * Math.log2(fretToFrequency(n.stringIndex, n.fret) / 440))
