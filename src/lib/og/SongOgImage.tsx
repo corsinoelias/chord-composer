@@ -11,9 +11,9 @@ interface Props {
 }
 
 export function SongOgImage({ title, artist, songKey, bpm, capo, year, chords }: Props) {
-  const fontSize = title.length > 40 ? 44 : title.length > 28 ? 52 : 62
+  const titleSize = title.length > 38 ? 48 : title.length > 24 ? 58 : 68
   const artistLine = artist + (year ? ` · ${year}` : '')
-  const chordLine = chords.slice(0, 9).join('  ·  ')
+  const chordLine = chords.slice(0, 8).join('   ·   ')
 
   return (
     <div
@@ -22,18 +22,34 @@ export function SongOgImage({ title, artist, songKey, bpm, capo, year, chords }:
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: 'linear-gradient(135deg, #0f1318 0%, #1a0d3d 100%)',
-        padding: '56px 64px',
+        background: 'linear-gradient(145deg, #12102a 0%, #1e1245 60%, #0f1820 100%)',
+        padding: '48px 64px 52px',
         fontFamily: 'Inter',
         position: 'relative',
       }}
     >
       {/* Top bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 17, color: '#a78bfa', fontWeight: 700, letterSpacing: 3 }}>
-          CHORD SEQUENCE
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: '#a78bfa',
+          }} />
+          <div style={{ fontSize: 20, color: '#a78bfa', fontWeight: 700, letterSpacing: 2 }}>
+            CHORD SEQUENCE
+          </div>
         </div>
-        <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.3)' }}>
+        <div style={{
+          fontSize: 16,
+          color: 'rgba(255,255,255,0.7)',
+          fontWeight: 500,
+          background: 'rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: 20,
+          padding: '6px 16px',
+        }}>
           chordsequence.com
         </div>
       </div>
@@ -41,66 +57,82 @@ export function SongOgImage({ title, artist, songKey, bpm, capo, year, chords }:
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Music icon */}
-      <div style={{ display: 'flex', marginBottom: 20 }}>
+      {/* Genre tag */}
+      <div style={{ display: 'flex', marginBottom: 24 }}>
         <div style={{
-          width: 44,
-          height: 44,
-          borderRadius: '50%',
-          background: 'rgba(167,139,250,0.15)',
-          border: '1.5px solid rgba(167,139,250,0.35)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 22,
+          fontSize: 14,
+          fontWeight: 700,
           color: '#a78bfa',
+          letterSpacing: 3,
+          textTransform: 'uppercase',
         }}>
-          ♪
+          CHORD CHART
         </div>
       </div>
 
       {/* Title */}
-      <div style={{ fontSize, fontWeight: 700, color: '#ffffff', lineHeight: 1.1, marginBottom: 12 }}>
+      <div style={{
+        fontSize: titleSize,
+        fontWeight: 700,
+        color: '#ffffff',
+        lineHeight: 1.1,
+        marginBottom: 14,
+        letterSpacing: -0.5,
+      }}>
         {title}
       </div>
 
       {/* Artist · Year */}
-      <div style={{ fontSize: 26, color: 'rgba(255,255,255,0.5)', marginBottom: 36, fontWeight: 400 }}>
+      <div style={{
+        fontSize: 32,
+        color: 'rgba(255,255,255,0.78)',
+        marginBottom: 40,
+        fontWeight: 400,
+      }}>
         {artistLine}
       </div>
 
+      {/* Divider */}
+      <div style={{
+        width: 48,
+        height: 3,
+        background: '#7c3aed',
+        borderRadius: 2,
+        marginBottom: 32,
+      }} />
+
       {/* Stats pills */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
         <div style={{
-          background: 'rgba(167,139,250,0.12)',
-          border: '1px solid rgba(167,139,250,0.3)',
-          borderRadius: 8,
-          padding: '7px 18px',
-          fontSize: 17,
-          color: '#a78bfa',
+          background: 'rgba(124,58,237,0.25)',
+          border: '1.5px solid rgba(167,139,250,0.5)',
+          borderRadius: 10,
+          padding: '10px 22px',
+          fontSize: 24,
+          color: '#c4b5fd',
           fontWeight: 700,
         }}>
-          {`Key ${songKey}`}
+          {`Key of ${songKey}`}
         </div>
         <div style={{
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: 8,
-          padding: '7px 18px',
-          fontSize: 17,
-          color: 'rgba(255,255,255,0.6)',
+          background: 'rgba(255,255,255,0.08)',
+          border: '1.5px solid rgba(255,255,255,0.18)',
+          borderRadius: 10,
+          padding: '10px 22px',
+          fontSize: 24,
+          color: 'rgba(255,255,255,0.85)',
           fontWeight: 400,
         }}>
           {`${bpm} BPM`}
         </div>
         {capo ? (
           <div style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 8,
-            padding: '7px 18px',
-            fontSize: 17,
-            color: 'rgba(255,255,255,0.6)',
+            background: 'rgba(255,255,255,0.08)',
+            border: '1.5px solid rgba(255,255,255,0.18)',
+            borderRadius: 10,
+            padding: '10px 22px',
+            fontSize: 24,
+            color: 'rgba(255,255,255,0.85)',
             fontWeight: 400,
           }}>
             {`Capo ${capo}`}
@@ -109,19 +141,35 @@ export function SongOgImage({ title, artist, songKey, bpm, capo, year, chords }:
       </div>
 
       {/* Chord list */}
-      <div style={{ fontSize: 18, color: 'rgba(255,255,255,0.35)', fontWeight: 400, letterSpacing: 0.5 }}>
+      <div style={{
+        fontSize: 24,
+        color: 'rgba(255,255,255,0.65)',
+        fontWeight: 400,
+        letterSpacing: 1,
+      }}>
         {chordLine}
       </div>
 
-      {/* Decorative orb */}
+      {/* Decorative orb top-right */}
       <div style={{
         position: 'absolute',
-        top: -80,
-        right: -80,
-        width: 400,
-        height: 400,
+        top: -120,
+        right: -120,
+        width: 500,
+        height: 500,
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(124,58,237,0.25) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, rgba(109,40,217,0.35) 0%, transparent 65%)',
+      }} />
+
+      {/* Decorative orb bottom-left */}
+      <div style={{
+        position: 'absolute',
+        bottom: -60,
+        left: -60,
+        width: 280,
+        height: 280,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)',
       }} />
     </div>
   )
