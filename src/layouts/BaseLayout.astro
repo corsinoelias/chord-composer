@@ -19,13 +19,17 @@ const {
   title = 'Free Chord Progression Generator — Build, Play & Export | Chord Sequence',
   description = 'Free chord progression generator — build and play any progression with real instrument sounds. 37 chord types, 13+ styles (pop, jazz, worship, lo-fi). Transpose, export WAV. No account needed.',
   canonicalUrl = 'https://chordsequence.com/',
-  ogImage = 'https://chordsequence.com/og-image.jpg',
+  ogImage: ogImageProp,
   ogImageAlt = 'Chord Sequence — free online chord progression builder',
   ogType = 'website',
   author = 'Chord Sequence',
   noIndex = false,
   showNav = true,
 } = Astro.props;
+
+// Auto-generate OG image from title+description if not explicitly provided
+const cleanTitle = title.replace(/\s*[|—–]\s*Chord Sequence.*$/, '').trim();
+const ogImage = ogImageProp ?? `/og/page/auto/?t=${encodeURIComponent(cleanTitle)}&d=${encodeURIComponent(description.slice(0, 200))}`;
 
 const webAppSchema = {
   '@context': 'https://schema.org',

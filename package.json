@@ -11,8 +11,7 @@
     "lint": "eslint .",
     "seed": "tsx --env-file=.env scripts/seed-songs.ts",
     "fetch-soundfonts": "node scripts/fetch-soundfonts.mjs",
-    "generate-og": "node scripts/generate-og-pages.mjs",
-    "prebuild": "npm run fetch-soundfonts && npm run generate-og"
+    "prebuild": "npm run fetch-soundfonts"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",
