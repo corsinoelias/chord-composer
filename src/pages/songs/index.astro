@@ -2,6 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getPublishedSongs } from '@/lib/publicSongs';
 import AppCta from '../../components/AppCta.astro';
+import RelatedTools from '../../components/RelatedTools.astro';
 
 const songs = await getPublishedSongs();
 const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(Astro.url.hostname);
@@ -151,4 +152,13 @@ const itemListSchema = {
     />
 
   </main>
+
+  <RelatedTools
+    heading="Practice tools"
+    tools={[
+      { href: '/tools/guitar-tab/', icon: 'guitar', label: 'Guitar Tab Player', desc: 'Draw the notes for any song on a 6-string grid, hear it play back, and export to ASCII or MIDI.' },
+      { href: '/tools/bass-guitar-tab/', icon: 'bass-tab', label: 'Bass Tab Player', desc: '4-string bass tablature editor. Record a bass line or tab out the root notes of any chord chart.' },
+      { href: '/metronome/', icon: 'metronome', label: 'Metronome', desc: 'Practice each chord change at the song\'s BPM before playing along. Tap tempo supported.' },
+    ]}
+  />
 </BaseLayout>

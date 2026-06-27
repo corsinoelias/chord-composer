@@ -442,7 +442,7 @@ const breadcrumbSchema = {
           <!-- Practice tools -->
           <section class="mt-10 pt-8 border-t border-border">
             <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Practice tools</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <a
                 href={`/metronome/?bpm=${song.bpm}`}
                 class="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
@@ -466,6 +466,58 @@ const breadcrumbSchema = {
                 <div class="min-w-0">
                   <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Guitar Tuner</p>
                   <p class="text-xs text-muted-foreground">Tune before you play</p>
+                </div>
+                <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary ml-auto shrink-0 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              <a
+                href="/tools/guitar-tab/"
+                class="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              >
+                <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="6" x2="22" y2="6"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="15" x2="22" y2="15"/><line x1="2" y1="18" x2="22" y2="18"/><line x1="2" y1="21" x2="22" y2="21"/><circle cx="7" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="13" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="2" fill="currentColor" stroke="none"/></svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Guitar Tab Player</p>
+                  <p class="text-xs text-muted-foreground">Tab out the melody note by note on a 6-string grid</p>
+                </div>
+                <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary ml-auto shrink-0 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              <a
+                href="/tools/bass-guitar-tab/"
+                class="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              >
+                <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Bass Tab Player</p>
+                  <p class="text-xs text-muted-foreground">Build the bass line for {song.title} on a 4-string grid</p>
+                </div>
+                <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary ml-auto shrink-0 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              <a
+                href="/tools/chord-transposer/"
+                class="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              >
+                <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 7 5-5 5 5"/><path d="M8 2v20"/><path d="m21 17-5 5-5-5"/><path d="M16 22V2"/></svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Chord Transposer</p>
+                  <p class="text-xs text-muted-foreground">Move the chords to a friendlier key for your voice</p>
+                </div>
+                <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary ml-auto shrink-0 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              <a
+                href="/tools/scales/"
+                class="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              >
+                <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="6" x2="22" y2="6"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="18" x2="22" y2="18"/><circle cx="6" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="10" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="18" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="8" cy="18" r="2" fill="currentColor" stroke="none"/><circle cx="14" cy="18" r="2" fill="currentColor" stroke="none"/></svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Scale Explorer</p>
+                  <p class="text-xs text-muted-foreground">Find the scales that work over the {song.key} key</p>
                 </div>
                 <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary ml-auto shrink-0 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </a>
