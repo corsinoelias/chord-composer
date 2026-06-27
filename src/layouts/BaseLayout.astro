@@ -29,7 +29,8 @@ const {
 
 // Auto-generate OG image from title+description if not explicitly provided
 const cleanTitle = title.replace(/\s*[|—–]\s*Chord Sequence.*$/, '').trim();
-const ogImage = ogImageProp ?? `/og/page/auto/?t=${encodeURIComponent(cleanTitle)}&d=${encodeURIComponent(description.slice(0, 200))}`;
+const ogImageFallback = `https://chordsequence.com/og/page/auto/?t=${encodeURIComponent(cleanTitle)}&d=${encodeURIComponent(description.slice(0, 200))}`;
+const ogImage = ogImageProp ?? ogImageFallback;
 
 const webAppSchema = {
   '@context': 'https://schema.org',
@@ -131,6 +132,7 @@ const orgSchema = {
     <meta property="og:type" content={ogType} />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:image" content={ogImage} />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content={ogImageAlt} />

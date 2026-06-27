@@ -196,7 +196,7 @@ const musicSchema = {
   datePublished: song.year?.toString(),
   genre: song.genre.join(', '),
   url: canonicalUrl,
-  image: `https://chordsequence.com/og/songs/${song.slug}/`,
+  image: `https://chordsequence.com/og/songs/${song.slug}`,
 };
 
 const breadcrumbSchema = {
@@ -218,7 +218,9 @@ const breadcrumbSchema = {
   title={`${song.title} Chords & Lyrics — ${song.artist} | Chord Sequence`}
   description={seoDescription}
   canonicalUrl={canonicalUrl}
-  ogImage={`https://chordsequence.com/og/songs/${song.slug}/`}
+  ogImage={isCommunity
+    ? `https://chordsequence.com/og/page/auto/?t=${encodeURIComponent(song.title + ' Chords — ' + song.artist)}&d=${encodeURIComponent(seoDescription.slice(0, 200))}`
+    : `https://chordsequence.com/og/songs/${song.slug}`}
   ogImageAlt={`${song.title} by ${song.artist} — chords in Key of ${song.key}`}
 >
   <Fragment slot="head">
