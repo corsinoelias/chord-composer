@@ -275,6 +275,8 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
   title={`${post.data.seoTitle ?? post.data.title} | Chord Sequence`}
   description={post.data.description}
   canonicalUrl={canonicalLearnUrl}
+  ogImage={`/og/learn/${post.slug}/`}
+  ogImageAlt={post.data.title}
   ogType="article"
   author={author?.name ?? 'Elías Corsino Saldaña'}
 >
