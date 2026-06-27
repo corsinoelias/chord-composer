@@ -8,18 +8,23 @@ import { getPublicSongBySlug } from '../../../../lib/publicSongs'
 
 let fontRegular: ArrayBuffer | null = null
 let fontBold: ArrayBuffer | null = null
+let fontBravura: ArrayBuffer | null = null
 
 async function loadFonts(origin: string): Promise<void> {
-  const [r, b] = await Promise.all([
+  const [r, b, m] = await Promise.all([
     fontRegular
       ? Promise.resolve(fontRegular)
       : fetch(`${origin}/fonts/Inter-Regular.woff`).then(r => r.arrayBuffer()),
     fontBold
       ? Promise.resolve(fontBold)
       : fetch(`${origin}/fonts/Inter-Bold.woff`).then(r => r.arrayBuffer()),
+    fontBravura
+      ? Promise.resolve(fontBravura)
+      : fetch(`${origin}/fonts/MusicFont.otf`).then(r => r.arrayBuffer()),
   ])
   fontRegular = r
   fontBold = b
+  fontBravura = m
 }
 
 export const GET = async ({ params, url }: APIContext): Promise<Response> => {
@@ -49,8 +54,9 @@ export const GET = async ({ params, url }: APIContext): Promise<Response> => {
     width: 1200,
     height: 630,
     fonts: [
-      { name: 'Inter', data: fontRegular!, weight: 400, style: 'normal' },
-      { name: 'Inter', data: fontBold!,    weight: 700, style: 'normal' },
+      { name: 'Inter',   data: fontRegular!, weight: 400, style: 'normal' },
+      { name: 'Inter',   data: fontBold!,    weight: 700, style: 'normal' },
+      { name: 'Bravura', data: fontBravura!, weight: 400, style: 'normal' },
     ],
   })
 

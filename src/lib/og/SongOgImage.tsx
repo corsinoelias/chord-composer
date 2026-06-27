@@ -11,9 +11,10 @@ interface Props {
 }
 
 export function SongOgImage({ title, artist, songKey, bpm, capo, year, chords }: Props) {
-  const titleSize = title.length > 38 ? 48 : title.length > 24 ? 58 : 68
+  const titleSize = title.length > 36 ? 50 : title.length > 22 ? 60 : 70
   const artistLine = artist + (year ? ` · ${year}` : '')
-  const chordLine = chords.slice(0, 8).join('   ·   ')
+  const statsLine = `Key of ${songKey}  ·  ${bpm} BPM` + (capo ? `  ·  Capo ${capo}` : '')
+  const displayChords = chords.slice(0, 7)
 
   return (
     <div
@@ -22,155 +23,103 @@ export function SongOgImage({ title, artist, songKey, bpm, capo, year, chords }:
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: 'linear-gradient(145deg, #12102a 0%, #1e1245 60%, #0f1820 100%)',
-        padding: '48px 64px 52px',
+        background: '#f8f7ff',
+        padding: '40px 60px 44px',
         fontFamily: 'Inter',
         position: 'relative',
       }}
     >
+      {/* Right side: staff lines + treble clef */}
+      <div style={{
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        width: 440,
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+      }}>
+        {/* 5 staff lines grouped together like a real pentagrama */}
+        <div style={{ position: 'absolute', right: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: 38 }}>
+          {[0,1,2,3,4].map(i => (
+            <div key={i} style={{ width: '100%', height: 4, background: 'rgba(124,58,237,0.1)', borderRadius: 2 }} />
+          ))}
+        </div>
+        {/* Treble clef using Bravura font */}
+        <div style={{
+          position: 'absolute',
+          left: 20,
+          fontSize: 260,
+          lineHeight: 1,
+          color: 'rgba(124,58,237,0.12)',
+          fontFamily: 'Bravura',
+          fontWeight: 400,
+        }}>
+          𝄞
+        </div>
+      </div>
+
       {/* Top bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: '#a78bfa',
-          }} />
-          <div style={{ fontSize: 20, color: '#a78bfa', fontWeight: 700, letterSpacing: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#7c3aed' }} />
+          <div style={{ fontSize: 18, color: '#7c3aed', fontWeight: 700, letterSpacing: 2 }}>
             CHORD SEQUENCE
           </div>
         </div>
         <div style={{
-          fontSize: 16,
-          color: 'rgba(255,255,255,0.7)',
+          fontSize: 15,
+          color: '#64748b',
           fontWeight: 500,
-          background: 'rgba(255,255,255,0.08)',
-          border: '1px solid rgba(255,255,255,0.15)',
+          border: '1px solid #e2e8f0',
           borderRadius: 20,
-          padding: '6px 16px',
+          padding: '5px 16px',
+          background: '#ffffff',
         }}>
           chordsequence.com
         </div>
       </div>
 
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
-
-      {/* Genre tag */}
-      <div style={{ display: 'flex', marginBottom: 24 }}>
-        <div style={{
-          fontSize: 14,
-          fontWeight: 700,
-          color: '#a78bfa',
-          letterSpacing: 3,
-          textTransform: 'uppercase',
-        }}>
+      {/* Content */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ fontSize: 13, color: '#7c3aed', fontWeight: 700, letterSpacing: 3, marginBottom: 18 }}>
           CHORD CHART
         </div>
-      </div>
-
-      {/* Title */}
-      <div style={{
-        fontSize: titleSize,
-        fontWeight: 700,
-        color: '#ffffff',
-        lineHeight: 1.1,
-        marginBottom: 14,
-        letterSpacing: -0.5,
-      }}>
-        {title}
-      </div>
-
-      {/* Artist · Year */}
-      <div style={{
-        fontSize: 32,
-        color: 'rgba(255,255,255,0.78)',
-        marginBottom: 40,
-        fontWeight: 400,
-      }}>
-        {artistLine}
-      </div>
-
-      {/* Divider */}
-      <div style={{
-        width: 48,
-        height: 3,
-        background: '#7c3aed',
-        borderRadius: 2,
-        marginBottom: 32,
-      }} />
-
-      {/* Stats pills */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-        <div style={{
-          background: 'rgba(124,58,237,0.25)',
-          border: '1.5px solid rgba(167,139,250,0.5)',
-          borderRadius: 10,
-          padding: '10px 22px',
-          fontSize: 24,
-          color: '#c4b5fd',
-          fontWeight: 700,
-        }}>
-          {`Key of ${songKey}`}
+        <div style={{ fontSize: titleSize, fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginBottom: 10, letterSpacing: -1 }}>
+          {title}
         </div>
-        <div style={{
-          background: 'rgba(255,255,255,0.08)',
-          border: '1.5px solid rgba(255,255,255,0.18)',
-          borderRadius: 10,
-          padding: '10px 22px',
-          fontSize: 24,
-          color: 'rgba(255,255,255,0.85)',
-          fontWeight: 400,
-        }}>
-          {`${bpm} BPM`}
+        <div style={{ fontSize: 28, color: '#64748b', fontWeight: 400, marginBottom: 32 }}>
+          {artistLine}
         </div>
-        {capo ? (
-          <div style={{
-            background: 'rgba(255,255,255,0.08)',
-            border: '1.5px solid rgba(255,255,255,0.18)',
-            borderRadius: 10,
-            padding: '10px 22px',
-            fontSize: 24,
-            color: 'rgba(255,255,255,0.85)',
-            fontWeight: 400,
-          }}>
-            {`Capo ${capo}`}
-          </div>
-        ) : null}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {displayChords.map((chord, i) => (
+            <div key={i} style={{
+              background: i === 0 ? '#7c3aed' : '#ffffff',
+              color: i === 0 ? '#ffffff' : '#1e293b',
+              border: i === 0 ? '2px solid #7c3aed' : '2px solid #e2e8f0',
+              borderRadius: 12,
+              padding: '10px 22px',
+              fontSize: 26,
+              fontWeight: 700,
+            }}>
+              {chord}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Chord list */}
-      <div style={{
-        fontSize: 24,
-        color: 'rgba(255,255,255,0.65)',
-        fontWeight: 400,
-        letterSpacing: 1,
-      }}>
-        {chordLine}
+      {/* Bottom bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: 19, color: '#64748b', fontWeight: 400 }}>
+          {statsLine}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#7c3aed', color: '#ffffff', borderRadius: 14, padding: '14px 30px', fontSize: 20, fontWeight: 700 }}>
+          <div style={{ fontWeight: 700 }}>Play chords</div>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12h14M13 6l6 6-6 6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
       </div>
-
-      {/* Decorative orb top-right */}
-      <div style={{
-        position: 'absolute',
-        top: -120,
-        right: -120,
-        width: 500,
-        height: 500,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(109,40,217,0.35) 0%, transparent 65%)',
-      }} />
-
-      {/* Decorative orb bottom-left */}
-      <div style={{
-        position: 'absolute',
-        bottom: -60,
-        left: -60,
-        width: 280,
-        height: 280,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)',
-      }} />
     </div>
   )
 }
