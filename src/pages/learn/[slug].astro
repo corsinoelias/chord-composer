@@ -5,6 +5,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
 import CircleOfFifthsIsland from '../../components/CircleOfFifthsIsland.astro';
 import InversionDemoIsland from '../../components/InversionDemoIsland.astro';
+import BassTabPreviewIsland from '../../components/BassTabPreviewIsland.astro';
 import { AUTHORS } from '../../data/authors';
 import ArticleAuthorBox from '../../components/ArticleAuthorBox.astro';
 import AppCta from '../../components/AppCta.astro';
@@ -72,6 +73,14 @@ const ARTICLE_FAQ: Record<string, FAQItem[]> = {
     { question: 'What is the circle of fifths?', answer: 'The circle of fifths is a diagram that arranges all 12 musical keys in a circle based on their harmonic relationships. Moving clockwise, each key is a perfect fifth above the previous one. The circle shows which keys share the most notes (adjacent keys), which chords belong to each key, and how to modulate from one key to another.' },
     { question: 'How do you use the circle of fifths for songwriting?', answer: 'The circle of fifths helps songwriters choose chords that sound natural together. All the diatonic chords of a key sit adjacent to each other on the circle. To find chords that fit in C major, look at C and its immediate neighbors (G and F) — these are the I, V, and IV chords. Moving two steps in either direction gives you the ii, iii, and vi chords. Modulating to a closely related key means moving one or two steps around the circle.' },
     { question: 'Why do jazz progressions follow the circle of fifths?', answer: 'Jazz progressions follow the circle of fifths because each dominant seventh chord naturally resolves to the key a fifth below. In G7–Cmaj7, G7 resolves to C — one step clockwise on the circle. Jazz composers chain these resolutions together, creating sequences that descend through the circle (iii–VI–ii–V–I in the key of C, for example). This movement generates harmonic momentum that listeners experience as forward motion.' },
+  ],
+  'walking-bass-ii-v-i': [
+    { question: 'What is a walking bass line?', answer: 'A walking bass line is a style of bass playing where the bassist plays one note per beat, creating a smooth, continuous stream of quarter notes. The notes move stepwise or in small leaps between chord tones, passing tones, and chromatic approaches, giving the impression of the bass "walking" from one chord to the next. Walking bass is the foundation of jazz and blues bass playing.' },
+    { question: 'What is the II–V–I chord progression in jazz?', answer: 'The II–V–I (two-five-one) is the most important harmonic movement in jazz. In the key of C major it is Dm7–G7–Cmaj7. The ii chord (Dm7) creates mild tension, the V chord (G7) builds strong tension through its tritone interval, and the I chord (Cmaj7) resolves that tension. Virtually every jazz standard contains multiple ii–V–I patterns, often in different keys within the same song.' },
+    { question: 'How do you walk from Dm7 to G7?', answer: 'The most common approach is to end the Dm7 bar on a leading tone — a note that is a half step (semitone) or whole step below the root of G7. From D minor, common approach notes to G are: B (a half step above, resolving down), F# (a half step below G), or A (a whole step below G). Chromatic approaches (F#) sound tense and jazz-like, while diatonic approaches (B or A) sound smoother.' },
+    { question: 'What notes can I use in a walking bass line over Dm7?', answer: 'Over Dm7, the primary chord tones are D (root), F (minor third), A (fifth), and C (minor seventh). Good passing tones include E (approaching F or A), B (leading tone toward C or approaching G7), and G (shared with G7, helps prepare the next chord). Chromatic passing tones between any of these notes add jazz color.' },
+    { question: 'How do you practice walking bass as a beginner?', answer: 'Start by playing only the root note on every beat — one note per bar change, held across the whole bar. Once comfortable, add the fifth on beats 3 and 4. Then experiment with connecting chords using a leading tone on beat 4. Finally, begin filling in beats 2 and 3 with other chord tones. Practice slowly with a metronome, focusing on steady quarter notes before adding melodic content.' },
+    { question: 'What is the difference between a walking bass line and a bass riff?', answer: 'A bass riff is a short melodic pattern that repeats throughout a song, usually independent of chord changes. A walking bass line is improvised or composed specifically to follow the harmony — each bar targets the chord tones of whatever chord is playing, and the line moves to "walk" smoothly between chords. Riffs work in rock and funk; walking bass lines are essential in jazz and swing.' },
   ],
   'secondary-dominants': [
     { question: 'What is a secondary dominant chord?', answer: 'A secondary dominant is a dominant seventh chord that resolves to a chord other than the home tonic — it briefly tonicizes a non-tonic chord. The shorthand V/X means "the V chord of chord X." For example, in C major, D7 is the V/V because D7 resolves to G (the V chord), treating G as a temporary tonic.' },
@@ -153,6 +162,17 @@ const ARTICLE_RELATED: Record<string, ArticleRelated> = {
       { href: '/learn/circle-of-fifths-explained/', label: 'Circle of fifths explained', description: 'How key relationships guide which inversions work together' },
     ],
     tool: { href: '/tools/chord-transposer/', label: 'Transpose any chord progression — including slash chords — to any key with the free Chord Transposer', cta: 'Open Chord Transposer →' },
+  },
+  'walking-bass-ii-v-i': {
+    progressions: [
+      { href: '/progressions/jazz/', label: 'Jazz chord progressions', description: 'ii–V–I, turnarounds, and all the harmonic patterns walking bass lines live over' },
+      { href: '/progressions/ii-v-i/', label: 'ii–V–I in all 12 keys', description: 'Hear the Dm7–G7–Cmaj7 progression and its transpositions with a full band sound' },
+    ],
+    articles: [
+      { href: '/learn/jazz-chord-progressions/', label: 'Jazz chord progressions explained', description: 'The ii–V–I, turnarounds, and harmonic motion that walking bass navigates' },
+      { href: '/learn/how-to-read-bass-tabs/', label: 'How to read bass tabs', description: 'Learn to read the tablature notation used in every example above' },
+    ],
+    tool: { href: '/tools/bass-guitar-tab/', label: 'Create your own walking bass lines in the free Bass Tab Player — add notes, hear them instantly, and export to MIDI', cta: 'Open Bass Tab Player →' },
   },
   'secondary-dominants': {
     progressions: [
@@ -386,7 +406,7 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
       prose-td:text-muted-foreground prose-td:py-3
       prose-blockquote:border-primary prose-blockquote:text-muted-foreground
     ">
-      <Content components={{ ChordEmbed: ChordEmbedIsland, CircleOfFifths: CircleOfFifthsIsland, InversionDemo: InversionDemoIsland }} />
+      <Content components={{ ChordEmbed: ChordEmbedIsland, CircleOfFifths: CircleOfFifthsIsland, InversionDemo: InversionDemoIsland, BassTabPreview: BassTabPreviewIsland }} />
     </article>
 
     {faqItems && faqItems.length > 0 && (

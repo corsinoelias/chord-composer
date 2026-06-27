@@ -534,6 +534,102 @@ const LONGVIEW = barRepeat('longview', 4, 4, [
   { si: 2, f: 0, b: 3.0,  d: 1.0  }, // A open
 ])
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Walking Bass · II–V–I in C major (Dm7 → G7 → Cmaj7) · 4 levels
+//   All at ♩ = 120, 4/4 time, 4 bars (1 bar Dm7 + 1 bar G7 + 2 bars Cmaj7)
+//   Source: original MIDI transcription
+// ─────────────────────────────────────────────────────────────────────────────
+const WALKING_BASS_PRINCIPIANTE = rawNotes('walking-bass-principiante', [
+  // ── Dm7 (bar 1) — root notes only ─────────────────────────────────────────
+  { si: 1, f: 0, b:  0, d: 1 }, // D (D str open)
+  { si: 1, f: 0, b:  1, d: 1 }, // D
+  { si: 1, f: 0, b:  2, d: 1 }, // D
+  { si: 1, f: 0, b:  3, d: 1 }, // D
+  // ── G7 (bar 2) — root notes only ──────────────────────────────────────────
+  { si: 3, f: 3, b:  4, d: 1 }, // G (E str fret 3)
+  { si: 3, f: 3, b:  5, d: 1 }, // G
+  { si: 3, f: 3, b:  6, d: 1 }, // G
+  { si: 3, f: 3, b:  7, d: 1 }, // G
+  // ── Cmaj7 (bars 3–4) — root notes only ────────────────────────────────────
+  { si: 2, f: 3, b:  8, d: 1 }, // C (A str fret 3)
+  { si: 2, f: 3, b:  9, d: 1 }, // C
+  { si: 2, f: 3, b: 10, d: 1 }, // C
+  { si: 2, f: 3, b: 11, d: 1 }, // C
+  { si: 2, f: 3, b: 12, d: 1 }, // C
+  { si: 2, f: 3, b: 13, d: 1 }, // C
+  { si: 2, f: 3, b: 14, d: 1 }, // C
+  { si: 2, f: 3, b: 15, d: 1 }, // C
+])
+
+const WALKING_BASS_INTERMEDIO = rawNotes('walking-bass-intermedio', [
+  // ── Dm7 (bar 1) — root + chord tones + leading tone ───────────────────────
+  { si: 1, f: 0, b:  0, d: 1 }, // D (root)
+  { si: 3, f: 1, b:  1, d: 1 }, // F (3rd of Dm7, E str fret 1)
+  { si: 2, f: 0, b:  2, d: 1 }, // A (5th of Dm7, A str open)
+  { si: 2, f: 2, b:  3, d: 1 }, // B (leading tone → G)
+  // ── G7 (bar 2) — root + chord tones + approach ────────────────────────────
+  { si: 3, f: 3, b:  4, d: 1 }, // G (root)
+  { si: 2, f: 2, b:  5, d: 1 }, // B (maj3rd of G7)
+  { si: 1, f: 0, b:  6, d: 1 }, // D (5th of G7)
+  { si: 1, f: 2, b:  7, d: 1 }, // E (approach → C)
+  // ── Cmaj7 (bar 3) — chord tones ascending ─────────────────────────────────
+  { si: 2, f: 3, b:  8, d: 1 }, // C (root)
+  { si: 3, f: 0, b:  9, d: 1 }, // E (maj3rd, E str open)
+  { si: 3, f: 3, b: 10, d: 1 }, // G (5th)
+  { si: 2, f: 2, b: 11, d: 1 }, // B (maj7th)
+  // ── Cmaj7 (bar 4) — descending resolution ─────────────────────────────────
+  { si: 2, f: 3, b: 12, d: 1 }, // C
+  { si: 2, f: 2, b: 13, d: 1 }, // B
+  { si: 2, f: 0, b: 14, d: 1 }, // A
+  { si: 3, f: 3, b: 15, d: 1 }, // G
+])
+
+const WALKING_BASS_AVANZADO = rawNotes('walking-bass-avanzado', [
+  // ── Dm7 (bar 1) — chromatic approach (D–E–F–A) ────────────────────────────
+  { si: 1, f: 0, b:  0, d: 1 }, // D (root)
+  { si: 3, f: 0, b:  1, d: 1 }, // E (chromatic passing, E str open)
+  { si: 3, f: 1, b:  2, d: 1 }, // F (3rd of Dm7)
+  { si: 2, f: 0, b:  3, d: 1 }, // A (5th → approach to G)
+  // ── G7 (bar 2) — ascending (G–A–B–D) ─────────────────────────────────────
+  { si: 3, f: 3, b:  4, d: 1 }, // G (root)
+  { si: 2, f: 0, b:  5, d: 1 }, // A (9th of G7)
+  { si: 2, f: 2, b:  6, d: 1 }, // B (maj3rd)
+  { si: 1, f: 0, b:  7, d: 1 }, // D (5th → approach to C)
+  // ── Cmaj7 (bar 3) — chord tone walk (C–D–E–G) ────────────────────────────
+  { si: 2, f: 3, b:  8, d: 1 }, // C (root)
+  { si: 1, f: 0, b:  9, d: 1 }, // D (2nd)
+  { si: 3, f: 0, b: 10, d: 1 }, // E (3rd)
+  { si: 3, f: 3, b: 11, d: 1 }, // G (5th)
+  // ── Cmaj7 (bar 4) — chromatic descent (B–A–G#–G) ─────────────────────────
+  { si: 2, f: 2, b: 12, d: 1 }, // B (maj7th)
+  { si: 2, f: 0, b: 13, d: 1 }, // A (6th)
+  { si: 3, f: 4, b: 14, d: 1 }, // G# (chromatic approach, E str fret 4)
+  { si: 3, f: 3, b: 15, d: 1 }, // G (5th)
+])
+
+const WALKING_BASS_EXPERTO = rawNotes('walking-bass-experto', [
+  // ── Dm7 (bar 1) — chromatic run D→G (D–E–F–F#) ───────────────────────────
+  { si: 1, f: 0, b:  0, d: 1 }, // D (root)
+  { si: 3, f: 0, b:  1, d: 1 }, // E (chromatic)
+  { si: 3, f: 1, b:  2, d: 1 }, // F (3rd of Dm7)
+  { si: 3, f: 2, b:  3, d: 1 }, // F# (chromatic → G)
+  // ── G7 (bar 2) — blues approach (G–A–Bb–B) ────────────────────────────────
+  { si: 3, f: 3, b:  4, d: 1 }, // G (root)
+  { si: 2, f: 0, b:  5, d: 1 }, // A (9th)
+  { si: 2, f: 1, b:  6, d: 1 }, // Bb (b7th of G7, A str fret 1)
+  { si: 2, f: 2, b:  7, d: 1 }, // B (maj3rd → approach to C)
+  // ── Cmaj7 (bar 3) — ascending (C–D–E–F#) ─────────────────────────────────
+  { si: 2, f: 3, b:  8, d: 1 }, // C (root)
+  { si: 1, f: 0, b:  9, d: 1 }, // D
+  { si: 3, f: 0, b: 10, d: 1 }, // E
+  { si: 3, f: 2, b: 11, d: 1 }, // F# (Lydian color / turnaround approach)
+  // ── Cmaj7 (bar 4) — descending G–A–B–D ───────────────────────────────────
+  { si: 3, f: 3, b: 12, d: 1 }, // G
+  { si: 2, f: 0, b: 13, d: 1 }, // A
+  { si: 2, f: 2, b: 14, d: 1 }, // B
+  { si: 1, f: 0, b: 15, d: 1 }, // D (back to top, ready for Dm7 repeat)
+])
+
 // ─── Export ───────────────────────────────────────────────────────────────────
 export const PRESETS: Preset[] = [
   {
@@ -675,5 +771,33 @@ export const PRESETS: Preset[] = [
     genre: 'Punk Rock', bpm: 100, beatsPerBar: 4, totalBars: 4,
     defaultSound: 'fender', notes: LONGVIEW,
     sections: [{ name: 'Intro', startBar: 0 }],
+  },
+  {
+    id: 'walking-bass-principiante',
+    name: 'Walking Bass — Beginner', artist: 'II–V–I in C major', bassist: 'Chord Sequence',
+    genre: 'Jazz', bpm: 120, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'synth', notes: WALKING_BASS_PRINCIPIANTE,
+    sections: [{ name: 'Dm7 → G7 → Cmaj7', startBar: 0 }],
+  },
+  {
+    id: 'walking-bass-intermedio',
+    name: 'Walking Bass — Intermediate', artist: 'II–V–I in C major', bassist: 'Chord Sequence',
+    genre: 'Jazz', bpm: 120, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'synth', notes: WALKING_BASS_INTERMEDIO,
+    sections: [{ name: 'Dm7 → G7 → Cmaj7', startBar: 0 }],
+  },
+  {
+    id: 'walking-bass-avanzado',
+    name: 'Walking Bass — Advanced', artist: 'II–V–I in C major', bassist: 'Chord Sequence',
+    genre: 'Jazz', bpm: 120, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'synth', notes: WALKING_BASS_AVANZADO,
+    sections: [{ name: 'Dm7 → G7 → Cmaj7', startBar: 0 }],
+  },
+  {
+    id: 'walking-bass-experto',
+    name: 'Walking Bass — Expert', artist: 'II–V–I in C major', bassist: 'Chord Sequence',
+    genre: 'Jazz', bpm: 120, beatsPerBar: 4, totalBars: 4,
+    defaultSound: 'synth', notes: WALKING_BASS_EXPERTO,
+    sections: [{ name: 'Dm7 → G7 → Cmaj7', startBar: 0 }],
   },
 ]

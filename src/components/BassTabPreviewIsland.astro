@@ -1,0 +1,12 @@
+---
+import { BassTabPreview } from './BassTabPlayer/BassTabPreview';
+
+interface Props {
+  presetId: string;
+  editorHref?: string;
+}
+
+const { presetId, editorHref } = Astro.props;
+---
+
+<BassTabPreview client:visible presetId={presetId} editorHref={editorHref} />
