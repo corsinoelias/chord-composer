@@ -1,5 +1,13 @@
 {
   "mcpServers": {
+    "dataforseo": {
+      "command": "npx",
+      "args": ["-y", "dataforseo-mcp-server"],
+      "env": {
+        "DATAFORSEO_USERNAME": "corsinoelias@gmail.com",
+        "DATAFORSEO_PASSWORD": "aa73114722fcecbf"
+      }
+    },
     "google-analytics": {
       "command": "C:\\Users\\Eliascorsino\\.local\\bin\\analytics-mcp.exe",
       "args": [],
