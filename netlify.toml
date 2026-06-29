@@ -156,6 +156,161 @@
   status = 301
   force = true
 
+# Old song slug format {title}-chords → new {title}-{artist} (CRIT-4)
+[[redirects]]
+  from = "/songs/hallelujah-chords/"
+  to = "/songs/hallelujah-leonard-cohen/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/wonderwall-chords/"
+  to = "/songs/wonderwall-oasis/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/oceans-chords/"
+  to = "/songs/oceans-hillsong-united/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/holy-forever-chords/"
+  to = "/songs/holy-forever-chris-tomlin/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/autumn-leaves-chords/"
+  to = "/songs/autumn-leaves-jazz-standard/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/way-maker-chords/"
+  to = "/songs/way-maker-leeland/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/goodness-of-god-chords/"
+  to = "/songs/goodness-of-god-bethel-music/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/reckless-love-chords/"
+  to = "/songs/reckless-love-cory-asbury/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/10000-reasons-chords/"
+  to = "/songs/10000-reasons-matt-redman/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/what-a-beautiful-name-chords/"
+  to = "/songs/what-a-beautiful-name-hillsong-worship/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/build-my-life-chords/"
+  to = "/songs/build-my-life-pat-barrett/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/great-are-you-lord-chords/"
+  to = "/songs/great-are-you-lord-all-sons-daughters/"
+  status = 301
+  force = true
+
+# Old /progressions/{genre}-chord-progressions/ → /progressions/{genre}/ (CRIT-5)
+[[redirects]]
+  from = "/progressions/jazz-chord-progressions/"
+  to = "/progressions/jazz/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/progressions/pop-chord-progressions/"
+  to = "/progressions/pop/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/progressions/lo-fi-chord-progressions/"
+  to = "/progressions/lo-fi/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/progressions/blues-chord-progressions/"
+  to = "/progressions/blues/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/progressions/rock-chord-progressions/"
+  to = "/progressions/rock/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/progressions/sad-chord-progressions/"
+  to = "/progressions/sad/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/progressions/happy-chord-progressions/"
+  to = "/progressions/happy/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/progressions/neo-soul-chord-progressions/"
+  to = "/progressions/neo-soul/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/progressions/worship-chord-progressions/"
+  to = "/progressions/worship/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/progressions/edm-chord-progressions/"
+  to = "/progressions/edm/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/progressions/12-bar-blues-chord-progressions/"
+  to = "/progressions/12-bar-blues/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/progressions/ii-v-i-chord-progressions/"
+  to = "/progressions/ii-v-i/"
+  status = 301
+  force = true
+
+# Redirect /songs/?page=* to /songs/ — no pagination exists, avoids soft-404 indexing (HIGH)
+[[redirects]]
+  from = "/songs/"
+  to = "/songs/"
+  status = 301
+  force = true
+  [redirects.query]
+    page = ":page"
+
 # SPA fallback for editor deep links
 [[redirects]]
   from = "/editor/*"

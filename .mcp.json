@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "google-analytics": {
+      "command": "C:\\Users\\Eliascorsino\\.local\\bin\\analytics-mcp.exe",
+      "args": [],
+      "env": {
+        "GA4_PROPERTY_ID": "231301529",
+        "GOOGLE_APPLICATION_CREDENTIALS": "C:\\Users\\Eliascorsino\\Documents\\elias-corsino-key.json"
+      }
+    }
+  }
+}

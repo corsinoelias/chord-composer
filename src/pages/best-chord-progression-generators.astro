@@ -28,12 +28,18 @@ const articleSchema = {
   '@type': 'Article',
   headline: 'Best Chord Progression Generators in 2026 (Free & Paid)',
   description: 'The best chord progression generators and plugins in 2026 — browser tools and DAW plugins compared by features, audio playback, AI capabilities, and price. Includes Chord Sequence, ChordSeq AI, DBDone, OneMotion, Mario Nieto, and Xfer Cthulhu.',
-  image: 'https://chordsequence.com/images/blog/chord-sequence-editor.webp',
+  image: {
+    '@type': 'ImageObject',
+    url: 'https://chordsequence.com/images/blog/chord-sequence-editor.webp',
+    width: 1200,
+    height: 630,
+  },
   datePublished: '2026-06-05T00:00:00.000Z',
   dateModified: '2026-06-05T00:00:00.000Z',
   inLanguage: 'en',
   author: {
     '@type': 'Person',
+    '@id': 'https://chordsequence.com/about/elias-corsino/#person',
     name: 'Elías Corsino Saldaña',
     url: 'https://chordsequence.com/about/elias-corsino/',
   },
@@ -55,10 +61,7 @@ const breadcrumbSchema = {
   ],
 };
 
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
+const faqData = [
     {
       '@type': 'Question',
       name: 'What is the best free chord progression generator?',
@@ -74,8 +77,7 @@ const faqSchema = {
       name: 'Which chord progression generator is best for learning music theory?',
       acceptedAnswer: { '@type': 'Answer', text: 'Chord Sequence is built with music theory education in mind — it comes with free theory articles, an interactive circle of fifths, key detector, and chord transposer. You can hear any progression in real time across 13 rhythm styles, which accelerates understanding of how chords sound in context.' },
     },
-  ],
-};
+];
 
 const tools = [
   {
@@ -280,7 +282,6 @@ const tools = [
     <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
   </Fragment>
 
   <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
@@ -500,7 +501,7 @@ const tools = [
     <section class="mt-16 pt-10 border-t border-border">
       <h2 class="text-2xl font-bold text-foreground mb-8">Frequently asked questions</h2>
       <div class="space-y-6">
-        {faqSchema.mainEntity.map(faq => (
+        {faqData.map(faq => (
           <div class="border-b border-border pb-6 last:border-0">
             <h3 class="font-semibold text-foreground mb-2">{faq.name}</h3>
             <p class="text-muted-foreground text-sm leading-relaxed">{faq.acceptedAnswer.text}</p>

@@ -295,7 +295,7 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
   title={`${post.data.seoTitle ?? post.data.title} | Chord Sequence`}
   description={post.data.description}
   canonicalUrl={canonicalLearnUrl}
-  ogImage={`/og/learn/${post.slug}/`}
+  ogImage={`https://chordsequence.com/og/learn/${post.slug}/`}
   ogImageAlt={post.data.title}
   ogType="article"
   author={author?.name ?? 'Elías Corsino Saldaña'}
@@ -309,17 +309,6 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
     {extraSchemas.map(schema => (
       <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
     ))}
-    {faqItems && faqItems.length > 0 && (
-      <script is:inline type="application/ld+json" set:html={JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'FAQPage',
-        mainEntity: faqItems.map((item: FAQItem) => ({
-          '@type': 'Question',
-          name: item.question,
-          acceptedAnswer: { '@type': 'Answer', text: item.answer },
-        })),
-      })} />
-    )}
   </Fragment>
 
   <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">

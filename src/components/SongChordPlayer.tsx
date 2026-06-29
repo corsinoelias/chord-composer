@@ -296,7 +296,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <Music2 className="w-4 h-4 text-primary shrink-0" />
-                  <h1 className="text-xl font-bold text-foreground">{song.title}</h1>
+                  <h2 className="text-xl font-bold text-foreground">{song.title}</h2>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {song.artist}

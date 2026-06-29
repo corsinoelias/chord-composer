@@ -2,6 +2,7 @@ import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
+import partytown from '@astrojs/partytown';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -17,6 +18,7 @@ export default defineConfig({
   integrations: [
     react(),
     mdx(),
+    partytown({ config: { forward: ['dataLayer.push'] } }),
     sitemap({
       filter: (page) => !page.includes('/app') && !page.includes('/editor') && !page.includes('/songs/new') && !page.includes('/privacy') && !page.includes('/terms'),
       customPages: [

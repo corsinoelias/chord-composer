@@ -42,7 +42,7 @@ if (pub) {
   // Fallback: static SONGS array (works even without Supabase)
   const staticSong = SONGS.find(s => s.slug === slug);
   if (!staticSong) {
-    return Astro.redirect('/songs/');
+    return Astro.redirect('/songs/', 301);
   }
   song = staticSong;
 }
@@ -81,15 +81,12 @@ function buildSeoDescription(s: Song): string {
   const capo = s.capo ? `, Capo ${s.capo}` : '';
   const year = s.year ? ` (${s.year})` : '';
   const genre = s.genre.length > 0 ? ` ${s.genre.join(', ')} song.` : '';
-  const lyricLines = extractLyricLines(s, 3);
-  const lyricPart = lyricLines.length > 0 ? ` "${lyricLines.join(' / ')}."` : '';
 
   const desc =
     `${s.title} chords by ${s.artist}${year} — Key of ${s.key}${capo}.${genre} ` +
-    `Chords: ${chordList}.${lyricPart} ` +
-    `Interactive chord chart with synchronized lyrics — press Play and follow each chord in real time.`;
+    `Chords: ${chordList}. Interactive chord chart — press Play and follow each chord in real time.`;
 
-  return desc.length > 320 ? desc.slice(0, 317) + '…' : desc;
+  return desc.length > 155 ? desc.slice(0, 152) + '…' : desc;
 }
 
 const seoDescription = buildSeoDescription(song);
@@ -191,12 +188,20 @@ const musicSchema = {
   '@type': 'MusicComposition',
   '@id': canonicalUrl,
   name: song.title,
+  description: song.description,
   composer: { '@type': composerType, name: song.artist },
+  lyricist: { '@type': composerType, name: song.artist },
+  musicalKey: song.key,
   inAlbum: song.album ? { '@type': 'MusicAlbum', name: song.album } : undefined,
   datePublished: song.year?.toString(),
   genre: song.genre.join(', '),
   url: canonicalUrl,
-  image: `https://chordsequence.com/og/songs/${song.slug}`,
+  image: {
+    '@type': 'ImageObject',
+    url: `https://chordsequence.com/og/songs/${song.slug}`,
+    width: 1200,
+    height: 630,
+  },
 };
 
 const breadcrumbSchema = {
@@ -222,6 +227,7 @@ const breadcrumbSchema = {
     ? `https://chordsequence.com/og/page/auto/?t=${encodeURIComponent(song.title + ' Chords — ' + song.artist)}&d=${encodeURIComponent(seoDescription.slice(0, 200))}`
     : `https://chordsequence.com/og/songs/${song.slug}`}
   ogImageAlt={`${song.title} by ${song.artist} — chords in Key of ${song.key}`}
+  author="Elías Corsino Saldaña"
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(musicSchema)} />
@@ -283,7 +289,7 @@ const breadcrumbSchema = {
         />
       )}
       <div class="flex-1 min-w-0">
-        <h1 class="text-2xl sm:text-3xl font-bold text-foreground leading-tight">{song.title}</h1>
+        <h1 class="text-2xl sm:text-3xl font-bold text-foreground leading-tight">{song.title} Chords</h1>
         <p class="text-sm text-muted-foreground mt-0.5">
           {song.artist}{song.year ? ` · ${song.year}` : ''}{song.album ? ` · ${song.album}` : ''}
         </p>
