@@ -152,18 +152,15 @@ const orgSchema = {
 
     <slot name="head" />
 
-    <!-- Google Analytics 4 via Partytown (runs off main thread, no CWV impact) -->
-    {import.meta.env.PUBLIC_GA_MEASUREMENT_ID && (
+    <!-- Google Analytics 4 -->
+    {import.meta.env.PROD && (
       <>
-        <script
-          type="text/partytown"
-          src={`https://www.googletagmanager.com/gtag/js?id=${import.meta.env.PUBLIC_GA_MEASUREMENT_ID}`}
-        ></script>
-        <script type="text/partytown" define:vars={{ gaId: import.meta.env.PUBLIC_GA_MEASUREMENT_ID }}>
+        <script async is:inline src="https://www.googletagmanager.com/gtag/js?id=G-K25BHMSXF1"></script>
+        <script is:inline>
           window.dataLayer = window.dataLayer || [];
-          function gtag() { dataLayer.push(arguments); }
+          function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', gaId, { anonymize_ip: true });
+          gtag('config', 'G-K25BHMSXF1');
         </script>
       </>
     )}
