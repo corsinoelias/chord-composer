@@ -12,6 +12,7 @@ import { playChordPreview, renderProgressionOffline } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { exportMidi } from '@/lib/midiExporter';
 import { MUSICAL_STYLES } from '@/lib/styles';
+import { analytics } from '@/lib/analytics';
 
 // ─── Transpose helpers ────────────────────────────────────────────────────────
 const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -208,6 +209,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   const handlePlay = useCallback(async () => {
     if (isPlaying) { stop(); return; }
     if (allChordsFlat.length === 0) return;
+    analytics.playSong(song.slug, song.title);
     setPlayingSection(null);
     setIsLoading(true);
     try {

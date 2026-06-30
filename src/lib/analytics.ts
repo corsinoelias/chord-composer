@@ -6,6 +6,10 @@ function track(eventName: string, params?: Record<string, unknown>) {
 }
 
 export const analytics = {
+  // Songs
+  playSong: (songSlug: string, songTitle: string) => track('play_song', { song_slug: songSlug, song_title: songTitle }),
+  songPdfExported: (songSlug: string) => track('song_pdf_exported', { song_slug: songSlug }),
+
   // Editor
   playProgression: (styleId: string) => track('play_progression', { style_id: styleId }),
   exportWav: () => track('export_wav'),
