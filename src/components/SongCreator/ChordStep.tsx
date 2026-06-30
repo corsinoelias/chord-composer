@@ -245,7 +245,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
       ...s,
       lines: s.lines.map(l => l.id !== lid ? l : {
         ...l,
-        tokens: l.tokens.flatMap(t => t.id !== tid ? [t] : [t, { ...t, id: nid() }]),
+        tokens: l.tokens.flatMap(t => t.id !== tid ? [t] : [t, { ...t, id: nid(), text: '' }]),
       }),
     }));
   }, []);
@@ -436,6 +436,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
                     onPreviewChord={previewChord}
                     onUpdateToken={updateToken}
                     onDuplicateChord={duplicateToken}
+                    isDraggingChord={!!draggingChord}
                   />
                 ))}
               </div>
@@ -542,22 +543,31 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
   );
 }
 
-// ── LineDropZone — droppable wrapper for empty lines ─────────────────────────
-function LineDropZone({ lineId, sectionId, children, isEmpty }: {
-  lineId: string; sectionId: string; isEmpty: boolean; children: React.ReactNode;
+// ── LineDropZone — droppable wrapper for lines ───────────────────────────────
+function LineDropZone({ lineId, sectionId, children, isDraggingChord }: {
+  lineId: string; sectionId: string; isDraggingChord: boolean; children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'linedrop-' + lineId,
-    disabled: !isEmpty,
     data: { type: 'line-drop', sectionId, lineId },
   });
   return (
     <div
       ref={setNodeRef}
-      className={`flex-1 flex flex-wrap gap-x-1 gap-y-4 py-1 min-h-[3rem] rounded-lg transition-all
-        ${isOver ? 'bg-primary/10 ring-2 ring-dashed ring-primary/50' : ''}`}
+      className={`flex-1 flex flex-wrap items-start gap-x-1 gap-y-4 py-1 min-h-[3rem] rounded-lg transition-all
+        ${isOver
+          ? 'bg-primary/10 ring-2 ring-dashed ring-primary/50'
+          : isDraggingChord
+            ? 'ring-1 ring-dashed ring-primary/25 bg-primary/[0.02]'
+            : ''}`}
     >
       {children}
+      {isDraggingChord && (
+        <span className={`self-center inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg border border-dashed transition-all pointer-events-none select-none
+          ${isOver ? 'text-primary border-primary/50 bg-primary/10' : 'text-primary/40 border-primary/25'}`}>
+          + soltar aquí
+        </span>
+      )}
     </div>
   );
 }
@@ -585,9 +595,10 @@ interface SortableSectionProps {
   onPreviewChord: (chord: string) => void;
   onUpdateToken: (sid: string, lid: string, tid: string, patch: Partial<WordToken>) => void;
   onDuplicateChord: (sid: string, lid: string, tid: string) => void;
+  isDraggingChord: boolean;
 }
 
-function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSectionProps) {
+function SortableSection({ section, canDelete, isPlaying, isDraggingChord, ...props }: SortableSectionProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 } as React.CSSProperties;
   const [nameFocused, setNameFocused] = useState(false);
@@ -686,7 +697,7 @@ function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSe
                   const isChordOnly = !hasText;
                   const isBlank = line.tokens.length === 0 || (line.tokens.length === 1 && !line.tokens[0].text && !line.tokens[0].chord);
                   return (
-                    <LineDropZone lineId={line.id} sectionId={section.id} isEmpty={isChordOnly}>
+                    <LineDropZone lineId={line.id} sectionId={section.id} isDraggingChord={isDraggingChord}>
                       {isBlank ? (
                         <span className="text-xs text-muted-foreground/30 italic self-center">
                           Empty — drag a chord here or click ✎ to add text
@@ -696,6 +707,7 @@ function SortableSection({ section, canDelete, isPlaying, ...props }: SortableSe
                           <TokenChip
                             key={token.id} token={token}
                             sectionId={section.id} lineId={line.id}
+                            isDraggingChord={isDraggingChord}
                             onOpenModal={() => props.onOpenChordModal(section.id, line.id, token.id, token.chord, token.duration)}
                             onRemove={() => props.onUpdateToken(section.id, line.id, token.id, { chord: '', duration: 4 })}
                             onPreview={() => props.onPreviewChord(token.chord)}
@@ -757,13 +769,14 @@ interface ChipProps {
   token: WordToken;
   sectionId: string;
   lineId: string;
+  isDraggingChord?: boolean;
   onOpenModal: () => void;
   onRemove: () => void;
   onPreview: () => void;
   onDuplicate: () => void;
 }
 
-function TokenChip({ token, sectionId, lineId, onOpenModal, onRemove, onPreview, onDuplicate }: ChipProps) {
+function TokenChip({ token, sectionId, lineId, isDraggingChord, onOpenModal, onRemove, onPreview, onDuplicate }: ChipProps) {
   if (token.isSpace) return <span className="text-sm select-none">{token.text}</span>;
 
   const hasChord = !!token.chord;
@@ -832,8 +845,12 @@ function TokenChip({ token, sectionId, lineId, onOpenModal, onRemove, onPreview,
         ) : (
           <button
             onClick={onOpenModal}
-            className={`opacity-20 group-hover/chip:opacity-100 text-[11px] text-muted-foreground hover:text-primary border border-dashed border-border hover:border-primary/60 hover:bg-primary/5 rounded-lg px-1.5 py-0.5 transition-all whitespace-nowrap leading-none
-              ${isOver ? 'opacity-100 border-primary/60 bg-primary/5' : ''}`}
+            className={`text-[11px] text-muted-foreground hover:text-primary border border-dashed rounded-lg px-1.5 py-0.5 transition-all whitespace-nowrap leading-none
+              ${isOver
+                ? 'opacity-100 border-primary/60 bg-primary/5 text-primary'
+                : isDraggingChord
+                  ? 'opacity-80 border-primary/40 bg-primary/5 text-primary/60'
+                  : 'opacity-20 group-hover/chip:opacity-100 border-border hover:border-primary/60 hover:bg-primary/5'}`}
           >
             +
           </button>

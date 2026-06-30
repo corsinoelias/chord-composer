@@ -61,7 +61,11 @@ function parseChordPositions(line: string): ChordPos[] {
   return result;
 }
 
-// Assign chords from a chord line to words in a lyric line by column proximity
+// Assign chords from a chord line to words in a lyric line.
+// Uses right-to-left redistribution: process chords from rightmost to leftmost.
+// Each chord claims the rightmost unoccupied word whose start col ≤ chord col.
+// If none left to the left, claims the leftmost remaining unoccupied word.
+// This prevents chords from being silently dropped.
 function assignChordsToLyric(chordPositions: ChordPos[], lyricLine: string): WordToken[] {
   if (chordPositions.length === 0) return parseLineToTokens(lyricLine);
 
@@ -74,35 +78,56 @@ function assignChordsToLyric(chordPositions: ChordPos[], lyricLine: string): Wor
   }
 
   const wordChunks = chunks.filter(c => !c.isSpace);
+
+  // No lyric — all chords become empty-text chord-only tokens
   if (wordChunks.length === 0) {
-    // No lyric words — create a token for the first chord
-    return chordPositions.map((cp, i) => ({
-      id: uid(), text: i === 0 ? '' : '', chord: cp.chord, duration: 4, isSpace: false,
+    return chordPositions.map(cp => ({
+      id: uid(), text: '', chord: cp.chord, duration: 4, isSpace: false,
     }));
   }
 
-  // For each chord, assign to the nearest word by column distance.
-  // Prefer the word to the left when equidistant.
-  const wordChordMap = new Map<number, string>(); // wordChunk index → first assigned chord
+  const occupied = new Set<number>();
+  const wordChordMap = new Map<number, string>(); // wordChunk index → chord
+  const overflow: string[] = []; // chords with no word left (more chords than words)
 
-  for (const cp of chordPositions) {
-    let bestIdx = 0;
-    let bestDist = Infinity;
-    for (let i = 0; i < wordChunks.length; i++) {
-      const dist = Math.abs(wordChunks[i].col - cp.col);
-      // Prefer left (col <= chord) when equal distance
-      const tieBreak = wordChunks[i].col <= cp.col ? 0 : 1;
-      if (dist < bestDist || (dist === bestDist && tieBreak === 0)) {
-        bestDist = dist;
-        bestIdx = i;
+  // Process chords right-to-left so rightmost chords claim rightmost words first.
+  // This ensures A@33 gets "forever", D@26 gets redistributed to "endureth", etc.
+  for (let ci = chordPositions.length - 1; ci >= 0; ci--) {
+    const cp = chordPositions[ci];
+
+    // Find rightmost unoccupied word with start ≤ chord col
+    let bestIdx = -1;
+    for (let wi = wordChunks.length - 1; wi >= 0; wi--) {
+      if (!occupied.has(wi) && wordChunks[wi].col <= cp.col) {
+        bestIdx = wi;
+        break;
       }
     }
-    if (!wordChordMap.has(bestIdx)) {
+
+    // Nothing to the left — take leftmost unoccupied word overall
+    if (bestIdx === -1) {
+      for (let wi = 0; wi < wordChunks.length; wi++) {
+        if (!occupied.has(wi)) { bestIdx = wi; break; }
+      }
+    }
+
+    if (bestIdx !== -1) {
       wordChordMap.set(bestIdx, cp.chord);
+      occupied.add(bestIdx);
+    } else {
+      // More chords than words — chord-only token at the end
+      overflow.push(cp.chord);
     }
   }
 
-  // Build the token array preserving spaces
+  return buildTokens(chunks, wordChordMap, overflow);
+}
+
+function buildTokens(
+  chunks: Array<{ text: string; col: number; isSpace: boolean }>,
+  wordChordMap: Map<number, string>,
+  overflow: string[],
+): WordToken[] {
   const tokens: WordToken[] = [];
   let wordIdx = 0;
   for (const chunk of chunks) {
@@ -118,6 +143,10 @@ function assignChordsToLyric(chordPositions: ChordPos[], lyricLine: string): Wor
       });
       wordIdx++;
     }
+  }
+  // Append overflow chords as chord-only tokens (visible in editor, no lyric text)
+  for (const chord of overflow) {
+    tokens.push({ id: uid(), text: '', chord, duration: 4, isSpace: false });
   }
   return tokens;
 }
