@@ -543,6 +543,26 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
   );
 }
 
+// ── AppendDropZone — explicit "add chord here" target at the end of a line ────
+// Separate registered droppable so closestCenter distinguishes it from token targets.
+function AppendDropZone({ lineId, sectionId }: { lineId: string; sectionId: string }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'append-' + lineId,
+    data: { type: 'line-drop', sectionId, lineId },
+  });
+  return (
+    <span
+      ref={setNodeRef}
+      className={`self-center inline-flex items-center text-[10px] font-medium px-2.5 py-1.5 rounded-lg border border-dashed transition-all select-none cursor-copy
+        ${isOver
+          ? 'text-primary border-primary/70 bg-primary/15 scale-105'
+          : 'text-primary/50 border-primary/35 bg-primary/5 hover:text-primary/70 hover:border-primary/50'}`}
+    >
+      + acorde
+    </span>
+  );
+}
+
 // ── LineDropZone — droppable wrapper for lines ───────────────────────────────
 function LineDropZone({ lineId, sectionId, children, isDraggingChord }: {
   lineId: string; sectionId: string; isDraggingChord: boolean; children: React.ReactNode;
@@ -558,16 +578,11 @@ function LineDropZone({ lineId, sectionId, children, isDraggingChord }: {
         ${isOver
           ? 'bg-primary/10 ring-2 ring-dashed ring-primary/50'
           : isDraggingChord
-            ? 'ring-1 ring-dashed ring-primary/25 bg-primary/[0.02]'
+            ? 'ring-1 ring-dashed ring-primary/20 bg-primary/[0.02]'
             : ''}`}
     >
       {children}
-      {isDraggingChord && (
-        <span className={`self-center inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg border border-dashed transition-all pointer-events-none select-none
-          ${isOver ? 'text-primary border-primary/50 bg-primary/10' : 'text-primary/40 border-primary/25'}`}>
-          + soltar aquí
-        </span>
-      )}
+      {isDraggingChord && <AppendDropZone lineId={lineId} sectionId={sectionId} />}
     </div>
   );
 }
