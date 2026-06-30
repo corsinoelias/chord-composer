@@ -18,7 +18,7 @@ export default defineConfig({
   integrations: [
     react(),
     mdx(),
-    partytown({ config: { forward: ['dataLayer.push'] } }),
+    partytown({ config: { forward: ['dataLayer.push', 'gtag'] } }),
     sitemap({
       filter: (page) => !page.includes('/app') && !page.includes('/editor') && !page.includes('/songs/new') && !page.includes('/privacy') && !page.includes('/terms'),
       customPages: [
