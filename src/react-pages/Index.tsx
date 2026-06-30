@@ -32,6 +32,7 @@ import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
 import { getSongById, saveSongWithSync } from '@/lib/songStorage';
+import { analytics } from '@/lib/analytics';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
@@ -755,6 +756,7 @@ const Index = ({ songId }: IndexProps) => {
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
       await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
       toast.success('WAV exported successfully!');
+      analytics.exportWav();
     } catch (error) {
       console.error('Export failed:', error);
       toast.error('Export failed. Please try again.');
@@ -770,6 +772,7 @@ const Index = ({ songId }: IndexProps) => {
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
       exportMidi(sections, bpm, transposition, filename);
       toast.success('MIDI exported successfully!');
+      analytics.exportMidi();
     } catch (error) {
       console.error('MIDI export failed:', error);
       toast.error('MIDI export failed. Please try again.');
@@ -877,26 +880,24 @@ const Index = ({ songId }: IndexProps) => {
   }, []);
 
   // Handler for loading a progression template
-  const handleLoadTemplate = (chords: Chord[]) => {
-    // Replace first section's chords with template
+  const handleLoadTemplate = (chords: Chord[], templateName: string) => {
     setSections(prev => {
       const newSections = [...prev];
       if (newSections.length > 0) {
-        newSections[0] = {
-          ...newSections[0],
-          chords,
-        };
+        newSections[0] = { ...newSections[0], chords };
       }
       return newSections;
     });
+    analytics.templateUsed(templateName);
     toast.success('Progression template loaded!');
   };
 
   // Countdown playback - starts countdown then plays
   const handlePlayWithCountdown = useCallback(() => {
     if (!hasChords || isExporting) return;
+    analytics.playProgression(selectedStyleId);
     setShowCountdown(true);
-  }, [hasChords, isExporting]);
+  }, [hasChords, isExporting, selectedStyleId]);
 
   const handleCountdownComplete = useCallback(() => {
     setShowCountdown(false);
@@ -1053,6 +1054,7 @@ const Index = ({ songId }: IndexProps) => {
           onStyleChange={(id) => {
             setSelectedStyleId(id);
             setLiveEditedStyle(null);
+            analytics.styleChanged(id);
           }}
           onSongTitleChange={setSongTitle}
           onTranspositionChange={setTransposition}

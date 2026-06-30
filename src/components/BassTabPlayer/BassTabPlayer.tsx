@@ -16,6 +16,7 @@ import { ExportVideoModal } from './ExportVideoModal'
 import { toAsciiTab, encodeTrackToHash, decodeTrackFromHash, copyToClipboard, exportMidiFile } from '../../lib/bassTab/exportTab'
 import { exportTrackAsWav } from '../../lib/bassTab/exportAudio'
 import { BassTabTransport } from './BassTabTransport'
+import { analytics } from '../../lib/analytics'
 import { BassTabFretboard } from './BassTabFretboard'
 import { BassTabGrid } from './BassTabGrid'
 import { BassRealisticDisplay } from './BassRealisticDisplay'
@@ -303,6 +304,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     const loopFrom = loopRange ? loopRange.startBeat : 0
     const from = currentBeat < totalBeats ? currentBeat : loopFrom
     setIsPlaying(true)
+    analytics.bassTabPlay()
     doPlay(from)
   }, [track, currentBeat, loopRange, doPlay])
 
@@ -431,11 +433,13 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const handleExportAscii = useCallback(async () => {
     const tab = toAsciiTab(track)
     const ok = await copyToClipboard(tab)
+    if (ok) analytics.bassTabExport('ascii')
     showToast(ok ? 'ASCII tab copied!' : 'Could not copy')
   }, [track, showToast])
 
   const handleExportMidi = useCallback(() => {
     exportMidiFile(track)
+    analytics.bassTabExport('midi')
     showToast(`${track.name}.mid downloaded`)
   }, [track, showToast])
 
@@ -443,6 +447,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     showToast('Rendering audio…')
     try {
       await exportTrackAsWav(track, sound)
+      analytics.bassTabExport('wav')
       showToast(`${track.name}.wav downloaded`)
     } catch {
       showToast('Export failed')
@@ -476,6 +481,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     const hash = encodeTrackToHash(track)
     const url = window.location.origin + window.location.pathname + hash
     const ok = await copyToClipboard(url)
+    if (ok) analytics.bassTabShared()
     showToast(ok ? 'Share URL copied!' : 'Could not copy')
   }, [track, showToast])
 

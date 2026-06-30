@@ -1,6 +1,7 @@
 import React from 'react'
 import { X } from 'lucide-react'
 import { PRESETS, type Preset } from '../../data/presets'
+import { analytics } from '../../lib/analytics'
 
 interface Props {
   onSelect: (preset: Preset) => void
@@ -96,7 +97,7 @@ export function PresetPicker({ onSelect, onClose }: Props) {
             return (
               <button
                 key={preset.id}
-                onClick={() => { onSelect(preset); onClose() }}
+                onClick={() => { analytics.bassTabPresetLoaded(preset.name); onSelect(preset); onClose() }}
                 style={{
                   background: 'hsl(224 22% 13%)',
                   border: '1px solid hsl(224 15% 19%)',

@@ -23,7 +23,7 @@ import { Music2, Play, Square, Check, Headphones } from 'lucide-react';
 interface ProgressionTemplatesModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect: (chords: Chord[]) => void;
+  onSelect: (chords: Chord[], templateName: string) => void;
 }
 
 export function ProgressionTemplatesModal({
@@ -67,7 +67,7 @@ export function ProgressionTemplatesModal({
     
     const prog = genre.progressions[progIdx];
     const chords = progressionToChords(prog);
-    onSelect(chords);
+    onSelect(chords, prog.name);
     
     // Show applied state, then close
     const id = `${genreId}-${progIdx}`;
