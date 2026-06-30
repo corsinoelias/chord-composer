@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Copy, Check, Lightbulb } from 'lucide-react'
 import { parseTextMode } from './textParser';
 import type { SongMeta, EditorSection } from './types';
 
-const EXAMPLE = `Title: Yesterday
+const EXAMPLE_INLINE = `Title: Yesterday
 Artist: The Beatles
 Key: F
 Capo: 2
@@ -19,6 +19,29 @@ Genre: pop, rock
 [Bb]Yesterday [C]love was [F]such an [Dm]easy game to play
 [Bb]Now I [C]need a place to [F]hide away`;
 
+const EXAMPLE_ABOVE = `Title: Lord You Are Good
+Artist: Israel Houghton
+Key: E
+BPM: 78
+Style: Pop
+Genre: worship
+
+Verse
+E
+Lord You are good
+          B               D      A
+And Your mercy endureth forever
+
+Chorus
+    E       B
+We worship You
+ D           A
+Hallelujah, Hallelujah
+    E       B
+We worship You
+             G   A
+For who You are`;
+
 const FORMAT_RULES = [
   { symbol: 'Title:', desc: 'Song title' },
   { symbol: 'Artist:', desc: 'Artist name' },
@@ -27,8 +50,8 @@ const FORMAT_RULES = [
   { symbol: 'BPM:', desc: 'Tempo in beats per minute' },
   { symbol: 'Style:', desc: 'Pop, Rock, Jazz, Folk, Blues, Lo-fi' },
   { symbol: 'Genre:', desc: 'Comma-separated genres' },
-  { symbol: '[Verse 1]', desc: 'Section header — alone on its own line' },
-  { symbol: '[Am]text', desc: 'Chord followed by the lyric it sits on' },
+  { symbol: '[Verse 1]', desc: 'Section header — or just write "Verse", "Chorus", etc.' },
+  { symbol: '[Am]text', desc: 'Inline chords — or use standard chord-above-lyric format' },
 ];
 
 interface Props {
@@ -41,6 +64,7 @@ export default function TextModeStep({ initialText = '', onImport, onBack }: Pro
   const [text, setText] = useState(initialText);
   const [showGuide, setShowGuide] = useState(!initialText);
   const [copied, setCopied] = useState(false);
+  const [exampleFormat, setExampleFormat] = useState<'inline' | 'above'>('above');
 
   const { meta, sections } = useMemo(() => parseTextMode(text), [text]);
 
@@ -48,14 +72,16 @@ export default function TextModeStep({ initialText = '', onImport, onBack }: Pro
   const hasSections = sections.length > 0;
   const canImport = hasMeta || hasSections;
 
+  const activeExample = exampleFormat === 'above' ? EXAMPLE_ABOVE : EXAMPLE_INLINE;
+
   function handleCopyExample() {
-    navigator.clipboard.writeText(EXAMPLE);
+    navigator.clipboard.writeText(activeExample);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
   function handleLoadExample() {
-    setText(EXAMPLE);
+    setText(activeExample);
     setShowGuide(false);
   }
 
@@ -96,7 +122,20 @@ export default function TextModeStep({ initialText = '', onImport, onBack }: Pro
 
             <div className="rounded-lg border border-border bg-background overflow-hidden">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
-                <span className="text-xs font-medium text-muted-foreground">Full example</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Example:</span>
+                  <div className="flex gap-1">
+                    {(['above', 'inline'] as const).map(fmt => (
+                      <button
+                        key={fmt}
+                        onClick={() => setExampleFormat(fmt)}
+                        className={`text-[11px] px-2 py-0.5 rounded transition-colors ${exampleFormat === fmt ? 'bg-primary/15 text-primary font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        {fmt === 'above' ? 'Chords above lyrics' : '[Chord]inline'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={handleLoadExample}
@@ -114,7 +153,7 @@ export default function TextModeStep({ initialText = '', onImport, onBack }: Pro
                 </div>
               </div>
               <pre className="px-4 py-3 text-[11px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap overflow-x-auto">
-                {EXAMPLE}
+                {activeExample}
               </pre>
             </div>
           </div>

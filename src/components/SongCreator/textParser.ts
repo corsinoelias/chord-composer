@@ -1,4 +1,4 @@
-import type { EditorSection, EditorLine, SongMeta } from './types';
+import type { EditorSection, EditorLine, WordToken, SongMeta } from './types';
 import { parseLineToTokens } from './lyricsParser';
 
 let _id = 200000;
@@ -26,14 +26,105 @@ const STYLE_LABELS: Record<string, string> = {
   'folk_strum': 'Folk', 'blues_shuffle': 'Blues', 'lofi_chill': 'Lo-fi',
 };
 
-// A line that is exactly [Something] with nothing after = section header
+// A line that is exactly [Something] with nothing after = section header (inline format)
 const SECTION_LINE_RE = /^\[([^\]]+)\]\s*$/;
-// Chord pattern: starts with A-G optionally followed by # or b and quality markers, no spaces
-const CHORD_ONLY_RE = /^[A-G][#b]?[^a-z\s]*$/;
+
+// Section labels without brackets (Nashville/plain format): Verse, Chorus, Bridge, etc.
+const SECTION_LABEL_RE = /^(verse|chorus|bridge|prechorus|pre[-\s]?chorus|intro|outro|instrumental|solo|interlude|refrain|hook|coda|break|tag|vamp|strophe|estrofa|coro|puente|precoro)[\s\d:]*$/i;
+
+// Chord name: A-G root + optional accidental + optional quality + optional number + optional bass note
+const CHORD_NAME_RE = /^[A-G][#b]?(m|maj|min|dim|aug|sus[24]?|add|M|b)?[0-9]*(\/[A-G][#b]?)?$/;
+
+function isChordName(s: string): boolean {
+  return CHORD_NAME_RE.test(s);
+}
+
+// A line is a "chord line" if every non-whitespace token is a valid chord name
+function isChordLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return false;
+  // Must have at least one chord; reject if any token isn't a chord
+  return tokens.every(t => isChordName(t));
+}
+
+interface ChordPos { chord: string; col: number; }
+
+function parseChordPositions(line: string): ChordPos[] {
+  const result: ChordPos[] = [];
+  const re = /\S+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(line)) !== null) {
+    if (isChordName(m[0])) result.push({ chord: m[0], col: m.index });
+  }
+  return result;
+}
+
+// Assign chords from a chord line to words in a lyric line by column proximity
+function assignChordsToLyric(chordPositions: ChordPos[], lyricLine: string): WordToken[] {
+  if (chordPositions.length === 0) return parseLineToTokens(lyricLine);
+
+  // Tokenize lyric into alternating word/space chunks with their column positions
+  const chunks: Array<{ text: string; col: number; isSpace: boolean }> = [];
+  const re = /\S+|\s+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(lyricLine)) !== null) {
+    chunks.push({ text: m[0], col: m.index, isSpace: /^\s/.test(m[0]) });
+  }
+
+  const wordChunks = chunks.filter(c => !c.isSpace);
+  if (wordChunks.length === 0) {
+    // No lyric words — create a token for the first chord
+    return chordPositions.map((cp, i) => ({
+      id: uid(), text: i === 0 ? '' : '', chord: cp.chord, duration: 4, isSpace: false,
+    }));
+  }
+
+  // For each chord, assign to the nearest word by column distance.
+  // Prefer the word to the left when equidistant.
+  const wordChordMap = new Map<number, string>(); // wordChunk index → first assigned chord
+
+  for (const cp of chordPositions) {
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < wordChunks.length; i++) {
+      const dist = Math.abs(wordChunks[i].col - cp.col);
+      // Prefer left (col <= chord) when equal distance
+      const tieBreak = wordChunks[i].col <= cp.col ? 0 : 1;
+      if (dist < bestDist || (dist === bestDist && tieBreak === 0)) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+    if (!wordChordMap.has(bestIdx)) {
+      wordChordMap.set(bestIdx, cp.chord);
+    }
+  }
+
+  // Build the token array preserving spaces
+  const tokens: WordToken[] = [];
+  let wordIdx = 0;
+  for (const chunk of chunks) {
+    if (chunk.isSpace) {
+      tokens.push({ id: uid(), text: chunk.text, chord: '', duration: 4, isSpace: true });
+    } else {
+      tokens.push({
+        id: uid(),
+        text: chunk.text,
+        chord: wordChordMap.get(wordIdx) ?? '',
+        duration: 4,
+        isSpace: false,
+      });
+      wordIdx++;
+    }
+  }
+  return tokens;
+}
 
 function isSectionLine(content: string): boolean {
   // If it looks like a chord name (A-G root, no spaces, short), treat as chord, not section
-  if (CHORD_ONLY_RE.test(content) && content.length <= 8) return false;
+  if (isChordName(content) && content.length <= 8) return false;
   return true;
 }
 
@@ -49,6 +140,7 @@ export function parseTextMode(raw: string): ParseResult {
 
   let inHeader = true;
   let current: EditorSection | null = null;
+  let pendingChords: ChordPos[] | null = null;
 
   for (const rawLine of lines) {
     const line = rawLine.trimEnd();
@@ -79,32 +171,64 @@ export function parseTextMode(raw: string): ParseResult {
       }
     }
 
-    // Section header: [Verse 1] or [Chorus] — alone on a line
-    const sectionMatch = trimmed.match(SECTION_LINE_RE);
-    if (sectionMatch && isSectionLine(sectionMatch[1])) {
+    // Section header with brackets: [Verse 1]
+    const bracketMatch = trimmed.match(SECTION_LINE_RE);
+    if (bracketMatch && isSectionLine(bracketMatch[1])) {
       inHeader = false;
+      pendingChords = null;
       if (current && current.lines.length > 0) sections.push(current);
-      current = { id: uid(), name: sectionMatch[1], lines: [] };
+      current = { id: uid(), name: bracketMatch[1], lines: [] };
+      continue;
+    }
+
+    // Section header without brackets: Verse, Chorus, Bridge, Prechorus…
+    if (SECTION_LABEL_RE.test(trimmed)) {
+      inHeader = false;
+      pendingChords = null;
+      if (current && current.lines.length > 0) sections.push(current);
+      const label = trimmed.replace(/:$/, '');
+      current = { id: uid(), name: label.charAt(0).toUpperCase() + label.slice(1), lines: [] };
       continue;
     }
 
     // Blank line
     if (trimmed === '') {
       inHeader = false;
+      // Don't clear pendingChords — a blank line between chord line and lyric is unusual but possible
       continue;
     }
 
     inHeader = false;
 
-    if (!current) {
-      current = { id: uid(), name: 'Verse 1', lines: [] };
+    // Chord-above-lyric format: a line that contains only chord names
+    if (isChordLine(line)) {
+      // If there were already pending chords, flush them as a chord-only line
+      if (pendingChords && current) {
+        const tokens = assignChordsToLyric(pendingChords, '');
+        if (tokens.length > 0) current.lines.push({ id: uid(), tokens });
+      }
+      pendingChords = parseChordPositions(line);
+      if (!current) current = { id: uid(), name: 'Verse 1', lines: [] };
+      continue;
     }
 
-    const editorLine: EditorLine = {
-      id: uid(),
-      tokens: parseLineToTokens(line),
-    };
+    // Regular content line (lyric or inline [Chord]lyric)
+    if (!current) current = { id: uid(), name: 'Verse 1', lines: [] };
+
+    let editorLine: EditorLine;
+    if (pendingChords) {
+      editorLine = { id: uid(), tokens: assignChordsToLyric(pendingChords, line) };
+      pendingChords = null;
+    } else {
+      editorLine = { id: uid(), tokens: parseLineToTokens(line) };
+    }
     current.lines.push(editorLine);
+  }
+
+  // Flush any trailing pending chords
+  if (pendingChords && current) {
+    const tokens = assignChordsToLyric(pendingChords, '');
+    if (tokens.length > 0) current.lines.push({ id: uid(), tokens });
   }
 
   if (current && current.lines.length > 0) sections.push(current);

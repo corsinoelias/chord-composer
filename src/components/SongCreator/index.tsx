@@ -6,6 +6,7 @@ import ChordStep from './ChordStep';
 import TextModeStep from './TextModeStep';
 import type { SongMeta, EditorSection } from './types';
 import { sectionsToSongFormat, songSectionsToEditorSections } from './lyricsParser';
+import { serializeToTextMode } from './textParser';
 import { savePublicSong, updatePublicSong, upsertPublicSongBySlug, getPublicSongBySlug } from '@/lib/publicSongs';
 import { SONGS } from '@/data/songs';
 import { generateSlug } from '@/lib/musicKeys';
@@ -224,7 +225,7 @@ export default function SongCreator() {
       {/* Text mode */}
       {mode === 'text' && (
         <TextModeStep
-          initialText=""
+          initialText={serializeToTextMode(meta, sections)}
           onImport={handleTextImport}
           onBack={() => setMode('steps')}
         />
