@@ -6,7 +6,7 @@ import SongImageButton from '../../components/SongImageButton';
 import ChordAside from '../../components/ChordAside';
 import { SONGS, extractChordsFromSong } from '../../data/songs';
 import type { Song } from '../../data/songs';
-import { getPublicSongBySlug } from '@/lib/publicSongs';
+import { getPublicSongBySlug, getRelatedPublicSongs } from '@/lib/publicSongs';
 import { fetchCoverImage } from '@/lib/coverImage';
 
 const { slug } = Astro.params;
@@ -92,8 +92,13 @@ function buildSeoDescription(s: Song): string {
 const seoDescription = buildSeoDescription(song);
 
 
-const relatedSongs = SONGS
-  .filter(s => s.slug !== song.slug && s.genre.some(g => song.genre.includes(g)))
+// Cross-link both curated (SONGS) and community (Supabase) songs sharing a genre —
+// otherwise newly-added community songs never receive internal links from each other.
+const communityRelated = await getRelatedPublicSongs(song.slug, song.genre, 3);
+const relatedSongs = [
+  ...SONGS.filter(s => s.slug !== song.slug && s.genre.some(g => song.genre.includes(g))),
+  ...communityRelated,
+].filter((s, i, arr) => arr.findIndex(x => x.slug === s.slug) === i)
   .slice(0, 3);
 
 // ── Song analysis helpers ────────────────────────────────────────────────────

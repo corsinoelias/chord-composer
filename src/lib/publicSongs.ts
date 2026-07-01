@@ -63,6 +63,22 @@ export async function getPublicSongBySlug(slug: string): Promise<PublicSong | nu
   return fromDb(data);
 }
 
+// Published songs sharing at least one genre with `genres`, excluding `excludeSlug`.
+// Used for "related songs" cross-linking — includes both curated and community songs.
+export async function getRelatedPublicSongs(excludeSlug: string, genres: string[], limit = 3): Promise<PublicSong[]> {
+  if (!supabase || genres.length === 0) return [];
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('is_published', true)
+    .neq('slug', excludeSlug)
+    .overlaps('genre', genres)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) { console.error('getRelatedPublicSongs:', error.message); return []; }
+  return (data ?? []).map(fromDb);
+}
+
 export async function getMyDraftSongs(): Promise<PublicSong[]> {
   const userId = await ensureAuth();
   if (!supabase || !userId) return [];
