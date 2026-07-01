@@ -13,34 +13,28 @@ export type RootNote = typeof ROOT_NOTES[number];
 export const ACCIDENTALS = ['', '#', 'b'] as const;
 export type Accidental = typeof ACCIDENTALS[number];
 
-// Extended chord qualities - complete set
+// Extended chord qualities - ordered by frequency of use
 export const CHORD_QUALITIES = [
-  // Triads
-  'maj', 'min', 'dim', 'aug',
-  // Suspended
-  'sus2', 'sus4',
+  // Triads — used in virtually every song
+  'maj', 'min', 'dim', 'aug', '5',
+  // Suspended — very common in pop/rock
+  'sus2', 'sus4', '7sus4',
+  // Seventh — staple of jazz, blues, pop
+  '7', 'maj7', 'min7', 'minMaj7',
+  // Add chords — common in pop
+  'add9', 'minadd9', 'add11',
   // Sixth
-  '6', 'min6',
-  // Seventh
-  '7', 'maj7', 'min7', 'dim7', 'aug7', 'minMaj7', 'm7b5',
+  '6', 'min6', '6/9',
   // Ninth
-  'add9', '9', 'maj9', 'min9', '7b9', '7#9',
+  '9', 'maj9', 'min9',
   // Eleventh
-  '11', 'maj11', 'min11', 'add11',
+  '11', 'maj11', 'min11',
   // Thirteenth
   '13', 'maj13', 'min13',
-  // Altered/Extended
-  '7#5', '7b5', '9#5', '9b5',
-  // Power chord
-  '5',
-  // Suspended dominant
-  '7sus4',
-  // Lydian
-  'maj7#11',
-  // Six-nine
-  '6/9',
-  // Minor add9
-  'minadd9',
+  // Less common seventh variants
+  'dim7', 'aug7', 'm7b5',
+  // Altered / extended
+  '7b9', '7#9', '7b5', '7#5', '9b5', '9#5', 'maj7#11',
 ] as const;
 export type ChordQuality = typeof CHORD_QUALITIES[number];
 

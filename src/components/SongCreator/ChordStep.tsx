@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   DragOverlay, useDraggable, useDroppable,
@@ -9,6 +9,7 @@ import { CSS } from '@dnd-kit/utilities';
 
 import type { EditorSection, WordToken, SongMeta } from './types';
 import { sectionsToSongFormat, tokensToRawLine, parseLineToTokens, makeEmptyLine, makeNewSection } from './lyricsParser';
+import { parseSectionBody } from './textParser';
 import ChordPalette from './ChordPalette';
 import { ChordEditModal } from '@/components/ChordEditModal';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -24,7 +25,7 @@ import type { Chord } from '@/lib/musicTheory';
 
 import {
   Music2, Plus, Trash2, Pencil, Check, X,
-  GripVertical, ChevronDown, ChevronUp, Copy, Play, Square,
+  GripVertical, ChevronDown, ChevronUp, Copy, Play, Square, ClipboardPaste,
 } from 'lucide-react';
 
 // ── Transpose helpers ─────────────────────────────────────────────────────────
@@ -77,7 +78,7 @@ let _n = 9999;
 const nid = () => String(++_n);
 
 function cloneSection(s: EditorSection, suffix = ' (2)'): EditorSection {
-  return { id: nid(), name: s.name + suffix, lines: s.lines.map(l => ({ id: nid(), tokens: l.tokens.map(t => ({ ...t, id: nid() })) })) };
+  return { id: nid(), name: s.name + suffix, lines: s.lines.map(l => ({ id: nid(), tokens: l.tokens.map(t => ({ ...t, id: nid() })) })), repeatCount: s.repeatCount };
 }
 function cloneLine(l: EditorSection['lines'][number]) {
   return { id: nid(), tokens: l.tokens.map(t => ({ ...t, id: nid() })) };
@@ -114,6 +115,11 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
   const [showPreview, setShowPreview] = useState(false);
   const [draggingChord, setDraggingChord] = useState<string | null>(null);
   const [playingSectionId, setPlayingSectionId] = useState<string | null>(null);
+  // null = closed, 'new' = creating a new section, otherwise = appending lines to that section id
+  const [pasteTarget, setPasteTarget] = useState<'new' | string | null>(null);
+  const [pasteName, setPasteName] = useState('');
+  const [pasteText, setPasteText] = useState('');
+  const closePasteImport = () => { setPasteTarget(null); setPasteName(''); setPasteText(''); };
 
   const hasChanges = JSON.stringify(sections) !== savedSectionsJson || JSON.stringify(meta) !== savedMetaJson;
   const lineEditRef = useRef<HTMLTextAreaElement>(null);
@@ -132,10 +138,22 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
   const addSection    = () => setSections(p => [...p, makeNewSection(`Section ${p.length + 1}`)]);
   const deleteSection = (id: string) => setSections(p => p.filter(s => s.id !== id));
   const renameSect    = (id: string, name: string) => setSections(p => p.map(s => s.id === id ? { ...s, name } : s));
+  const changeRepeat  = (id: string, repeatCount: number) => setSections(p => p.map(s => s.id === id ? { ...s, repeatCount: Math.max(1, repeatCount) } : s));
   const duplicateSection = (id: string) => setSections(p => {
     const i = p.findIndex(s => s.id === id);
     const next = [...p]; next.splice(i + 1, 0, cloneSection(p[i])); return next;
   });
+  const confirmPasteImport = () => {
+    const lines = parseSectionBody(pasteText);
+    if (lines.length === 0) return;
+    if (pasteTarget === 'new') {
+      setSections(p => [...p, { id: nid(), name: pasteName.trim() || `Section ${p.length + 1}`, lines, repeatCount: 1 }]);
+    } else if (pasteTarget) {
+      const targetId = pasteTarget;
+      setSections(p => p.map(s => s.id === targetId ? { ...s, lines: [...s.lines, ...lines] } : s));
+    }
+    closePasteImport();
+  };
   const handleDragStart = ({ active }: DragStartEvent) => {
     const type = active.data.current?.type;
     if (type === 'chord' || type === 'palette-chord') {
@@ -199,7 +217,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
           lines: sec.lines.map(l => {
             if (l.id !== dstLine) return l;
             const newToken: WordToken = { id: nid(), text: '', chord, duration: 4, isSpace: false };
-            const kept = l.tokens.filter(t => t.text.trim() || t.chord);
+            const kept = l.tokens.filter(t => t.isSpace || t.text.trim() || t.chord);
             return { ...l, tokens: [...kept, newToken] };
           }),
         }));
@@ -284,7 +302,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
 
     if (!chords.length) return;
     setPlayingSectionId(section.id);
-    await play([{ ...createSection(section.name), chords }], playbackOpts());
+    await play([{ ...createSection(section.name), chords, repeatCount: section.repeatCount }], playbackOpts());
   }, [isPlaying, playingSectionId, play, stop, playbackOpts]);
 
   const handleChordSave = (saved: Chord) => {
@@ -328,6 +346,10 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
   };
 
   const totalChords = sections.flatMap(s => s.lines.flatMap(l => l.tokens)).filter(t => t.chord).length;
+
+  // ── Paste-import preview ────────────────────────────────────────────────────
+  const pastePreviewLines = useMemo(() => parseSectionBody(pasteText), [pasteText]);
+  const pastePreviewChordCount = pastePreviewLines.flatMap(l => l.tokens).filter(t => t.chord).length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -424,8 +446,10 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
                     onRename={renameSect}
                     onDelete={deleteSection}
                     onDuplicate={duplicateSection}
+                    onRepeatChange={changeRepeat}
                     onPlaySection={handlePlaySection}
                     onAddLine={addLine}
+                    onPasteLines={setPasteTarget}
                     onDeleteLine={deleteLine}
                     onDuplicateLine={duplicateLine}
                     onStartEditLine={startEditLine}
@@ -442,10 +466,16 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
               </div>
             </SortableContext>
 
-            <button onClick={addSection}
-              className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground border-2 border-dashed border-border/50 hover:border-primary/40 rounded-xl py-3 transition-colors">
-              <Plus className="w-4 h-4" /> Add section
-            </button>
+            <div className="flex gap-2">
+              <button onClick={addSection}
+                className="flex-1 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground border-2 border-dashed border-border/50 hover:border-primary/40 rounded-xl py-3 transition-colors">
+                <Plus className="w-4 h-4" /> Add section
+              </button>
+              <button onClick={() => setPasteTarget('new')}
+                className="flex-1 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground border-2 border-dashed border-border/50 hover:border-primary/40 rounded-xl py-3 transition-colors">
+                <ClipboardPaste className="w-4 h-4" /> Paste chords
+              </button>
+            </div>
           </div>
 
           {/* Chord palette aside — sticky */}
@@ -539,6 +569,60 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
           </PlaybackProvider>
         </DialogContent>
       </Dialog>
+
+      {/* ── Paste chords modal ── */}
+      <Dialog open={pasteTarget !== null} onOpenChange={o => { if (!o) closePasteImport(); }}>
+        <DialogContent className="w-[calc(100%-1rem)] sm:max-w-lg p-0 gap-0">
+          <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
+            <ClipboardPaste className="w-4 h-4 text-primary shrink-0" />
+            <span className="font-semibold text-foreground">
+              {pasteTarget === 'new'
+                ? 'Paste chords into a new section'
+                : `Paste chords into ${sections.find(s => s.id === pasteTarget)?.name ?? 'section'}`}
+            </span>
+          </div>
+          <div className="p-5 space-y-3">
+            {pasteTarget === 'new' && (
+              <input
+                value={pasteName}
+                onChange={e => setPasteName(e.target.value)}
+                placeholder="Section name (e.g. Chorus)"
+                className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            )}
+            <textarea
+              value={pasteText}
+              onChange={e => setPasteText(e.target.value)}
+              placeholder={'G#m E B F#\nAlle Alle Alleluia\nG#m E B F#\nYou get all the praise, we say'}
+              rows={8}
+              spellCheck={false}
+              autoFocus
+              className="w-full border border-border rounded-xl px-3 py-2 bg-background text-sm font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              Chords above lyrics, or <code className="bg-muted px-1 rounded">[Chord]inline</code> — same format as "From text".
+              {pasteText.trim() && (
+                <span className="ml-1 text-primary font-medium">
+                  {pastePreviewChordCount} {pastePreviewChordCount === 1 ? 'chord' : 'chords'} detected
+                </span>
+              )}
+            </p>
+          </div>
+          <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+            <button onClick={closePasteImport}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
+              Cancel
+            </button>
+            <button
+              onClick={confirmPasteImport}
+              disabled={pastePreviewLines.length === 0}
+              className="px-5 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {pasteTarget === 'new' ? 'Add section' : 'Add lines'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -598,8 +682,10 @@ interface SortableSectionProps {
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onRepeatChange: (id: string, repeatCount: number) => void;
   onPlaySection: (section: EditorSection) => void;
   onAddLine: (sid: string) => void;
+  onPasteLines: (sid: string) => void;
   onDeleteLine: (sid: string, lid: string) => void;
   onDuplicateLine: (sid: string, lid: string) => void;
   onStartEditLine: (lid: string, tokens: WordToken[]) => void;
@@ -672,6 +758,29 @@ function SortableSection({ section, canDelete, isPlaying, isDraggingChord, ...pr
               {isPlaying ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
             </button>
           )}
+          {/* Repeat count */}
+          <div className="relative">
+            <button
+              onClick={() => props.onRepeatChange(section.id, section.repeatCount === 1 ? 2 : section.repeatCount + 1)}
+              title="Repeat this section"
+              className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors ${
+                section.repeatCount > 1
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground/50 hover:text-foreground hover:border-primary/40'
+              }`}
+            >
+              ×{section.repeatCount}
+            </button>
+            {section.repeatCount > 1 && (
+              <button
+                onClick={() => props.onRepeatChange(section.id, section.repeatCount - 1)}
+                title="Reduce repeat count"
+                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-destructive-foreground text-[9px] leading-none flex items-center justify-center hover:scale-110 transition-transform"
+              >
+                −
+              </button>
+            )}
+          </div>
           <button onClick={() => props.onDuplicate(section.id)} title="Duplicate section"
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors">
             <Copy className="w-3.5 h-3.5" />
@@ -748,10 +857,16 @@ function SortableSection({ section, canDelete, isPlaying, isDraggingChord, ...pr
           </div>
         ))}
 
-        <button onClick={() => props.onAddLine(section.id)}
-          className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary border border-dashed border-border/50 hover:border-primary/40 rounded-xl py-2 transition-colors mt-1">
-          <Plus className="w-3 h-3" /> Add line
-        </button>
+        <div className="flex gap-2 mt-1">
+          <button onClick={() => props.onAddLine(section.id)}
+            className="flex-1 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary border border-dashed border-border/50 hover:border-primary/40 rounded-xl py-2 transition-colors">
+            <Plus className="w-3 h-3" /> Add line
+          </button>
+          <button onClick={() => props.onPasteLines(section.id)}
+            className="flex-1 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary border border-dashed border-border/50 hover:border-primary/40 rounded-xl py-2 transition-colors">
+            <ClipboardPaste className="w-3 h-3" /> Paste chords
+          </button>
+        </div>
       </div>}
     </div>
   );

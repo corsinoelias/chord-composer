@@ -21,7 +21,7 @@ function makeLine(text: string): EditorLine {
 }
 
 function makeSection(name: string): EditorSection {
-  return { id: uid(), name, lines: [] };
+  return { id: uid(), name, lines: [], repeatCount: 1 };
 }
 
 export function parseLyricsToSections(raw: string): EditorSection[] {
@@ -67,6 +67,7 @@ export function sectionsToSongFormat(sections: EditorSection[]): SongSection[] {
       }
       return line;
     }).filter(l => l.trim() !== ''),
+    ...(s.repeatCount > 1 ? { repeatCount: s.repeatCount } : {}),
   }));
 }
 
@@ -131,5 +132,6 @@ export function songSectionsToEditorSections(sections: SongSection[]): EditorSec
       id: uid(),
       tokens: parseLineToTokens(line),
     })),
+    repeatCount: s.repeatCount ?? 1,
   }));
 }

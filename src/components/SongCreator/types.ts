@@ -16,6 +16,7 @@ export interface EditorSection {
   id: string;
   name: string;
   lines: EditorLine[];
+  repeatCount: number; // how many times the section plays back-to-back. Default 1 (no repeat).
 }
 
 // ── Primary editing model ─────────────────────────────────────────────────────

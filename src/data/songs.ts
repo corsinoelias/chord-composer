@@ -7,6 +7,7 @@ export interface SongToken {
 export interface SongSection {
   name: string;   // "Verse 1", "Chorus", "Bridge", etc.
   lines: string[]; // Each line uses [Chord:beats]lyrics notation
+  repeatCount?: number; // how many times the section plays back-to-back. Default 1 (no repeat).
 }
 
 export interface Song {

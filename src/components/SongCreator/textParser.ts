@@ -61,16 +61,71 @@ function parseChordPositions(line: string): ChordPos[] {
   return result;
 }
 
+type WordChunk = { text: string; col: number; isSpace: boolean };
+type Assignment = { wordChordMap: Map<number, string>; overflow: string[] };
+
+// Attempts to match each chord to the word it visually sits above, processing chords
+// right-to-left so rightmost chords claim rightmost words first (reserving earlier
+// words for earlier chords). This ensures A@33 gets "forever", D@26 gets redistributed
+// to "endureth", etc.
+// Returns null if a chord has no word to its left while unoccupied words still remain
+// elsewhere — a sign the chord line's columns don't correspond to the lyric line's
+// (e.g. whitespace collapsed by a copy-paste), so column matching can't be trusted.
+function tryColumnMatch(chordPositions: ChordPos[], wordChunks: WordChunk[]): Assignment | null {
+  const occupied = new Set<number>();
+  const wordChordMap = new Map<number, string>();
+  const overflow: string[] = [];
+
+  for (let ci = chordPositions.length - 1; ci >= 0; ci--) {
+    const cp = chordPositions[ci];
+
+    // Find rightmost unoccupied word with start ≤ chord col
+    let bestIdx = -1;
+    for (let wi = wordChunks.length - 1; wi >= 0; wi--) {
+      if (!occupied.has(wi) && wordChunks[wi].col <= cp.col) {
+        bestIdx = wi;
+        break;
+      }
+    }
+
+    if (bestIdx === -1) {
+      // No word to the left. If every word is already claimed this is a legitimate
+      // overflow (more chords than words); otherwise the columns are unreliable.
+      if (occupied.size < wordChunks.length) return null;
+      overflow.push(cp.chord);
+      continue;
+    }
+
+    wordChordMap.set(bestIdx, cp.chord);
+    occupied.add(bestIdx);
+  }
+
+  overflow.reverse(); // collected right-to-left — restore original chord order
+  return { wordChordMap, overflow };
+}
+
+// Spreads chords evenly across the available words, left to right, preserving chord
+// order. Used as a fallback when column positions can't be trusted (see tryColumnMatch).
+function evenlyDistribute(chordPositions: ChordPos[], numWords: number): Assignment {
+  const wordChordMap = new Map<number, string>();
+  const overflow: string[] = [];
+  const n = chordPositions.length;
+
+  chordPositions.forEach((cp, i) => {
+    if (n <= numWords) wordChordMap.set(Math.floor((i * numWords) / n), cp.chord);
+    else if (i < numWords) wordChordMap.set(i, cp.chord);
+    else overflow.push(cp.chord);
+  });
+
+  return { wordChordMap, overflow };
+}
+
 // Assign chords from a chord line to words in a lyric line.
-// Uses right-to-left redistribution: process chords from rightmost to leftmost.
-// Each chord claims the rightmost unoccupied word whose start col ≤ chord col.
-// If none left to the left, claims the leftmost remaining unoccupied word.
-// This prevents chords from being silently dropped.
 function assignChordsToLyric(chordPositions: ChordPos[], lyricLine: string): WordToken[] {
   if (chordPositions.length === 0) return parseLineToTokens(lyricLine);
 
   // Tokenize lyric into alternating word/space chunks with their column positions
-  const chunks: Array<{ text: string; col: number; isSpace: boolean }> = [];
+  const chunks: WordChunk[] = [];
   const re = /\S+|\s+/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(lyricLine)) !== null) {
@@ -86,39 +141,7 @@ function assignChordsToLyric(chordPositions: ChordPos[], lyricLine: string): Wor
     }));
   }
 
-  const occupied = new Set<number>();
-  const wordChordMap = new Map<number, string>(); // wordChunk index → chord
-  const overflow: string[] = []; // chords with no word left (more chords than words)
-
-  // Process chords right-to-left so rightmost chords claim rightmost words first.
-  // This ensures A@33 gets "forever", D@26 gets redistributed to "endureth", etc.
-  for (let ci = chordPositions.length - 1; ci >= 0; ci--) {
-    const cp = chordPositions[ci];
-
-    // Find rightmost unoccupied word with start ≤ chord col
-    let bestIdx = -1;
-    for (let wi = wordChunks.length - 1; wi >= 0; wi--) {
-      if (!occupied.has(wi) && wordChunks[wi].col <= cp.col) {
-        bestIdx = wi;
-        break;
-      }
-    }
-
-    // Nothing to the left — take leftmost unoccupied word overall
-    if (bestIdx === -1) {
-      for (let wi = 0; wi < wordChunks.length; wi++) {
-        if (!occupied.has(wi)) { bestIdx = wi; break; }
-      }
-    }
-
-    if (bestIdx !== -1) {
-      wordChordMap.set(bestIdx, cp.chord);
-      occupied.add(bestIdx);
-    } else {
-      // More chords than words — chord-only token at the end
-      overflow.push(cp.chord);
-    }
-  }
+  const { wordChordMap, overflow } = tryColumnMatch(chordPositions, wordChunks) ?? evenlyDistribute(chordPositions, wordChunks.length);
 
   return buildTokens(chunks, wordChordMap, overflow);
 }
@@ -155,6 +178,54 @@ function isSectionLine(content: string): boolean {
   // If it looks like a chord name (A-G root, no spaces, short), treat as chord, not section
   if (isChordName(content) && content.length <= 8) return false;
   return true;
+}
+
+// Trailing "x2" / "×2" on a section label = repeat count, e.g. "Chorus x2" or "[Chorus x2]"
+const REPEAT_SUFFIX_RE = /\s*[x×]\s*(\d+)\s*$/i;
+
+function extractRepeat(label: string): { name: string; repeatCount: number } {
+  const m = label.match(REPEAT_SUFFIX_RE);
+  if (!m) return { name: label.trim(), repeatCount: 1 };
+  const n = parseInt(m[1], 10);
+  return { name: label.slice(0, m.index).trim(), repeatCount: n > 0 ? n : 1 };
+}
+
+// Parse a single block of pasted text (chord-above-lyric, [Chord]inline, or plain lyrics —
+// same formats parseTextMode understands) into lines for one section. No meta/section-header
+// detection here — the caller already knows which section this text belongs to.
+export function parseSectionBody(raw: string): EditorLine[] {
+  const lines: EditorLine[] = [];
+  let pendingChords: ChordPos[] | null = null;
+
+  for (const rawLine of raw.split('\n')) {
+    const line = rawLine.trimEnd();
+    const trimmed = line.trim();
+
+    if (trimmed === '') continue;
+
+    if (isChordLine(line)) {
+      if (pendingChords) {
+        const tokens = assignChordsToLyric(pendingChords, '');
+        if (tokens.length > 0) lines.push({ id: uid(), tokens });
+      }
+      pendingChords = parseChordPositions(line);
+      continue;
+    }
+
+    if (pendingChords) {
+      lines.push({ id: uid(), tokens: assignChordsToLyric(pendingChords, line) });
+      pendingChords = null;
+    } else {
+      lines.push({ id: uid(), tokens: parseLineToTokens(line) });
+    }
+  }
+
+  if (pendingChords) {
+    const tokens = assignChordsToLyric(pendingChords, '');
+    if (tokens.length > 0) lines.push({ id: uid(), tokens });
+  }
+
+  return lines;
 }
 
 export interface ParseResult {
@@ -200,23 +271,25 @@ export function parseTextMode(raw: string): ParseResult {
       }
     }
 
-    // Section header with brackets: [Verse 1]
+    // Section header with brackets: [Verse 1] or [Chorus x2]
     const bracketMatch = trimmed.match(SECTION_LINE_RE);
     if (bracketMatch && isSectionLine(bracketMatch[1])) {
       inHeader = false;
       pendingChords = null;
       if (current && current.lines.length > 0) sections.push(current);
-      current = { id: uid(), name: bracketMatch[1], lines: [] };
+      const { name, repeatCount } = extractRepeat(bracketMatch[1]);
+      current = { id: uid(), name, lines: [], repeatCount };
       continue;
     }
 
-    // Section header without brackets: Verse, Chorus, Bridge, Prechorus…
-    if (SECTION_LABEL_RE.test(trimmed)) {
+    // Section header without brackets: Verse, Chorus, Bridge, Prechorus… (optional "x2"/"×2" repeat suffix)
+    const { name: labelCandidate, repeatCount: labelRepeat } = extractRepeat(trimmed);
+    if (SECTION_LABEL_RE.test(labelCandidate)) {
       inHeader = false;
       pendingChords = null;
       if (current && current.lines.length > 0) sections.push(current);
-      const label = trimmed.replace(/:$/, '');
-      current = { id: uid(), name: label.charAt(0).toUpperCase() + label.slice(1), lines: [] };
+      const label = labelCandidate.replace(/:$/, '');
+      current = { id: uid(), name: label.charAt(0).toUpperCase() + label.slice(1), lines: [], repeatCount: labelRepeat };
       continue;
     }
 
@@ -237,12 +310,12 @@ export function parseTextMode(raw: string): ParseResult {
         if (tokens.length > 0) current.lines.push({ id: uid(), tokens });
       }
       pendingChords = parseChordPositions(line);
-      if (!current) current = { id: uid(), name: 'Verse 1', lines: [] };
+      if (!current) current = { id: uid(), name: 'Verse 1', lines: [], repeatCount: 1 };
       continue;
     }
 
     // Regular content line (lyric or inline [Chord]lyric)
-    if (!current) current = { id: uid(), name: 'Verse 1', lines: [] };
+    if (!current) current = { id: uid(), name: 'Verse 1', lines: [], repeatCount: 1 };
 
     let editorLine: EditorLine;
     if (pendingChords) {
@@ -279,7 +352,8 @@ export function serializeToTextMode(meta: SongMeta, sections: EditorSection[]): 
   lines.push('');
 
   for (const section of sections) {
-    lines.push(`[${section.name}]`);
+    const repeatSuffix = section.repeatCount > 1 ? ` x${section.repeatCount}` : '';
+    lines.push(`[${section.name}${repeatSuffix}]`);
     for (const line of section.lines) {
       let rawLine = '';
       for (const t of line.tokens) {

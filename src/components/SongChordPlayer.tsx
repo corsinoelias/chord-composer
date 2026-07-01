@@ -168,6 +168,22 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     return { resolvedSections: sections, allChordsFlat: allChords, sectionStartIndices: startIndices, sectionChordCounts: chordCounts };
   }, [song]);
 
+  // ── Repeat-aware offsets — how many chord instances play before section i, incl. repeats ──
+  // Each rendered lyric/chord token exists once in the DOM (sectionStartIndices above), but a
+  // repeated section is scheduled multiple times back-to-back by the audio engine, so the flat
+  // playback position (currentChordIndex) advances past sectionChordCounts[i] on every repeat.
+  const { sectionSpanOffsets, totalSpan } = useMemo(() => {
+    const offsets: number[] = [];
+    let acc = 0;
+    song.sections.forEach((section, si) => {
+      offsets.push(acc);
+      acc += sectionChordCounts[si] * (section.repeatCount ?? 1);
+    });
+    return { sectionSpanOffsets: offsets, totalSpan: acc };
+  }, [song.sections, sectionChordCounts]);
+
+  const allChordsWithDuration = useMemo(() => extractChordsWithDuration(song), [song]);
+
   const displayKey = useMemo(() => transpose === 0 ? song.key : transposeKey(song.key, transpose), [song.key, transpose]);
 
   const displayedSections = useMemo(() => {
@@ -184,26 +200,55 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     }));
   }, [resolvedSections, transpose, displayKey]);
 
-  // ── Build playback chords for a range ─────────────────────────────────────
-  function buildPlayback(startGlobal: number, count: number, label: string) {
-    const chordsWithDur = extractChordsWithDuration(song).slice(startGlobal, startGlobal + count);
+  // ── Build one playback Section for a range of resolved chords ──────────────
+  const buildPlayback = useCallback((startGlobal: number, count: number, label: string, repeatCount = 1) => {
+    const chordsWithDur = allChordsWithDuration.slice(startGlobal, startGlobal + count);
     const parsed = chordsWithDur.flatMap(({ chord, duration }) =>
       parseChordString(chord).map(c => ({ ...c, duration }))
     );
-    return [{ ...createSection(label), chords: parsed }];
-  }
+    return { ...createSection(label), chords: parsed, repeatCount };
+  }, [allChordsWithDuration]);
+
+  // ── Build one Section per song section, preserving identity + repeatCount ──
+  // (rather than flattening the whole song into one Section) so the audio engine's
+  // own per-section repeat loop handles repeats instead of duplicating chord data here.
+  const buildFullSongSections = useCallback(() => {
+    return song.sections.map((section, si) =>
+      buildPlayback(sectionStartIndices[si], sectionChordCounts[si], section.name, section.repeatCount ?? 1)
+    );
+  }, [song.sections, sectionStartIndices, sectionChordCounts, buildPlayback]);
 
   // ── Reset playing section when playback stops ──────────────────────────────
   useEffect(() => { if (!isPlaying) setPlayingSection(null); }, [isPlaying]);
 
+  // ── Map the flat playback position (which advances across repeats) back to the
+  // single rendered DOM token for highlighting/scrolling ──────────────────────
+  const activeGlobal = useMemo(() => {
+    if (!isPlaying || currentChordIndex < 0) return -1;
+    if (playingSection !== null) {
+      const count = sectionChordCounts[playingSection];
+      if (count === 0) return -1;
+      const repeatCount = song.sections[playingSection]?.repeatCount ?? 1;
+      if (currentChordIndex >= count * repeatCount) return -1;
+      return sectionStartIndices[playingSection] + (currentChordIndex % count);
+    }
+    for (let si = 0; si < song.sections.length; si++) {
+      const count = sectionChordCounts[si];
+      if (count === 0) continue;
+      const start = sectionSpanOffsets[si];
+      const span = count * (song.sections[si].repeatCount ?? 1);
+      if (currentChordIndex >= start && currentChordIndex < start + span) {
+        return sectionStartIndices[si] + ((currentChordIndex - start) % count);
+      }
+    }
+    return -1;
+  }, [isPlaying, currentChordIndex, playingSection, sectionChordCounts, sectionStartIndices, sectionSpanOffsets, song.sections]);
+
   // ── Auto-scroll to active chord ────────────────────────────────────────────
   useEffect(() => {
-    if (!isPlaying || currentChordIndex < 0) return;
-    const globalIdx = playingSection !== null
-      ? sectionStartIndices[playingSection] + currentChordIndex
-      : currentChordIndex;
-    chordRefs.current.get(globalIdx)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [currentChordIndex, isPlaying, playingSection, sectionStartIndices]);
+    if (!isPlaying || activeGlobal < 0) return;
+    chordRefs.current.get(activeGlobal)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [activeGlobal, isPlaying]);
 
   // ── Play full song ─────────────────────────────────────────────────────────
   const handlePlay = useCallback(async () => {
@@ -213,12 +258,12 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     setPlayingSection(null);
     setIsLoading(true);
     try {
-      await play(buildPlayback(0, allChordsFlat.length, 'Song'), {
+      await play(buildFullSongSections(), {
         bpm, metronome: false, instruments: getDefaultInstrumentStates(),
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
       });
     } finally { setIsLoading(false); }
-  }, [isPlaying, play, stop, allChordsFlat.length, bpm, song.style]);
+  }, [isPlaying, play, stop, allChordsFlat.length, bpm, song, transpose, buildFullSongSections]);
 
   // ── Play single section ────────────────────────────────────────────────────
   const handlePlaySection = useCallback(async (si: number) => {
@@ -228,31 +273,31 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     setPlayingSection(si);
     setIsLoading(true);
     try {
-      await play(buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name), {
+      await play([buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name, song.sections[si].repeatCount ?? 1)], {
         bpm, metronome: false, instruments: getDefaultInstrumentStates(),
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
       });
     } finally { setIsLoading(false); }
-  }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections]);
+  }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback]);
 
   // ── Export WAV ─────────────────────────────────────────────────────────────
   const handleExportWav = useCallback(async () => {
     setIsExportingWav(true);
     try {
-      const sections = buildPlayback(0, allChordsFlat.length, song.title);
+      const sections = buildFullSongSections();
       const style = MUSICAL_STYLES.find(s => s.id === song.style) ?? MUSICAL_STYLES[0];
       const buffer = await renderProgressionOffline(sections, bpm, getDefaultInstrumentStates(), style, transpose);
       await encodeAndDownloadMp3(buffer, `${song.title} - ${song.artist}.wav`);
     } finally {
       setIsExportingWav(false);
     }
-  }, [allChordsFlat.length, bpm, song, transpose]);
+  }, [bpm, song, transpose, buildFullSongSections]);
 
   // ── Export MIDI ────────────────────────────────────────────────────────────
   const handleExportMidi = useCallback(() => {
-    const sections = buildPlayback(0, allChordsFlat.length, song.title);
+    const sections = buildFullSongSections();
     exportMidi(sections, bpm, transpose, `${song.title} - ${song.artist}`);
-  }, [allChordsFlat.length, bpm, song, transpose]);
+  }, [bpm, song, transpose, buildFullSongSections]);
 
   // Stop on unmount
   useEffect(() => () => { stop(); }, []);
@@ -261,9 +306,12 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     setCollapsedSections(prev => { const n = new Set(prev); n.has(idx) ? n.delete(idx) : n.add(idx); return n; });
   };
 
-  // Progress depends on what's playing
-  const activeCount = playingSection !== null ? sectionChordCounts[playingSection] : allChordsFlat.length;
-  const progress = activeCount > 0 ? Math.min(100, Math.round((currentChordIndex / (activeCount - 1)) * 100)) : 0;
+  // Progress depends on what's playing — spans include repeats, since that's the space
+  // currentChordIndex actually advances through
+  const activeSpan = playingSection !== null
+    ? sectionChordCounts[playingSection] * (song.sections[playingSection]?.repeatCount ?? 1)
+    : totalSpan;
+  const progress = activeSpan > 0 ? Math.min(100, Math.round((currentChordIndex / (activeSpan - 1)) * 100)) : 0;
 
   const editorUrl = `/editor?chords=${encodeURIComponent(allChordsFlat.slice(0, 32).join('-'))}&bpm=${bpm}&style=${song.style}`;
 
@@ -330,11 +378,6 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         {displayedSections.map((section, si) => {
           const collapsed = collapsedSections.has(si);
 
-          // Which global index is "active" right now
-          const activeGlobal = isPlaying
-            ? (playingSection !== null ? sectionStartIndices[playingSection] + currentChordIndex : currentChordIndex)
-            : -1;
-
           const isSectionPlaying = isPlaying && playingSection === si;
           const isActiveSection = isPlaying && (
             playingSection !== null
@@ -357,10 +400,20 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                   onClick={() => toggleSection(si)}
                   className="flex-1 flex items-center justify-between text-left hover:bg-transparent transition-colors min-w-0"
                 >
-                  <span className={`text-xs font-bold uppercase tracking-widest truncate
-                    ${isActiveSection ? 'text-primary' : 'text-muted-foreground'}
-                  `}>
-                    {section.name}
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className={`text-xs font-bold uppercase tracking-widest truncate
+                      ${isActiveSection ? 'text-primary' : 'text-muted-foreground'}
+                    `}>
+                      {section.name}
+                    </span>
+                    {(song.sections[si].repeatCount ?? 1) > 1 && (
+                      <span
+                        title={`Repeats ${song.sections[si].repeatCount}×`}
+                        className="shrink-0 text-[10px] font-bold text-primary/80 bg-primary/10 border border-primary/20 rounded-full px-1.5 py-0.5"
+                      >
+                        ×{song.sections[si].repeatCount}
+                      </span>
+                    )}
                   </span>
                   {collapsed
                     ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0 ml-2" />

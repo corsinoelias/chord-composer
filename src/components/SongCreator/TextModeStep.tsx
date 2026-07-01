@@ -51,6 +51,7 @@ const FORMAT_RULES = [
   { symbol: 'Style:', desc: 'Pop, Rock, Jazz, Folk, Blues, Lo-fi' },
   { symbol: 'Genre:', desc: 'Comma-separated genres' },
   { symbol: '[Verse 1]', desc: 'Section header — or just write "Verse", "Chorus", etc.' },
+  { symbol: '[Chorus x2]', desc: 'Repeat a section N times when played — or just write "Chorus x2"' },
   { symbol: '[Am]text', desc: 'Inline chords — or use standard chord-above-lyric format' },
 ];
 
@@ -193,7 +194,7 @@ export default function TextModeStep({ initialText = '', onImport, onBack }: Pro
                 const chords = s.lines.flatMap(l => l.tokens.filter(t => t.chord)).length;
                 return (
                   <span key={s.id} className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                    {s.name} · {chords} {chords === 1 ? 'chord' : 'chords'}
+                    {s.name} · {chords} {chords === 1 ? 'chord' : 'chords'}{s.repeatCount > 1 ? ` · ×${s.repeatCount}` : ''}
                   </span>
                 );
               })}
