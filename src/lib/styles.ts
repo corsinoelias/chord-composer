@@ -35,6 +35,10 @@ export interface StylePattern {
   bpm: number;
   bpmRange: [number, number];
   description: string;
+  // Time signature this style's rhythm arrays are written for. Defaults to 4/4 (16 slots
+  // per bar) when omitted — every style predating this field keeps behaving identically.
+  // Rhythm array length must equal getSlotsPerBar(style) for the given signature.
+  timeSignature?: { numerator: number; denominator: number };
   // Rhythm patterns: 16 slots with velocity values (0 = silence, 0.5 = ghost, 1 = accent)
   rhythm: {
     piano: number[];        // Piano/keys pattern
@@ -95,6 +99,59 @@ export interface StylePattern {
 // Convert slot (0-15) to beat position (0-3.9375)
 export function slotToBeat(slot: number): number {
   return slot / 4;
+}
+
+/**
+ * Number of 16th-note-resolution slots in one bar of a style's time signature.
+ * 4/4 (the default when `timeSignature` is omitted) = 16 slots, matching every
+ * existing style. A different signature scales the bar length proportionally —
+ * e.g. 6/8 (six eighth notes = three quarter notes) = 12 slots, 3/4 = 12 slots.
+ * Same formula TuxGuitar uses for measure length in ticks (numerator * denominator time),
+ * just expressed in our fixed 4-slots-per-quarter-note resolution instead of MIDI PPQ.
+ */
+export function getSlotsPerBar(style: StylePattern): number {
+  if (!style.timeSignature) return 16;
+  const { numerator, denominator } = style.timeSignature;
+  return Math.round((numerator * 16) / denominator);
+}
+
+/**
+ * Slots per raw pulse — one denominator-unit (one eighth note in 6/8, one
+ * quarter note in 4/4). This is the finest counted subdivision (1,2,3,4,5,6
+ * in 6/8), used for step-numbering in the rhythm grid.
+ */
+export function getPulseInterval(style: StylePattern): number {
+  const denominator = style.timeSignature?.denominator ?? 4;
+  return Math.round(16 / denominator);
+}
+
+/**
+ * Slots between metronome clicks — always one quarter note (4 slots),
+ * regardless of time signature. So 4/4 clicks 4 times/bar, 6/8 clicks
+ * 3 times/bar (one per quarter note, i.e. 6/8's numerator/2 — NOT
+ * TuxGuitar's addMetronome() convention of `numerator` raw-pulse clicks
+ * per bar, which would be 6 clicks/bar in 6/8). We deliberately diverge
+ * from TuxGuitar here: verified against a real reference MIDI click
+ * track (90 BPM, quarter-note spacing throughout, confirmed correct by
+ * ear) that a musician expects the metronome to tick in quarter notes
+ * — the same unit `bpm` is expressed in — not in the raw denominator
+ * subdivision. `style` is unused today but kept in the signature in case
+ * we ever want a per-style override.
+ *
+ * NOTE on BPM: `bpm` is always plain quarter-note tempo, uniformly across
+ * every time signature — no compound-meter conversion is applied anywhere.
+ * We tried making BPM mean "the felt dotted-quarter beat" for compound meters
+ * (mirroring TuxGuitar's TGTempo `dotted`/`base` fields), but `bpm` is a
+ * single global value that's preserved as-is when the user switches styles
+ * (see Index.tsx's onStyleChange) — so the same displayed number silently
+ * meant a 1.5x-different actual tempo depending on which style was selected,
+ * with zero visual indication. That's worse than the theoretical inaccuracy
+ * of always reading BPM as raw quarter notes. If a compound-meter style needs
+ * to feel like "76 dotted-quarter beats/min", its `bpm` field should just be
+ * set to the equivalent raw value directly (76 * 1.5 = 114) — see Pop 6/8.
+ */
+export function getMetronomeClickInterval(style: StylePattern): number {
+  return 4;
 }
 
 /**
@@ -272,6 +329,52 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
+    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
+  },
+
+  // ============================================
+  // POP 6/8 (Compás compuesto real) - 76 BPM
+  // ============================================
+  // Característica: Balada en 6/8 de verdad — timeSignature:{6,8} da
+  // slotsPerBar=12 (getSlotsPerBar), así los 6 pulsos de corchea caen
+  // exactos en los slots pares (0,2,4,6,8,10), sin aproximaciones.
+  // Bombo y caja marcan los dos pulsos principales (negra con puntillo,
+  // slots 0 y 6); hi-hat/piano/guitarra rellenan los 6 pulsos de corchea.
+  {
+    id: 'pop_6_8',
+    name: 'Pop 6/8',
+    category: 'Pop',
+    // 114 raw quarter-notes/min = 76 felt dotted-quarter pulses/min (114/1.5) —
+    // bpm is always plain quarter-note tempo (no hidden conversion), so this
+    // number is picked to *sound* like a 76 bpm ballad, not to display as one.
+    bpm: 114,
+    bpmRange: [98, 143],
+    timeSignature: { numerator: 6, denominator: 8 },
+    description: 'Balada pop en 6/8. Bombo y caja en los dos pulsos principales (negra con puntillo), hi-hat en negra, piano en los 6 pulsos de corchea.',
+    rhythm: {
+      // B: pulso 1 (slot 0) y pulso 2 (slot 6) — negra con puntillo
+      kick:  [1, 0, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0],
+      // C: acompaña el segundo pulso, ghost en la última corchea (pickup)
+      snare: [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0.4, 0],
+      // H: negra (slots 0,4,8) en vez de las 6 corcheas — confirmado contra
+      // referencia real (hi-hat continuo en negra, no en corchea, a 90 bpm)
+      hihat: [0.8, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0],
+      // B: fundamental en el pulso 1, repite en el pulso 2, pickup hacia el próximo compás
+      bass:  [1, 0, 0, 0, 0, 0, 0.8, 0, 0, 0, 0.3, 0],
+      // P: acorde en los dos pulsos principales, notas suaves en las corcheas intermedias
+      piano: [1, 0, 0.3, 0, 0.3, 0, 1, 0, 0.3, 0, 0.3, 0],
+      // G: rasgueo siguiendo las 6 corcheas
+      guitar: [1, 0, 0.5, 0, 0.6, 0, 0.9, 0, 0.5, 0, 0.6, 0],
+    },
+    fill: {
+      position: 6, // Fill en el segundo pulso del compás (segunda mitad)
+      pattern: {
+        snare:    [0, 0, 0, 0, 0, 0, 0.5, 0, 0.7, 0, 0.9, 0],
+        floorTom: [0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0],
+        tom1:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0],
+      },
+    },
+    volumes: { piano: 0.75, bass: 1.0, drums: 0.9, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },
 
@@ -1038,18 +1141,20 @@ export function generateBarPattern(
   piano: number[];
   guitar?: number[];
 } {
+  const slotsPerBar = getSlotsPerBar(style);
+
   // Start with base patterns
   let kick = [...style.rhythm.kick];
   let snare = [...style.rhythm.snare];
-  let snareStick = style.rhythm.snareStick ? [...style.rhythm.snareStick] : new Array(16).fill(0);
+  let snareStick = style.rhythm.snareStick ? [...style.rhythm.snareStick] : new Array(slotsPerBar).fill(0);
   let hihat = [...style.rhythm.hihat];
-  let hihatOpen = style.rhythm.hihatOpen ? [...style.rhythm.hihatOpen] : new Array(16).fill(0);
-  let hihatFoot = style.rhythm.hihatFoot ? [...style.rhythm.hihatFoot] : new Array(16).fill(0);
-  let tom1 = style.rhythm.tom1 ? [...style.rhythm.tom1] : new Array(16).fill(0);
-  let tom2 = style.rhythm.tom2 ? [...style.rhythm.tom2] : new Array(16).fill(0);
-  let floorTom = style.rhythm.floorTom ? [...style.rhythm.floorTom] : new Array(16).fill(0);
-  let ride = style.rhythm.ride ? [...style.rhythm.ride] : new Array(16).fill(0);
-  let crash = style.rhythm.crash ? [...style.rhythm.crash] : new Array(16).fill(0);
+  let hihatOpen = style.rhythm.hihatOpen ? [...style.rhythm.hihatOpen] : new Array(slotsPerBar).fill(0);
+  let hihatFoot = style.rhythm.hihatFoot ? [...style.rhythm.hihatFoot] : new Array(slotsPerBar).fill(0);
+  let tom1 = style.rhythm.tom1 ? [...style.rhythm.tom1] : new Array(slotsPerBar).fill(0);
+  let tom2 = style.rhythm.tom2 ? [...style.rhythm.tom2] : new Array(slotsPerBar).fill(0);
+  let floorTom = style.rhythm.floorTom ? [...style.rhythm.floorTom] : new Array(slotsPerBar).fill(0);
+  let ride = style.rhythm.ride ? [...style.rhythm.ride] : new Array(slotsPerBar).fill(0);
+  let crash = style.rhythm.crash ? [...style.rhythm.crash] : new Array(slotsPerBar).fill(0);
   let bass = [...style.rhythm.bass];
   let piano = [...style.rhythm.piano];
   let guitar = style.rhythm.guitar ? [...style.rhythm.guitar] : undefined;
@@ -1057,14 +1162,14 @@ export function generateBarPattern(
   // Apply fill on phrase endings
   if (shouldApplyFill(barNumber, phraseLength)) {
     const fillPos = style.fill.position;
-    
+
     const applyFill = (base: number[], fillPattern?: number[]) => {
       // In strictFill mode (Fill editor preview): ALWAYS apply the fill pattern.
       // Missing fill patterns become silence (all zeros).
       // In normal mode: only apply if there's an explicit fill pattern.
       if (!strictFill && !fillPattern) return;
 
-      for (let i = fillPos; i < 16; i++) {
+      for (let i = fillPos; i < slotsPerBar; i++) {
         base[i] = fillPattern?.[i] ?? 0;
       }
     };

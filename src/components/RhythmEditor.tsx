@@ -25,7 +25,7 @@ import {
   ChevronDown,
   RotateCw
 } from 'lucide-react';
-import { type StylePattern, MUSICAL_STYLES, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed, type InstrumentSounds } from '@/lib/styles';
+import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar, getPulseInterval, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed, type InstrumentSounds } from '@/lib/styles';
 import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates, INSTRUMENTS, type InstrumentType } from '@/lib/instruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
@@ -134,8 +134,8 @@ const DRUM_INSTRUMENT_KEYS: InstrumentKey[] = [
   'tom1', 'tom2', 'floorTom', 'ride', 'crash'
 ];
 
-function createEmptyPattern(): number[] {
-  return new Array(16).fill(0);
+function createEmptyPattern(slotsPerBar: number = 16): number[] {
+  return new Array(slotsPerBar).fill(0);
 }
 
 function cloneStyle(style: StylePattern): StylePattern {
@@ -318,15 +318,16 @@ export function RhythmEditor({
     
     const ctx = getAudioContext();
     const bpm = editedStyleRef.current.bpm;
+    const barSlots = getSlotsPerBar(editedStyleRef.current);
     const slotDuration = (60 / bpm / 4); // Duration of 1 sixteenth note
-    const barDuration = slotDuration * 16;
-    
+    const barDuration = slotDuration * barSlots;
+
     // Calculate precise position within the bar
     const elapsed = ctx.currentTime - loopStartTimeRef.current;
     const loopPosition = elapsed % barDuration;
-    
-    // Calculate step and ensure it's always 0-15
-    const step = Math.floor(loopPosition / slotDuration) % 16;
+
+    // Calculate step and ensure it's always within 0..barSlots-1
+    const step = Math.floor(loopPosition / slotDuration) % barSlots;
     
     // Only update if step changed to reduce re-renders
     setCurrentStep(prev => prev !== step ? step : prev);
@@ -465,19 +466,19 @@ export function RhythmEditor({
     
     setEditedStyle(prev => {
       const newStyle = cloneStyle(prev);
-      
+
       if (isFill) {
         if (!newStyle.fill.pattern[instrument]) {
-          newStyle.fill.pattern[instrument] = createEmptyPattern();
+          newStyle.fill.pattern[instrument] = createEmptyPattern(getSlotsPerBar(newStyle));
         }
         newStyle.fill.pattern[instrument]![step] = value;
       } else {
         if (!newStyle.rhythm[instrument]) {
-          newStyle.rhythm[instrument] = createEmptyPattern();
+          newStyle.rhythm[instrument] = createEmptyPattern(getSlotsPerBar(newStyle));
         }
         newStyle.rhythm[instrument]![step] = value;
       }
-      
+
       return newStyle;
     });
   };
@@ -498,7 +499,7 @@ export function RhythmEditor({
           newStyle.fill.arpeggios = {};
         }
         if (!newStyle.fill.arpeggios[instrument]) {
-          newStyle.fill.arpeggios[instrument] = new Array(16).fill(null);
+          newStyle.fill.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
         }
         newStyle.fill.arpeggios[instrument]![step] = isArpeggio ? defaultArpeggio : null;
       } else {
@@ -506,7 +507,7 @@ export function RhythmEditor({
           newStyle.arpeggios = {};
         }
         if (!newStyle.arpeggios[instrument]) {
-          newStyle.arpeggios[instrument] = new Array(16).fill(null);
+          newStyle.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
         }
         newStyle.arpeggios[instrument]![step] = isArpeggio ? defaultArpeggio : null;
       }
@@ -539,13 +540,13 @@ export function RhythmEditor({
       if (isFill) {
         if (!newStyle.fill.arpeggios) newStyle.fill.arpeggios = {};
         if (!newStyle.fill.arpeggios[instrument]) {
-          newStyle.fill.arpeggios[instrument] = new Array(16).fill(null);
+          newStyle.fill.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
         }
         newStyle.fill.arpeggios[instrument]![step] = updated;
       } else {
         if (!newStyle.arpeggios) newStyle.arpeggios = {};
         if (!newStyle.arpeggios[instrument]) {
-          newStyle.arpeggios[instrument] = new Array(16).fill(null);
+          newStyle.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
         }
         newStyle.arpeggios[instrument]![step] = updated;
       }
@@ -578,13 +579,13 @@ export function RhythmEditor({
       if (isFill) {
         if (!newStyle.fill.arpeggios) newStyle.fill.arpeggios = {};
         if (!newStyle.fill.arpeggios[instrument]) {
-          newStyle.fill.arpeggios[instrument] = new Array(16).fill(null);
+          newStyle.fill.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
         }
         newStyle.fill.arpeggios[instrument]![step] = updated;
       } else {
         if (!newStyle.arpeggios) newStyle.arpeggios = {};
         if (!newStyle.arpeggios[instrument]) {
-          newStyle.arpeggios[instrument] = new Array(16).fill(null);
+          newStyle.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
         }
         newStyle.arpeggios[instrument]![step] = updated;
       }
@@ -617,7 +618,7 @@ export function RhythmEditor({
     setEditedStyle(prev => {
       const newStyle = cloneStyle(prev);
       if (!newStyle.rhythm[key]) {
-        newStyle.rhythm[key] = createEmptyPattern();
+        newStyle.rhythm[key] = createEmptyPattern(getSlotsPerBar(newStyle));
       }
       return newStyle;
     });
@@ -639,10 +640,11 @@ export function RhythmEditor({
   const clearPattern = (instrument: InstrumentKey, isFill: boolean) => {
     setEditedStyle(prev => {
       const newStyle = cloneStyle(prev);
+      const slots = getSlotsPerBar(newStyle);
       if (isFill && newStyle.fill.pattern[instrument]) {
-        newStyle.fill.pattern[instrument] = createEmptyPattern();
+        newStyle.fill.pattern[instrument] = createEmptyPattern(slots);
       } else if (!isFill && newStyle.rhythm[instrument]) {
-        newStyle.rhythm[instrument] = createEmptyPattern();
+        newStyle.rhythm[instrument] = createEmptyPattern(slots);
       }
       return newStyle;
     });
@@ -758,6 +760,12 @@ export function RhythmEditor({
 
   const availableInstruments = ALL_INSTRUMENTS.filter(i => !activeInstruments.has(i.key));
   const sortedActiveInstruments = ALL_INSTRUMENTS.filter(i => activeInstruments.has(i.key));
+  // Slots per bar for the style being edited (16 for 4/4, 12 for 6/8, etc.)
+  const slotsPerBar = getSlotsPerBar(editedStyle);
+  // Pulse markers in the grid follow the meter's raw pulse — one eighth note
+  // in 6/8 (2 slots), one quarter note in 4/4 (4 slots) — so cells are numbered
+  // 1..6 continuously in 6/8 instead of the old fixed "4 quarter-note groups".
+  const slotsPerBeatGroup = getPulseInterval(editedStyle);
 
   // Group styles for dropdown - use original names for display
   // Filter out duplicates by using a Map keyed by style ID
@@ -1183,30 +1191,12 @@ export function RhythmEditor({
           {/* Grid Area */}
           <div className="flex-1 max-h-[50vh] sm:max-h-[400px] overflow-auto">
             <div className="p-2 sm:p-4 min-w-[340px]">
-              {/* Beat Markers */}
-              <div className="flex mb-2">
-                <div className="w-12 sm:w-28 shrink-0" />
-                <div className="flex-1 flex">
-                  {[1, 2, 3, 4].map(beat => (
-                    <div key={beat} className="flex-1 flex">
-                      <div className="flex-1 text-center">
-                        <span className="text-xs sm:text-sm font-bold text-foreground">
-                          {beat}
-                        </span>
-                      </div>
-                      <div className="flex-1" />
-                      <div className="flex-1" />
-                      <div className="flex-1" />
-                    </div>
-                  ))}
-                </div>
-                <div className="w-6 sm:w-16 shrink-0" />
-              </div>
-              
-              {/* Grid Rows */}
+              {/* Grid Rows — a single flat row of slotsPerBar steps per instrument.
+                  Pulse numbers (1, 2, 3…) are printed inside the empty cell at each
+                  pulse start instead of a separate header row above the grid. */}
               <div className="space-y-0.5 sm:space-y-1">
                 {sortedActiveInstruments.filter(i => i.category === 'drums').map(instrument => {
-                  const basePattern = editedStyle.rhythm[instrument.key] || createEmptyPattern();
+                  const basePattern = editedStyle.rhythm[instrument.key] || createEmptyPattern(slotsPerBar);
                   const fillPattern = editedStyle.fill.pattern[instrument.key];
                   const Icon = instrument.icon;
                   
@@ -1217,15 +1207,10 @@ export function RhythmEditor({
                         <span className="text-[8px] sm:text-xs font-medium truncate">{instrument.label}</span>
                       </div>
                       
-                      <div className="flex-1 flex">
-                        {[0, 1, 2, 3].map(beatIdx => (
-                          <div 
-                            key={beatIdx} 
-                            className="flex-1 flex gap-px sm:gap-0.5 px-px sm:px-0.5"
-                          >
-                            {[0, 1, 2, 3].map(subIdx => {
-                              const step = beatIdx * 4 + subIdx;
-                              const isDownbeat = subIdx === 0;
+                      <div className="flex-1 flex gap-px sm:gap-0.5 px-px sm:px-0.5">
+                        {Array.from({ length: slotsPerBar }, (_, i) => i).map(step => {
+                              const isDownbeat = step % slotsPerBeatGroup === 0;
+                              const pulseNumber = step / slotsPerBeatGroup + 1;
                               const isCurrentStep = displayStep === step && (isLocalPlaying || isMainPlaying);
 
                               const isInFillZone = step >= editedStyle.fill.position;
@@ -1284,14 +1269,18 @@ export function RhythmEditor({
                                         isCurrentStep && "ring-2 ring-primary ring-offset-1 ring-offset-background z-10"
                                       )}
                                     >
-                                      {value > 0 && (
+                                      {value > 0 ? (
                                         <span className="text-[7px] sm:text-[9px] font-medium text-foreground/80">
-                                          {isArpeggio 
-                                            ? (arpeggioCell?.type === 'up' ? '↑' 
+                                          {isArpeggio
+                                            ? (arpeggioCell?.type === 'up' ? '↑'
                                               : arpeggioCell?.type === 'down' ? '↓'
                                               : arpeggioCell?.type === 'updown' ? '↕'
                                               : '⟳')
                                             : Math.round(value * 100)}
+                                        </span>
+                                      ) : isDownbeat && (
+                                        <span className="text-[9px] sm:text-xs font-medium text-muted-foreground/50">
+                                          {pulseNumber}
                                         </span>
                                       )}
                                     </button>
@@ -1408,10 +1397,8 @@ export function RhythmEditor({
                                 </Popover>
                               );
                             })}
-                          </div>
-                        ))}
                       </div>
-                      
+
                       <div className="flex items-center shrink-0 w-6 sm:w-16">
                         <Button
                           variant="ghost"
@@ -1487,6 +1474,8 @@ export function RhythmEditor({
               melodic={migratedMelodic[activeTab as 'bass' | 'piano' | 'guitar']}
               referenceRootMidi={referenceRootMidi}
               referenceQuality={referenceQuality}
+              slotsPerBar={slotsPerBar}
+              slotsPerBeatGroup={slotsPerBeatGroup}
               naturalOctave={activeTab === 'bass' ? -1 : 0}
               currentStep={displayStep}
               isPlaying={isPlaying}

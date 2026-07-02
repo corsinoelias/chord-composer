@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Music, Volume2, Square } from 'lucide-react';
-import { type StylePattern, MUSICAL_STYLES } from '@/lib/styles';
+import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar } from '@/lib/styles';
 import { generateCustomStyleId } from '@/lib/customStyles';
 import { useStylePreview } from '@/hooks/useStylePreview';
 import { cn } from '@/lib/utils';
@@ -20,11 +20,22 @@ interface CreateRhythmModalProps {
 
 const CATEGORIES = ['Rock', 'Funk', 'Pop', 'Reggae', 'HipHop', 'Disco', 'Blues', 'Latin', 'Metal', 'Folk', 'Country', 'Jazz', 'Soul', 'Indie', 'LoFi'] as const;
 
-function createEmptyPattern(): number[] {
-  return new Array(16).fill(0);
+// Common time signatures. 4/4 omits the field (matches every pre-existing style's default).
+const TIME_SIGNATURES: Record<string, { numerator: number; denominator: number } | undefined> = {
+  '4/4': undefined,
+  '3/4': { numerator: 3, denominator: 4 },
+  '6/8': { numerator: 6, denominator: 8 },
+  '12/8': { numerator: 12, denominator: 8 },
+};
+type TimeSignatureKey = keyof typeof TIME_SIGNATURES;
+
+function createEmptyPattern(slotsPerBar: number = 16): number[] {
+  return new Array(slotsPerBar).fill(0);
 }
 
-function createEmptyStyle(name: string, category: string, bpm: number): StylePattern {
+function createEmptyStyle(name: string, category: string, bpm: number, timeSignatureKey: TimeSignatureKey): StylePattern {
+  const timeSignature = TIME_SIGNATURES[timeSignatureKey];
+  const slots = timeSignature ? getSlotsPerBar({ timeSignature } as StylePattern) : 16;
   return {
     id: generateCustomStyleId(),
     name,
@@ -32,15 +43,16 @@ function createEmptyStyle(name: string, category: string, bpm: number): StylePat
     bpm,
     bpmRange: [Math.max(40, bpm - 40), Math.min(200, bpm + 40)],
     description: 'Custom rhythm pattern',
+    ...(timeSignature ? { timeSignature } : {}),
     rhythm: {
-      kick: createEmptyPattern(),
-      snare: createEmptyPattern(),
-      hihat: createEmptyPattern(),
-      bass: createEmptyPattern(),
-      piano: createEmptyPattern(),
+      kick: createEmptyPattern(slots),
+      snare: createEmptyPattern(slots),
+      hihat: createEmptyPattern(slots),
+      bass: createEmptyPattern(slots),
+      piano: createEmptyPattern(slots),
     },
     fill: {
-      position: 12,
+      position: Math.round(slots * 0.75),
       pattern: {},
     },
     volumes: { piano: 0.7, bass: 0.8, drums: 0.75 },
@@ -57,6 +69,7 @@ export function CreateRhythmModal({ open, onClose, onCreateEmpty, onCreateFromTe
   const [name, setName] = useState('New Rhythm');
   const [category, setCategory] = useState<string>('Pop');
   const [bpm, setBpm] = useState(120);
+  const [timeSignature, setTimeSignature] = useState<TimeSignatureKey>('4/4');
   const [templateId, setTemplateId] = useState<string>('');
   const [mode, setMode] = useState<'empty' | 'template'>('empty');
   
@@ -76,7 +89,7 @@ export function CreateRhythmModal({ open, onClose, onCreateEmpty, onCreateFromTe
   const handleCreate = () => {
     stopPreview();
     if (mode === 'empty') {
-      const newStyle = createEmptyStyle(name, category, bpm);
+      const newStyle = createEmptyStyle(name, category, bpm, timeSignature);
       onCreateEmpty(newStyle);
     } else if (templateId) {
       const template = allTemplates.find(s => s.id === templateId);
@@ -95,6 +108,7 @@ export function CreateRhythmModal({ open, onClose, onCreateEmpty, onCreateFromTe
     setName('New Rhythm');
     setCategory('Pop');
     setBpm(120);
+    setTimeSignature('4/4');
     setTemplateId('');
     setMode('empty');
   };
@@ -186,6 +200,24 @@ export function CreateRhythmModal({ open, onClose, onCreateEmpty, onCreateFromTe
               </Button>
             </div>
           </div>
+
+          {/* Time Signature — only relevant when starting from an empty pattern.
+              Templates already carry their own time signature when cloned. */}
+          {mode === 'empty' && (
+            <div className="space-y-2">
+              <Label>Time Signature</Label>
+              <Select value={timeSignature} onValueChange={v => setTimeSignature(v as TimeSignatureKey)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(TIME_SIGNATURES) as TimeSignatureKey[]).map(ts => (
+                    <SelectItem key={ts} value={ts}>{ts}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Template Selection */}
           {mode === 'template' && (

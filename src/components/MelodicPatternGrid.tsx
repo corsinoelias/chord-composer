@@ -18,6 +18,11 @@ interface MelodicPatternGridProps {
   currentStep?: number;
   isPlaying?: boolean;
   onActiveVarChange?: (id: string) => void;
+  // Slots in one bar for the style being edited (16 for 4/4, 12 for 6/8, etc.)
+  slotsPerBar?: number;
+  // Slots per visual beat-group divider — matches the meter's pulse (4 for 4/4's
+  // quarter note, 2 for 6/8's eighth note), same interval the metronome clicks on.
+  slotsPerBeatGroup?: number;
 }
 
 export function MelodicPatternGrid({
@@ -29,6 +34,8 @@ export function MelodicPatternGrid({
   currentStep,
   isPlaying,
   onActiveVarChange,
+  slotsPerBar = 16,
+  slotsPerBeatGroup = 4,
 }: MelodicPatternGridProps) {
   const { variations, enabled } = melodic;
   const [activeVarId, setActiveVarId] = useState<string>(() => variations[0]?.id ?? '');
@@ -46,7 +53,7 @@ export function MelodicPatternGrid({
   }, [resolvedActiveId]);
 
   const activeVariation = variations.find(v => v.id === resolvedActiveId);
-  const totalSlots = (activeVariation?.loopBars ?? 1) * 16;
+  const totalSlots = (activeVariation?.loopBars ?? 1) * slotsPerBar;
 
   const noteNames = useMemo(
     () => getScaleNoteNames(referenceRootMidi, referenceQuality, activeVariation?.octaveOffsets),
@@ -92,7 +99,7 @@ export function MelodicPatternGrid({
 
   const handleLoopBarsChange = (bars: 1 | 2 | 4) => {
     if (!activeVariation) return;
-    const newSlots = bars * 16;
+    const newSlots = bars * slotsPerBar;
     const adjusted: DegreePattern = {};
     for (const [d, slots] of Object.entries(activeVariation.pattern)) {
       if (!slots) continue;
@@ -263,8 +270,8 @@ export function MelodicPatternGrid({
             <div className="flex items-center">
               <div className="w-28 flex-shrink-0" />
               {Array.from({ length: totalSlots }, (_, slot) => (
-                <div key={slot} className={cn('w-7 text-center text-[10px] font-mono', slot % 4 === 0 ? 'text-muted-foreground' : 'text-transparent')}>
-                  {slot % 4 === 0 ? Math.floor(slot / 4) + 1 : '.'}
+                <div key={slot} className={cn('w-7 text-center text-[10px] font-mono', slot % slotsPerBeatGroup === 0 ? 'text-muted-foreground' : 'text-transparent')}>
+                  {slot % slotsPerBeatGroup === 0 ? Math.floor(slot / slotsPerBeatGroup) + 1 : '.'}
                 </div>
               ))}
             </div>
@@ -289,7 +296,7 @@ export function MelodicPatternGrid({
                         onClick={() => handleChordHitClick(slot)}
                         className={cn(
                           'w-7 h-8 border transition-colors rounded-sm',
-                          slot % 4 === 0 && slot > 0 && 'border-l-2',
+                          slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
                           isCurrent && !active && 'bg-amber-500/20',
                           active
                             ? 'bg-amber-500 border-amber-500'
@@ -341,7 +348,7 @@ export function MelodicPatternGrid({
                         onClick={() => handleCellClick(degree, slot)}
                         className={cn(
                           'w-7 h-8 border transition-colors rounded-sm',
-                          slot % 4 === 0 && slot > 0 && 'border-l-2',
+                          slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
                           isCurrent && !active && 'bg-primary/20',
                           active
                             ? isChordTone ? 'bg-primary border-primary' : 'bg-blue-400 border-blue-400 dark:bg-blue-600 dark:border-blue-600'

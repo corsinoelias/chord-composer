@@ -37,7 +37,7 @@ export function ensureGuitarSoundfont(soundTypeId: string, instrument: string): 
 // ─────────────────────────────────────────────────────────────────────────────
 import { type InstrumentState, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
 import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir } from './bassTab/sampleEngine';
-import { type StylePattern, generateBarPattern, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
+import { type StylePattern, generateBarPattern, getSlotsPerBar, getMetronomeClickInterval, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
 import { type Section } from './sections';
 import { buildEffectsChain } from './audioEffects';
 import { getScale as getBassScale_getScale, resolveVariation } from './bassScale';
@@ -1331,7 +1331,7 @@ export function scheduleProgression(
   const totalSlots = chordSegments.reduce((sum, seg) => sum + seg.slotCount, 0);
   // For progressions ≥ 8 bars, use 8-bar phrase length so fills land at the end of the
   // full phrase rather than mid-phrase (e.g. 34-beat progression: bar 4 fill was wrong)
-  let phraseLength = Math.floor(totalSlots / 16) >= 8 ? 8 : 4;
+  let phraseLength = Math.floor(totalSlots / getSlotsPerBar(style)) >= 8 ? 8 : 4;
 
   // Reference used to detect section changes between chord boundaries
   let lastKnownSections: Section[] | null = getSections ? getSections() : null;
@@ -1368,12 +1368,9 @@ export function scheduleProgression(
         sectionBoundaries = newBoundaries;
         lastKnownSections = latestSections;
         const newTotalSlots = newSegments.reduce((sum, seg) => sum + seg.slotCount, 0);
-        phraseLength = Math.floor(newTotalSlots / 16) >= 8 ? 8 : 4;
+        phraseLength = Math.floor(newTotalSlots / getSlotsPerBar(style)) >= 8 ? 8 : 4;
       }
     }
-
-    // Re-read BPM each segment so live changes take effect on the next chord
-    const slotDuration = (60 / getCurrentBpm()) / 4;
 
     // Section-boundary check: did we just finish a section?
     if (currentSegmentIndex > 0) {
@@ -1416,6 +1413,9 @@ export function scheduleProgression(
     
     // Get current style and dynamic parameters
     const currentStyle = getStyle ? getStyle() : style;
+    const slotsPerBar = getSlotsPerBar(currentStyle);
+    // Re-read BPM each segment so live changes take effect on the next chord
+    const slotDuration = (60 / getCurrentBpm()) / 4;
     if (currentSegmentIndex === 0) {
       console.log(`[AUDIO] scheduleSegment bar#0 — currentStyle.id: "${currentStyle.id}", bpm: ${getCurrentBpm()}`);
     }
@@ -1467,12 +1467,12 @@ export function scheduleProgression(
       // CRITICAL: patternSlot is based on GLOBAL position, not chord position
       // The rhythm pattern runs continuously regardless of chord changes
       const currentGlobalSlot = globalSlotIndex + i;
-      const patternSlot = currentGlobalSlot % 16;
-      
+      const patternSlot = currentGlobalSlot % slotsPerBar;
+
       // Calculate bar number for fill logic based on GLOBAL slot position
       // This ensures fills happen at musically correct times (every 4 bars)
-      // Bar changes every 16 slots (1 bar = 4 beats = 16 sixteenth notes)
-      const barNumber = Math.floor(currentGlobalSlot / 16) + 1;
+      // Bar changes every slotsPerBar slots (16 for 4/4, 12 for 6/8, etc.)
+      const barNumber = Math.floor(currentGlobalSlot / slotsPerBar) + 1;
       const effectiveBarNumber = forceFill ? 4 : barNumber;
       
       // Get cached pattern for this bar
@@ -1495,9 +1495,11 @@ export function scheduleProgression(
         timeouts.push(stepTimeout);
       }
       
-      // Schedule metronome on beat boundaries (every 4 slots) - read dynamically
-      if (metronomeOn && masterGain && patternSlot % 4 === 0) {
-        const beatInBar = Math.floor(patternSlot / 4);
+      // Schedule metronome on beat boundaries — one click per denominator unit
+      // (every 4 slots/quarter in 4/4, every 2 slots/eighth in 6/8, etc.)
+      const clickInterval = getMetronomeClickInterval(currentStyle);
+      if (metronomeOn && masterGain && patternSlot % clickInterval === 0) {
+        const beatInBar = Math.floor(patternSlot / clickInterval);
         const isDownbeat = patternSlot === 0;
         playClick(ctx, masterGain, slotTime, isDownbeat);
         
@@ -1514,7 +1516,7 @@ export function scheduleProgression(
       const pianoScaleData = getPianoScale?.(sectionId);
       if (pianoScaleData && pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound) {
         const { pattern: scalePattern, chordHit: pChordHit, loopBars: pLoopBars, octaveOffsets: pOctaveOffsets } = pianoScaleData;
-        const slotInLoop = currentGlobalSlot % (pLoopBars * 16);
+        const slotInLoop = currentGlobalSlot % (pLoopBars * slotsPerBar);
         const scale = getBassScale_getScale(chord.quality);
         const noteDuration = slotDuration * 3;
         // Full chord hit — plays all chord tones (7th, 9th, etc. included)
@@ -1577,7 +1579,7 @@ export function scheduleProgression(
       const bassScaleData = getBassScale?.(sectionId);
       if (bassScaleData && bassState && isInstrumentAudible(bassState, instruments) && bassSound) {
         const { pattern: scalePattern, loopBars, octaveOffsets: bOctaveOffsets } = bassScaleData;
-        const loopSlots = loopBars * 16;
+        const loopSlots = loopBars * slotsPerBar;
         const slotInLoop = currentGlobalSlot % loopSlots;
         const scale = getBassScale_getScale(chord.quality);
         const noteDuration = slotDuration * 3;
@@ -1654,7 +1656,7 @@ export function scheduleProgression(
       const guitarScaleData = getGuitarScale?.(sectionId);
       if (guitarScaleData && guitarState && isInstrumentAudible(guitarState, instruments) && guitarSound) {
         const { pattern: scalePattern, chordHit: gChordHit, loopBars: gLoopBars, octaveOffsets: gOctaveOffsets } = guitarScaleData;
-        const slotInLoop = currentGlobalSlot % (gLoopBars * 16);
+        const slotInLoop = currentGlobalSlot % (gLoopBars * slotsPerBar);
         const scale = getBassScale_getScale(chord.quality);
         const noteDuration = slotDuration * 3;
         // Full chord hit — plays all chord tones (7th, 9th, etc. included)
@@ -1799,7 +1801,7 @@ export async function renderProgressionOffline(
   
   const totalDuration = (totalBeats * 60) / bpm;
   const totalSamples = Math.ceil(totalDuration * sampleRate) + sampleRate;
-  
+
   const offlineCtx = new OfflineAudioContext(2, totalSamples, sampleRate);
   const offlineMasterGain = offlineCtx.createGain();
   offlineMasterGain.gain.value = 1.0;
@@ -1828,7 +1830,8 @@ export async function renderProgressionOffline(
   const slotDuration = beatDuration / 4;
   let globalSlotIndex = 0;
 
-  const offlineTotalBars = Math.floor((totalBeats * 4) / 16);
+  const slotsPerBar = getSlotsPerBar(style);
+  const offlineTotalBars = Math.floor((totalBeats * 4) / slotsPerBar);
   const offlinePhraseLength = offlineTotalBars >= 8 ? 8 : 4;
 
   // Cache for patterns by bar number
@@ -1861,10 +1864,10 @@ export async function renderProgressionOffline(
           // CRITICAL: patternSlot and barNumber are based on GLOBAL position
           // The rhythm pattern runs continuously regardless of chord changes
           const currentGlobalSlot = globalSlotIndex + i;
-          const patternSlot = currentGlobalSlot % 16;
-          
-          // Bar changes every 16 slots (1 bar = 4 beats = 16 sixteenth notes)
-          const barNumber = Math.floor(currentGlobalSlot / 16) + 1;
+          const patternSlot = currentGlobalSlot % slotsPerBar;
+
+          // Bar changes every slotsPerBar slots (16 for 4/4, 12 for 6/8, etc.)
+          const barNumber = Math.floor(currentGlobalSlot / slotsPerBar) + 1;
           
           // Get cached pattern for this bar
           const pattern = getPatternForBar(barNumber);
@@ -1930,7 +1933,7 @@ export async function renderProgressionOffline(
 
           if (melodicPiano && pianoState && !pianoState.muted && pianoSound) {
             const { pattern: scalePattern, loopBars: pLoopBars, octaveOffsets: pOctaveOffsets } = melodicPiano;
-            const slotInLoop = currentGlobalSlot % (pLoopBars * 16);
+            const slotInLoop = currentGlobalSlot % (pLoopBars * slotsPerBar);
             const scale = getBassScale_getScale(chord.quality);
             const noteDuration = slotDuration * 3;
             for (const degStr of Object.keys(scalePattern)) {
@@ -1959,7 +1962,7 @@ export async function renderProgressionOffline(
           const bassVelocity = pattern.bass[patternSlot];
           if (melodicBass && bassState && !bassState.muted && bassSound) {
             const { pattern: scalePattern, loopBars: bLoopBars, octaveOffsets: bOctaveOffsets } = melodicBass;
-            const slotInLoop = currentGlobalSlot % (bLoopBars * 16);
+            const slotInLoop = currentGlobalSlot % (bLoopBars * slotsPerBar);
             const scale = getBassScale_getScale(chord.quality);
             const noteDuration = slotDuration * 3;
             for (const degStr of Object.keys(scalePattern)) {
@@ -2177,7 +2180,7 @@ export async function renderProgressionOffline(
           const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? 0;
           if (melodicGuitar && guitarState && !guitarState.muted && guitarSound) {
             const { pattern: scalePattern, loopBars: gLoopBars, octaveOffsets: gOctaveOffsets } = melodicGuitar;
-            const slotInLoop = currentGlobalSlot % (gLoopBars * 16);
+            const slotInLoop = currentGlobalSlot % (gLoopBars * slotsPerBar);
             const scale = getBassScale_getScale(chord.quality);
             const noteDuration = slotDuration * 3;
             for (const degStr of Object.keys(scalePattern)) {

@@ -4,7 +4,7 @@
  */
 
 import { useRef, useCallback, useState } from 'react';
-import { type StylePattern } from '@/lib/styles';
+import { type StylePattern, getSlotsPerBar } from '@/lib/styles';
 import { ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 
@@ -66,8 +66,10 @@ export function useStylePreview() {
 
     previewRef.current = { cancel };
 
-    // Auto-stop after 2 bars (8 beats)
-    const barDuration = (60 / style.bpm) * 4 * 2; // 2 bars in seconds
+    // Auto-stop after 2 bars of this style's actual meter (e.g. 3 beats/bar in
+    // 6/8, not always 4).
+    const beatsPerBar = getSlotsPerBar(style) / 4;
+    const barDuration = (60 / style.bpm) * beatsPerBar * 2; // 2 bars in seconds
     timeoutRef.current = setTimeout(() => {
       stopPreview();
     }, barDuration * 1000);
