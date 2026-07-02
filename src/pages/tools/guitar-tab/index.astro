@@ -2,6 +2,7 @@
 export const prerender = true;
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import RelatedTools from '../../../components/RelatedTools.astro';
+import { GuitarTabPreview } from '../../../components/GuitarTabPlayer/GuitarTabPreview';
 
 const features = [
   { icon: '🎵', title: 'Real-time playback', desc: 'Hit play and hear your guitar line instantly. Adjust BPM on the fly without stopping.' },
@@ -73,6 +74,11 @@ const faqSchema = {
           See features
         </a>
       </div>
+    </section>
+
+    <!-- ── LIVE PREVIEW ── -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-6" aria-label="Interactive guitar tab demo — Smoke on the Water by Deep Purple">
+      <GuitarTabPreview client:only="react" presetId="preset-smokeonthewater" editorHref="/guitar-tab/" />
     </section>
 
     <!-- ── HOW TO READ ── -->

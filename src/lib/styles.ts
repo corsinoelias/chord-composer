@@ -1231,19 +1231,22 @@ export function generateBarPattern(
       }
     };
     
-    applyFill(kick, style.fill.pattern.kick);
-    applyFill(snare, style.fill.pattern.snare);
-    applyFill(snareStick, style.fill.pattern.snareStick);
-    applyFill(hihat, style.fill.pattern.hihat);
-    applyFill(hihatOpen, style.fill.pattern.hihatOpen);
-    applyFill(hihatFoot, style.fill.pattern.hihatFoot);
-    applyFill(tom1, style.fill.pattern.tom1);
-    applyFill(tom2, style.fill.pattern.tom2);
-    applyFill(floorTom, style.fill.pattern.floorTom);
-    applyFill(ride, style.fill.pattern.ride);
-    applyFill(crash, style.fill.pattern.crash);
+    // Fill patterns are sliced per-bar exactly like the base rhythm arrays
+    // above, so a fill can differ between bar 1 and bar 2 of a multi-bar loop
+    // instead of the same fill repeating identically in every bar.
+    applyFill(kick, sliceBar(style.fill.pattern.kick));
+    applyFill(snare, sliceBar(style.fill.pattern.snare));
+    applyFill(snareStick, sliceBar(style.fill.pattern.snareStick));
+    applyFill(hihat, sliceBar(style.fill.pattern.hihat));
+    applyFill(hihatOpen, sliceBar(style.fill.pattern.hihatOpen));
+    applyFill(hihatFoot, sliceBar(style.fill.pattern.hihatFoot));
+    applyFill(tom1, sliceBar(style.fill.pattern.tom1));
+    applyFill(tom2, sliceBar(style.fill.pattern.tom2));
+    applyFill(floorTom, sliceBar(style.fill.pattern.floorTom));
+    applyFill(ride, sliceBar(style.fill.pattern.ride));
+    applyFill(crash, sliceBar(style.fill.pattern.crash));
     if (guitar) {
-      applyFill(guitar, style.fill.pattern.guitar);
+      applyFill(guitar, sliceBar(style.fill.pattern.guitar));
     }
   }
 

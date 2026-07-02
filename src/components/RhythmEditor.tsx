@@ -481,7 +481,7 @@ export function RhythmEditor({
 
       if (isFill) {
         if (!newStyle.fill.pattern[instrument]) {
-          newStyle.fill.pattern[instrument] = createEmptyPattern(getSlotsPerBar(newStyle));
+          newStyle.fill.pattern[instrument] = createEmptyPattern(getStyleTotalSlots(newStyle));
         }
         newStyle.fill.pattern[instrument]![step] = value;
       } else {
@@ -653,7 +653,7 @@ export function RhythmEditor({
   // before repeating. Growing the loop repeats the existing bar(s) into the
   // new slots (so bar 2 starts as a copy of bar 1, ready to tweak) instead of
   // silence; shrinking just truncates.
-  const handleLoopBarsChange = (bars: 1 | 2 | 4) => {
+  const handleLoopBarsChange = (bars: 1 | 2) => {
     setEditedStyle(prev => {
       const newStyle = cloneStyle(prev);
       const slots = getSlotsPerBar(newStyle);
@@ -669,6 +669,11 @@ export function RhythmEditor({
       (Object.keys(newStyle.rhythm) as (keyof typeof newStyle.rhythm)[]).forEach(key => {
         newStyle.rhythm[key] = resize(newStyle.rhythm[key]);
       });
+      // Fill patterns follow the same loopBars shape as the main rhythm now
+      // (see generateBarPattern's sliceBar), so resize them the same way.
+      (Object.keys(newStyle.fill.pattern) as (keyof typeof newStyle.fill.pattern)[]).forEach(key => {
+        newStyle.fill.pattern[key] = resize(newStyle.fill.pattern[key]);
+      });
       return newStyle;
     });
   };
@@ -677,7 +682,7 @@ export function RhythmEditor({
     setEditedStyle(prev => {
       const newStyle = cloneStyle(prev);
       if (isFill && newStyle.fill.pattern[instrument]) {
-        newStyle.fill.pattern[instrument] = createEmptyPattern(getSlotsPerBar(newStyle));
+        newStyle.fill.pattern[instrument] = createEmptyPattern(getStyleTotalSlots(newStyle));
       } else if (!isFill && newStyle.rhythm[instrument]) {
         newStyle.rhythm[instrument] = createEmptyPattern(getStyleTotalSlots(newStyle));
       }
@@ -1136,7 +1141,7 @@ export function RhythmEditor({
               <Label className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">Loop:</Label>
               <Select
                 value={loopBars.toString()}
-                onValueChange={v => handleLoopBarsChange(Number(v) as 1 | 2 | 4)}
+                onValueChange={v => handleLoopBarsChange(Number(v) as 1 | 2)}
               >
                 <SelectTrigger className="w-24 sm:w-28 h-8 text-xs sm:text-sm">
                   <SelectValue />
@@ -1144,7 +1149,6 @@ export function RhythmEditor({
                 <SelectContent>
                   <SelectItem value="1">1 bar</SelectItem>
                   <SelectItem value="2">2 bars</SelectItem>
-                  <SelectItem value="4">4 bars</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1287,10 +1291,13 @@ export function RhythmEditor({
                               // that mode, not a wrong/duplicate highlight.
                               const isCurrentStep = displayStep === step && (isLocalPlaying || isMainPlaying);
 
+                              // fill.position is bar-relative (where in *each* bar the fill
+                              // zone starts), but the fill pattern data itself is now the
+                              // same loopBars-long shape as the main rhythm — so once we're
+                              // in the zone, index it with the absolute `step` too.
                               const isInFillZone = slotInBar >= editedStyle.fill.position;
-                              const fillStep = showFill ? slotInBar : step;
                               const value = showFill
-                                ? (isInFillZone ? (fillPattern?.[slotInBar] ?? 0) : basePattern[step])
+                                ? (isInFillZone ? (fillPattern?.[step] ?? 0) : basePattern[step])
                                 : basePattern[step];
 
                               // Piano/guitar are filtered out of drums grid, so arpeggio never applies here
@@ -1309,7 +1316,7 @@ export function RhythmEditor({
                               const isInactiveInFill = showFill && !isInFillZone;
                               
                               const isPopoverOpen = velocityPopover?.instrument === instrument.key &&
-                                                  velocityPopover?.step === fillStep &&
+                                                  velocityPopover?.step === step &&
                                                   velocityPopover?.isFill === showFill;
 
                               return (
@@ -1323,8 +1330,8 @@ export function RhythmEditor({
                                   <PopoverTrigger asChild>
                                     <button
                                       disabled={isLockedInFill}
-                                      onClick={() => handleCellClick(instrument.key, fillStep, showFill)}
-                                      onContextMenu={e => handleCellRightClick(e, instrument.key, fillStep, showFill)}
+                                      onClick={() => handleCellClick(instrument.key, step, showFill)}
+                                      onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
                                       className={cn(
                                         "flex-1 aspect-square rounded-[2px] sm:rounded-sm border transition-all relative flex items-center justify-center min-w-[14px] sm:min-w-[24px] max-w-[32px]",
                                         isBarStart && "ml-1.5 sm:ml-2.5",
