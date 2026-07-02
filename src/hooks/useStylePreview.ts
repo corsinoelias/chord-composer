@@ -43,11 +43,14 @@ export function useStylePreview() {
     // Ensure samples are loaded before starting preview
     await ensureSamplesLoaded();
 
-    // Create a test section with a single chord
+    // Create a test section with a single chord spanning exactly one bar of
+    // this style's actual meter (3 beats for 6/8, not always 4) so the loop
+    // point doesn't drift out of sync with the pattern's own bar length.
+    const beatsPerBar = getSlotsPerBar(style) / 4;
     const testSection = {
       id: 'preview',
       name: 'Preview',
-      chords: [{ id: '1', root: 'C' as const, accidental: '' as const, quality: 'maj' as const, duration: 4 }],
+      chords: [{ id: '1', root: 'C' as const, accidental: '' as const, quality: 'maj' as const, duration: beatsPerBar }],
       repeatCount: 1
     };
 
@@ -68,7 +71,6 @@ export function useStylePreview() {
 
     // Auto-stop after 2 bars of this style's actual meter (e.g. 3 beats/bar in
     // 6/8, not always 4).
-    const beatsPerBar = getSlotsPerBar(style) / 4;
     const barDuration = (60 / style.bpm) * beatsPerBar * 2; // 2 bars in seconds
     timeoutRef.current = setTimeout(() => {
       stopPreview();

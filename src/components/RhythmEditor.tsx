@@ -402,10 +402,15 @@ export function RhythmEditor({
     setIsLocalPlaying(true);
     setCurrentStep(0); // Start at step 0
     
+    // Match the chord's duration to exactly one bar of the style's actual meter
+    // (3 beats for 6/8, not always 4) — otherwise the loop point drifts out of
+    // sync with the pattern's own bar length, e.g. showing 12 real slots of a
+    // 6/8 bar plus 4 extra (the start of a second bar) before restarting.
+    const beatsPerBar = getSlotsPerBar(editedStyleRef.current) / 4;
     const testSection = {
       id: 'test',
       name: 'Test',
-      chords: [{ id: '1', root: 'C' as const, accidental: '' as const, quality: 'maj' as const, duration: 4 }],
+      chords: [{ id: '1', root: 'C' as const, accidental: '' as const, quality: 'maj' as const, duration: beatsPerBar }],
       repeatCount: 1
     };
     
