@@ -25,7 +25,7 @@ import {
   ChevronDown,
   RotateCw
 } from 'lucide-react';
-import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar, getPulseInterval, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed, type InstrumentSounds } from '@/lib/styles';
+import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar, getStyleTotalSlots, getPulseInterval, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed, type InstrumentSounds } from '@/lib/styles';
 import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates, INSTRUMENTS, type InstrumentType } from '@/lib/instruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
@@ -319,15 +319,21 @@ export function RhythmEditor({
     const ctx = getAudioContext();
     const bpm = editedStyleRef.current.bpm;
     const barSlots = getSlotsPerBar(editedStyleRef.current);
+    const loopBarCount = editedStyleRef.current.loopBars ?? 1;
     const slotDuration = (60 / bpm / 4); // Duration of 1 sixteenth note
-    const barDuration = slotDuration * barSlots;
+    // The actual audio loop (and onLoopEnd reset) spans the *full* loopBars
+    // cycle, not just one bar — match that here so the wrap doesn't happen
+    // early mid-way through bar 2 of a multi-bar style.
+    const loopDuration = slotDuration * barSlots * loopBarCount;
 
-    // Calculate precise position within the bar
+    // Calculate precise position within the loop
     const elapsed = ctx.currentTime - loopStartTimeRef.current;
-    const loopPosition = elapsed % barDuration;
+    const loopPosition = elapsed % loopDuration;
 
-    // Calculate step and ensure it's always within 0..barSlots-1
-    const step = Math.floor(loopPosition / slotDuration) % barSlots;
+    // Absolute step across the *whole* loop (0..barSlots*loopBarCount-1), not
+    // bar-relative — otherwise bar 1 and bar 2's matching cell would highlight
+    // at the same time since they'd both read as e.g. "step 2".
+    const step = Math.floor(loopPosition / slotDuration) % (barSlots * loopBarCount);
     
     // Only update if step changed to reduce re-renders
     setCurrentStep(prev => prev !== step ? step : prev);
@@ -402,15 +408,16 @@ export function RhythmEditor({
     setIsLocalPlaying(true);
     setCurrentStep(0); // Start at step 0
     
-    // Match the chord's duration to exactly one bar of the style's actual meter
-    // (3 beats for 6/8, not always 4) — otherwise the loop point drifts out of
-    // sync with the pattern's own bar length, e.g. showing 12 real slots of a
-    // 6/8 bar plus 4 extra (the start of a second bar) before restarting.
-    const beatsPerBar = getSlotsPerBar(editedStyleRef.current) / 4;
+    // Match the chord's duration to exactly one full loop of the style's actual
+    // meter AND loopBars (3 beats for one 6/8 bar, 6 for a 2-bar 6/8 loop, not
+    // always 4) — otherwise the loop point drifts out of sync with the
+    // pattern's own cycle length, e.g. showing 12 real slots of a 6/8 bar plus
+    // 4 extra (the start of a second bar) before restarting.
+    const beatsPerLoop = (getSlotsPerBar(editedStyleRef.current) / 4) * (editedStyleRef.current.loopBars ?? 1);
     const testSection = {
       id: 'test',
       name: 'Test',
-      chords: [{ id: '1', root: 'C' as const, accidental: '' as const, quality: 'maj' as const, duration: beatsPerBar }],
+      chords: [{ id: '1', root: 'C' as const, accidental: '' as const, quality: 'maj' as const, duration: beatsPerLoop }],
       repeatCount: 1
     };
     
@@ -479,7 +486,7 @@ export function RhythmEditor({
         newStyle.fill.pattern[instrument]![step] = value;
       } else {
         if (!newStyle.rhythm[instrument]) {
-          newStyle.rhythm[instrument] = createEmptyPattern(getSlotsPerBar(newStyle));
+          newStyle.rhythm[instrument] = createEmptyPattern(getStyleTotalSlots(newStyle));
         }
         newStyle.rhythm[instrument]![step] = value;
       }
@@ -623,7 +630,7 @@ export function RhythmEditor({
     setEditedStyle(prev => {
       const newStyle = cloneStyle(prev);
       if (!newStyle.rhythm[key]) {
-        newStyle.rhythm[key] = createEmptyPattern(getSlotsPerBar(newStyle));
+        newStyle.rhythm[key] = createEmptyPattern(getStyleTotalSlots(newStyle));
       }
       return newStyle;
     });
@@ -634,7 +641,7 @@ export function RhythmEditor({
       toast.error('Cannot remove core instruments');
       return;
     }
-    
+
     setActiveInstruments(prev => {
       const next = new Set(prev);
       next.delete(key);
@@ -642,14 +649,37 @@ export function RhythmEditor({
     });
   };
 
-  const clearPattern = (instrument: InstrumentKey, isFill: boolean) => {
+  // Changes how many bars the drum grid (kick/snare/hi-hat/etc.) cycles over
+  // before repeating. Growing the loop repeats the existing bar(s) into the
+  // new slots (so bar 2 starts as a copy of bar 1, ready to tweak) instead of
+  // silence; shrinking just truncates.
+  const handleLoopBarsChange = (bars: 1 | 2 | 4) => {
     setEditedStyle(prev => {
       const newStyle = cloneStyle(prev);
       const slots = getSlotsPerBar(newStyle);
+      const newTotal = slots * bars;
+      const resize = (arr?: number[]): number[] | undefined => {
+        if (!arr || arr.length === 0) return arr;
+        if (arr.length >= newTotal) return arr.slice(0, newTotal);
+        const out = [...arr];
+        while (out.length < newTotal) out.push(arr[out.length % arr.length]);
+        return out;
+      };
+      newStyle.loopBars = bars;
+      (Object.keys(newStyle.rhythm) as (keyof typeof newStyle.rhythm)[]).forEach(key => {
+        newStyle.rhythm[key] = resize(newStyle.rhythm[key]);
+      });
+      return newStyle;
+    });
+  };
+
+  const clearPattern = (instrument: InstrumentKey, isFill: boolean) => {
+    setEditedStyle(prev => {
+      const newStyle = cloneStyle(prev);
       if (isFill && newStyle.fill.pattern[instrument]) {
-        newStyle.fill.pattern[instrument] = createEmptyPattern(slots);
+        newStyle.fill.pattern[instrument] = createEmptyPattern(getSlotsPerBar(newStyle));
       } else if (!isFill && newStyle.rhythm[instrument]) {
-        newStyle.rhythm[instrument] = createEmptyPattern(slots);
+        newStyle.rhythm[instrument] = createEmptyPattern(getStyleTotalSlots(newStyle));
       }
       return newStyle;
     });
@@ -767,6 +797,11 @@ export function RhythmEditor({
   const sortedActiveInstruments = ALL_INSTRUMENTS.filter(i => activeInstruments.has(i.key));
   // Slots per bar for the style being edited (16 for 4/4, 12 for 6/8, etc.)
   const slotsPerBar = getSlotsPerBar(editedStyle);
+  // How many bars the rhythm grid cycles over before repeating (1 by default —
+  // set this >1 to let bar 2 differ from bar 1, e.g. a snare variation).
+  const loopBars = editedStyle.loopBars ?? 1;
+  // Total editable slots in the drum grid: one bar's worth times loopBars.
+  const totalSlots = getStyleTotalSlots(editedStyle);
   // Pulse markers in the grid follow the meter's raw pulse — one eighth note
   // in 6/8 (2 slots), one quarter note in 4/4 (4 slots) — so cells are numbered
   // 1..6 continuously in 6/8 instead of the old fixed "4 quarter-note groups".
@@ -1093,7 +1128,27 @@ export function RhythmEditor({
                 {showFill ? 'Fill' : 'Main'}
               </Label>
             </div>
-            
+
+            {/* Loop bars — lets bar 2 (and beyond) differ from bar 1 instead of
+                just repeating a single bar forever. Growing copies bar 1 into
+                the new bars so there's something to start editing from. */}
+            <div className="flex items-center gap-2">
+              <Label className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">Loop:</Label>
+              <Select
+                value={loopBars.toString()}
+                onValueChange={v => handleLoopBarsChange(Number(v) as 1 | 2 | 4)}
+              >
+                <SelectTrigger className="w-24 sm:w-28 h-8 text-xs sm:text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 bar</SelectItem>
+                  <SelectItem value="2">2 bars</SelectItem>
+                  <SelectItem value="4">4 bars</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {showFill && (
               <>
                 <div className="flex items-center gap-2">
@@ -1201,26 +1256,41 @@ export function RhythmEditor({
                   pulse start instead of a separate header row above the grid. */}
               <div className="space-y-0.5 sm:space-y-1">
                 {sortedActiveInstruments.filter(i => i.category === 'drums').map(instrument => {
-                  const basePattern = editedStyle.rhythm[instrument.key] || createEmptyPattern(slotsPerBar);
+                  const basePattern = editedStyle.rhythm[instrument.key] || createEmptyPattern(totalSlots);
                   const fillPattern = editedStyle.fill.pattern[instrument.key];
                   const Icon = instrument.icon;
-                  
+
                   return (
                     <div key={instrument.key} className="flex items-center gap-0.5 sm:gap-2">
                       <div className="w-12 sm:w-24 flex items-center gap-0.5 shrink-0 overflow-hidden">
                         <Icon className="w-3 h-3 text-muted-foreground hidden sm:block shrink-0" />
                         <span className="text-[8px] sm:text-xs font-medium truncate">{instrument.label}</span>
                       </div>
-                      
+
                       <div className="flex-1 flex gap-px sm:gap-0.5 px-px sm:px-0.5">
-                        {Array.from({ length: slotsPerBar }, (_, i) => i).map(step => {
-                              const isDownbeat = step % slotsPerBeatGroup === 0;
-                              const pulseNumber = step / slotsPerBeatGroup + 1;
+                        {Array.from({ length: totalSlots }, (_, i) => i).map(step => {
+                              // slotInBar restarts every bar (0..slotsPerBar-1) — used for
+                              // pulse numbering, the fill zone, and reading/writing the
+                              // (still single-bar) fill pattern. `step` (raw, spans all
+                              // loopBars) indexes the main rhythm array, which is
+                              // loopBars*slotsPerBar long when editing >1 bar.
+                              const slotInBar = step % slotsPerBar;
+                              const isBarStart = slotInBar === 0 && step > 0;
+                              const isDownbeat = slotInBar % slotsPerBeatGroup === 0;
+                              const pulseNumber = slotInBar / slotsPerBeatGroup + 1;
+                              // Local preview tracks the absolute step across the whole loop
+                              // (see updatePlayhead), so this correctly highlights only the
+                              // one cell actually playing even with loopBars>1. When synced
+                              // with the main song transport instead, mainPlayheadStep is
+                              // bar-relative (audioEngine's patternSlot resets every bar), so
+                              // it only ever matches bar 1's cells — a known, minor gap for
+                              // that mode, not a wrong/duplicate highlight.
                               const isCurrentStep = displayStep === step && (isLocalPlaying || isMainPlaying);
 
-                              const isInFillZone = step >= editedStyle.fill.position;
+                              const isInFillZone = slotInBar >= editedStyle.fill.position;
+                              const fillStep = showFill ? slotInBar : step;
                               const value = showFill
-                                ? (isInFillZone ? (fillPattern?.[step] ?? 0) : basePattern[step])
+                                ? (isInFillZone ? (fillPattern?.[slotInBar] ?? 0) : basePattern[step])
                                 : basePattern[step];
 
                               // Piano/guitar are filtered out of drums grid, so arpeggio never applies here
@@ -1238,14 +1308,14 @@ export function RhythmEditor({
                               const isActiveInFill = showFill && isInFillZone;
                               const isInactiveInFill = showFill && !isInFillZone;
                               
-                              const isPopoverOpen = velocityPopover?.instrument === instrument.key && 
-                                                  velocityPopover?.step === step && 
+                              const isPopoverOpen = velocityPopover?.instrument === instrument.key &&
+                                                  velocityPopover?.step === fillStep &&
                                                   velocityPopover?.isFill === showFill;
-                              
+
                               return (
-                                <Popover 
-                                  key={step} 
-                                  open={isPopoverOpen} 
+                                <Popover
+                                  key={step}
+                                  open={isPopoverOpen}
                                   onOpenChange={(open) => {
                                     if (!open) setVelocityPopover(null);
                                   }}
@@ -1253,10 +1323,11 @@ export function RhythmEditor({
                                   <PopoverTrigger asChild>
                                     <button
                                       disabled={isLockedInFill}
-                                      onClick={() => handleCellClick(instrument.key, step, showFill)}
-                                      onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
+                                      onClick={() => handleCellClick(instrument.key, fillStep, showFill)}
+                                      onContextMenu={e => handleCellRightClick(e, instrument.key, fillStep, showFill)}
                                       className={cn(
                                         "flex-1 aspect-square rounded-[2px] sm:rounded-sm border transition-all relative flex items-center justify-center min-w-[14px] sm:min-w-[24px] max-w-[32px]",
+                                        isBarStart && "ml-1.5 sm:ml-2.5",
                                         isDownbeat ? "border-border" : "border-border/40",
                                         // Fill mode: locked zone gets muted background
                                         isInactiveInFill && "opacity-40 cursor-not-allowed bg-muted/50",

@@ -39,6 +39,14 @@ export interface StylePattern {
   // per bar) when omitted — every style predating this field keeps behaving identically.
   // Rhythm array length must equal getSlotsPerBar(style) for the given signature.
   timeSignature?: { numerator: number; denominator: number };
+  // Number of bars the base rhythm (drums/bass/piano/guitar arrays below) cycles
+  // over before repeating — lets bar 2 differ from bar 1 (e.g. a snare variation
+  // every other bar). Defaults to 1 (every existing style keeps behaving
+  // identically). When >1, each rhythm array below must be
+  // getSlotsPerBar(style) * loopBars long. Independent from each melodic
+  // variation's own per-instrument `loopBars` (bassScale.ts) — this one applies
+  // to the plain drum-grid arrays in `rhythm` below.
+  loopBars?: number;
   // Rhythm patterns: 16 slots with velocity values (0 = silence, 0.5 = ghost, 1 = accent)
   rhythm: {
     piano: number[];        // Piano/keys pattern
@@ -113,6 +121,17 @@ export function getSlotsPerBar(style: StylePattern): number {
   if (!style.timeSignature) return 16;
   const { numerator, denominator } = style.timeSignature;
   return Math.round((numerator * 16) / denominator);
+}
+
+/**
+ * Total length the base rhythm arrays (kick/snare/hihat/bass/piano/guitar in
+ * `style.rhythm`) must have: one bar's worth of slots times `style.loopBars`
+ * (default 1). This is the array length to edit/resize in the rhythm-grid UI —
+ * `getSlotsPerBar` alone is still what generateBarPattern uses per individual
+ * bar (it slices the correct loopBars-th segment out of these longer arrays).
+ */
+export function getStyleTotalSlots(style: StylePattern): number {
+  return getSlotsPerBar(style) * (style.loopBars ?? 1);
 }
 
 /**
@@ -1171,21 +1190,31 @@ export function generateBarPattern(
 } {
   const slotsPerBar = getSlotsPerBar(style);
 
+  // When the style's rhythm cycles over more than 1 bar (loopBars > 1), each
+  // rhythm array is loopBars*slotsPerBar long — pick out the slotsPerBar-long
+  // slice for whichever bar of the loop we're currently on. For loopBars=1
+  // (the default, every pre-existing style), barOffset is always 0 and this
+  // is a no-op slice of the whole array.
+  const loopBars = style.loopBars ?? 1;
+  const barOffset = ((barNumber - 1) % loopBars) * slotsPerBar;
+  const sliceBar = (arr?: number[]): number[] | undefined =>
+    arr ? arr.slice(barOffset, barOffset + slotsPerBar) : undefined;
+
   // Start with base patterns
-  let kick = [...style.rhythm.kick];
-  let snare = [...style.rhythm.snare];
-  let snareStick = style.rhythm.snareStick ? [...style.rhythm.snareStick] : new Array(slotsPerBar).fill(0);
-  let hihat = [...style.rhythm.hihat];
-  let hihatOpen = style.rhythm.hihatOpen ? [...style.rhythm.hihatOpen] : new Array(slotsPerBar).fill(0);
-  let hihatFoot = style.rhythm.hihatFoot ? [...style.rhythm.hihatFoot] : new Array(slotsPerBar).fill(0);
-  let tom1 = style.rhythm.tom1 ? [...style.rhythm.tom1] : new Array(slotsPerBar).fill(0);
-  let tom2 = style.rhythm.tom2 ? [...style.rhythm.tom2] : new Array(slotsPerBar).fill(0);
-  let floorTom = style.rhythm.floorTom ? [...style.rhythm.floorTom] : new Array(slotsPerBar).fill(0);
-  let ride = style.rhythm.ride ? [...style.rhythm.ride] : new Array(slotsPerBar).fill(0);
-  let crash = style.rhythm.crash ? [...style.rhythm.crash] : new Array(slotsPerBar).fill(0);
-  let bass = [...style.rhythm.bass];
-  let piano = [...style.rhythm.piano];
-  let guitar = style.rhythm.guitar ? [...style.rhythm.guitar] : undefined;
+  let kick = sliceBar(style.rhythm.kick)!;
+  let snare = sliceBar(style.rhythm.snare)!;
+  let snareStick = sliceBar(style.rhythm.snareStick) ?? new Array(slotsPerBar).fill(0);
+  let hihat = sliceBar(style.rhythm.hihat)!;
+  let hihatOpen = sliceBar(style.rhythm.hihatOpen) ?? new Array(slotsPerBar).fill(0);
+  let hihatFoot = sliceBar(style.rhythm.hihatFoot) ?? new Array(slotsPerBar).fill(0);
+  let tom1 = sliceBar(style.rhythm.tom1) ?? new Array(slotsPerBar).fill(0);
+  let tom2 = sliceBar(style.rhythm.tom2) ?? new Array(slotsPerBar).fill(0);
+  let floorTom = sliceBar(style.rhythm.floorTom) ?? new Array(slotsPerBar).fill(0);
+  let ride = sliceBar(style.rhythm.ride) ?? new Array(slotsPerBar).fill(0);
+  let crash = sliceBar(style.rhythm.crash) ?? new Array(slotsPerBar).fill(0);
+  let bass = sliceBar(style.rhythm.bass)!;
+  let piano = sliceBar(style.rhythm.piano)!;
+  let guitar = sliceBar(style.rhythm.guitar);
 
   // Apply fill on phrase endings
   if (shouldApplyFill(barNumber, phraseLength)) {
