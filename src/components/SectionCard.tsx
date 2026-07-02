@@ -6,12 +6,27 @@ import {
 } from '@dnd-kit/sortable';
 import { type Section } from '@/lib/sections';
 import { type Chord } from '@/lib/musicTheory';
+import { type StylePattern } from '@/lib/styles';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Repeat, Pencil } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Repeat, Pencil, Music, Piano, Guitar, Check } from 'lucide-react';
 import { SortableChord } from './SortableChord';
 import { ChordSuggestions } from './ChordSuggestions';
+
+const VARIATION_INSTRUMENTS = [
+  { key: 'bass' as const, label: 'Bass', Icon: Music },
+  { key: 'piano' as const, label: 'Piano', Icon: Piano },
+  { key: 'guitar' as const, label: 'Guitar', Icon: Guitar },
+];
 
 interface SectionCardProps {
   section: Section;
@@ -21,8 +36,10 @@ interface SectionCardProps {
   totalSections: number;
   isLooping?: boolean;
   styleId: string;
+  style?: StylePattern;
   swapAnimation?: 'up' | 'down' | null;
   selectedChordIds: Set<string>;
+  onVariationChange?: (sectionIndex: number, instrument: 'bass' | 'piano' | 'guitar', variationId: string) => void;
   onAddChord: (sectionIndex: number) => void;
   onChordClick: (sectionIndex: number, chordIndex: number) => void;
   onChordSelect: (sectionIndex: number, chordIndex: number, ctrl: boolean) => void;
@@ -68,8 +85,10 @@ export const SectionCard = memo(function SectionCard({
   totalSections,
   isLooping,
   styleId,
+  style,
   swapAnimation,
   selectedChordIds,
+  onVariationChange,
   onAddChord,
   onChordClick,
   onChordSelect,
@@ -126,6 +145,23 @@ export const SectionCard = memo(function SectionCard({
   const canMoveUp = sectionIndex > 0;
   const canMoveDown = sectionIndex < totalSections - 1;
   const showReorderButtons = totalSections > 1;
+
+  // Per-instrument melodic variations for the active style — only worth showing
+  // a picker when there's more than one to choose from (e.g. Merengue's 9 bass
+  // variations). Falls back to the first variation, matching resolveVariation().
+  const sectionVariationIdKey = {
+    bass: 'bassVariationId',
+    piano: 'pianoVariationId',
+    guitar: 'guitarVariationId',
+  } as const;
+  const variationPickers = VARIATION_INSTRUMENTS.map(({ key, label, Icon }) => {
+    const melodic = style?.melodic?.[key];
+    const variations = melodic?.variations ?? [];
+    if (!melodic?.enabled || variations.length < 2) return null;
+    const activeId = section[sectionVariationIdKey[key]] ?? variations[0].id;
+    const activeName = variations.find(v => v.id === activeId)?.name ?? variations[0].name;
+    return { key, label, Icon, variations, activeId, activeName };
+  }).filter((v): v is NonNullable<typeof v> => v !== null);
 
   // Haptic feedback helper
   const triggerHaptic = () => {
@@ -235,6 +271,42 @@ export const SectionCard = memo(function SectionCard({
                 <span className="truncate">{section.name}</span>
                 <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50 transition-opacity shrink-0" />
               </button>
+            )}
+
+            {/* Per-section melodic variation pickers (bass/piano/guitar) — only
+                shown for instruments where the active style has >1 variation */}
+            {variationPickers.length > 0 && (
+              <div className="flex items-center gap-0.5 shrink-0">
+                {variationPickers.map(({ key, label, Icon, variations, activeId, activeName }) => (
+                  <DropdownMenu key={key}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-60 hover:opacity-100"
+                        title={`${label}: ${activeName}`}
+                        aria-label={`${label} variation: ${activeName}`}
+                      >
+                        <Icon className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-40">
+                      <DropdownMenuLabel className="text-xs">{label} variation</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {variations.map(v => (
+                        <DropdownMenuItem
+                          key={v.id}
+                          onClick={() => onVariationChange?.(sectionIndex, key, v.id)}
+                          className="text-xs justify-between gap-2"
+                        >
+                          {v.name}
+                          {v.id === activeId && <Check className="h-3 w-3" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ))}
+              </div>
             )}
           </div>
 

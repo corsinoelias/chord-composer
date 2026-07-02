@@ -338,8 +338,10 @@ export const MUSICAL_STYLES: StylePattern[] = [
   // Característica: Balada en 6/8 de verdad — timeSignature:{6,8} da
   // slotsPerBar=12 (getSlotsPerBar), así los 6 pulsos de corchea caen
   // exactos en los slots pares (0,2,4,6,8,10), sin aproximaciones.
-  // Bombo y caja marcan los dos pulsos principales (negra con puntillo,
-  // slots 0 y 6); hi-hat/piano/guitarra rellenan los 6 pulsos de corchea.
+  // Groove recalibrado a mano en el editor de ritmo contra referencias MIDI
+  // reales y sobrescrito aquí: bombo en 1 y 6 (pickup), caja en el "4"
+  // (slot 6), hi-hat en las 6 corcheas. Bajo y guitarra pasaron al sistema
+  // melódico (antes eran arrays de rhythm.bass/guitar planos).
   {
     id: 'pop_6_8',
     name: 'Pop 6/8',
@@ -350,20 +352,19 @@ export const MUSICAL_STYLES: StylePattern[] = [
     bpm: 114,
     bpmRange: [98, 143],
     timeSignature: { numerator: 6, denominator: 8 },
-    description: 'Balada pop en 6/8. Bombo y caja en los dos pulsos principales (negra con puntillo), hi-hat en negra, piano en los 6 pulsos de corchea.',
+    description: 'Balada pop en 6/8. Bombo en el 1 y pickup en el 6, caja en el "4", hi-hat en las 6 corcheas.',
     rhythm: {
-      // B: pulso 1 (slot 0) y pulso 2 (slot 6) — negra con puntillo
-      kick:  [1, 0, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0],
-      // C: acompaña el segundo pulso, ghost en la última corchea (pickup)
-      snare: [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0.4, 0],
-      // H: negra (slots 0,4,8) en vez de las 6 corcheas — confirmado contra
-      // referencia real (hi-hat continuo en negra, no en corchea, a 90 bpm)
-      hihat: [0.8, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0],
-      // B: fundamental en el pulso 1, repite en el pulso 2, pickup hacia el próximo compás
+      // B: pulso 1 (slot 0) y pickup en la última corchea (slot 10)
+      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+      // C: en el "4" (slot 6), sin ghost
+      snare: [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+      // H: las 6 corcheas, todas a volumen parejo
+      hihat: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+      // Fallback plano — no se usa mientras melodic.bass esté habilitado (ver abajo)
       bass:  [1, 0, 0, 0, 0, 0, 0.8, 0, 0, 0, 0.3, 0],
       // P: acorde en los dos pulsos principales, notas suaves en las corcheas intermedias
       piano: [1, 0, 0.3, 0, 0.3, 0, 1, 0, 0.3, 0, 0.3, 0],
-      // G: rasgueo siguiendo las 6 corcheas
+      // Fallback plano — no se usa mientras melodic.guitar esté habilitado (ver abajo)
       guitar: [1, 0, 0.5, 0, 0.6, 0, 0.9, 0, 0.5, 0, 0.6, 0],
     },
     fill: {
@@ -376,6 +377,32 @@ export const MUSICAL_STYLES: StylePattern[] = [
     },
     volumes: { piano: 0.75, bass: 1.0, drums: 0.9, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
+    melodic: {
+      bass: {
+        enabled: true,
+        variations: [
+          {
+            id: 'pop68_bass_1', name: 'Default', loopBars: 1,
+            // Solo la fundamental (grado 1), en el pulso 1 y el pickup del pulso 6
+            pattern: { 1: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0] },
+            octaveOffsets: { 1: 0 },
+          },
+        ],
+      },
+      guitar: {
+        enabled: true,
+        variations: [
+          {
+            id: 'pop68_guitar_1', name: 'Default', loopBars: 1,
+            // Un solo golpe de acorde completo en el "4" (slot 6)
+            pattern: {},
+            chordHit: [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+          },
+        ],
+      },
+      // Piano queda sin melodic (deshabilitado) — sigue usando rhythm.piano tal cual.
+      piano: { enabled: false, variations: [] },
+    },
   },
 
   // ============================================
@@ -582,7 +609,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
     id: 'merengue',
     name: 'Merengue',
     category: 'Latin',
-    bpm: 150,
+    bpm: 130,
     bpmRange: [115, 145],
     description: 'Feel suave y sofisticado. Patrón de clave 3-2, bajo anticipatorio.',
     rhythm: {
@@ -723,6 +750,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
               3: [0,1,0,1,0,0,1,0,0,0,1,0,0,0,1,0],
               5: [0,1,0,1,0,0,1,0,0,0,1,0,0,0,1,0],
             },
+            chordHit: [0,1,0,1,0,0,1,0,0,0,1,0,0,0,1,0],
             octaveOffsets: { 3: -1 },
           },
           {

@@ -9,6 +9,7 @@ interface Props {
 
 const STYLES = [
   { id: 'pop_basic', label: 'Pop' },
+  { id: 'pop_6_8', label: 'Pop 6/8' },
   { id: 'rock_basic', label: 'Rock' },
   { id: 'jazz_swing', label: 'Jazz' },
   { id: 'folk_strum', label: 'Folk' },

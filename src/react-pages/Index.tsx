@@ -1114,8 +1114,10 @@ const Index = ({ songId }: IndexProps) => {
                   totalSections={sections.length}
                   isLooping={loopingSectionIndex === sectionIndex}
                   styleId={selectedStyleId}
+                  style={currentStyle}
                   swapAnimation={animatingSections.find(a => a.index === sectionIndex)?.direction || null}
                   selectedChordIds={selectedChordIds}
+                  onVariationChange={handleSectionVariationChange}
                   onAddChord={handleSectionAddChord}
                   onChordClick={handleChordClick}
                   onChordSelect={handleChordSelect}
