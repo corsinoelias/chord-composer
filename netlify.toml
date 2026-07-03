@@ -74,26 +74,6 @@
   status = 301
   force = true
 
-# Trailing slash enforcement for prerendered pages (Astro trailingSlash:'always' doesn't
-# generate these redirects automatically for static files on Netlify)
-[[redirects]]
-  from   = "/learn/how-to-transpose-chords"
-  to     = "/learn/how-to-transpose-chords/"
-  status = 301
-  force  = true
-
-[[redirects]]
-  from   = "/progressions/edm"
-  to     = "/progressions/edm/"
-  status = 301
-  force  = true
-
-[[redirects]]
-  from   = "/progressions/worship"
-  to     = "/progressions/worship/"
-  status = 301
-  force  = true
-
 # /learn/circle-of-fifths/ was renamed to /learn/circle-of-fifths-explained/
 [[redirects]]
   from = "/learn/circle-of-fifths/"
