@@ -1,5 +1,8 @@
 import { useDraggable } from '@dnd-kit/core';
+import { useEffect, useRef } from 'react';
 import { getDiatonicChords } from '@/lib/musicKeys';
+import { parseChordString } from '@/lib/chordParser';
+import { playChordHold } from '@/lib/audioEngine';
 import { GripVertical } from 'lucide-react';
 
 function DraggableChord({ chord }: { chord: string }) {
@@ -7,13 +10,38 @@ function DraggableChord({ chord }: { chord: string }) {
     id: 'palette-' + chord,
     data: { type: 'palette-chord', chord, duration: 4 },
   });
+  const stopRef = useRef<(() => void) | null>(null);
+
+  function stopSound() {
+    stopRef.current?.();
+    stopRef.current = null;
+    window.removeEventListener('pointerup', stopSound);
+    window.removeEventListener('pointercancel', stopSound);
+  }
+
+  function startSound() {
+    stopSound();
+    const chordObj = parseChordString(chord)[0];
+    if (!chordObj) return;
+    stopRef.current = playChordHold(chordObj);
+    window.addEventListener('pointerup', stopSound);
+    window.addEventListener('pointercancel', stopSound);
+  }
+
+  useEffect(() => stopSound, []);
+
+  function handlePointerDown(e: React.PointerEvent) {
+    (listeners as Record<string, (e: React.PointerEvent) => void> | undefined)?.onPointerDown?.(e);
+    startSound();
+  }
 
   return (
     <span
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      title={`Drag "${chord}" onto a word or empty line`}
+      onPointerDown={handlePointerDown}
+      title={`Click to play, drag "${chord}" onto a word or empty line`}
       className={`flex items-center gap-1.5 w-full text-sm font-bold px-3 py-2 rounded-lg border
         cursor-grab active:cursor-grabbing select-none transition-all touch-none
         ${isDragging

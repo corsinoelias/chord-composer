@@ -395,6 +395,81 @@ export async function ensureSamplesLoaded(): Promise<void> {
 }
 
 /**
+ * Plays a chord and sustains it until the returned stop function is called.
+ * Used for press-and-hold chord previews (e.g. clicking a chord in a palette).
+ * Self-contained, like playChordPreview.
+ */
+export function playChordHold(chord: Chord, volume: number = 0.5): () => void {
+  const ctx = getAudioContext();
+
+  if (ctx.state === 'suspended') {
+    ctx.resume();
+  }
+
+  const previewGain = ctx.createGain();
+  previewGain.gain.value = 0.5;
+  previewGain.connect(ctx.destination);
+
+  const midiNotes = chordToMidiNotes(chord, 4);
+  const now = ctx.currentTime;
+
+  const oscillators: OscillatorNode[] = [];
+  const gainNodes: GainNode[] = [];
+
+  midiNotes.forEach(midiNote => {
+    const frequency = midiToFrequency(midiNote);
+
+    const gainNode = ctx.createGain();
+    gainNode.connect(previewGain);
+    gainNodes.push(gainNode);
+
+    const harmonics = [
+      { freq: 1, amp: 1.0 },
+      { freq: 2, amp: 0.4 },
+      { freq: 3, amp: 0.2 },
+    ];
+
+    harmonics.forEach(({ freq, amp }) => {
+      const osc = ctx.createOscillator();
+      const oscGain = ctx.createGain();
+
+      osc.type = freq === 1 ? 'triangle' : 'sine';
+      osc.frequency.value = frequency * freq;
+      oscGain.gain.value = amp * 0.12 * volume;
+
+      osc.connect(oscGain);
+      oscGain.connect(gainNode);
+
+      osc.start(now);
+      oscillators.push(osc);
+    });
+
+    // Attack, then sustain at 0.7 until stop() is called
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(1, now + 0.02);
+    gainNode.gain.linearRampToValueAtTime(0.7, now + 0.1);
+  });
+
+  let stopped = false;
+  return function stop() {
+    if (stopped) return;
+    stopped = true;
+
+    const releaseTime = ctx.currentTime;
+    const releaseDuration = 0.15;
+
+    gainNodes.forEach(gainNode => {
+      gainNode.gain.cancelScheduledValues(releaseTime);
+      gainNode.gain.setValueAtTime(gainNode.gain.value, releaseTime);
+      gainNode.gain.linearRampToValueAtTime(0, releaseTime + releaseDuration);
+    });
+    oscillators.forEach(osc => {
+      osc.stop(releaseTime + releaseDuration + 0.05);
+    });
+  };
+}
+
+/**
  * Plays a chord preview - single chord playback for editing feedback
  * This function is self-contained and doesn't require prior audio initialization
  */
