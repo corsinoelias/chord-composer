@@ -32,6 +32,7 @@ import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
 import { getSongById, saveSongWithSync } from '@/lib/songStorage';
+import { getAuthState } from '@/lib/supabase';
 import { analytics } from '@/lib/analytics';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
@@ -51,8 +52,9 @@ import { WaveformVisualizer } from '@/components/WaveformVisualizer';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { MixingConsole } from '@/components/MixingConsole';
+import { AuthModal } from '@/components/AuthModal';
 import { Button } from '@/components/ui/button';
-import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'lucide-react';
+import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -71,6 +73,10 @@ const Index = ({ songId }: IndexProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [songCreatedAt, setSongCreatedAt] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // True when editor was opened via ?chords= link (e.g. from homepage embeds)
   const isFromEmbedRef = useRef(!songId && !!new URLSearchParams(window.location.search).get('chords'));
@@ -242,6 +248,15 @@ const Index = ({ songId }: IndexProps) => {
     loopingSectionIndex, updatePlaybackOptions, sections,
   ]);
 
+  // Resolve login state once — saving/autosave is gated on this, the editor itself isn't
+  useEffect(() => {
+    getAuthState().then(({ userId, displayName }) => {
+      setIsLoggedIn(!!userId);
+      setDisplayName(displayName);
+      setAuthChecked(true);
+    });
+  }, []);
+
   // Load song from URL param
   useEffect(() => {
     if (songId && songId !== currentSongId) {
@@ -289,8 +304,8 @@ const Index = ({ songId }: IndexProps) => {
           window.location.href = '/app';
         }
       });
-    } else if (!songId && !currentSongId && !isFromEmbedRef.current) {
-      // New song - create and save immediately
+    } else if (!songId && !currentSongId && !isFromEmbedRef.current && authChecked && isLoggedIn) {
+      // New song - create and save immediately (only once logged in)
       const newSong = createSong(songTitle);
       newSong.sections = sections;
       newSong.bpm = bpm;
@@ -308,10 +323,12 @@ const Index = ({ songId }: IndexProps) => {
       // can distinguish init from actual user changes
       setTimeout(() => { initialRenderDoneRef.current = true; }, 0);
     }
-  }, [songId]);
+  }, [songId, authChecked, isLoggedIn]);
 
-  // Auto-save with debounce
+  // Auto-save with debounce — only runs once logged in
   useEffect(() => {
+    if (!isLoggedIn) return;
+
     if (!currentSongId) {
       // If opened from embed and user has made a change, create the song now
       if (isFromEmbedRef.current && initialRenderDoneRef.current) {
@@ -370,7 +387,7 @@ const Index = ({ songId }: IndexProps) => {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, songCreatedAt]);
+  }, [isLoggedIn, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, songCreatedAt]);
 
   // Handle export from Songs page
   useEffect(() => {
@@ -1003,10 +1020,27 @@ const Index = ({ songId }: IndexProps) => {
               <div className="hidden md:block">
                 <ShortcutsHelp />
               </div>
-              
+
+              {/* Greeting — only once logged in */}
+              {isLoggedIn && displayName && (
+                <span className="hidden md:inline text-xs text-muted-foreground truncate max-w-[120px]">
+                  Hi, {displayName}
+                </span>
+              )}
+
               {/* Save status */}
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {isSaving ? (
+                {authChecked && !isLoggedIn ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAuthModalOpen(true)}
+                    className="gap-1 h-8 px-2"
+                  >
+                    <LogIn className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs">Sign in to save</span>
+                  </Button>
+                ) : isSaving ? (
                   <span className="flex items-center gap-1">
                     <Loader2 className="h-3 w-3 animate-spin" />
                   </span>
@@ -1294,6 +1328,15 @@ const Index = ({ songId }: IndexProps) => {
       <MixingConsole
         open={mixingConsoleOpen}
         onOpenChange={setMixingConsoleOpen}
+      />
+
+      <AuthModal
+        open={authModalOpen}
+        onOpenChange={setAuthModalOpen}
+        onSuccess={() => {
+          setIsLoggedIn(true);
+          getAuthState().then(({ displayName }) => setDisplayName(displayName));
+        }}
       />
     </div>
   );

@@ -10,6 +10,8 @@ import { serializeToTextMode } from './textParser';
 import { savePublicSong, updatePublicSong, upsertPublicSongBySlug, getPublicSongBySlug } from '@/lib/publicSongs';
 import { SONGS } from '@/data/songs';
 import { generateSlug } from '@/lib/musicKeys';
+import { ensureAuth } from '@/lib/supabase';
+import { AuthModal } from '@/components/AuthModal';
 import { toast } from 'sonner';
 import { CheckCircle2, Loader2, AlignLeft, LayoutList } from 'lucide-react';
 
@@ -42,6 +44,8 @@ export default function SongCreator() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editSlug, setEditSlug] = useState<string>('');
   const [loadingEdit, setLoadingEdit] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [pendingSections, setPendingSections] = useState<EditorSection[] | null>(null);
 
   useEffect(() => {
     const editSlugParam = getParam('edit');
@@ -95,6 +99,13 @@ export default function SongCreator() {
 
   const stepIndex = STEPS.findIndex(s => s.key === step);
 
+  function handleAuthSuccess() {
+    if (!pendingSections) return;
+    const sections = pendingSections;
+    setPendingSections(null);
+    handlePublish(sections);
+  }
+
   function handleTextImport(parsedMeta: Partial<SongMeta>, parsedSections: EditorSection[]) {
     setMeta({
       title:  parsedMeta.title  ?? meta.title,
@@ -111,6 +122,13 @@ export default function SongCreator() {
   }
 
   async function handlePublish(finalSections: EditorSection[]) {
+    const userId = await ensureAuth();
+    if (!userId) {
+      setPendingSections(finalSections);
+      setAuthModalOpen(true);
+      return;
+    }
+
     setIsPublishing(true);
     try {
       const songSections = sectionsToSongFormat(finalSections);
@@ -155,7 +173,7 @@ export default function SongCreator() {
           ? await upsertPublicSongBySlug(slug, songPayload)
           : await savePublicSong(songPayload);
 
-        if (!saved) { toast.error('Failed to publish. Make sure you are logged in.'); return; }
+        if (!saved) { toast.error('Failed to publish.'); return; }
         setPublishedSlug(slug);
       }
 
@@ -280,6 +298,12 @@ export default function SongCreator() {
           )}
         </>
       )}
+
+      <AuthModal
+        open={authModalOpen}
+        onOpenChange={setAuthModalOpen}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 }

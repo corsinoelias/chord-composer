@@ -3,7 +3,7 @@ import type { Song } from '@/lib/songs';
 import { getSongs, deleteSongWithSync, duplicateSong } from '@/lib/songStorage';
 import { SongCard } from '@/components/SongCard';
 import { MiniPlayer } from '@/components/MiniPlayer';
-import { SaveAccountModal } from '@/components/SaveAccountModal';
+import { AuthModal } from '@/components/AuthModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -16,10 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Loader2, ShieldCheck, Music2, ArrowRight } from 'lucide-react';
+import { Plus, Search, Loader2, LogIn, Music2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
-import { getIsAnonymousUser } from '@/lib/supabase';
+import { getAuthState } from '@/lib/supabase';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 
@@ -27,8 +27,9 @@ const Songs = () => {
   const { markAsReturningUser } = useFirstTimeUser();
   const [songs, setSongs] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAnonymous, setIsAnonymous] = useState(false);
-  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<Song | null>(null);
   const [activeSong, setActiveSong] = useState<Song | null>(null);
@@ -36,18 +37,30 @@ const Songs = () => {
   const { state: playbackState, play, stop } = usePlayback();
 
   useEffect(() => {
-    getSongs().then(async cloudSongs => {
+    getAuthState().then(async ({ userId, displayName }) => {
+      setIsLoggedIn(!!userId);
+      setDisplayName(displayName);
+      if (!userId) {
+        setIsLoading(false);
+        return;
+      }
+      const cloudSongs = await getSongs();
       setSongs(cloudSongs);
       if (cloudSongs.length > 0) markAsReturningUser();
       setIsLoading(false);
-      const anon = await getIsAnonymousUser();
-      setIsAnonymous(anon);
     });
   }, [markAsReturningUser]);
 
   const refreshSongs = useCallback(async () => {
     setSongs(await getSongs());
   }, []);
+
+  const handleAuthSuccess = useCallback(() => {
+    setIsLoggedIn(true);
+    setIsLoading(true);
+    getAuthState().then(({ displayName }) => setDisplayName(displayName));
+    refreshSongs().finally(() => setIsLoading(false));
+  }, [refreshSongs]);
 
   const filteredSongs = useMemo(() => {
     if (!searchQuery.trim()) return songs;
@@ -103,31 +116,37 @@ const Songs = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">My library</h1>
           <p className="text-muted-foreground mt-1 text-sm">Your saved chord progressions</p>
         </div>
-        <Button onClick={handleCreateNew} className="shrink-0 gap-2">
-          <Plus className="h-4 w-4" />
-          New progression
-        </Button>
-      </div>
-
-      {/* Save account banner */}
-      {!isLoading && isAnonymous && songs.length > 0 && (
-        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 px-4 py-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-            <p className="text-sm text-amber-800 dark:text-amber-300">
-              Saved in this browser only — link an email to sync across devices.
-            </p>
-          </div>
-          <Button size="sm" variant="outline" className="shrink-0 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30" onClick={() => setSaveModalOpen(true)}>
-            Save account
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <Button onClick={handleCreateNew} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New progression
           </Button>
+          {isLoggedIn && displayName && (
+            <span className="text-xs text-muted-foreground truncate max-w-[160px]">Hi, {displayName}</span>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-32">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+
+      ) : !isLoggedIn ? (
+        /* Sign-in gate */
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+            <LogIn className="w-8 h-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground mb-2">Sign in to see your library</h2>
+          <p className="text-muted-foreground text-sm max-w-sm mb-8">
+            Create an account to save chord progressions and access them from any device.
+          </p>
+          <Button onClick={() => setAuthModalOpen(true)} size="lg" className="gap-2 px-6">
+            <LogIn className="h-4 w-4" />
+            Sign in / Sign up
+          </Button>
         </div>
 
       ) : songs.length === 0 ? (
@@ -208,10 +227,10 @@ const Songs = () => {
         </>
       )}
 
-      <SaveAccountModal
-        open={saveModalOpen}
-        onOpenChange={setSaveModalOpen}
-        onSuccess={() => setIsAnonymous(false)}
+      <AuthModal
+        open={authModalOpen}
+        onOpenChange={setAuthModalOpen}
+        onSuccess={handleAuthSuccess}
       />
 
       {activeSong && (

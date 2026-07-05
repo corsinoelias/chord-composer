@@ -8,42 +8,67 @@ export const supabase: SupabaseClient | null =
     ? createClient(supabaseUrl, supabaseAnonKey)
     : null;
 
-export async function ensureAuth(): Promise<string | null> {
+/**
+ * Returns the current real (non-anonymous) user's id and display name, or both
+ * null if logged out. Never creates a session — anonymous accounts are no
+ * longer supported. A lingering anonymous session (from before this change)
+ * is signed out rather than treated as a valid identity.
+ */
+export async function getAuthState(): Promise<{ userId: string | null; displayName: string | null }> {
   if (!supabase) {
     console.log('[AUTH] Supabase not configured — running without auth');
-    return null;
+    return { userId: null, displayName: null };
   }
   const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) {
-    console.log(`[AUTH] Existing session — user_id: ${session.user.id} (anon: ${session.user.is_anonymous})`);
-    return session.user.id;
+  if (!session?.user) {
+    return { userId: null, displayName: null };
   }
-  console.log('[AUTH] No session found — signing in anonymously…');
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error) {
-    console.error('[AUTH] Anonymous sign-in failed:', error.message);
-    return null;
+  if (session.user.is_anonymous) {
+    console.log('[AUTH] Discarding lingering anonymous session');
+    await supabase.auth.signOut();
+    return { userId: null, displayName: null };
   }
-  console.log(`[AUTH] New anonymous session — user_id: ${data.user?.id}`);
-  return data.user?.id ?? null;
+  return {
+    userId: session.user.id,
+    displayName: (session.user.user_metadata?.display_name as string | undefined) ?? null,
+  };
 }
 
-/** Returns true if the current user is anonymous (not linked to an email). */
-export async function getIsAnonymousUser(): Promise<boolean> {
-  if (!supabase) return false;
-  const { data: { user } } = await supabase.auth.getUser();
-  return user?.is_anonymous ?? false;
+/** Returns the current real (non-anonymous) user id, or null if logged out. */
+export async function ensureAuth(): Promise<string | null> {
+  return (await getAuthState()).userId;
 }
 
-/**
- * Link Google to the current anonymous account (preserves user_id and all songs).
- * Redirects to Google OAuth, then back to /app.
- */
-export async function linkGoogleAccount(): Promise<{ error: string | null }> {
-  if (!supabase) return { error: 'Supabase not configured' };
-  const { error } = await supabase.auth.linkIdentity({
-    provider: 'google',
-    options: { redirectTo: `${window.location.origin}/app` },
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+  displayName: string,
+): Promise<{ userId: string | null; needsEmailConfirmation: boolean; error: string | null }> {
+  if (!supabase) return { userId: null, needsEmailConfirmation: false, error: 'Supabase not configured' };
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { display_name: displayName } },
   });
-  return { error: error?.message ?? null };
+  if (error) return { userId: null, needsEmailConfirmation: false, error: error.message };
+  return {
+    userId: data.user?.id ?? null,
+    needsEmailConfirmation: !data.session,
+    error: null,
+  };
+}
+
+export async function signInWithEmail(
+  email: string,
+  password: string,
+): Promise<{ userId: string | null; error: string | null }> {
+  if (!supabase) return { userId: null, error: 'Supabase not configured' };
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return { userId: null, error: error.message };
+  return { userId: data.user?.id ?? null, error: null };
+}
+
+export async function signOut(): Promise<void> {
+  if (!supabase) return;
+  await supabase.auth.signOut();
 }

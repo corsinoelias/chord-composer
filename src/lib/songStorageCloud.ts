@@ -6,7 +6,7 @@ export async function getSongsFromCloud(): Promise<Song[]> {
   const userId = await ensureAuth();
   if (!supabase || !userId) return [];
   const { data, error } = await supabase
-    .from('songs')
+    .from('progressions')
     .select('data')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false });
@@ -21,7 +21,7 @@ export async function getSongFromCloud(id: string): Promise<Song | null> {
   if (!supabase) return null;
   await ensureAuth();
   const { data, error } = await supabase
-    .from('songs')
+    .from('progressions')
     .select('data')
     .eq('id', id)
     .single();
@@ -32,7 +32,7 @@ export async function getSongFromCloud(id: string): Promise<Song | null> {
 export async function saveSongToCloud(song: Song): Promise<void> {
   const userId = await ensureAuth();
   if (!supabase || !userId) return;
-  const { error } = await supabase.from('songs').upsert({
+  const { error } = await supabase.from('progressions').upsert({
     id: song.id,
     user_id: userId,
     data: song,
@@ -45,7 +45,7 @@ export async function saveSongToCloud(song: Song): Promise<void> {
 
 export async function deleteSongFromCloud(id: string): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from('songs').delete().eq('id', id);
+  const { error } = await supabase.from('progressions').delete().eq('id', id);
   if (error) {
     console.error('Cloud deleteSong error:', error.message);
   }
@@ -69,13 +69,13 @@ export async function migrateSongsToCloud(songs: Song[]): Promise<void> {
   const userId = await ensureAuth();
   if (!supabase || !userId || songs.length === 0) return;
   const { data: existing } = await supabase
-    .from('songs')
+    .from('progressions')
     .select('id')
     .eq('user_id', userId);
   const existingIds = new Set((existing ?? []).map((r: { id: string }) => r.id));
   const toMigrate = songs.filter(s => !existingIds.has(s.id));
   if (toMigrate.length === 0) return;
-  const { error } = await supabase.from('songs').insert(
+  const { error } = await supabase.from('progressions').insert(
     toMigrate.map(s => ({
       id: s.id,
       user_id: userId,
