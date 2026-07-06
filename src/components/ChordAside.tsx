@@ -43,7 +43,7 @@ interface Props {
 type View = 'piano' | 'guitar';
 
 export default function ChordAside({ chords, songKey }: Props) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>('piano');
   const [semitones, setSemitones] = useState(0);
   const [activeChord, setActiveChord] = useState<string | null>(null);
@@ -52,10 +52,11 @@ export default function ChordAside({ chords, songKey }: Props) {
   const [duration, setDuration] = useState(4);
   const [bpm, setBpm] = useState(120);
 
-  // Collapse "Chords used" by default on desktop (>=1024px, matches the `lg:` layout
-  // breakpoint) so it doesn't compete for attention with the Now Playing visualizer.
+  // Closed by default (both SSR and initial hydration — no flash of "open then collapse").
+  // On mobile only (<1024px, below the `lg:` layout breakpoint) open it after mount, since
+  // there's no Now Playing visualizer competing for attention there.
   useEffect(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) setOpen(false);
+    if (!window.matchMedia('(min-width: 1024px)').matches) setOpen(true);
   }, []);
 
   useEffect(() => {
