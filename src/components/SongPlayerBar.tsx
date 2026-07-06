@@ -92,7 +92,7 @@ export function SongPlayerBar({
             ? <Loader2 className="w-4 h-4 animate-spin" />
             : isPlaying
               ? <><Square className="w-3.5 h-3.5 fill-current" /> Stop</>
-              : <><Play className="w-3.5 h-3.5 fill-current" /> Play</>
+              : <><Play className="w-3.5 h-3.5 fill-current" /> Play chords</>
           }
         </button>
 
