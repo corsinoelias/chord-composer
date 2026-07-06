@@ -48,7 +48,7 @@ export default function ChordAside({ chords, songKey }: Props) {
   const [semitones, setSemitones] = useState(0);
   const [activeChord, setActiveChord] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [activeKey, setActiveKey] = useState(-1);
+  const [rawIndex, setRawIndex] = useState(-1);
   const [duration, setDuration] = useState(4);
   const [bpm, setBpm] = useState(120);
 
@@ -68,12 +68,12 @@ export default function ChordAside({ chords, songKey }: Props) {
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ chord: string | null; isPlaying: boolean; duration: number; bpm: number; key: number }>).detail;
+      const detail = (e as CustomEvent<{ chord: string | null; isPlaying: boolean; duration: number; bpm: number; rawIndex: number }>).detail;
       setActiveChord(detail.chord);
       setIsPlaying(detail.isPlaying);
       setDuration(detail.duration);
       setBpm(detail.bpm);
-      setActiveKey(detail.key);
+      setRawIndex(detail.rawIndex);
     };
     window.addEventListener('song-active-chord', handler);
     return () => window.removeEventListener('song-active-chord', handler);
@@ -110,14 +110,16 @@ export default function ChordAside({ chords, songKey }: Props) {
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
 
-      {/* ── Now playing visualizer ── */}
+      {/* ── Now playing visualizer — desktop only. On mobile the aside isn't sticky, so this
+          panel sits buried below the whole chart during playback; the chart's own inline
+          highlight + auto-scroll already show the active chord there. ── */}
       {nowPlayingItem && (
-        <div className="px-3 py-3 border-b border-border bg-primary/5">
+        <div className="hidden lg:block px-3 py-3 border-b border-border bg-primary/5">
           <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-2">
             {isPlaying ? 'Now playing' : 'Chord preview'}
           </p>
           <div className="flex justify-center text-primary mb-3">
-            <DurationDots key={activeKey} duration={duration} isActive={isPlaying} bpm={bpm} uid={activeKey} size={9} />
+            <DurationDots duration={duration} isActive={isPlaying} bpm={bpm} uid="now-playing" rawIndex={rawIndex} size={9} />
           </div>
           <div className="flex flex-col items-center gap-3">
             {nowPlayingItem.voicing && (

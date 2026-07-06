@@ -545,7 +545,9 @@ const breadcrumbSchema = {
 
         <!-- Aside: chord visualizers -->
         {uniqueChords.length > 0 && (
-          <aside class="lg:sticky lg:top-6">
+          <!-- top-20 (80px) clears the sticky navbar (h-16 = 64px, z-50) plus a small gap —
+               top-6 left the aside's top edge scrolling underneath the navbar. -->
+          <aside class="lg:sticky lg:top-20">
             <ChordAside client:load chords={uniqueChords} songKey={song.key} />
           </aside>
         )}

@@ -197,9 +197,12 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('song-active-chord', {
-      detail: { chord: activeChordName, isPlaying, duration: activeDuration, bpm, key: activeGlobal },
+      // rawIndex is the raw, ever-increasing playback index (not repeat-resolved) — it's what
+      // DurationDots needs to correctly restart its fill on every chord instance, including
+      // repeats of a section that land back on the same activeGlobal/DOM position.
+      detail: { chord: activeChordName, isPlaying, duration: activeDuration, bpm, rawIndex: currentChordIndex },
     }));
-  }, [activeChordName, isPlaying, activeDuration, bpm, activeGlobal]);
+  }, [activeChordName, isPlaying, activeDuration, bpm, currentChordIndex]);
 
   // ── Play full song ─────────────────────────────────────────────────────────
   const handlePlay = useCallback(async () => {
@@ -426,7 +429,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                               )}
 
                               {/* Duration dots — only while playing */}
-                              {hasChord && isPlaying && <DurationDots duration={token.duration} isActive={isActive} bpm={bpm} uid={token.globalIndex} className="mt-0.5" />}
+                              {hasChord && isPlaying && <DurationDots duration={token.duration} isActive={isActive} bpm={bpm} uid={token.globalIndex} rawIndex={currentChordIndex} className="mt-0.5" />}
 
                               {/* Lyrics row */}
                               {!isChordOnlyLine && (
