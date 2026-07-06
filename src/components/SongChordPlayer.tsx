@@ -3,7 +3,7 @@ import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
 import { parseChordString } from '@/lib/chordParser';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 import { createSection } from '@/lib/sections';
-import { Play, Square, Music2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, Square, ChevronDown, ChevronUp } from 'lucide-react';
 import { SongPlayerBar } from '@/components/SongPlayerBar';
 import { parseLyricLine, extractChordsWithDuration, type Song } from '@/data/songs';
 import ChordTooltip from '@/components/ChordTooltip';
@@ -250,6 +250,22 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     chordRefs.current.get(activeGlobal)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [activeGlobal, isPlaying]);
 
+  // ── Notify ChordAside of the currently sounding chord (same event-bus pattern as transpose) ──
+  const activeChordName = useMemo(() => {
+    if (activeGlobal < 0) return null;
+    const raw = allChordsFlat[activeGlobal];
+    if (!raw) return null;
+    return transpose === 0 ? raw : transposeChordStr(raw, transpose, FLAT_KEYS.has(displayKey));
+  }, [activeGlobal, allChordsFlat, transpose, displayKey]);
+
+  const activeDuration = activeGlobal >= 0 ? (allChordsWithDuration[activeGlobal]?.duration ?? 4) : 4;
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('song-active-chord', {
+      detail: { chord: activeChordName, isPlaying, duration: activeDuration, bpm, key: activeGlobal },
+    }));
+  }, [activeChordName, isPlaying, activeDuration, bpm, activeGlobal]);
+
   // ── Play full song ─────────────────────────────────────────────────────────
   const handlePlay = useCallback(async () => {
     if (isPlaying) { stop(); return; }
@@ -337,41 +353,6 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         editorUrl={editorUrl}
         inline={inline}
       />
-
-      {/* ─ Header card (only on full-page, redundant inside dialog) ─ */}
-      {!inline && (
-        <div className="rounded-xl border border-border bg-card mb-6 overflow-hidden">
-          <div className="px-5 py-4 border-b border-border">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Music2 className="w-4 h-4 text-primary shrink-0" />
-                  <h2 className="text-xl font-bold text-foreground">{song.title}</h2>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {song.artist}
-                  {song.album && <span className="mx-1.5">·</span>}
-                  {song.album && <span className="italic">{song.album}</span>}
-                  {song.year && <span className="ml-1.5 text-xs">({song.year})</span>}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-1.5 justify-end shrink-0">
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
-                  Key: {displayKey}{transpose !== 0 && <span className="ml-1 opacity-60 font-normal">({transpose > 0 ? '+' : ''}{transpose})</span>}
-                </span>
-                {song.capo && (
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border">
-                    Capo: {song.capo}{song.capo === 1 ? 'st' : song.capo === 2 ? 'nd' : song.capo === 3 ? 'rd' : 'th'} fret
-                  </span>
-                )}
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border">
-                  {bpm} BPM
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ─ Song chart ─ */}
       <div className={`space-y-6 ${inline ? 'mt-4 px-5 pb-5' : ''}`}>

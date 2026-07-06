@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes } from '@/lib/chordNotes';
@@ -45,6 +45,19 @@ export default function ChordAside({ chords, songKey }: Props) {
   const [open, setOpen] = useState(true);
   const [view, setView] = useState<View>('piano');
   const [semitones, setSemitones] = useState(0);
+  const [activeChord, setActiveChord] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [activeKey, setActiveKey] = useState(-1);
+  const [duration, setDuration] = useState(4);
+  const [bpm, setBpm] = useState(120);
+  const [progress, setProgress] = useState(0);
+  const rafRef = useRef<number | null>(null);
+
+  // Collapse "Chords used" by default on desktop (>=1024px, matches the `lg:` layout
+  // breakpoint) so it doesn't compete for attention with the Now Playing visualizer.
+  useEffect(() => {
+    if (window.matchMedia('(min-width: 1024px)').matches) setOpen(false);
+  }, []);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -53,6 +66,35 @@ export default function ChordAside({ chords, songKey }: Props) {
     window.addEventListener('song-transpose', handler);
     return () => window.removeEventListener('song-transpose', handler);
   }, []);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ chord: string | null; isPlaying: boolean; duration: number; bpm: number; key: number }>).detail;
+      setActiveChord(detail.chord);
+      setIsPlaying(detail.isPlaying);
+      setDuration(detail.duration);
+      setBpm(detail.bpm);
+      setActiveKey(detail.key);
+    };
+    window.addEventListener('song-active-chord', handler);
+    return () => window.removeEventListener('song-active-chord', handler);
+  }, []);
+
+  // ── Duration animation for the active chord — restarts on every new chord instance,
+  // even repeats of the same chord back-to-back (keyed by activeKey, not chord name) ──
+  useEffect(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (!isPlaying || activeKey < 0) { setProgress(0); return; }
+    const totalMs = duration * (60000 / bpm);
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / totalMs, 1);
+      setProgress(p);
+      if (p < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [isPlaying, activeKey, duration, bpm]);
 
   const displayKey = semitones === 0 ? songKey : transposeKey(songKey, semitones);
   const useFlats = FLAT_KEYS.has(displayKey);
@@ -70,8 +112,45 @@ export default function ChordAside({ chords, songKey }: Props) {
     })
     .filter(item => item.chordObj && item.notes.length > 0);
 
+  const nowPlayingChord = activeChord ?? displayedChords[0] ?? null;
+  const nowPlayingItem = (() => {
+    if (!nowPlayingChord) return null;
+    const parsed = parseChordString(nowPlayingChord);
+    const chordObj = parsed[0] ?? null;
+    if (!chordObj) return null;
+    const notes = getChordNotes(chordObj);
+    const voicing = getGuitarVoicing(chordObj);
+    if (notes.length === 0) return null;
+    return { chord: nowPlayingChord, notes, voicing };
+  })();
+
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
+
+      {/* ── Now playing visualizer ── */}
+      {nowPlayingItem && (
+        <div className="px-3 py-3 border-b border-border bg-primary/5">
+          <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-2">
+            {isPlaying ? 'Now playing' : 'Chord preview'}
+          </p>
+          <div className="h-1 w-16 mx-auto rounded-full bg-muted overflow-hidden mb-3">
+            <div
+              className="h-full bg-primary rounded-full"
+              style={{ width: `${isPlaying ? progress * 100 : 0}%` }}
+            />
+          </div>
+          <div className="flex flex-col items-center gap-3">
+            {nowPlayingItem.voicing && (
+              <GuitarChordDiagram voicing={nowPlayingItem.voicing} chordName={nowPlayingItem.chord} className="w-24" />
+            )}
+            <PianoKeyboard
+              activeNotes={nowPlayingItem.notes}
+              chordName={nowPlayingItem.voicing ? undefined : nowPlayingItem.chord}
+              className="w-full max-w-[220px]"
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── Header / accordion toggle ── */}
       <div className="flex items-center gap-2 px-3 py-2.5">
