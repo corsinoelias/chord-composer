@@ -53,8 +53,9 @@ import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { MixingConsole } from '@/components/MixingConsole';
 import { AuthModal } from '@/components/AuthModal';
+import { AccountMenu } from '@/components/AccountMenu';
 import { Button } from '@/components/ui/button';
-import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders, LogIn } from 'lucide-react';
+import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -1021,14 +1022,7 @@ const Index = ({ songId }: IndexProps) => {
                 <ShortcutsHelp />
               </div>
 
-              {/* Greeting — only once logged in */}
-              {isLoggedIn && displayName && (
-                <span className="hidden md:inline text-xs text-muted-foreground truncate max-w-[120px]">
-                  Hi, {displayName}
-                </span>
-              )}
-
-              {/* Save status */}
+              {/* Save / account */}
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 {authChecked && !isLoggedIn ? (
                   <Button
@@ -1037,18 +1031,27 @@ const Index = ({ songId }: IndexProps) => {
                     onClick={() => setAuthModalOpen(true)}
                     className="gap-1 h-8 px-2"
                   >
-                    <LogIn className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline text-xs">Sign in to save</span>
+                    <Save className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs">Save</span>
                   </Button>
                 ) : isSaving ? (
                   <span className="flex items-center gap-1">
                     <Loader2 className="h-3 w-3 animate-spin" />
                   </span>
                 ) : lastSavedAt ? (
-                  <span className="flex items-center gap-1 text-[hsl(var(--success))]">
-                    <Check className="h-3 w-3" />
-                    <span className="hidden xs:inline">Saved</span>
-                  </span>
+                  <AccountMenu
+                    displayName={displayName}
+                    trigger={
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 text-[hsl(var(--success))] rounded-md px-1.5 h-8 hover:bg-accent transition-colors"
+                        aria-label="Account"
+                      >
+                        <Check className="h-3 w-3" />
+                        <span className="hidden xs:inline">Saved</span>
+                      </button>
+                    }
+                  />
                 ) : null}
               </div>
             </div>

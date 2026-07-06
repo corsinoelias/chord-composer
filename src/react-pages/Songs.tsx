@@ -4,6 +4,7 @@ import { getSongs, deleteSongWithSync, duplicateSong } from '@/lib/songStorage';
 import { SongCard } from '@/components/SongCard';
 import { MiniPlayer } from '@/components/MiniPlayer';
 import { AuthModal } from '@/components/AuthModal';
+import { AccountMenu } from '@/components/AccountMenu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -122,7 +123,18 @@ const Songs = () => {
             New progression
           </Button>
           {isLoggedIn && displayName && (
-            <span className="text-xs text-muted-foreground truncate max-w-[160px]">Hi, {displayName}</span>
+            <AccountMenu
+              displayName={displayName}
+              trigger={
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground truncate max-w-[160px] rounded-md px-1.5 py-0.5 hover:bg-accent hover:text-foreground transition-colors"
+                  aria-label="Account"
+                >
+                  Hi, {displayName}
+                </button>
+              }
+            />
           )}
         </div>
       </div>
