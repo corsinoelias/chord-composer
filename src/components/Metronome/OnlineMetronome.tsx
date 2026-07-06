@@ -18,16 +18,33 @@ function scheduleClick(ctx: AudioContext, time: number, isAccent: boolean) {
   osc.stop(time + 0.035)
 }
 
-const BEAT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8]
+type TimeSignature = { label: string; beats: number; accents: boolean[] }
+
+function compoundAccents(beats: number): boolean[] {
+  return Array.from({ length: beats }, (_, i) => i % 3 === 0)
+}
+
+const TIME_SIGNATURES: TimeSignature[] = [
+  { label: '4/4',  beats: 4,  accents: [true, false, false, false] },
+  { label: '3/4',  beats: 3,  accents: [true, false, false] },
+  { label: '2/4',  beats: 2,  accents: [true, false] },
+  { label: '6/8',  beats: 6,  accents: compoundAccents(6) },
+  { label: '9/8',  beats: 9,  accents: compoundAccents(9) },
+  { label: '12/8', beats: 12, accents: compoundAccents(12) },
+  { label: '5/4',  beats: 5,  accents: [true, false, false, false, false] },
+  { label: '7/8',  beats: 7,  accents: [true, false, false, false, false, false, false] },
+]
 
 export function OnlineMetronome() {
   const [playing, setPlaying]             = useState(false)
   const [bpm, setBpmState]                = useState(120)
-  const [beatsPerMeasure, setBeatsState]  = useState(4)
+  const [timeSigIndex, setTimeSigIndexState] = useState(0)
   const [activeBeat, setActiveBeat]       = useState(-1) // -1 = idle
 
+  const timeSignature = TIME_SIGNATURES[timeSigIndex]
+
   const bpmRef              = useRef(120)
-  const beatsRef            = useRef(4)
+  const timeSigRef          = useRef(TIME_SIGNATURES[0])
   const ctxRef              = useRef<AudioContext | null>(null)
   const intervalRef         = useRef<ReturnType<typeof setInterval> | null>(null)
   const rafRef              = useRef<number | null>(null)
@@ -45,9 +62,9 @@ export function OnlineMetronome() {
     })
   }, [])
 
-  const setBeats = useCallback((v: number) => {
-    beatsRef.current = v
-    setBeatsState(v)
+  const setTimeSignature = useCallback((index: number) => {
+    timeSigRef.current = TIME_SIGNATURES[index]
+    setTimeSigIndexState(index)
     schedulerBeatRef.current = 0
   }, [])
 
@@ -66,10 +83,11 @@ export function OnlineMetronome() {
     if (!ctx) return
     while (nextBeatTimeRef.current < ctx.currentTime + SCHEDULE_AHEAD_S) {
       const beat = schedulerBeatRef.current
-      scheduleClick(ctx, nextBeatTimeRef.current, beat === 0)
+      const isAccent = timeSigRef.current.accents[beat]
+      scheduleClick(ctx, nextBeatTimeRef.current, isAccent)
       beatQueueRef.current.push({ time: nextBeatTimeRef.current, beat })
       nextBeatTimeRef.current += 60 / bpmRef.current
-      schedulerBeatRef.current = (schedulerBeatRef.current + 1) % beatsRef.current
+      schedulerBeatRef.current = (schedulerBeatRef.current + 1) % timeSigRef.current.beats
     }
   }, [])
 
@@ -145,9 +163,9 @@ export function OnlineMetronome() {
 
         {/* Beat indicators */}
         <div className="flex justify-center gap-2 mb-1">
-          {Array.from({ length: beatsPerMeasure }, (_, i) => {
+          {Array.from({ length: timeSignature.beats }, (_, i) => {
             const isActive = playing && activeBeat === i
-            const isAccent = i === 0
+            const isAccent = timeSignature.accents[i]
             return (
               <div
                 key={i}
@@ -201,22 +219,22 @@ export function OnlineMetronome() {
         </div>
       </div>
 
-      {/* Beats per measure */}
+      {/* Time signature */}
       <div className="px-6 pb-5 border-t border-border pt-4">
-        <p className="text-xs text-muted-foreground mb-2.5 font-medium">Beats per measure</p>
+        <p className="text-xs text-muted-foreground mb-2.5 font-medium">Time signature</p>
         <div className="flex gap-1.5 flex-wrap">
-          {BEAT_OPTIONS.map(n => (
+          {TIME_SIGNATURES.map((ts, i) => (
             <button
-              key={n}
-              onClick={() => setBeats(n)}
+              key={ts.label}
+              onClick={() => setTimeSignature(i)}
               className={[
-                'w-8 h-8 rounded-lg text-sm font-semibold transition-colors',
-                beatsPerMeasure === n
+                'px-2.5 h-8 rounded-lg text-sm font-semibold transition-colors',
+                timeSigIndex === i
                   ? 'bg-primary text-primary-foreground'
                   : 'border border-border text-muted-foreground hover:text-foreground hover:bg-accent/50',
               ].join(' ')}
             >
-              {n}
+              {ts.label}
             </button>
           ))}
         </div>
