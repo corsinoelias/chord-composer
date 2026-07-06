@@ -1,4 +1,4 @@
-import { Play, Square, Download, ExternalLink, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, Square, Download, ExternalLink, Loader2 } from 'lucide-react';
 import type { Song } from '@/data/songs';
 
 interface SongPlayerBarProps {

@@ -179,11 +179,43 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     return -1;
   }, [isPlaying, currentChordIndex, playingSection, sectionChordCounts, sectionStartIndices, sectionSpanOffsets, song.sections]);
 
-  // ── Auto-scroll to active chord ────────────────────────────────────────────
+  // ── Auto-scroll to active chord — pauses the moment the user scrolls manually, so it
+  // doesn't fight someone trying to read ahead. `wheel`/`touchmove` only ever fire from real
+  // user input (scrollIntoView never dispatches them), so this can't self-trigger. ──────────
+  const [autoFollow, setAutoFollow] = useState(true);
+
   useEffect(() => {
-    if (!isPlaying || activeGlobal < 0) return;
+    if (!isPlaying) return;
+    const disableFollow = () => setAutoFollow(false);
+    window.addEventListener('wheel', disableFollow, { passive: true });
+    window.addEventListener('touchmove', disableFollow, { passive: true });
+    return () => {
+      window.removeEventListener('wheel', disableFollow);
+      window.removeEventListener('touchmove', disableFollow);
+    };
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (!isPlaying || activeGlobal < 0 || !autoFollow) return;
     chordRefs.current.get(activeGlobal)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [activeGlobal, isPlaying]);
+  }, [activeGlobal, isPlaying, autoFollow]);
+
+  // ── Which way the "jump back" pill needs to point — the active chord can end up above OR
+  // below the viewport depending on which way the user scrolled, so a fixed arrow is wrong
+  // half the time. Recomputed on scroll while the pill is showing. ──────────────────────────
+  const [jumpDirection, setJumpDirection] = useState<'up' | 'down'>('down');
+
+  useEffect(() => {
+    if (!isPlaying || autoFollow) return;
+    const updateDirection = () => {
+      const el = chordRefs.current.get(activeGlobal);
+      if (!el) return;
+      setJumpDirection(el.getBoundingClientRect().top < window.innerHeight / 2 ? 'up' : 'down');
+    };
+    updateDirection();
+    window.addEventListener('scroll', updateDirection, { passive: true });
+    return () => window.removeEventListener('scroll', updateDirection);
+  }, [isPlaying, autoFollow, activeGlobal]);
 
   // ── Notify ChordAside of the currently sounding chord (same event-bus pattern as transpose) ──
   const activeChordName = useMemo(() => {
@@ -210,6 +242,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     if (allChordsFlat.length === 0) return;
     analytics.playSong(song.slug, song.title);
     setPlayingSection(null);
+    setAutoFollow(true);
     setIsLoading(true);
     try {
       await play(buildFullSongSections(), {
@@ -225,6 +258,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     if (isPlaying) stop();
     if (sectionChordCounts[si] === 0) return;
     setPlayingSection(si);
+    setAutoFollow(true);
     setIsLoading(true);
     try {
       await play([buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name, song.sections[si].repeatCount ?? 1)], {
@@ -291,6 +325,17 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         editorUrl={editorUrl}
         inline={inline}
       />
+
+      {/* ─ Resume auto-scroll pill — only once the user has scrolled away during playback ─ */}
+      {!inline && isPlaying && !autoFollow && (
+        <button
+          onClick={() => setAutoFollow(true)}
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 inline-flex items-center gap-1 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-lg hover:bg-primary/90 transition-colors"
+        >
+          {jumpDirection === 'up' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          Now playing
+        </button>
+      )}
 
       {/* ─ Song chart ─ */}
       <div className={`space-y-6 ${inline ? 'mt-4 px-5 pb-5' : ''}`}>

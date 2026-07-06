@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Share2, Printer, Image as ImageIcon, Pencil } from 'lucide-react';
 import { parseLyricLine, type Song } from '@/data/songs';
 import { generateSongImage, downloadCanvasAsPng, type ImageSection } from '@/lib/songImage';
 
-// Transpose helpers (same as SongChordPlayer)
+// Transpose helpers (same small duplicated set used in ChordAside.tsx / SongChordPlayer.tsx)
 const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const FLATS  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
 const FLAT_KEYS = new Set(['F','Bb','Eb','Ab','Db','Gb','Dm','Gm','Cm','Fm','Bbm','Ebm']);
@@ -21,13 +22,19 @@ function transposeKey(key: string, s: number) {
 
 interface Props {
   song: Song;
+  isCommunity: boolean;
+  isLocalhost: boolean;
 }
 
-export default function SongImageButton({ song }: Props) {
-  const [transpose, setTranspose] = useState(0);
-  const [busy, setBusy] = useState(false);
+const iconButtonClass =
+  'inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
-  // Stay in sync with the player's transposition
+export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Props) {
+  const [transpose, setTranspose] = useState(0);
+  const [shareTitle, setShareTitle] = useState('Share');
+  const [imageBusy, setImageBusy] = useState(false);
+
+  // Stay in sync with the player's live transposition
   useEffect(() => {
     const handler = (e: Event) => {
       setTranspose((e as CustomEvent<{ semitones: number }>).detail.semitones);
@@ -36,12 +43,25 @@ export default function SongImageButton({ song }: Props) {
     return () => window.removeEventListener('song-transpose', handler);
   }, []);
 
-  function handleClick() {
-    setBusy(true);
+  async function handleShare() {
+    const url = window.location.href;
+    const title = document.title;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShareTitle('Copied!');
+        setTimeout(() => setShareTitle('Share'), 2000);
+      }
+    } catch {}
+  }
+
+  function handleDownloadImage() {
+    setImageBusy(true);
     setTimeout(() => {
       const displayKey = transpose === 0 ? song.key : transposeKey(song.key, transpose);
       const useFlats = FLAT_KEYS.has(displayKey);
-
       const sections: ImageSection[] = song.sections.map(sec => ({
         name: sec.name,
         lines: sec.lines.map(line =>
@@ -51,28 +71,33 @@ export default function SongImageButton({ song }: Props) {
           }))
         ),
       }));
-
       const canvas = generateSongImage(
         song.title, song.artist, displayKey,
         song.capo, song.bpm, sections, song.slug, transpose
       );
       downloadCanvasAsPng(canvas, `${song.slug}.png`);
-      setBusy(false);
+      setImageBusy(false);
     }, 50);
   }
 
+  const editUrl = isCommunity ? `/songs/new/?edit=${song.slug}` : `/songs/new/?from-static=${song.slug}`;
+
   return (
-    <button
-      onClick={handleClick}
-      disabled={busy}
-      title="Download chord sheet as image (PNG)"
-      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 transition-colors hover:border-primary/40 disabled:opacity-50"
-    >
-      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-        <polyline points="21 15 16 10 5 21"/>
-      </svg>
-      {busy ? 'Generating…' : 'Image'}
-    </button>
+    <div className="flex items-center gap-1.5 shrink-0">
+      <button onClick={handleShare} title={shareTitle} className={iconButtonClass}>
+        <Share2 className="w-4 h-4" />
+      </button>
+      <a href={`/songs/pdf/${song.slug}/`} target="_blank" rel="noopener" title="Download PDF" className={iconButtonClass}>
+        <Printer className="w-4 h-4" />
+      </a>
+      <button onClick={handleDownloadImage} disabled={imageBusy} title="Download Image" className={iconButtonClass}>
+        <ImageIcon className="w-4 h-4" />
+      </button>
+      {isLocalhost && (
+        <a href={editUrl} title="Edit song" className={iconButtonClass}>
+          <Pencil className="w-4 h-4" />
+        </a>
+      )}
+    </div>
   );
 }

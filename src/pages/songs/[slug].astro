@@ -2,7 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import SongChordPlayerIsland from '../../components/SongChordPlayerIsland.astro';
 import CommunityEditButton from '../../components/CommunityEditButton';
-import SongImageButton from '../../components/SongImageButton';
+import SongHeaderActions from '../../components/SongHeaderActions';
 import ChordAside from '../../components/ChordAside';
 import { SONGS, extractChordsFromSong } from '../../data/songs';
 import type { Song } from '../../data/songs';
@@ -241,37 +241,6 @@ const breadcrumbSchema = {
 
   <main class="mx-auto max-w-5xl px-4 sm:px-6 py-12 sm:py-20">
 
-    <!-- Edit + PDF buttons -->
-    <div class="flex justify-end gap-2 mb-4">
-      <!-- PDF export -->
-      <a
-        href={`/songs/pdf/${song.slug}/`}
-        target="_blank"
-        class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 transition-colors hover:border-primary/40"
-        title="Export chord sheet as PDF"
-      >
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M6 9V2h12v7"/><rect x="6" y="13" width="12" height="9"/>
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-        </svg>
-        PDF
-      </a>
-
-      <!-- Image export -->
-      <SongImageButton client:load song={song} />
-
-      <!-- Edit (localhost only) -->
-      {isLocalhost && (
-        <a
-          href={isCommunity ? `/songs/new/?edit=${song.slug}` : `/songs/new/?from-static=${song.slug}`}
-          class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 transition-colors hover:border-primary/40"
-        >
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Edit song
-        </a>
-      )}
-    </div>
-
     <!-- Breadcrumb -->
     <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted-foreground mb-8">
       <a href="/" class="hover:text-foreground transition-colors">Home</a>
@@ -281,8 +250,9 @@ const breadcrumbSchema = {
       <span class="text-foreground truncate">{song.title}</span>
     </nav>
 
-    <!-- Song header: title + cover + share -->
-    <div class="flex items-start gap-4 mb-5">
+    <!-- Song header: title + cover + actions — sticky just below the site navbar (h-16),
+         so Share/PDF/Image/Edit stay reachable the whole time you're reading the chart. -->
+    <div class="sticky top-16 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-5 flex items-start gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
       {coverImage && (
         <img
           src={coverImage}
@@ -299,18 +269,7 @@ const breadcrumbSchema = {
           {song.artist}{song.year ? ` · ${song.year}` : ''}{song.album ? ` · ${song.album}` : ''}
         </p>
       </div>
-      <button
-        id="share-btn"
-        class="shrink-0 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 transition-colors hover:border-primary/40"
-        title="Share this song"
-      >
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-          <polyline points="16 6 12 2 8 6"/>
-          <line x1="12" y1="2" x2="12" y2="15"/>
-        </svg>
-        <span id="share-label">Share</span>
-      </button>
+      <SongHeaderActions client:load song={song} isCommunity={isCommunity} isLocalhost={isLocalhost} />
     </div>
 
     <!-- Song stats -->
@@ -411,7 +370,7 @@ const breadcrumbSchema = {
           {relatedSongs.length > 0 && (
             <div class="mt-8 pt-8 border-t border-border">
               <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                More songs
+                Play next
               </h2>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {relatedSongs.map(s => (
@@ -545,9 +504,9 @@ const breadcrumbSchema = {
 
         <!-- Aside: chord visualizers -->
         {uniqueChords.length > 0 && (
-          <!-- top-20 (80px) clears the sticky navbar (h-16 = 64px, z-50) plus a small gap —
-               top-6 left the aside's top edge scrolling underneath the navbar. -->
-          <aside class="lg:sticky lg:top-20">
+          <!-- top-40 (160px) clears both sticky bars above it: the navbar (h-16 = 64px, z-50)
+               and the song header/actions bar (sticky top-16, ~88px tall, z-40). -->
+          <aside class="lg:sticky lg:top-40">
             <ChordAside client:load chords={uniqueChords} songKey={song.key} />
           </aside>
         )}
@@ -624,25 +583,6 @@ const breadcrumbSchema = {
 
     allTriggers.forEach(el => {
       el.addEventListener('click', () => switchTab(el.dataset.tab!));
-    });
-
-    // Share button
-    const shareBtn = document.getElementById('share-btn');
-    const shareLabel = document.getElementById('share-label');
-    shareBtn?.addEventListener('click', async () => {
-      const url = window.location.href;
-      const title = document.title;
-      try {
-        if (navigator.share) {
-          await navigator.share({ title, url });
-        } else {
-          await navigator.clipboard.writeText(url);
-          if (shareLabel) {
-            shareLabel.textContent = 'Copied!';
-            setTimeout(() => { shareLabel.textContent = 'Share'; }, 2000);
-          }
-        }
-      } catch {}
     });
   </script>
 </BaseLayout>
