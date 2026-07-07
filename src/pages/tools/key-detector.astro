@@ -15,9 +15,9 @@ const breadcrumbSchema = {
 };
 
 const keyExamples = [
-  { chords: 'C G Am F', key: 'C major', hint: 'All chords are diatonic to C major. The I chord (C) is the tonal center.' },
-  { chords: 'Am F C G', key: 'A minor / C major', hint: 'Starts on Am — feels like A minor. Same notes, different tonal center.' },
-  { chords: 'Dm7 G7 Cmaj7', key: 'C major', hint: 'ii–V–I in C. The G7 resolves strongly to Cmaj7, confirming C as the key.' },
+  { chords: 'C G Am F', key: 'C major', hint: 'All chords are diatonic to C major. The I chord (C) is the tonal center.', scaleHref: '/tools/scales/?root=0&scale=' + encodeURIComponent('Major Scale') },
+  { chords: 'Am F C G', key: 'A minor / C major', hint: 'Starts on Am — feels like A minor. Same notes, different tonal center.', scaleHref: '/tools/scales/?root=9&scale=' + encodeURIComponent('Natural Minor Scale') },
+  { chords: 'Dm7 G7 Cmaj7', key: 'C major', hint: 'ii–V–I in C. The G7 resolves strongly to Cmaj7, confirming C as the key.', scaleHref: '/tools/scales/?root=0&scale=' + encodeURIComponent('Major Scale') },
 ];
 ---
 
@@ -88,8 +88,12 @@ const keyExamples = [
       <div class="space-y-6">
         {keyExamples.map((ex) => (
           <div class="rounded-xl border border-border bg-card p-5">
-            <div class="flex items-center gap-2 mb-2">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
               <span class="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Key: {ex.key}</span>
+              <a href={ex.scaleHref} class="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1">
+                View scale on fretboard
+                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
             </div>
             <p class="text-xs text-muted-foreground mb-3">{ex.hint}</p>
             <ChordEmbedIsland chords={ex.chords} bpm={100} style="pop_basic" title={ex.chords} />

@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { previewNote } from '@/lib/guitarTab/guitarAudio';
+import type { GuitarSound } from '@/lib/guitarTab/types';
 
 export type PlayDirection = 'asc' | 'desc';
 
@@ -14,45 +16,10 @@ export interface ScalePosition {
   path: NotePosition[];
 }
 
+// Matches STRING_MIDI_BASE in lib/guitarTab/guitarAudio.ts (standard tuning),
+// so NotePosition.stringIndex/fret can be fed straight into previewNote().
 const TUNING = [64, 59, 55, 50, 45, 40]; // E4 B3 G3 D3 A2 E2
 const ROMAN  = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-
-// ── Audio ─────────────────────────────────────────────────────────────────────
-
-let sharedCtx: AudioContext | null = null;
-function getAudioContext(): AudioContext {
-  if (!sharedCtx || sharedCtx.state === 'closed') sharedCtx = new AudioContext();
-  return sharedCtx;
-}
-
-function playGuitarNote(midi: number, durationMs: number) {
-  const ctx = getAudioContext();
-  if (ctx.state === 'suspended') ctx.resume();
-
-  const freq = 440 * Math.pow(2, (midi - 69) / 12);
-  const now  = ctx.currentTime;
-  const dur  = Math.max(durationMs / 1000, 0.08);
-
-  const osc    = ctx.createOscillator();
-  const filter = ctx.createBiquadFilter();
-  const gain   = ctx.createGain();
-
-  osc.type = 'sawtooth';
-  osc.frequency.value = freq;
-  filter.type = 'lowpass';
-  filter.frequency.value = Math.min(freq * 3.5, 7000);
-  filter.Q.value = 0.6;
-
-  gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(0.2, now + 0.003);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + dur * 1.1);
-
-  osc.connect(filter);
-  filter.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start(now);
-  osc.stop(now + dur * 1.2);
-}
 
 // ── Scale builders ─────────────────────────────────────────────────────────────
 
@@ -232,14 +199,16 @@ interface UseScalePlaybackReturn {
   stop: () => void;
 }
 
-export function useScalePlayback({ bpm }: { bpm: number }): UseScalePlaybackReturn {
+export function useScalePlayback({ bpm, sound }: { bpm: number; sound: GuitarSound }): UseScalePlaybackReturn {
   const [isPlaying, setIsPlaying]      = useState(false);
   const [activePosition, setActivePos] = useState<NotePosition | null>(null);
   const [currentNoteIndex, setNoteIdx] = useState(0);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopFlag   = useRef(false);
   const bpmRef     = useRef(bpm);
+  const soundRef   = useRef(sound);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => { soundRef.current = sound; }, [sound]);
 
   const stop = useCallback(() => {
     stopFlag.current = true;
@@ -275,7 +244,7 @@ export function useScalePlayback({ bpm }: { bpm: number }): UseScalePlaybackRetu
       const ms = Math.round(60_000 / bpmRef.current);
       setActivePos(sequence[idx]);
       setNoteIdx(idx);
-      playGuitarNote(sequence[idx].midi, ms * 0.88);
+      previewNote(sequence[idx].stringIndex, sequence[idx].fret, soundRef.current);
       idx++;
       timeoutRef.current = setTimeout(tick, ms);
     };

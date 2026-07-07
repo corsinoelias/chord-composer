@@ -9,7 +9,10 @@ import {
   useScalePlayback, findScalePositions,
   type PlayDirection, type ScalePosition,
 } from '@/hooks/useScalePlayback';
+import { prepareSoundfont } from '@/lib/guitarTab/guitarAudio';
+import type { GuitarSound } from '@/lib/guitarTab/types';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Play, Square, ChevronDown, Repeat2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const INTERVAL_DEGREE: Record<number, string> = {
@@ -30,17 +33,52 @@ const DEFAULT: ScaleFilterState = {
   intervals: SCALES.find(s => s.name === 'Major Scale')!.intervals,
 };
 
+// Deep-link support: /tools/scales/?root=<0-11>&scale=<Scale Name> preselects
+// a specific scale, e.g. linked from a song's key ("Find the scales that work
+// over the G key" → root=7&scale=Major%20Scale).
+function getInitialFilter(): ScaleFilterState {
+  if (typeof window === 'undefined') return DEFAULT;
+  const params = new URLSearchParams(window.location.search);
+  const scaleParam = params.get('scale');
+  if (!scaleParam) return DEFAULT;
+  const scale = SCALES.find(s => s.name === scaleParam);
+  if (!scale) return DEFAULT;
+  const rootParam = parseInt(params.get('root') ?? '', 10);
+  const rootPitchClass = Number.isFinite(rootParam) ? ((rootParam % 12) + 12) % 12 : 0;
+  return { rootPitchClass, scaleName: scale.name, intervals: scale.intervals };
+}
+
+const SOUNDS: { value: GuitarSound; label: string }[] = [
+  { value: 'sf2',             label: 'Steel ★' },
+  { value: 'sf2-nylon',       label: 'Nylon ★' },
+  { value: 'sf2-clean',       label: 'Clean ★' },
+  { value: 'sf2-jazz',        label: 'Jazz ★' },
+  { value: 'sf2-muted',       label: 'Muted ★' },
+  { value: 'sf2-distortion',  label: 'Distorted ★' },
+  { value: 'sf2-overdrive',   label: 'Overdrive ★' },
+  { value: 'sf2-harmonics',   label: 'Harmonics ★' },
+  { value: 'acoustic',        label: 'Acoustic' },
+  { value: 'nylon',           label: 'Nylon' },
+  { value: 'clean',           label: 'Clean' },
+  { value: 'synth',           label: 'Synth' },
+];
+
 const BPM_MIN  = 40;
 const BPM_MAX  = 200;
 const BPM_STEP = 5;
 
 export function ScalesTool() {
-  const [filter, setFilter]           = useState<ScaleFilterState | null>(DEFAULT);
+  const [filter, setFilter]           = useState<ScaleFilterState | null>(getInitialFilter);
   const [bpm, setBpm]                 = useState(80);
   const [direction, setDirection]     = useState<PlayDirection>('asc');
   const [loop, setLoop]               = useState(false);
   const [positionIndex, setPositionIndex] = useState(0);
   const [showAllCats, setShowAllCats] = useState(false);
+  const [sound, setSound]             = useState<GuitarSound>('sf2');
+
+  useEffect(() => {
+    if (sound.startsWith('sf2')) prepareSoundfont(sound).catch(() => {});
+  }, [sound]);
 
   // All valid hand positions for the current scale
   const scalePositions = useMemo<ScalePosition[]>(() => {
@@ -56,7 +94,7 @@ export function ScalesTool() {
   const totalNotes      = displayPath.length;
 
   const { isPlaying, activePosition, currentNoteIndex, play, stop } =
-    useScalePlayback({ bpm });
+    useScalePlayback({ bpm, sound });
 
   // Stop playback whenever the scale or position changes
   useEffect(() => { stop(); }, [filter, positionIndex, stop]);
@@ -166,6 +204,20 @@ export function ScalesTool() {
               </button>
             </div>
 
+            {/* Sound */}
+            <Select value={sound} onValueChange={(v) => setSound(v as GuitarSound)}>
+              <SelectTrigger className="w-32 h-8 text-xs">
+                <SelectValue placeholder="Sound" />
+              </SelectTrigger>
+              <SelectContent>
+                {SOUNDS.map(s => (
+                  <SelectItem key={s.value} value={s.value} className="text-xs">
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             {/* Loop */}
             <button
               onClick={() => setLoop(l => !l)}
@@ -221,57 +273,61 @@ export function ScalesTool() {
             </div>
           )}
 
-          {/* ── Fretboard (primary) ──────────────────────────────────────────── */}
-          <ScaleFretboard
-            rootPitchClass={filter.rootPitchClass}
-            scalePath={displayPath}
-            activePosition={activePosition}
-          />
+          {/* ── Fretboard + Tab, side by side on wide screens ───────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+            <div>
+              <ScaleFretboard
+                rootPitchClass={filter.rootPitchClass}
+                scalePath={displayPath}
+                activePosition={activePosition}
+              />
 
-          {/* ── Position navigator ───────────────────────────────────────────── */}
-          {scalePositions.length > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <button
-                onClick={() => { if (isPlaying) stop(); setPositionIndex(i => Math.max(0, i - 1)); }}
-                disabled={positionIndex === 0}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-
-              <div className="flex gap-1">
-                {scalePositions.map((pos, i) => (
+              {/* ── Position navigator ───────────────────────────────────────── */}
+              {scalePositions.length > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-4">
                   <button
-                    key={i}
-                    onClick={() => { if (isPlaying) stop(); setPositionIndex(i); }}
-                    className={`px-2.5 py-1 rounded-md text-xs font-mono font-semibold transition-colors ${
-                      positionIndex === i
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    }`}
+                    onClick={() => { if (isPlaying) stop(); setPositionIndex(i => Math.max(0, i - 1)); }}
+                    disabled={positionIndex === 0}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
                   >
-                    {pos.label}
+                    <ChevronLeft className="h-4 w-4" />
                   </button>
-                ))}
-              </div>
 
-              <button
-                onClick={() => { if (isPlaying) stop(); setPositionIndex(i => Math.min(scalePositions.length - 1, i + 1)); }}
-                disabled={positionIndex === scalePositions.length - 1}
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
+                  <div className="flex gap-1">
+                    {scalePositions.map((pos, i) => (
+                      <button
+                        key={i}
+                        onClick={() => { if (isPlaying) stop(); setPositionIndex(i); }}
+                        className={`px-2.5 py-1 rounded-md text-xs font-mono font-semibold transition-colors ${
+                          positionIndex === i
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {pos.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => { if (isPlaying) stop(); setPositionIndex(i => Math.min(scalePositions.length - 1, i + 1)); }}
+                    disabled={positionIndex === scalePositions.length - 1}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
             </div>
-          )}
 
-          {/* ── Tab (secondary) ──────────────────────────────────────────────── */}
-          <ScaleTab
-            path={displayPath}
-            currentIndex={currentNoteIndex}
-            isPlaying={isPlaying}
-            bpm={bpm}
-          />
+            {/* ── Tab (secondary) ──────────────────────────────────────────────── */}
+            <ScaleTab
+              path={displayPath}
+              currentIndex={currentNoteIndex}
+              isPlaying={isPlaying}
+              bpm={bpm}
+            />
+          </div>
 
           {/* Legend */}
           <div className="flex gap-5 text-xs text-muted-foreground pt-1">

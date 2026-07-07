@@ -135,6 +135,17 @@ const isMinorKey = song.key.endsWith('m')
 const fullKeyName = isMinorKey ? `${song.key.replace(/m$/, '')} minor` : `${song.key} major`
 const keyMood = KEY_MOODS[song.key] ?? (isMinorKey ? 'expressive and introspective' : 'bright and versatile')
 
+// Deep-link into the Scale Explorer preselected to this song's key, e.g.
+// a G major song links straight to the G major scale instead of a blank tool.
+const NOTE_TO_PC: Record<string, number> = {
+  C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6,
+  G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11,
+}
+const keyRoot = isMinorKey ? song.key.slice(0, -1) : song.key
+const keyRootPc = NOTE_TO_PC[keyRoot] ?? 0
+const scaleName = isMinorKey ? 'Natural Minor Scale' : 'Major Scale'
+const scaleExplorerHref = `/tools/scales/?root=${keyRootPc}&scale=${encodeURIComponent(scaleName)}`
+
 const tempoDesc =
   song.bpm < 70  ? 'slow and contemplative' :
   song.bpm < 90  ? 'slow and emotional' :
@@ -479,7 +490,7 @@ const breadcrumbSchema = {
                 <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary ml-auto shrink-0 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </a>
               <a
-                href="/tools/scales/"
+                href={scaleExplorerHref}
                 class="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
               >
                 <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -487,7 +498,7 @@ const breadcrumbSchema = {
                 </div>
                 <div class="min-w-0">
                   <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">Scale Explorer</p>
-                  <p class="text-xs text-muted-foreground">Find the scales that work over the {song.key} key</p>
+                  <p class="text-xs text-muted-foreground">Open the {fullKeyName} scale on an interactive fretboard</p>
                 </div>
                 <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary ml-auto shrink-0 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </a>

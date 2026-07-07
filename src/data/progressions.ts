@@ -4,6 +4,9 @@ export interface Progression {
   bpm: number;
   style: string;
   description: string;
+  // Deep-links to /tools/scales/ preselected to the scale that fits this progression,
+  // e.g. { root: 4, scaleName: 'Blues Minor Scale', label: 'E Blues Scale' }
+  scale?: { root: number; scaleName: string; label: string };
 }
 
 export interface RelatedArticle {
@@ -308,12 +311,12 @@ export const GENRES: Genre[] = [
       { href: '/learn/music-theory-basics-for-songwriters/', label: 'Music theory basics for songwriters', description: 'Dominant seventh chords, pentatonic scales, and the theory behind the blues' },
     ],
     progressions: [
-      { title: '12-Bar Blues (E major)', chords: 'E7 E7 E7 E7 A7 A7 E7 E7 B7 A7 E7 B7', bpm: 120, style: 'pop_basic', description: 'The classic 12-bar blues in E. The most recorded chord progression in American music.' },
-      { title: '12-Bar Blues with Quick Change', chords: 'E7 A7 E7 E7 A7 A7 E7 E7 B7 A7 E7 B7', bpm: 120, style: 'pop_basic', description: 'Jumps to IV in bar 2 for extra momentum. Standard in Chicago blues.' },
-      { title: 'Slow Blues (C major)', chords: 'C7 F7 C7 G7 F7 C7', bpm: 60, style: 'pop_basic', description: 'Half-time feel at a slow tempo. Every note counts — leave space between the chords.' },
-      { title: 'Minor Blues', chords: 'Am7 Dm7 Am7 Em7 Dm7 Am7', bpm: 90, style: 'pop_basic', description: 'The ache of the blues in a minor key. B.B. King, Clapton, and Robben Ford all live here.' },
-      { title: 'Blues Turnaround (I–VI–II–V)', chords: 'E7 C#7 F#7 B7', bpm: 100, style: 'pop_basic', description: 'Classic turnaround used at the end of every blues chorus to set up the repeat.' },
-      { title: 'Gospel Blues', chords: 'G7 C7 G7 D7 C7 G7', bpm: 80, style: 'pop_basic', description: 'Slower, more resolved feel. The bridge between blues and gospel harmony.' },
+      { title: '12-Bar Blues (E major)', chords: 'E7 E7 E7 E7 A7 A7 E7 E7 B7 A7 E7 B7', bpm: 120, style: 'pop_basic', description: 'The classic 12-bar blues in E. The most recorded chord progression in American music.', scale: { root: 4, scaleName: 'Blues Minor Scale', label: 'E Blues Scale' } },
+      { title: '12-Bar Blues with Quick Change', chords: 'E7 A7 E7 E7 A7 A7 E7 E7 B7 A7 E7 B7', bpm: 120, style: 'pop_basic', description: 'Jumps to IV in bar 2 for extra momentum. Standard in Chicago blues.', scale: { root: 4, scaleName: 'Blues Minor Scale', label: 'E Blues Scale' } },
+      { title: 'Slow Blues (C major)', chords: 'C7 F7 C7 G7 F7 C7', bpm: 60, style: 'pop_basic', description: 'Half-time feel at a slow tempo. Every note counts — leave space between the chords.', scale: { root: 0, scaleName: 'Blues Minor Scale', label: 'C Blues Scale' } },
+      { title: 'Minor Blues', chords: 'Am7 Dm7 Am7 Em7 Dm7 Am7', bpm: 90, style: 'pop_basic', description: 'The ache of the blues in a minor key. B.B. King, Clapton, and Robben Ford all live here.', scale: { root: 9, scaleName: 'Blues Minor Scale', label: 'A Blues Scale' } },
+      { title: 'Blues Turnaround (I–VI–II–V)', chords: 'E7 C#7 F#7 B7', bpm: 100, style: 'pop_basic', description: 'Classic turnaround used at the end of every blues chorus to set up the repeat.', scale: { root: 4, scaleName: 'Blues Minor Scale', label: 'E Blues Scale' } },
+      { title: 'Gospel Blues', chords: 'G7 C7 G7 D7 C7 G7', bpm: 80, style: 'pop_basic', description: 'Slower, more resolved feel. The bridge between blues and gospel harmony.', scale: { root: 7, scaleName: 'Blues Minor Scale', label: 'G Blues Scale' } },
     ],
   },
   {
