@@ -1233,7 +1233,6 @@ export function RhythmEditor({
               />
             </div>
             <div className="p-4">
-            {(() => { console.log('[DEBUG] activeTab', activeTab, 'editedStyle.melodic', JSON.stringify(editedStyle.melodic), 'migratedMelodic[tab]', JSON.stringify(migratedMelodic[activeTab as 'bass'])); return null; })()}
             <MelodicPatternGrid
               melodic={migratedMelodic[activeTab as 'bass' | 'piano' | 'guitar']}
               referenceRootMidi={referenceRootMidi}
