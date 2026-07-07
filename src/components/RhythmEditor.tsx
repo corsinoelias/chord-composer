@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,10 +21,9 @@ import {
   Piano,
   Guitar,
   Music,
-  ChevronDown,
   RotateCw
 } from 'lucide-react';
-import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar, getStyleTotalSlots, getPulseInterval, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed, type InstrumentSounds } from '@/lib/styles';
+import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar, getStyleTotalSlots, getPulseInterval } from '@/lib/styles';
 import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates, INSTRUMENTS, type InstrumentType } from '@/lib/instruments';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
@@ -34,14 +32,6 @@ import { useStylePreview } from '@/hooks/useStylePreview';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,7 +43,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { MelodicPatternGrid } from '@/components/MelodicPatternGrid';
-import { emptyMelodicData, createVariation, resolveVariation, scalePatternIsEmpty, DEGREES, type Degree, type InstrumentMelodic } from '@/lib/bassScale';
+import { emptyMelodicData, createVariation, scalePatternIsEmpty, DEGREES, type Degree, type InstrumentMelodic } from '@/lib/bassScale';
 
 // All possible instruments in the editor
 const ALL_INSTRUMENTS = [
@@ -143,6 +133,60 @@ function cloneStyle(style: StylePattern): StylePattern {
   return JSON.parse(JSON.stringify(style));
 }
 
+// One instrument's default volume + sound-type picker. Rendered inside whichever
+// tab owns that instrument (Drums tab shows only drums, Piano tab shows only
+// piano, etc.) instead of dumping all four into a single tab's toolbar.
+function InstrumentMixControl({
+  instType,
+  editedStyle,
+  onChange,
+}: {
+  instType: InstrumentType;
+  editedStyle: StylePattern;
+  onChange: (updater: (prev: StylePattern) => StylePattern) => void;
+}) {
+  const config = INSTRUMENTS.find(i => i.id === instType);
+  if (!config) return null;
+
+  const currentSoundId = editedStyle.instrumentSounds?.[instType] || config.defaultSoundType;
+  // Only `guitar` is optional on StylePattern.volumes — falls back to piano's
+  // volume, matching the default this style would apply if unset.
+  const currentVolume = editedStyle.volumes[instType] ?? editedStyle.volumes.piano;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1 sm:gap-2">
+        <Volume2 className="w-4 h-4 text-muted-foreground hidden sm:block" />
+        <span className="text-xs text-muted-foreground">{config.name}</span>
+        <Slider
+          value={[currentVolume * 100]}
+          onValueChange={([v]) => onChange(prev => ({ ...prev, volumes: { ...prev.volumes, [instType]: v / 100 } }))}
+          className="w-16 sm:w-20"
+          max={100}
+        />
+      </div>
+      <Select
+        value={currentSoundId}
+        onValueChange={(soundId) => onChange(prev => ({
+          ...prev,
+          instrumentSounds: { ...prev.instrumentSounds, [instType]: soundId },
+        }))}
+      >
+        <SelectTrigger className="h-7 w-28 sm:w-32 text-[10px] sm:text-xs px-1.5">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {config.soundTypes.map(sound => (
+            <SelectItem key={sound.id} value={sound.id} className="text-xs">
+              {sound.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 export function RhythmEditor({
   open,
   onClose,
@@ -207,7 +251,7 @@ export function RhythmEditor({
   // Track the original style state to compare for changes
   const originalStyleRef = useRef<string>('');
   
-  const { previewStyle, stopPreview, previewingStyleId } = useStylePreview();
+  const { stopPreview, previewingStyleId } = useStylePreview();
   
   const playbackRef = useRef<{ cancel: () => void } | null>(null);
   const editedStyleRef = useRef<StylePattern>(editedStyle);
@@ -499,117 +543,6 @@ export function RhythmEditor({
     });
   };
 
-  const handleArpeggioToggle = (isArpeggio: boolean) => {
-    if (!velocityPopover) return;
-    const { instrument, step, isFill } = velocityPopover;
-    
-    // Only piano and guitar support arpeggios
-    if (instrument !== 'piano' && instrument !== 'guitar') return;
-    
-    setEditedStyle(prev => {
-      const newStyle = cloneStyle(prev);
-      const defaultArpeggio: ArpeggioCell = { type: 'up', speed: 'normal' };
-      
-      if (isFill) {
-        if (!newStyle.fill.arpeggios) {
-          newStyle.fill.arpeggios = {};
-        }
-        if (!newStyle.fill.arpeggios[instrument]) {
-          newStyle.fill.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
-        }
-        newStyle.fill.arpeggios[instrument]![step] = isArpeggio ? defaultArpeggio : null;
-      } else {
-        if (!newStyle.arpeggios) {
-          newStyle.arpeggios = {};
-        }
-        if (!newStyle.arpeggios[instrument]) {
-          newStyle.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
-        }
-        newStyle.arpeggios[instrument]![step] = isArpeggio ? defaultArpeggio : null;
-      }
-      
-      return newStyle;
-    });
-  };
-
-  const handleArpeggioTypeChange = (type: ArpeggioType) => {
-    if (!velocityPopover) return;
-    const { instrument, step, isFill } = velocityPopover;
-    
-    if (instrument !== 'piano' && instrument !== 'guitar') return;
-    
-    setEditedStyle(prev => {
-      const newStyle = cloneStyle(prev);
-      
-      const getCurrentArpeggio = (): ArpeggioCell | null => {
-        if (isFill) {
-          return newStyle.fill.arpeggios?.[instrument]?.[step] ?? null;
-        }
-        return newStyle.arpeggios?.[instrument]?.[step] ?? null;
-      };
-      
-      const current = getCurrentArpeggio();
-      if (!current) return prev;
-      
-      const updated: ArpeggioCell = { ...current, type };
-      
-      if (isFill) {
-        if (!newStyle.fill.arpeggios) newStyle.fill.arpeggios = {};
-        if (!newStyle.fill.arpeggios[instrument]) {
-          newStyle.fill.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
-        }
-        newStyle.fill.arpeggios[instrument]![step] = updated;
-      } else {
-        if (!newStyle.arpeggios) newStyle.arpeggios = {};
-        if (!newStyle.arpeggios[instrument]) {
-          newStyle.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
-        }
-        newStyle.arpeggios[instrument]![step] = updated;
-      }
-      
-      return newStyle;
-    });
-  };
-
-  const handleArpeggioSpeedChange = (speed: ArpeggioSpeed) => {
-    if (!velocityPopover) return;
-    const { instrument, step, isFill } = velocityPopover;
-    
-    if (instrument !== 'piano' && instrument !== 'guitar') return;
-    
-    setEditedStyle(prev => {
-      const newStyle = cloneStyle(prev);
-      
-      const getCurrentArpeggio = (): ArpeggioCell | null => {
-        if (isFill) {
-          return newStyle.fill.arpeggios?.[instrument]?.[step] ?? null;
-        }
-        return newStyle.arpeggios?.[instrument]?.[step] ?? null;
-      };
-      
-      const current = getCurrentArpeggio();
-      if (!current) return prev;
-      
-      const updated: ArpeggioCell = { ...current, speed };
-      
-      if (isFill) {
-        if (!newStyle.fill.arpeggios) newStyle.fill.arpeggios = {};
-        if (!newStyle.fill.arpeggios[instrument]) {
-          newStyle.fill.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
-        }
-        newStyle.fill.arpeggios[instrument]![step] = updated;
-      } else {
-        if (!newStyle.arpeggios) newStyle.arpeggios = {};
-        if (!newStyle.arpeggios[instrument]) {
-          newStyle.arpeggios[instrument] = new Array(getSlotsPerBar(newStyle)).fill(null);
-        }
-        newStyle.arpeggios[instrument]![step] = updated;
-      }
-      
-      return newStyle;
-    });
-  };
-
   const handleCellRightClick = (e: React.MouseEvent, instrument: InstrumentKey, step: number, isFill: boolean) => {
     e.preventDefault();
     setEditedStyle(prev => {
@@ -816,23 +749,6 @@ export function RhythmEditor({
   // 1..6 continuously in 6/8 instead of the old fixed "4 quarter-note groups".
   const slotsPerBeatGroup = getPulseInterval(editedStyle);
 
-  // Group styles for dropdown - use original names for display
-  // Filter out duplicates by using a Map keyed by style ID
-  const seenIds = new Set<string>();
-  const uniqueStyles = allStyles.filter(s => {
-    if (seenIds.has(s.id)) return false;
-    seenIds.add(s.id);
-    return true;
-  });
-  
-  const customStylesList = uniqueStyles.filter(s => isCustomStyle(s.id));
-  const builtInStyles = uniqueStyles.filter(s => !isCustomStyle(s.id));
-  const stylesByCategory = builtInStyles.reduce((acc, s) => {
-    if (!acc[s.category]) acc[s.category] = [];
-    acc[s.category].push(s);
-    return acc;
-  }, {} as Record<string, StylePattern[]>);
-
   const handleDeleteStyle = (styleToDelete: StylePattern) => {
     setStyleToDelete(styleToDelete);
     setDeleteDialogOpen(true);
@@ -852,25 +768,6 @@ export function RhythmEditor({
     setStyleToDelete(null);
   };
 
-  const handlePreviewStyle = (e: React.MouseEvent, s: StylePattern) => {
-    e.stopPropagation();
-    if (previewingStyleId === s.id) {
-      stopPreview();
-    } else {
-      // Preview should be exclusive: stop main playback to avoid conflicts
-      if (isMainPlaying) {
-        stopMainPlayback();
-      }
-      stopLocalPlayback();
-      previewStyle(s);
-    }
-  };
-
-  const handleSelectStyle = (styleId: string) => {
-    stopPreview();
-    stopLocalPlayback();
-    onStyleSelect?.(styleId);
-  };
 
   // Handle close attempt - show confirmation if there are unsaved changes
   const handleCloseAttempt = useCallback(() => {
@@ -907,66 +804,14 @@ export function RhythmEditor({
             <DialogTitle className="flex items-center gap-3">
               <Drum className="w-5 h-5" />
               
-              {/* Rhythm Selector Dropdown - shows ORIGINAL name */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 min-w-[200px] justify-between">
-                    <span className="truncate flex items-center gap-1">
-                      {hasOverride && <span className="text-primary">★</span>}
-                      {originalStyleName}
-                    </span>
-                    <ChevronDown className="w-4 h-4 shrink-0" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-72 max-h-[400px] overflow-y-auto">
-                  {/* Custom Styles */}
-                  {customStylesList.length > 0 && (
-                    <>
-                      <DropdownMenuLabel className="text-primary">⭐ My Rhythms</DropdownMenuLabel>
-                      {customStylesList.map(s => (
-                        <DropdownMenuItem
-                          key={s.id}
-                          className={cn(
-                            "cursor-pointer",
-                            s.id === style.id && "bg-accent"
-                          )}
-                          onClick={() => handleSelectStyle(s.id)}
-                        >
-                          <span className="truncate">{s.name}</span>
-                        </DropdownMenuItem>
-                      ))}
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-                  
-                  {/* Built-in Styles by Category */}
-                  {Object.entries(stylesByCategory).map(([category, styles]) => (
-                    <div key={category}>
-                      <DropdownMenuLabel>{category}</DropdownMenuLabel>
-                      {styles.map(s => {
-                        const hasOvr = hasStyleOverride(s.id);
-                        return (
-                          <DropdownMenuItem
-                            key={s.id}
-                            className={cn(
-                              "cursor-pointer",
-                              s.id === style.id && "bg-accent"
-                            )}
-                            onClick={() => handleSelectStyle(s.id)}
-                          >
-                            <span className="truncate flex items-center gap-1">
-                              {hasOvr && <span className="text-primary text-xs">★</span>}
-                              {s.name}
-                            </span>
-                          </DropdownMenuItem>
-                        );
-                      })}
-                      <DropdownMenuSeparator />
-                    </div>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              
+              {/* Rhythm name — fixed for the lifetime of this modal session. Rename via
+                  the "Name" field in the toolbar below; to edit a different rhythm,
+                  close this modal (unsaved changes are still guarded) and reopen it. */}
+              <span className="gap-1 min-w-[200px] truncate flex items-center font-semibold">
+                {hasOverride && <span className="text-primary">★</span>}
+                {originalStyleName}
+              </span>
+
               {(isPlaying || isMainPlaying) && (
                 <span className="text-xs font-normal text-primary animate-pulse">
                   ● {showFill ? 'FILL PREVIEW' : isSyncedWithMain ? 'SYNCED' : 'LIVE'}
@@ -1184,88 +1029,12 @@ export function RhythmEditor({
               </>
             )}
             
-            {/* Volume Controls - stacked on mobile */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4 ml-auto">
-              <div className="flex items-center gap-1 sm:gap-2">
-                <Volume2 className="w-4 h-4 text-muted-foreground hidden sm:block" />
-                <span className="text-[10px] text-muted-foreground sm:hidden">Dr:</span>
-                <span className="hidden sm:inline text-xs text-muted-foreground">Drums</span>
-                <Slider
-                  value={[editedStyle.volumes.drums * 100]}
-                  onValueChange={([v]) => setEditedStyle(prev => ({ ...prev, volumes: { ...prev.volumes, drums: v / 100 } }))}
-                  className="w-12 sm:w-16"
-                  max={100}
-                />
-              </div>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-[10px] text-muted-foreground sm:hidden">Ba:</span>
-                <span className="hidden sm:inline text-xs text-muted-foreground">Bass</span>
-                <Slider
-                  value={[editedStyle.volumes.bass * 100]}
-                  onValueChange={([v]) => setEditedStyle(prev => ({ ...prev, volumes: { ...prev.volumes, bass: v / 100 } }))}
-                  className="w-12 sm:w-16"
-                  max={100}
-                />
-              </div>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-[10px] text-muted-foreground sm:hidden">Pi:</span>
-                <span className="hidden sm:inline text-xs text-muted-foreground">Piano</span>
-                <Slider
-                  value={[editedStyle.volumes.piano * 100]}
-                  onValueChange={([v]) => setEditedStyle(prev => ({ ...prev, volumes: { ...prev.volumes, piano: v / 100 } }))}
-                  className="w-12 sm:w-16"
-                  max={100}
-                />
-              </div>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-[10px] text-muted-foreground sm:hidden">Gt:</span>
-                <span className="hidden sm:inline text-xs text-muted-foreground">Guitar</span>
-                <Slider
-                  value={[(editedStyle.volumes.guitar ?? editedStyle.volumes.piano) * 100]}
-                  onValueChange={([v]) => setEditedStyle(prev => ({ ...prev, volumes: { ...prev.volumes, guitar: v / 100 } }))}
-                  className="w-12 sm:w-16"
-                  max={100}
-                />
-              </div>
-
-              {/* Instrument Sound Selectors */}
-              <Separator orientation="vertical" className="h-4 mx-2 hidden sm:block" />
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                {(['piano', 'bass', 'drums', 'guitar'] as InstrumentType[]).map(instType => {
-                  const config = INSTRUMENTS.find(i => i.id === instType);
-                  if (!config) return null;
-                  const currentSoundId = editedStyle.instrumentSounds?.[instType] || config.defaultSoundType;
-                  return (
-                    <div key={instType} className="flex items-center gap-1">
-                      <span className="text-[10px] text-muted-foreground capitalize">{instType[0].toUpperCase()}:</span>
-                      <Select
-                        value={currentSoundId}
-                        onValueChange={(soundId) => setEditedStyle(prev => ({
-                          ...prev,
-                          instrumentSounds: {
-                            ...prev.instrumentSounds,
-                            [instType]: soundId,
-                          }
-                        }))}
-                      >
-                        <SelectTrigger className="h-6 w-20 sm:w-24 text-[10px] sm:text-xs px-1.5">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {config.soundTypes.map(sound => (
-                            <SelectItem key={sound.id} value={sound.id} className="text-xs">
-                              {sound.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  );
-                })}
-              </div>
+            {/* Drums' own volume + kit selector — scoped to this tab only */}
+            <div className="ml-auto">
+              <InstrumentMixControl instType="drums" editedStyle={editedStyle} onChange={setEditedStyle} />
             </div>
           </div>
-          
+
           {/* Grid Area */}
           <div className="flex-1 max-h-[50vh] sm:max-h-[400px] overflow-auto">
             <div className="p-2 sm:p-4 min-w-[340px]">
@@ -1314,16 +1083,6 @@ export function RhythmEditor({
                                 ? (isInFillZone ? (fillPattern?.[step] ?? 0) : basePattern[step])
                                 : basePattern[step];
 
-                              // Piano/guitar are filtered out of drums grid, so arpeggio never applies here
-                              const supportsArpeggio = false;
-                              const arpeggioKey = instrument.key as 'piano' | 'guitar';
-                              const arpeggioCell: ArpeggioCell | null = supportsArpeggio 
-                                ? (showFill 
-                                    ? editedStyle.fill.arpeggios?.[arpeggioKey]?.[step] ?? null
-                                    : editedStyle.arpeggios?.[arpeggioKey]?.[step] ?? null)
-                                : null;
-                              const isArpeggio = arpeggioCell !== null;
-
                               // In Fill mode: lock steps before the fill start (they come from the Main pattern)
                               const isLockedInFill = showFill && !isInFillZone;
                               const isActiveInFill = showFill && isInFillZone;
@@ -1358,8 +1117,6 @@ export function RhythmEditor({
                                         // Normal velocity colors (override fill bg when has value)
                                         getVelocityColor(value),
                                         value > 0 ? "border-chart-4/50" : "",
-                                        // Arpeggio indicator - dashed border
-                                        isArpeggio && value > 0 && "border-dashed border-2 border-primary",
                                         // Popover open indicator
                                         isPopoverOpen && "ring-2 ring-primary",
                                         // Playhead indicator - ALWAYS on top with higher priority
@@ -1368,12 +1125,7 @@ export function RhythmEditor({
                                     >
                                       {value > 0 ? (
                                         <span className="text-[7px] sm:text-[9px] font-medium text-foreground/80">
-                                          {isArpeggio
-                                            ? (arpeggioCell?.type === 'up' ? '↑'
-                                              : arpeggioCell?.type === 'down' ? '↓'
-                                              : arpeggioCell?.type === 'updown' ? '↕'
-                                              : '⟳')
-                                            : Math.round(value * 100)}
+                                          {Math.round(value * 100)}
                                         </span>
                                       ) : isDownbeat && (
                                         <span className="text-[9px] sm:text-xs font-medium text-muted-foreground/50">
@@ -1415,80 +1167,6 @@ export function RhythmEditor({
                                           </Button>
                                         ))}
                                       </div>
-                                      
-                                      {/* Arpeggio toggle - only for piano and guitar */}
-                                      {supportsArpeggio && value > 0 && (
-                                        <>
-                                          <Separator />
-                                          <div className="flex items-center justify-between">
-                                            <Label className="text-xs font-medium flex items-center gap-1">
-                                              <span>♪</span> Arpeggio
-                                            </Label>
-                                            <Switch
-                                              checked={isArpeggio}
-                                              onCheckedChange={handleArpeggioToggle}
-                                              className="scale-90"
-                                            />
-                                          </div>
-                                          
-                                          {/* Arpeggio options - only show when arpeggio is enabled */}
-                                          {isArpeggio && arpeggioCell && (
-                                            <div className="space-y-2 pt-1">
-                                              {/* Type selector */}
-                                              <div className="flex items-center justify-between gap-2">
-                                                <Label className="text-[10px] text-muted-foreground">Type</Label>
-                                                <div className="flex gap-1">
-                                                  {([
-                                                    { value: 'up', label: '↑', title: 'Ascending' },
-                                                    { value: 'down', label: '↓', title: 'Descending' },
-                                                    { value: 'updown', label: '↕', title: 'Up-Down' },
-                                                    { value: 'random', label: '⟳', title: 'Random' },
-                                                  ] as const).map(opt => (
-                                                    <Button
-                                                      key={opt.value}
-                                                      variant={arpeggioCell.type === opt.value ? "default" : "outline"}
-                                                      size="sm"
-                                                      className="h-6 w-6 p-0 text-xs"
-                                                      onClick={() => handleArpeggioTypeChange(opt.value)}
-                                                      title={opt.title}
-                                                    >
-                                                      {opt.label}
-                                                    </Button>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                              
-                                              {/* Speed selector */}
-                                              <div className="flex items-center justify-between gap-2">
-                                                <Label className="text-[10px] text-muted-foreground">Speed</Label>
-                                                <div className="flex gap-1">
-                                                  {([
-                                                    { value: 'slow', label: '1x', title: 'Slow' },
-                                                    { value: 'normal', label: '2x', title: 'Normal' },
-                                                    { value: 'fast', label: '4x', title: 'Fast' },
-                                                    { value: 'veryfast', label: '8x', title: 'Very fast' },
-                                                  ] as const).map(opt => (
-                                                    <Button
-                                                      key={opt.value}
-                                                      variant={arpeggioCell.speed === opt.value ? "default" : "outline"}
-                                                      size="sm"
-                                                      className="h-6 px-1.5 text-[10px]"
-                                                      onClick={() => handleArpeggioSpeedChange(opt.value)}
-                                                      title={opt.title}
-                                                    >
-                                                      {opt.label}
-                                                    </Button>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          )}
-                                          
-                                          <p className="text-[10px] text-muted-foreground">
-                                            Notes play sequentially instead of together
-                                          </p>
-                                        </>
-                                      )}
                                     </div>
                                   </PopoverContent>
                                 </Popover>
@@ -1550,7 +1228,7 @@ export function RhythmEditor({
           {/* Footer / Legend */}
           <div className="p-2 sm:p-3 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:justify-between">
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Click: velocity | ♪: arpeggio</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">Click: velocity</span>
               <Separator orientation="vertical" className="h-4 hidden sm:block" />
               <div className="flex items-center gap-1 sm:gap-2">
                 <span className="text-[10px] sm:text-xs text-muted-foreground">Vel:</span>
@@ -1566,7 +1244,16 @@ export function RhythmEditor({
           </div>
           </>
           ) : (
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-auto">
+            {/* This instrument's own volume + sound selector — scoped to this tab only */}
+            <div className="p-2 sm:p-3 border-b border-border bg-muted/30">
+              <InstrumentMixControl
+                instType={activeTab as InstrumentType}
+                editedStyle={editedStyle}
+                onChange={setEditedStyle}
+              />
+            </div>
+            <div className="p-4">
             <MelodicPatternGrid
               melodic={migratedMelodic[activeTab as 'bass' | 'piano' | 'guitar']}
               referenceRootMidi={referenceRootMidi}
@@ -1584,6 +1271,7 @@ export function RhythmEditor({
                 setEditedStyle(prev => ({ ...prev, melodic: { ...(prev.melodic ?? emptyMelodicData()), [activeTab]: updated } }));
               }}
             />
+            </div>
           </div>
           )}
         </div>
