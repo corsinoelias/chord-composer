@@ -462,6 +462,9 @@ export function RhythmEditor({
       },
       getStyle: () => editedStyleRef.current,
       getBpm: () => editedStyleRef.current.bpm,
+      // Re-derive instrument sound types from the live style every bar — without this,
+      // picking a new sound in a tab has no audible effect until Stop/Play recomputes it.
+      getInstruments: () => getEffectiveInstruments(getDefaultInstrumentStates(), editedStyleRef.current),
       forceFill: showFillRef.current,
       getBassScale: () => resolveActiveVar(editedStyleRef.current.melodic?.bass, activeVarIdRef.current['bass']),
       getPianoScale: () => resolveActiveVar(editedStyleRef.current.melodic?.piano, activeVarIdRef.current['piano']),
@@ -928,8 +931,8 @@ export function RhythmEditor({
             {([
               { key: 'drums', label: 'Drums', Icon: Drum },
               { key: 'piano', label: 'Piano', Icon: Piano },
-              { key: 'bass', label: 'Bass', Icon: Music },
               { key: 'guitar', label: 'Guitar', Icon: Guitar },
+              { key: 'bass', label: 'Bass', Icon: Music },
             ] as const).map(tab => (
               <button
                 key={tab.key}

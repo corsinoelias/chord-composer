@@ -466,22 +466,11 @@ export const MUSICAL_STYLES: StylePattern[] = [
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 1.0 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'sf2-muted' },
     melodic: {
-      bass: {
-        enabled: true,
-        variations: [
-          {
-            id: 'sv_1783428507584_1h6jh', name: 'Var 1', loopBars: 1,
-            pattern: {},
-            octaveOffsets: { 1: -1, 2: -1, 3: -1, 4: -1, 5: -1, 6: -1, 7: -1, 8: -1 },
-          },
-        ],
-      },
-      piano: {
-        enabled: true,
-        variations: [
-          { id: 'sv_1783428508471_4tghq', name: 'Var 1', loopBars: 1, pattern: {} },
-        ],
-      },
+      // bass/piano intentionally left without variations — RhythmEditor's
+      // migrateRhythmToMelodic() regenerates a real "Default" variation from
+      // rhythm.bass/rhythm.piano above whenever this style is opened for editing.
+      bass: { enabled: false, variations: [] },
+      piano: { enabled: false, variations: [] },
       guitar: {
         enabled: true,
         variations: [
