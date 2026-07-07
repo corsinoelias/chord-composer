@@ -435,15 +435,30 @@ export function playChordHold(chord: Chord, volume: number = 0.5): () => void {
   const now = ctx.currentTime;
 
   const oscillators: OscillatorNode[] = [];
+  const bufferSources: AudioBufferSourceNode[] = [];
   const gainNodes: GainNode[] = [];
 
   midiNotes.forEach(midiNote => {
-    const frequency = midiToFrequency(midiNote);
-
     const gainNode = ctx.createGain();
     gainNode.connect(previewGain);
     gainNodes.push(gainNode);
 
+    // Real sampled grand piano when available — falls back to harmonic
+    // synthesis for notes outside the sampled range.
+    const sample = pianoSamples[midiNote];
+    if (sample) {
+      const source = ctx.createBufferSource();
+      source.buffer = sample;
+      source.connect(gainNode);
+      source.start(now);
+      bufferSources.push(source);
+
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(volume * 0.8, now + 0.02);
+      return;
+    }
+
+    const frequency = midiToFrequency(midiNote);
     const harmonics = [
       { freq: 1, amp: 1.0 },
       { freq: 2, amp: 0.4 },
@@ -486,6 +501,9 @@ export function playChordHold(chord: Chord, volume: number = 0.5): () => void {
     });
     oscillators.forEach(osc => {
       osc.stop(releaseTime + releaseDuration + 0.05);
+    });
+    bufferSources.forEach(source => {
+      source.stop(releaseTime + releaseDuration + 0.05);
     });
   };
 }
