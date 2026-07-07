@@ -70,9 +70,9 @@ export function useStylePreview() {
       onChordChange: () => {},
       onLoopEnd: () => {},
       getStyle: () => style,
-      getBassScale: () => resolveVariation(style.melodic?.bass, undefined),
-      getPianoScale: () => resolveVariation(style.melodic?.piano, undefined),
-      getGuitarScale: () => resolveVariation(style.melodic?.guitar, undefined),
+      getBassScale: () => style.melodic ? resolveVariation(style.melodic.bass, undefined) : null,
+      getPianoScale: () => style.melodic ? resolveVariation(style.melodic.piano, undefined) : null,
+      getGuitarScale: () => style.melodic ? resolveVariation(style.melodic.guitar, undefined) : null,
     });
 
     previewRef.current = { cancel };

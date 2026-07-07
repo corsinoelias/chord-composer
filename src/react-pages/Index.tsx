@@ -550,6 +550,7 @@ const Index = ({ songId }: IndexProps) => {
       accidental: partialChord.accidental || '',
       quality: partialChord.quality || 'maj',
       duration: partialChord.duration || 2,
+      bassNote: partialChord.bassNote,
     };
     playChordPreview(chord);
   }, [isPlaying]);

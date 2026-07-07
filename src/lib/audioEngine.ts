@@ -510,42 +510,15 @@ export function playChordPreview(chord: Chord, volume: number = 0.5): void {
   
   const midiNotes = chordToMidiNotes(chord, 4);
   const now = ctx.currentTime;
-  const duration = 0.5; // Short preview duration
-  
+  const duration = 0.6;
+
+  // Real sampled grand piano — falls back to synthesis automatically inside
+  // playPianoSample/playPianoNote if the sample for a given note isn't loaded yet.
+  const soundType = getSoundType('piano', 'sampled')!;
+
   midiNotes.forEach(midiNote => {
     const frequency = midiToFrequency(midiNote);
-    
-    const gainNode = ctx.createGain();
-    gainNode.connect(previewGain);
-    
-    // Simple piano-like sound for preview with harmonics
-    const harmonics = [
-      { freq: 1, amp: 1.0 },
-      { freq: 2, amp: 0.4 },
-      { freq: 3, amp: 0.2 },
-    ];
-    
-    harmonics.forEach(({ freq, amp }) => {
-      const osc = ctx.createOscillator();
-      const oscGain = ctx.createGain();
-      
-      osc.type = freq === 1 ? 'triangle' : 'sine';
-      osc.frequency.value = frequency * freq;
-      oscGain.gain.value = amp * 0.12 * volume;
-      
-      osc.connect(oscGain);
-      oscGain.connect(gainNode);
-      
-      osc.start(now);
-      osc.stop(now + duration + 0.1);
-    });
-    
-    // Quick ADSR for preview
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(1, now + 0.02);
-    gainNode.gain.linearRampToValueAtTime(0.7, now + 0.1);
-    gainNode.gain.setValueAtTime(0.7, now + duration - 0.1);
-    gainNode.gain.linearRampToValueAtTime(0, now + duration);
+    playPianoNote(ctx, previewGain, frequency, now, duration, soundType, volume, midiNote);
   });
 }
 

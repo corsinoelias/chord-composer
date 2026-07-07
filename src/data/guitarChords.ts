@@ -157,6 +157,7 @@ const Q_MAP: Record<string, string> = {
   '5': '5',
   '9#5': 'aug7', '9b5': '7b5',
   '7sus4': '7sus4', 'maj7#11': 'maj7#11', '6/9': '6/9', minadd9: 'minadd9',
+  '9sus4': '7sus4', aug9: 'aug7',
 };
 
 // ─── MIDI → pitch-class name ──────────────────────────────────────────────────

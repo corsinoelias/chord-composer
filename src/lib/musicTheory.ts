@@ -13,28 +13,14 @@ export type RootNote = typeof ROOT_NOTES[number];
 export const ACCIDENTALS = ['', '#', 'b'] as const;
 export type Accidental = typeof ACCIDENTALS[number];
 
-// Extended chord qualities - ordered by frequency of use
+// Extended chord qualities - ordered to match the app's chord-type picker
 export const CHORD_QUALITIES = [
-  // Triads — used in virtually every song
-  'maj', 'min', 'dim', 'aug', '5',
-  // Suspended — very common in pop/rock
-  'sus2', 'sus4', '7sus4',
-  // Seventh — staple of jazz, blues, pop
-  '7', 'maj7', 'min7', 'minMaj7',
-  // Add chords — common in pop
-  'add9', 'minadd9', 'add11',
-  // Sixth
-  '6', 'min6', '6/9',
-  // Ninth
-  '9', 'maj9', 'min9',
-  // Eleventh
-  '11', 'maj11', 'min11',
-  // Thirteenth
-  '13', 'maj13', 'min13',
-  // Less common seventh variants
-  'dim7', 'aug7', 'm7b5',
-  // Altered / extended
-  '7b9', '7#9', '7b5', '7#5', '9b5', '9#5', 'maj7#11',
+  'maj', 'min', '5', '6', '7', 'maj7', '9', 'maj9', '11', '13', 'maj13',
+  'min6', 'min7', 'min9', 'min11', 'min13', 'minMaj7',
+  'sus2', 'sus4', 'dim', 'aug',
+  '6/9', '7sus4', '7b5', '7b9', '9sus4', 'add9', 'aug9',
+  // Additional altered / extended qualities not in the picker
+  'dim7', 'aug7', 'm7b5', '7#9', '7#5', '9b5', '9#5', 'maj7#11', 'add11', 'maj11', 'minadd9',
 ] as const;
 export type ChordQuality = typeof CHORD_QUALITIES[number];
 
@@ -66,6 +52,7 @@ const QUALITY_INTERVALS: Record<ChordQuality, number[]> = {
   'min': [0, 3, 7],
   'dim': [0, 3, 6],
   'aug': [0, 4, 8],
+  'aug9': [0, 4, 8, 10, 14],
   // Suspended
   'sus2': [0, 2, 7],
   'sus4': [0, 5, 7],
@@ -105,6 +92,7 @@ const QUALITY_INTERVALS: Record<ChordQuality, number[]> = {
   '5': [0, 7],
   // Suspended dominant
   '7sus4': [0, 5, 7, 10],
+  '9sus4': [0, 5, 7, 10, 14],
   // Lydian
   'maj7#11': [0, 4, 7, 11, 18],
   // Six-nine
@@ -230,6 +218,7 @@ export const QUALITY_LABELS: Record<ChordQuality, string> = {
   'min': 'Minor',
   'dim': 'Dim',
   'aug': 'Aug',
+  'aug9': 'Aug9',
   // Suspended
   'sus2': 'Sus2',
   'sus4': 'Sus4',
@@ -269,6 +258,7 @@ export const QUALITY_LABELS: Record<ChordQuality, string> = {
   '5': 'Power5',
   // Suspended dominant
   '7sus4': '7sus4',
+  '9sus4': '9sus4',
   // Lydian
   'maj7#11': 'Maj7♯11',
   // Six-nine
