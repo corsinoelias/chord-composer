@@ -207,10 +207,27 @@ export const GENRES: Genre[] = [
     name: 'Worship',
     description: 'Soaring, spacious chord progressions used in contemporary worship music.',
     metaDescription: 'Contemporary worship chord progressions in G major and C major. Play and export instantly with Chord Sequence.',
-    editorialIntro: [
-      'Contemporary worship music is built around a small set of progressions designed to feel spacious, communal, and emotionally open. The most common key is G major — it sits in a comfortable range for congregational singing, and the open G chord on guitar creates a natural resonance that fills a room. C major and D major are close behind. These keys are not chosen arbitrarily: they feel bright, they sustain naturally on acoustic instruments, and they sit in the upper part of the average singing voice.',
-      'The I–V–vi–IV in G (G–D–Em–C) is the foundation of modern worship. You hear it in Hillsong, Bethel, and Elevation Worship across hundreds of songs. What makes it work in a worship context specifically is the vi minor chord: Em in G major creates a moment of emotional vulnerability before the C and the return to G restore the sense of resolution and uplift. That arc — brightness, shadow, brightness — mirrors the emotional journey that worship songs are designed to create.',
-      'Dynamic structure matters more in worship than in most genres. The same four chords played softly in a verse and with full band in a chorus become two completely different emotional experiences. The chord progression is the skeleton; the arrangement and the dynamics are the body. Use the progressions below as starting points, then experiment with stripping the arrangement down to a single instrument before building back up. The contrast is where the power comes from.',
+    editorialQA: [
+      {
+        question: 'Why do so many worship songs use the same chords?',
+        answer: 'Worship music leans on a small set of progressions — built around the <strong>I, IV, V, and vi</strong> chords — because they\'re easy for a room full of people to sing along to. The same four chords, played softly in a verse and with full band in the chorus, can carry an entire song.',
+      },
+      {
+        question: 'What key should I play worship songs in?',
+        answer: '<strong>G major</strong> is the most common. It sits comfortably in the average singing range, and the open G chord rings out naturally on acoustic guitar and piano. C major and D major are close behind — use the editor\'s transpose button if a song sits too high or low for your voice.',
+      },
+      {
+        question: 'Why does the vi chord (like Em in G) show up so often?',
+        answer: 'It\'s a moment of <em>emotional shadow</em>. Em is the vi chord in G major — a minor chord built from the same key, but with a more vulnerable color. Placed between two major chords, it creates a brief dip before the progression lifts back up, mirroring the arc worship songs are built to create.',
+      },
+      {
+        question: 'How do I make four chords feel different in a verse vs. a chorus?',
+        answer: 'Change the <strong>arrangement, not the chords</strong>. Strip the verse down to one instrument playing softly, then bring in the full band on the chorus. The chord progression is the skeleton — the dynamics are the body. That contrast is where the power comes from.',
+      },
+      {
+        question: 'Do these progressions actually match real worship songs?',
+        answer: 'Yes — each one below is the exact chord sequence from a well-known song. See the description under each player for the match, or jump straight to <a href="/songs/10000-reasons-matt-redman/" class="underline underline-offset-2 hover:text-foreground transition-colors">10,000 Reasons</a>, <a href="/songs/goodness-of-god-bethel-music/" class="underline underline-offset-2 hover:text-foreground transition-colors">Goodness of God</a>, <a href="/songs/build-my-life-pat-barrett/" class="underline underline-offset-2 hover:text-foreground transition-colors">Build My Life</a>, or <a href="/songs/what-a-beautiful-name-hillsong-worship/" class="underline underline-offset-2 hover:text-foreground transition-colors">What A Beautiful Name</a> to play the full chord charts.',
+      },
     ],
     learnLink: { href: '/learn/chord-progressions-for-beginners/', label: 'Learn the foundations of worship song structure →' },
     learnSectionTitle: 'Learn worship song structure',
@@ -219,10 +236,10 @@ export const GENRES: Genre[] = [
       { href: '/learn/what-is-a-chord-progression/', label: 'What is a chord progression?', description: 'Understanding how chord movement creates emotional impact and space' },
     ],
     progressions: [
-      { title: 'Worship I–V–vi–IV', chords: 'G D Em C', bpm: 72, style: 'pop_basic', description: 'The most common worship key progression. Soaring and open.' },
-      { title: 'Anthem Build', chords: 'C G Am F', bpm: 68, style: 'pop_basic', description: 'Wide, spacious anthem feel. Works at any tempo.' },
-      { title: 'Slow Worship', chords: 'G Em C D', bpm: 60, style: 'pop_basic', description: 'Intimate and reverent. Perfect for ballad verses.' },
-      { title: 'Triumphant', chords: 'D A Bm G', bpm: 78, style: 'pop_basic', description: 'Brighter D major with uplifting resolution.' },
+      { title: 'Worship I–V–vi–IV', chords: 'G D Em C', bpm: 72, style: 'pop_basic', description: 'The most common worship key progression. Soaring and open — the exact chords behind <a href="/songs/10000-reasons-matt-redman/" class="underline underline-offset-2 hover:text-foreground transition-colors">10,000 Reasons (Bless the Lord)</a> by Matt Redman.' },
+      { title: 'Anthem Build', chords: 'C G Am F', bpm: 68, style: 'pop_basic', description: 'Wide, spacious anthem feel. Works at any tempo — you\'ll recognize it from <a href="/songs/goodness-of-god-bethel-music/" class="underline underline-offset-2 hover:text-foreground transition-colors">Goodness of God</a> by Bethel Music.' },
+      { title: 'Slow Worship', chords: 'G Em C D', bpm: 60, style: 'pop_basic', description: 'Intimate and reverent. Perfect for ballad verses — the same shape used in <a href="/songs/build-my-life-pat-barrett/" class="underline underline-offset-2 hover:text-foreground transition-colors">Build My Life</a> by Pat Barrett.' },
+      { title: 'Triumphant', chords: 'D A Bm G', bpm: 78, style: 'pop_basic', description: 'Brighter D major with uplifting resolution — the verse and chorus progression from <a href="/songs/what-a-beautiful-name-hillsong-worship/" class="underline underline-offset-2 hover:text-foreground transition-colors">What A Beautiful Name</a> by Hillsong Worship.' },
     ],
   },
   {

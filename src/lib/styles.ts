@@ -463,8 +463,41 @@ export const MUSICAL_STYLES: StylePattern[] = [
         ride: [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 1, 0.8, 1,],
       },
     },
-    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 1.0 },
+    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'sf2-muted' },
+    melodic: {
+      bass: {
+        enabled: true,
+        variations: [
+          {
+            id: 'sv_1783428507584_1h6jh', name: 'Var 1', loopBars: 1,
+            pattern: {},
+            octaveOffsets: { 1: -1, 2: -1, 3: -1, 4: -1, 5: -1, 6: -1, 7: -1, 8: -1 },
+          },
+        ],
+      },
+      piano: {
+        enabled: true,
+        variations: [
+          { id: 'sv_1783428508471_4tghq', name: 'Var 1', loopBars: 1, pattern: {} },
+        ],
+      },
+      guitar: {
+        enabled: true,
+        variations: [
+          {
+            id: 'sv_1783428504172_d2js5', name: 'Var 1', loopBars: 1,
+            pattern: {
+              1: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              3: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              5: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              8: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            },
+            chordHit: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+          },
+        ],
+      },
+    },
   },
 
   // ============================================
@@ -593,17 +626,18 @@ export const MUSICAL_STYLES: StylePattern[] = [
     description: 'Feel de swing/shuffle. Walking bass y comping estilo boogie.',
     rhythm: {
       // B: X - - - | - - X - | X - - - | - - X - (bombo con swing)
-      kick:  [1, 0, 0, 0, 0, 0, 0.8, 0, 1, 0, 0, 0, 0, 0, 0.8, 0],
+      kick:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0],
       // C: - - - - | X - - - | - - - - | X - - - (caja en 2 y 4)
       snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // H: X - x | X - x | (aproximación de shuffle en 16avos)
-      hihat: [0.8, 0, 0.4, 0, 0.8, 0, 0.4, 0, 0.8, 0, 0.4, 0, 0.8, 0, 0.4, 0],
-      // B: X - - | X - - | X - - | X - - (walking bass en negras con swing)
+      hihat: [],
+      // B: X - x | X - x | X - x | X - x (walking bass con swing)
       bass:  [1, 0, 0.3, 0, 0.8, 0, 0.3, 0, 1, 0, 0.3, 0, 0.8, 0, 0.3, 0],
-      // P: - - - - | X - - - | - - - - | X - - - (comping en backbeat)
+      // P: - - x | X - x | - - x | X - x (comping estilo boogie)
       piano: [0, 0, 0.4, 0, 1, 0, 0.4, 0, 0, 0, 0.4, 0, 1, 0, 0.4, 0],
       // G: X - x - | X - x - | X - x - | X - x - (shuffle blues licks)
       guitar: [0.9, 0, 0.5, 0, 0.9, 0, 0.5, 0, 0.9, 0, 0.5, 0, 0.9, 0, 0.5, 0],
+      // R: ride en cada tiempo (swing)
+      ride:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
     },
     fill: {
       position: 8,
@@ -611,10 +645,34 @@ export const MUSICAL_STYLES: StylePattern[] = [
         // Fill con swing
         snare: [0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0.7, 0, 0.6, 0, 0.5, 0],
         hihat: [0.8, 0, 0.4, 0, 0.8, 0, 0.4, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        crash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    melodic: {
+      bass: {
+        enabled: true,
+        variations: [
+          {
+            id: 'sv_1783430580560_0sfrj', name: 'Var 1', loopBars: 1,
+            pattern: { 1: [1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1] },
+            octaveOffsets: { 1: 0, 2: -1, 3: -1, 4: -1, 5: -1, 6: -1, 7: -1, 8: -1 },
+          },
+        ],
+      },
+      piano: {
+        enabled: true,
+        variations: [
+          {
+            id: 'sv_1783430684015_egxxl', name: 'Var 1', loopBars: 1,
+            pattern: {},
+            chordHit: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+          },
+        ],
+      },
+      guitar: { enabled: false, variations: [] },
+    },
   },
 
   // ============================================
