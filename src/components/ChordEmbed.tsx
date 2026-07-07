@@ -70,6 +70,7 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: Chor
         liveEditedStyle: null,
         customStyles: [],
         loopingSectionIndex: null,
+        melodic: selectedStyle.melodic,
       });
     } finally {
       setIsLoading(false);

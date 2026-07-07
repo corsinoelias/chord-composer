@@ -7,6 +7,7 @@ import { useRef, useCallback, useState } from 'react';
 import { type StylePattern, getSlotsPerBar } from '@/lib/styles';
 import { ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
+import { resolveVariation } from '@/lib/bassScale';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 
 export function useStylePreview() {
@@ -69,6 +70,9 @@ export function useStylePreview() {
       onChordChange: () => {},
       onLoopEnd: () => {},
       getStyle: () => style,
+      getBassScale: () => resolveVariation(style.melodic?.bass, undefined),
+      getPianoScale: () => resolveVariation(style.melodic?.piano, undefined),
+      getGuitarScale: () => resolveVariation(style.melodic?.guitar, undefined),
     });
 
     previewRef.current = { cancel };

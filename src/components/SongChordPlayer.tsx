@@ -121,12 +121,17 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
 
   const allChordsWithDuration = useMemo(() => extractChordsWithDuration(song), [song]);
 
+  const resolvedStyle = useMemo(
+    () => MUSICAL_STYLES.find(s => s.id === song.style) ?? MUSICAL_STYLES[0],
+    [song.style],
+  );
+
   // Apply the song's style's own instrument sound types (e.g. 'electric' guitar) — without
   // this, every instrument falls back to its generic default sound (guitar defaults to a
   // soundfont patch that loads over the network and can miss the first playback entirely).
   const instruments = useMemo(
-    () => getEffectiveInstruments(getDefaultInstrumentStates(), MUSICAL_STYLES.find(s => s.id === song.style) ?? MUSICAL_STYLES[0]),
-    [song.style],
+    () => getEffectiveInstruments(getDefaultInstrumentStates(), resolvedStyle),
+    [resolvedStyle],
   );
 
   const displayKey = useMemo(() => transpose === 0 ? song.key : transposeKey(song.key, transpose), [song.key, transpose]);
@@ -273,9 +278,10 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
       await play(buildFullSongSections(), {
         bpm, metronome: false, instruments,
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
+        melodic: resolvedStyle.melodic,
       });
     } finally { setIsLoading(false); }
-  }, [isPlaying, play, stop, allChordsFlat.length, bpm, song, transpose, buildFullSongSections, instruments]);
+  }, [isPlaying, play, stop, allChordsFlat.length, bpm, song, transpose, buildFullSongSections, instruments, resolvedStyle]);
 
   // ── Play single section ────────────────────────────────────────────────────
   const handlePlaySection = useCallback(async (si: number) => {
@@ -289,22 +295,22 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
       await play([buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name, song.sections[si].repeatCount ?? 1)], {
         bpm, metronome: false, instruments,
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
+        melodic: resolvedStyle.melodic,
       });
     } finally { setIsLoading(false); }
-  }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments]);
+  }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments, resolvedStyle]);
 
   // ── Export WAV ─────────────────────────────────────────────────────────────
   const handleExportWav = useCallback(async () => {
     setIsExportingWav(true);
     try {
       const sections = buildFullSongSections();
-      const style = MUSICAL_STYLES.find(s => s.id === song.style) ?? MUSICAL_STYLES[0];
-      const buffer = await renderProgressionOffline(sections, bpm, instruments, style, transpose);
+      const buffer = await renderProgressionOffline(sections, bpm, instruments, resolvedStyle, transpose);
       await encodeAndDownloadMp3(buffer, `${song.title} - ${song.artist}.wav`);
     } finally {
       setIsExportingWav(false);
     }
-  }, [bpm, song, transpose, buildFullSongSections, instruments]);
+  }, [bpm, song, transpose, buildFullSongSections, instruments, resolvedStyle]);
 
   // ── Export MIDI ────────────────────────────────────────────────────────────
   const handleExportMidi = useCallback(() => {

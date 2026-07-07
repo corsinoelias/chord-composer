@@ -103,15 +103,25 @@ function parseQuality(suffix: string): ChordQuality {
  * Parses a chord token like "Am", "F#m7", "Cmaj7", "Bb7", "C/E", "G/B", "D/F#"
  * into a Chord object. Returns null if the token is not recognizable.
  * Slash chord notation: chord/bassNote (e.g. C/E = C major with E in bass)
+ * Optional duration suffix: "Gmin7:2" = Gmin7 held for 2 beats (default 4)
  */
 function parseChordToken(token: string): Chord | null {
   const trimmed = token.trim();
   if (!trimmed) return null;
 
+  let duration = 4;
+  let chordStr = trimmed;
+  const colonIdx = trimmed.indexOf(':');
+  if (colonIdx !== -1) {
+    const parsedDuration = parseFloat(trimmed.slice(colonIdx + 1));
+    if (!isNaN(parsedDuration) && parsedDuration > 0) duration = parsedDuration;
+    chordStr = trimmed.slice(0, colonIdx);
+  }
+
   // Split slash chord notation: "C/E" → chordPart="C", bassNote="E"
-  const slashIdx = trimmed.indexOf('/');
-  const chordPart = slashIdx !== -1 ? trimmed.slice(0, slashIdx) : trimmed;
-  const bassNote = slashIdx !== -1 ? trimmed.slice(slashIdx + 1) : undefined;
+  const slashIdx = chordStr.indexOf('/');
+  const chordPart = slashIdx !== -1 ? chordStr.slice(0, slashIdx) : chordStr;
+  const bassNote = slashIdx !== -1 ? chordStr.slice(slashIdx + 1) : undefined;
 
   // Root note: A-G (uppercase)
   const rootChar = chordPart[0]?.toUpperCase();
@@ -140,7 +150,7 @@ function parseChordToken(token: string): Chord | null {
     root,
     accidental,
     quality,
-    duration: 4,
+    duration,
   };
 
   if (bassNote) chord.bassNote = bassNote;
