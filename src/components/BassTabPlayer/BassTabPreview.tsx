@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { type BassNote, type BassTrack } from '../../lib/bassTab/types'
 import { TabNotationView } from './TabNotationView'
 import { startPlayback, stopPlayback } from '../../lib/bassTab/bassAudio'
@@ -22,6 +22,11 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
 
   const [isPlaying, setIsPlaying]     = useState(false)
   const [currentBeat, setCurrentBeat] = useState(0)
+  // client:visible hydrates this island only once it scrolls into view — the Play button
+  // is already in the SSR'd HTML at that point, but its onClick isn't wired up until React
+  // attaches. Gate on mount so an early click can't silently no-op (no sound, no feedback).
+  const [ready, setReady] = useState(false)
+  useEffect(() => { setReady(true) }, [])
 
   const handleTogglePlay = useCallback(() => {
     if (!trackRef.current || !preset) return
@@ -113,8 +118,9 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={handleTogglePlay}
-            className="flex-shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors"
-            aria-label={isPlaying ? 'Pause' : 'Play'}
+            disabled={!ready}
+            className="flex-shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-wait"
+            aria-label={!ready ? 'Loading' : isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying
               ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
