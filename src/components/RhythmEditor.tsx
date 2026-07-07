@@ -28,6 +28,7 @@ import {
 import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar, getStyleTotalSlots, getPulseInterval, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed, type InstrumentSounds } from '@/lib/styles';
 import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates, INSTRUMENTS, type InstrumentType } from '@/lib/instruments';
+import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
 import { useStylePreview } from '@/hooks/useStylePreview';
 import { usePlayback } from '@/contexts/PlaybackContext';
@@ -421,8 +422,11 @@ export function RhythmEditor({
       repeatCount: 1
     };
     
-    const instruments = getDefaultInstrumentStates();
-    
+    // Apply the edited style's own instrument sound types (e.g. 'electric' guitar) — without
+    // this, every instrument falls back to its generic default sound (guitar defaults to a
+    // soundfont patch that loads over the network and can miss playback entirely).
+    const instruments = getEffectiveInstruments(getDefaultInstrumentStates(), editedStyleRef.current);
+
     const { cancel } = scheduleProgression([testSection], editedStyleRef.current.bpm, {
       loop: true,
       metronome: false,
@@ -1213,7 +1217,17 @@ export function RhythmEditor({
                   max={100}
                 />
               </div>
-              
+              <div className="flex items-center gap-1 sm:gap-2">
+                <span className="text-[10px] text-muted-foreground sm:hidden">Gt:</span>
+                <span className="hidden sm:inline text-xs text-muted-foreground">Guitar</span>
+                <Slider
+                  value={[(editedStyle.volumes.guitar ?? editedStyle.volumes.piano) * 100]}
+                  onValueChange={([v]) => setEditedStyle(prev => ({ ...prev, volumes: { ...prev.volumes, guitar: v / 100 } }))}
+                  className="w-12 sm:w-16"
+                  max={100}
+                />
+              </div>
+
               {/* Instrument Sound Selectors */}
               <Separator orientation="vertical" className="h-4 mx-2 hidden sm:block" />
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">

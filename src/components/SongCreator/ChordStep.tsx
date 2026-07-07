@@ -394,6 +394,9 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
             <div><label className="block text-xs font-medium text-muted-foreground mb-1">Artist</label>
               <input value={meta.artist} onChange={e => onMetaChange({ ...meta, artist: e.target.value })}
                 className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" /></div>
+            <div className="col-span-2"><label className="block text-xs font-medium text-muted-foreground mb-1">Album</label>
+              <input value={meta.album} onChange={e => onMetaChange({ ...meta, album: e.target.value })}
+                className="w-full border border-border rounded-lg px-3 py-2 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" /></div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div><label className="block text-xs font-medium text-muted-foreground mb-1">Key</label>

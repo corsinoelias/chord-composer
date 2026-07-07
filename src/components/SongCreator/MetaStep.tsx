@@ -46,6 +46,15 @@ export default function MetaStep({ meta, onChange, onNext }: Props) {
               className="w-full border border-border rounded-xl px-4 py-2.5 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-foreground mb-1.5">Album (optional)</label>
+            <input
+              value={meta.album}
+              onChange={e => set({ album: e.target.value })}
+              placeholder="Help!"
+              className="w-full border border-border rounded-xl px-4 py-2.5 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-4">

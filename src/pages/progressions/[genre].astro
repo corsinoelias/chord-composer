@@ -94,7 +94,16 @@ const breadcrumbSchema = {
       )}
     </header>
 
-    {genre.editorialIntro && genre.editorialIntro.length > 0 && (
+    {genre.editorialQA && genre.editorialQA.length > 0 ? (
+      <div class="mb-14 space-y-10">
+        {genre.editorialQA.map((qa) => (
+          <div>
+            <h2 class="text-2xl font-bold text-foreground mb-3 tracking-tight">{qa.question}</h2>
+            <p class="text-muted-foreground leading-relaxed" set:html={qa.answer} />
+          </div>
+        ))}
+      </div>
+    ) : genre.editorialIntro && genre.editorialIntro.length > 0 && (
       <div class="mb-14 space-y-4">
         {genre.editorialIntro.map((para) => (
           <p class="text-muted-foreground leading-relaxed">{para}</p>
@@ -105,11 +114,25 @@ const breadcrumbSchema = {
     <div class="space-y-6">
       {genre.progressions.map((p) => (
         <div id={toAnchorId(p.title)} class="rounded-xl border border-border bg-card p-5">
-          <p class="text-xs text-muted-foreground mb-3 leading-relaxed">{p.description}</p>
+          <p class="text-xs text-muted-foreground mb-3 leading-relaxed" set:html={p.description} />
           <ChordEmbedIsland chords={p.chords} bpm={p.bpm} style={p.style} title={p.title} />
         </div>
       ))}
     </div>
+
+    {genre.faq && genre.faq.length > 0 && (
+      <section class="mt-16 pt-8 border-t border-border" aria-label="Frequently asked questions">
+        <h2 class="text-2xl font-bold text-foreground mb-8">Frequently Asked Questions</h2>
+        <div class="space-y-6">
+          {genre.faq.map((item) => (
+            <div class="border border-border rounded-xl p-5">
+              <h3 class="text-base font-semibold text-foreground mb-2">{item.question}</h3>
+              <p class="text-sm text-muted-foreground leading-relaxed" set:html={item.answer} />
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
 
     <!-- Other genres -->
     <div class="mt-16">

@@ -29,6 +29,7 @@ import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
 import { type Song, createSong } from '@/lib/songs';
 import { parseChordString } from '@/lib/chordParser';
+import { decodeEditorSections, editorSectionsToSections } from '@/lib/editorLink';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
 import { getSongById, saveSongWithSync } from '@/lib/songStorage';
@@ -79,8 +80,8 @@ const Index = ({ songId }: IndexProps) => {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // True when editor was opened via ?chords= link (e.g. from homepage embeds)
-  const isFromEmbedRef = useRef(!songId && !!new URLSearchParams(window.location.search).get('chords'));
+  // True when editor was opened via ?chords= or ?data= link (e.g. from homepage embeds or song pages)
+  const isFromEmbedRef = useRef(!songId && !!(new URLSearchParams(window.location.search).get('chords') || new URLSearchParams(window.location.search).get('data')));
   // Becomes true after the initial render cycle — used to distinguish init from user changes
   const initialRenderDoneRef = useRef(false);
 
@@ -92,9 +93,18 @@ const Index = ({ songId }: IndexProps) => {
     { id: generateChordId(), root: 'C', accidental: '', quality: 'maj', duration: 4 },
   ];
 
-  // Sections state — if opening from a blog link (?chords=...), use those chords
+  // Sections state — if opening from a song page (?data=...), restore the full
+  // section/duration/repeat structure; if opening from a blog link (?chords=...),
+  // fall back to a single flat section
   const [sections, setSections] = useState<Section[]>(() => {
-    const chordsParam = new URLSearchParams(window.location.search).get('chords');
+    const params = new URLSearchParams(window.location.search);
+    const dataParam = params.get('data');
+    if (dataParam) {
+      const decoded = decodeEditorSections(dataParam);
+      const fromData = decoded ? editorSectionsToSections(decoded) : [];
+      if (fromData.length > 0) return fromData;
+    }
+    const chordsParam = params.get('chords');
     const fromUrl = chordsParam ? parseChordString(chordsParam) : [];
     return [{
       ...createSection('Section A'),

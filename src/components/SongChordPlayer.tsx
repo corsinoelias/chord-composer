@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
 import { parseChordString } from '@/lib/chordParser';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
+import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { createSection } from '@/lib/sections';
 import { Play, Square, ChevronDown, ChevronUp } from 'lucide-react';
 import { SongPlayerBar } from '@/components/SongPlayerBar';
@@ -14,6 +15,7 @@ import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { exportMidi } from '@/lib/midiExporter';
 import { MUSICAL_STYLES } from '@/lib/styles';
 import { analytics } from '@/lib/analytics';
+import { encodeEditorSections, type EditorLinkSection } from '@/lib/editorLink';
 
 // ─── Transpose helpers ────────────────────────────────────────────────────────
 const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -119,6 +121,14 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
 
   const allChordsWithDuration = useMemo(() => extractChordsWithDuration(song), [song]);
 
+  // Apply the song's style's own instrument sound types (e.g. 'electric' guitar) — without
+  // this, every instrument falls back to its generic default sound (guitar defaults to a
+  // soundfont patch that loads over the network and can miss the first playback entirely).
+  const instruments = useMemo(
+    () => getEffectiveInstruments(getDefaultInstrumentStates(), MUSICAL_STYLES.find(s => s.id === song.style) ?? MUSICAL_STYLES[0]),
+    [song.style],
+  );
+
   const displayKey = useMemo(() => transpose === 0 ? song.key : transposeKey(song.key, transpose), [song.key, transpose]);
 
   const displayedSections = useMemo(() => {
@@ -134,6 +144,21 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
       ),
     }));
   }, [resolvedSections, transpose, displayKey]);
+
+  // ── Sections in the shape the editor's ?data= param expects — one entry per
+  // song section, preserving name/repeatCount/per-chord duration, using the
+  // currently displayed (transposed) chord names ──────────────────────────────
+  const editorSectionsData: EditorLinkSection[] = useMemo(() => {
+    return displayedSections
+      .map((section, si) => ({
+        name: section.name,
+        repeatCount: song.sections[si]?.repeatCount ?? 1,
+        chords: section.lines.flatMap(line =>
+          line.filter(t => t.chord).map(t => ({ c: t.chord, d: t.duration }))
+        ),
+      }))
+      .filter(s => s.chords.length > 0);
+  }, [displayedSections, song.sections]);
 
   // ── Build one playback Section for a range of resolved chords ──────────────
   const buildPlayback = useCallback((startGlobal: number, count: number, label: string, repeatCount = 1) => {
@@ -246,11 +271,11 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     setIsLoading(true);
     try {
       await play(buildFullSongSections(), {
-        bpm, metronome: false, instruments: getDefaultInstrumentStates(),
+        bpm, metronome: false, instruments,
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
       });
     } finally { setIsLoading(false); }
-  }, [isPlaying, play, stop, allChordsFlat.length, bpm, song, transpose, buildFullSongSections]);
+  }, [isPlaying, play, stop, allChordsFlat.length, bpm, song, transpose, buildFullSongSections, instruments]);
 
   // ── Play single section ────────────────────────────────────────────────────
   const handlePlaySection = useCallback(async (si: number) => {
@@ -262,11 +287,11 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     setIsLoading(true);
     try {
       await play([buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name, song.sections[si].repeatCount ?? 1)], {
-        bpm, metronome: false, instruments: getDefaultInstrumentStates(),
+        bpm, metronome: false, instruments,
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
       });
     } finally { setIsLoading(false); }
-  }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback]);
+  }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments]);
 
   // ── Export WAV ─────────────────────────────────────────────────────────────
   const handleExportWav = useCallback(async () => {
@@ -274,12 +299,12 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     try {
       const sections = buildFullSongSections();
       const style = MUSICAL_STYLES.find(s => s.id === song.style) ?? MUSICAL_STYLES[0];
-      const buffer = await renderProgressionOffline(sections, bpm, getDefaultInstrumentStates(), style, transpose);
+      const buffer = await renderProgressionOffline(sections, bpm, instruments, style, transpose);
       await encodeAndDownloadMp3(buffer, `${song.title} - ${song.artist}.wav`);
     } finally {
       setIsExportingWav(false);
     }
-  }, [bpm, song, transpose, buildFullSongSections]);
+  }, [bpm, song, transpose, buildFullSongSections, instruments]);
 
   // ── Export MIDI ────────────────────────────────────────────────────────────
   const handleExportMidi = useCallback(() => {
@@ -301,7 +326,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     : totalSpan;
   const progress = activeSpan > 0 ? Math.min(100, Math.round((currentChordIndex / (activeSpan - 1)) * 100)) : 0;
 
-  const editorUrl = `/editor?chords=${encodeURIComponent(allChordsFlat.slice(0, 32).join('-'))}&bpm=${bpm}&style=${song.style}`;
+  const editorUrl = `/editor/?data=${encodeEditorSections(editorSectionsData)}&bpm=${bpm}&style=${song.style}`;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (

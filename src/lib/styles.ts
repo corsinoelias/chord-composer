@@ -927,24 +927,25 @@ export const MUSICAL_STYLES: StylePattern[] = [
   },
 
   // ============================================
-  // 18. SOUL / R&B (60s) - 95 BPM
+  // 18. SOUL / R&B (60s) - 70 BPM
   // ============================================
-  // Train beat suave. Guitarra chicken scratch.
+  // Sparse one-drop kick, steady off-beat hihat, melodic bass/piano/guitar
+  // variations layered on top (tuned live in the Rhythm Editor).
   {
     id: 'soul_rnb',
     name: 'R&B',
     category: 'Soul',
-    bpm: 95,
+    bpm: 70,
     bpmRange: [85, 105],
     description: 'Soul clásico 60s. Guitarra chicken scratch suave.',
     rhythm: {
-      // Train beat
-      kick:  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      hihat: [1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      hihat: [0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
       bass:  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
       piano: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-      guitar: [0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // Chicken scratch: muted upstroke stabs on the off-beat 8ths, between the kick/bass hits
+      guitar: [0, 0, 0.4, 0, 0, 0, 0.5, 0, 0, 0, 0.4, 0, 0, 0, 0.5, 0],
     },
     fill: {
       position: 12,
@@ -953,8 +954,55 @@ export const MUSICAL_STYLES: StylePattern[] = [
         hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6],
       },
     },
-    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 1.0 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    melodic: {
+      bass: {
+        variations: [{
+          id: 'sv_soul_rnb_bass_1',
+          name: 'Var 1',
+          // Root only, one octave down, on beat 1 — lets the bass rhythm pattern above carry the groove
+          pattern: { 1: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+          loopBars: 1,
+          octaveOffsets: { 1: -1, 2: -1, 3: -1, 4: -1, 5: -1, 6: -1, 7: -1, 8: -1 },
+          chordHit: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        }],
+        enabled: true,
+      },
+      piano: {
+        variations: [{
+          id: 'sv_soul_rnb_piano_1',
+          name: 'Var 1',
+          pattern: {
+            1: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            5: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            8: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          },
+          loopBars: 1,
+          // Full chord stab on beat 1 only
+          chordHit: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        }],
+        enabled: true,
+      },
+      guitar: {
+        variations: [{
+          id: 'sv_soul_rnb_guitar_1',
+          name: 'Var 1',
+          // Quick ascending pickup (root-3rd-5th-octave) on the first four 16ths
+          pattern: {
+            1: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            3: [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            5: [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            7: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            8: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          },
+          loopBars: 1,
+          // Full chord stab on the "&" of beat 2 and on beat 4
+          chordHit: [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+        }],
+        enabled: true,
+      },
+    },
   },
 
   // ============================================

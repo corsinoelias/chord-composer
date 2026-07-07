@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
 import { parseChordString, serializeChords } from '@/lib/chordParser';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
+import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { MUSICAL_STYLES } from '@/lib/styles';
 import { createSection } from '@/lib/sections';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
@@ -28,8 +29,11 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: Chor
     chords: parsedChords,
   }]);
 
-  const instruments = getDefaultInstrumentStates();
   const selectedStyle = MUSICAL_STYLES.find(s => s.id === style) ?? MUSICAL_STYLES[0];
+  // Apply the style's own instrument sound types (e.g. 'electric' guitar) — without this,
+  // every instrument falls back to its generic default sound (guitar defaults to a soundfont
+  // patch that loads over the network and can miss the first playback entirely).
+  const instruments = getEffectiveInstruments(getDefaultInstrumentStates(), selectedStyle);
 
   const visualChord = useMemo(() => {
     if (isPlaying) return parsedChords[currentChordIndex] ?? parsedChords[0] ?? null;
@@ -79,7 +83,7 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: Chor
   // Stop on unmount
   useEffect(() => () => { stop(); }, []);
 
-  const editorUrl = `/editor?chords=${encodeURIComponent(serializeChords(parsedChords))}&bpm=${bpm}&style=${style}`;
+  const editorUrl = `/editor/?chords=${encodeURIComponent(serializeChords(parsedChords))}&bpm=${bpm}&style=${style}`;
 
   if (parsedChords.length === 0) return null;
 

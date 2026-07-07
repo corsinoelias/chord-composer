@@ -25,7 +25,7 @@ const STEPS: { key: Step; label: string }[] = [
 ];
 
 const DEFAULT_META: SongMeta = {
-  title: '', artist: '', key: 'C', capo: 0, bpm: 100, genre: [], style: 'pop_basic',
+  title: '', artist: '', album: '', key: 'C', capo: 0, bpm: 100, genre: [], style: 'pop_basic',
 };
 
 function getParam(name: string): string | null {
@@ -58,7 +58,7 @@ export default function SongCreator() {
         if (!song) { toast.error('Song not found'); setLoadingEdit(false); return; }
         setEditId(song.id);
         setEditSlug(editSlugParam);
-        setMeta({ title: song.title, artist: song.artist, key: song.key, capo: song.capo ?? 0, bpm: song.bpm, genre: song.genre, style: song.style });
+        setMeta({ title: song.title, artist: song.artist, album: song.album ?? '', key: song.key, capo: song.capo ?? 0, bpm: song.bpm, genre: song.genre, style: song.style });
         setSections(songSectionsToEditorSections(song.sections));
         setLoadingEdit(false);
         setStep('chords');
@@ -77,12 +77,13 @@ export default function SongCreator() {
         if (existing) {
           setEditId(existing.id);
           setEditSlug(communitySlug);
-          setMeta({ title: existing.title, artist: existing.artist, key: existing.key, capo: existing.capo ?? 0, bpm: existing.bpm, genre: existing.genre, style: existing.style });
+          setMeta({ title: existing.title, artist: existing.artist, album: existing.album ?? '', key: existing.key, capo: existing.capo ?? 0, bpm: existing.bpm, genre: existing.genre, style: existing.style });
           setSections(songSectionsToEditorSections(existing.sections));
         } else {
           setMeta({
             title: staticSong.title,
             artist: staticSong.artist,
+            album: staticSong.album ?? '',
             key: staticSong.key,
             capo: staticSong.capo ?? 0,
             bpm: staticSong.bpm,
@@ -110,6 +111,7 @@ export default function SongCreator() {
     setMeta({
       title:  parsedMeta.title  ?? meta.title,
       artist: parsedMeta.artist ?? meta.artist,
+      album:  parsedMeta.album  ?? meta.album,
       key:    parsedMeta.key    ?? meta.key,
       capo:   parsedMeta.capo   ?? meta.capo,
       bpm:    parsedMeta.bpm    ?? meta.bpm,
@@ -138,6 +140,7 @@ export default function SongCreator() {
         const ok = await updatePublicSong(editId, {
           title: meta.title,
           artist: meta.artist,
+          album: meta.album || undefined,
           key: meta.key,
           capo: meta.capo || undefined,
           bpm: meta.bpm,
@@ -155,6 +158,7 @@ export default function SongCreator() {
           slug,
           title: meta.title,
           artist: meta.artist,
+          album: meta.album || undefined,
           key: meta.key,
           capo: meta.capo || undefined,
           bpm: meta.bpm,

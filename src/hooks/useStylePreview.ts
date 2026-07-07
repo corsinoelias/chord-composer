@@ -7,6 +7,7 @@ import { useRef, useCallback, useState } from 'react';
 import { type StylePattern, getSlotsPerBar } from '@/lib/styles';
 import { ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
+import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 
 export function useStylePreview() {
   const [previewingStyleId, setPreviewingStyleId] = useState<string | null>(null);
@@ -54,7 +55,10 @@ export function useStylePreview() {
       repeatCount: 1
     };
 
-    const instruments = getDefaultInstrumentStates();
+    // Apply the style's own instrument sound types (e.g. 'electric' guitar) — without this,
+    // every instrument falls back to its generic default sound (guitar defaults to a soundfont
+    // patch that loads over the network and can miss playback entirely).
+    const instruments = getEffectiveInstruments(getDefaultInstrumentStates(), style);
 
     const { cancel } = scheduleProgression([testSection], style.bpm, {
       loop: true,

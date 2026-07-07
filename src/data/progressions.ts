@@ -12,16 +12,23 @@ export interface RelatedArticle {
   description: string;
 }
 
+export interface QAItem {
+  question: string;
+  answer: string;
+}
+
 export interface Genre {
   slug: string;
   name: string;
   description: string;
   metaDescription: string;
   editorialIntro?: string[];
+  editorialQA?: QAItem[];
   progressions: Progression[];
   learnLink?: { href: string; label: string };
   relatedArticles?: RelatedArticle[];
   learnSectionTitle?: string;
+  faq?: QAItem[];
 }
 
 export const GENRES: Genre[] = [
@@ -155,12 +162,21 @@ export const GENRES: Genre[] = [
   {
     slug: 'neo-soul',
     name: 'Neo Soul',
-    description: 'Rich extended harmony inspired by R&B, jazz, and neo soul.',
-    metaDescription: 'Neo soul chord progressions with maj7, m9, and 13th chords. Build smooth R&B harmony and play it instantly with Chord Sequence.',
-    editorialIntro: [
-      'Neo soul harmony sits at the intersection of jazz theory and R&B feel. It borrows the extended chord vocabulary of jazz — major ninths, minor ninths, dominant thirteenths — and places them in a groove-based context. The result is music that sounds harmonically sophisticated without feeling academic. Artists like Erykah Badu, D\'Angelo, Lauryn Hill, and Anderson .Paak built entire careers on this palette.',
-      'The defining characteristic of neo soul chord voicings is density. Where a pop song uses a C major triad (C–E–G), a neo soul song uses Cmaj9 (C–E–G–B–D) — the same chord with two extra notes that add color and warmth. Minor ninths replace bare minor chords. Dominant thirteenths replace plain dominant sevenths. The chords ring longer, they blur together more, and they create a harmonic texture that feels lived-in rather than calculated.',
-      'The sus2 and sus4 chords are also central to the neo soul sound. A sus chord omits the third entirely, leaving the chord tonally ambiguous — it\'s neither major nor minor. That ambiguity creates a sense of space and longing that resolves beautifully when the third finally arrives. D\'Angelo\'s "Brown Sugar" is built almost entirely on this technique. The progressions below cover the essential neo soul vocabulary. Pay attention to how the extended chords ring into each other at slower tempos — the overlap between chords is where the texture lives.',
+    description: 'Neo soul chord progressions build on jazz 7th-chord cadences — ii–V–I, vi–IV–I–V, and the borrowed iv chord — over a laid-back R&B groove.',
+    metaDescription: '5 neo soul chord progressions with maj7, m7, and the borrowed iv chord — Dm7-G7-Cmaj7, Fmaj7-Fm7-Cmaj7 and more. Play them instantly, free, no signup.',
+    editorialQA: [
+      {
+        question: 'What makes these progressions sound like neo soul instead of plain jazz?',
+        answer: '<strong>The groove, not the chords.</strong> ii–V–I and vi–IV–I–V come straight out of jazz — neo soul just plays them over a laid-back R&B pocket instead of swing. Same harmony, completely different feel.',
+      },
+      {
+        question: 'What\'s the "borrowed iv" chord neo soul loves so much?',
+        answer: 'In C major, the <em>iv</em> chord is F minor — borrowed from C\'s parallel minor key. <strong>Fmaj7 → Fm7 → Cmaj7</strong> is one of the most soulful cadences there is: gospel, Motown, and D\'Angelo all lean on it.',
+      },
+      {
+        question: 'Why use maj7/m7 chords instead of plain major and minor triads?',
+        answer: 'A 7th chord adds one note that <em>colors</em> the harmony without changing its function. Cmaj7 still sounds like "home" — it just sounds warmer getting there. It\'s the smallest possible step from pop into neo soul territory.',
+      },
     ],
     learnLink: { href: '/learn/jazz-chord-progressions/', label: 'Neo soul borrows heavily from jazz — start here →' },
     learnSectionTitle: 'Learn neo soul harmony',
@@ -169,10 +185,17 @@ export const GENRES: Genre[] = [
       { href: '/learn/music-theory-basics-for-songwriters/', label: 'Music theory basics for songwriters', description: 'Extended chords, sus chords, and the modal harmony behind neo soul' },
     ],
     progressions: [
-      { title: 'Neo Soul Loop', chords: 'Fmaj7 Em7 Am7 Dm7', bpm: 85, style: 'pop_basic', description: 'Smooth flowing major sevenths. Pure neo soul texture.' },
-      { title: 'Soulful IV–I', chords: 'Fmaj7 Cmaj7 Am7 G7', bpm: 90, style: 'pop_basic', description: 'R&B flavor with major sevenths and a dominant push.' },
-      { title: 'Erykah Badu Vibe', chords: 'Dm9 G13 Cmaj9 Fmaj7', bpm: 88, style: 'pop_basic', description: 'Rich ninths and thirteenths for deep neo soul color.' },
-      { title: 'Late Night Soul', chords: 'Am9 Dm9 Gmaj7 Cmaj7', bpm: 82, style: 'pop_basic', description: 'Extended minor ninths leading to major resolution.' },
+      { title: 'The Neo Soul Cadence', chords: 'Dm7 G7 Cmaj7', bpm: 85, style: 'soul_rnb', description: '<strong>The essential jazz cadence.</strong> ii minor seventh → V dominant → I major seventh — the backbone of the entire genre.' },
+      { title: 'Gospel Turn', chords: 'Fmaj7 Fm7 Cmaj7', bpm: 78, style: 'soul_rnb', description: 'The <em>iv</em> chord is borrowed from C minor — one detour that makes this the most soulful cadence around.' },
+      { title: 'Extended Cycle', chords: 'Cmaj7 G7 Am7 Em7 Fmaj7 Cmaj7', bpm: 82, style: 'soul_rnb', description: 'Six chords in one long <strong>cycle</strong> back to the top — a full turnaround in a single loop.' },
+      { title: 'Melancholic Soul', chords: 'Am7 Fmaj7 Cmaj7 G7', bpm: 80, style: 'soul_rnb', description: '<strong>Starts on vi</strong> for an instant wistful lift before resolving through I–V.' },
+      { title: 'Cycle of Fifths', chords: 'Em7 Am7 Dm7 G7', bpm: 92, style: 'soul_rnb', description: 'A descending <em>chain of fifths</em> — the same engine that drives every bebop turnaround.' },
+    ],
+    faq: [
+      { question: 'What key works best for neo soul progressions?', answer: '<strong>C major.</strong> It keeps every maj7/m7 shape easy to see and play — all five progressions above are in C. Transpose with the editor\'s key control to fit your voice.' },
+      { question: 'What BPM should I use for neo soul?', answer: '<strong>78–92 BPM.</strong> Slower for gospel-tinged cadences like the borrowed iv, faster for cycle-of-fifths movement.' },
+      { question: 'Can neo soul chord progressions be played on guitar?', answer: 'Yes — maj7 and m7 shapes are standard open or barre chords. The <em>only</em> tricky one is the Fm7 in Gospel Turn, which needs a small barre.' },
+      { question: 'Which of these progressions is easiest to start with?', answer: '<strong>The Neo Soul Cadence</strong> (Dm7–G7–Cmaj7). Three chords, the most common cadence in the genre, and the foundation everything else builds on.' },
     ],
   },
   {

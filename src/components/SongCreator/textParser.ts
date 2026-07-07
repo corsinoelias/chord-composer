@@ -8,6 +8,7 @@ const uid = () => String(++_id);
 const META_KEYS: Record<string, keyof SongMeta> = {
   'título': 'title', 'titulo': 'title', 'title': 'title',
   'artista': 'artist', 'artist': 'artist',
+  'álbum': 'album', 'album': 'album',
   'tonalidad': 'key', 'clave': 'key', 'key': 'key',
   'capo': 'capo',
   'bpm': 'bpm',
@@ -343,6 +344,7 @@ export function serializeToTextMode(meta: SongMeta, sections: EditorSection[]): 
 
   if (meta.title)  lines.push(`Title: ${meta.title}`);
   if (meta.artist) lines.push(`Artist: ${meta.artist}`);
+  if (meta.album)  lines.push(`Album: ${meta.album}`);
   if (meta.key)    lines.push(`Key: ${meta.key}`);
   if (meta.capo)   lines.push(`Capo: ${meta.capo}`);
   if (meta.bpm)    lines.push(`BPM: ${meta.bpm}`);

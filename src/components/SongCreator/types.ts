@@ -42,6 +42,7 @@ export interface SectionData {
 export interface SongMeta {
   title: string;
   artist: string;
+  album: string;
   key: string;
   capo: number;
   bpm: number;
