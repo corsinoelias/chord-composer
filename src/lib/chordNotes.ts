@@ -8,8 +8,16 @@ function midiClass(midi: number, transposition: number): number {
 }
 
 export function getChordNotes(chord: Chord, transposition: number = 0): string[] {
-  const midiNotes = chordToMidiNotes(chord);
-  return [...new Set(midiNotes.map(midi => MIDI_SHARP_NAMES[midiClass(midi, transposition)]))];
+  // Root must stay first regardless of slash-chord bass note — chordToMidiNotes()
+  // puts the bass note first (for correct audio voicing), but PianoKeyboard relies
+  // on activeNotes[0] being the true root to lay out keys in the right octave.
+  const rootMidiNotes = chordToMidiNotes({ ...chord, bassNote: undefined });
+  const names = rootMidiNotes.map(midi => MIDI_SHARP_NAMES[midiClass(midi, transposition)]);
+  if (!chord.bassNote) return [...new Set(names)];
+
+  const bassMidi = chordToMidiNotes(chord)[0];
+  const bassName = MIDI_SHARP_NAMES[midiClass(bassMidi, transposition)];
+  return [...new Set([...names, bassName])];
 }
 
 export function getTransposedChordName(chord: Chord, transposition: number = 0): string {
