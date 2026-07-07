@@ -81,6 +81,24 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const optionsRef = useRef<PlayOptions | null>(null);
   const sectionsRef = useRef<Section[]>([]);
   const audioPreloaded = useRef(false);
+  // Identifies this PlaybackProvider instance — multiple can exist at once (e.g. one
+  // per ChordEmbed on a page), but they all share the same underlying audio engine.
+  // When one instance starts playing, every other instance needs to hear about it so
+  // its own "isPlaying" UI doesn't get stuck showing active after the engine moved on.
+  const instanceIdRef = useRef(`pb_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+
+  // Reset our own UI state (without touching the shared engine) when a different
+  // PlaybackProvider instance takes over playback.
+  useEffect(() => {
+    const handleOtherInstanceStarted = (e: Event) => {
+      const startedId = (e as CustomEvent<{ instanceId: string }>).detail?.instanceId;
+      if (startedId === instanceIdRef.current) return;
+      cancelRef.current = null;
+      setState(prev => ({ ...prev, isPlaying: false, currentChordIndex: -1, currentStep: -1 }));
+    };
+    window.addEventListener('chordplayer:playback-started', handleOtherInstanceStarted);
+    return () => window.removeEventListener('chordplayer:playback-started', handleOtherInstanceStarted);
+  }, []);
 
   // Pre-load audio on first user interaction for faster first playback
   useEffect(() => {
@@ -197,6 +215,13 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       releasePlaybackMutex();
       return;
     }
+
+    // Tell every other PlaybackProvider instance on the page that we're now the
+    // active player, so their own UI (Play/Stop button, chord highlighting) resets
+    // instead of staying stuck "playing" after the shared engine moved on to us.
+    window.dispatchEvent(new CustomEvent('chordplayer:playback-started', {
+      detail: { instanceId: instanceIdRef.current },
+    }));
 
     try {
       await ensureSamplesLoaded();
