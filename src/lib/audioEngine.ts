@@ -34,6 +34,27 @@ export function ensureGuitarSoundfont(soundTypeId: string, instrument: string): 
   })()
   sfGuitarLoadings.set(soundTypeId, loading)
 }
+
+// Kicks off (or reuses) the soundfont load and waits for it to fully finish before returning.
+// Callers should await this BEFORE flipping any "now playing" state — nothing (audio or the
+// chord-duration dots) should start until the real sample is ready; there's no early bailout
+// here on purpose. The timeout only guards against a truly stuck network request.
+export async function ensureGuitarSoundfontLoaded(soundTypeId: string, instrument: string): Promise<void> {
+  if (sfGuitarPlayers.has(soundTypeId)) return
+  ensureGuitarSoundfont(soundTypeId, instrument)
+  const loading = sfGuitarLoadings.get(soundTypeId)
+  if (!loading) return
+  try {
+    await Promise.race([
+      loading,
+      new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000)),
+    ])
+  } catch {
+    // Only reached if the network request is genuinely stuck — proceed rather than hang
+    // the play button forever. playGuitarNote falls back to the synth tone in that case.
+    console.warn(`[AUDIO] Guitar soundfont "${soundTypeId}" timed out loading — proceeding without it`);
+  }
+}
 // ─────────────────────────────────────────────────────────────────────────────
 import { type InstrumentState, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
 import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir } from './bassTab/sampleEngine';
@@ -2406,6 +2427,11 @@ export function stopPlayback(): void {
     }
     audioContext = null;
     masterGain = null;
+    // Soundfont players/loading promises are bound to the AudioContext we just closed —
+    // reusing them on the next play() would silently produce no sound. Drop the cache so
+    // ensureGuitarSoundfont() re-creates fresh players against the next context.
+    sfGuitarPlayers.clear();
+    sfGuitarLoadings.clear();
   }
 
   currentlyPlaying = false;

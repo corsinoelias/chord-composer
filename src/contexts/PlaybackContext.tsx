@@ -6,12 +6,13 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { type Section } from '@/lib/sections';
-import { type InstrumentState, getDefaultInstrumentStates } from '@/lib/instruments';
+import { type InstrumentState, getDefaultInstrumentStates, getSoundType } from '@/lib/instruments';
 import { type StylePattern, MUSICAL_STYLES, resolveActiveStyle } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
 import { type MelodicData, resolveVariation } from '@/lib/bassScale';
 import {
   ensureSamplesLoaded,
+  ensureGuitarSoundfontLoaded,
   scheduleProgression,
   stopPlayback as stopAudioPlayback,
   preloadAudio,
@@ -229,17 +230,6 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       console.warn('Sample loading issue, proceeding anyway:', err);
     }
 
-    setState(prev => ({
-      ...prev,
-      isPlaying: true,
-      currentChordIndex: 0,
-      bpm: options.bpm,
-      metronomeEnabled: options.metronome,
-    }));
-
-    // Setup Media Session for background playback
-    setupMediaSession('Chord Progression');
-
     const getStyle = () => {
       const opts = optionsRef.current;
       if (!opts) return MUSICAL_STYLES[0];
@@ -252,6 +242,30 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     };
 
     const style = getStyle();
+
+    // Soundfont-based guitar sounds (e.g. "Muted ★") load lazily over the network. This wait
+    // happens BEFORE the isPlaying flip below, on purpose: nothing should start sounding, and
+    // no chord-duration dots should start counting, until the real sample is ready. Sample-based
+    // sounds (electric/acoustic/nylon) don't need this — they're preloaded by ensureSamplesLoaded().
+    const guitarState = options.instruments.find(i => i.id === 'guitar');
+    const guitarSoundId = guitarState?.soundTypeId ?? style.instrumentSounds?.guitar;
+    if (guitarSoundId) {
+      const guitarSoundDef = getSoundType('guitar', guitarSoundId);
+      if (guitarSoundDef?.sf2Instrument) {
+        await ensureGuitarSoundfontLoaded(guitarSoundId, guitarSoundDef.sf2Instrument);
+      }
+    }
+
+    setState(prev => ({
+      ...prev,
+      isPlaying: true,
+      currentChordIndex: 0,
+      bpm: options.bpm,
+      metronomeEnabled: options.metronome,
+    }));
+
+    // Setup Media Session for background playback
+    setupMediaSession('Chord Progression');
 
     const { cancel } = scheduleProgression(sections, options.bpm, {
       loop: true,
