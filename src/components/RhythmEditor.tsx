@@ -337,9 +337,12 @@ export function RhythmEditor({
     }
   }, [open, stopPreview, isLocalPlaying]);
 
+  // Stable identity (no deps) and no isLocalPlaying self-check: this loop is
+  // started/stopped purely imperatively (see startLocalPlayback/stopLocalPlayback)
+  // by cancelling stepAnimationRef.current — not by a reactive effect, which is
+  // vulnerable to React batching coalescing a false→true isLocalPlaying round-trip
+  // (e.g. on Fill-toggle restart) into a no-op that never reschedules the frame.
   const updatePlayhead = useCallback(() => {
-    if (!isLocalPlaying) return;
-    
     const ctx = getAudioContext();
     const bpm = editedStyleRef.current.bpm;
     const barSlots = getSlotsPerBar(editedStyleRef.current);
@@ -363,24 +366,16 @@ export function RhythmEditor({
     setCurrentStep(prev => prev !== step ? step : prev);
     
     stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
-  }, [isLocalPlaying]);
+  }, []);
 
+  // Only handles unmount — start/stop happen imperatively in startLocalPlayback/stopLocalPlayback.
   useEffect(() => {
-    if (isLocalPlaying) {
-      stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
-    } else {
-      if (stepAnimationRef.current) {
-        cancelAnimationFrame(stepAnimationRef.current);
-        stepAnimationRef.current = null;
-      }
-    }
-    
     return () => {
       if (stepAnimationRef.current) {
         cancelAnimationFrame(stepAnimationRef.current);
       }
     };
-  }, [isLocalPlaying, updatePlayhead]);
+  }, []);
 
   const stopLocalPlayback = useCallback(() => {
     const hadLocalPlayback = isLocalPlaying || !!playbackRef.current;
@@ -431,7 +426,13 @@ export function RhythmEditor({
     
     setIsLocalPlaying(true);
     setCurrentStep(0); // Start at step 0
-    
+
+    // Imperative (re)start — see the note on updatePlayhead for why this can't
+    // be left to a reactive effect watching isLocalPlaying.
+    if (stepAnimationRef.current) cancelAnimationFrame(stepAnimationRef.current);
+    stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
+
+
     // Match the chord's duration to exactly one full loop of the style's actual
     // meter AND loopBars (3 beats for one 6/8 bar, 6 for a 2-bar 6/8 loop, not
     // always 4) — otherwise the loop point drifts out of sync with the
@@ -472,7 +473,7 @@ export function RhythmEditor({
     });
     
     playbackRef.current = { cancel };
-  }, [stopLocalPlayback, isMainPlaying, stopMainPlayback]);
+  }, [stopLocalPlayback, isMainPlaying, stopMainPlayback, updatePlayhead]);
 
   useEffect(() => {
     if (isLocalPlaying) {
@@ -848,7 +849,7 @@ export function RhythmEditor({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {['Rock', 'Funk', 'Pop', 'Reggae', 'HipHop', 'Disco', 'Blues', 'Latin', 'Metal', 'Folk', 'Country', 'Jazz', 'Soul', 'Indie', 'LoFi'].map(cat => (
+                    {['Rock', 'Funk', 'Pop', 'Reggae', 'HipHop', 'Disco', 'Blues', 'Latin', 'Metal', 'Folk', 'Country', 'Jazz', 'Soul', 'Indie', 'LoFi', 'Gospel'].map(cat => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
                   </SelectContent>

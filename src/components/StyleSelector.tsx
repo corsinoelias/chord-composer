@@ -64,6 +64,9 @@ const STYLE_CATEGORIES = [{
 }, {
   id: 'Metal',
   label: 'Metal'
+}, {
+  id: 'Gospel',
+  label: 'Gospel'
 }] as const;
 
 export const StyleSelector = memo(function StyleSelector({

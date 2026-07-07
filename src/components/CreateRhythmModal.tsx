@@ -18,7 +18,7 @@ interface CreateRhythmModalProps {
   customStyles?: StylePattern[];
 }
 
-const CATEGORIES = ['Rock', 'Funk', 'Pop', 'Reggae', 'HipHop', 'Disco', 'Blues', 'Latin', 'Metal', 'Folk', 'Country', 'Jazz', 'Soul', 'Indie', 'LoFi'] as const;
+const CATEGORIES = ['Rock', 'Funk', 'Pop', 'Reggae', 'HipHop', 'Disco', 'Blues', 'Latin', 'Metal', 'Folk', 'Country', 'Jazz', 'Soul', 'Indie', 'LoFi', 'Gospel'] as const;
 
 // Common time signatures. 4/4 omits the field (matches every pre-existing style's default).
 const TIME_SIGNATURES: Record<string, { numerator: number; denominator: number } | undefined> = {
