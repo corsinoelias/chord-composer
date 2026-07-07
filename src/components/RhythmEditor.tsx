@@ -43,7 +43,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { MelodicPatternGrid } from '@/components/MelodicPatternGrid';
-import { emptyMelodicData, createVariation, scalePatternIsEmpty, DEGREES, type Degree, type InstrumentMelodic } from '@/lib/bassScale';
+import { emptyMelodicData, createVariation, scalePatternIsEmpty, type InstrumentMelodic } from '@/lib/bassScale';
 
 // All possible instruments in the editor
 const ALL_INSTRUMENTS = [
@@ -214,27 +214,6 @@ export function RhythmEditor({
   const [activeTab, setActiveTab] = useState<'drums' | 'bass' | 'piano' | 'guitar'>('drums');
   // Tracks which variation is currently viewed in the editor per instrument (for live preview)
   const activeVarIdRef = useRef<Partial<Record<'bass' | 'piano' | 'guitar', string>>>({});
-
-  // Auto-create "Var 1" when switching to a melodic tab with no variations yet
-  useEffect(() => {
-    if (activeTab === 'drums') return;
-    const inst = activeTab as 'bass' | 'piano' | 'guitar';
-    const base = editedStyle.melodic ?? emptyMelodicData();
-    if (base[inst].variations.length === 0) {
-      const firstVar = createVariation('Var 1');
-      if (inst === 'bass') {
-        firstVar.octaveOffsets = Object.fromEntries(
-          DEGREES.map(d => [d, -1])
-        ) as Partial<Record<Degree, number>>;
-      }
-      const newMelodic = { ...base, [inst]: { ...base[inst], variations: [firstVar], enabled: true } };
-      setEditedStyle(prev => ({ ...prev, melodic: newMelodic }));
-    } else if (!base[inst].enabled) {
-      // Auto-enable when variations already exist
-      const newMelodic = { ...base, [inst]: { ...base[inst], enabled: true } };
-      setEditedStyle(prev => ({ ...prev, melodic: newMelodic }));
-    }
-  }, [activeTab]);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [styleToDelete, setStyleToDelete] = useState<StylePattern | null>(null);
@@ -1254,6 +1233,7 @@ export function RhythmEditor({
               />
             </div>
             <div className="p-4">
+            {(() => { console.log('[DEBUG] activeTab', activeTab, 'editedStyle.melodic', JSON.stringify(editedStyle.melodic), 'migratedMelodic[tab]', JSON.stringify(migratedMelodic[activeTab as 'bass'])); return null; })()}
             <MelodicPatternGrid
               melodic={migratedMelodic[activeTab as 'bass' | 'piano' | 'guitar']}
               referenceRootMidi={referenceRootMidi}
@@ -1268,7 +1248,9 @@ export function RhythmEditor({
                 if (!isLocalPlaying && !isMainPlaying) startLocalPlayback();
               }}
               onChange={updated => {
-                setEditedStyle(prev => ({ ...prev, melodic: { ...(prev.melodic ?? emptyMelodicData()), [activeTab]: updated } }));
+                // A real edit is unambiguous intent to have this variation play — mark it
+                // enabled here (not on mere tab navigation) so saving actually applies it.
+                setEditedStyle(prev => ({ ...prev, melodic: { ...(prev.melodic ?? emptyMelodicData()), [activeTab]: { ...updated, enabled: true } } }));
               }}
             />
             </div>
