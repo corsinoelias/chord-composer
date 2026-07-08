@@ -67,7 +67,7 @@ export const GENRES: Genre[] = [
     slug: 'jazz',
     name: 'Jazz',
     description: 'Essential jazz chord progressions — from the ii–V–I cornerstone to bossa nova, jazz blues, and modal harmony.',
-    metaDescription: 'Play and learn essential jazz chord progressions: ii–V–I, jazz turnarounds, bossa nova, jazz blues, modal jazz, and more. Interactive players — no signup required.',
+    metaDescription: 'Play and learn essential jazz chord progressions: ii–V–I, turnarounds, bossa nova, and modal jazz. Interactive players — no signup required.',
     editorialIntro: [
       'From the ii–V–I cornerstone to bossa nova, jazz blues, and modal vamps — these are the progressions that show up in virtually every jazz standard. Press play on each one below to hear how the chords move, then head to the full guide for the theory behind why they work.',
     ],
@@ -346,7 +346,7 @@ export const GENRES: Genre[] = [
     slug: 'ii-v-i',
     name: 'ii–V–I',
     description: 'The ii–V–I progression — the cornerstone of jazz harmony. In all keys, with extensions, and in minor.',
-    metaDescription: 'ii–V–I chord progressions in all keys: major, minor, with extensions and substitutions. The foundational jazz progression explained with interactive examples.',
+    metaDescription: 'ii–V–I chord progressions in all keys — major, minor, with extensions and substitutions. The foundational jazz progression, explained interactively.',
     editorialIntro: [
       'The ii–V–I is the most important three-chord movement in jazz. In C major: Dm7–G7–Cmaj7. The ii minor seventh chord (Dm7) creates mild tension, the V dominant seventh chord (G7) creates strong tension with its tritone interval (B to F), and the I major seventh chord (Cmaj7) resolves that tension completely. This arc of mild tension — strong tension — resolution appears in virtually every jazz standard ever written, from "Autumn Leaves" to "All The Things You Are" to "There Will Never Be Another You."',
       'What makes the ii–V–I powerful is the tritone in the dominant chord. In G7, the notes B and F form a tritone — an interval of six semitones that creates maximum harmonic tension because it is exactly halfway around the chromatic scale. That tritone wants to resolve: B moves up a half step to C, and F moves down a half step to E. Those two notes are the third and fifth of Cmaj7. The resolution is built into the physics of the progression — G7 is literally pointing at Cmaj7.',

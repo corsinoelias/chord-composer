@@ -36,7 +36,7 @@ export const INSTRUMENTS_LIST: InstrumentListing[] = [
       'Export to ASCII tab or MIDI — no account needed',
     ],
     emoji: '🎸',
-    image: '/images/instruments/bass-guitar.png',
+    image: '/images/instruments/bass-guitar.webp',
   },
   {
     id: 'guitar',
@@ -44,7 +44,7 @@ export const INSTRUMENTS_LIST: InstrumentListing[] = [
     slug: 'guitar',
     tagline: 'Play a virtual 6-string guitar in your browser — 8 sampled sounds',
     description: 'A full virtual guitar with 8 real sampled tones: Steel, Nylon, Clean, Jazz, Muted, Distorted, Overdrive, and Harmonics. Includes a tab editor with chord helper, capo support, and MIDI export.',
-    imagePath: '/images/instruments/guitar.png',
+    imagePath: '/images/instruments/guitar.webp',
     imageAlt: 'Virtual guitar interface showing 6-string fretboard and tab editor',
     status: 'available',
     url: '/guitar/',
@@ -56,7 +56,7 @@ export const INSTRUMENTS_LIST: InstrumentListing[] = [
       'Export to ASCII tab or MIDI — no account needed',
     ],
     emoji: '🎸',
-    image: '/images/instruments/guitar.png',
+    image: '/images/instruments/guitar.webp',
   },
   {
     id: 'piano',

@@ -32,7 +32,27 @@ if (!song) return Astro.redirect('/songs/');
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{song.title} — {song.artist} | Chord Sheet</title>
+  <meta name="description" content={song.description} />
   <meta name="robots" content="noindex" />
+
+  <!-- Open Graph / Twitter — this page is noindex, but the print/PDF link gets shared directly -->
+  <meta property="og:site_name" content="Chord Sequence" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content={`${song.title} — ${song.artist} | Chord Sheet`} />
+  <meta property="og:description" content={song.description} />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content={`https://chordsequence.com/songs/pdf/${song.slug}/`} />
+  <meta property="og:image" content={`https://chordsequence.com/og/songs/${song.slug}`} />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content={`${song.title} — ${song.artist} chord chart`} />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={`${song.title} — ${song.artist} | Chord Sheet`} />
+  <meta name="twitter:description" content={song.description} />
+  <meta name="twitter:image" content={`https://chordsequence.com/og/songs/${song.slug}`} />
+  <meta name="twitter:image:alt" content={`${song.title} — ${song.artist} chord chart`} />
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body {

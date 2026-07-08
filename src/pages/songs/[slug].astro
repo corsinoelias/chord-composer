@@ -194,6 +194,10 @@ const songFaq = [
     q: `Does ${song.title} use a capo?`,
     a: `Yes — place a capo on the ${ordinal(song.capo)} fret to play ${song.title} in its original key.`,
   }] : []),
+  {
+    q: `Can I get a printable PDF of ${song.title}?`,
+    a: `Yes — click PDF in the toolbar above for a printable, transposable chord chart for ${song.title} by ${song.artist}. Free, no signup needed.`,
+  },
 ]
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -206,9 +210,10 @@ const musicSchema = {
   name: song.title,
   description: song.description,
   composer: { '@type': composerType, name: song.artist },
-  lyricist: { '@type': composerType, name: song.artist },
+  // schema.org requires lyricist to be a Person — omit it for bands (MusicGroup),
+  // since we don't track a distinct lyricist and can't validly attribute lyrics to a group here.
+  ...(composerType === 'Person' ? { lyricist: { '@type': 'Person', name: song.artist } } : {}),
   musicalKey: song.key,
-  inAlbum: song.album ? { '@type': 'MusicAlbum', name: song.album } : undefined,
   datePublished: song.year?.toString(),
   genre: song.genre.join(', '),
   url: canonicalUrl,
