@@ -10,15 +10,17 @@ import { getGuitarVoicing } from '@/data/guitarChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { Play, Square, ExternalLink, Music2 } from 'lucide-react';
+import { analytics } from '@/lib/analytics';
 
 interface ChordEmbedProps {
   chords: string;
   bpm?: number;
   style?: string;
   title?: string;
+  toolContext?: string;
 }
 
-function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: ChordEmbedProps) {
+function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title, toolContext }: ChordEmbedProps) {
   const { state: playbackState, play, stop } = usePlayback();
   const { isPlaying, currentChordIndex } = playbackState;
   const parsedChords = useMemo(() => parseChordString(chords), [chords]);
@@ -59,6 +61,7 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: Chor
       return;
     }
     if (parsedChords.length === 0) return;
+    if (toolContext) analytics.toolWidgetUsed(toolContext);
     setIsLoading(true);
     try {
       await play(sectionRef.current, {
@@ -75,7 +78,7 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title }: Chor
     } finally {
       setIsLoading(false);
     }
-  }, [isPlaying, parsedChords, play, stop, bpm, instruments, selectedStyle]);
+  }, [isPlaying, parsedChords, play, stop, bpm, instruments, selectedStyle, toolContext]);
 
   useEffect(() => {
     sectionRef.current = [{ ...createSection('Section A'), chords: parsedChords }];

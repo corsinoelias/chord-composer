@@ -128,7 +128,7 @@ const faqSchema = {
               </a>
             </div>
             <p class="text-xs text-muted-foreground mb-3">{ex.hint}</p>
-            <ChordEmbedIsland chords={ex.chords} bpm={100} style="pop_basic" title={ex.chords} />
+            <ChordEmbedIsland chords={ex.chords} bpm={100} style="pop_basic" title={ex.chords} toolContext="key_detector" />
           </div>
         ))}
       </div>

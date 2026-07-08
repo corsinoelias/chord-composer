@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LogOut } from 'lucide-react';
 import { signOut } from '@/lib/supabase';
+import { analytics } from '@/lib/analytics';
 
 interface AccountMenuProps {
   displayName: string | null;
@@ -17,6 +18,7 @@ interface AccountMenuProps {
 
 export function AccountMenu({ displayName, trigger }: AccountMenuProps) {
   const handleSignOut = async () => {
+    analytics.logout();
     await signOut();
     window.location.href = '/app';
   };

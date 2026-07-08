@@ -485,6 +485,7 @@ const Index = ({ songId }: IndexProps) => {
   const handleAddSection = () => {
     const newSection = createSection(getSectionDisplayName(sections.length));
     setSections(prev => [...prev, newSection]);
+    analytics.sectionAdded();
   };
 
   const handleDeleteSection = useCallback((index: number) => {
@@ -496,6 +497,7 @@ const Index = ({ songId }: IndexProps) => {
       setLoopingSectionIndex(null);
     }
     setSections(prev => prev.filter((_, i) => i !== index));
+    analytics.sectionDeleted();
   }, []);
 
   const handleDuplicateSection = useCallback((index: number) => {
@@ -506,6 +508,7 @@ const Index = ({ songId }: IndexProps) => {
       repeatCount: section.repeatCount
     };
     setSections(prev => [...prev.slice(0, index + 1), newSection, ...prev.slice(index + 1)]);
+    analytics.sectionDuplicated();
   }, []);
 
   const handleSectionNameChange = useCallback((index: number, name: string) => {
@@ -530,6 +533,7 @@ const Index = ({ songId }: IndexProps) => {
     if (addChordSection === null) return;
     setSections(prev => prev.map((s, i) => i === addChordSection.index ? { ...s, chords: [...s.chords, chord] } : s));
     toast.success(`Added ${chord.root}${chord.accidental}${chord.quality} to ${addChordSection.name}`);
+    analytics.chordAdded();
   };
 
   const handleChordClick = useCallback((sectionIndex: number, chordIndex: number) => {
@@ -574,6 +578,7 @@ const Index = ({ songId }: IndexProps) => {
     setSections(prev => prev.map((s, i) =>
       i === sectionIndex ? { ...s, chords: s.chords.filter((_, j) => j !== chordIndex) } : s
     ));
+    analytics.chordRemoved();
   }, []);
 
   const handleChordDuplicate = useCallback((sectionIndex: number, chordIndex: number) => {
@@ -585,6 +590,7 @@ const Index = ({ songId }: IndexProps) => {
         ? { ...s, chords: [...s.chords.slice(0, chordIndex + 1), newChord, ...s.chords.slice(chordIndex + 1)] }
         : s
     ));
+    analytics.chordDuplicated();
   }, []);
 
   // ── Multi-select ────────────────────────────────────────────────────────────
@@ -620,6 +626,7 @@ const Index = ({ songId }: IndexProps) => {
     })));
     setSelectedChordIds(new Set());
     toast.success(`Deleted ${selectedChordIds.size} chord${selectedChordIds.size > 1 ? 's' : ''}`);
+    analytics.chordRemoved();
   }, [selectedChordIds]);
 
   const handleDuplicateSelected = useCallback(() => {
@@ -636,6 +643,7 @@ const Index = ({ songId }: IndexProps) => {
     }));
     setSelectedChordIds(new Set());
     toast.success(`Duplicated ${selectedChordIds.size} chord${selectedChordIds.size > 1 ? 's' : ''}`);
+    analytics.chordDuplicated();
   }, [selectedChordIds]);
 
   // Clear selection on Escape
@@ -658,6 +666,7 @@ const Index = ({ songId }: IndexProps) => {
       newChords.splice(toIndex, 0, removed);
       return { ...s, chords: newChords };
     }));
+    analytics.chordsReordered();
   };
 
   // Move chord between sections
@@ -679,9 +688,10 @@ const Index = ({ songId }: IndexProps) => {
         ...newSections[toSectionIndex],
         chords: targetChords
       };
-      
+
       return newSections;
     });
+    analytics.chordsReordered();
   };
 
   // Unified drag handlers for sections and chords
@@ -885,6 +895,7 @@ const Index = ({ songId }: IndexProps) => {
       if (fromIndex > prev && toIndex <= prev) return prev + 1;
       return prev;
     });
+    analytics.sectionMoved();
   }, []);
 
   const handleMoveSectionUp = useCallback((si: number) => handleMoveSection(si, 'up'), [handleMoveSection]);
@@ -906,6 +917,7 @@ const Index = ({ songId }: IndexProps) => {
       pianoVariationId: instrument === 'piano' ? variationId : s.pianoVariationId,
       guitarVariationId: instrument === 'guitar' ? variationId : s.guitarVariationId,
     }));
+    analytics.variationChanged(instrument);
   }, []);
 
   // Handler for loading a progression template
@@ -949,7 +961,11 @@ const Index = ({ songId }: IndexProps) => {
     onPlay: hasChords ? handlePlayWithCountdown : () => {},
     onStop: stopPlaybackCompletely,
     onBpmChange: setBpm,
-    onMetronomeToggle: () => setMetronomeEnabled(prev => !prev),
+    onMetronomeToggle: () => setMetronomeEnabled(prev => {
+      const next = !prev;
+      analytics.metronomeToggled(next);
+      return next;
+    }),
     enabled: !showCountdown && !templatesModalOpen && !editingChord && !addChordSection,
   });
 
@@ -1098,6 +1114,7 @@ const Index = ({ songId }: IndexProps) => {
           }}
           onMetronomeToggle={(enabled) => {
             setMetronomeEnabled(enabled);
+            analytics.metronomeToggled(enabled);
           }}
           onStyleChange={(id) => {
             setSelectedStyleId(id);
@@ -1105,7 +1122,10 @@ const Index = ({ songId }: IndexProps) => {
             analytics.styleChanged(id);
           }}
           onSongTitleChange={setSongTitle}
-          onTranspositionChange={setTransposition}
+          onTranspositionChange={(semitones: number) => {
+            setTransposition(semitones);
+            analytics.transposed(semitones);
+          }}
           onOpenInstruments={() => setInstrumentsPanelOpen(true)}
           onOpenRhythmEditor={() => {
             const currentStyle = [...customStyles, ...MUSICAL_STYLES].find(s => s.id === selectedStyleId);

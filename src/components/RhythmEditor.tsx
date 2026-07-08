@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { analytics } from '@/lib/analytics';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -672,6 +673,7 @@ export function RhythmEditor({
     setSaveDialogOpen(false);
     setHasUnsavedChanges(false); // Mark as saved so close doesn't show confirmation
     originalStyleRef.current = JSON.stringify(styleToSave); // Update original reference
+    analytics.customStyleSaved(mode);
     onClose();
   };
 

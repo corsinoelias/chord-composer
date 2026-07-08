@@ -6,9 +6,10 @@ interface Props {
   bpm?: number;
   style?: string;
   title?: string;
+  toolContext?: string;
 }
 
-const { chords, bpm, style, title } = Astro.props;
+const { chords, bpm, style, title, toolContext } = Astro.props;
 ---
 
-<ChordEmbed client:visible chords={chords} bpm={bpm} style={style} title={title} />
+<ChordEmbed client:visible chords={chords} bpm={bpm} style={style} title={title} toolContext={toolContext} />

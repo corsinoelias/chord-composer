@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { analytics } from '@/lib/analytics';
 import { Sliders, RotateCcw, Volume2 } from 'lucide-react';
 import {
   type EffectsState,
@@ -199,6 +200,7 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
       }
     }));
     updateEQ(band, { gain });
+    analytics.effectChanged('eq');
   }, []);
 
   const handleReverbChange = useCallback((key: keyof EffectsState['reverb'], value: number | boolean) => {
@@ -207,6 +209,7 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
       reverb: { ...prev.reverb, [key]: value }
     }));
     updateReverb({ [key]: value });
+    analytics.effectChanged('reverb');
   }, []);
 
   const handleCompressorChange = useCallback((key: keyof EffectsState['compressor'], value: number | boolean) => {
@@ -215,6 +218,7 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
       compressor: { ...prev.compressor, [key]: value }
     }));
     updateCompressor({ [key]: value });
+    analytics.effectChanged('compressor');
   }, []);
 
   const handleReset = useCallback(() => {

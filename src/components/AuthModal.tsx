@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { signInWithEmail, signUpWithEmail } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { analytics } from '@/lib/analytics';
 
 interface AuthModalProps {
   open: boolean;
@@ -45,6 +46,7 @@ export function AuthModal({ open, onOpenChange, onSuccess }: AuthModalProps) {
         toast.error(error);
         return;
       }
+      analytics.signUp();
       if (needsEmailConfirmation) {
         setCheckEmail(true);
         return;
@@ -59,6 +61,7 @@ export function AuthModal({ open, onOpenChange, onSuccess }: AuthModalProps) {
         toast.error(error);
         return;
       }
+      analytics.login();
       reset();
       onOpenChange(false);
       onSuccess();

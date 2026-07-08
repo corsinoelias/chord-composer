@@ -10,6 +10,7 @@ import { MUSICAL_STYLES } from '@/lib/styles';
 import { generateChordId } from '@/lib/musicTheory';
 import type { Chord, RootNote, Accidental, ChordQuality } from '@/lib/musicTheory';
 import { Play, Square } from 'lucide-react';
+import { analytics } from '@/lib/analytics';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -151,6 +152,7 @@ function CircleOfFifthsInner() {
   const playDiatonic = useCallback(async () => {
     if (!diatonic) return;
     if (isPlaying) { stop(); return; }
+    analytics.toolWidgetUsed('circle_of_fifths');
     const chords = diatonic.map(toChord).filter(Boolean) as Chord[];
     if (chords.length === 0) return;
     const section = { ...createSection('Scale'), chords };

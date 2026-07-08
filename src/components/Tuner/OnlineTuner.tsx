@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { autoCorrelate, noteInfoFromFrequency, type NoteInfo } from '../../lib/tuner/pitchDetector'
+import { analytics } from '@/lib/analytics'
 
 type Status = 'idle' | 'listening' | 'error'
 type ErrorKind = 'no-api' | 'denied' | 'no-device' | 'unknown'
@@ -160,6 +161,7 @@ export function OnlineTuner() {
 
       ctx.createMediaStreamSource(stream).connect(analyser)
       setStatus('listening')
+      analytics.toolWidgetUsed('tuner')
       tick()
     } catch (err) {
       console.error('[Tuner] getUserMedia failed:', err)
