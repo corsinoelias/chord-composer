@@ -17,7 +17,8 @@ const { genre } = Astro.props;
 const genreCanonicalUrl = `https://chordsequence.com/progressions/${genre.slug}/`;
 const displayTitle = genre.pageTitle ?? `${genre.name} Chord Progression Generator`;
 
-const generatorMetaDescription = `${genre.name} chord progression generator — ${genre.progressions.length} progressions with real audio, playable in your browser. Customize key, tempo, and rhythm. Free, no account needed.`;
+const generatorMetaDescription = genre.metaDescription
+  ?? `${genre.name} chord progression generator — ${genre.progressions.length} progressions with real audio, playable in your browser. Customize key, tempo, and rhythm. Free, no account needed.`;
 
 const firstProgression = genre.progressions[0];
 const editorUrl = `/editor/?chords=${firstProgression.chords.replace(/ /g, '-')}&bpm=${firstProgression.bpm}&style=${firstProgression.style}`;

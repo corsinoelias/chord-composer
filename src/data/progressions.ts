@@ -143,7 +143,7 @@ export const GENRES: Genre[] = [
     slug: 'happy',
     name: 'Happy',
     description: 'Uplifting, bright, and energetic chord progressions full of joy.',
-    metaDescription: 'Happy chord progressions for upbeat music. Major keys, bright harmony, and energetic rhythm — build and play instantly.',
+    metaDescription: 'Happy chord progressions to play free — I–IV–V–I, I–iii–IV–V, and more upbeat major-key patterns. Real audio playback, no signup required.',
     editorialIntro: [
       'Happy chord progressions share a common trait: they stay in major keys and they move with momentum. The major third interval — the distance that defines every major chord — is acoustically stable. When you stack a major third and a perfect fifth on a root note, you get a chord that sounds complete and resolved. That stability is what the brain registers as brightness and positivity.',
       'The I–IV–V–I is the oldest happy progression in Western music. It powers folk songs, hymns, rock and roll, and children\'s music alike because the sequence of tonic, subdominant, dominant, and back to tonic follows the most fundamental harmonic logic: leave home, build tension, come back. At a fast tempo with a driving rhythm, it becomes anthemic. At a slower tempo with gentle strumming, it becomes pastoral.',
