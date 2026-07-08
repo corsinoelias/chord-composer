@@ -16,5 +16,25 @@ import EditorApp from '../../components/EditorApp';
   noIndex={true}
   showNav={false}
 >
-  <EditorApp client:only="react" />
+  <!--
+    EditorApp uses client:only (it touches window/localStorage/AudioContext at mount),
+    so nothing paints until the full React bundle loads and hydrates — this was the
+    LCP culprit (Lighthouse: 5.0s "Poor"). The static skeleton below renders immediately
+    server-side and sits in the same CSS grid cell as the island, so it paints first and
+    is simply covered once EditorApp mounts (both are opaque, EditorApp is later in
+    source order so it wins the paint on top) — no JS coordination needed.
+  -->
+  <div style="display: grid;">
+    <div style="grid-area: 1 / 1;" class="min-h-screen bg-background" aria-hidden="true">
+      <div class="border-b border-border bg-card h-[57px]"></div>
+      <div class="container max-w-6xl mx-auto px-2 sm:px-4 py-6 space-y-4">
+        <div class="h-8 w-48 rounded-lg bg-muted animate-pulse"></div>
+        <div class="h-40 w-full rounded-xl bg-muted animate-pulse"></div>
+        <div class="h-40 w-full rounded-xl bg-muted animate-pulse"></div>
+      </div>
+    </div>
+    <div style="grid-area: 1 / 1;">
+      <EditorApp client:only="react" />
+    </div>
+  </div>
 </BaseLayout>

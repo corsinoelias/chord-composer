@@ -12,6 +12,7 @@ export interface SongSection {
 
 export interface Song {
   slug: string;
+  lastModified?: string; // ISO date (YYYY-MM-DD) this entry was last actually edited
   title: string;
   artist: string;
   album?: string;
@@ -90,6 +91,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'holy-forever-chris-tomlin',
+    lastModified: '2026-06-01',
     title: 'Holy Forever',
     artist: 'Chris Tomlin',
     album: 'Always',
@@ -176,6 +178,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'autumn-leaves-jazz-standard',
+    lastModified: '2026-06-01',
     title: 'Autumn Leaves',
     artist: 'Jazz Standard',
     album: 'Public Domain',
@@ -215,6 +218,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'hallelujah-leonard-cohen',
+    lastModified: '2026-06-01',
     title: 'Hallelujah',
     artist: 'Leonard Cohen',
     year: 1984,
@@ -271,6 +275,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'wonderwall-oasis',
+    lastModified: '2026-06-23',
     title: 'Wonderwall',
     artist: 'Oasis',
     album: '(What\'s the Story) Morning Glory?',
@@ -335,6 +340,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'oceans-hillsong-united',
+    lastModified: '2026-06-23',
     title: 'Oceans (Where Feet May Fail)',
     artist: 'Hillsong United',
     album: 'Zion',
@@ -394,6 +400,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'way-maker-leeland',
+    lastModified: '2026-06-23',
     title: 'Way Maker',
     artist: 'Leeland',
     album: 'Way Maker',
@@ -451,6 +458,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'goodness-of-god-bethel-music',
+    lastModified: '2026-06-23',
     title: 'Goodness of God',
     artist: 'Bethel Music',
     album: 'Victory',
@@ -512,6 +520,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'reckless-love-cory-asbury',
+    lastModified: '2026-06-23',
     title: 'Reckless Love',
     artist: 'Cory Asbury',
     album: 'Reckless Love',
@@ -570,6 +579,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: '10000-reasons-matt-redman',
+    lastModified: '2026-06-23',
     title: '10,000 Reasons (Bless the Lord)',
     artist: 'Matt Redman',
     album: '10,000 Reasons',
@@ -627,6 +637,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'what-a-beautiful-name-hillsong-worship',
+    lastModified: '2026-06-23',
     title: 'What A Beautiful Name',
     artist: 'Hillsong Worship',
     album: 'Let There Be Light',
@@ -694,6 +705,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'build-my-life-pat-barrett',
+    lastModified: '2026-06-23',
     title: 'Build My Life',
     artist: 'Pat Barrett',
     album: 'Build My Life',
@@ -752,6 +764,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'great-are-you-lord-all-sons-daughters',
+    lastModified: '2026-06-23',
     title: 'Great Are You Lord',
     artist: 'All Sons & Daughters',
     album: 'Season One',

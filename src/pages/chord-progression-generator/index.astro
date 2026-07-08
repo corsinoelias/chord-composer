@@ -49,16 +49,6 @@ const faqItems = [
   },
 ];
 
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: faqItems.map(({ question, answer }) => ({
-    '@type': 'Question',
-    name: question,
-    acceptedAnswer: { '@type': 'Answer', text: answer },
-  })),
-};
-
 const webPageSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebPage',
@@ -202,7 +192,6 @@ const relatedLinks = [
   ogImageAlt="Free Chord Progression Generator — Chord Sequence"
 >
   <Fragment slot="head">
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(webPageSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(softwareSchema)} />

@@ -8,6 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
+    "check:schema": "node scripts/check-no-faqschema.mjs",
     "lint": "eslint .",
     "seed": "tsx --env-file=.env scripts/seed-songs.ts",
     "fetch-soundfonts": "node scripts/fetch-soundfonts.mjs",

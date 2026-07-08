@@ -4,62 +4,52 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import ChordEmbed from '../components/ChordEmbed';
 import { SONGS } from '../data/songs';
 
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'What is Chord Sequence?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Chord Sequence is a free online chord progression builder at chordsequence.com. Drag and drop chords, pick a rhythm style, play live, transpose to any key, and export your progression as a WAV file — all in your browser with no account required.' },
-    },
-    {
-      '@type': 'Question',
-      name: 'Is Chord Sequence free to use?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Yes. Chord Sequence is completely free. No subscription, no account, and no credit card required. You can build, play, and export chord progressions with no limitations.' },
-    },
-    {
-      '@type': 'Question',
-      name: 'Can I export my chord progression as audio?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Yes. Every progression can be exported to WAV in one click from the editor. The file is ready to import into any DAW (Ableton, Logic, GarageBand, etc.).' },
-    },
-    {
-      '@type': 'Question',
-      name: 'Do I need to install anything?',
-      acceptedAnswer: { '@type': 'Answer', text: 'No installation required. Chord Sequence runs entirely in your browser using the Web Audio API. It works on Chrome, Firefox, Safari, and Edge.' },
-    },
-    {
-      '@type': 'Question',
-      name: 'What chord types does Chord Sequence support?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Chord Sequence supports 37 chord qualities including major, minor, dominant 7th, major 7th, minor 7th, diminished, augmented, suspended, added 9th, 11th, 13th chords, and more.' },
-    },
-    {
-      '@type': 'Question',
-      name: 'Can I transpose chord progressions?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Yes. You can transpose any progression up or down by any number of semitones with a single click. This is useful for finding the right key for your voice or instrument.' },
-    },
-    {
-      '@type': 'Question',
-      name: 'What rhythm styles are available?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Chord Sequence includes 13+ rhythm styles including pop, rock, jazz, lo-fi, worship, Latin, and more. Each style changes the playback feel and instrument mix.' },
-    },
-    {
-      '@type': 'Question',
-      name: 'Are my saved songs private?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Yes. Songs are saved directly to your browser\'s local storage and never uploaded to any server. No account is needed and your progressions remain private to your device.' },
-    },
-    {
-      '@type': 'Question',
-      name: 'Can I use Chord Sequence on mobile?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Yes. Chord Sequence is fully responsive and works on smartphones and tablets. The editor is touch-friendly and the playback works on iOS and Android.' },
-    },
-    {
-      '@type': 'Question',
-      name: 'What is a chord progression?',
-      acceptedAnswer: { '@type': 'Answer', text: 'A chord progression is a sequence of chords played in order. Chord progressions form the harmonic backbone of virtually every piece of music — from pop songs to jazz standards. Common examples include I–V–vi–IV (pop), ii–V–I (jazz), and i–VI–III–VII (minor pop).' },
-    },
-  ],
-};
+// Plain FAQ data for the visible "Frequently asked questions" section below — deliberately
+// NOT emitted as FAQPage JSON-LD (Google restricted FAQ rich results to gov/health sites
+// since Aug 2023). This was previously typed as schema even though no <script ld+json>
+// ever rendered it — kept as plain data now to avoid it being copy-pasted into schema later.
+const faqs = [
+  {
+    name: 'What is Chord Sequence?',
+    acceptedAnswer: { text: 'Chord Sequence is a free online chord progression builder at chordsequence.com. Drag and drop chords, pick a rhythm style, play live, transpose to any key, and export your progression as a WAV file — all in your browser with no account required.' },
+  },
+  {
+    name: 'Is Chord Sequence free to use?',
+    acceptedAnswer: { text: 'Yes. Chord Sequence is completely free. No subscription, no account, and no credit card required. You can build, play, and export chord progressions with no limitations.' },
+  },
+  {
+    name: 'Can I export my chord progression as audio?',
+    acceptedAnswer: { text: 'Yes. Every progression can be exported to WAV in one click from the editor. The file is ready to import into any DAW (Ableton, Logic, GarageBand, etc.).' },
+  },
+  {
+    name: 'Do I need to install anything?',
+    acceptedAnswer: { text: 'No installation required. Chord Sequence runs entirely in your browser using the Web Audio API. It works on Chrome, Firefox, Safari, and Edge.' },
+  },
+  {
+    name: 'What chord types does Chord Sequence support?',
+    acceptedAnswer: { text: 'Chord Sequence supports 37 chord qualities including major, minor, dominant 7th, major 7th, minor 7th, diminished, augmented, suspended, added 9th, 11th, 13th chords, and more.' },
+  },
+  {
+    name: 'Can I transpose chord progressions?',
+    acceptedAnswer: { text: 'Yes. You can transpose any progression up or down by any number of semitones with a single click. This is useful for finding the right key for your voice or instrument.' },
+  },
+  {
+    name: 'What rhythm styles are available?',
+    acceptedAnswer: { text: 'Chord Sequence includes 13+ rhythm styles including pop, rock, jazz, lo-fi, worship, Latin, and more. Each style changes the playback feel and instrument mix.' },
+  },
+  {
+    name: 'Are my saved songs private?',
+    acceptedAnswer: { text: 'Yes. Songs are saved directly to your browser\'s local storage and never uploaded to any server. No account is needed and your progressions remain private to your device.' },
+  },
+  {
+    name: 'Can I use Chord Sequence on mobile?',
+    acceptedAnswer: { text: 'Yes. Chord Sequence is fully responsive and works on smartphones and tablets. The editor is touch-friendly and the playback works on iOS and Android.' },
+  },
+  {
+    name: 'What is a chord progression?',
+    acceptedAnswer: { text: 'A chord progression is a sequence of chords played in order. Chord progressions form the harmonic backbone of virtually every piece of music — from pop songs to jazz standards. Common examples include I–V–vi–IV (pop), ii–V–I (jazz), and i–VI–III–VII (minor pop).' },
+  },
+];
 
 const features = [
   { icon: 'grid', title: 'Drag & Drop Builder', desc: 'Arrange chords and sections visually. Reorder with drag & drop, duplicate sections, and build complex song structures in minutes.' },
@@ -451,7 +441,7 @@ const songListSchema = {
       </div>
 
       <div class="space-y-4">
-        {faqSchema.mainEntity.map((q: any) => (
+        {faqs.map((q: any) => (
           <div class="rounded-xl border border-border bg-card overflow-hidden">
             <details class="group">
               <summary class="flex cursor-pointer items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-foreground select-none list-none hover:bg-accent/30 transition-colors">

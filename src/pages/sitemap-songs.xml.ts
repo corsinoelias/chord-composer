@@ -12,7 +12,7 @@ const TODAY = new Date().toISOString().split('T')[0];
 export const GET: APIRoute = async () => {
   // Static songs — always present after deploy, no Supabase required
   const staticSlugs = new Set(SONGS.map(s => s.slug));
-  const staticEntries = SONGS.map(s => ({ slug: s.slug, lastmod: TODAY }));
+  const staticEntries = SONGS.map(s => ({ slug: s.slug, lastmod: s.lastModified ?? TODAY }));
 
   // Community songs from Supabase — filter out any that are also in the static array
   const supabaseSongs = await getPublishedSongs();

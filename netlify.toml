@@ -40,15 +40,30 @@
     Permissions-Policy = "camera=(), microphone=(self), geolocation=()"
 
 # Edge-cache /songs/ index and individual song pages (SSR — content changes only on new song publish)
+# Security headers are restated explicitly here (not just relying on the global /* block
+# above) because Netlify's per-path header merging is not guaranteed when multiple
+# [[headers]] blocks match the same path — this previously left /songs/* without HSTS.
 [[headers]]
   for = "/songs/"
   [headers.values]
     Cache-Control = "public, s-maxage=3600, stale-while-revalidate=86400"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; frame-ancestors 'none';"
 
 [[headers]]
   for = "/songs/*"
   [headers.values]
     Cache-Control = "public, s-maxage=3600, stale-while-revalidate=86400"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; frame-ancestors 'none';"
 
 # www → apex redirect (prevents www subdomain from being indexed separately)
 [[redirects]]
@@ -285,9 +300,12 @@
   force = true
 
 # Redirect /songs/?page=* to /songs/ — no pagination exists, avoids soft-404 indexing (HIGH)
+# NOTE: trailing "?" on `to` clears the incoming query string. Without it, Netlify
+# re-appends the unmatched query onto the target, causing /songs/?page=2 to redirect
+# back to /songs/?page=2 — an infinite loop (this was a live CRITICAL bug).
 [[redirects]]
   from = "/songs/"
-  to = "/songs/"
+  to = "/songs/?"
   status = 301
   force = true
   [redirects.query]

@@ -112,7 +112,7 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title, toolCo
                 type="button"
                 onClick={() => setSelectedIdx(i)}
                 className={`
-                  inline-flex items-center justify-center min-w-[48px] px-3 py-1.5 rounded-lg
+                  inline-flex items-center justify-center min-w-[48px] min-h-[44px] px-3 py-2 rounded-lg
                   text-sm font-semibold border transition-all duration-150
                   ${isPlayingActive
                     ? 'bg-primary text-primary-foreground border-primary scale-105 shadow-md'

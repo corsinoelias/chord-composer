@@ -474,8 +474,9 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                                   <PopoverTrigger asChild>
                                     <span
                                       className={`
-                                        text-xs font-bold leading-none mb-0.5 whitespace-pre px-0.5
+                                        relative text-xs font-bold leading-none mb-0.5 whitespace-pre px-0.5
                                         transition-all duration-100 cursor-pointer select-none
+                                        before:content-[''] before:absolute before:-inset-y-1.5 before:-inset-x-1.5
                                         ${isActive
                                           ? 'text-primary bg-primary/15 rounded px-1 py-0.5 scale-105 inline-block'
                                           : 'text-primary/70 hover:text-primary'

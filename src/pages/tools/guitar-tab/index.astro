@@ -24,6 +24,17 @@ const faqs = [
   { q: 'Can I export my tab?', a: 'Yes. Use the Export button to copy your tab as ASCII text (the classic tabbing format), or export to MIDI for use in a DAW like GarageBand, Logic, or Ableton.' },
 ];
 
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  '@id': 'https://chordsequence.com/tools/guitar-tab/#breadcrumb',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://chordsequence.com/tools/' },
+    { '@type': 'ListItem', position: 3, name: 'Guitar Tab Player', item: 'https://chordsequence.com/tools/guitar-tab/' },
+  ],
+};
+
 const webAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
@@ -37,11 +48,6 @@ const webAppSchema = {
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 };
 
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: faqs.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
-};
 ---
 
 <BaseLayout
@@ -51,7 +57,7 @@ const faqSchema = {
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
 
   <main>

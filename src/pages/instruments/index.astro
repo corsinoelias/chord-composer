@@ -3,6 +3,16 @@ export const prerender = true
 import BaseLayout from '../../layouts/BaseLayout.astro'
 import { INSTRUMENTS_LIST } from '../../data/instrumentsList'
 
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  '@id': 'https://chordsequence.com/instruments/#breadcrumb',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Instruments', item: 'https://chordsequence.com/instruments/' },
+  ],
+};
+
 const itemListSchema = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
@@ -16,45 +26,6 @@ const itemListSchema = {
     url: `https://chordsequence.com${inst.url}`,
     description: inst.tagline,
   })),
-}
-
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'Are the virtual instruments free?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Yes — every instrument on Chord Sequence is free to use in any modern browser. No account, no download.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'What is a virtual instrument?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'A virtual instrument is a software recreation of a real instrument that you play in the browser. It uses real audio samples or synthesis to produce authentic-sounding tones without physical hardware.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Can I use these instruments on mobile?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Yes. All instruments run in any modern browser including Safari on iOS and Chrome on Android. No plugin required.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Which virtual instruments are available right now?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'The Virtual Bass Guitar and Virtual Guitar are both live now. You can play them at chordsequence.com/bass-guitar/ and chordsequence.com/guitar/. Piano and Drums are in development.',
-      },
-    },
-  ],
 }
 
 const faqs = [
@@ -74,7 +45,7 @@ const faqs = [
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
 
   <main>

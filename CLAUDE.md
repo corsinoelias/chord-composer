@@ -5,15 +5,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev        # Start Astro dev server (http://localhost:4321)
-npm run build      # Production build
-npm run check      # Astro type check
-npm run lint       # ESLint
-npx tsc --noEmit   # TypeScript-only type check (faster for catching errors)
-npm run seed       # Seed songs to Supabase (requires .env)
+npm run dev           # Start Astro dev server (http://localhost:4321)
+npm run build         # Production build
+npm run check         # Astro type check
+npm run check:schema  # Fails if any page has FAQPage JSON-LD (see note below)
+npm run lint          # ESLint
+npx tsc --noEmit      # TypeScript-only type check (faster for catching errors)
+npm run seed          # Seed songs to Supabase (requires .env)
 ```
 
 There are no automated tests.
+
+**Never add FAQPage schema.** Google restricted FAQ rich results to government/health
+sites in Aug 2023 — this site doesn't qualify. This has already recurred twice (removed
+from 3 pages in June, reappeared on 10 new pages by July since each page declared its own
+inline `faqSchema` with no shared component). Run `npm run check:schema` before deploying;
+visible FAQ content on a page is fine, it just must never be serialized as
+`'@type': 'FAQPage'` JSON-LD.
 
 ## Architecture
 

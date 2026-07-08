@@ -524,16 +524,6 @@ const faqItems = [
   },
 ];
 
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: faqItems.map(f => ({
-    '@type': 'Question',
-    name: f.q,
-    acceptedAnswer: { '@type': 'Answer', text: f.a },
-  })),
-};
-
 const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
@@ -559,7 +549,6 @@ const breadcrumbSchema = {
     <meta property="article:author"         content="Elías Corsino Saldaña" />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
 
