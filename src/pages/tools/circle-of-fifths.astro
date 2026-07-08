@@ -5,6 +5,35 @@ import { CircleOfFifths } from '../../components/CircleOfFifths';
 import RelatedTools from '../../components/RelatedTools.astro';
 import AppCta from '../../components/AppCta.astro';
 
+const faqs = [
+  {
+    q: 'What is the Circle of Fifths used for?',
+    a: 'It maps how the 12 major and minor keys relate to each other, arranged so that each step clockwise or counterclockwise adds one sharp or flat. Musicians use it to find closely related keys for modulation, to build chord progressions that sound natural, and to quickly work out a key signature without memorizing it.',
+  },
+  {
+    q: 'How do I use the Circle of Fifths to transpose a song?',
+    a: 'Find your current key on the circle, then find the target key. The number of steps between them tells you how many sharps or flats you are adding or removing — every chord in the progression shifts by the same interval. The Chord Transposer tool does this shift automatically if you would rather not do it by hand.',
+  },
+  {
+    q: 'Why are major and minor keys shown on the same circle?',
+    a: 'Every major key has a relative minor that shares the exact same key signature — for example C major and A minor both use no sharps or flats. The outer ring on this chart shows the major keys and the inner ring shows their relative minors directly across from them.',
+  },
+  {
+    q: 'What are the closest related keys to any given key?',
+    a: 'The two keys directly next to a key on the circle — one clockwise (its dominant, V) and one counterclockwise (its subdominant, IV) — share six of seven diatonic chords with it. That overlap is why moving between neighboring keys sounds smooth, and why so many songs modulate up a fourth or fifth.',
+  },
+];
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map(f => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+};
+
 const webAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
@@ -35,6 +64,7 @@ const breadcrumbSchema = {
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
   </Fragment>
 
   <main class="mx-auto max-w-4xl px-4 sm:px-6 py-12 sm:py-20">
@@ -68,6 +98,13 @@ const breadcrumbSchema = {
     <!-- Explainer -->
     <section class="mt-20 prose prose-invert max-w-none">
       <h2 class="text-2xl font-bold text-foreground mb-6">What is the Circle of Fifths?</h2>
+      <p class="text-sm text-muted-foreground leading-relaxed mb-8 max-w-2xl">
+        The Circle of Fifths is a diagram of all 12 major keys (and their relative minors) arranged by how closely
+        they're related — each step around the circle adds or removes exactly one sharp or flat. It was originally
+        a way to visualize key signatures, but songwriters and producers use it for a lot more: finding a key to
+        modulate into that will sound natural, building chord progressions from a key's diatonic chords, and
+        understanding at a glance why certain chord changes feel smooth while others feel jarring.
+      </p>
       <div class="grid sm:grid-cols-2 gap-8">
         <div class="rounded-xl border border-border bg-card p-6">
           <h3 class="font-semibold text-foreground mb-2">How to read it</h3>
@@ -109,6 +146,21 @@ const breadcrumbSchema = {
       heading="Build a progression from your key"
       description="Pick chords from the table above and arrange them in the Chord Player — add rhythm, transpose, and export to WAV."
     />
+
+    <!-- FAQ -->
+    <section class="py-16">
+      <div class="mx-auto max-w-3xl px-0 sm:px-0">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-8">Frequently asked questions</h2>
+        <div class="space-y-5">
+          {faqs.map((f) => (
+            <div class="rounded-xl border border-border bg-card p-6">
+              <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
+              <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
 
     <!-- RELATED TOOLS -->
     <RelatedTools tools={[

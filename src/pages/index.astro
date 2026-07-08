@@ -85,6 +85,7 @@ const popularProgressions = [
 ];
 
 const tools = [
+  { title: 'Chord Progression Generator', desc: 'Build progressions by genre — pop, jazz, blues, worship, and more.', href: '/chord-progression-generator/' },
   { title: 'Chord Transposer', desc: 'Shift any chord or progression to any key instantly.', href: '/tools/chord-transposer/' },
   { title: 'Circle of Fifths', desc: 'Interactive chart — click any key to see its diatonic chords.', href: '/tools/circle-of-fifths/' },
   { title: 'Key Detector', desc: 'Detect the key of any chord progression.', href: '/tools/key-detector/' },
@@ -318,9 +319,12 @@ const songListSchema = {
         ))}
       </div>
 
-      <div class="mt-10 text-center">
+      <div class="mt-10 flex flex-col items-center justify-center gap-3 text-center sm:flex-row sm:gap-6">
         <a href="/progressions/" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
           Browse all chord progressions by genre →
+        </a>
+        <a href="/chord-progression-generator/" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+          Try the free chord progression generator →
         </a>
       </div>
     </div>

@@ -69,9 +69,7 @@ export const GENRES: Genre[] = [
     description: 'Essential jazz chord progressions — from the ii–V–I cornerstone to bossa nova, jazz blues, and modal harmony.',
     metaDescription: 'Play and learn essential jazz chord progressions: ii–V–I, jazz turnarounds, bossa nova, jazz blues, modal jazz, and more. Interactive players — no signup required.',
     editorialIntro: [
-      'Jazz harmony is built around a single foundational movement: the ii–V–I. In C major that means Dm7–G7–Cmaj7 — a dominant seventh chord (G7) pulling resolving to the tonic major seventh (Cmaj7). This three-chord pattern appears in virtually every jazz standard ever written, from Autumn Leaves to All The Things You Are. Learn it in all 12 keys and you have the skeleton of the entire jazz repertoire.',
-      'What makes jazz progressions distinctive is the use of extended chords — sevenths, ninths, elevenths, and thirteenths — and the way those chords move through the circle of fifths. Each dominant seventh chord wants to resolve a perfect fifth downward. Jazz composers exploit this pull constantly, chaining dominants to create long descending sequences through the circle before finally landing on the tonic.',
-      'Tritone substitution, one of the most powerful jazz techniques, replaces a dominant chord with another dominant whose root is a tritone (six semitones) away. G7 can be replaced by Db7 — they share the same tritone interval (B and F) and create a smooth chromatic bass movement into the resolution. The progressions below cover everything from basic ii–V–I to bossa nova, jazz blues, and modal vamps. Play each one, listen to how the chords want to move, and notice which tensions resolve naturally.',
+      'From the ii–V–I cornerstone to bossa nova, jazz blues, and modal vamps — these are the progressions that show up in virtually every jazz standard. Press play on each one below to hear how the chords move, then head to the full guide for the theory behind why they work.',
     ],
     learnLink: { href: '/learn/jazz-chord-progressions/', label: 'Read the complete jazz chord progressions guide →' },
     learnSectionTitle: 'Learn jazz harmony',

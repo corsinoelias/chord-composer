@@ -19,6 +19,35 @@ const keyExamples = [
   { chords: 'Am F C G', key: 'A minor / C major', hint: 'Starts on Am — feels like A minor. Same notes, different tonal center.', scaleHref: '/tools/scales/?root=9&scale=' + encodeURIComponent('Natural Minor Scale') },
   { chords: 'Dm7 G7 Cmaj7', key: 'C major', hint: 'ii–V–I in C. The G7 resolves strongly to Cmaj7, confirming C as the key.', scaleHref: '/tools/scales/?root=0&scale=' + encodeURIComponent('Major Scale') },
 ];
+
+const faqs = [
+  {
+    q: 'Is there an automatic key detector tool?',
+    a: 'Not a standalone one on this page — but Chord Player\'s Roman Numeral view analyzes the chords you enter and suggests the most likely key automatically, which is the fastest option if you don\'t want to work it out by hand.',
+  },
+  {
+    q: 'How do I find the key of a song without any tools?',
+    a: 'Look for a V7 → I resolution (a dominant seventh chord resolving to a major chord one fourth above it) — that almost always confirms the key. If there\'s no clear dominant chord, list every chord you hear and find the one major scale that contains all of them; the "home" chord in that scale is your key.',
+  },
+  {
+    q: 'How can the same four chords be two different keys?',
+    a: 'Every major key shares its exact chords with its relative minor — C major and A minor both use C, Dm, Em, F, G, Am, and Bdim. The chords alone don\'t tell you which key you\'re in; what matters is which chord the progression resolves to and starts/ends on. Am–F–C–G feels like A minor; C–G–Am–F feels like C major.',
+  },
+  {
+    q: 'Does the key affect which chords I can use next?',
+    a: 'Yes — once you know the key, its diatonic chords (the ones built from that key\'s scale) are the ones most likely to sound "in key." The Circle of Fifths tool shows you all seven diatonic chords for any key at a glance.',
+  },
+];
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map(f => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+};
 ---
 
 <BaseLayout
@@ -28,6 +57,7 @@ const keyExamples = [
 >
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
   </Fragment>
   <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
     <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
@@ -43,14 +73,16 @@ const keyExamples = [
         Key Detector
       </h1>
       <p class="text-lg text-muted-foreground">
-        Identify the musical key of any chord progression. Understand which key your chords belong to and why.
+        Identify the musical key of any chord progression. Understand which key your chords belong to and why —
+        no automatic detector needed, just four reliable methods below.
       </p>
     </header>
 
     <div class="rounded-xl border border-primary/30 bg-primary/5 p-7 mb-14 text-center">
-      <h2 class="text-xl font-semibold text-foreground mb-2">Detect the key in Chord Player</h2>
+      <h2 class="text-xl font-semibold text-foreground mb-2">Get an instant key suggestion in Chord Player</h2>
       <p class="text-sm text-muted-foreground mb-5">
-        Add your chords in Chord Player and use the Roman Numeral view to see which key your progression belongs to.
+        Add your chords in Chord Player and switch to the Roman Numeral view — it shows the most likely key
+        for your progression in one click, faster than working it out by hand.
       </p>
       <a href="/app" class="inline-flex items-center gap-2 px-7 py-3.5 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
         Open free Chord Player
@@ -97,6 +129,19 @@ const keyExamples = [
             </div>
             <p class="text-xs text-muted-foreground mb-3">{ex.hint}</p>
             <ChordEmbedIsland chords={ex.chords} bpm={100} style="pop_basic" title={ex.chords} />
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="mb-14">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Frequently asked questions</h2>
+      <div class="space-y-5">
+        {faqs.map((f) => (
+          <div class="rounded-xl border border-border bg-card p-6">
+            <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
+            <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
           </div>
         ))}
       </div>
