@@ -20,21 +20,95 @@ import EditorApp from '../../components/EditorApp';
     EditorApp uses client:only (it touches window/localStorage/AudioContext at mount),
     so nothing paints until the full React bundle loads and hydrates — this was the
     LCP culprit (Lighthouse: 5.0s "Poor"). The static skeleton below renders immediately
-    server-side and sits in the same CSS grid cell as the island, so it paints first and
-    is simply covered once EditorApp mounts (both are opaque, EditorApp is later in
-    source order so it wins the paint on top) — no JS coordination needed.
+    server-side and sits in the same CSS grid cell as the island.
+
+    Relying on DOM order alone to cover it was NOT reliable: Chromium can promote the
+    animate-pulse element to its own compositing layer and paint it above the later
+    sibling despite source order, so the skeleton showed through on top of the loaded
+    app. Explicit z-index fixes the stacking, and the inline script below removes the
+    skeleton outright once EditorApp's astro-island fires "astro:hydrate" (that event
+    doesn't bubble, hence the capture listener), so no stale skeleton lingers.
   -->
   <div style="display: grid;">
-    <div style="grid-area: 1 / 1;" class="min-h-screen bg-background" aria-hidden="true">
-      <div class="border-b border-border bg-card h-[57px]"></div>
-      <div class="container max-w-6xl mx-auto px-2 sm:px-4 py-6 space-y-4">
-        <div class="h-8 w-48 rounded-lg bg-muted animate-pulse"></div>
-        <div class="h-40 w-full rounded-xl bg-muted animate-pulse"></div>
-        <div class="h-40 w-full rounded-xl bg-muted animate-pulse"></div>
+    <div id="editor-skeleton" style="grid-area: 1 / 1; z-index: 0;" class="min-h-screen bg-background" aria-hidden="true">
+      <!-- header: logo + breadcrumb + action buttons -->
+      <div class="border-b border-border bg-card">
+        <div class="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 sm:gap-3">
+              <div class="w-8 h-8 rounded-lg bg-primary/20"></div>
+              <div class="hidden sm:block h-3 w-32 rounded bg-muted animate-pulse"></div>
+            </div>
+            <div class="flex items-center gap-1.5 sm:gap-2">
+              <div class="h-8 w-14 rounded-md bg-muted animate-pulse"></div>
+              <div class="hidden sm:block h-8 w-24 rounded-md bg-muted animate-pulse"></div>
+              <div class="h-8 w-16 rounded-md bg-muted animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container max-w-6xl mx-auto px-2 sm:px-4 py-3 sm:py-6 space-y-3 sm:space-y-4">
+        <!-- transport card: play button, tempo, title, style/instruments/rhythm toolbar -->
+        <div class="bg-card border border-border rounded-2xl shadow-lg p-3 sm:p-4 md:p-5 space-y-4">
+          <div class="flex items-center gap-3 sm:gap-4">
+            <div class="h-11 w-11 sm:h-12 sm:w-12 rounded-full bg-muted animate-pulse shrink-0"></div>
+            <div class="hidden sm:block h-6 w-14 rounded bg-muted animate-pulse shrink-0"></div>
+            <div class="h-2 w-20 sm:w-28 md:w-32 rounded-full bg-muted animate-pulse shrink-0"></div>
+            <div class="h-9 w-full max-w-xs rounded-md bg-muted animate-pulse"></div>
+            <div class="ml-auto flex items-center gap-2 shrink-0">
+              <div class="hidden sm:block h-8 w-16 rounded-md bg-muted animate-pulse"></div>
+              <div class="h-8 w-20 rounded-md bg-muted animate-pulse"></div>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="h-8 w-28 rounded-lg bg-muted animate-pulse"></div>
+            <div class="h-8 w-24 rounded-lg bg-muted animate-pulse"></div>
+            <div class="h-8 w-20 rounded-lg bg-muted animate-pulse"></div>
+            <div class="h-8 w-16 rounded-lg bg-muted animate-pulse"></div>
+          </div>
+        </div>
+
+        <!-- chord preview card: fretboard/piano -->
+        <div class="bg-card border border-border rounded-2xl shadow-lg p-4 sm:p-6 space-y-4">
+          <div class="h-3 w-28 rounded bg-muted animate-pulse mx-auto"></div>
+          <div class="h-28 sm:h-40 w-full rounded-xl bg-muted animate-pulse"></div>
+        </div>
+
+        <!-- section card: name/icons row + chord chips + add buttons -->
+        <div class="bg-card border border-border border-l-4 border-l-primary/30 rounded-2xl shadow-lg p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="h-4 w-20 rounded bg-muted animate-pulse"></div>
+            <div class="flex items-center gap-2">
+              <div class="h-5 w-5 rounded bg-muted animate-pulse"></div>
+              <div class="h-5 w-5 rounded bg-muted animate-pulse"></div>
+              <div class="h-5 w-5 rounded bg-muted animate-pulse"></div>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <div class="h-14 w-16 rounded-lg bg-muted animate-pulse"></div>
+            <div class="h-14 w-16 rounded-lg bg-muted animate-pulse"></div>
+            <div class="h-14 w-16 rounded-lg bg-muted animate-pulse"></div>
+            <div class="h-14 w-16 rounded-lg bg-muted animate-pulse"></div>
+          </div>
+          <div class="flex gap-2">
+            <div class="h-8 w-24 rounded-md bg-muted animate-pulse"></div>
+            <div class="h-8 w-24 rounded-md bg-muted animate-pulse"></div>
+          </div>
+        </div>
       </div>
     </div>
-    <div style="grid-area: 1 / 1;">
+    <div style="grid-area: 1 / 1; z-index: 1;">
       <EditorApp client:only="react" />
     </div>
   </div>
+  <script>
+    document.addEventListener(
+      'astro:hydrate',
+      () => {
+        document.getElementById('editor-skeleton')?.remove();
+      },
+      { capture: true, once: true },
+    );
+  </script>
 </BaseLayout>
