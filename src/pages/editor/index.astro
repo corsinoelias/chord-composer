@@ -228,8 +228,12 @@ const webAppSchema = {
           </p>
         </div>
 
-        <!-- BUILDING YOUR PROGRESSION — this part is a real sequence, so numbering earns its keep -->
-        <div>
+        <!-- BUILDING YOUR PROGRESSION — this part is a real sequence, so numbering earns its keep.
+             Each group below sits on its own white card (bg-card) rather than the bare page
+             background — the inner feature tiles use bg-background (the page's gray), so they
+             read as nested chips inside the panel instead of blending into the page. That's what
+             actually separates one group from the next now, not a colored rail. -->
+        <div class="rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-6">
           <p class="text-[0.7em] font-bold uppercase tracking-wider text-primary mb-1">Step by step</p>
           <h2 class="font-semibold text-foreground text-[1.3em] mb-4">Building your progression</h2>
           <ol class="grid sm:grid-cols-2 gap-3">
@@ -253,7 +257,7 @@ const webAppSchema = {
         </div>
 
         <!-- SHAPING THE SOUND — independent tools, not a sequence, so a plain grid instead of numbers -->
-        <div>
+        <div class="rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-6">
           <p class="text-[0.7em] font-bold uppercase tracking-wider text-primary mb-1">Sound tools</p>
           <h2 class="font-semibold text-foreground text-[1.3em] mb-4">Shaping the sound</h2>
           <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -296,7 +300,7 @@ const webAppSchema = {
         </div>
 
         <!-- SAVING & SHARING -->
-        <div>
+        <div class="rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-6">
           <p class="text-[0.7em] font-bold uppercase tracking-wider text-primary mb-1">Wrap up</p>
           <h2 class="font-semibold text-foreground text-[1.3em] mb-4">Saving &amp; sharing</h2>
           <div class="grid sm:grid-cols-2 gap-3 max-w-2xl">
@@ -318,7 +322,7 @@ const webAppSchema = {
         </div>
 
         <!-- USE CASES -->
-        <div class="max-w-2xl">
+        <div class="max-w-2xl rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-6">
           <p class="text-[0.7em] font-bold uppercase tracking-wider text-primary mb-1">Use cases</p>
           <h2 class="font-semibold text-foreground text-[1.3em] mb-2">What it's for</h2>
           <p class="text-muted-foreground leading-relaxed">
@@ -331,7 +335,7 @@ const webAppSchema = {
         <!-- FAQ — individual accordions, closed by default: a reader scans 4 questions in
              seconds instead of 4 paragraphs sitting open whether they're relevant or not.
              Content stays in the DOM either way, so nothing is lost for crawlers. -->
-        <div class="max-w-2xl">
+        <div class="max-w-2xl rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-6">
           <p class="text-[0.7em] font-bold uppercase tracking-wider text-primary mb-1">Questions</p>
           <h2 class="font-semibold text-foreground text-[1.3em] mb-3">FAQ</h2>
           <div class="divide-y divide-border">
