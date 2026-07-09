@@ -1,8 +1,8 @@
 User-agent: *
 Disallow: /app
 Disallow: /app/
-Allow: /editor/$
-Disallow: /editor/
+Allow: /chord-player/$
+Disallow: /chord-player/
 Allow: /
 
 # AI search crawlers — explicitly allowed

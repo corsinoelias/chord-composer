@@ -332,7 +332,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     : totalSpan;
   const progress = activeSpan > 0 ? Math.min(100, Math.round((currentChordIndex / (activeSpan - 1)) * 100)) : 0;
 
-  const editorUrl = `/editor/?data=${encodeEditorSections(editorSectionsData)}&bpm=${bpm}&style=${song.style}`;
+  const editorUrl = `/chord-player/?data=${encodeEditorSections(editorSectionsData)}&bpm=${bpm}&style=${song.style}`;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (

@@ -12,10 +12,11 @@ const SECURITY_HEADERS: Record<string, string> = {
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = new URL(context.request.url);
 
-  // Rewrite /editor/<songId> → /editor/ so the SPA island handles the ID.
-  // X-Robots-Tag at HTTP level speeds up deindexing of any shared editor URLs Google crawled.
-  if (/^\/editor\/.+/.test(pathname)) {
-    const response = await context.rewrite('/editor/');
+  // Rewrite /chord-player/<songId> → /chord-player/ so the SPA island handles the ID.
+  // X-Robots-Tag at HTTP level speeds up deindexing of any shared chord-player URLs Google crawled.
+  // (Old /editor/* links 301 to here via netlify.toml before ever reaching this middleware.)
+  if (/^\/chord-player\/.+/.test(pathname)) {
+    const response = await context.rewrite('/chord-player/');
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
     return response;
   }

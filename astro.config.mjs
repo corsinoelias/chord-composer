@@ -57,7 +57,7 @@ export default defineConfig({
     server: {
       historyApiFallback: {
         rewrites: [
-          { from: /^\/editor\/.*$/, to: '/editor/' },
+          { from: /^\/chord-player\/.*$/, to: '/chord-player/' },
         ],
       },
       headers: {

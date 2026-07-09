@@ -311,8 +311,15 @@
   [redirects.query]
     page = ":page"
 
-# SPA fallback for editor deep links
+# Old editor URL → renamed to /chord-player/ (permanent, preserves song IDs in the path)
 [[redirects]]
   from = "/editor/*"
-  to = "/editor/"
-  status = 200
+  to = "/chord-player/:splat"
+  status = 301
+  force = true
+
+# NOTE: no explicit SPA-fallback redirect for /chord-player/* here (unlike the old /editor/*
+# rule) — src/middleware.ts already does this rewrite at the Astro SSR layer, and testing
+# showed the Netlify dev redirect emulation's 200-status rewrites can 404 deep-link paths
+# before they ever reach that middleware. The adapter's own catch-all already routes
+# unmatched paths to the SSR function in production, so middleware.ts alone is sufficient.

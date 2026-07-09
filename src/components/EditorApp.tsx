@@ -11,7 +11,7 @@ export default function EditorApp() {
   const songId = (() => {
     if (typeof window === 'undefined') return undefined;
     const parts = window.location.pathname.split('/').filter(Boolean);
-    return parts[0] === 'editor' && parts[1] ? parts[1] : undefined;
+    return parts[0] === 'chord-player' && parts[1] ? parts[1] : undefined;
   })();
 
   return (

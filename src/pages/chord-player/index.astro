@@ -18,9 +18,9 @@ import {
   Download,
 } from 'lucide-react';
 
-// NOTE: URLs like /editor/SONG_ID are handled by this same page via SPA routing.
-// For static hosting (Netlify/Vercel), configure a redirect:
-//   /editor/*  →  /editor/  (200 rewrite)
+// NOTE: URLs like /chord-player/SONG_ID are handled by this same page via SPA routing.
+// Netlify redirect: /chord-player/*  →  /chord-player/  (200 rewrite), plus a 301 from the
+// old /editor/* path (see netlify.toml) for links/bookmarks made before the rename.
 // The EditorApp reads the songId from window.location.pathname at runtime.
 
 const faqs = [
@@ -45,21 +45,22 @@ const faqs = [
 const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
-  '@id': 'https://chordsequence.com/editor/#breadcrumb',
+  '@id': 'https://chordsequence.com/chord-player/#breadcrumb',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
-    { '@type': 'ListItem', position: 2, name: 'Chord Sequence Player', item: 'https://chordsequence.com/editor/' },
+    { '@type': 'ListItem', position: 2, name: 'Chord Player', item: 'https://chordsequence.com/chord-player/' },
   ],
 };
 
 const webAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'Chord Sequence Player',
-  url: 'https://chordsequence.com/editor/',
+  name: 'Chord Player',
+  alternateName: 'Chord Sequence Player',
+  url: 'https://chordsequence.com/chord-player/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Free online chord sequence player with drag-and-drop sections, live rhythm playback, transposition, and one-click WAV export.',
+  description: 'Free online chord player with drag-and-drop sections, live rhythm playback, transposition, and one-click WAV export.',
   featureList: [
     'Drag-and-drop chord sections',
     'Live rhythm playback with piano, guitar, bass, and drums',
@@ -75,9 +76,9 @@ const webAppSchema = {
 ---
 
 <BaseLayout
-  title="Chord Sequence Player — Build, Play & Export Chord Progressions | Chord Sequence"
-  description="Chord Sequence Player: build chord progressions with drag-and-drop sections, live rhythm playback, transposition, and one-click WAV export."
-  canonicalUrl="https://chordsequence.com/editor/"
+  title="Chord Player — Build, Play & Export Chord Progressions | Chord Sequence"
+  description="Free online chord player: build chord progressions with drag-and-drop sections, live rhythm playback, transposition, and one-click WAV export."
+  canonicalUrl="https://chordsequence.com/chord-player/"
   showNav={false}
 >
   <Fragment slot="head">
@@ -105,11 +106,11 @@ const webAppSchema = {
       <div id="editor-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out;" class="min-h-screen bg-background">
         <!--
           The logo + breadcrumb row below is real, permanent content (not aria-hidden) —
-          it's where the "Chord Sequence Player" H1 lives instead of a separate hero band.
-          A crawler never has a saved song in its (nonexistent) localStorage, so it always
-          sees this exact text; a real visitor sees it too until they save something, at
-          which point the hydrated app swaps it for the actual song title (Index.tsx mirrors
-          this same condition). Everything else below is decorative loading shimmer only.
+          it's where the "Chord Player" H1 lives instead of a separate hero band. A crawler
+          never has a saved song in its (nonexistent) localStorage, so it always sees this
+          exact text; a real visitor sees it too until they save something, at which point
+          the hydrated app swaps it for the actual song title (Index.tsx mirrors this same
+          condition). Everything else below is decorative loading shimmer only.
         -->
         <div class="border-b border-border bg-card">
           <div class="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
@@ -119,7 +120,7 @@ const webAppSchema = {
                 <div class="hidden sm:flex items-center gap-1 text-xs text-muted-foreground min-w-0">
                   <span class="shrink-0">My library</span>
                   <span class="opacity-30 mx-0.5">/</span>
-                  <h1 class="text-foreground font-medium truncate max-w-[160px] md:max-w-xs m-0 inline text-xs">Chord Sequence Player</h1>
+                  <h1 class="text-foreground font-medium truncate max-w-[160px] md:max-w-xs m-0 inline text-xs">Chord Player</h1>
                 </div>
               </div>
               <div class="flex items-center gap-1.5 sm:gap-2" aria-hidden="true">
@@ -190,8 +191,8 @@ const webAppSchema = {
         'astro:hydrate',
         () => {
           // Fade out instead of an instant swap — the skeleton now shows real, readable
-          // text (the "Chord Sequence Player" breadcrumb), so an abrupt cut reads as a
-          // flicker/glitch in a way a plain loading shimmer never did.
+          // text (the "Chord Player" breadcrumb), so an abrupt cut reads as a flicker/glitch
+          // in a way a plain loading shimmer never did.
           const skeleton = document.getElementById('editor-skeleton');
           if (!skeleton) return;
           skeleton.style.opacity = '0';
@@ -206,33 +207,25 @@ const webAppSchema = {
       Fully visible on scroll, not gated behind a click — real content beats a closed
       accordion for both SEO (no reliance on Google expanding anything) and honesty with
       real visitors. It only shows up once someone scrolls past "Add Section" though, so
-      it never competes with the tool itself for attention on load. Styled with the same
-      card/border language as the app (rounded-xl border, muted text) rather than the
-      blog-style banded sections used on content pages like /metronome/, so it reads as
-      part of the same product instead of a second site bolted onto the tool.
+      it never competes with the tool itself for attention on load. Each group sits on its
+      own white card (bg-card) rather than the bare page background — that's what separates
+      one group from the next, not a colored rail.
     -->
-    <section aria-label="About the chord sequence player" class="mx-auto max-w-6xl mt-4 mb-16 px-4 sm:px-6">
+    <section aria-label="About the chord player" class="mx-auto max-w-6xl mt-4 mb-16 px-4 sm:px-6">
       <div class="border-t border-border pt-8 space-y-10 text-sm">
-        <!-- WHAT IS IT — plain-language definition, written for a total beginner. Tinted
-             "hero" card instead of plain paragraph text, so it reads as an intentional
-             opener rather than leftover copy. -->
+        <!-- WHAT IS IT — plain-language definition, written for a total beginner -->
         <div class="max-w-2xl rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.07] to-transparent p-5 sm:p-6">
-          <h2 class="font-semibold text-foreground text-[1.3em] mb-2">What is a chord sequence player?</h2>
+          <h2 class="font-semibold text-foreground text-[1.3em] mb-2">What is a chord player?</h2>
           <p class="text-muted-foreground leading-relaxed">
             A chord is a group of notes played at the same time — like pressing a few piano keys
-            together so they ring out as one sound. A chord sequence is just a few chords played
-            one after another, on repeat — it's the pattern behind almost every song you've ever
-            heard. This tool lets you pick your chords, choose a speed and a style, and hear them
-            played back with real piano, guitar, bass, and drum sounds, like a full band playing
-            your idea out loud. No sheet music and no instrument needed — just click and listen.
+            together so they ring out as one sound. A chord player lets you pick a sequence of
+            chords, choose a speed and a style, and hear them played back with real piano, guitar,
+            bass, and drum sounds — like a full band playing your idea out loud. No sheet music
+            and no instrument needed — just click and listen.
           </p>
         </div>
 
-        <!-- BUILDING YOUR PROGRESSION — this part is a real sequence, so numbering earns its keep.
-             Each group below sits on its own white card (bg-card) rather than the bare page
-             background — the inner feature tiles use bg-background (the page's gray), so they
-             read as nested chips inside the panel instead of blending into the page. That's what
-             actually separates one group from the next now, not a colored rail. -->
+        <!-- BUILDING YOUR PROGRESSION — this part is a real sequence, so numbering earns its keep -->
         <div class="rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-6">
           <p class="text-[0.7em] font-bold uppercase tracking-wider text-primary mb-1">Step by step</p>
           <h2 class="font-semibold text-foreground text-[1.3em] mb-4">Building your progression</h2>

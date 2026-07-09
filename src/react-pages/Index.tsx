@@ -117,7 +117,7 @@ const Index = ({ songId }: IndexProps) => {
     // When loading an existing song the real styleId arrives async from Supabase.
     // Use a neutral placeholder so the pre-load render doesn't apply the wrong style
     // overrides. For new songs (no id in path) default to merengue as before.
-    const hasSongInUrl = window.location.pathname.includes('/editor/song_');
+    const hasSongInUrl = window.location.pathname.includes('/chord-player/song_');
     if (hasSongInUrl) return 'rock_basic';
     return allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic';
   };
@@ -130,7 +130,7 @@ const Index = ({ songId }: IndexProps) => {
       if (!isNaN(parsed) && parsed >= 40 && parsed <= 300) return parsed;
     }
     const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
-    const hasSongInUrl = window.location.pathname.includes('/editor/song_');
+    const hasSongInUrl = window.location.pathname.includes('/chord-player/song_');
     const initialId = hasSongInUrl ? 'rock_basic' : (allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic');
     return allStyles.find(s => s.id === initialId)?.bpm ?? 100;
   });
@@ -359,7 +359,7 @@ const Index = ({ songId }: IndexProps) => {
   }, [isLoggedIn, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, songCreatedAt]);
 
   // Explicit save — turns the current in-progress work into a persisted song.
-  // Never fires automatically: /editor/ stays a stable, stateless URL until the user asks to save.
+  // Never fires automatically: /chord-player/ stays a stable, stateless URL until the user asks to save.
   const handleSaveNewSong = useCallback(async () => {
     const newSong = createSong(songTitle);
     newSong.sections = sections;
@@ -374,14 +374,14 @@ const Index = ({ songId }: IndexProps) => {
     setSongCreatedAt(newSong.createdAt);
     setLastSavedAt(new Date());
     setIsSaving(false);
-    window.history.pushState({}, '', `/editor/${newSong.id}`);
+    window.history.pushState({}, '', `/chord-player/${newSong.id}`);
   }, [songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, instruments]);
 
   // Handle export from Songs page
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('export') === 'true' && currentSongId) {
       // Remove export param from URL
-      window.history.replaceState({}, '', `/editor/${currentSongId}`);
+      window.history.replaceState({}, '', `/chord-player/${currentSongId}`);
       // Trigger export after a short delay to let everything load
       setTimeout(() => {
         handleExport();
@@ -951,11 +951,11 @@ const Index = ({ songId }: IndexProps) => {
   });
 
   // Update browser tab title dynamically once there's a real song — until then, keep the
-  // SEO title Astro set server-side ("Chord Sequence Player — ..."), don't clobber it with
+  // SEO title Astro set server-side ("Chord Player — ..."), don't clobber it with
   // the auto-generated "My Song · <date>" draft name.
   useEffect(() => {
     if (!currentSongId && !songId) return;
-    document.title = `${songTitle || 'New progression'} — Chord Player editor | Chord Sequence`;
+    document.title = `${songTitle || 'New progression'} — Chord Player | Chord Sequence`;
   }, [songTitle, currentSongId, songId]);
 
   return (
@@ -977,7 +977,7 @@ const Index = ({ songId }: IndexProps) => {
                 <a href="/app/" className="hover:text-foreground transition-colors shrink-0">My library</a>
                 <span className="opacity-30 mx-0.5">/</span>
                 <h1 className="text-foreground font-medium truncate max-w-[160px] md:max-w-xs m-0 inline text-xs">
-                  {currentSongId || songId ? songTitle || 'New progression' : 'Chord Sequence Player'}
+                  {currentSongId || songId ? songTitle || 'New progression' : 'Chord Player'}
                 </h1>
               </div>
 

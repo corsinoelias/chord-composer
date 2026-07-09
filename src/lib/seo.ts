@@ -10,11 +10,11 @@ export const SEO_OG = {
   siteName: 'Chord Sequence',
 } as const;
 
-export function editorPath(songId?: string | null) {
-  if (songId) return `/editor/${songId}`;
-  return '/editor';
+export function chordPlayerPath(songId?: string | null) {
+  if (songId) return `/chord-player/${songId}`;
+  return '/chord-player';
 }
 
-export function editorCanonicalUrl(songId?: string | null) {
-  return `${SITE_ORIGIN}${editorPath(songId)}`;
+export function chordPlayerCanonicalUrl(songId?: string | null) {
+  return `${SITE_ORIGIN}${chordPlayerPath(songId)}`;
 }

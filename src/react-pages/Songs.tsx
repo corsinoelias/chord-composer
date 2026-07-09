@@ -88,8 +88,8 @@ const Songs = () => {
     setActiveSong(null);
   }, []);
 
-  const handleCreateNew = useCallback(() => { window.location.href = '/editor'; }, []);
-  const handleOpenSong = useCallback((songId: string) => { window.location.href = `/editor/${songId}`; }, []);
+  const handleCreateNew = useCallback(() => { window.location.href = '/chord-player'; }, []);
+  const handleOpenSong = useCallback((songId: string) => { window.location.href = `/chord-player/${songId}`; }, []);
 
   const handleDuplicate = useCallback(async (song: Song) => {
     const duplicate = await duplicateSong(song.id);
@@ -105,7 +105,7 @@ const Songs = () => {
   }, [deleteConfirm, refreshSongs]);
 
   const handleExport = useCallback((song: Song) => {
-    window.location.href = `/editor/${song.id}?export=true`;
+    window.location.href = `/chord-player/${song.id}?export=true`;
   }, []);
 
   return (

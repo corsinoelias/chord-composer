@@ -371,7 +371,7 @@ function CircleOfFifthsInner() {
                 {diatonic.map((chord, j) => (
                   <a
                     key={`c${j}`}
-                    href={`/editor/?chords=${encodeURIComponent(toAsciiChord(chord))}`}
+                    href={`/chord-player/?chords=${encodeURIComponent(toAsciiChord(chord))}`}
                     title={`Open ${chord} in editor`}
                     className={`py-3 text-center text-base font-bold font-mono transition-colors block ${
                       hoveredDeg === j ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary'
@@ -399,7 +399,7 @@ function CircleOfFifthsInner() {
               }
             </button>
             <a
-              href={`/editor/?chords=${encodeURIComponent(diatonic.map(toAsciiChord).join(' '))}`}
+              href={`/chord-player/?chords=${encodeURIComponent(diatonic.map(toAsciiChord).join(' '))}`}
               className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
             >
               Open progression in editor →
