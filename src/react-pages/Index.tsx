@@ -1030,13 +1030,13 @@ const Index = ({ songId }: IndexProps) => {
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 {authChecked && !isLoggedIn ? (
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => setAuthModalOpen(true)}
-                    className="gap-1 h-8 px-2"
+                    className="gap-1.5 h-8 px-3 shadow-sm"
                   >
                     <Save className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline text-xs">Save</span>
+                    <span className="text-xs font-semibold">Save</span>
                   </Button>
                 ) : isSaving ? (
                   <span className="flex items-center gap-1">
@@ -1044,13 +1044,13 @@ const Index = ({ songId }: IndexProps) => {
                   </span>
                 ) : !currentSongId && !songId ? (
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={handleSaveNewSong}
-                    className="gap-1 h-8 px-2"
+                    className="gap-1.5 h-8 px-3 shadow-sm"
                   >
                     <Save className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline text-xs">Save</span>
+                    <span className="text-xs font-semibold">Save</span>
                   </Button>
                 ) : lastSavedAt ? (
                   <AccountMenu
