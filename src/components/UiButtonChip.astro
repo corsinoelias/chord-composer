@@ -1,0 +1,23 @@
+---
+// Renders inline as a static, non-interactive replica of the app's real toolbar
+// buttons (same lucide icon, same rounded-md/border look) — so when the how-it-works
+// copy says "click Instruments", the reader sees the actual button shape, not just
+// bold text, and can match it to what's on screen above.
+interface Props {
+  icon: (_props: { className?: string }) => unknown;
+  label: string;
+  variant?: 'outline' | 'primary';
+}
+
+const { icon: Icon, label, variant = 'outline' } = Astro.props;
+
+const variantClass =
+  variant === 'primary'
+    ? 'bg-primary text-primary-foreground border-transparent'
+    : 'bg-background text-foreground border-border';
+---
+
+<span class={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium align-middle whitespace-nowrap ${variantClass}`}>
+  <Icon className="h-3 w-3" />
+  {label}
+</span>

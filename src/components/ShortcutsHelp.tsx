@@ -17,8 +17,8 @@ export function ShortcutsHelp() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Keyboard className="h-4 w-4" />
+        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Keyboard shortcuts">
+          <Keyboard className="h-4 w-4" aria-hidden="true" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-56">

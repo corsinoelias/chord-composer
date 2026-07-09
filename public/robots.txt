@@ -1,7 +1,7 @@
 User-agent: *
 Disallow: /app
 Disallow: /app/
-Disallow: /editor
+Allow: /editor/$
 Disallow: /editor/
 Allow: /
 

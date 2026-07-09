@@ -113,9 +113,9 @@ export const StyleSelector = memo(function StyleSelector({
   }, [styleToDelete, selectedStyleId, onStyleChange]);
   return <>
       <div className="flex items-center gap-2">
-        <Music className="w-4 h-4 text-muted-foreground" />
+        <Music className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
         <Select value={selectedStyleId} onValueChange={onStyleChange}>
-          <SelectTrigger className="w-[180px] h-9 bg-secondary border-border">
+          <SelectTrigger aria-label="Rhythm style and tempo" className="w-[180px] h-9 bg-secondary border-border">
             <SelectValue placeholder="Seleccionar estilo" />
           </SelectTrigger>
           <SelectContent className="bg-popover border-border z-50 max-h-[400px]">

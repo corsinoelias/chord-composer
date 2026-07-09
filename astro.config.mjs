@@ -35,7 +35,7 @@ export default defineConfig({
     react(),
     mdx(),
     sitemap({
-      filter: (page) => !page.includes('/app') && !page.includes('/editor') && !page.includes('/songs/new'),
+      filter: (page) => !page.includes('/app') && !page.includes('/songs/new'),
       customPages: [
         'https://chordsequence.com/songs/',
       ],

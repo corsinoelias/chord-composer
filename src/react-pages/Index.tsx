@@ -463,6 +463,10 @@ const Index = ({ songId }: IndexProps) => {
     const newSection = createSection(getSectionDisplayName(sections.length));
     setSections(prev => [...prev, newSection]);
     analytics.sectionAdded();
+    // Sonner toasts are announced via aria-live — without this, adding a section is
+    // silent for screen reader users (the new card appears above the button with no
+    // notification, and focus never moves to it).
+    toast.success(`${newSection.name} added`);
   };
 
   const handleDeleteSection = useCallback((index: number) => {
@@ -946,12 +950,13 @@ const Index = ({ songId }: IndexProps) => {
     enabled: !showCountdown && !templatesModalOpen && !editingChord && !addChordSection,
   });
 
-  // Update browser tab title dynamically (SEO static meta is handled by Astro)
+  // Update browser tab title dynamically once there's a real song — until then, keep the
+  // SEO title Astro set server-side ("Chord Sequence Player — ..."), don't clobber it with
+  // the auto-generated "My Song · <date>" draft name.
   useEffect(() => {
-    document.title = songTitle
-      ? `${songTitle} — Chord Player editor | Chord Sequence`
-      : 'Chord progression editor — Chord Player | Chord Sequence';
-  }, [songTitle]);
+    if (!currentSongId && !songId) return;
+    document.title = `${songTitle || 'New progression'} — Chord Player editor | Chord Sequence`;
+  }, [songTitle, currentSongId, songId]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -965,11 +970,15 @@ const Index = ({ songId }: IndexProps) => {
                 <Music2 className="w-4 h-4 text-primary-foreground" />
               </a>
 
-              {/* Breadcrumb */}
+              {/* Breadcrumb — the page's only H1. The SSR skeleton renders the same text as
+                  an h1 in this exact spot; keeping it an h1 here too (not a span) means the
+                  page still has a level-one heading after hydration replaces the skeleton. */}
               <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground min-w-0">
                 <a href="/app/" className="hover:text-foreground transition-colors shrink-0">My library</a>
                 <span className="opacity-30 mx-0.5">/</span>
-                <span className="text-foreground font-medium truncate max-w-[160px] md:max-w-xs">{songTitle || 'New progression'}</span>
+                <h1 className="text-foreground font-medium truncate max-w-[160px] md:max-w-xs m-0 inline text-xs">
+                  {currentSongId || songId ? songTitle || 'New progression' : 'Chord Sequence Player'}
+                </h1>
               </div>
 
               {/* Mobile: back button only */}
@@ -1209,8 +1218,8 @@ const Index = ({ songId }: IndexProps) => {
           </DragOverlay>
         </DndContext>
 
-        <Button variant="outline" onClick={handleAddSection} className="w-full border-dashed border-border/50 hover:border-primary/40 h-9">
-          <Plus className="h-4 w-4 mr-2" />
+        <Button variant="outline" onClick={handleAddSection} className="w-full hover:border-primary/40 h-9">
+          <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
           Add Section
         </Button>
 
