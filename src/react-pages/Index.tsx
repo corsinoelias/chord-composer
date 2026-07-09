@@ -80,10 +80,6 @@ const Index = ({ songId }: IndexProps) => {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // True when editor was opened via ?chords= or ?data= link (e.g. from homepage embeds or song pages)
-  const isFromEmbedRef = useRef(!songId && !!(new URLSearchParams(window.location.search).get('chords') || new URLSearchParams(window.location.search).get('data')));
-  // Becomes true after the initial render cycle — used to distinguish init from user changes
-  const initialRenderDoneRef = useRef(false);
 
   // Default chords for new songs
   const defaultChords: Chord[] = [
@@ -315,50 +311,12 @@ const Index = ({ songId }: IndexProps) => {
           window.location.href = '/app';
         }
       });
-    } else if (!songId && !currentSongId && !isFromEmbedRef.current && authChecked && isLoggedIn) {
-      // New song - create and save immediately (only once logged in)
-      const newSong = createSong(songTitle);
-      newSong.sections = sections;
-      newSong.bpm = bpm;
-      newSong.styleId = selectedStyleId;
-      newSong.transposition = transposition;
-      newSong.metronomeEnabled = metronomeEnabled;
-      newSong.instrumentSettings = instruments;
-      saveSongWithSync(newSong);
-      setCurrentSongId(newSong.id);
-      setSongCreatedAt(newSong.createdAt);
-      setLastSavedAt(new Date());
-      window.history.replaceState({}, '', `/editor/${newSong.id}`);
-    } else if (!songId && !currentSongId && isFromEmbedRef.current) {
-      // Opened from embed — mark initial render done after one tick so auto-save
-      // can distinguish init from actual user changes
-      setTimeout(() => { initialRenderDoneRef.current = true; }, 0);
     }
-  }, [songId, authChecked, isLoggedIn]);
+  }, [songId]);
 
-  // Auto-save with debounce — only runs once logged in
+  // Auto-save with debounce — only runs once logged in AND a song has been explicitly saved
   useEffect(() => {
-    if (!isLoggedIn) return;
-
-    if (!currentSongId) {
-      // If opened from embed and user has made a change, create the song now
-      if (isFromEmbedRef.current && initialRenderDoneRef.current) {
-        const newSong = createSong(songTitle);
-        newSong.sections = sections;
-        newSong.bpm = bpm;
-        newSong.styleId = selectedStyleId;
-        newSong.transposition = transposition;
-        newSong.metronomeEnabled = metronomeEnabled;
-        newSong.instrumentSettings = instruments;
-        saveSongWithSync(newSong);
-        setCurrentSongId(newSong.id);
-        setSongCreatedAt(newSong.createdAt);
-        setLastSavedAt(new Date());
-        window.history.replaceState({}, '', `/editor/${newSong.id}`);
-        isFromEmbedRef.current = false;
-      }
-      return;
-    }
+    if (!isLoggedIn || !currentSongId) return;
 
     // Clear existing timeout
     if (saveTimeoutRef.current) {
@@ -399,6 +357,25 @@ const Index = ({ songId }: IndexProps) => {
       }
     };
   }, [isLoggedIn, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, songCreatedAt]);
+
+  // Explicit save — turns the current in-progress work into a persisted song.
+  // Never fires automatically: /editor/ stays a stable, stateless URL until the user asks to save.
+  const handleSaveNewSong = useCallback(async () => {
+    const newSong = createSong(songTitle);
+    newSong.sections = sections;
+    newSong.bpm = bpm;
+    newSong.styleId = selectedStyleId;
+    newSong.transposition = transposition;
+    newSong.metronomeEnabled = metronomeEnabled;
+    newSong.instrumentSettings = instruments;
+    setIsSaving(true);
+    await saveSongWithSync(newSong);
+    setCurrentSongId(newSong.id);
+    setSongCreatedAt(newSong.createdAt);
+    setLastSavedAt(new Date());
+    setIsSaving(false);
+    window.history.pushState({}, '', `/editor/${newSong.id}`);
+  }, [songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, instruments]);
 
   // Handle export from Songs page
   useEffect(() => {
@@ -1065,6 +1042,16 @@ const Index = ({ songId }: IndexProps) => {
                   <span className="flex items-center gap-1">
                     <Loader2 className="h-3 w-3 animate-spin" />
                   </span>
+                ) : !currentSongId && !songId ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveNewSong}
+                    className="gap-1 h-8 px-2"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs">Save</span>
+                  </Button>
                 ) : lastSavedAt ? (
                   <AccountMenu
                     displayName={displayName}
