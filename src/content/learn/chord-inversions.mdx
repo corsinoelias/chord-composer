@@ -1,16 +1,39 @@
 ---
 title: "Chord Inversions Explained: Triads and Seventh Chords"
-seoTitle: "Chord Jumps Explained: The Beatles' Trick & Chord Inversions"
-description: "Learn chord inversions with interactive examples — slash chord notation, voice leading, and real song examples. Triads and seventh chords covered."
+seoTitle: "Chord Inversions Explained: 1st, 2nd & 3rd (With Audio Examples)"
+description: "Learn chord inversions with interactive audio examples — the 1-3-5 pattern, slash chord notation, and voice leading. Triads and seventh chords covered."
 pubDate: 2026-06-22
-updatedDate: 2026-06-23
-tags: ["music theory", "chord inversions", "voice leading", "songwriting", "slash chords", "chord jumps", "Beatles"]
+updatedDate: 2026-07-10
+tags: ["music theory", "chord inversions", "voice leading", "songwriting", "slash chords"]
 author: 'elias-corsino'
 ---
 
 A **chord inversion** is what happens when you reorganize a chord so that a note other than the root sits at the bottom. The chord doesn't change — C major is still C major — but the lowest note does, which changes the sound and the way it connects to the chords around it.
 
 To understand inversions fully, it helps to look at them separately for **triads** (3-note chords) and **seventh chords** (4-note chords), since each type has a different number of available positions.
+
+---
+
+## The 1-3-5 Pattern (Works in Any Key)
+
+Every chord is built from scale-degree numbers relative to its own root: **1** (root), **3** (third), **5** (fifth) — and **7** for seventh chords. Once you think in numbers instead of note names, inversions stop being something you memorize chord-by-chord and become a pattern you can apply to anything.
+
+| Position | Number pattern |
+|---|---|
+| Root position | 1 – 3 – 5 |
+| First inversion | 3 – 5 – 1 |
+| Second inversion | 5 – 1 – 3 |
+| Third inversion (7th chords only) | 7 – 1 – 3 – 5 |
+
+The numbers just rotate — whatever was on the bottom moves to the top, and the next number in line drops into the bass. That's the whole trick, and it works in any key.
+
+On C major, 1-3-5 is C-E-G, 3-5-1 is E-G-C, 5-1-3 is G-C-E — the same shapes shown below.
+
+**The rule, stated directly:**
+- **First inversion** — the lowest-sounding note is the **third** of the chord.
+- **Second inversion** — the lowest-sounding note is the **fifth** of the chord.
+- **Third inversion** — the lowest-sounding note is the **seventh** of the chord (seventh chords only).
+- If the bass note is **not** part of the chord at all, it isn't a true inversion — it's a **slash chord**. Example: **C/F** — F isn't in C-E-G.
 
 ---
 
@@ -129,8 +152,21 @@ When a chord is written with a slash — **C/E**, **G/B**, **D/F#** — the lett
 | D/F# | D major | F# | First inversion (3rd in bass) |
 | Am/C | A minor | C | First inversion (3rd in bass) |
 | Am/E | A minor | E | Second inversion (5th in bass) |
+| C/F | C major | F | Not an inversion — F isn't in C-E-G |
 
-**Not every slash chord is an inversion.** If the bass note doesn't belong to the chord, it's called a **pedal tone** — an independent bass note held beneath a chord that doesn't contain it. The slash notation looks the same, but the harmony is different.
+**Not every slash chord is an inversion.** A slash chord is only a true inversion when the bass note belongs to the chord. When it doesn't — like C/F, where F isn't part of C major — it's still called a slash chord, but the bass note is an outside note (sometimes called a pedal tone) rather than one of the chord's own notes. The notation looks identical either way; only the notes tell you which one you're looking at.
+
+---
+
+## How to Identify Any Chord's Inversion in 3 Steps
+
+1. **Find the lowest-sounding note.** That's the bass.
+2. **Figure out the chord itself.** Reorder the notes in your head until they sound like a chord you recognize.
+3. **Compare the bass note to that chord.** Is it the root, the third, the fifth, or (for seventh chords) the seventh? That tells you the inversion, using the 1-3-5 pattern above.
+
+Worked example: you see the notes **G-C-E**. Reordered, that's **C-E-G** — C major. The lowest note is G, which is the **fifth** of C. Second inversion — C/G.
+
+The same process works for seventh chords, just with one more option to check: root, third, fifth, or seventh. To identify an inversion by ear, listen to the bass note first — does it sound like a stable anchor (root position), does it lean forward (first inversion), does it feel suspended (second inversion), or does it pull hard toward resolution (third inversion, seventh chords only)?
 
 ---
 
@@ -164,7 +200,7 @@ When a chord is written with a slash — **C/E**, **G/B**, **D/F#** — the lett
 
 ### 1. Smooth Bass Movement
 
-The main reason to use inversions is **voice leading** — making the bass line move by steps instead of leaps. When every chord change causes the bass to jump a large interval (a fourth, fifth, or more), the progression can sound disconnected. These large leaps are sometimes called **chord jumps**. Inversions let you eliminate chord jumps by controlling the bass independently from the harmony.
+The main reason to use inversions is **voice leading** — making the bass line move by steps instead of leaps. When every chord change causes the bass to jump a large interval (a fourth, fifth, or more), the progression can sound disconnected. Inversions let you control the bass independently from the harmony, so it steps instead of leaping.
 
 The classic example: add a descending bass line to a simple chord change.
 
@@ -175,8 +211,6 @@ Without inversions — C then Am — the bass jumps down a third. With an invers
 The bass descends C → B → A → G, one step at a time. The chords barely change; the bass line does all the movement.
 
 <ChordEmbed chords="C C/B Am Am/G" bpm={85} style="folk_strum" title="Descending bass line: C – C/B – Am – Am/G" />
-
-This technique appears in music across centuries. George Harrison applied it throughout **"Something" (1969)** — the opening sequence **G – G/F# – Em – Em/D – C** descends the bass one step at a time rather than jumping from G down to Em. Pachelbel built his Canon around the same principle, and it remains one of the most common tools in pop songwriting today.
 
 ### 2. Stability Control
 
@@ -195,38 +229,20 @@ A four-chord progression can sound noticeably different just by inverting some o
 
 <ChordEmbed chords="C G/B Am F C/E F G" bpm={90} style="pop_basic" title="Same chords, inverted — bass steps instead of leaping" />
 
----
+### 4. Bridging Between Chords (Pivot Tones)
 
-## Chord Jumps: When to Use Them and When to Avoid Them
+Because an inversion changes only the bass note — not what chord it is — the same inverted chord can work as a hinge between two different chords that don't otherwise connect smoothly.
 
-A **chord jump** is a large interval leap in the bass between two root-position chords — a fourth, fifth, or more. The ear registers it as a sudden shift of gravity. Whether that's desirable depends entirely on what the music needs at that moment.
+Take C in second inversion: **G-C-E**, written **C/G**. Its bass note is G.
 
-Comparing the same chords with and without a chord jump makes the difference concrete:
+- **C/G → G** — the bass is already sitting on G, so moving to G major just confirms it as the root. The ear hears an arrival, not a jump.
+- **C/G → Am** — the bass steps up a single note, G to A, instead of leaping straight from C to Am.
 
-| Chord change | Bass move | Type |
-|---|---|---|
-| C → G (root position) | C up to G — a fifth | chord jump |
-| C → G/B | C down to B — a half step | smooth step |
-| G → Em (root position) | G down to E — a minor third | chord jump |
-| G/B → Em | B down to E — a perfect fourth | smaller leap |
+<ChordEmbed chords="C C/G G" bpm={88} style="pop_basic" title="C/G resolving to G — the bass note is already there" />
 
-<ChordEmbed chords="C G Am F" bpm={80} style="folk_strum" title="Root position — chord jumps between every change" />
+<ChordEmbed chords="C C/G Am" bpm={88} style="pop_basic" title="C/G moving to Am — the bass steps up by one note" />
 
-<ChordEmbed chords="C G/B Am F" bpm={80} style="folk_strum" title="With G/B inversion — the jump between C and Am disappears" />
-
-### The Beatles and Chord Jumps
-
-The Beatles are one of the clearest case studies for understanding how chord jumps and inversions interact, because their recordings use both approaches deliberately.
-
-**"Something" — George Harrison (1969):** The opening sequence is **G – G/F# – Em – Em/D – C**. Going from G straight to Em in root position would produce a chord jump — the bass drops a minor third. Harrison avoids it entirely: G/F# and Em/D create a bass line that descends G → F# → E → D → C, one step at a time. The melody barely moves; the bass does all the work.
-
-<ChordEmbed chords="G/B Em/G C D" bpm={72} style="folk_strum" title="Voice leading in 'Something' style — stepwise bass descent" />
-
-**"Blackbird" — Paul McCartney (1968):** McCartney builds almost the entire song around stepwise bass movement. Chord jumps are deliberately rare — inversions like G/B and Am/G keep the bass descending smoothly through nearly every section.
-
-**"A Day in the Life" — John Lennon (1967):** Lennon opens with G → Bm in root position — a deliberate chord jump down a minor third. The unsettled, drifting feeling this creates is the point. It signals from the first bar that something is off. Here the chord jump is not a mistake to correct but an expressive choice.
-
-The practical rule: **use inversions when you want the bass to flow; leave root position when you want the jump to land.**
+The same C/G chord can point toward two completely different destinations depending on what comes next. That flexibility is what makes second-inversion chords useful as pivots, not just passing tones.
 
 ---
 
@@ -264,6 +280,18 @@ When you want a strong, definitive arrival — like the final chord of a song or
 ### Can any chord be inverted?
 
 Yes. Every chord with more than one note has at least one inversion. Triads have two (first and second). Seventh chords have three (first, second, and third). Extended chords (ninths, elevenths) can also be inverted, though in practice they usually appear with the root or third in the bass to keep the harmony clear.
+
+### How many chord inversions are there?
+
+A chord always has one fewer inversion than it has notes. Triads (3 notes) have 2 inversions — first and second — for 3 total positions. Seventh chords (4 notes) have 3 inversions for 4 total positions.
+
+### Is there a fourth inversion?
+
+Not for a seventh chord — there are only four notes to put in the bass (root, third, fifth, seventh), so third inversion is the last one. A "fourth inversion" only becomes possible on 5-note extended chords like ninth chords, and it's rare in practice.
+
+### How do you practice chord inversions?
+
+Take a chord you already know and play it in every inversion in a row — root, first, second, and third if it's a seventh chord — so your ear learns what each one sounds like. Then apply it: swap one root-position chord in a familiar progression for its inversion and listen to what changes in the bass line.
 
 ---
 

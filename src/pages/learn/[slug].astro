@@ -88,6 +88,13 @@ const ARTICLE_FAQ: Record<string, FAQItem[]> = {
     { question: 'How do secondary dominants differ from borrowed chords?', answer: 'A secondary dominant is a dominant seventh chord that creates a V→I resolution toward a specific diatonic chord. A borrowed chord is taken from the parallel minor (or another mode) and used for color without that specific dominant-to-tonic tension. The practical test: if the chromatic chord pulls strongly toward another chord and resolves, it\'s a secondary dominant. If it\'s used for texture without that strong resolution, it\'s a borrowed chord.' },
     { question: 'How do you find the secondary dominant of any chord?', answer: 'The formula: identify the root of the target chord, go up a perfect fifth (or down a perfect fourth) from that root, then build a dominant seventh chord there (major triad + minor seventh). For example, to find V/ii in C major: the ii chord is Dm, a fifth above D is A, so the secondary dominant is A7 (A, C#, E, G). The C# is the borrowed note that creates the temporary tension.' },
   ],
+  'c-major-chord-progressions': [
+    { question: 'What is the relative minor of C major?', answer: 'A minor. C major and A minor share the exact same seven notes and the same seven diatonic chords — only which chord feels like "home" changes. Songs in C major and A minor can borrow freely from each other without introducing any new notes.' },
+    { question: 'Is C major the easiest key to learn?', answer: 'On piano, yes — it uses only white keys, with no sharps or flats to remember. On guitar it is about average difficulty; keys like G major or D major are often considered easier because they use more open-string chord shapes.' },
+    { question: 'What\'s the difference between the C major chords and the C major scale?', answer: 'The scale is seven single notes played one at a time (C–D–E–F–G–A–B). The chords are built by stacking three or four of those notes on top of each other — for example, C–E–G played together is the C major chord, while C–D–E–F–G–A–B played in sequence is the C major scale.' },
+    { question: 'What key signature does C major have?', answer: 'C major has no sharps and no flats — an empty key signature. It is the only major key with this property, which is why it is used as the reference point for explaining every other key.' },
+    { question: 'What are the seventh chords in C major?', answer: 'Cmaj7, Dm7, Em7, Fmaj7, G7, Am7, and Bm7♭5 — the same seven diatonic chords as C major\'s triads, each with a 7th added on top. The only exception to the major7/minor7 pattern is the V chord, G7, which is a dominant 7th rather than a major 7th — that\'s what gives it its pull back to C.' },
+  ],
 };
 
 const ARTICLE_RELATED: Record<string, ArticleRelated> = {
@@ -186,6 +193,14 @@ const ARTICLE_RELATED: Record<string, ArticleRelated> = {
       { href: '/learn/chord-inversions/', label: 'Chord inversions', description: 'Combine inversions with secondary dominants for smooth voice leading' },
     ],
     tool: { href: '/tools/circle-of-fifths/', label: 'See every secondary dominant relationship visually with the interactive Circle of Fifths', cta: 'Open Circle of Fifths →' },
+  },
+  'c-major-chord-progressions': {
+    progressions: [],
+    articles: [
+      { href: '/learn/music-theory-basics-for-songwriters/', label: 'Music theory basics for songwriters', description: 'How major scales and diatonic chords work in every key, not just C' },
+      { href: '/learn/circle-of-fifths-explained/', label: 'The Circle of Fifths Explained', description: 'The full diatonic chord table for all 12 major keys' },
+    ],
+    tool: { href: '/tools/circle-of-fifths/', label: 'See how C major relates to every other key with the interactive Circle of Fifths', cta: 'Open Circle of Fifths →' },
   },
 };
 
