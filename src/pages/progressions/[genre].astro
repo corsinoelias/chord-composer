@@ -89,29 +89,17 @@ const breadcrumbSchema = {
         {displayTitle}
       </h1>
       <p class="text-lg text-muted-foreground mb-4">{genre.description}</p>
+      {genre.quickAnswer && (
+        <p class="text-base text-foreground/90 leading-relaxed mb-4">
+          <strong class="font-semibold">Quick answer:</strong> {genre.quickAnswer}
+        </p>
+      )}
       {genre.learnLink && (
         <a href={genre.learnLink.href} class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
           {genre.learnLink.label}
         </a>
       )}
     </header>
-
-    {genre.editorialQA && genre.editorialQA.length > 0 ? (
-      <div class="mb-14 space-y-10">
-        {genre.editorialQA.map((qa) => (
-          <div>
-            <h2 class="text-2xl font-bold text-foreground mb-3 tracking-tight">{qa.question}</h2>
-            <p class="text-muted-foreground leading-relaxed" set:html={qa.answer} />
-          </div>
-        ))}
-      </div>
-    ) : genre.editorialIntro && genre.editorialIntro.length > 0 && (
-      <div class="mb-14 space-y-4">
-        {genre.editorialIntro.map((para) => (
-          <p class="text-muted-foreground leading-relaxed">{para}</p>
-        ))}
-      </div>
-    )}
 
     <h2 class="text-2xl font-bold text-foreground mb-6 tracking-tight">
       {genre.progressions.length} {genre.name} Chord Progressions
@@ -134,6 +122,28 @@ const breadcrumbSchema = {
         </div>
       ))}
     </div>
+
+    {genre.editorialQA && genre.editorialQA.length > 0 ? (
+      <div class="mt-16 pt-8 border-t border-border divide-y divide-border">
+        {genre.editorialQA.map((qa, i) => (
+          <details class="group py-5" open={i === 0}>
+            <summary class="flex items-center justify-between gap-4 cursor-pointer list-none [&::-webkit-details-marker]:hidden text-lg font-semibold text-foreground tracking-tight">
+              {qa.question}
+              <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <path d="m6 9 6 6 6-6"/>
+              </svg>
+            </summary>
+            <p class="mt-3 text-muted-foreground leading-relaxed" set:html={qa.answer} />
+          </details>
+        ))}
+      </div>
+    ) : genre.editorialIntro && genre.editorialIntro.length > 0 && (
+      <div class="mt-16 pt-8 border-t border-border space-y-4">
+        {genre.editorialIntro.map((para) => (
+          <p class="text-muted-foreground leading-relaxed" set:html={para} />
+        ))}
+      </div>
+    )}
 
     {genre.faq && genre.faq.length > 0 && (
       <section class="mt-16 pt-8 border-t border-border" aria-label="Frequently asked questions">
