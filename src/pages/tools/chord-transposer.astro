@@ -5,7 +5,7 @@ import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
 import RelatedTools from '../../components/RelatedTools.astro';
 
 const examples = [
-  { original: 'C major: C G Am F', transposed: 'G major: G D Em C', chords: 'G D Em C', bpm: 110, title: 'I–V–vi–IV transposed to G major' },
+  { original: 'C major: C G Am F', transposed: 'G major: G D Em C', chords: 'G D Em C', bpm: 110, title: 'I–V–VI–IV transposed to G major' },
   { original: 'D minor: Dm Am Bb F', transposed: 'Am minor: Am Em F C', chords: 'Am Em F C', bpm: 100, title: 'Same progression in A minor' },
 ];
 
@@ -96,7 +96,7 @@ const breadcrumbSchema = {
           Transposing a chord progression means shifting every chord by the same number of <strong class="text-foreground">semitones</strong> (half steps). The relationship between chords stays identical — only the key changes.
         </p>
         <p class="text-muted-foreground leading-relaxed mb-4">
-          For example, the I–V–vi–IV progression in C major (C – G – Am – F) transposed up 7 semitones becomes the same progression in G major (G – D – Em – C). The emotional feel is the same, just in a different pitch range.
+          For example, the I–V–VI–IV progression in C major (C – G – Am – F) transposed up 7 semitones becomes the same progression in G major (G – D – Em – C). The emotional feel is the same, just in a different pitch range.
         </p>
 
         <div class="rounded-lg border border-border bg-card p-5 font-mono text-sm mb-6 overflow-x-auto">
@@ -146,10 +146,10 @@ const breadcrumbSchema = {
     <!-- Examples with ChordEmbed -->
     <section class="mb-14">
       <h2 class="text-2xl font-bold text-foreground mb-6">Hear the same progression in different keys</h2>
-      <p class="text-sm text-muted-foreground mb-6">I–V–vi–IV transposed from C to G. Same structure, different key. Notice how the feel changes slightly at a higher pitch.</p>
+      <p class="text-sm text-muted-foreground mb-6">I–V–VI–IV transposed from C to G. Same structure, different key. Notice how the feel changes slightly at a higher pitch.</p>
       <div class="space-y-4">
-        <ChordEmbedIsland chords="C G Am F" bpm={110} style="pop_basic" title="I–V–vi–IV in C major (original)" toolContext="chord_transposer" />
-        <ChordEmbedIsland chords="G D Em C" bpm={110} style="pop_basic" title="I–V–vi–IV in G major (+7 semitones)" toolContext="chord_transposer" />
+        <ChordEmbedIsland chords="C G Am F" bpm={110} style="pop_basic" title="I–V–VI–IV in C major (original)" toolContext="chord_transposer" />
+        <ChordEmbedIsland chords="G D Em C" bpm={110} style="pop_basic" title="I–V–VI–IV in G major (+7 semitones)" toolContext="chord_transposer" />
       </div>
     </section>
 
