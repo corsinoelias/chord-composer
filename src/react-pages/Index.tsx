@@ -136,6 +136,8 @@ const Index = ({ songId }: IndexProps) => {
   });
   const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
   const [songTitle, setSongTitle] = useState(() => {
+    const titleParam = new URLSearchParams(window.location.search).get('title');
+    if (titleParam) return titleParam;
     const now = new Date();
     const date = now.toLocaleString('en', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     return `My Song · ${date}`;

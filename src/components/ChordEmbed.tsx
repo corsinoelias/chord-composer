@@ -87,7 +87,7 @@ function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title, toolCo
   // Stop on unmount
   useEffect(() => () => { stop(); }, []);
 
-  const editorUrl = `/chord-player/?chords=${encodeURIComponent(serializeChords(parsedChords))}&bpm=${bpm}&style=${style}`;
+  const editorUrl = `/chord-player/?chords=${encodeURIComponent(serializeChords(parsedChords))}&bpm=${bpm}&style=${style}${title ? `&title=${encodeURIComponent(title)}` : ''}`;
 
   if (parsedChords.length === 0) return null;
 
