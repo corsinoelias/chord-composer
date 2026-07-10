@@ -49,8 +49,8 @@ const DIATONIC_MIN: string[][] = [
   ['Dm', 'E°',  'F',  'Gm', 'Am', 'A♯', 'C'],
 ];
 
-const ROMAN_MAJ  = ['I',  'ii',  'iii', 'IV', 'V',  'vi',  'vii°'];
-const ROMAN_MIN  = ['i',  'ii°', 'III', 'iv', 'v',  'VI',  'VII'];
+const ROMAN_MAJ  = ['I',  'II',  'III', 'IV', 'V',  'VI',  'VII°'];
+const ROMAN_MIN  = ['I',  'II°', 'III', 'IV', 'V',  'VI',  'VII'];
 const FUNCS_MAJ  = ['tonic','supertonic','mediant','subdominant','dominant','submediant','leading tone'];
 const FUNCS_MIN  = ['tonic','supertonic','mediant','subdominant','dominant','submediant','subtonic'];
 
@@ -99,11 +99,14 @@ function toChord(name: string): Chord | null {
 type Sel = { type: 'major' | 'minor'; idx: number } | null;
 
 // ─── Inner component (uses PlaybackContext) ───────────────────────────────────
-function CircleOfFifthsInner() {
+function CircleOfFifthsInner({ initialKey }: { initialKey?: string }) {
   const { state: playbackState, play, stop } = usePlayback();
   const { isPlaying, currentChordIndex } = playbackState;
 
-  const [sel,         setSel]         = useState<Sel>(null);
+  const initialIdx = initialKey ? KEYS.indexOf(initialKey) : -1;
+  const initialSel: Sel = initialIdx >= 0 ? { type: 'major', idx: initialIdx } : null;
+
+  const [sel,         setSel]         = useState<Sel>(initialSel);
   const [hover,       setHover]       = useState<{ type: 'major'|'minor'; idx: number } | null>(null);
   const [hoveredDeg,  setHoveredDeg]  = useState<number | null>(null);
 
@@ -188,8 +191,8 @@ function CircleOfFifthsInner() {
     : [{ i: selIdx, label:'III' }, { i:(selIdx+11)%12, label:'VI' }, { i:(selIdx+1)%12, label:'VII' }];
 
   const innerDots = sel === null ? [] : isMajorSel
-    ? [{ i:selIdx, label:'vi' }, { i:(selIdx+1)%12, label:'iii' }, { i:(selIdx+11)%12, label:'ii' }, { i:(selIdx+2)%12, label:'vii°' }]
-    : [{ i:selIdx, label:'i' }, { i:(selIdx+11)%12, label:'iv' }, { i:(selIdx+1)%12, label:'v' }, { i:(selIdx+2)%12, label:'ii°' }];
+    ? [{ i:selIdx, label:'VI' }, { i:(selIdx+1)%12, label:'III' }, { i:(selIdx+11)%12, label:'II' }, { i:(selIdx+2)%12, label:'VII°' }]
+    : [{ i:selIdx, label:'I' }, { i:(selIdx+11)%12, label:'IV' }, { i:(selIdx+1)%12, label:'V' }, { i:(selIdx+2)%12, label:'II°' }];
 
   const noPtr: React.CSSProperties = { pointerEvents:'none', userSelect:'none' };
 
@@ -336,22 +339,19 @@ function CircleOfFifthsInner() {
               <div className="grid grid-cols-7 divide-x divide-border/40">
 
                 {/* Roman numerals row */}
-                {roman.map((r, j) => {
-                  const isUpperCase = r[0] === r[0].toUpperCase() && r[0] !== r[0].toLowerCase();
-                  return (
-                    <div
-                      key={`r${j}`}
-                      className={`py-2.5 text-center font-bold border-b border-border/60 transition-colors ${
-                        hoveredDeg === j ? 'bg-primary/10 text-primary' : 'text-foreground'
-                      }`}
-                      style={{ fontSize: isUpperCase ? 14 : 12, letterSpacing: '0.04em' }}
-                      onMouseEnter={() => setHoveredDeg(j)}
-                      onMouseLeave={() => setHoveredDeg(null)}
-                    >
-                      {r}
-                    </div>
-                  );
-                })}
+                {roman.map((r, j) => (
+                  <div
+                    key={`r${j}`}
+                    className={`py-2.5 text-center font-bold border-b border-border/60 transition-colors ${
+                      hoveredDeg === j ? 'bg-primary/10 text-primary' : 'text-foreground'
+                    }`}
+                    style={{ fontSize: 14, letterSpacing: '0.04em' }}
+                    onMouseEnter={() => setHoveredDeg(j)}
+                    onMouseLeave={() => setHoveredDeg(null)}
+                  >
+                    {r}
+                  </div>
+                ))}
 
                 {/* Function names row */}
                 {funcs.map((fn, j) => (
@@ -424,10 +424,10 @@ function CircleOfFifthsInner() {
 }
 
 // ─── Export wrapped in PlaybackProvider ───────────────────────────────────────
-export function CircleOfFifths() {
+export function CircleOfFifths({ initialKey }: { initialKey?: string } = {}) {
   return (
     <PlaybackProvider>
-      <CircleOfFifthsInner />
+      <CircleOfFifthsInner initialKey={initialKey} />
     </PlaybackProvider>
   );
 }

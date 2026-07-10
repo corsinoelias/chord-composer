@@ -1,5 +1,11 @@
 ---
 import { CircleOfFifths } from './CircleOfFifths';
+
+interface Props {
+  initialKey?: string;
+}
+
+const { initialKey } = Astro.props;
 ---
 
-<CircleOfFifths client:visible />
+<CircleOfFifths client:visible initialKey={initialKey} />
