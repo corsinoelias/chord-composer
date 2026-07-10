@@ -142,8 +142,9 @@ export const GENRES: Genre[] = [
   {
     slug: 'happy',
     name: 'Happy',
+    pageTitle: 'Happy Chord Progressions',
     description: 'Uplifting, bright, and energetic chord progressions full of joy.',
-    metaDescription: 'Happy chord progressions to play free — I–IV–V–I, I–iii–IV–V, and more upbeat major-key patterns. Real audio playback, no signup required.',
+    metaDescription: '4 happy, uplifting chord progressions in major keys — hear each one instantly in your browser. Free, no signup, no download.',
     editorialIntro: [
       'Happy chord progressions share a common trait: they stay in major keys and they move with momentum. The major third interval — the distance that defines every major chord — is acoustically stable. When you stack a major third and a perfect fifth on a root note, you get a chord that sounds complete and resolved. That stability is what the brain registers as brightness and positivity.',
       'The I–IV–V–I is the oldest happy progression in Western music. It powers folk songs, hymns, rock and roll, and children\'s music alike because the sequence of tonic, subdominant, dominant, and back to tonic follows the most fundamental harmonic logic: leave home, build tension, come back. At a fast tempo with a driving rhythm, it becomes anthemic. At a slower tempo with gentle strumming, it becomes pastoral.',
@@ -206,8 +207,9 @@ export const GENRES: Genre[] = [
   {
     slug: 'worship',
     name: 'Worship',
+    pageTitle: 'Worship Chord Progressions',
     description: 'Soaring, spacious chord progressions used in contemporary worship music.',
-    metaDescription: 'Contemporary worship chord progressions in G major and C major. Play and export instantly with Chord Sequence.',
+    metaDescription: '4 common worship chord progressions — the chords behind Goodness of God, What A Beautiful Name, 10,000 Reasons & Build My Life. Free & instant.',
     editorialQA: [
       {
         question: 'Why do so many worship songs use the same chords?',
