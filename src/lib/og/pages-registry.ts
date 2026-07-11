@@ -50,6 +50,11 @@ export const PAGES_REGISTRY: Record<string, PageMeta> = {
     tagline: 'Free browser metronome. Set BPM, tap tempo, and practice with subdivisions.',
     tags: ['Free', 'Tap Tempo', 'No Install'],
   },
+  'drum-machine': {
+    title: 'Online Drum Machine',
+    tagline: 'Free 16-step drum machine. 3 kits, 12 genre presets, no signup.',
+    tags: ['16-Step', '3 Kits', 'Presets'],
+  },
   tuner: {
     title: 'Online Guitar Tuner',
     tagline: 'Tune your guitar, bass or ukulele in your browser using your microphone.',

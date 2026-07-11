@@ -1,0 +1,159 @@
+---
+export const prerender = true
+import BaseLayout from '../../../layouts/BaseLayout.astro'
+import { DrumMachine } from '../../../components/DrumMachine/DrumMachine'
+import RelatedTools from '../../../components/RelatedTools.astro'
+
+const faqs = [
+  {
+    q: 'Is this drum machine free to use?',
+    a: 'Yes — the drum machine is completely free, runs in your browser, and does not require an account or download.',
+  },
+  {
+    q: 'What is the 16-step grid?',
+    a: 'It represents one bar of music split into sixteenth notes. Each row is an instrument (kick, snare, clap, two hi-hats, tom, rim and cowbell), and each square is a sixteenth note. Turn a square on and it fires that sound every time the playhead sweeps past it.',
+  },
+  {
+    q: 'What do the drum kits change?',
+    a: 'The KIT selector swaps the whole sound palette without touching your pattern. Analog is deep and round, Punch is tight and snappy, Lo-Fi is dusty and filtered.',
+  },
+  {
+    q: 'Can I load a preset beat?',
+    a: 'Yes — the PRESET menu includes patterns for house, techno, hip-hop, trap, funk, breakbeat, reggaeton, bossa, disco, afrobeat and more. Load one and edit it to make it your own.',
+  },
+  {
+    q: 'What BPM range does it support?',
+    a: 'From 60 to 200 BPM. House usually sits around 120–128, hip-hop around 85–95, and drum & bass 170 and up.',
+  },
+  {
+    q: 'Does it save my pattern?',
+    a: 'Not yet — the pattern lives in the page for the current session. Refreshing or leaving the page resets it, so keep the tab open while you work.',
+  },
+]
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  '@id': 'https://chordsequence.com/tools/drum-machine/#breadcrumb',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://chordsequence.com/tools/' },
+    { '@type': 'ListItem', position: 3, name: 'Online Drum Machine', item: 'https://chordsequence.com/tools/drum-machine/' },
+  ],
+}
+
+const webAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Online Drum Machine',
+  url: 'https://chordsequence.com/tools/drum-machine/',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Any',
+  description: 'Free online drum machine — 16-step sequencer with 3 drum kits and 12 genre presets. Program a beat, tweak the mix, export nothing but the groove.',
+  featureList: [
+    '16-step sequencer, 8 tracks',
+    '3 drum kits: Analog, Punch, Lo-Fi',
+    '12 genre presets',
+    'Per-track volume and mute',
+    'Adjustable BPM from 60 to 200',
+    'Keyboard shortcut: Space to play/stop',
+    'No signup, no download',
+  ],
+  browserRequirements: 'Requires a modern browser with Web Audio API support',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}
+---
+
+<BaseLayout
+  title="Online Drum Machine — Free 16-Step Beat Maker | Chord Sequence"
+  description="Free online drum machine. Program a 16-step beat with 3 kits and 12 genre presets — house, trap, hip-hop, afrobeat and more. No signup required."
+  canonicalUrl="https://chordsequence.com/tools/drum-machine/"
+  ogImage="/og/page/drum-machine/"
+  ogImageAlt="Online Drum Machine — Free 16-Step Beat Maker | Chord Sequence"
+>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <main>
+
+    <!-- HERO -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pt-14 pb-10 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Free Online Tool</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4 leading-tight">
+        Online Drum Machine
+      </h1>
+      <p class="text-lg text-muted-foreground max-w-xl mx-auto">
+        Program a 16-step beat, swap kits, load a preset groove. Runs entirely in your browser — no install needed.
+      </p>
+    </section>
+
+    <!-- DRUM MACHINE COMPONENT -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-16">
+      <DrumMachine client:only="react" />
+    </section>
+
+    <!-- HOW TO USE -->
+    <section class="border-t border-border py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-6">How to use the drum machine</h2>
+        <div class="text-muted-foreground space-y-5 leading-relaxed">
+          <div>
+            <h3 class="font-semibold text-foreground mb-1">The grid</h3>
+            <p>The drum machine loops one bar of music, chopped into 16 steps. Each row is one of 8 instruments — kick, snare, clap, two hi-hats, tom, rim and cowbell — and each square is a sixteenth note. Hit <strong class="text-foreground">▶</strong> (or the space bar) and click squares while it plays: a lit square fires its sound every time the playhead sweeps past.</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-foreground mb-1">Shape the sound</h3>
+            <p>The <strong class="text-foreground">KIT</strong> selector swaps the whole sound palette: Analog is deep and round, Punch is tight and snappy, Lo-Fi is dusty and filtered. Your pattern stays put — only the character changes. Balance the mix with the small slider next to each track, or click a track's name to mute it.</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-foreground mb-1">Find a groove</h3>
+            <p>Not sure where to start? Load a <strong class="text-foreground">PRESET</strong> — from house and trap to bossa and afrobeat — then make it yours: move a kick, drop a clap, thin out the hats. Dial in the tempo with BPM, or press CLEAR and build a beat from silence.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHAT IS A DRUM MACHINE -->
+    <section class="bg-muted/30 border-t border-border py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-4">What is a drum machine?</h2>
+        <div class="text-muted-foreground space-y-4 leading-relaxed">
+          <p>
+            A drum machine programs a rhythm pattern instead of requiring it to be played live. Each instrument sits on its own row, and you turn individual steps on or off to build a beat — a workflow that traces back to hardware step sequencers like the Roland TR-808 and TR-909, which shaped entire genres from house to hip-hop.
+          </p>
+          <p>
+            The advantage over a real drum kit or a metronome: a programmed pattern is exact, repeatable, and easy to iterate on. You can loop a groove for as long as you like, swap the sound palette without touching the pattern, and hear a genre-appropriate starting point instantly with the built-in presets.
+          </p>
+          <p>
+            This drum machine runs entirely on the Web Audio API — every kick, snare and hi-hat is synthesized in real time from oscillators and filtered noise, not sample playback, so there's nothing to download and no loading time.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-8">Frequently asked questions</h2>
+        <div class="space-y-5">
+          {faqs.map((f) => (
+            <div class="rounded-xl border border-border bg-card p-6">
+              <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
+              <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- RELATED TOOLS -->
+    <RelatedTools tools={[
+      { href: '/metronome/', icon: 'metronome', label: 'Online Metronome', desc: 'Keep time with tap tempo and adjustable beats per measure.' },
+      { href: '/tools/bass-guitar-tab/', icon: 'bass-tab', label: 'Bass Tab Player', desc: 'Lay a bassline over your beat and export to MIDI or ASCII tab.' },
+      { href: '/chord-player/', icon: 'chords', label: 'Chord Player', desc: 'Build chord progressions with drums, bass, and piano — BPM included.' },
+    ]} />
+
+  </main>
+</BaseLayout>
