@@ -115,21 +115,48 @@ export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing, ch
           const cy = ROW_Y[row];
           const x1 = STRING_X[barre.fromString];
           const x2 = STRING_X[barre.toString];
+          const cx = (x1 + x2) / 2;
+          // The finger holding the barre — read off whichever covered string is
+          // actually stopped at the barre fret (they should all agree).
+          const barreFinger = fingers.find((_, si) =>
+            si >= barre.fromString && si <= barre.toString && frets[si] === barre.fret
+          ) ?? 0;
           return (
-            <rect
-              x={x1 - 10}
-              y={cy - DOT_R}
-              width={x2 - x1 + 20}
-              height={DOT_R * 2}
-              rx={DOT_R}
-              fill={C_DOT}
-            />
+            <g fill={C_DOT}>
+              <rect
+                x={x1 - 10}
+                y={cy - DOT_R}
+                width={x2 - x1 + 20}
+                height={DOT_R * 2}
+                rx={DOT_R}
+              />
+              {barreFinger > 0 && (
+                <text
+                  x={cx}
+                  y={cy + 6}
+                  textAnchor="middle"
+                  fontSize={16}
+                  fontWeight={100}
+                  fill={C_DOT_TXT}
+                  stroke={C_DOT_TXT}
+                  strokeWidth={0.3}
+                  style={{ userSelect: 'none' }}
+                >
+                  {barreFinger}
+                </text>
+              )}
+            </g>
           );
         })()}
 
         {/* ── Finger dots ── */}
+        {/* Skip strings already represented by the barre pill above — only strings actually
+            stopped AT the barre fret are covered by it; a string inside the barre's string
+            range but fretted higher by another finger (e.g. Bmin) still gets its own dot. */}
         {frets.map((fret, si) => {
           if (fret <= 0) return null;
+          const isBarredHere = !!barre && fret === barre.fret && si >= barre.fromString && si <= barre.toString;
+          if (isBarredHere) return null;
           const row = toRow(fret);
           if (row < 0 || row > 3) return null;
           const cx = STRING_X[si];

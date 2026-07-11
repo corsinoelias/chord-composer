@@ -26,11 +26,21 @@ const OPEN: Record<string, GuitarVoicing> = {
   'C#maj': { frets: [-1, 4, 3, 1, 2, 1], fingers: [0, 4, 3, 1, 2, 1], barre: { fret: 1, fromString: 3, toString: 5 }, baseFret: 1 },
   'D#maj': { frets: [-1,-1, 1, 3, 4, 3], fingers: [0, 0, 1, 2, 4, 3], baseFret: 1 },
   'G#maj': { frets: [ 4, 3, 1, 1, 1,-1], fingers: [4, 3, 1, 1, 1, 0], barre: { fret: 1, fromString: 2, toString: 4 }, baseFret: 1 },
+  // Bmaj shape shifted down 1 fret — same compact (partial-barre) shape, no full 6-string barre
+  'A#maj': { frets: [-1, 1, 3, 3, 3,-1], fingers: [0, 1, 3, 3, 3, 0], barre: { fret: 3, fromString: 2, toString: 4 }, baseFret: 1 },
   // Minor
   Amin:  { frets: [-1, 0, 2, 2, 1, 0], fingers: [0, 0, 2, 3, 1, 0], baseFret: 1 },
   Emin:  { frets: [ 0, 2, 2, 0, 0, 0], fingers: [0, 2, 3, 0, 0, 0], baseFret: 1 },
   Dmin:  { frets: [-1,-1, 0, 2, 3, 1], fingers: [0, 0, 0, 2, 3, 1], baseFret: 1 },
   Bmin:  { frets: [-1, 2, 4, 4, 3, 2], fingers: [0, 1, 3, 4, 2, 1], barre: { fret: 2, fromString: 1, toString: 5 }, baseFret: 1 },
+  // Open Dm shape shifted up 1 fret — same trick as D#maj below, no barre needed
+  'D#min': { frets: [-1,-1, 1, 3, 4, 2], fingers: [0, 0, 1, 3, 4, 2], baseFret: 1 },
+  // Bmin shape shifted down 1 fret — same compact (partial-barre) shape
+  'A#min': { frets: [-1, 1, 3, 3, 2, 1], fingers: [0, 1, 3, 4, 2, 1], barre: { fret: 1, fromString: 1, toString: 5 }, baseFret: 1 },
+  // G#maj shape with the 3rd flattened a semitone (A-string 3→2, B-string 1→open)
+  'G#min': { frets: [ 4, 2, 1, 1, 0,-1], fingers: [4, 2, 1, 1, 0, 0], barre: { fret: 1, fromString: 2, toString: 3 }, baseFret: 1 },
+  // C#(root), E(m3), G#(5th) — muted low E, open high e, no barre
+  'C#min': { frets: [-1, 4, 2, 1, 2, 0], fingers: [0, 4, 2, 1, 3, 0], baseFret: 1 },
   // Dominant 7th
   'E7':  { frets: [ 0, 2, 0, 1, 0, 0], fingers: [0, 2, 0, 1, 0, 0], baseFret: 1 },
   'A7':  { frets: [-1, 0, 2, 0, 2, 0], fingers: [0, 0, 2, 0, 3, 0], baseFret: 1 },
@@ -45,13 +55,29 @@ const OPEN: Record<string, GuitarVoicing> = {
   Fmaj7: { frets: [-1,-1, 3, 2, 1, 0], fingers: [0, 0, 4, 3, 2, 1], baseFret: 1 },
   Gmaj7: { frets: [ 3, 2, 0, 0, 0, 2], fingers: [3, 2, 0, 0, 0, 1], baseFret: 1 },
   Amaj7: { frets: [-1, 0, 2, 1, 2, 0], fingers: [0, 0, 2, 1, 3, 0], baseFret: 1 },
+  // D#(root), G(3rd, open), D(maj7), G(3rd octave) — 5th omitted, standard compact voicing
+  'D#maj7': { frets: [-1,-1, 1, 0, 3, 3], fingers: [0, 0, 1, 0, 3, 4], baseFret: 1 },
   // Minor 7th
   Amin7: { frets: [-1, 0, 2, 0, 1, 0], fingers: [0, 0, 2, 0, 1, 0], baseFret: 1 },
   Emin7: { frets: [ 0, 2, 0, 0, 0, 0], fingers: [0, 2, 0, 0, 0, 0], baseFret: 1 },
   Dmin7: { frets: [-1,-1, 0, 2, 1, 1], fingers: [0, 0, 0, 2, 1, 1], baseFret: 1 },
+  // D#(root), A#(5th), F#(m3), C#(m7) — full 4-tone voicing, no barre needed
+  'D#min7': { frets: [-1,-1, 1, 3, 2, 2], fingers: [0, 0, 1, 4, 2, 3], baseFret: 1 },
+  // C#(root), E(m3), G#(5th), B(m7) — muted low E and B strings, no barre
+  'C#min7': { frets: [-1, 4, 2, 4,-1, 4], fingers: [0, 2, 1, 3, 0, 4], baseFret: 1 },
   // Dominant 9th (common jazz voicings)
   'E9':  { frets: [ 0, 2, 0, 1, 0, 2], fingers: [0, 2, 0, 1, 0, 3], baseFret: 1 },
   'A9':  { frets: [-1, 0, 2, 0, 2, 2], fingers: [0, 0, 2, 0, 3, 4], baseFret: 1 },
+  // Add9
+  // A(root, open), E(5th), B(9th), C#(3rd), E(5th octave, open) — small 2-string barre for D/B
+  'Aadd9': { frets: [-1, 0, 2, 4, 2, 0], fingers: [0, 0, 1, 4, 1, 0], barre: { fret: 2, fromString: 2, toString: 4 }, baseFret: 1 },
+  // A#(root), D(3rd, open), F(5th), C(9th), A#(root octave) — small 2-string barre for the top
+  'A#add9': { frets: [-1, 1, 0, 3, 1, 1], fingers: [0, 2, 0, 4, 1, 1], barre: { fret: 1, fromString: 4, toString: 5 }, baseFret: 1 },
+  // Sus4
+  // B(root), F#(5th), B(root octave), B(root, open), E(4th, open) — no barre
+  Bsus4: { frets: [-1, 2, 4, 4, 0, 0], fingers: [0, 1, 3, 4, 0, 0], baseFret: 1 },
+  // C(root), F(4th), G(5th, open), C(root octave), F(4th octave) — small 2-string barre for B/e
+  Csus4: { frets: [-1, 3, 3, 0, 1, 1], fingers: [0, 3, 4, 0, 1, 1], barre: { fret: 1, fromString: 4, toString: 5 }, baseFret: 1 },
 };
 
 // ─── Movable shape templates ──────────────────────────────────────────────────

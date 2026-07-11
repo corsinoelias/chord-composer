@@ -43,7 +43,7 @@ frets.forEach((fret, si) => {
 });
 
 // Barre bar
-interface BarreData { x: number; y: number; width: number; height: number; rx: number }
+interface BarreData { x: number; y: number; width: number; height: number; rx: number; cx: number; cy: number; finger: number }
 let barreData: BarreData | null = null;
 if (barre) {
   const row = toRow(barre.fret);
@@ -51,15 +51,24 @@ if (barre) {
     const cy = ROW_Y[row];
     const x1 = STRING_X[barre.fromString];
     const x2 = STRING_X[barre.toString];
-    barreData = { x: x1 - 10, y: cy - DOT_R, width: x2 - x1 + 20, height: DOT_R * 2, rx: DOT_R };
+    // The finger holding the barre — read off whichever covered string is
+    // actually stopped at the barre fret (they should all agree).
+    const barreFinger = fingers.find((_, si) =>
+      si >= barre.fromString && si <= barre.toString && frets[si] === barre.fret
+    ) ?? 0;
+    barreData = { x: x1 - 10, y: cy - DOT_R, width: x2 - x1 + 20, height: DOT_R * 2, rx: DOT_R, cx: (x1 + x2) / 2, cy, finger: barreFinger };
   }
 }
 
-// Finger dots
+// Finger dots — skip strings already represented by the barre pill above (same fret,
+// within its string range); strings inside the barre's range but fretted higher by
+// another finger still get their own dot.
 interface DotData { cx: number; cy: number; finger: number }
 const dots: DotData[] = [];
 frets.forEach((fret, si) => {
   if (fret <= 0) return;
+  const isBarredHere = !!barre && fret === barre.fret && si >= barre.fromString && si <= barre.toString;
+  if (isBarredHere) return;
   const row = toRow(fret);
   if (row < 0 || row > 3) return;
   dots.push({ cx: STRING_X[si], cy: ROW_Y[row], finger: fingers[si] });
@@ -112,9 +121,17 @@ const fretLines = FRET_Y.map((y, i) => ({
 
     {/* Barre bar */}
     {barreData && (
-      <rect x={barreData.x} y={barreData.y}
-            width={barreData.width} height={barreData.height}
-            rx={barreData.rx} fill={C_DOT} />
+      <>
+        <rect x={barreData.x} y={barreData.y}
+              width={barreData.width} height={barreData.height}
+              rx={barreData.rx} fill={C_DOT} />
+        {barreData.finger > 0 && (
+          <text x={barreData.cx} y={barreData.cy + 6} text-anchor="middle" font-size="16"
+                fill={C_DOT_TXT} stroke={C_DOT_TXT} stroke-width="0.3">
+            {barreData.finger}
+          </text>
+        )}
+      </>
     )}
 
     {/* Finger dots */}
