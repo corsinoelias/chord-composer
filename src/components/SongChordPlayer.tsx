@@ -355,6 +355,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         onExportMidi={handleExportMidi}
         editorUrl={editorUrl}
         inline={inline}
+        showWavExport={song.slug !== 'hay-poder-yeshua-averly-morillo'}
       />
 
       {/* ─ Resume auto-scroll pill — only once the user has scrolled away during playback ─ */}

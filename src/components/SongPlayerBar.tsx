@@ -18,6 +18,7 @@ interface SongPlayerBarProps {
   onExportMidi: () => void;
   editorUrl: string;
   inline?: boolean;
+  showWavExport?: boolean;
 }
 
 export function SongPlayerBar({
@@ -37,6 +38,7 @@ export function SongPlayerBar({
   onExportMidi,
   editorUrl,
   inline = false,
+  showWavExport = true,
 }: SongPlayerBarProps) {
   return (
     <div className={`${inline ? 'border-b mb-2' : 'fixed bottom-0 left-0 right-0 z-50 border-t shadow-[0_-4px_20px_rgba(0,0,0,0.08)]'} border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80`}>
@@ -117,18 +119,20 @@ export function SongPlayerBar({
 
         {/* Exports + editor — hidden on mobile */}
         <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-          <button
-            onClick={onExportWav}
-            disabled={isPlaying || isExportingWav || allChordsCount === 0}
-            title="Download WAV"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {isExportingWav
-              ? <Loader2 className="w-3 h-3 animate-spin" />
-              : <Download className="w-3 h-3" />
-            }
-            WAV
-          </button>
+          {showWavExport && (
+            <button
+              onClick={onExportWav}
+              disabled={isPlaying || isExportingWav || allChordsCount === 0}
+              title="Download WAV"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isExportingWav
+                ? <Loader2 className="w-3 h-3 animate-spin" />
+                : <Download className="w-3 h-3" />
+              }
+              WAV
+            </button>
+          )}
           <button
             onClick={onExportMidi}
             disabled={allChordsCount === 0}
