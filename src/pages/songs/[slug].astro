@@ -78,13 +78,11 @@ function extractLyricLines(s: Song, maxLines = 3): string[] {
 
 function buildSeoDescription(s: Song): string {
   const chordList = [...new Set(extractChordsFromSong(s))].join(', ');
-  const capo = s.capo ? `, Capo ${s.capo}` : '';
-  const year = s.year ? ` (${s.year})` : '';
-  const genre = s.genre.length > 0 ? ` ${s.genre.join(', ')} song.` : '';
+  const capo = s.capo ? `, capo ${s.capo}` : '';
 
   const desc =
-    `${s.title} chords by ${s.artist}${year} — Key of ${s.key}${capo}.${genre} ` +
-    `Chords: ${chordList}. Interactive chord chart — press Play and follow each chord in real time.`;
+    `Play ${s.title} by ${s.artist} chords free — interactive chart with real-time playback. ` +
+    `Key of ${s.key}${capo}. Chords: ${chordList}.`;
 
   return desc.length > 155 ? desc.slice(0, 152) + '…' : desc;
 }
@@ -241,7 +239,7 @@ const breadcrumbSchema = {
 ---
 
 <BaseLayout
-  title={`${song.title} Chords & Lyrics — ${song.artist} | Chord Sequence`}
+  title={`${song.title} Chords & Lyrics — Free Play Along | Chord Sequence`}
   description={seoDescription}
   canonicalUrl={canonicalUrl}
   ogImage={isCommunity
