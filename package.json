@@ -56,6 +56,7 @@
     "@supabase/supabase-js": "^2.95.3",
     "@tanstack/react-query": "^5.83.0",
     "@tonejs/midi": "^2.0.28",
+    "@vexflow-fonts/bravura": "1.0.2",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "ajv": "8.20.0",
     "astro": "^5.18.2",

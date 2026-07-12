@@ -12,6 +12,11 @@ import { previewNote } from '../../lib/bassTab/bassAudio'
 import { useIsMobile } from '../../hooks/use-mobile'
 import { computeNotatedNotes } from '../../lib/bassTab/notationPipeline'
 import { NOTATION } from '../../lib/bassTab/notationTheory'
+// Self-hosted via the @vexflow-fonts/bravura package (SIL OFL license) so this
+// loads from 'self' — the site's CSP font-src doesn't allow third-party CDNs,
+// and this used to be fetched from cdn.jsdelivr.net, which the CSP silently
+// blocked (the clef/time-signature glyphs just never rendered).
+import bravuraFontUrl from '@vexflow-fonts/bravura/bravura.woff2?url'
 
 // ── Layout constants ──────────────────────────────────────────────────────
 const NOTA_ORIGIN_Y   = 6                              // top of notation band
@@ -421,7 +426,7 @@ export function TabNotationView({
             return (
               <>
                 <defs>
-                  <style>{`@font-face{font-family:'Bravura';src:url('https://cdn.jsdelivr.net/npm/@vexflow-fonts/bravura/bravura.woff2') format('woff2');font-display:block}`}</style>
+                  <style>{`@font-face{font-family:'Bravura';src:url('${bravuraFontUrl}') format('woff2');font-display:block}`}</style>
                 </defs>
                 <g style={{ pointerEvents: 'none' }}>
                   {/* F-clef — SMuFL U+E062, origin = F2 line */}
