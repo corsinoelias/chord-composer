@@ -131,12 +131,33 @@ const webAppSchema = {
           </div>
         </div>
 
-        <p style="margin: 0; font-size: 15px;">
-          Want a repeating beat instead of playing live? Try the <a href="/tools/drum-machine/">Drum Machine</a>.
-          Building a full arrangement? <a href="/chord-player/">Chord Player</a> combines drums, bass, and piano with BPM control.
-        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+          <div style="background: #ffffff; border: 1px solid #e6e1f2; border-radius: 14px; padding: 20px;">
+            <div style="font-size: 14px; color: #4b4463; margin-bottom: 8px;">Want a repeating beat instead of playing live?</div>
+            <a class="vd-cta-link" href="/tools/drum-machine/">Try the Drum Machine →</a>
+          </div>
+          <div style="background: #ffffff; border: 1px solid #e6e1f2; border-radius: 14px; padding: 20px;">
+            <div style="font-size: 14px; color: #4b4463; margin-bottom: 8px;">Building a full arrangement?</div>
+            <a class="vd-cta-link" href="/chord-player/">Open the Chord Player →</a>
+            <div style="font-size: 13px; color: #6d6685; margin-top: 6px;">Combines drums, bass, and piano with BPM control.</div>
+          </div>
+        </div>
 
       </div>
     </div>
   </div>
+
+  <style>
+    .vd-cta-link {
+      display: inline-block;
+      font-size: 15px;
+      font-weight: 700;
+      color: #7442d6;
+      text-decoration: none;
+    }
+    .vd-cta-link:hover {
+      color: #f0be62;
+      text-decoration: underline;
+    }
+  </style>
 </BaseLayout>
