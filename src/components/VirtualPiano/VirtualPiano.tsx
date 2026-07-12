@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { PIANO_SONGS, type PianoNote, type PianoSong } from '../../lib/virtualPiano/pianoSongs'
+import { getPianoSample, loadPianoSamples } from '../../lib/virtualPiano/pianoSamples'
 
 // Ported from the user's Claude Design project "Piano virtual realista"
 // (Virtual Piano.dc.html) — same audio synthesis, recording, marks, MIDI
-// in/out, song library and waterfall behavior as the original.
+// in/out, song library and waterfall behavior as the original. The
+// synthesized 'piano' voice from that design is kept as "Classic Piano";
+// 'acoustic' is a real sampled grand piano (see pianoSamples.ts), reusing
+// the same sample set as the Chord Player's own engine.
 
-type InstrumentId = 'piano' | 'epiano' | 'organ' | 'synth' | 'strings' | 'musicbox'
+type InstrumentId = 'acoustic' | 'piano' | 'epiano' | 'organ' | 'synth' | 'strings' | 'musicbox'
 type LabelMode = 'none' | 'notes' | 'keys'
 type Notation = 'latina' | 'anglo'
 type RecState = 'idle' | 'count' | 'rec' | 'done'
@@ -26,7 +30,33 @@ const LAT = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', '
 const ANG = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const ROW = 'QWERTYUIOP'
 
+function buildSampleVoice(ctx: BaseAudioContext, dest: AudioNode, buf: AudioBuffer, t: number, vel: number): Voice {
+  const peak = 0.32 * vel
+  const source = ctx.createBufferSource()
+  source.buffer = buf
+  const gainNode = ctx.createGain()
+  source.connect(gainNode)
+  gainNode.connect(dest)
+  gainNode.gain.setValueAtTime(0.0001, t)
+  gainNode.gain.linearRampToValueAtTime(peak, t + 0.01)
+  source.start(t)
+  return {
+    release: (rt: number) => {
+      gainNode.gain.cancelScheduledValues(rt)
+      gainNode.gain.setValueAtTime(gainNode.gain.value, rt)
+      gainNode.gain.linearRampToValueAtTime(0.0001, rt + 0.28)
+      try { source.stop(rt + 0.35) } catch { /* already stopped */ }
+    },
+  }
+}
+
 function buildVoice(ctx: BaseAudioContext, dest: AudioNode, inst: InstrumentId, midi: number, t: number, vel: number): Voice {
+  if (inst === 'acoustic') {
+    const buf = getPianoSample(midi)
+    if (buf) return buildSampleVoice(ctx, dest, buf, t, vel)
+    inst = 'piano' // sample not loaded yet (or genuinely missing) — fall through to synthesis
+  }
+
   const f = 440 * Math.pow(2, (midi - 69) / 12)
   const out = ctx.createGain()
   out.connect(dest)
@@ -187,7 +217,7 @@ export function VirtualPiano() {
   const [baseOctave, setBaseOctave] = useState(3)
   const [nOct, setNOct] = useState(3)
   const [octOverride, setOctOverride] = useState<number | null>(null)
-  const [instrument, setInstrument] = useState<InstrumentId>('piano')
+  const [instrument, setInstrument] = useState<InstrumentId>('acoustic')
   const [volume, setVolume] = useState(0.8)
   const [labelMode, setLabelMode] = useState<LabelMode>('none')
   const [notation, setNotation] = useState<Notation>('latina')
@@ -586,7 +616,7 @@ export function VirtualPiano() {
   const doDlMidi = useCallback(() => {
     const evs = recEventsRef.current
     if (!evs.length) return
-    const PROG: Record<InstrumentId, number> = { piano: 0, epiano: 4, organ: 19, synth: 81, strings: 48, musicbox: 10 }
+    const PROG: Record<InstrumentId, number> = { acoustic: 0, piano: 0, epiano: 4, organ: 19, synth: 81, strings: 48, musicbox: 10 }
     const div = 480, uspb = 500000 // 120 bpm
     const list: { t: number; b: number[] }[] = []
     evs.forEach(ev => {
@@ -674,7 +704,17 @@ export function VirtualPiano() {
       }).catch(() => {})
     }
 
+    // Preload the real piano samples right away (per-page load, not on first
+    // keypress) so "Acoustic Piano" is ready by the time someone plays —
+    // deferred to idle time so the 88 pooled fetches don't compete with
+    // hydration/the skeleton hand-off.
+    const win = window as Window & { requestIdleCallback?: (cb: () => void) => number; cancelIdleCallback?: (id: number) => void }
+    const startPreload = () => loadPianoSamples(ensureCtx())
+    const idleId = win.requestIdleCallback ? win.requestIdleCallback(startPreload) : window.setTimeout(startPreload, 1)
+
     return () => {
+      if (win.requestIdleCallback && win.cancelIdleCallback) win.cancelIdleCallback(idleId)
+      else clearTimeout(idleId)
       window.removeEventListener('keydown', keyDownHandler)
       window.removeEventListener('keyup', keyUpHandler)
       window.removeEventListener('resize', onResize)
@@ -886,7 +926,8 @@ export function VirtualPiano() {
             onChange={(e) => setInstrument(e.target.value as InstrumentId)}
             style={{ fontFamily: 'inherit', background: '#EDE8F5', color: '#2B2438', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 10px', fontSize: 13, cursor: 'pointer' }}
           >
-            <option value="piano">Acoustic Piano</option>
+            <option value="acoustic">Acoustic Piano</option>
+            <option value="piano">Classic Piano</option>
             <option value="epiano">Electric Piano</option>
             <option value="organ">Organ</option>
             <option value="synth">Synthesizer</option>
@@ -949,7 +990,7 @@ export function VirtualPiano() {
       {/* About / How it works */}
       <section style={{ maxWidth: 860, width: '100%', margin: '30px auto 50px auto', padding: '0 24px' }}>
         <h2 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 8px 0', letterSpacing: -0.4 }}>Play the piano, right in your browser</h2>
-        <p style={{ color: '#6E6482', fontSize: 15, lineHeight: 1.7, margin: '0 0 8px 0' }}>Virtual Piano is a fully playable piano with six live-synthesized sounds — acoustic and electric piano, organ, synth, strings and music box. Every key lights up and moves when you play it. Play by clicking the keys, with your computer keyboard, or by plugging in a real piano or keyboard over MIDI.</p>
+        <p style={{ color: '#6E6482', fontSize: 15, lineHeight: 1.7, margin: '0 0 8px 0' }}>Virtual Piano is a fully playable piano with a real sampled acoustic piano plus six synthesized sounds — classic and electric piano, organ, synth, strings and music box. Every key lights up and moves when you play it. Play by clicking the keys, with your computer keyboard, or by plugging in a real piano or keyboard over MIDI.</p>
         <p style={{ color: '#6E6482', fontSize: 15, lineHeight: 1.7, margin: '0 0 28px 0' }}>A fun way to practice is to pick a song from the library and play along in Waterfall mode, or record yourself and listen back — you can even download your take as audio or MIDI.</p>
 
         <h3 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 12px 0' }}>What you can do</h3>

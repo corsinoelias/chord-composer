@@ -3,6 +3,25 @@ export const prerender = true
 import BaseLayout from '../../layouts/BaseLayout.astro'
 import { VirtualPiano } from '../../components/VirtualPiano/VirtualPiano'
 
+// Real, static copy shown in the skeleton below — kept in sync by hand with
+// the identical text in VirtualPiano.tsx's "About" section (help line,
+// "What you can do", "Keyboard layout", FAQ). Unlike Chord Player's skeleton
+// (which only has dynamic per-user content, so it stays pure shimmer), this
+// text never changes per visitor, so showing it for real — instead of gray
+// shimmer bars — kills the pop-in for the whole page and is real crawlable
+// text for SEO/no-JS visitors instead of decorative loading UI.
+const shortcutRows = [
+  { label: 'Black keys', keys: ['2', '3', '·', '5', '6', '7', '·', '9', '0'] },
+  { label: 'White keys', keys: ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'] },
+]
+
+const faqs = [
+  { q: 'Can I use a real MIDI keyboard?', a: 'Yes — connect a MIDI keyboard and use Chrome or Edge. It is detected automatically and its name appears in the badge at the top right. Anything you play on it sounds here and can be recorded too, with velocity sensitivity.' },
+  { q: 'Does it work on phones and tablets?', a: 'Yes — the piano adapts to your screen, showing fewer, bigger keys on small devices, and supports multi-touch so you can play chords with several fingers. You can also force a specific key density in Settings.' },
+  { q: 'WAV or MIDI — which download should I pick?', a: 'WAV is a finished audio file — share it or listen anywhere. MIDI stores the notes themselves, so you can open it in any music software (GarageBand, Ableton, MuseScore…) to edit the notes or change the instrument.' },
+  { q: 'How do I share my marked notes?', a: 'Marks are saved in the page address as you make them — just copy the URL from your browser and send it. Whoever opens it sees the same keys marked and can play them with the space bar.' },
+]
+
 const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
@@ -20,9 +39,9 @@ const webAppSchema = {
   url: 'https://chordsequence.com/piano/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Free virtual piano you can play in the browser. Six live-synthesized sounds, MIDI keyboard support, a song library with Waterfall practice mode, recording with WAV/MIDI export, and shareable marked-key sequences.',
+  description: 'Free virtual piano you can play in the browser. A real sampled acoustic piano plus six synthesized sounds, MIDI keyboard support, a song library with Waterfall practice mode, recording with WAV/MIDI export, and shareable marked-key sequences.',
   featureList: [
-    'Six live-synthesized sounds — Acoustic Piano, Electric Piano, Organ, Synthesizer, Strings, Music Box',
+    'A real sampled Acoustic Piano, plus six synthesized sounds — Classic Piano, Electric Piano, Organ, Synthesizer, Strings, Music Box',
     'Mouse, touch, computer keyboard, and MIDI keyboard control with velocity',
     'Song library sorted by difficulty with auto-play and Waterfall practice mode',
     'Open any .mid file and watch it played back',
@@ -50,5 +69,111 @@ const webAppSchema = {
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
 
-  <VirtualPiano client:only="react" />
+  <!--
+    VirtualPiano uses client:only (it touches window/AudioContext/canvas at
+    mount), so nothing paints until the full React bundle loads and hydrates.
+    The static skeleton below renders immediately server-side and sits in the
+    same CSS grid cell as the island — same technique as
+    src/pages/chord-player/index.astro's editor-skeleton (see the comment
+    there for the stacking-context gotcha this works around). Unlike that
+    skeleton, most of this one is REAL text, not shimmer: the H1, MIDI badge,
+    help line, and the whole About/FAQ section are 100% static copy that
+    never changes per visitor, so they're rendered for real (kept in sync by
+    hand with VirtualPiano.tsx) instead of gray bars — this kills the pop-in
+    for the entire page, not just the header. Only the genuinely interactive,
+    stateful chrome (controls bar, piano keys) stays as loading shimmer.
+  -->
+  <div style="display: grid; position: relative;">
+    <div id="piano-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out; background: #F5F2FA; min-height: 100vh; font-family: 'Outfit', sans-serif;">
+      <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 20px 24px 8px 24px;">
+        <span />
+        <h1 style="margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px; text-align: center; white-space: nowrap; color: #2B2438;">Virtual Piano</h1>
+        <span style="justify-self: end; font-size: 12px; color: #8A7FA0; border: 1px solid #D9D0E8; border-radius: 999px; padding: 4px 12px;">MIDI: no device</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 24px 14px 24px;" aria-hidden="true">
+        <span class="h-9 w-24 rounded-lg bg-muted animate-pulse"></span>
+        <span class="h-9 w-16 rounded-lg bg-muted animate-pulse"></span>
+        <span class="h-9 w-20 rounded-lg bg-muted animate-pulse"></span>
+        <span class="h-9 w-28 rounded-lg bg-muted animate-pulse"></span>
+        <span style="margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap;">
+          <span class="h-9 w-32 rounded-lg bg-muted animate-pulse"></span>
+          <span class="h-9 w-24 rounded-lg bg-muted animate-pulse"></span>
+          <span class="h-9 w-28 rounded-lg bg-muted animate-pulse"></span>
+          <span class="h-9 w-24 rounded-lg bg-muted animate-pulse"></span>
+        </span>
+      </div>
+
+      <div style="padding: 0 10px; width: 100%;" aria-hidden="true">
+        <div style="width: 100%; border-radius: 14px; padding: 12px 12px 16px 12px;" class="bg-muted animate-pulse">
+          <div style="height: clamp(130px, 24vw, 230px);"></div>
+        </div>
+      </div>
+
+      <p style="text-align: center; color: #8A7FA0; font-size: 13px; margin: 14px 24px; line-height: 1.6;">
+        The <b style="color:#574A6E;">Q W E R T Y U I O P</b> row plays the white keys and the number row <b style="color:#574A6E;">2 3 · 5 6 7 · 9 0</b> plays the black keys — you can play several at once.
+        With «Mark» on, click keys to mark them and play them with the space bar; marks are saved in the web address so you can share them.
+      </p>
+
+      <section style="max-width: 860px; width: 100%; margin: 30px auto 50px auto; padding: 0 24px; color: #2B2438; font-family: 'Outfit', sans-serif;">
+        <h2 style="font-size: 24px; font-weight: 700; margin: 0 0 8px 0; letter-spacing: -0.4px;">Play the piano, right in your browser</h2>
+        <p style="color: #6E6482; font-size: 15px; line-height: 1.7; margin: 0 0 8px 0;">Virtual Piano is a fully playable piano with a real sampled acoustic piano plus six synthesized sounds — classic and electric piano, organ, synth, strings and music box. Every key lights up and moves when you play it. Play by clicking the keys, with your computer keyboard, or by plugging in a real piano or keyboard over MIDI.</p>
+        <p style="color: #6E6482; font-size: 15px; line-height: 1.7; margin: 0 0 28px 0;">A fun way to practice is to pick a song from the library and play along in Waterfall mode, or record yourself and listen back — you can even download your take as audio or MIDI.</p>
+
+        <h3 style="font-size: 17px; font-weight: 600; margin: 0 0 12px 0;">What you can do</h3>
+        <ul style="color: #6E6482; font-size: 14px; line-height: 1.9; margin: 0 0 28px 0; padding-left: 22px;">
+          <li><b style="color:#4C3B70;">Record</b> up to 5 minutes (with a 4-3-2-1 countdown), replay it with a colorful note waterfall, and download it as WAV or MIDI.</li>
+          <li><b style="color:#4C3B70;">Learn songs</b> from the library, sorted by difficulty — «Play» performs them with falling notes; «Waterfall» lets you play them yourself and counts your hits.</li>
+          <li><b style="color:#4C3B70;">Open any .mid file</b> and watch it played back with lit-up keys and colored falling notes.</li>
+          <li><b style="color:#4C3B70;">Mark keys</b> to build a sequence and play it with the space bar — marks live in the page address so you can share them.</li>
+          <li><b style="color:#4C3B70;">Customize everything</b> in Settings: volume, key density (1–5 octaves or Auto), key labels, Do-Re-Mi vs C-D-E naming, base octave — plus full-screen mode.</li>
+        </ul>
+
+        <h3 style="font-size: 17px; font-weight: 600; margin: 0 0 12px 0;">Keyboard layout</h3>
+        <p style="color: #6E6482; font-size: 14px; line-height: 1.7; margin: 0 0 12px 0;">The keys map to your computer keyboard just like their physical position on the piano:</p>
+        <div style="display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px 0;">
+          {shortcutRows.map(row => (
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span style="font-size: 13px; color: #8A7FA0; min-width: 84px;">{row.label}</span>
+              <div style="display: flex; gap: 5px;">
+                {row.keys.map(k => k === '·'
+                  ? <span style="color: #C4B9D8; align-self: center;">·</span>
+                  : row.label === 'Black keys'
+                    ? <kbd style="background: #131110; border: 1px solid #D9D0E8; border-radius: 6px; padding: 5px 10px; font-size: 13px; font-family: inherit; color: #cfc7b9;">{k}</kbd>
+                    : <kbd style="background: #f5f0e6; border: 1px solid #a49c8e; border-radius: 6px; padding: 5px 10px; font-size: 13px; font-family: inherit; color: #33302a;">{k}</kbd>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p style="color: #6E6482; font-size: 14px; line-height: 1.7; margin: 0 0 28px 0;">Hold several keys at once to play chords. Shift the range with the Octave − / + buttons, and turn on «Shortcuts» key labels in Settings to see the mapping on the piano itself.</p>
+
+        <h3 style="font-size: 17px; font-weight: 600; margin: 0 0 12px 0;">Questions &amp; answers</h3>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          {faqs.map(f => (
+            <div style="background: #FFFFFF; border: 1px solid #E3DCEF; border-radius: 12px; padding: 16px 18px;">
+              <h3 style="margin: 0 0 8px 0; font-size: 15px; font-weight: 600;">{f.q}</h3>
+              <p style="color: #6E6482; font-size: 14px; line-height: 1.6; margin: 0;">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+    <div style="grid-area: 1 / 1; z-index: 1;">
+      <VirtualPiano client:only="react" />
+    </div>
+  </div>
+  <script>
+    document.addEventListener(
+      'astro:hydrate',
+      () => {
+        const skeleton = document.getElementById('piano-skeleton')
+        if (!skeleton) return
+        skeleton.style.opacity = '0'
+        skeleton.addEventListener('transitionend', () => skeleton.remove(), { once: true })
+        setTimeout(() => skeleton.remove(), 250) // fallback in case transitionend never fires
+      },
+      { capture: true, once: true },
+    )
+  </script>
 </BaseLayout>
