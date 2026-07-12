@@ -57,8 +57,8 @@ export const PAGES_REGISTRY: Record<string, PageMeta> = {
   },
   drums: {
     title: 'Virtual Drums',
-    tagline: 'Play a real drum kit live — mouse, tap, or keyboard. Free, no signup.',
-    tags: ['Playable', 'Multi-Touch', '3 Kits'],
+    tagline: 'Real sampled acoustic kit or synth electronic. Free, no signup.',
+    tags: ['Real Samples', 'MIDI', '15 Pieces'],
   },
   tuner: {
     title: 'Online Guitar Tuner',

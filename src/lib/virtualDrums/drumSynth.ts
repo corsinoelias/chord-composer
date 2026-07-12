@@ -1,6 +1,8 @@
 // Ported verbatim (formulas unchanged) from the user's Claude Design project
-// "Batería Virtual Interactiva" (drum-synth.js) — layered Web Audio synthesis,
-// acoustic + electronic kits, no samples.
+// "Batería Virtual Interactiva" (drum-synth.js) — layered Web Audio synthesis.
+// Electronic kit is pure synthesis. Acoustic kit plays real sampled sounds
+// (see ACOUSTIC_SAMPLE_PATHS below) and only falls back to synthesis for a
+// piece whose sample hasn't loaded (or been sourced) yet.
 
 export type DrumPieceId =
   | 'kick' | 'snare' | 'stick'
@@ -10,6 +12,40 @@ export type DrumPieceId =
   | 'ride-edge' | 'ride-body' | 'ride-bell'
 
 export type DrumKitId = 'acoustic' | 'electronic'
+
+// Real sampled sounds for the Acoustic kit — the same /audio/*.mp3 files the
+// Chord Player's drum engine (src/lib/audioEngine.ts) already uses, loaded
+// independently here since that module's sample cache is tied to its own
+// playback scheduling. Any path that 404s (e.g. the zone-specific crash/ride
+// files, sourced separately) just leaves that key unset — the synthesized
+// ac* function below is used for that piece until the file shows up.
+type AcousticSampleKey =
+  | 'kick' | 'snare' | 'stick'
+  | 'hhClosed' | 'hhOpen1' | 'hhOpen2' | 'hhOpen3' | 'hhFoot1' | 'hhFoot2'
+  | 'tomHi' | 'tomLo' | 'tomFloor'
+  | 'crashEdge' | 'crashBody' | 'crashBell'
+  | 'rideEdge' | 'rideBody' | 'rideBell'
+
+const ACOUSTIC_SAMPLE_PATHS: Record<AcousticSampleKey, string> = {
+  kick: '/audio/kick.mp3',
+  snare: '/audio/snare-drum.mp3',
+  stick: '/audio/snare-stick.mp3',
+  hhClosed: '/audio/hihat.mp3',
+  hhOpen1: '/audio/hihat-open.mp3',
+  hhOpen2: '/audio/hihat-open-2.mp3',
+  hhOpen3: '/audio/hihat-open-3.mp3',
+  hhFoot1: '/audio/hihat-foot.mp3',
+  hhFoot2: '/audio/hihat-foot-2.mp3',
+  tomHi: '/audio/tom1.mp3',
+  tomLo: '/audio/tom2.mp3',
+  tomFloor: '/audio/floor-tom.mp3',
+  crashEdge: '/audio/crash.mp3',
+  crashBody: '/audio/crash-body.mp3',
+  crashBell: '/audio/crash-bell.mp3',
+  rideEdge: '/audio/ride-edge.mp3',
+  rideBody: '/audio/ride.mp3',
+  rideBell: '/audio/ride-bell.mp3',
+}
 
 export interface DrumEngine {
   play(kit: DrumKitId, id: DrumPieceId, vel?: number): void
@@ -24,6 +60,7 @@ export function createDrumEngine(): DrumEngine {
   let noiseBuf: AudioBuffer | null = null
   let vol = 0.9
   let rev = 0.25
+  const samples: Partial<Record<AcousticSampleKey, AudioBuffer>> = {}
 
   function ensure() {
     if (ctx) {
@@ -51,6 +88,27 @@ export function createDrumEngine(): DrumEngine {
     wet.connect(conv); conv.connect(revLp); revLp.connect(master)
 
     noiseBuf = makeNoise(2)
+
+    ;(Object.keys(ACOUSTIC_SAMPLE_PATHS) as AcousticSampleKey[]).forEach(key => {
+      fetch(ACOUSTIC_SAMPLE_PATHS[key])
+        .then(res => (res.ok ? res.arrayBuffer() : Promise.reject(res.status)))
+        .then(arrayBuffer => ctx!.decodeAudioData(arrayBuffer))
+        .then(buf => { samples[key] = buf })
+        .catch(() => { /* not sourced yet — synthesized fallback is used until it is */ })
+    })
+  }
+
+  function playSample(buf: AudioBuffer, t: number, v: number, gainMul: number, wetAmt: number) {
+    const src = ctx!.createBufferSource()
+    src.buffer = buf
+    const g = ctx!.createGain()
+    g.gain.value = Math.max(0.0001, v * gainMul)
+    src.connect(g); g.connect(master!)
+    if (wetAmt > 0) {
+      const ws = ctx!.createGain(); ws.gain.value = wetAmt
+      g.connect(ws); ws.connect(wet!)
+    }
+    src.start(t)
   }
 
   function makeSatCurve(k: number) {
@@ -289,21 +347,29 @@ export function createDrumEngine(): DrumEngine {
 
   const TABLE: Record<DrumKitId, Record<DrumPieceId, (t: number, v: number) => void>> = {
     acoustic: {
-      'kick': (t, v) => acKick(t, v),
-      'snare': (t, v) => acSnare(t, v),
-      'stick': (t, v) => acStick(t, v),
-      'tom-hi': (t, v) => acTom(t, v, 265, 170, 0.45, 0.9),
-      'tom-lo': (t, v) => acTom(t, v, 205, 128, 0.55, 0.95),
-      'tom-floor': (t, v) => acTom(t, v, 142, 86, 0.7, 1.05),
-      'hh-closed': (t, v) => acHat(t, v, 0.09, 0.55),
-      'hh-open': (t, v) => acHat(t, v, 0.55, 0.6),
-      'hh-foot': (t, v) => acHat(t, v, 0.06, 0.35),
-      'crash-edge': (t, v) => wash(t, v, 2.2, 0.9, 3800),
-      'crash-body': (t, v) => wash(t, v, 1.4, 0.75, 5200),
-      'crash-bell': (t, v) => bellPing(t, v, 640, 1.0, 0.55),
-      'ride-edge': (t, v) => wash(t, v, 1.9, 0.55, 3800),
-      'ride-body': (t, v) => acRideBody(t, v),
-      'ride-bell': (t, v) => bellPing(t, v, 880, 1.3, 0.6),
+      'kick': (t, v) => samples.kick ? playSample(samples.kick, t, v, 1.1, 0.06) : acKick(t, v),
+      'snare': (t, v) => samples.snare ? playSample(samples.snare, t, v, 1.0, 0.2) : acSnare(t, v),
+      'stick': (t, v) => samples.stick ? playSample(samples.stick, t, v, 0.9, 0.15) : acStick(t, v),
+      'tom-hi': (t, v) => samples.tomHi ? playSample(samples.tomHi, t, v, 1.0, 0.2) : acTom(t, v, 265, 170, 0.45, 0.9),
+      'tom-lo': (t, v) => samples.tomLo ? playSample(samples.tomLo, t, v, 1.0, 0.2) : acTom(t, v, 205, 128, 0.55, 0.95),
+      'tom-floor': (t, v) => samples.tomFloor ? playSample(samples.tomFloor, t, v, 1.0, 0.2) : acTom(t, v, 142, 86, 0.7, 1.05),
+      'hh-closed': (t, v) => samples.hhClosed ? playSample(samples.hhClosed, t, v, 0.9, 0.1) : acHat(t, v, 0.09, 0.55),
+      'hh-open': (t, v) => {
+        const pool = [samples.hhOpen1, samples.hhOpen2, samples.hhOpen3].filter((b): b is AudioBuffer => !!b)
+        if (pool.length) playSample(pool[Math.floor(Math.random() * pool.length)], t, v, 0.85, 0.15)
+        else acHat(t, v, 0.55, 0.6)
+      },
+      'hh-foot': (t, v) => {
+        const buf = samples.hhFoot2 ?? samples.hhFoot1
+        if (buf) playSample(buf, t, v, 0.8, 0.05)
+        else acHat(t, v, 0.06, 0.35)
+      },
+      'crash-edge': (t, v) => samples.crashEdge ? playSample(samples.crashEdge, t, v, 1.0, 0.35) : wash(t, v, 2.2, 0.9, 3800),
+      'crash-body': (t, v) => samples.crashBody ? playSample(samples.crashBody, t, v, 0.9, 0.3) : wash(t, v, 1.4, 0.75, 5200),
+      'crash-bell': (t, v) => samples.crashBell ? playSample(samples.crashBell, t, v, 0.85, 0.25) : bellPing(t, v, 640, 1.0, 0.55),
+      'ride-edge': (t, v) => samples.rideEdge ? playSample(samples.rideEdge, t, v, 0.9, 0.3) : wash(t, v, 1.9, 0.55, 3800),
+      'ride-body': (t, v) => samples.rideBody ? playSample(samples.rideBody, t, v, 0.85, 0.25) : acRideBody(t, v),
+      'ride-bell': (t, v) => samples.rideBell ? playSample(samples.rideBell, t, v, 0.85, 0.25) : bellPing(t, v, 880, 1.3, 0.6),
     },
     electronic: {
       'kick': (t, v) => elKick(t, v),

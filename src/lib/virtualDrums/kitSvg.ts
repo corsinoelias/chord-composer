@@ -284,6 +284,7 @@ export function buildKitSvg(opts: { kit: 'acoustic' | 'electronic'; scene: Scene
         <ellipse cx="545" cy="470" rx="84" ry="23.5" fill="none" stroke="rgba(0,0,0,0.07)" stroke-width="2.5" pointer-events="none"></ellipse>
         <ellipse cx="514" cy="460" rx="36" ry="11" fill="rgba(255,255,255,0.4)" filter="url(#soft2)" pointer-events="none"></ellipse>
         <ellipse cx="545" cy="470" rx="100" ry="30" fill="none" stroke="${rim}" stroke-width="7" data-hit="stick"></ellipse>
+        <ellipse cx="545" cy="470" rx="100" ry="30" fill="none" stroke="transparent" stroke-width="28" data-hit="stick"></ellipse>
         <ellipse id="fl-snare" cx="545" cy="470" rx="100" ry="30" fill="#ffffff" opacity="0" pointer-events="none"></ellipse>
       </g>
 

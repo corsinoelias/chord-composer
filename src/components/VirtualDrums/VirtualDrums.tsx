@@ -384,7 +384,7 @@ export function VirtualDrums() {
   const playLabel = playing ? '■ Stop' : '▶ Play'
 
   return (
-    <div style={{ width: '100%', height: isNarrow ? 'auto' : 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', fontFamily: 'Helvetica, Arial, sans-serif', overflow: 'hidden', background: '#f6f4fb', position: 'relative' }}>
+    <div style={{ width: '100%', height: isNarrow ? 'auto' : 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', fontFamily: 'Helvetica, Arial, sans-serif', overflow: 'hidden', background: '#f6f4fb', position: 'relative', WebkitUserSelect: 'none', userSelect: 'none' }}>
       <style>{`
         @keyframes vdRecPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
         .vd-topbar-inner {

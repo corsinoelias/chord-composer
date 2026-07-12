@@ -20,7 +20,7 @@ const shortcutList = [
 
 const whatYouCanDo = [
   { title: 'Hit different zones', desc: "Crash and ride respond to where you strike: the outer edge washes, the body pings, and the center of the cymbal rings the bell. The snare has a cross-stick sound on its rim, and the hi-hat plays open, closed or with the foot pedal." },
-  { title: 'Two drum kits', desc: 'Switch between an acoustic kit — warm sunburst shells, bronze cymbals — and an electronic kit with punchy synth drums. The look of the kit changes with the sound.' },
+  { title: 'Two drum kits', desc: 'Switch between an acoustic kit with real sampled drum and cymbal hits, warm sunburst shells and bronze cymbals — or an electronic kit with punchy synth drums. The look of the kit changes with the sound.' },
   { title: 'Record your grooves', desc: 'Hit Record and you get a 4-3-2-1 count-in, just like in the studio. Everything you play is captured with its exact timing — press Play to hear it back on the kit, animations included.' },
   { title: 'Jam over real beats', desc: "Six built-in grooves — Rock, Funk, Disco, Hip-Hop, Jazz Swing and Reggaetón — loop on the kit so you can study how they're built or play on top of them." },
   { title: 'Plug in MIDI', desc: "Connect an electronic drum kit or pad controller and play the on-screen kit with velocity sensitivity. It's detected automatically — watch the MIDI light in the top bar." },
@@ -30,7 +30,7 @@ const whatYouCanDo = [
 const faqs = [
   { q: "I don't hear anything — is it broken?", a: 'Browsers block audio until you interact with the page. Click anywhere on the kit once and sound will unlock. Also check your system volume.' },
   { q: 'Why do cymbals sound different depending on where I click?', a: 'Real cymbals have three playing zones. Near the rim (edge) you get a full crash wash; the flat area (body) gives a controlled ping; the raised dome in the center (bell) cuts through with a bright metallic ring. The virtual cymbals measure how far from the center you hit and pick the zone, exactly like the real thing.' },
-  { q: 'Are these real drum samples?', a: "No — every hit is synthesized from scratch the instant you play it, using layered oscillators, shaped noise and a touch of room reverb. That's why it loads instantly and never repeats identically." },
+  { q: 'Are these real drum samples?', a: 'The Acoustic kit uses real sampled drum and cymbal hits. The Electronic kit is synthesized live from oscillators, shaped noise and a touch of room reverb — that’s why it loads instantly and never repeats identically.' },
   { q: 'How does recording work?', a: 'Press Record and count in with the 4-3-2-1 clicks. Everything you play — keyboard, mouse or MIDI — is captured with its timing. Press "Stop rec", then Play to hear it back. Recording again replaces the previous take. Loop beats aren’t recorded, so you can practice over them freely.' },
   { q: 'Can I connect my electronic drum kit?', a: 'Yes. Connect it over USB-MIDI and the status light in the top bar turns green. Pads follow the General MIDI drum map (kick 36, snare 38, hi-hats 42/44/46, toms 41-50, cymbals 49-57), including velocity.' },
   { q: 'Any tips for learning a first beat?', a: 'Start with the classic rock beat: steady eighth notes on the hi-hat (S), bass drum (Z) on beats 1 and 3, snare (X) on 2 and 4. Loop the built-in Rock beat first and listen, then try to copy it. When it flows, put on a song you love and play along.' },
@@ -53,10 +53,10 @@ const webAppSchema = {
   url: 'https://chordsequence.com/drums/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Free virtual drum kit you can play in the browser — kick, snare, hi-hat, toms, crash and ride, triggered by mouse, touch, keyboard, or MIDI. Record grooves and jam over 6 built-in beats.',
+  description: 'Free virtual drum kit you can play in the browser. The Acoustic kit uses real sampled drum and cymbal hits; the Electronic kit is synthesized live. Triggered by mouse, touch, keyboard, or MIDI. Record grooves and jam over 6 built-in beats.',
   featureList: [
     '15-piece playable kit — kick, snare, hi-hat (closed/open/foot), toms, crash and ride (edge/body/bell zones)',
-    'Two kits: Acoustic and Electronic',
+    'Acoustic kit uses real sampled drum and cymbal hits; Electronic kit is synthesized live',
     'Mouse, touch, keyboard, and MIDI control with velocity',
     'Record with 4-3-2-1 count-in and exact-timing playback',
     '6 built-in beat loops: Rock, Funk, Disco, Hip-Hop, Jazz Swing, Reggaeton',
@@ -70,7 +70,7 @@ const webAppSchema = {
 
 <BaseLayout
   title="Virtual Drum Kit Online – Play Real Drums for Free"
-  description="Free online virtual drum kit — click, tap, keyboard or MIDI to play kick, snare, hi-hat, toms, crash & ride. Record grooves, jam over 6 built-in beats."
+  description="Free online virtual drum kit with real sampled acoustic sounds — click, tap, keyboard or MIDI. Record grooves, jam over 6 built-in beats."
   canonicalUrl="https://chordsequence.com/drums/"
   ogImage="/og/page/drums/"
   ogImageAlt="Virtual Drum Kit Online – Play Real Drums for Free"
@@ -90,7 +90,7 @@ const webAppSchema = {
         <div style="display: flex; flex-direction: column; gap: 14px; max-width: 680px;">
           <div style="font-size: 13px; font-weight: 700; letter-spacing: 2px; color: #7442d6; text-transform: uppercase;">About</div>
           <h2 style="margin: 0; font-size: 34px; font-weight: 700; color: #1d1830; line-height: 1.15;">Play the drums, right in your browser</h2>
-          <p style="margin: 0; font-size: 16px; line-height: 1.65;">Virtual Drums is a fully playable drum kit. Every sound is synthesized live — nothing is pre-recorded — and every piece of the kit reacts with its own animation when you hit it. Play by clicking the drums, with your keyboard, or by plugging in an electronic drum kit over MIDI.</p>
+          <p style="margin: 0; font-size: 16px; line-height: 1.65;">Virtual Drums is a fully playable drum kit. The Acoustic kit plays real sampled drum and cymbal hits; the Electronic kit is synthesized live. Every piece of the kit reacts with its own animation when you hit it. Play by clicking the drums, with your keyboard, or by plugging in an electronic drum kit over MIDI.</p>
           <p style="margin: 0; font-size: 16px; line-height: 1.65;">A fun way to practice is to put on your favorite songs and play along, or loop one of the built-in beats and jam over it.</p>
         </div>
 
