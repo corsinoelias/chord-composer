@@ -60,6 +60,11 @@ export const PAGES_REGISTRY: Record<string, PageMeta> = {
     tagline: 'Real sampled acoustic kit or synth electronic. Free, no signup.',
     tags: ['Real Samples', 'MIDI', '15 Pieces'],
   },
+  piano: {
+    title: 'Virtual Piano',
+    tagline: '6 live-synthesized sounds, MIDI support, song library. Free, no signup.',
+    tags: ['6 Sounds', 'MIDI', 'Song Library'],
+  },
   tuner: {
     title: 'Online Guitar Tuner',
     tagline: 'Tune your guitar, bass or ukulele in your browser using your microphone.',

@@ -1,0 +1,54 @@
+---
+export const prerender = true
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import { VirtualPiano } from '../../components/VirtualPiano/VirtualPiano'
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  '@id': 'https://chordsequence.com/piano/#breadcrumb',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Virtual Piano', item: 'https://chordsequence.com/piano/' },
+  ],
+}
+
+const webAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Virtual Piano',
+  url: 'https://chordsequence.com/piano/',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Any',
+  description: 'Free virtual piano you can play in the browser. Six live-synthesized sounds, MIDI keyboard support, a song library with Waterfall practice mode, recording with WAV/MIDI export, and shareable marked-key sequences.',
+  featureList: [
+    'Six live-synthesized sounds — Acoustic Piano, Electric Piano, Organ, Synthesizer, Strings, Music Box',
+    'Mouse, touch, computer keyboard, and MIDI keyboard control with velocity',
+    'Song library sorted by difficulty with auto-play and Waterfall practice mode',
+    'Open any .mid file and watch it played back',
+    'Record up to 5 minutes with a 4-3-2-1 count-in, download as WAV or MIDI',
+    'Mark keys and share sequences via URL',
+    'No signup, no download',
+  ],
+  browserRequirements: 'Requires a modern browser with Web Audio API support',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}
+---
+
+<BaseLayout
+  title="Virtual Piano Online – Play Free with Keyboard, Mouse or MIDI"
+  description="Free online virtual piano — six live sounds, MIDI keyboard support, song library with Waterfall practice mode, and recording with WAV/MIDI export."
+  canonicalUrl="https://chordsequence.com/piano/"
+  ogImage="/og/page/piano/"
+  ogImageAlt="Virtual Piano Online – Play Free with Keyboard, Mouse or MIDI"
+>
+  <Fragment slot="head">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <VirtualPiano client:only="react" />
+</BaseLayout>
