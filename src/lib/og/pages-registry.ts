@@ -55,6 +55,11 @@ export const PAGES_REGISTRY: Record<string, PageMeta> = {
     tagline: 'Free 16-step drum machine. 3 kits, 12 genre presets, no signup.',
     tags: ['16-Step', '3 Kits', 'Presets'],
   },
+  drums: {
+    title: 'Virtual Drums',
+    tagline: 'Play a real drum kit live — mouse, tap, or keyboard. Free, no signup.',
+    tags: ['Playable', 'Multi-Touch', '3 Kits'],
+  },
   tuner: {
     title: 'Online Guitar Tuner',
     tagline: 'Tune your guitar, bass or ukulele in your browser using your microphone.',
