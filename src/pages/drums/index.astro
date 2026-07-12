@@ -81,7 +81,60 @@ const webAppSchema = {
   </Fragment>
 
   <div>
-    <VirtualDrums client:only="react" />
+    <!--
+      VirtualDrums uses client:only (it touches window/AudioContext/canvas at
+      mount), so nothing paints until the full React bundle loads and
+      hydrates. The static skeleton below renders immediately server-side and
+      sits in the same CSS grid cell as the island — same technique as
+      src/pages/chord-player/index.astro's editor-skeleton and
+      src/pages/piano/index.astro's piano-skeleton (see those comments for
+      the stacking-context gotcha this works around). The real
+      "Virtual Drums" H1 is kept as genuine, non-shimmer text (deterministic,
+      never changes per visitor); the kit-type toggle, Record/Play/Settings
+      buttons, and the kit visualization area are all interactive/stateful,
+      so they stay as loading shimmer. The mobile/desktop shape (aspect-ratio
+      kit box vs. fill-remaining-height) mirrors VirtualDrums's own
+      `isNarrow` breakpoint (<=640px) via a plain CSS media query, so there's
+      no shift from picking the wrong shape at different viewport widths
+      either — this needs no JS, since the real component's own `isNarrow` is
+      also just `window.innerWidth <= 640`.
+    -->
+    <div style="display: grid; position: relative;">
+      <div id="drums-skeleton" class="vd-skeleton-shell" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out; width: 100%; display: flex; flex-direction: column; font-family: Helvetica, Arial, sans-serif; overflow: hidden; background: #f6f4fb;">
+        <div style="background: #f8f6fd;">
+          <div style="max-width: 1280px; margin: 0 auto; width: 100%; display: flex; align-items: center; gap: 9px; padding: 8px 16px; flex-wrap: wrap;">
+            <div style="flex: 1; display: flex; justify-content: flex-start;" aria-hidden="true">
+              <span class="h-9 w-40 rounded-full bg-muted animate-pulse"></span>
+            </div>
+            <h1 style="flex: 0 1 auto; margin: 0; font-size: 15px; font-weight: 700; color: #1d1830; letter-spacing: 0.3px; white-space: nowrap; text-align: center;">Virtual Drums</h1>
+            <div style="flex: 1; display: flex; justify-content: flex-end;" aria-hidden="true">
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+                <span class="h-9 w-24 rounded-full bg-muted animate-pulse"></span>
+                <span class="h-9 w-20 rounded-full bg-muted animate-pulse"></span>
+                <span class="h-9 w-28 rounded-full bg-muted animate-pulse"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="vd-skeleton-kit bg-muted animate-pulse" aria-hidden="true" style="width: 100%;"></div>
+      </div>
+      <div style="grid-area: 1 / 1; z-index: 1;">
+        <VirtualDrums client:only="react" />
+      </div>
+    </div>
+    <script>
+      document.addEventListener(
+        'astro:hydrate',
+        () => {
+          const skeleton = document.getElementById('drums-skeleton')
+          if (!skeleton) return
+          skeleton.style.opacity = '0'
+          skeleton.addEventListener('transitionend', () => skeleton.remove(), { once: true })
+          setTimeout(() => skeleton.remove(), 250) // fallback in case transitionend never fires
+        },
+        { capture: true, once: true },
+      )
+    </script>
 
     <!-- ============ ABOUT SECTION ============ -->
     <div style="background: #f6f4fb; color: #4b4463; font-family: Helvetica, Arial, sans-serif; padding: 72px 24px 96px;">
@@ -158,6 +211,14 @@ const webAppSchema = {
     .vd-cta-link:hover {
       color: #f0be62;
       text-decoration: underline;
+    }
+
+    /* Mirrors VirtualDrums's own isNarrow breakpoint (window.innerWidth <= 640) */
+    .vd-skeleton-shell { height: auto; }
+    .vd-skeleton-kit { flex: none; aspect-ratio: 29 / 20; }
+    @media (min-width: 641px) {
+      .vd-skeleton-shell { height: calc(100vh - 64px); }
+      .vd-skeleton-kit { flex: 1; min-height: 0; aspect-ratio: unset; }
     }
   </style>
 </BaseLayout>
