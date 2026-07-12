@@ -106,10 +106,12 @@ const ANIM: Partial<Record<DrumPieceId, [string, AnimKind, number?]>> = {
 }
 
 export function VirtualDrums() {
+  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth <= 640)
   const [kit, setKit] = useState<DrumKitId>('acoustic')
-  const [scene, setScene] = useState(0)
+  const [scene, setScene] = useState(2)
   const [labels, setLabels] = useState(true)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [recording, setRecording] = useState(false)
   const [playing, setPlaying] = useState(false)
   const [hasRec, setHasRec] = useState(false)
@@ -139,6 +141,17 @@ export function VirtualDrums() {
     engineRef.current = createDrumEngine()
     engineRef.current.setVolume(0.9)
     engineRef.current.setReverb(0.25)
+  }, [])
+
+  // Narrow (portrait mobile) viewports get a shorter, mildly-cropped kit
+  // instead of the wide "meet"-fitted stage — otherwise the 16:9 composition
+  // letterboxes into a tall mostly-empty column with a tiny kit in the middle.
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    const onChange = () => setIsNarrow(mq.matches)
+    onChange()
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
   }, [])
 
   const animateHit = useCallback((id: DrumPieceId) => {
@@ -362,8 +375,8 @@ export function VirtualDrums() {
   }, [trigger])
 
   const svgMarkup = useMemo(
-    () => buildKitSvg({ kit, scene: SCENES[scene], showLabels: labels }),
-    [kit, scene, labels],
+    () => buildKitSvg({ kit, scene: SCENES[scene], showLabels: labels, fit: isNarrow ? 'slice' : 'meet' }),
+    [kit, scene, labels, isNarrow],
   )
 
   const recLabel = countdown > 0 ? 'Cancel' : (recording ? 'Stop rec' : 'Record')
@@ -371,67 +384,123 @@ export function VirtualDrums() {
   const playLabel = playing ? '■ Stop' : '▶ Play'
 
   return (
-    <div style={{ width: '100%', height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', fontFamily: 'Helvetica, Arial, sans-serif', overflow: 'hidden', background: '#f6f4fb', position: 'relative' }}>
+    <div style={{ width: '100%', height: isNarrow ? 'auto' : 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', fontFamily: 'Helvetica, Arial, sans-serif', overflow: 'hidden', background: '#f6f4fb', position: 'relative' }}>
       <style>{`
         @keyframes vdRecPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+        .vd-topbar-inner {
+          max-width: 1280px;
+          margin: 0 auto;
+          width: 100%;
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+        @media (min-width: 640px) {
+          .vd-topbar-inner { padding-left: 24px; padding-right: 24px; }
+        }
+        @media (min-width: 1024px) {
+          .vd-topbar-inner { padding-left: 32px; padding-right: 32px; }
+        }
+        .vd-settings-panel {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 16px;
+          width: 300px;
+          max-width: calc(100vw - 24px);
+        }
+        @media (min-width: 640px) { .vd-settings-panel { right: 24px; } }
+        @media (min-width: 1024px) { .vd-settings-panel { right: 32px; } }
+        @media (max-width: 640px) {
+          .vd-settings-panel {
+            position: fixed;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            top: auto;
+            width: auto;
+            max-height: 70vh;
+            overflow-y: auto;
+          }
+        }
       `}</style>
 
-      {/* TOP BAR */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 14px', background: '#ffffff', borderBottom: '1px solid #e6e1f2', flexWrap: 'wrap', boxShadow: '0 1px 8px rgba(60,40,120,0.06)' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginRight: 6 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#1d1830', letterSpacing: 0.3, whiteSpace: 'nowrap' }}>Virtual Online Drums</div>
-          <div style={{ fontSize: 11.5, color: '#6d6685', whiteSpace: 'nowrap' }}>Click the kit or use your keyboard</div>
+      {/* TOP BAR — only the controls people reach for immediately; everything
+          else (scene, labels, shortcuts, beat loop, MIDI) lives behind
+          Settings so this doesn't compete with the site navbar above it.
+          Inner content is capped at the same max-w-7xl the site navbar uses,
+          so "Acoustic" lines up under the ChordSequence logo, not the
+          viewport edge. */}
+      <div style={{ background: '#f8f6fd' }}>
+      <div className="vd-topbar-inner" style={{ display: 'flex', alignItems: 'center', gap: 9, paddingTop: 8, paddingBottom: 8, flexWrap: 'wrap', position: 'relative' }}>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+          <div style={{ display: 'flex', border: '1px solid #d6cdeb', borderRadius: 999, overflow: 'hidden' }}>
+            <button onClick={() => setKit('acoustic')} style={{ padding: '8px 14px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: kit === 'acoustic' ? '#7442d6' : 'transparent', color: kit === 'acoustic' ? '#ffffff' : '#3c3355' }}>Acoustic</button>
+            <button onClick={() => setKit('electronic')} style={{ padding: '8px 14px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: kit === 'electronic' ? '#7442d6' : 'transparent', color: kit === 'electronic' ? '#ffffff' : '#3c3355' }}>Electronic</button>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', border: '1px solid #d6cdeb', borderRadius: 999, overflow: 'hidden' }}>
-          <button onClick={() => setKit('acoustic')} style={{ padding: '8px 14px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: kit === 'acoustic' ? '#7442d6' : 'transparent', color: kit === 'acoustic' ? '#ffffff' : '#3c3355' }}>Acoustic</button>
-          <button onClick={() => setKit('electronic')} style={{ padding: '8px 14px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: kit === 'electronic' ? '#7442d6' : 'transparent', color: kit === 'electronic' ? '#ffffff' : '#3c3355' }}>Electronic</button>
+        <h1 style={{ flex: '0 1 auto', margin: 0, fontSize: 15, fontWeight: 700, color: '#1d1830', letterSpacing: 0.3, whiteSpace: 'nowrap', textAlign: 'center' }}>Virtual Drums</h1>
+
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button onClick={toggleRecord} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px', border: `1px solid ${(recording || countdown > 0) ? '#e5484d' : '#d6cdeb'}`, borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 600, background: (recording || countdown > 0) ? '#fdeaea' : '#ffffff', color: '#1d1830', whiteSpace: 'nowrap' }}>
+              <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#e5484d', animation: recording ? 'vdRecPulse 1s infinite' : 'none', display: 'inline-block' }} />
+              {recLabel}
+            </button>
+            <button onClick={togglePlay} style={{ padding: '8px 14px', border: '1px solid #d6cdeb', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 600, background: '#ffffff', color: '#3c3355', opacity: (hasRec || playing) ? 1 : 0.4, whiteSpace: 'nowrap' }}>{playLabel}</button>
+            <button
+              onClick={() => setSettingsOpen(v => !v)}
+              aria-expanded={settingsOpen}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: `1px solid ${settingsOpen ? '#7442d6' : '#d6cdeb'}`, borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 600, background: settingsOpen ? '#ece5fb' : '#ffffff', color: settingsOpen ? '#5a2fc0' : '#3c3355', whiteSpace: 'nowrap' }}
+            >
+              ⚙ Settings
+            </button>
+          </div>
         </div>
 
-        <button onClick={() => setScene(s => (s + 1) % SCENES.length)} style={{ padding: '8px 14px', border: '1px solid #d6cdeb', borderRadius: 999, cursor: 'pointer', fontSize: 13, background: '#ffffff', color: '#3c3355', whiteSpace: 'nowrap' }}>Scene: {SCENES[scene].name} ▸</button>
+        {settingsOpen && (
+          <>
+            <div onClick={() => setSettingsOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 55 }} />
+            <div className="vd-settings-panel" style={{ background: '#ffffff', border: '1px solid #e6e1f2', borderRadius: 14, boxShadow: '0 16px 40px rgba(0,0,0,0.18)', padding: 16, zIndex: 60, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: '#7442d6', textTransform: 'uppercase' }}>Settings</div>
 
-        <button onClick={() => setLabels(v => !v)} style={{ padding: '8px 14px', border: '1px solid #d6cdeb', borderRadius: 999, cursor: 'pointer', fontSize: 13, background: labels ? '#ece5fb' : '#ffffff', color: labels ? '#5a2fc0' : '#6d6685', whiteSpace: 'nowrap' }}>Key labels</button>
+              <button onClick={() => setScene(s => (s + 1) % SCENES.length)} style={{ width: '100%', textAlign: 'left', padding: '9px 14px', border: '1px solid #d6cdeb', borderRadius: 10, cursor: 'pointer', fontSize: 13, background: '#ffffff', color: '#3c3355' }}>Scene: {SCENES[scene].name} ▸</button>
 
-        <button onClick={() => setShortcutsOpen(true)} style={{ padding: '8px 14px', border: '1px solid #d6cdeb', borderRadius: 999, cursor: 'pointer', fontSize: 13, background: '#ffffff', color: '#3c3355', whiteSpace: 'nowrap' }}>Show shortcuts</button>
+              <button onClick={() => setLabels(v => !v)} style={{ width: '100%', textAlign: 'left', padding: '9px 14px', border: '1px solid #d6cdeb', borderRadius: 10, cursor: 'pointer', fontSize: 13, background: labels ? '#ece5fb' : '#ffffff', color: labels ? '#5a2fc0' : '#3c3355' }}>Key labels: {labels ? 'On' : 'Off'}</button>
 
-        <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, borderRadius: 999, overflow: 'hidden', flexShrink: 0 }}>
-          <select
-            value={beatIdx}
-            onChange={onBeatChange}
-            style={{ appearance: 'none', padding: '8px 10px 8px 14px', border: 'none', background: beatOn ? '#ece5fb' : '#ffffff', color: '#3c3355', fontSize: 13, cursor: 'pointer', outline: 'none' }}
-          >
-            {PATTERNS.map((p, i) => (
-              <option key={p.name} value={i}>{p.name} · {p.bpm} bpm</option>
-            ))}
-          </select>
-          <button onClick={toggleBeat} style={{ padding: '8px 14px', border: 'none', borderLeft: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, cursor: 'pointer', fontSize: 13, fontWeight: 600, background: beatOn ? '#ece5fb' : '#ffffff', color: '#3c3355', whiteSpace: 'nowrap' }}>{beatLabel}</button>
-        </div>
+              <button onClick={() => { setShortcutsOpen(true); setSettingsOpen(false) }} style={{ width: '100%', textAlign: 'left', padding: '9px 14px', border: '1px solid #d6cdeb', borderRadius: 10, cursor: 'pointer', fontSize: 13, background: '#ffffff', color: '#3c3355' }}>Show shortcuts</button>
 
-        <div style={{ flex: 1 }} />
+              <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, borderRadius: 10, overflow: 'hidden' }}>
+                <select
+                  value={beatIdx}
+                  onChange={onBeatChange}
+                  style={{ flex: 1, appearance: 'none', padding: '9px 10px', border: 'none', background: beatOn ? '#ece5fb' : '#ffffff', color: '#3c3355', fontSize: 13, cursor: 'pointer', outline: 'none' }}
+                >
+                  {PATTERNS.map((p, i) => (
+                    <option key={p.name} value={i}>{p.name} · {p.bpm} bpm</option>
+                  ))}
+                </select>
+                <button onClick={toggleBeat} style={{ padding: '9px 14px', border: 'none', borderLeft: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, cursor: 'pointer', fontSize: 13, fontWeight: 600, background: beatOn ? '#ece5fb' : '#ffffff', color: '#3c3355', whiteSpace: 'nowrap' }}>{beatLabel}</button>
+              </div>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={toggleRecord} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px', border: `1px solid ${(recording || countdown > 0) ? '#e5484d' : '#d6cdeb'}`, borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 600, background: (recording || countdown > 0) ? '#fdeaea' : '#ffffff', color: '#1d1830', whiteSpace: 'nowrap' }}>
-            <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#e5484d', animation: recording ? 'vdRecPulse 1s infinite' : 'none', display: 'inline-block' }} />
-            {recLabel}
-          </button>
-          <button onClick={togglePlay} style={{ padding: '8px 14px', border: '1px solid #d6cdeb', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 600, background: '#ffffff', color: '#3c3355', opacity: (hasRec || playing) ? 1 : 0.4, whiteSpace: 'nowrap' }}>{playLabel}</button>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, paddingLeft: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: midiOk ? '#46c46e' : '#b9b3c9', display: 'inline-block' }} />
-          <span style={{ fontSize: 12, color: '#6d6685' }}>{midiText}</span>
-        </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: midiOk ? '#46c46e' : '#b9b3c9', display: 'inline-block' }} />
+                <span style={{ fontSize: 12, color: '#6d6685' }}>{midiText}</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
       </div>
 
       {/* KIT */}
       <div
         ref={containerRef}
         onPointerDown={onKitDown}
-        style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch', justifyContent: 'center', background: SCENES[scene].wall, position: 'relative', touchAction: 'none' }}
+        style={isNarrow
+          ? { flex: 'none', width: '100%', aspectRatio: '29 / 20', display: 'flex', alignItems: 'stretch', justifyContent: 'center', background: SCENES[scene].wall, position: 'relative', touchAction: 'none' }
+          : { flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch', justifyContent: 'center', background: SCENES[scene].wall, position: 'relative', touchAction: 'none' }}
         dangerouslySetInnerHTML={{ __html: svgMarkup }}
       />
-      <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', borderRadius: 999, background: 'rgba(10,12,16,0.72)', color: '#efecf7', fontSize: 13, pointerEvents: 'none' }}>Scroll to learn more ↓</div>
-
       {/* COUNTDOWN OVERLAY */}
       {countdown > 0 && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 40 }}>

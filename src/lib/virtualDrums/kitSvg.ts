@@ -42,7 +42,7 @@ const KEY_LABELS = `
           <g><rect x="1135" y="282" width="160" height="30" rx="8" fill="rgba(10,12,16,0.78)"></rect><text x="1215" y="302" text-anchor="middle" font-size="15" font-weight="600" fill="#ffffff">2 / T · 3 bell</text></g>
         </g>`
 
-export function buildKitSvg(opts: { kit: 'acoustic' | 'electronic'; scene: SceneDef; showLabels: boolean }): string {
+export function buildKitSvg(opts: { kit: 'acoustic' | 'electronic'; scene: SceneDef; showLabels: boolean; fit?: 'meet' | 'slice' }): string {
   const ac = opts.kit === 'acoustic'
   const shellFill = ac ? 'url(#shellAc)' : 'url(#shellEl)'
   const headFill = ac ? 'url(#headAc)' : 'url(#headEl)'
@@ -52,7 +52,8 @@ export function buildKitSvg(opts: { kit: 'acoustic' | 'electronic'; scene: Scene
   const logoColor = ac ? 'rgba(60,40,20,0.22)' : 'rgba(63,216,223,0.3)'
   const { wall: wallColor, floor: floorColor, spot } = opts.scene
 
-  return `<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: 100%; cursor: pointer; touch-action: none; display: block;">
+  const fit = opts.fit === 'slice' ? 'slice' : 'meet'
+  return `<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid ${fit}" style="width: 100%; height: 100%; cursor: pointer; touch-action: none; display: block;">
       <defs>
         <linearGradient id="shellAc" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stop-color="#2e1206"></stop>
