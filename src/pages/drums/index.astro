@@ -99,7 +99,7 @@ const webAppSchema = {
       either — this needs no JS, since the real component's own `isNarrow` is
       also just `window.innerWidth <= 640`.
     -->
-    <div style="display: grid; position: relative;">
+    <div style="display: grid; grid-template-columns: minmax(0, 1fr); position: relative;">
       <div id="drums-skeleton" class="vd-skeleton-shell" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out; width: 100%; display: flex; flex-direction: column; font-family: Helvetica, Arial, sans-serif; overflow: hidden; background: #f6f4fb;">
         <div style="background: #f8f6fd;">
           <div style="max-width: 1280px; margin: 0 auto; width: 100%; display: flex; align-items: center; gap: 9px; padding: 8px 16px; flex-wrap: wrap;">

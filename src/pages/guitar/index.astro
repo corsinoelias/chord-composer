@@ -135,9 +135,63 @@ const webAppSchema = {
     </section>
 
     <!-- INTERACTIVE FRETBOARD -->
+    <!--
+      GuitarInstrument uses client:only (it touches window/AudioContext at
+      mount), so nothing paints until the full React bundle loads and
+      hydrates. The static skeleton below renders immediately server-side and
+      sits in the same CSS grid cell as the island — same technique as
+      src/pages/chord-player, /piano, and /drums (see those comments for the
+      stacking-context gotcha this works around). The "Sound" label, the
+      "Tap any fret to play" hint, and the default "Tap a fret above to hear
+      the note" footer text are all real, deterministic copy (kept in sync by
+      hand with GuitarInstrument.tsx); the 9 sound-picker buttons and the
+      fretboard itself are interactive, so they stay as loading shimmer. The
+      fretboard's real height scales down on narrow viewports
+      (GuitarFretboard.tsx: NATURAL_H=308px unscaled, but it measures its
+      container via ResizeObserver and shrinks proportionally once that's
+      under ~424px wide, i.e. viewports under ~456px once this section's
+      32px of horizontal padding is subtracted) — replicated below with a
+      plain clamp() so the skeleton shrinks the same way without needing JS.
+    -->
     <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-6" aria-label="Interactive virtual guitar — tap any fret to play">
-      <GuitarInstrument client:only="react" />
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr); position: relative;">
+        <div id="guitar-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out;" class="rounded-2xl border border-border bg-card overflow-hidden">
+          <div class="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-wrap">
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-1">Sound</span>
+            {/* Widths approximate each real button label's rendered width
+                (Steel/Nylon/Clean/Muted ★, Jazz ★ shorter, Distorted/
+                Overdrive/Harmonics ★ longer, Synth shortest) — sized as
+                DIRECT flex-wrap siblings of "Sound"/the hint text, same as
+                GuitarInstrument.tsx's real buttons, so this wraps to the
+                same number of lines instead of drifting on narrow screens. */}
+            {['w-16', 'w-16', 'w-16', 'w-14', 'w-16', 'w-24', 'w-24', 'w-24', 'w-14'].map((w) => (
+              <span aria-hidden="true" class={`h-7 rounded-md bg-muted animate-pulse ${w}`}></span>
+            ))}
+            <span class="ml-auto text-xs text-muted-foreground hidden sm:block">Tap any fret to play</span>
+          </div>
+          <div style="height: clamp(0px, calc((100vw - 32px) * 0.7264), 308px);" class="bg-muted animate-pulse" aria-hidden="true"></div>
+          <div class="px-4 py-3 border-t border-border bg-muted/20 min-h-[52px] flex items-center gap-4">
+            <p class="text-xs text-muted-foreground">Tap a fret above to hear the note</p>
+          </div>
+        </div>
+        <div style="grid-area: 1 / 1; z-index: 1;">
+          <GuitarInstrument client:only="react" />
+        </div>
+      </div>
     </section>
+    <script>
+      document.addEventListener(
+        'astro:hydrate',
+        () => {
+          const skeleton = document.getElementById('guitar-skeleton')
+          if (!skeleton) return
+          skeleton.style.opacity = '0'
+          skeleton.addEventListener('transitionend', () => skeleton.remove(), { once: true })
+          setTimeout(() => skeleton.remove(), 250) // fallback in case transitionend never fires
+        },
+        { capture: true, once: true },
+      )
+    </script>
 
     <!-- 8 SOUNDS -->
     <section class="mx-auto max-w-5xl px-4 sm:px-6 py-16">

@@ -83,7 +83,7 @@ const webAppSchema = {
     for the entire page, not just the header. Only the genuinely interactive,
     stateful chrome (controls bar, piano keys) stays as loading shimmer.
   -->
-  <div style="display: grid; position: relative;">
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr); position: relative;">
     <div id="piano-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out; background: #F5F2FA; min-height: 100vh; font-family: 'Outfit', sans-serif;">
       <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 20px 24px 8px 24px;">
         <span />
