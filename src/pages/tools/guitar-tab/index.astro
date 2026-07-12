@@ -83,8 +83,17 @@ const webAppSchema = {
     </section>
 
     <!-- ── LIVE PREVIEW ── -->
+    <!--
+      GuitarTabPreview is SSR-safe (its one window/document usage in
+      GuitarTabView.tsx is already `typeof window !== 'undefined'`-guarded),
+      so — unlike the other client:only islands on this site — it doesn't
+      need a hand-built skeleton. client:visible renders its real HTML (play
+      button, tab notation, bar counter, song title/BPM) on the server and
+      only defers JS hydration until it scrolls into view, same fix as
+      BassTabPreviewIsland.astro on /tools/bass-guitar-tab/.
+    -->
     <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-6" aria-label="Interactive guitar tab demo — Smoke on the Water by Deep Purple">
-      <GuitarTabPreview client:only="react" presetId="preset-smokeonthewater" editorHref="/guitar-tab/" />
+      <GuitarTabPreview client:visible presetId="preset-smokeonthewater" editorHref="/guitar-tab/" />
     </section>
 
     <!-- ── HOW TO READ ── -->

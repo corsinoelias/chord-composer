@@ -90,8 +90,15 @@ const webAppSchema = {
     </section>
 
     <!-- DRUM MACHINE COMPONENT -->
+    <!--
+      DrumMachine is SSR-safe (deterministic initial state — no window/
+      document/ResizeObserver access outside effects), so unlike VirtualDrums
+      it doesn't need a hand-built skeleton. client:load renders its real
+      HTML immediately server-side (it's the primary, above-the-fold content
+      of this page) and just attaches interactivity on hydrate — no pop-in.
+    -->
     <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-16">
-      <DrumMachine client:only="react" />
+      <DrumMachine client:load />
     </section>
 
     <!-- HOW TO USE -->

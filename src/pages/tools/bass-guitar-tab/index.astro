@@ -1,7 +1,7 @@
 ---
 export const prerender = true;
 import BaseLayout from '../../../layouts/BaseLayout.astro';
-import { BassTabPreview } from '../../../components/BassTabPlayer/BassTabPreview';
+import BassTabPreviewIsland from '../../../components/BassTabPreviewIsland.astro';
 import RelatedTools from '../../../components/RelatedTools.astro';
 
 const features = [
@@ -187,8 +187,17 @@ const howToSchema = {
     </section>
 
     <!-- ── INTERACTIVE DEMO ───────────────────────────────────────────────── -->
+    <!--
+      BassTabPreview is SSR-safe (no window/document access during render),
+      so — unlike the other client:only islands on this site — it doesn't
+      need a hand-built skeleton. BassTabPreviewIsland.astro (already used on
+      the learn/how-to-read-bass-tabs article) wraps it with client:visible,
+      which renders its real HTML (play button, tab notation, bar counter,
+      song title/BPM) on the server and only defers JS hydration until it
+      scrolls into view — so there's no pop-in and no shimmer needed at all.
+    -->
     <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-6" aria-label="Interactive bass tab demo — Billie Jean by Michael Jackson">
-      <BassTabPreview client:only="react" presetId="preset-billiejean" editorHref="/bass-tab/" />
+      <BassTabPreviewIsland presetId="preset-billiejean" editorHref="/bass-tab/" />
     </section>
 
     <!-- ── WHAT IS A BASS TAB ─────────────────────────────────────────────── -->

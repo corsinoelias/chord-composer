@@ -85,8 +85,15 @@ const webAppSchema = {
     </section>
 
     <!-- METRONOME COMPONENT -->
+    <!--
+      OnlineMetronome is SSR-safe (deterministic initial state — no window/
+      document access outside the keyboard-shortcut effect), so it doesn't
+      need a hand-built skeleton. client:load renders its real HTML
+      immediately server-side (it's the primary, above-the-fold content of
+      this page) and just attaches interactivity on hydrate — no pop-in.
+    -->
     <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-16">
-      <OnlineMetronome client:only="react" />
+      <OnlineMetronome client:load />
     </section>
 
     <!-- HOW TO USE -->
