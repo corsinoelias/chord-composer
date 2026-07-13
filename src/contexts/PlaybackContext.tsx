@@ -101,27 +101,38 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('chordplayer:playback-started', handleOtherInstanceStarted);
   }, []);
 
-  // Pre-load audio on first user interaction for faster first playback
+  // Pre-load audio during browser idle time so it's ready by the time the user hits
+  // Play, instead of only starting the ~79MB sample fetch on their first interaction
+  // (which made the very first Play feel laggy). Deferred to idle rather than fired
+  // immediately on mount so it doesn't compete with the page's own critical-path
+  // rendering/JS — this still runs well before most users would click Play.
+  // requestIdleCallback isn't available in Safari, hence the setTimeout fallback.
+  // The interaction listeners stay as a safety net (e.g. idle callback starved on a
+  // busy page) — triggerPreload() is idempotent via audioPreloaded.current.
   useEffect(() => {
-    const handleFirstInteraction = () => {
+    const triggerPreload = () => {
       if (!audioPreloaded.current) {
         audioPreloaded.current = true;
         preloadAudio().catch(console.warn);
-        // Remove listeners after first interaction
-        window.removeEventListener('click', handleFirstInteraction);
-        window.removeEventListener('touchstart', handleFirstInteraction);
-        window.removeEventListener('keydown', handleFirstInteraction);
+        window.removeEventListener('click', triggerPreload);
+        window.removeEventListener('touchstart', triggerPreload);
+        window.removeEventListener('keydown', triggerPreload);
       }
     };
 
-    window.addEventListener('click', handleFirstInteraction);
-    window.addEventListener('touchstart', handleFirstInteraction);
-    window.addEventListener('keydown', handleFirstInteraction);
+    const ric = window.requestIdleCallback ?? ((cb: IdleRequestCallback) => window.setTimeout(cb, 1500));
+    const cic = window.cancelIdleCallback ?? window.clearTimeout;
+    const idleHandle = ric(triggerPreload, { timeout: 4000 });
+
+    window.addEventListener('click', triggerPreload);
+    window.addEventListener('touchstart', triggerPreload);
+    window.addEventListener('keydown', triggerPreload);
 
     return () => {
-      window.removeEventListener('click', handleFirstInteraction);
-      window.removeEventListener('touchstart', handleFirstInteraction);
-      window.removeEventListener('keydown', handleFirstInteraction);
+      cic(idleHandle);
+      window.removeEventListener('click', triggerPreload);
+      window.removeEventListener('touchstart', triggerPreload);
+      window.removeEventListener('keydown', triggerPreload);
     };
   }, []);
 
