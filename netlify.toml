@@ -318,6 +318,21 @@
   status = 301
   force = true
 
+# Bass tab learn article merged into the tool page (2026-07-13) — same pattern
+# as /drums/: tool up top, full guide content below. Anchor is UX only (jumps
+# to the guide section), it carries no SEO weight of its own.
+[[redirects]]
+  from = "/learn/how-to-read-bass-tabs/"
+  to = "/tools/bass-guitar-tab/#what-is-a-bass-tab"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/learn/how-to-read-bass-tabs"
+  to = "/tools/bass-guitar-tab/#what-is-a-bass-tab"
+  status = 301
+  force = true
+
 # NOTE: no explicit SPA-fallback redirect for /chord-player/* here (unlike the old /editor/*
 # rule) — src/middleware.ts already does this rewrite at the Astro SSR layer, and testing
 # showed the Netlify dev redirect emulation's 200-status rewrites can 404 deep-link paths

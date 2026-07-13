@@ -57,28 +57,56 @@ const presetSongs = [
 
 const faqs = [
   {
-    q: 'What is a bass guitar tab?',
-    a: 'A bass guitar tab (tablature) is a simplified notation system that shows you exactly which string and fret to play. Instead of reading sheet music, you see four horizontal lines (one per string) with numbers indicating the fret. Zero means open string.',
-  },
-  {
-    q: 'How do I read a bass tab?',
-    a: 'Each line represents a string: G (thinnest) on top, then D, A, and E (thickest) at the bottom. Numbers show which fret to press. Read left to right — numbers stacked vertically are played simultaneously.',
-  },
-  {
     q: 'Is this bass tab player free?',
     a: 'Yes, completely free. No account required. Open it in any modern browser on desktop or mobile.',
   },
   {
+    q: 'What do the numbers mean in a bass tab?',
+    a: 'Each number tells you which fret to press on that string. A 0 means you play the string open — without pressing any fret. A 5 on the A string means press fret 5 on the A string.',
+  },
+  {
+    q: 'Which string is on top in a bass tab?',
+    a: 'The G string (thinnest, highest pitch) is shown at the top of a bass tab. Below it are D, A, and E (thickest, lowest pitch) at the bottom. This is the opposite of how a bass looks held in playing position, but it matches standard music notation convention.',
+  },
+  {
+    q: 'What does 0 mean in a bass tab?',
+    a: '0 means "open string" — pluck the string without pressing any fret. It produces the string\'s natural note: G2, D2, A1, or E1 depending on the string.',
+  },
+  {
+    q: 'Do bass tabs show rhythm and timing?',
+    a: 'Traditional ASCII bass tabs show only which notes to play, not their exact durations. You need to listen to the original song or use an interactive tab player to understand the rhythm. This editor shows note durations visually, so you don\'t have to guess.',
+  },
+  {
+    q: 'What is the difference between guitar tabs and bass tabs?',
+    a: 'Guitar tabs have 6 lines (one per string), while bass tabs have 4 lines. Bass tabs are also read an octave lower than written. The principles of reading — strings as lines, fret numbers — are identical.',
+  },
+  {
+    q: 'What does "h" mean in a bass tab?',
+    a: '"h" stands for hammer-on. Written as 5h7, it means you pluck the string at fret 5, then "hammer" your finger onto fret 7 without plucking again. The second note is produced by the fretting action alone.',
+  },
+  {
+    q: 'What does "/" mean in a bass tab?',
+    a: '"/" means a slide up. Written as 5/7, it means you play fret 5 and slide your finger up to fret 7 while keeping pressure on the string. "\\" is a slide down.',
+  },
+  {
     q: 'Can I create my own bass tabs?',
-    a: 'Yes. Use the Grid editor to draw notes on any string and fret, set the duration, and adjust BPM. You can export as ASCII tab or MIDI, or share your tab via a URL.',
+    a: 'Yes. Use the Grid editor to draw notes on any string and fret, set the duration, and adjust BPM. You can export as ASCII tab or MIDI, or share your tab via a URL — all free, no account needed.',
   },
   {
     q: 'Can I import a MIDI file?',
     a: 'Yes. Drag and drop a .mid or .midi file onto the editor and it automatically converts to a bass tab — fret positions calculated, BPM preserved. From there you can play it back, edit notes, or export it as ASCII tab.',
   },
   {
+    q: 'Are bass tabs accurate?',
+    a: 'Tab accuracy varies by source. Tabs created by skilled transcribers or pulled from official sheet music are very accurate. User-submitted tabs can have mistakes, especially in fret positions across strings. Always verify with your ear.',
+  },
+  {
     q: 'What songs are included?',
     a: 'The player ships with 10 preset songs including Billie Jean, Beat It, Thriller, Le Freak, and more — all with accurate fret positions and BPM.',
+  },
+  {
+    q: 'What is the best song to learn first with bass tabs?',
+    a: 'Billie Jean by Michael Jackson is a classic first choice: the bassline repeats throughout, uses only a few frets, and has a strong groove that\'s instantly recognizable. You can play along with the interactive preview on this page right now.',
   },
 ];
 
@@ -100,7 +128,7 @@ const bassTabAppSchema = {
   url: 'https://chordsequence.com/tools/bass-guitar-tab/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Free online bass guitar tab player and editor. Real-time playback, 4-string notation, drag & resize notes, MIDI import, 10+ preset songs.',
+  description: 'Free online bass guitar tab player and editor. Real-time playback, 4-string notation, drag & resize notes, MIDI import, 10+ preset songs. Includes a complete guide to reading bass tabs.',
   featureList: [
     'Real-time bass playback',
     '4-string standard tuning',
@@ -122,7 +150,7 @@ const howToSchema = {
   '@context': 'https://schema.org',
   '@type': 'HowTo',
   name: 'How to read a bass guitar tab',
-  description: 'Learn to read bass tablature in 3 simple steps.',
+  description: 'Learn to read bass tablature: strings, fret numbers, rhythm, and technique symbols.',
   step: [
     {
       '@type': 'HowToStep',
@@ -144,12 +172,11 @@ const howToSchema = {
     },
   ],
 };
-
 ---
 
 <BaseLayout
   title="Free Bass Tab Creator & Player — Create, Play & Learn Bass Tabs Online"
-  description="Free online bass tab creator and player. Draw notes, hear them instantly, load 10+ preset songs including Billie Jean and Beat It. No account needed."
+  description="Free online bass tab creator and player, plus a complete guide to reading bass tabs. Draw notes, hear them instantly, load 10+ preset songs including Billie Jean and Beat It. No account needed."
   canonicalUrl="https://chordsequence.com/tools/bass-guitar-tab/"
 >
   <Fragment slot="head">
@@ -187,153 +214,11 @@ const howToSchema = {
     </section>
 
     <!-- ── INTERACTIVE DEMO ───────────────────────────────────────────────── -->
-    <!--
-      BassTabPreview is SSR-safe (no window/document access during render),
-      so — unlike the other client:only islands on this site — it doesn't
-      need a hand-built skeleton. BassTabPreviewIsland.astro (already used on
-      the learn/how-to-read-bass-tabs article) wraps it with client:visible,
-      which renders its real HTML (play button, tab notation, bar counter,
-      song title/BPM) on the server and only defers JS hydration until it
-      scrolls into view — so there's no pop-in and no shimmer needed at all.
-    -->
     <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-6" aria-label="Interactive bass tab demo — Billie Jean by Michael Jackson">
       <BassTabPreviewIsland presetId="preset-billiejean" editorHref="/bass-tab/" />
-    </section>
-
-    <!-- ── WHAT IS A BASS TAB ─────────────────────────────────────────────── -->
-    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-16">
-
-      <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-5">What is a bass guitar tab?</h2>
-
-      <div class="space-y-5 text-muted-foreground leading-relaxed">
-        <p>
-          A <strong class="text-foreground">bass guitar tab</strong> (tablature) is the shortcut every bassist uses to learn songs fast.
-          Instead of reading sheet music, you see four horizontal lines — one per string — with numbers showing exactly which fret to press.
-          No music theory required. Just look at the number, press the fret, play.
-        </p>
-        <p>
-          Here's the opening riff from <em class="text-foreground not-italic font-medium">Beat It</em> written as a tab:
-        </p>
-      </div>
-
-      <!-- ── TAB VISUAL CARD ── -->
-      <div class="my-8 rounded-2xl overflow-hidden border border-border shadow-sm">
-
-        <!-- Card header -->
-        <div class="flex items-center gap-3 px-5 py-4 bg-muted/40 border-b border-border">
-          <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-base shrink-0">🎸</div>
-          <div class="min-w-0">
-            <p class="text-sm font-semibold text-foreground">Beat It — Michael Jackson</p>
-            <p class="text-xs text-muted-foreground">Opening bassline · Electric bass</p>
-          </div>
-          <div class="ml-auto flex items-center gap-2 shrink-0">
-            <span class="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full">138 BPM</span>
-            <span class="text-xs font-medium bg-muted text-muted-foreground px-2.5 py-1 rounded-full">Pop / Rock</span>
-          </div>
-        </div>
-
-        <!-- Tab notation -->
-        <div class="bg-zinc-950 px-5 sm:px-8 py-6 overflow-x-auto font-mono text-sm sm:text-base leading-8 select-none">
-          <!-- G string -->
-          <div class="flex items-center gap-4">
-            <span class="text-emerald-400 font-bold w-3 shrink-0">G</span>
-            <span class="text-zinc-600">|---<span class="text-white font-bold">2</span>---<span class="text-white font-bold">2</span>---<span class="text-white font-bold">2</span>---<span class="text-white font-bold">2</span>--|</span>
-          </div>
-          <!-- D string -->
-          <div class="flex items-center gap-4">
-            <span class="text-sky-400 font-bold w-3 shrink-0">D</span>
-            <span class="text-zinc-600">|---<span class="text-white font-bold">0</span>---<span class="text-white font-bold">0</span>---<span class="text-white font-bold">0</span>---<span class="text-white font-bold">0</span>--|</span>
-          </div>
-          <!-- A string -->
-          <div class="flex items-center gap-4">
-            <span class="text-amber-400 font-bold w-3 shrink-0">A</span>
-            <span class="text-zinc-600">|-<span class="text-white font-bold">3</span>---<span class="text-white font-bold">3</span>---<span class="text-white font-bold">3</span>---<span class="text-white font-bold">3</span>----|</span>
-          </div>
-          <!-- E string -->
-          <div class="flex items-center gap-4">
-            <span class="text-rose-400 font-bold w-3 shrink-0">E</span>
-            <span class="text-zinc-600">|------------------|</span>
-          </div>
-        </div>
-
-        <!-- Legend -->
-        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3.5 bg-muted/30 border-t border-border text-xs text-muted-foreground">
-          <span class="flex items-center gap-1.5">
-            <span class="font-mono font-bold text-white bg-zinc-800 px-1.5 py-0.5 rounded">2</span>
-            press fret 2
-          </span>
-          <span class="flex items-center gap-1.5">
-            <span class="font-mono font-bold text-white bg-zinc-800 px-1.5 py-0.5 rounded">0</span>
-            open string — no fret
-          </span>
-          <span class="flex items-center gap-1.5">
-            <span class="text-rose-400 font-bold font-mono">E</span>
-            thickest string, lowest pitch
-          </span>
-          <span class="flex items-center gap-1.5">
-            <span class="text-emerald-400 font-bold font-mono">G</span>
-            thinnest string, highest pitch
-          </span>
-        </div>
-      </div>
-
-      <!-- ── HOW TO READ ── -->
-      <p class="text-muted-foreground leading-relaxed mb-8">
-        See the pattern? The <span class="text-amber-400 font-semibold font-mono">A</span> string carries the groove (fret 3),
-        while the <span class="text-sky-400 font-semibold font-mono">D</span> string adds the open notes that give Beat It its punchy feel.
-        The <span class="text-rose-400 font-semibold font-mono">E</span> string stays silent the whole bar — that space is what makes it breathe.
+      <p class="text-xs text-center text-muted-foreground mt-3">
+        Billie Jean — Michael Jackson · 117 BPM
       </p>
-
-      <div class="mb-6 rounded-xl border border-primary/25 bg-primary/5 px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <p class="text-sm font-semibold text-foreground mb-0.5">Want the full deep-dive?</p>
-          <p class="text-xs text-muted-foreground">Symbols, rhythm, technique, and 3 interactive song examples.</p>
-        </div>
-        <a href="/learn/how-to-read-bass-tabs/" class="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-          Read the guide →
-        </a>
-      </div>
-
-      <h3 class="text-xl font-semibold text-foreground mb-6">How to read a bass tab in 3 steps</h3>
-
-      <div class="space-y-5">
-        <!-- Step 1 -->
-        <div class="flex gap-4">
-          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mt-0.5">1</div>
-          <div>
-            <p class="font-semibold text-foreground mb-1">Find your strings</p>
-            <p class="text-muted-foreground text-sm leading-relaxed">
-              The four lines are your four strings.
-              Bottom = <span class="text-rose-400 font-mono font-bold">E</span> (thickest, lowest).
-              Going up: <span class="text-amber-400 font-mono font-bold">A</span>, <span class="text-sky-400 font-mono font-bold">D</span>, <span class="text-emerald-400 font-mono font-bold">G</span> (thinnest, highest).
-              Same order as the strings on your bass, from bottom to top.
-            </p>
-          </div>
-        </div>
-        <!-- Step 2 -->
-        <div class="flex gap-4">
-          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mt-0.5">2</div>
-          <div>
-            <p class="font-semibold text-foreground mb-1">Read the numbers</p>
-            <p class="text-muted-foreground text-sm leading-relaxed">
-              A number means press that fret. <span class="font-mono font-bold text-foreground">0</span> means open string — don't press anything, just pluck.
-              Dashes (<span class="font-mono text-foreground">---</span>) are silence between notes. Read left to right.
-            </p>
-          </div>
-        </div>
-        <!-- Step 3 -->
-        <div class="flex gap-4">
-          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mt-0.5">3</div>
-          <div>
-            <p class="font-semibold text-foreground mb-1">Feel the rhythm</p>
-            <p class="text-muted-foreground text-sm leading-relaxed">
-              Tabs show <em>where</em> to play but not always <em>when</em>. Hit play on the demo above
-              and watch the notation scroll — that's the fastest way to lock in the rhythm.
-            </p>
-          </div>
-        </div>
-      </div>
-
     </section>
 
     <!-- ── FEATURES ───────────────────────────────────────────────────────── -->
@@ -382,6 +267,541 @@ const howToSchema = {
             <svg class="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </a>
         ))}
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         COMPLETE GUIDE — merged from the former /learn/how-to-read-bass-tabs/
+         article (redirects here now). Kept at full depth, tool stays the
+         focus above the fold; this is the "explain everything" layer below,
+         same pattern as /drums/.
+         ══════════════════════════════════════════════════════════════════════ -->
+    <section class="border-t border-border py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+
+        <header class="mb-10">
+          <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Complete Guide</p>
+          <h2 class="text-3xl sm:text-4xl font-bold text-foreground leading-tight tracking-tight mb-4">
+            How to Read Bass Tabs
+          </h2>
+          <p class="text-lg text-muted-foreground leading-relaxed mb-4">
+            Bass tablature (tab) is the fastest way to learn a song on bass guitar. No music theory, no sheet music —
+            just four lines, some numbers, and you're playing. Everything below has
+            <strong class="text-foreground">live interactive examples</strong> you can play right on this page.
+          </p>
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground mb-2">
+            <span>By <a href="/about/elias-corsino/" class="text-foreground hover:underline font-medium">Elias Corsino</a></span>
+            <span>·</span>
+            <span>Updated June 2026</span>
+            <span>·</span>
+            <span>~10 min read</span>
+          </div>
+        </header>
+
+        <!-- ── TABLE OF CONTENTS ─────────────────────────────────────────────── -->
+        <nav
+          aria-label="Table of contents"
+          class="rounded-xl border border-border bg-card p-5 mb-12"
+        >
+          <p class="text-sm font-semibold text-foreground mb-3">In this guide</p>
+          <ol class="space-y-1.5 text-sm text-muted-foreground list-decimal list-inside">
+            <li><a href="#what-is-a-bass-tab"     class="hover:text-primary transition-colors">What is a bass tab?</a></li>
+            <li><a href="#the-four-strings"        class="hover:text-primary transition-colors">The 4 string lines explained</a></li>
+            <li><a href="#fret-numbers"            class="hover:text-primary transition-colors">Fret numbers: what each number means</a></li>
+            <li><a href="#reading-rhythm"          class="hover:text-primary transition-colors">How to follow the beat</a></li>
+            <li><a href="#tab-symbols"             class="hover:text-primary transition-colors">Common bass tab symbols</a></li>
+            <li><a href="#practice-songs"          class="hover:text-primary transition-colors">3 basslines to practice right now</a></li>
+            <li><a href="#tab-vs-notation"         class="hover:text-primary transition-colors">Tab vs. standard notation</a></li>
+            <li><a href="#tips"                    class="hover:text-primary transition-colors">5 tips to read tabs faster</a></li>
+          </ol>
+        </nav>
+
+        <!-- ── SECTION 1 ─────────────────────────────────────────────────────── -->
+        <section id="what-is-a-bass-tab" class="mb-14 scroll-mt-20">
+          <h3 class="text-2xl font-bold text-foreground mb-4">1. What Is a Bass Tab? The Quick Answer</h3>
+          <p class="text-muted-foreground leading-relaxed mb-4">
+            A <strong class="text-foreground">bass tab</strong> (short for tablature) is a simplified way of writing
+            bass guitar music. Instead of reading traditional sheet music with note values on a staff,
+            you see four horizontal lines representing the four strings of your bass, with numbers
+            showing exactly which fret to press.
+          </p>
+          <p class="text-muted-foreground leading-relaxed mb-4">
+            Tabs have existed in some form since the Renaissance — lute players used them centuries ago.
+            For bass guitar, they became the standard shorthand among musicians long before the internet,
+            and today they're how millions of players learn songs every day.
+          </p>
+
+          <!-- Beat It ASCII visual card -->
+          <div class="my-8 rounded-2xl overflow-hidden border border-border shadow-sm">
+            <div class="flex items-center gap-3 px-5 py-4 bg-muted/40 border-b border-border">
+              <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-base shrink-0">🎸</div>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-foreground">Beat It — Michael Jackson</p>
+                <p class="text-xs text-muted-foreground">Opening bassline · Electric bass</p>
+              </div>
+              <div class="ml-auto flex items-center gap-2 shrink-0">
+                <span class="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full">138 BPM</span>
+                <span class="text-xs font-medium bg-muted text-muted-foreground px-2.5 py-1 rounded-full">Pop / Rock</span>
+              </div>
+            </div>
+            <div class="bg-zinc-950 px-5 sm:px-8 py-6 overflow-x-auto font-mono text-sm sm:text-base leading-8 select-none">
+              <div class="flex items-center gap-4">
+                <span class="text-emerald-400 font-bold w-3 shrink-0">G</span>
+                <span class="text-zinc-600">|---<span class="text-white font-bold">2</span>---<span class="text-white font-bold">2</span>---<span class="text-white font-bold">2</span>---<span class="text-white font-bold">2</span>--|</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <span class="text-sky-400 font-bold w-3 shrink-0">D</span>
+                <span class="text-zinc-600">|---<span class="text-white font-bold">0</span>---<span class="text-white font-bold">0</span>---<span class="text-white font-bold">0</span>---<span class="text-white font-bold">0</span>--|</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <span class="text-amber-400 font-bold w-3 shrink-0">A</span>
+                <span class="text-zinc-600">|-<span class="text-white font-bold">3</span>---<span class="text-white font-bold">3</span>---<span class="text-white font-bold">3</span>---<span class="text-white font-bold">3</span>----|</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <span class="text-rose-400 font-bold w-3 shrink-0">E</span>
+                <span class="text-zinc-600">|------------------|</span>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3.5 bg-muted/30 border-t border-border text-xs text-muted-foreground">
+              <span class="flex items-center gap-1.5">
+                <span class="font-mono font-bold text-white bg-zinc-800 px-1.5 py-0.5 rounded">2</span>
+                press fret 2
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="font-mono font-bold text-white bg-zinc-800 px-1.5 py-0.5 rounded">0</span>
+                open string — no fret
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="text-rose-400 font-bold font-mono">E</span>
+                thickest string, lowest pitch
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="text-emerald-400 font-bold font-mono">G</span>
+                thinnest string, highest pitch
+              </span>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-border bg-card p-5 mb-6">
+            <p class="text-sm font-semibold text-foreground mb-3">Bass tab vs. sheet music — at a glance</p>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-border text-left">
+                    <th class="pb-2 pr-6 text-foreground font-semibold">Bass Tab</th>
+                    <th class="pb-2 text-foreground font-semibold">Sheet Music</th>
+                  </tr>
+                </thead>
+                <tbody class="text-muted-foreground">
+                  <tr class="border-b border-border/50">
+                    <td class="py-2 pr-6">4 lines (one per string)</td>
+                    <td class="py-2">5-line staff</td>
+                  </tr>
+                  <tr class="border-b border-border/50">
+                    <td class="py-2 pr-6">Fret numbers</td>
+                    <td class="py-2">Note heads, accidentals</td>
+                  </tr>
+                  <tr class="border-b border-border/50">
+                    <td class="py-2 pr-6">No music theory needed</td>
+                    <td class="py-2">Requires music literacy</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 pr-6">Rhythm often approximate</td>
+                    <td class="py-2">Precise rhythmic notation</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <p class="text-muted-foreground leading-relaxed">
+            Tabs trade rhythmic precision for accessibility. You learn <em>where</em> to play instantly;
+            the timing comes from listening to the song. That trade-off is why tabs are the go-to
+            format for bass learners worldwide.
+          </p>
+        </section>
+
+        <!-- ── SECTION 2 ─────────────────────────────────────────────────────── -->
+        <section id="the-four-strings" class="mb-14 scroll-mt-20">
+          <h3 class="text-2xl font-bold text-foreground mb-4">2. The 4 String Lines Explained</h3>
+          <p class="text-muted-foreground leading-relaxed mb-6">
+            Every bass tab has four horizontal lines. Each line is a string. Read the tab exactly like
+            you read text: left to right, from top line to bottom if you want to play each string individually.
+          </p>
+
+          <div class="rounded-xl border border-border bg-card overflow-hidden mb-8">
+            <div class="px-5 py-3 border-b border-border bg-muted/30">
+              <p class="text-sm font-semibold text-foreground">Standard 4-string bass tuning (GDAE)</p>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-border bg-muted/20 text-left text-xs uppercase tracking-wider">
+                    <th class="px-4 py-2 text-muted-foreground">Position</th>
+                    <th class="px-4 py-2 text-muted-foreground">String</th>
+                    <th class="px-4 py-2 text-muted-foreground">Note (open)</th>
+                    <th class="px-4 py-2 text-muted-foreground">Character</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { pos: 'Top line',    str: 'G',  note: 'G2', color: 'text-blue-400',   char: 'Thinnest string, highest pitch' },
+                    { pos: 'Line 2',      str: 'D',  note: 'D2', color: 'text-teal-400',   char: 'Mid-high' },
+                    { pos: 'Line 3',      str: 'A',  note: 'A1', color: 'text-green-400',  char: 'Mid-low' },
+                    { pos: 'Bottom line', str: 'E',  note: 'E1', color: 'text-purple-400', char: 'Thickest string, lowest pitch' },
+                  ].map((r, i) => (
+                    <tr class:list={['border-b border-border/50 last:border-0', i % 2 === 1 ? 'bg-muted/10' : '']}>
+                      <td class="px-4 py-3 text-muted-foreground">{r.pos}</td>
+                      <td class="px-4 py-3 font-mono font-bold"><span class={r.color}>{r.str}</span></td>
+                      <td class="px-4 py-3 font-mono text-muted-foreground">{r.note}</td>
+                      <td class="px-4 py-3 text-muted-foreground text-xs">{r.char}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <h4 class="text-lg font-semibold text-foreground mb-3">Why is the G string on top?</h4>
+          <p class="text-muted-foreground leading-relaxed mb-4">
+            In standard music notation, higher pitches are written higher on the page. The G string
+            is the highest-pitched bass string, so it sits at the top of the tab. This can feel
+            counterintuitive — when you hold your bass, the E string (thickest) is actually closest
+            to your face and the G string is furthest away. Tab notation flips that perspective.
+          </p>
+          <p class="text-muted-foreground leading-relaxed mb-6">
+            With a few minutes of practice, your brain maps the lines to the strings automatically.
+            Most bassists stop thinking about it entirely after their first few songs.
+          </p>
+
+          <figure class="mb-4">
+            <img
+              src="/learn/bass-tabs/billie-jean-tab.png"
+              alt="Billie Jean bass tab notation showing all 4 strings — G, D, A, E — with fret numbers"
+              class="w-full rounded-xl border border-border"
+              loading="lazy"
+              width="1200"
+              height="520"
+            />
+            <figcaption class="text-xs text-muted-foreground text-center mt-2">
+              Billie Jean (Michael Jackson) — full tab notation exported from the editor.
+              Notice the 4 strings labeled on the left: G (top) to E (bottom).
+            </figcaption>
+          </figure>
+        </section>
+
+        <!-- ── SECTION 3 ─────────────────────────────────────────────────────── -->
+        <section id="fret-numbers" class="mb-14 scroll-mt-20">
+          <h3 class="text-2xl font-bold text-foreground mb-4">3. Fret Numbers — What Each Number Means</h3>
+          <p class="text-muted-foreground leading-relaxed mb-6">
+            The numbers on each string line tell you which fret to press with your fretting hand.
+            The fret is the metal strip on the neck closest to the headstock that produces that note.
+            Count frets from the nut (headstock end): fret 1 is closest to the headstock, fret 12
+            is an octave up.
+          </p>
+
+          <h4 class="text-xl font-semibold text-foreground mb-3">0 = Open string (no fret pressed)</h4>
+          <p class="text-muted-foreground leading-relaxed mb-4">
+            A <strong class="text-foreground font-mono">0</strong> means pluck the string without
+            pressing any fret. Each open string has a specific note:
+            <span class="font-mono text-blue-400">G</span> (G2),&nbsp;
+            <span class="font-mono text-teal-400">D</span> (D2),&nbsp;
+            <span class="font-mono text-green-400">A</span> (A1),&nbsp;
+            <span class="font-mono text-purple-400">E</span> (E1).
+            Open strings are some of the most powerful tools in bass playing — they ring freely and
+            give the bass its distinctive deep resonance.
+          </p>
+
+          <div class="rounded-xl overflow-hidden border border-border mb-6">
+            <div class="flex items-center gap-2 px-4 py-3 bg-muted/40 border-b border-border">
+              <span class="text-sm font-semibold text-foreground">Example: reading a simple bass line</span>
+            </div>
+            <div class="bg-zinc-950 px-5 py-5 font-mono text-sm leading-8 overflow-x-auto select-none">
+              <div class="flex items-center gap-3">
+                <span class="text-blue-400 font-bold w-4 shrink-0">G</span>
+                <span class="text-zinc-600">|<span class="text-white">-0-</span>---<span class="text-white">-2-</span>---<span class="text-white">-4-</span>---|</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-teal-400 font-bold w-4 shrink-0">D</span>
+                <span class="text-zinc-600">|-------<span class="text-white">-0-</span>---------|</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-green-400 font-bold w-4 shrink-0">A</span>
+                <span class="text-zinc-600">|<span class="text-white">-2-</span>--------------|</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-purple-400 font-bold w-4 shrink-0">E</span>
+                <span class="text-zinc-600">|-----------------|</span>
+              </div>
+              <div class="mt-3 text-zinc-500 text-xs space-y-1">
+                <p>→ Play A string fret 2, then G string frets 0 → 2 → 4, then D string open</p>
+                <p>→ E string is silent the whole time (dashes only)</p>
+              </div>
+            </div>
+          </div>
+
+          <h4 class="text-xl font-semibold text-foreground mb-3">Frets above 12</h4>
+          <p class="text-muted-foreground leading-relaxed mb-4">
+            Frets 12 and above are common in bass playing. Fret 12 on any string is exactly
+            one octave higher than the open string. A number like <strong class="font-mono text-foreground">14</strong>&nbsp;
+            on the G string means press the 14th fret of the G string — the note G3.
+            Two-digit numbers are written the same way as single-digit ones; nothing special about them.
+          </p>
+
+          <h4 class="text-xl font-semibold text-foreground mb-3">Numbers stacked vertically</h4>
+          <p class="text-muted-foreground leading-relaxed mb-6">
+            When two or more fret numbers appear in the same horizontal position (stacked), they're
+            played simultaneously. This is less common on bass than guitar, but happens in chord tones
+            and double-stop passages.
+          </p>
+
+          <div class="mb-3">
+            <p class="text-sm text-muted-foreground mb-3 font-medium">
+              Try it → Beat It shows fret movement across multiple strings
+            </p>
+            <BassTabPreviewIsland presetId="preset-beatit" editorHref="/bass-tab/" />
+          </div>
+          <p class="text-xs text-center text-muted-foreground mb-4">
+            Beat It — Michael Jackson · 138 BPM
+          </p>
+        </section>
+
+        <!-- ── SECTION 4 ─────────────────────────────────────────────────────── -->
+        <section id="reading-rhythm" class="mb-14 scroll-mt-20">
+          <h3 class="text-2xl font-bold text-foreground mb-4">4. How to Follow the Beat in a Bass Tab</h3>
+          <p class="text-muted-foreground leading-relaxed mb-4">
+            Reading <em>what</em> to play is step one. Reading <em>when</em> to play it is step two —
+            and for many beginners, the harder step.
+          </p>
+          <p class="text-muted-foreground leading-relaxed mb-4">
+            In traditional ASCII tabs, spacing between numbers loosely suggests timing, but it's
+            approximate at best. You generally can't tell a quarter note from an eighth note just by
+            looking at the dashes. The most reliable approach: <strong class="text-foreground">listen
+            while reading</strong>. Play the song at reduced speed and match what you see to what you hear.
+          </p>
+
+          <h4 class="text-xl font-semibold text-foreground mb-3">Bar lines and beat divisions</h4>
+          <p class="text-muted-foreground leading-relaxed mb-4">
+            Most tabs include bar (measure) dividers — vertical lines that mark the end of each bar.
+            In 4/4 time (the most common), each bar holds four beats. Knowing where the bar lines are
+            helps you count and stay in time with the song.
+          </p>
+          <p class="text-muted-foreground leading-relaxed mb-6">
+            Interactive tab players like the one on this page go further: they show the exact duration of
+            each note as a colored block, and the playhead moves in sync with the audio.
+            This visual rhythm display makes it easy to see whether a note lasts a full beat,
+            half a beat, or a quarter beat — no ear training required.
+          </p>
+
+          <figure class="mb-8">
+            <img
+              src="/learn/bass-tabs/beat-it-roll.png"
+              alt="Beat It bass tab piano roll view showing note durations as colored blocks across 4 strings"
+              class="w-full rounded-xl border border-border"
+              loading="lazy"
+              width="1200"
+              height="280"
+            />
+            <figcaption class="text-xs text-muted-foreground text-center mt-2">
+              Piano Roll view of Beat It. Each colored block is a note — its width shows duration.
+              Longer blocks last longer; shorter blocks are quicker notes.
+            </figcaption>
+          </figure>
+        </section>
+
+        <!-- ── SECTION 5 ─────────────────────────────────────────────────────── -->
+        <section id="tab-symbols" class="mb-14 scroll-mt-20">
+          <h3 class="text-2xl font-bold text-foreground mb-4">5. Common Bass Tab Symbols</h3>
+          <p class="text-muted-foreground leading-relaxed mb-6">
+            Beyond fret numbers, ASCII tabs use letter codes for playing techniques.
+            These don't change <em>what note</em> you play, but <em>how</em> you play it.
+            Knowing them unlocks the full expressive vocabulary of the bass.
+          </p>
+
+          <div class="rounded-xl border border-border overflow-hidden mb-8">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-muted/30 border-b border-border text-left">
+                  <th class="px-4 py-3 font-semibold text-foreground w-24">Symbol</th>
+                  <th class="px-4 py-3 font-semibold text-foreground w-32">Technique</th>
+                  <th class="px-4 py-3 font-semibold text-foreground">Example</th>
+                  <th class="px-4 py-3 font-semibold text-foreground hidden sm:table-cell">What it sounds like</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { sym: 'h',    name: 'Hammer-on',  ex: '5h7',  desc: 'Pluck fret 5, hammer onto 7 without re-picking. Smooth, legato transition.' },
+                  { sym: 'p',    name: 'Pull-off',   ex: '7p5',  desc: 'Fret 7 is played, then finger pulls off to 5. A quick, downward pop.' },
+                  { sym: '/',    name: 'Slide up',   ex: '5/7',  desc: 'Play fret 5 and slide up to 7 keeping pressure. One continuous note.' },
+                  { sym: '\\',   name: 'Slide down', ex: '7\\5', desc: 'Same as above but sliding toward the headstock.' },
+                  { sym: '~',    name: 'Vibrato',    ex: '5~',   desc: 'Oscillate finger pressure on fret 5. Adds warmth and expression.' },
+                  { sym: 'b',    name: 'Bend',       ex: '5b7',  desc: 'Bend the string at fret 5 until it sounds like fret 7 would.' },
+                  { sym: 'x',    name: 'Dead note',  ex: 'x',    desc: 'Muted hit — touch string(s) lightly without pressing a fret. Percussive click.' },
+                  { sym: 'PM-', name: 'Palm mute',   ex: 'PM--', desc: 'Rest palm on strings near the bridge. Produces muffled, staccato tone.' },
+                ].map((r, i) => (
+                  <tr class:list={['border-b border-border/50 last:border-0', i % 2 === 1 ? 'bg-muted/10' : '']}>
+                    <td class="px-4 py-3 font-mono font-bold text-primary">{r.sym}</td>
+                    <td class="px-4 py-3 text-foreground font-medium">{r.name}</td>
+                    <td class="px-4 py-3 font-mono text-muted-foreground">{r.ex}</td>
+                    <td class="px-4 py-3 text-muted-foreground text-xs hidden sm:table-cell">{r.desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p class="text-muted-foreground leading-relaxed">
+            These symbols are most common in ASCII tab notation shared online.
+            When you use an interactive editor like the one on this page,
+            the timing and technique info is embedded in the playback — you hear the groove directly
+            rather than decoding symbols.
+          </p>
+        </section>
+
+        <!-- ── SECTION 6 ─────────────────────────────────────────────────────── -->
+        <section id="practice-songs" class="mb-14 scroll-mt-20">
+          <h3 class="text-2xl font-bold text-foreground mb-4">6. Three Basslines to Practice Right Now</h3>
+          <p class="text-muted-foreground leading-relaxed mb-8">
+            Theory is useful. Playing is better. Here are three basslines arranged by difficulty,
+            each with an interactive player so you can hear the groove before you pick up your bass.
+          </p>
+
+          <div class="mb-10">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-green-950 text-green-400 border border-green-800">Beginner</span>
+              <h4 class="text-xl font-semibold text-foreground">Billie Jean — Michael Jackson</h4>
+            </div>
+            <p class="text-muted-foreground leading-relaxed mb-4">
+              The bassline by session legend Nathan Watts is perfect for beginners. It repeats
+              throughout the entire song with minimal variation, so once you learn it you can play
+              for four minutes straight. The pattern lives mostly on the A and D strings with a
+              handful of notes on G — no big stretches, no fast runs.
+            </p>
+            <ul class="text-sm text-muted-foreground mb-5 space-y-1.5 list-disc list-inside">
+              <li>117 BPM — moderate tempo, comfortable to practice slowly</li>
+              <li>Frets 1–7 only — stays in first position</li>
+              <li>Repeating pattern — memorize once, play forever</li>
+            </ul>
+            <p class="text-sm text-muted-foreground">Already playing above — scroll to the top of the page to hear it.</p>
+          </div>
+
+          <div class="mb-10">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-yellow-950 text-yellow-400 border border-yellow-800">Intermediate</span>
+              <h4 class="text-xl font-semibold text-foreground">Beat It — Michael Jackson</h4>
+            </div>
+            <p class="text-muted-foreground leading-relaxed mb-4">
+              The Beat It bassline covers more of the neck and requires you to cross strings more frequently.
+              It's great for building fret-hand independence — you'll need to jump between strings quickly
+              while maintaining a steady groove.
+            </p>
+            <ul class="text-sm text-muted-foreground mb-5 space-y-1.5 list-disc list-inside">
+              <li>138 BPM — faster, requires cleaner technique</li>
+              <li>Uses all 4 strings actively</li>
+              <li>Root-fifth motion — a core bass vocabulary pattern</li>
+            </ul>
+            <p class="text-sm text-muted-foreground">Already played above in section 3 — scroll up to hear it.</p>
+          </div>
+
+          <div class="mb-4">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-950 text-red-400 border border-red-800">Challenge</span>
+              <h4 class="text-xl font-semibold text-foreground">Le Freak — Chic</h4>
+            </div>
+            <p class="text-muted-foreground leading-relaxed mb-4">
+              Bernard Edwards' bassline on Le Freak is a masterclass in syncopation — notes that land
+              between the beats rather than on them. Reading it in tab form is your first real test of
+              understanding rhythm in tablature. The Piano Roll view below makes the syncopated pattern
+              easy to see.
+            </p>
+            <ul class="text-sm text-muted-foreground mb-5 space-y-1.5 list-disc list-inside">
+              <li>116 BPM — moderate, but the syncopation demands focus</li>
+              <li>Disco groove — heavily syncopated feel</li>
+              <li>E and A strings dominate — low and punchy</li>
+            </ul>
+            <BassTabPreviewIsland presetId="preset-lefreak" editorHref="/bass-tab/" />
+            <figure class="mt-4 mb-2">
+              <img
+                src="/learn/bass-tabs/le-freak-roll.png"
+                alt="Le Freak bass tab piano roll view showing the syncopated off-beat note pattern"
+                class="w-full rounded-xl border border-border"
+                loading="lazy"
+                width="1200"
+                height="280"
+              />
+              <figcaption class="text-xs text-muted-foreground text-center mt-2">
+                Le Freak — Piano Roll view. Notice the notes starting between beats — that's syncopation.
+              </figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <!-- ── SECTION 7 ─────────────────────────────────────────────────────── -->
+        <section id="tab-vs-notation" class="mb-14 scroll-mt-20">
+          <h3 class="text-2xl font-bold text-foreground mb-4">7. Tab vs. Standard Notation: Which Should You Learn?</h3>
+          <p class="text-muted-foreground leading-relaxed mb-4">
+            Short answer: learn both eventually, but start with tabs.
+          </p>
+          <p class="text-muted-foreground leading-relaxed mb-4">
+            Tabs get you playing songs immediately. Standard notation teaches you to understand music
+            as a universal language — you can read a part written by any composer, communicate with
+            musicians who play any instrument, and study from classical and jazz literature.
+          </p>
+          <p class="text-muted-foreground leading-relaxed mb-4">
+            Most working bassists use tabs for learning songs quickly and standard notation for
+            session work, formal study, or classical/jazz reading. The two complement each other.
+          </p>
+          <p class="text-muted-foreground leading-relaxed">
+            The editor on this page shows <em>both simultaneously</em>: the scrolling tab stave sits
+            alongside standard notation so you can start learning what each note looks like in formal
+            notation while you play from tabs.
+          </p>
+        </section>
+
+        <!-- ── SECTION 8 ─────────────────────────────────────────────────────── -->
+        <section id="tips" class="mb-4 scroll-mt-20">
+          <h3 class="text-2xl font-bold text-foreground mb-4">8. Five Tips to Read Bass Tabs Faster</h3>
+          <ol class="space-y-5">
+            {[
+              {
+                n: 1,
+                title: 'Listen first, then read',
+                body: 'Play the original song two or three times before looking at the tab. Your ear learns the rhythm so your eyes don\'t have to figure it out alone. When you open the tab, you\'re matching what you already know to what you see.',
+              },
+              {
+                n: 2,
+                title: 'Use a tab player, not a static image',
+                body: 'A tab that moves with the audio (like the interactive examples on this page) communicates rhythm that static notation can\'t. Watch the playhead and let your hands follow it.',
+              },
+              {
+                n: 3,
+                title: 'Learn one bar at a time',
+                body: 'Don\'t try to read the whole bassline at once. Isolate one bar, get it under your fingers at half speed, then move to the next. Speed comes after accuracy.',
+              },
+              {
+                n: 4,
+                title: 'Mark the string transitions',
+                body: 'When a line of notes jumps from one string to another, that\'s where most beginners lose their place. Circle or highlight those transitions in a printed tab so your eye knows what\'s coming.',
+              },
+              {
+                n: 5,
+                title: 'Practice reading without the bass first',
+                body: 'Tap the rhythm on a table while reading. Once you can tap the rhythm accurately, picking up the bass is much easier — your hands are doing one thing at a time.',
+              },
+            ].map(tip => (
+              <li class="flex gap-4">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mt-0.5">
+                  {tip.n}
+                </div>
+                <div>
+                  <p class="font-semibold text-foreground mb-1">{tip.title}</p>
+                  <p class="text-sm text-muted-foreground leading-relaxed">{tip.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
       </div>
     </section>
 
