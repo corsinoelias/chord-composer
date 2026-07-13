@@ -67,6 +67,8 @@ ${songLines}
 - [Chord Transposer](${SITE}/tools/chord-transposer/): Instantly transpose any chord or progression to a different key. Includes semitone reference chart and worked examples.
 - [Circle of Fifths](${SITE}/tools/circle-of-fifths/): Interactive circle of fifths for navigating key relationships.
 - [Key Detector](${SITE}/tools/key-detector/): Detect the key of any chord progression.
+- [Bass Tab Player](${SITE}/tools/bass-guitar-tab/): Free online 4-string bass tablature editor. Draw notes on any string and fret, real-time playback, Pick/Synth/Slap sounds, WAV export. No account required.
+- [Guitar Tab Player](${SITE}/tools/guitar-tab/): Free online 6-string guitar tablature editor. Draw and drag notes, Chord Helper for one-click chord insertion, capo support, ASCII/MIDI export. No account required.
 
 ## About
 - [About Chord Sequence](${SITE}/about/): About the tool and its creator.
