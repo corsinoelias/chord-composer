@@ -62,6 +62,29 @@ const breadcrumbSchema = {
     { '@type': 'ListItem', position: 3, name: displayTitle, item: genreCanonicalUrl },
   ],
 };
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: displayTitle,
+  description: generatorMetaDescription,
+  datePublished: '2026-05-27T00:00:00.000Z',
+  dateModified: '2026-07-10T00:00:00.000Z',
+  inLanguage: 'en',
+  author: {
+    '@type': 'Person',
+    '@id': 'https://chordsequence.com/about/elias-corsino/#person',
+    name: 'Elías Corsino Saldaña',
+    url: 'https://chordsequence.com/about/elias-corsino/',
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Chord Sequence',
+    url: 'https://chordsequence.com/',
+    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': genreCanonicalUrl },
+};
 ---
 
 <BaseLayout
@@ -72,6 +95,7 @@ const breadcrumbSchema = {
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
   </Fragment>
 
   <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
