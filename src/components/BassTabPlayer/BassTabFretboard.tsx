@@ -60,12 +60,16 @@ interface FretboardProps {
   attackSignals: ({ fret: number; v: number } | null)[]
   onNoteClick?: (stringIndex: number, fret: number) => void
   maxHeight?: number
+  // True in the tab editor (a click places a note at the grid cursor), false
+  // on the standalone instrument demo (a click just previews the sound) —
+  // only affects the footer hint text, not clickability.
+  placementHint?: boolean
 }
 
 // vibeInfo[si] = { fret, key } — key changes on every attack to trigger the effect
 type VibeInfo = { fret: number; key: number }
 
-export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxHeight }: FretboardProps) {
+export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxHeight, placementHint = true }: FretboardProps) {
   const [hovered, setHovered]     = useState<[number, number] | null>(null)
   const isInteractive             = !!onNoteClick
   const containerRef              = useRef<HTMLDivElement>(null)
@@ -156,6 +160,8 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
         overflow: 'hidden',
         borderBottom: '1px solid hsl(224 15% 16%)',
         height: Math.round(NATURAL_H * scale),
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
       }}
     >
       <div style={{ width: totalW, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
@@ -202,11 +208,11 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
           {hovered ? (
             <span style={{ color: STRINGS[hovered[0]].color, fontSize:10, fontFamily:'ui-monospace,monospace' }}>
               {STRINGS[hovered[0]].displayName} · Fret {hovered[1]} · {fretToNoteName(hovered[0], hovered[1])}
-              {isInteractive && ' — tap to place note at cursor ↓'}
+              {isInteractive && (placementHint ? ' — tap to place note at cursor ↓' : ' — tap another fret to hear it')}
             </span>
           ) : (
             <span style={{ color:'hsl(220 10% 28%)', fontSize:10, fontFamily:'ui-monospace,monospace' }}>
-              {isInteractive ? 'Tap a fret to place note at cursor' : ''}
+              {isInteractive ? (placementHint ? 'Tap a fret to place note at cursor' : 'Tap a fret to hear the note') : ''}
             </span>
           )}
         </div>

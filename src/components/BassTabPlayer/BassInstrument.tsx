@@ -110,6 +110,7 @@ export function BassInstrument() {
         activeFrets={activeFrets}
         attackSignals={attackSignals}
         onNoteClick={handleNoteClick}
+        placementHint={false}
       />
 
       {/* Note display */}
