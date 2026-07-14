@@ -385,7 +385,11 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
           return (
             <div
               key={si}
-              className={`rounded-xl border transition-colors overflow-hidden
+              // No child here needs edge-to-edge clipping to the rounded corners (the header
+              // row has no background of its own), so overflow-hidden served no visual purpose
+              // — it just risked silently clipping the last lyric line when content height came
+              // in a pixel or two over the card's computed height on some browsers/font metrics.
+              className={`rounded-xl border transition-colors
                 ${isActiveSection ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}
               `}
             >
@@ -439,9 +443,12 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                 )}
               </div>
 
-              {/* Section content */}
+              {/* Section content. pb-6 (not pb-4) — measured line heights are fractional
+                  (73.5px), meaning this box already sat at a near-zero-margin fit; different
+                  browsers round subpixel layout differently, so give it real slack instead of
+                  relying on an exact match. */}
               {!collapsed && (
-                <div className="px-4 pb-4 space-y-3">
+                <div className="px-4 pb-6 space-y-3">
                   {section.lines.map((line, li) => {
                     if (line.length === 0) return null;
 
@@ -463,7 +470,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                                 if (el) chordRefs.current.set(token.globalIndex, el);
                                 else chordRefs.current.delete(token.globalIndex);
                               } : undefined}
-                              className="inline-flex flex-col items-start relative"
+                              className="inline-flex flex-col items-start relative max-w-full min-w-0"
                               style={{ fontFamily: 'var(--font-mono, monospace)' }}
                             >
                               {/* Chord name row */}
@@ -513,7 +520,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                               {!isChordOnlyLine && (
                                 <span
                                   className={`
-                                    text-sm leading-relaxed whitespace-pre transition-colors duration-100
+                                    text-sm leading-relaxed whitespace-pre-wrap break-words transition-colors duration-100
                                     ${isActive
                                       ? 'text-foreground font-medium'
                                       : 'text-muted-foreground'
