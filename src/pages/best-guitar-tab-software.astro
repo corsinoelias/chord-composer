@@ -1,0 +1,516 @@
+---
+export const prerender = true;
+import BaseLayout from '../layouts/BaseLayout.astro';
+import YouTubeEmbed from '../components/YouTubeEmbed.astro';
+import { GuitarTabPreview } from '../components/GuitarTabPlayer/GuitarTabPreview';
+
+const canonicalUrl = 'https://chordsequence.com/best-guitar-tab-software/';
+const updatedDate = 'July 2026';
+
+const itemListSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Best Guitar Tab Software 2026',
+  description: 'The best free and paid guitar tab software in 2026 — browser tools, desktop editors, and notation software compared.',
+  url: canonicalUrl,
+  numberOfItems: 6,
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, item: { '@type': 'SoftwareApplication', name: 'Chord Sequence Guitar Tab Player', url: 'https://chordsequence.com/tools/guitar-tab/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 2, item: { '@type': 'SoftwareApplication', name: 'TuxGuitar', url: 'https://tuxguitar.org/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 3, item: { '@type': 'SoftwareApplication', name: 'Tabby.pro', url: 'https://tabby.pro/instruments/guitar', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 4, item: { '@type': 'SoftwareApplication', name: 'Dorico', url: 'https://www.steinberg.net/dorico/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 5, item: { '@type': 'SoftwareApplication', name: 'Songsterr', url: 'https://www.songsterr.com/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '9.99', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 6, item: { '@type': 'SoftwareApplication', name: 'Guitar Pro 8', url: 'https://www.guitar-pro.com/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '69.99', priceCurrency: 'USD' } } },
+  ],
+};
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'Best Guitar Tab Software in 2026 (Free & Paid)',
+  description: 'The best guitar tab software in 2026 — browser editors, desktop apps, and notation software compared by features, platforms, and price. Includes Chord Sequence, TuxGuitar, Tabby.pro, Dorico, Songsterr, and Guitar Pro.',
+  datePublished: '2026-07-14T00:00:00.000Z',
+  dateModified: '2026-07-14T00:00:00.000Z',
+  inLanguage: 'en',
+  author: {
+    '@type': 'Person',
+    '@id': 'https://chordsequence.com/about/elias-corsino/#person',
+    name: 'Elías Corsino Saldaña',
+    url: 'https://chordsequence.com/about/elias-corsino/',
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Chord Sequence',
+    url: 'https://chordsequence.com/',
+    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Best Guitar Tab Software', item: canonicalUrl },
+  ],
+};
+
+const faqData = [
+  {
+    '@type': 'Question',
+    name: 'What is the best free guitar tab software?',
+    acceptedAnswer: { '@type': 'Answer', text: 'Chord Sequence (chordsequence.com/tools/guitar-tab/) is the best free browser option — no install, no account, drag-and-drop editing, a one-click Chord Helper, capo support, Guitar Pro file import, and ASCII/MIDI export. If you need a permanent free desktop app instead, TuxGuitar is the best option, especially on Linux. Tabby.pro is also free and works in the browser for guitar, bass, ukulele, and mandolin.' },
+  },
+  {
+    '@type': 'Question',
+    name: 'What is the difference between a tab editor and a tab player?',
+    acceptedAnswer: { '@type': 'Answer', text: 'A tab editor (like Chord Sequence, Guitar Pro, TuxGuitar, or Tabby.pro) lets you create and edit your own tablature from scratch. A tab player (like Songsterr) is built around an existing library of tabs — you search for a song and play it back, rather than writing your own. Some tools, like Guitar Pro, do both: they let you create tabs and also include an official library of premade ones.' },
+  },
+  {
+    '@type': 'Question',
+    name: 'Which guitar tab software is best for beginners?',
+    acceptedAnswer: { '@type': 'Answer', text: 'Chord Sequence is the most approachable for beginners — it runs in any browser with no installation, includes a Chord Helper that inserts full chord shapes in one click, and a built-in guide on how to read a tab. Songsterr is a good complement if you mainly want to learn existing songs rather than write your own.' },
+  },
+];
+
+const tools = [
+  {
+    rank: 1,
+    name: 'Chord Sequence Guitar Tab Player',
+    tagline: 'Best free browser-based guitar tab editor',
+    url: 'https://chordsequence.com/tools/guitar-tab/',
+    price: 'Free forever',
+    type: 'Browser tool',
+    ours: true,
+    youtubeId: null,
+    youtubeTitle: null,
+    description: [
+      'Chord Sequence\'s Guitar Tab Player is a free, browser-based 6-string tab editor that lets you draw, play, and export guitar tabs without installing anything or creating an account. Click to place notes on any of the six strings, drag to move them across strings or beats, and resize to change duration — all with real-time audio playback so you can hear exactly what you\'re writing as you go.',
+      'A one-click Chord Helper panel inserts full chord shapes (Em, C, G, D, Am, and more) at the cursor position, which makes building chord-based arrangements fast. Capo support automatically transposes playback without changing the fret numbers you see, and you can choose between four tones — Acoustic, Nylon, Clean Electric, and Synth. When you\'re done, export your tab as ASCII text for sharing on forums, or as MIDI for use in a DAW.',
+      'You can also import an existing Guitar Pro file (.gp, .gp3, .gp4, .gp5, .gp7, .gpx) directly in the browser — no desktop install required. The importer reads the file\'s tracks, tuning, and rhythm and drops it straight into the editor, ready to play, edit, or export.',
+    ],
+    strengths: [
+      'Free, no account, works in any modern browser',
+      'Drag-and-resize note editing with real-time playback',
+      'One-click Chord Helper for common chord shapes',
+      'Capo support with automatic playback transposition',
+      'Four instrument tones — Acoustic, Nylon, Clean, Synth',
+      'Imports Guitar Pro files (.gp/.gp3/.gp4/.gp5/.gp7/.gpx) — no desktop app needed',
+      'Export to ASCII tab and MIDI',
+    ],
+    limitations: [
+      'No pre-built library of existing songs the size of Songsterr\'s',
+      'No offline desktop app — requires a browser',
+      'Does not export back to the .gp format',
+    ],
+    bestFor: 'Guitarists who want to sketch, practice, and share a tab quickly in the browser without installing software or paying anything.',
+  },
+  {
+    rank: 2,
+    name: 'TuxGuitar',
+    tagline: 'Best free, permanent desktop alternative to Guitar Pro',
+    url: 'https://tuxguitar.org/',
+    price: 'Free (open source)',
+    type: 'Desktop app (Windows / macOS / Linux)',
+    ours: false,
+    youtubeId: 'amn6-DV4Md8',
+    youtubeTitle: 'TuxGuitar Tutorial — Free Tablature Editor for Guitar and Bass',
+    description: [
+      'TuxGuitar is a free, open-source multitrack tablature editor released under the GNU GPL license. It\'s the closest thing to a truly free, permanent alternative to Guitar Pro: it opens and exports Guitar Pro files (.gp3, .gp4, .gp5) as well as MIDI, and supports both tablature and standard notation side by side. It runs natively on Windows, macOS, and Linux, which makes it the only tool in this list with real Linux support.',
+      'Beyond basic tab entry, TuxGuitar includes a built-in MIDI player with adjustable tempo, MIDI keyboard input for composing, and support for guitar articulations like hammer-ons, pull-offs, bends, and slides. Development slowed after the original project\'s website went down at the end of 2022, but the community picked it back up in a new GitHub repository, so it\'s still actively maintained.',
+    ],
+    strengths: [
+      'Completely free forever, open source (GPL)',
+      'Runs on Windows, macOS, and Linux',
+      'Opens and exports Guitar Pro (.gp3/.gp4/.gp5) and MIDI files',
+      'Multitrack composition with standard notation + tab',
+      'MIDI keyboard input support',
+    ],
+    limitations: [
+      'Dated interface compared to modern browser tools',
+      'No official mobile app',
+      'Development pace slowed after 2022 (now community-maintained)',
+    ],
+    bestFor: 'Linux users, or anyone who wants a free desktop editor that can open and exchange Guitar Pro files with other musicians.',
+  },
+  {
+    rank: 3,
+    name: 'Tabby.pro',
+    tagline: 'Free browser tab maker for guitar, bass, ukulele, and mandolin',
+    url: 'https://tabby.pro/instruments/guitar',
+    price: 'Free',
+    type: 'Browser tool',
+    ours: false,
+    youtubeId: 'cWmIXn2n1mY',
+    youtubeTitle: 'Quick Tip - Free Guitar Tab Maker',
+    description: [
+      'TabbyPro is a free, browser-based tab creator that covers more than just guitar — it also supports bass, ukulele, and mandolin from the same interface. No account is required to create and store tabs; the editor saves your work directly in the browser\'s local storage, with an optional account if you want to access your tabs from another device or share them.',
+      'The editor supports capo positioning, time signatures, and common articulations like hammer-ons, pull-offs, bends, slides, and vibrato, alongside a bundled chord library and fretboard trainer. Its public site doesn\'t document audio playback or export formats in detail, so if hearing your tab played back or exporting to a specific file format is a hard requirement, verify that directly on the site before relying on it.',
+    ],
+    strengths: [
+      'Free, no account required to create and edit tabs',
+      'Supports guitar, bass, ukulele, and mandolin',
+      'Capo, time signatures, and standard tab articulations',
+      'Bundled chord library and fretboard trainer',
+    ],
+    limitations: [
+      'Playback and export capabilities are not clearly documented publicly',
+      'Less established brand and community than the other tools here',
+      'Tabs saved to local browser storage by default (account needed for cross-device access)',
+    ],
+    bestFor: 'Players who want a fast, free, multi-instrument tab sketchpad in the browser without installing anything or making an account.',
+  },
+  {
+    rank: 4,
+    name: 'Dorico',
+    tagline: 'Professional notation software with guitar tab as a secondary feature',
+    url: 'https://www.steinberg.net/dorico/',
+    price: 'SE: Free · Elements: $299.99 · Pro: $579.99',
+    type: 'Desktop notation software (Windows / macOS)',
+    ours: false,
+    youtubeId: 'ez-jYK04gpY',
+    youtubeTitle: 'Guitar Notation & Tab | Discover Dorico',
+    description: [
+      'Dorico is Steinberg\'s professional music notation software, built primarily for composers, arrangers, and publishers producing full scores — not specifically for guitarists sketching riffs. It can display fretted-instrument music as standard notation, tablature, or both linked together, so editing one view automatically updates the other. Dorico 6.2 brought meaningful improvements to guitar tab specifically, including better handling of bends and tied notes and support for European-style guitar notation.',
+      'Dorico SE, the free tier, supports up to 8 instruments and includes tablature — genuinely useful for a solo guitar part inside a larger arrangement. Elements ($299.99) and Pro ($579.99) unlock the full engraving toolset for larger, publication-grade scores. If your goal is simply to write down a guitar riff quickly, Dorico is significant overkill; it earns its place here for guitarists who need tab as part of a proper, multi-instrument notated score.',
+    ],
+    strengths: [
+      'Free SE tier available (up to 8 instruments, includes tab)',
+      'Best-in-class notation engraving quality',
+      'Tab and standard notation linked — edit one, both update',
+      'Recent updates specifically improved guitar tab notation',
+    ],
+    limitations: [
+      'Full Pro tier is expensive ($579.99)',
+      'Steep learning curve — built for notation, not quick tabbing',
+      'Guitar tab is a secondary feature, not the core purpose',
+      'Windows and macOS only',
+    ],
+    bestFor: 'Composers and arrangers who need publication-quality sheet music with guitar tab as part of a larger notated score — not guitarists who just want to jot down a riff.',
+  },
+  {
+    rank: 5,
+    name: 'Songsterr',
+    tagline: 'Largest tab library with synced audio playback',
+    url: 'https://www.songsterr.com/',
+    price: 'Free (view/play) · Plus $9.99/mo',
+    type: 'Web + mobile app (iOS/Android)',
+    ours: false,
+    youtubeId: null,
+    youtubeTitle: null,
+    description: [
+      'Songsterr is built around a massive, community-sourced library of over a million tabs, rather than being a tool for writing your own from scratch. Every tab plays back with synchronized, multi-track audio — rhythm and lead guitar, bass, drums, and vocals highlighted in real time as the song plays — which makes it one of the best ways to learn an existing song by ear and eye together.',
+      'The free tier lets you browse and play any tab in the library. Songsterr Plus, at $9.99/month, unlocks the features that make practicing easier: adjustable playback speed without pitch change, loop and solo/mute modes, sync with the original recorded audio, printing, downloads in MIDI/Guitar Pro/MP3/WAV, and AI transcription of up to 50 tabs a month from YouTube links. Because it\'s subscription-based and library-first, it fits a different need than the editors in this list.',
+    ],
+    strengths: [
+      'Over a million tabs, community-sourced',
+      'Synced, multi-track audio playback (guitar, bass, drums, vocals)',
+      'Web, iOS, and Android apps',
+      'AI transcription from YouTube links (Plus, 50/mo)',
+    ],
+    limitations: [
+      'Not designed for creating your own tab from scratch',
+      'Core practice features (loop, speed, sync) require Plus at $9.99/mo',
+      'Ads on the free tier',
+    ],
+    bestFor: 'Guitarists who want to learn an existing song from a huge, ready-made tab library with synced audio — not to write their own.',
+  },
+  {
+    rank: 6,
+    name: 'Guitar Pro 8',
+    tagline: 'The industry-standard guitar tab editor',
+    url: 'https://www.guitar-pro.com/',
+    price: '$69.99 (one-time) + free trial',
+    type: 'Desktop app (Windows / macOS) + separate mobile app',
+    ours: false,
+    youtubeId: 'c-ZEXL22geE',
+    youtubeTitle: 'What is Guitar Pro? A quick overview',
+    description: [
+      'Guitar Pro 8 is the de facto industry standard for tab creation — the .gp file format it popularized is what most other tools in this list (TuxGuitar included) are built to import and export. It supports standard notation, tablature, and slash notation, and can synchronize an audio file with your score to help transcribe a song by ear while following along with the original recording.',
+      'Playback covers more than 100 instrument sounds — guitars, basses, drums, and more — run through reverb, chorus, delay, compressor, EQ, tremolo, and a set of modeled guitar pedals. Practice tools include a looper, metronome, and chord/scale libraries with both fretboard and piano views, and the mySongBook library is integrated directly into the app for official, ready-made tabs. There\'s no permanent free tier — just a trial — and no native Linux build, but for many working guitarists and teachers it remains the default choice.',
+    ],
+    strengths: [
+      'Industry-standard .gp file format, widely compatible',
+      '100+ instrument sounds with a full effects/pedal chain',
+      'Audio-sync transcription tool',
+      'Built-in looper, metronome, chord and scale libraries',
+      'Integrated mySongBook official tab store',
+    ],
+    limitations: [
+      'No permanent free version — $69.99 one-time purchase',
+      'No native Linux support',
+      'Requires desktop installation',
+    ],
+    bestFor: 'Serious guitarists and teachers who want the most complete, industry-standard tab creation and practice toolkit and are fine paying once for it.',
+  },
+];
+---
+
+<BaseLayout
+  title="6 Best Guitar Tab Software in 2026 (Free & Paid)"
+  description="The best guitar tab software in 2026 — browser editors, desktop apps, and notation software compared, including Chord Sequence, TuxGuitar, Tabby.pro, and more."
+  canonicalUrl={canonicalUrl}
+  ogType="article"
+  author="Elías Corsino Saldaña"
+>
+  <Fragment slot="head">
+    <meta property="article:published_time" content="2026-07-14T00:00:00.000Z" />
+    <meta property="article:modified_time" content="2026-07-14T00:00:00.000Z" />
+    <meta property="article:author" content="https://chordsequence.com/about/elias-corsino/" />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted-foreground mb-10">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">Best Guitar Tab Software</span>
+    </nav>
+
+    <!-- Header -->
+    <header class="mb-12">
+      <div class="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-6">
+        Updated {updatedDate}
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-5 font-serif">
+        6 Best Guitar Tab Software in 2026
+      </h1>
+      <p class="text-lg text-muted-foreground leading-relaxed mb-3">
+        Whether you want to sketch a riff in the browser, exchange files with other musicians, or engrave a full score, there's a guitar tab tool built for it. This guide covers six of the best options in 2026, ordered free-first — three free browser/desktop tools, one free-tier notation app, and two paid options.
+      </p>
+      <p class="text-sm text-muted-foreground">
+        <em>Disclosure: Chord Sequence (#1) is our own tool. All competitor data is sourced from their public websites as of {updatedDate}.</em>
+      </p>
+      <!-- Author -->
+      <div class="flex items-center gap-3 mt-6 pb-6 border-b border-border">
+        <img src="/images/elias-corsino.jpg" alt="Elías Corsino Saldaña" width="36" height="36" class="w-9 h-9 rounded-full object-cover shrink-0" loading="lazy" />
+        <div>
+          <a href="/about/elias-corsino/" class="text-sm font-medium text-foreground hover:text-primary transition-colors">Elías Corsino Saldaña</a>
+          <p class="text-xs text-muted-foreground">Musician & Software Developer</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Quick summary -->
+    <div class="mb-14 rounded-xl border border-primary/20 bg-primary/5 p-6">
+      <p class="text-sm font-semibold text-primary uppercase tracking-wide mb-3">Quick summary</p>
+      <ul class="space-y-2 text-sm text-muted-foreground">
+        <li><strong class="text-foreground">#1 Chord Sequence</strong> — Best free browser tab editor. Drag & resize notes, Chord Helper, capo, imports Guitar Pro files, ASCII/MIDI export. No account.</li>
+        <li><strong class="text-foreground">#2 TuxGuitar</strong> — Free, open-source desktop editor. Opens Guitar Pro files. Windows, macOS, Linux.</li>
+        <li><strong class="text-foreground">#3 Tabby.pro</strong> — Free browser tab maker for guitar, bass, ukulele, and mandolin. No account required.</li>
+        <li><strong class="text-foreground">#4 Dorico</strong> — Free SE tier (8 instruments) up to $579.99 Pro. Professional notation with tab support.</li>
+        <li><strong class="text-foreground">#5 Songsterr</strong> — Free tab library, $9.99/mo Plus. Synced multi-track playback for learning existing songs.</li>
+        <li><strong class="text-foreground">#6 Guitar Pro 8</strong> — $69.99 one-time. The industry-standard tab editor. 100+ instrument sounds.</li>
+      </ul>
+    </div>
+
+    <!-- Comparison table -->
+    <section class="mb-16">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Feature comparison</h2>
+      <div class="overflow-x-auto rounded-xl border border-border">
+        <table class="w-full text-sm">
+          <thead class="bg-muted/50 border-b border-border">
+            <tr>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tool</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Price</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Platform</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Audio</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Export</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            {[
+              { name: 'Chord Sequence', price: 'Free', type: 'Browser', platform: 'Any', audio: '✅', exp: 'ASCII + MIDI', ours: true },
+              { name: 'TuxGuitar',      price: 'Free', type: 'Desktop', platform: 'Win/Mac/Linux', audio: '✅', exp: 'gp3-5 + MIDI', ours: false },
+              { name: 'Tabby.pro',      price: 'Free', type: 'Browser', platform: 'Any', audio: '⚠️ Undocumented', exp: '⚠️ Undocumented', ours: false },
+              { name: 'Dorico',         price: 'Free–$579.99', type: 'Desktop', platform: 'Win/Mac', audio: '✅', exp: 'MusicXML, MIDI, PDF', ours: false },
+              { name: 'Songsterr',      price: 'Free / $9.99mo', type: 'Web + Mobile', platform: 'Web/iOS/Android', audio: '✅ Synced', exp: 'MIDI, GP, MP3, WAV (Plus)', ours: false },
+              { name: 'Guitar Pro 8',   price: '$69.99', type: 'Desktop', platform: 'Win/Mac', audio: '✅', exp: 'gp, MIDI, MusicXML, PDF', ours: false },
+            ].map(r => (
+              <tr class={`hover:bg-muted/20 transition-colors ${r.ours ? 'bg-primary/5' : ''}`}>
+                <td class={`px-4 py-3 font-semibold ${r.ours ? 'text-primary' : 'text-foreground'}`}>{r.name}</td>
+                <td class="px-3 py-3 text-center text-muted-foreground text-xs">{r.price}</td>
+                <td class="px-3 py-3 text-center text-muted-foreground text-xs">{r.type}</td>
+                <td class="px-3 py-3 text-center text-muted-foreground text-xs">{r.platform}</td>
+                <td class="px-3 py-3 text-center text-xs">{r.audio}</td>
+                <td class="px-3 py-3 text-center text-muted-foreground text-xs">{r.exp}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Individual reviews -->
+    <section class="space-y-16">
+      {tools.map(tool => (
+        <article id={`tool-${tool.rank}`} class="scroll-mt-24">
+          <!-- Header -->
+          <div class={`rounded-xl border p-6 mb-0 ${tool.ours ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}`}>
+            <div class="flex items-start justify-between gap-4 mb-1">
+              <div>
+                <span class={`text-xs font-bold uppercase tracking-wide ${tool.ours ? 'text-primary' : 'text-muted-foreground'}`}>
+                  #{tool.rank}{tool.ours ? ' · Our pick' : ''}
+                </span>
+                <h2 class="text-2xl font-bold text-foreground mt-1">
+                  {tool.ours
+                    ? tool.name
+                    : <a href={tool.url} target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors">{tool.name} ↗</a>
+                  }
+                </h2>
+                <p class="text-sm text-muted-foreground">{tool.tagline}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class={`text-lg font-bold ${tool.ours ? 'text-primary' : 'text-foreground'}`}>{tool.price}</p>
+                <p class="text-xs text-muted-foreground">{tool.type}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live embed for our tool -->
+          {tool.ours && (
+            <div class="mt-4 rounded-xl overflow-hidden border border-border">
+              <GuitarTabPreview client:visible presetId="preset-smokeonthewater" editorHref="/guitar-tab/" />
+            </div>
+          )}
+
+          <!-- YouTube embed -->
+          {tool.youtubeId && (
+            <YouTubeEmbed id={tool.youtubeId} title={tool.youtubeTitle} />
+          )}
+
+          <!-- Description -->
+          <div class="mt-6 space-y-4">
+            {tool.description.map(p => (
+              <p class="text-muted-foreground leading-relaxed">{p}</p>
+            ))}
+          </div>
+
+          <!-- Pros / Cons -->
+          <div class="mt-6 grid sm:grid-cols-2 gap-4">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <p class="text-xs font-semibold text-foreground uppercase tracking-wide mb-3">Strengths</p>
+              <ul class="space-y-1.5">
+                {tool.strengths.map(s => (
+                  <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                    <span class="text-green-500 shrink-0 mt-0.5">✓</span>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div class="rounded-xl border border-border bg-card p-4">
+              <p class="text-xs font-semibold text-foreground uppercase tracking-wide mb-3">Limitations</p>
+              <ul class="space-y-1.5">
+                {tool.limitations.map(l => (
+                  <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                    <span class="text-muted-foreground/60 shrink-0 mt-0.5">–</span>
+                    {l}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <!-- Best for -->
+          <p class="mt-4 text-sm text-muted-foreground rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <strong class="text-foreground">Best for:</strong> {tool.bestFor}
+          </p>
+
+          <!-- CTA for our tool -->
+          {tool.ours && (
+            <div class="mt-4">
+              <a
+                href="/tools/guitar-tab/"
+                class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Try the Guitar Tab Player free →
+              </a>
+            </div>
+          )}
+          {!tool.ours && (
+            <div class="mt-4">
+              <a
+                href={tool.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+              >
+                Visit {tool.name} ↗
+              </a>
+            </div>
+          )}
+        </article>
+      ))}
+    </section>
+
+    <!-- Which one to choose -->
+    <section class="mt-20 pt-10 border-t border-border">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Which one should you choose?</h2>
+      <div class="space-y-4">
+        {[
+          { q: 'I want to create a tab quickly without installing anything — free', a: 'Chord Sequence is the fastest browser-based option, with drag-and-drop editing and a one-click Chord Helper. Tabby.pro is also free and browser-based if you need bass, ukulele, or mandolin too.' },
+          { q: 'I need to open or exchange .gp (Guitar Pro) files with other musicians', a: 'Chord Sequence and TuxGuitar can both open .gp files for free — Chord Sequence in the browser with no install, TuxGuitar as a free desktop app. If you also need to export back to .gp (not just ASCII/MIDI) to send a file to someone using Guitar Pro, TuxGuitar or Guitar Pro itself are the compatible choices — Chord Sequence doesn\'t write the .gp format.' },
+          { q: 'I\'m on Linux and need something free', a: 'TuxGuitar is the only tool in this list with native Linux support, and it\'s completely free.' },
+          { q: 'I just want to learn an existing song, not create my own tab', a: 'Songsterr is built for exactly this — a huge existing library with synced, multi-track audio playback. Its free tier covers browsing and playback; Plus ($9.99/mo) unlocks loop, speed control, and offline downloads.' },
+          { q: 'I need publication-quality sheet music with tab included', a: 'Dorico is the right tool — it\'s built for full notated scores with tablature linked to standard notation. The free SE tier covers up to 8 instruments, which is enough for a solo guitar part.' },
+        ].map(({ q, a }) => (
+          <div class="rounded-xl border border-border bg-card p-5">
+            <p class="font-semibold text-foreground mb-2">{q}</p>
+            <p class="text-sm text-muted-foreground leading-relaxed">{a}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="mt-16 pt-10 border-t border-border">
+      <h2 class="text-2xl font-bold text-foreground mb-8">Frequently asked questions</h2>
+      <div class="space-y-6">
+        {faqData.map(faq => (
+          <div class="border-b border-border pb-6 last:border-0">
+            <h3 class="font-semibold text-foreground mb-2">{faq.name}</h3>
+            <p class="text-muted-foreground text-sm leading-relaxed">{faq.acceptedAnswer.text}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Create your first guitar tab now</h2>
+      <p class="text-sm text-muted-foreground mb-5">
+        Chord Sequence's Guitar Tab Player is free, requires no account, and works in any browser. Drag & resize notes, one-click chords, capo support, ASCII/MIDI export.
+      </p>
+      <a href="/tools/guitar-tab/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Guitar Tab Player →
+      </a>
+      <p class="mt-3 text-xs text-muted-foreground">No account · No credit card · Works offline</p>
+    </div>
+
+    <!-- Internal links -->
+    <div class="mt-12 pt-8 border-t border-border">
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Related</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          { title: 'Guitar Tab Player', href: '/tools/guitar-tab/', desc: 'Our free browser-based guitar tab editor' },
+          { title: 'Bass Tab Player', href: '/tools/bass-guitar-tab/', desc: '4-string bass tablature editor with the same drag & resize workflow' },
+          { title: 'Best chord progression generators', href: '/best-chord-progression-generators/', desc: 'Free vs paid chord tools compared for 2026' },
+          { title: 'How to read bass tabs', href: '/tools/bass-guitar-tab/#what-is-a-bass-tab', desc: 'The fundamentals of reading tablature, applied to bass' },
+        ].map(link => (
+          <a href={link.href} class="group rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors">
+            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{link.title}</p>
+            <p class="text-xs text-muted-foreground mt-0.5">{link.desc}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+
+  </main>
+</BaseLayout>
