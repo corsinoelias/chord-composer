@@ -84,6 +84,7 @@ export function GuitarTransport({
   onSpeedChange, onCountInChange, onExportImage,
 }: TransportProps) {
   const [showExport, setShowExport] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [bpmInput, setBpmInput]     = useState(String(bpm))
 
   const commitBpm = () => {
@@ -219,12 +220,25 @@ export function GuitarTransport({
                   <ExportItem label="Export as SVG" onClick={() => { onExportImage('svg'); setShowExport(false) }} />
                   <ExportItem label="Export as PNG" onClick={() => { onExportImage('png'); setShowExport(false) }} />
                 </>}
-                <div style={{ height: 1, background: '#f1f5f9', margin: '3px 0' }} />
-                {onImportMidi && <ExportItem label="Import MIDI…" onClick={() => { onImportMidi(); setShowExport(false) }} />}
-                {onImportGp && <ExportItem label="Import .gp / .gpx / .musicxml…" onClick={() => { onImportGp(); setShowExport(false) }} />}
               </div>
             )}
           </div>
+
+          {/* Import dropdown — separate from Files/Export so it doesn't get missed */}
+          {(onImportMidi || onImportGp) && (
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setShowImport(v => !v)} style={{ height: 28, padding: '0 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, color: C.muted, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,4 12,9 17,4"/><line x1="12" y1="9" x2="12" y2="21"/></svg>
+                Import
+              </button>
+              {showImport && (
+                <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 4, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: 6, zIndex: 50, minWidth: 190, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {onImportMidi && <ExportItem label="Import MIDI…" onClick={() => { onImportMidi(); setShowImport(false) }} />}
+                  {onImportGp && <ExportItem label="Import .gp / .gpx…" onClick={() => { onImportGp(); setShowImport(false) }} />}
+                </div>
+              )}
+            </div>
+          )}
 
           {onRecord && (
             <IconBtn title="Record from fretboard" onClick={onRecord} disabled={isPlaying}>

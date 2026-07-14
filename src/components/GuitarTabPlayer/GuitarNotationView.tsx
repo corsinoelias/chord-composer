@@ -45,6 +45,7 @@ interface BarNote {
   durationBeats: number
   stringIndex: number
   fret: number
+  voice?: 0 | 1
 }
 
 interface SeqItem {
@@ -91,7 +92,11 @@ function buildSeq(barNotes: BarNote[], barStart: number, beatsPerBar: number, ca
       )
       const noteDur = beatsToVexDur(rawBeats, false)
       const notes = group.map(n => {
-        const midi = STRING_MIDI_BASE[n.stringIndex] + n.fret + capo
+        // Guitar standard notation is conventionally written one octave above the
+        // actual sounding pitch (treble clef with an implied "8" below) — without this,
+        // every note is drawn an octave too low (e.g. open high e, which should sit in
+        // the top space, instead lands on the bottom line).
+        const midi = STRING_MIDI_BASE[n.stringIndex] + n.fret + capo + 12
         return { ...midiToVex(midi), str: n.stringIndex + 1, fret: n.fret }
       })
       seq.push({ noteDur, restDur: beatsToVexDur(rawBeats, true), isRest: false, notes })
@@ -116,7 +121,7 @@ export function GuitarNotationView({ track, zoom }: Props) {
 
     import('vexflow').then(VF => {
       if (cancelled || !el) return
-      const { Renderer, Stave, StaveNote, TabStave, TabNote, GhostNote, Voice, Formatter, Accidental } = VF
+      const { Renderer, Stave, StaveNote, TabStave, TabNote, GhostNote, Voice, Formatter, Accidental, Stem } = VF
 
       el.innerHTML = ''
 
@@ -158,51 +163,75 @@ export function GuitarNotationView({ track, zoom }: Props) {
           tabStave.setContext(ctx).draw()
 
           const barStart = bi * track.beatsPerBar
-          const barNotes = track.notes.filter(n =>
+          const barNotesAll = track.notes.filter(n =>
             n.startBeat >= barStart && n.startBeat < barStart + track.beatsPerBar
           )
-          const seq = buildSeq(barNotes, barStart, track.beatsPerBar, track.capo ?? 0)
+          // Split into up to 2 musical voices (e.g. a sustained melody note held through
+          // the bar vs. a faster-moving bass line underneath it). Each voice is laid out
+          // and rest-filled independently, then rendered as its own VexFlow Voice with a
+          // fixed stem direction (voice 0 up, voice 1 down) — same convention TuxGuitar
+          // uses. When there's no second voice (the common case — presets and hand-drawn
+          // notes are single-voice), this collapses back to exactly the old single-voice
+          // behavior with autoStem, so monophonic tabs render unchanged.
+          const voice0Notes = barNotesAll.filter(n => (n.voice ?? 0) === 0)
+          const voice1Notes = barNotesAll.filter(n => n.voice === 1)
+          const voiceGroups = voice1Notes.length > 0
+            ? [{ voiceIdx: 0 as const, notes: voice0Notes }, { voiceIdx: 1 as const, notes: voice1Notes }]
+            : [{ voiceIdx: 0 as const, notes: voice0Notes }]
 
-          const staveTickables: InstanceType<typeof StaveNote>[] = []
-          const tabTickables: InstanceType<typeof TabNote | typeof GhostNote>[] = []
+          const staveVoices: InstanceType<typeof Voice>[] = []
+          const tabVoices: InstanceType<typeof Voice>[] = []
 
-          for (const item of seq) {
-            if (item.isRest) {
-              staveTickables.push(
-                new StaveNote({ keys: ['b/4'], duration: item.noteDur, type: 'r' })
-              )
-              tabTickables.push(new GhostNote({ duration: item.noteDur }))
-            } else {
-              const keys = item.notes.map(n => n.key)
-              const sn = new StaveNote({ keys, duration: item.noteDur, autoStem: true })
-              item.notes.forEach((n, i) => {
-                if (n.acc) sn.addModifier(new Accidental(n.acc), i)
-              })
-              staveTickables.push(sn)
-              const positions = item.notes.map(n => ({ str: n.str, fret: String(n.fret) }))
-              tabTickables.push(new TabNote({ positions, duration: item.noteDur }))
+          for (const { voiceIdx, notes: groupNotes } of voiceGroups) {
+            const seq = buildSeq(groupNotes, barStart, track.beatsPerBar, track.capo ?? 0)
+
+            const staveTickables: InstanceType<typeof StaveNote>[] = []
+            const tabTickables: InstanceType<typeof TabNote | typeof GhostNote>[] = []
+
+            for (const item of seq) {
+              if (item.isRest) {
+                staveTickables.push(
+                  new StaveNote({ keys: ['b/4'], duration: item.noteDur, type: 'r' })
+                )
+                tabTickables.push(new GhostNote({ duration: item.noteDur }))
+              } else {
+                const keys = item.notes.map(n => n.key)
+                const sn = new StaveNote(
+                  voiceGroups.length > 1
+                    ? { keys, duration: item.noteDur, stemDirection: voiceIdx === 0 ? Stem.UP : Stem.DOWN }
+                    : { keys, duration: item.noteDur, autoStem: true }
+                )
+                item.notes.forEach((n, i) => {
+                  if (n.acc) sn.addModifier(new Accidental(n.acc), i)
+                })
+                staveTickables.push(sn)
+                const positions = item.notes.map(n => ({ str: n.str, fret: String(n.fret) }))
+                tabTickables.push(new TabNote({ positions, duration: item.noteDur }))
+              }
             }
-          }
 
-          if (staveTickables.length === 0) {
-            staveTickables.push(new StaveNote({ keys: ['b/4'], duration: 'w', type: 'r' }))
-            tabTickables.push(new GhostNote({ duration: 'w' }))
-          }
+            if (staveTickables.length === 0) {
+              staveTickables.push(new StaveNote({ keys: ['b/4'], duration: 'w', type: 'r' }))
+              tabTickables.push(new GhostNote({ duration: 'w' }))
+            }
 
-          const voice = new Voice({ numBeats: track.beatsPerBar, beatValue: 4 }).setStrict(false)
-          voice.addTickables(staveTickables)
-          const tabVoice = new Voice({ numBeats: track.beatsPerBar, beatValue: 4 }).setStrict(false)
-          tabVoice.addTickables(tabTickables)
+            const v = new Voice({ numBeats: track.beatsPerBar, beatValue: 4 }).setStrict(false)
+            v.addTickables(staveTickables)
+            staveVoices.push(v)
+            const tv = new Voice({ numBeats: track.beatsPerBar, beatValue: 4 }).setStrict(false)
+            tv.addTickables(tabTickables)
+            tabVoices.push(tv)
+          }
 
           const fmtW = barW - (isFirst ? 80 : 20)
           try {
-            new Formatter().joinVoices([voice]).joinVoices([tabVoice]).format([voice, tabVoice], fmtW)
+            new Formatter().joinVoices(staveVoices).joinVoices(tabVoices).format([...staveVoices, ...tabVoices], fmtW)
           } catch {
-            try { new Formatter().joinVoices([voice]).format([voice], fmtW) } catch {}
+            try { new Formatter().joinVoices(staveVoices).format(staveVoices, fmtW) } catch {}
           }
 
-          try { voice.draw(ctx, stave) } catch {}
-          try { tabVoice.draw(ctx, tabStave) } catch {}
+          for (const v of staveVoices) { try { v.draw(ctx, stave) } catch {} }
+          for (const tv of tabVoices) { try { tv.draw(ctx, tabStave) } catch {} }
 
           x += barW
         }

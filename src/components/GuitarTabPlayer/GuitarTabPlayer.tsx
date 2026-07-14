@@ -569,7 +569,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
       />
       <input
         ref={gpInputRef}
-        type="file" accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7,.musicxml,.xml" style={{ display: 'none' }}
+        type="file" accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7" style={{ display: 'none' }}
         onChange={e => { const f = e.target.files?.[0]; if (f) handleGpImport(f); e.target.value = '' }}
       />
 

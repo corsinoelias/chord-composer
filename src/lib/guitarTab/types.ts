@@ -12,6 +12,11 @@ export interface GuitarNote {
   velocity: number
   technique?: GuitarTechnique
   muted?: boolean
+  // Which musical voice this note belongs to within its bar (0 = main, 1 = secondary —
+  // e.g. a sustained melody line vs. a moving bass line). Undefined/0 = single voice,
+  // the common case for hand-drawn notes and most presets. Only the Notation view reads
+  // this — the grid and audio engine already handle overlapping notes correctly without it.
+  voice?: 0 | 1
 }
 
 export type GuitarTuning = 'standard' | 'dropD' | 'openG' | 'openE' | 'dadgad' | 'halfDown'
