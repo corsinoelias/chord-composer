@@ -83,6 +83,8 @@ const tools = [
     price: 'Free forever',
     type: 'Browser tool',
     ours: true,
+    image: '/images/blog/chord-sequence-guitar-tab-editor.png',
+    imageAlt: 'Chord Sequence Guitar Tab Player showing the notation and tab view with a Chord Helper panel',
     youtubeId: null,
     youtubeTitle: null,
     description: [
@@ -379,6 +381,20 @@ const tools = [
           {tool.ours && (
             <div class="mt-4 rounded-xl overflow-hidden border border-border">
               <GuitarTabPreview client:visible presetId="preset-smokeonthewater" editorHref="/guitar-tab/" />
+            </div>
+          )}
+
+          <!-- Screenshot -->
+          {tool.image && (
+            <div class="mt-4 rounded-xl overflow-hidden border border-border">
+              <img
+                src={tool.image}
+                alt={tool.imageAlt}
+                width="2636"
+                height="1514"
+                class="w-full"
+                loading="lazy"
+              />
             </div>
           )}
 

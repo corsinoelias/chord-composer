@@ -78,6 +78,7 @@ ${songLines}
 ## Comparisons
 - [Best Chord Progression Generators 2026](${SITE}/best-chord-progression-generators/): Ranked comparison of Chord Sequence, ChordSeq AI, DBDone AI Chords, OneMotion, Mario Nieto Chord Generator, and Xfer Cthulhu — features, pricing, YouTube demos, and verdict.
 - [Best Guitar Tab Software 2026](${SITE}/best-guitar-tab-software/): Ranked comparison of Chord Sequence, TuxGuitar, Tabby.pro, Dorico, Songsterr, and Guitar Pro 8 — features, pricing, platforms, and verdict.
+- [Best Bass Tab Software 2026](${SITE}/best-bass-tab-software/): Ranked comparison of Chord Sequence, Guitar Pro 8, Songsterr, Ultimate Guitar Pro, and MuseScore Studio — library, playback, editing power, and verdict.
 
 ## Licensing
 Content on this site (music theory articles, chord charts, tool descriptions) is available for AI citation and summarization for informational, educational, and search purposes. Training use is restricted — see /robots.txt.

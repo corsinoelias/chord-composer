@@ -1,0 +1,534 @@
+---
+export const prerender = true;
+import BaseLayout from '../layouts/BaseLayout.astro';
+import YouTubeEmbed from '../components/YouTubeEmbed.astro';
+import { BassTabPreview } from '../components/BassTabPlayer/BassTabPreview';
+
+const canonicalUrl = 'https://chordsequence.com/best-bass-tab-software/';
+const updatedDate = 'July 2026';
+
+const dots = (n: number) => '●'.repeat(n) + '○'.repeat(5 - n);
+
+const itemListSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Best Bass Tab Makers & Players 2026',
+  description: 'The best free and paid bass tab makers and players in 2026 — compared by library, playback, and editing power.',
+  url: canonicalUrl,
+  numberOfItems: 5,
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, item: { '@type': 'SoftwareApplication', name: 'Chord Sequence Bass Tab Player', url: 'https://chordsequence.com/tools/bass-guitar-tab/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 2, item: { '@type': 'SoftwareApplication', name: 'Guitar Pro 8', url: 'https://www.guitar-pro.com/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '69.99', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 3, item: { '@type': 'SoftwareApplication', name: 'Songsterr', url: 'https://www.songsterr.com/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '9.99', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 4, item: { '@type': 'SoftwareApplication', name: 'Ultimate Guitar Pro', url: 'https://www.ultimate-guitar.com/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '99', priceCurrency: 'USD' } } },
+    { '@type': 'ListItem', position: 5, item: { '@type': 'SoftwareApplication', name: 'MuseScore Studio', url: 'https://musescore.org/', applicationCategory: 'MusicApplication', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } } },
+  ],
+};
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'The 5 Best Bass Tab Makers & Players in 2026',
+  description: 'The best bass tab makers and players in 2026 — compared by library, playback, and editing power. Includes Chord Sequence, Guitar Pro 8, Songsterr, Ultimate Guitar, and MuseScore Studio.',
+  datePublished: '2026-07-14T00:00:00.000Z',
+  dateModified: '2026-07-14T00:00:00.000Z',
+  inLanguage: 'en',
+  author: {
+    '@type': 'Person',
+    '@id': 'https://chordsequence.com/about/elias-corsino/#person',
+    name: 'Elías Corsino Saldaña',
+    url: 'https://chordsequence.com/about/elias-corsino/',
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Chord Sequence',
+    url: 'https://chordsequence.com/',
+    logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Best Bass Tab Software', item: canonicalUrl },
+  ],
+};
+
+const faqData = [
+  {
+    question: 'What is the best free bass tab maker?',
+    answer: 'Chord Sequence (chordsequence.com/tools/bass-guitar-tab/) is the best free option for writing your own bass tab — no install, no account, a piano-roll editor synced to a real fretboard, three bass tones (Pick, Synth, Slap), a recording mode, and exports to MIDI, ASCII, WAV, image, or video. If you specifically need a free permanent desktop app with full notation support, MuseScore Studio is the best choice.',
+  },
+  {
+    question: 'What is the difference between a bass tab maker and a bass tab player?',
+    answer: 'A bass tab maker (like Chord Sequence, Guitar Pro, or MuseScore Studio) lets you write and edit your own tablature from scratch. A bass tab player (like Songsterr or Ultimate Guitar) is built around an existing library — you search for a song and play back a tab someone else already transcribed, rather than writing your own.',
+  },
+  {
+    question: 'Which bass tab software is best for beginners?',
+    answer: 'Chord Sequence is the most approachable for beginners learning to write their own bass lines — it runs in any browser, has real audio playback so you can hear exactly what you write, and a recording mode that lets you tap out a line at a slow tempo instead of clicking notes one by one. Songsterr is a good complement if you mainly want to learn existing songs by ear.',
+  },
+  {
+    question: 'Can I read bass tabs without downloading any software?',
+    answer: 'Yes. Chord Sequence, Songsterr, and Ultimate Guitar all work entirely in a web browser with no install. Guitar Pro 8 and MuseScore Studio require a desktop install, though MuseScore is free and Guitar Pro offers a free trial.',
+  },
+];
+
+const tools = [
+  {
+    rank: 1,
+    slug: 'chord-sequence',
+    name: 'Chord Sequence Bass Tab Player',
+    tagline: 'Best free browser-based bass tab maker',
+    award: 'Winner 2026',
+    url: 'https://chordsequence.com/tools/bass-guitar-tab/',
+    price: 'Free forever',
+    platforms: 'Web',
+    ours: true,
+    lib: 2,
+    play: 4,
+    edit: 5,
+    image: '/images/blog/chord-sequence-bass-tab-editor.png',
+    imageAlt: 'Chord Sequence Bass Tab Player showing the notation and tab view synced to an interactive fretboard',
+    youtubeId: null,
+    youtubeTitle: null,
+    description: [
+      'Chord Sequence\'s Bass Tab Player is a <strong class="text-foreground">free, browser-based 4-string bass tab editor</strong> with a piano-roll style grid synced to an <strong class="text-foreground">interactive fretboard view</strong> — click to place a note, drag it across strings or beats, and resize to change duration, all with <strong class="text-foreground">real-time playback through a dedicated bass audio engine</strong> rather than a generic synth.',
+      'Choose between <strong class="text-foreground">three bass tones — Pick, Synth, and Slap</strong> — and use the built-in <strong class="text-foreground">recording mode</strong> to tap out a bassline in real time at a slow practice tempo instead of placing notes one by one; recorded takes are tempo-agnostic, so they play back correctly once you speed the track up to its real BPM.',
+      '<strong class="text-foreground">60-step undo/redo</strong>, autosave to your browser, and <strong class="text-foreground">one-click sharing via a URL</strong> round it out — no account needed to use the editor. Export to <strong class="text-foreground">MIDI, ASCII tab, WAV audio, image, or video</strong>, and <strong class="text-foreground">import an existing MIDI file</strong> straight into the editor.',
+    ],
+    strengths: [
+      'Free, no account, works in any modern browser',
+      'Piano-roll grid synced to a real fretboard view',
+      'Real bass audio engine — Pick, Synth, and Slap tones',
+      'Recording mode: tap out a bassline at a slow practice tempo',
+      '60-step undo/redo, autosave, and share via URL',
+      'Exports to MIDI, ASCII tab, WAV, image, and video — plus MIDI import',
+    ],
+    limitations: [
+      'No pre-built song library the size of Ultimate Guitar\'s or Songsterr\'s',
+      'No offline desktop app — requires a browser',
+      'Does not export to the Guitar Pro (.gp) file format',
+    ],
+    bestFor: 'Bassists who want to sketch, record, and share a bassline quickly in the browser — without installing anything or paying for a subscription.',
+  },
+  {
+    rank: 2,
+    slug: 'guitar-pro',
+    name: 'Guitar Pro 8',
+    tagline: 'The professional standard for tabbing bass — and everything else',
+    award: 'Best pro editor',
+    url: 'https://www.guitar-pro.com/',
+    price: '$69.99 one-time',
+    platforms: 'Win · Mac · Mobile',
+    ours: false,
+    lib: 4,
+    play: 5,
+    edit: 5,
+    youtubeId: 'xLtqDZjpZKM',
+    youtubeTitle: 'How to Transcribe Bass Lines and Create Guitar Pro Tabs for Free',
+    description: [
+      'Guitar Pro 8 is the industry-standard tab editor, and its bass support runs just as deep as its guitar support: notation for <strong class="text-foreground">slap, pop, hammer-ons, pull-offs, slides, bends, palm muting, and ghost notes</strong>, with configurable tunings from <strong class="text-foreground">4 up to 10-string basses</strong>.',
+      'You can <strong class="text-foreground">import an audio file directly into your workspace</strong> and transcribe a bassline by ear alongside the waveform — genuinely useful for working out a real recording note-for-note. Playback runs through <strong class="text-foreground">100+ realistic instrument sounds</strong> and a full effects/pedal chain.',
+      'The optional mySongBook library (around €40 for 12 months) adds official, ready-made tabs, but the <strong class="text-foreground">core editor is a one-time purchase</strong> — no recurring subscription required to keep using it.',
+    ],
+    strengths: [
+      'Deep bass notation: slap, pop, hammer-ons, pull-offs, bends, palm mute, ghost notes',
+      'Supports 4- to 10-string bass tunings',
+      'Import audio and transcribe by ear alongside the waveform',
+      '100+ realistic instrument sounds with a full effects/pedal chain',
+      'One-time purchase, no subscription required',
+    ],
+    limitations: [
+      '$69.99 up front — no permanent free tier, only a trial',
+      'No native Linux build',
+      'Steeper learning curve than a browser tool',
+    ],
+    bestFor: 'Bassists who transcribe seriously and want the deepest editing and playback toolkit available, and are fine paying once for it.',
+  },
+  {
+    rank: 3,
+    slug: 'songsterr',
+    name: 'Songsterr',
+    tagline: 'The smoothest way to learn an existing bassline by ear and eye',
+    award: 'Best player',
+    url: 'https://www.songsterr.com/',
+    price: 'Free · Plus $9.99/mo',
+    platforms: 'Web · iOS · Android',
+    ours: false,
+    lib: 4,
+    play: 5,
+    edit: 2,
+    youtubeId: 'us_y0BoTrw4',
+    youtubeTitle: 'Songsterr: Tablature for Any Song Made Easy!',
+    description: [
+      'Songsterr is built around an <strong class="text-foreground">enormous, community-sourced tab library</strong>, and every song plays back as <strong class="text-foreground">synced, multi-track audio</strong> — the bass line is highlighted separately from guitar, drums, and vocals as the song plays, which makes following a real bass part far easier than reading a static tab.',
+      'The free tier covers browsing and basic playback. <strong class="text-foreground">Songsterr Plus, at $9.99/month</strong>, unlocks playback speed control without changing pitch, looping, <strong class="text-foreground">muting or soloing individual tracks</strong> (isolate just the bass), downloads in MIDI/Guitar Pro/MP3/WAV, and <strong class="text-foreground">AI transcription of up to 50 tabs a month</strong> from a YouTube link.',
+      'It isn\'t built for writing your own tab from scratch — Songsterr is a player first, an editor a distant second.',
+    ],
+    strengths: [
+      'Massive, community-sourced tab library',
+      'Synced multi-track playback — isolate the bass track and follow along',
+      'Playback speed control and looping (Plus)',
+      'AI transcription from YouTube links, 50/month (Plus)',
+      'Web, iOS, and Android apps',
+    ],
+    limitations: [
+      'Core practice features (speed, loop, mute/solo) require Plus at $9.99/mo',
+      'Not designed for writing your own bass tab',
+      'Ads on the free tier',
+    ],
+    bestFor: 'Bassists who want to learn an existing song from a huge, ready-made library with synced audio — not to write their own tab.',
+  },
+  {
+    rank: 4,
+    slug: 'ultimate-guitar',
+    name: 'Ultimate Guitar Pro',
+    tagline: 'The biggest tab catalog, official multi-instrument versions included',
+    award: 'Biggest library',
+    url: 'https://www.ultimate-guitar.com/',
+    price: 'Free (basic) · Pro $99/yr',
+    platforms: 'Web · iOS · Android',
+    ours: false,
+    lib: 5,
+    play: 3,
+    edit: 2,
+    youtubeId: 'DFcHQ_JtsrI',
+    youtubeTitle: 'Ultimate Guitar Pro Review — All Features Shown',
+    description: [
+      'Ultimate Guitar\'s library is the <strong class="text-foreground">largest in this comparison — over 800,000 songs</strong> across guitar, bass, and ukulele. Many songs include <strong class="text-foreground">official Pro tabs with multiple instrument parts transcribed together</strong> (bass, guitar, vocals, drums), so you can see exactly how the bass line locks in with the rest of the arrangement.',
+      'The free tier lets you browse and view basic community-submitted chord sheets and tabs. <strong class="text-foreground">Interactive playback, the fretboard view, and the official multi-instrument Pro tabs sit behind the Pro subscription</strong> — around $99/year or $25/month, with pricing varying by region.',
+      'Editing tools are minimal — Ultimate Guitar is built for <strong class="text-foreground">finding and playing existing tabs</strong>, not composing your own from scratch.',
+    ],
+    strengths: [
+      'Largest tab catalog in this comparison — 800,000+ songs',
+      'Official Pro tabs include multiple instrument parts, bass included',
+      'Fretboard view for following along',
+      'Web, iOS, and Android apps',
+    ],
+    limitations: [
+      'Interactive playback and official tabs require Pro (~$99/yr or $25/mo)',
+      'Minimal editing tools — not built for writing your own tab',
+      'Ads on the free tier',
+    ],
+    bestFor: 'Bassists who mainly want to find and play an existing song\'s bass part from the biggest tab catalog around.',
+  },
+  {
+    rank: 5,
+    slug: 'musescore',
+    name: 'MuseScore Studio',
+    tagline: 'The best free desktop notation software with proper bass tab support',
+    award: 'Best free desktop',
+    url: 'https://musescore.org/',
+    price: 'Free · open source',
+    platforms: 'Win · Mac · Linux',
+    ours: false,
+    lib: 3,
+    play: 3,
+    edit: 5,
+    youtubeId: 'grKX-cBEEmM',
+    youtubeTitle: 'MuseScore Studio 4.7: New Engraving Tools, Video Export & Community-Driven Features',
+    description: [
+      'MuseScore Studio is <strong class="text-foreground">free, open-source notation software</strong> (GPL license) that happens to handle bass tablature very well. Selecting Electric Bass (or another bass instrument) from the instrument list gives you a proper tab staff, and a <strong class="text-foreground">linked-staff system</strong> lets you view and edit standard notation and tablature side by side — edit one, the other updates automatically.',
+      'It\'s the only <strong class="text-foreground">permanently free tool in this comparison with real desktop editing power</strong> on Windows, macOS, and Linux — the closest thing to a free Guitar Pro alternative that\'s actively maintained. MIDI input and MusicXML/MIDI import-export make it easy to move work in and out of other software.',
+      'The trade-off is a steeper learning curve than a purpose-built bass tab tool — MuseScore is <strong class="text-foreground">full notation software first</strong>, and bass tab is one thing it happens to do well, not its sole focus.',
+    ],
+    strengths: [
+      'Completely free forever, open source (GPL)',
+      'Runs on Windows, macOS, and Linux',
+      'Linked notation + tab staves — edit one, both update',
+      'MIDI input and MusicXML/MIDI import-export',
+    ],
+    limitations: [
+      'Steeper learning curve — built for full notation, not quick bass tabbing',
+      'No dedicated song library baked into the desktop app',
+      'Heavier application than a purpose-built tab tool',
+    ],
+    bestFor: 'Bassists who want a permanently free, real desktop editor and don\'t mind the learning curve of full notation software.',
+  },
+];
+---
+
+<BaseLayout
+  title="The 5 Best Bass Tab Makers & Players in 2026 (Free & Paid)"
+  description="The best bass tab makers and players in 2026 — compared by library, playback, and editing power. Includes Chord Sequence, Guitar Pro 8, Songsterr, Ultimate Guitar, and MuseScore Studio."
+  canonicalUrl={canonicalUrl}
+  ogType="article"
+  author="Elías Corsino Saldaña"
+>
+  <Fragment slot="head">
+    <meta property="article:published_time" content="2026-07-14T00:00:00.000Z" />
+    <meta property="article:modified_time" content="2026-07-14T00:00:00.000Z" />
+    <meta property="article:author" content="https://chordsequence.com/about/elias-corsino/" />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <main class="mx-auto max-w-3xl px-4 sm:px-6 pt-4 pb-16 sm:pt-8 sm:pb-24">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted-foreground mb-3 sm:mb-4">
+      <a href="/" class="hover:text-foreground transition-colors">Home</a>
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-foreground">Best Bass Tab Software</span>
+    </nav>
+
+    <!-- Header -->
+    <header class="mb-12">
+      <div class="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-6">
+        Updated {updatedDate}
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-5 font-serif">
+        The 5 Best Bass Tab Makers & Players in 2026
+      </h1>
+      <p class="text-lg text-muted-foreground leading-relaxed mb-3">
+        Whether you're transcribing your own basslines or learning someone else's note for note, the right tab tool changes how fast you improve. We compared <strong class="text-foreground">library size, playback quality, and editing power</strong> across the tools bassists actually use — here's where each one wins.
+      </p>
+      <p class="text-sm text-muted-foreground">
+        <em>Disclosure: Chord Sequence (#1) is our own tool. All competitor data is sourced from their public websites as of {updatedDate}.</em>
+      </p>
+      <!-- Author -->
+      <div class="flex items-center gap-3 mt-6 pb-6 border-b border-border">
+        <img src="/images/elias-corsino.jpg" alt="Elías Corsino Saldaña" width="36" height="36" class="w-9 h-9 rounded-full object-cover shrink-0" loading="lazy" />
+        <div>
+          <a href="/about/elias-corsino/" class="text-sm font-medium text-foreground hover:text-primary transition-colors">Elías Corsino Saldaña</a>
+          <p class="text-xs text-muted-foreground">Musician & Software Developer</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Quick summary -->
+    <div class="mb-14 rounded-xl border border-primary/20 bg-primary/5 p-6">
+      <p class="text-sm font-semibold text-primary uppercase tracking-wide mb-3">Quick summary</p>
+      <ul class="space-y-2 text-sm text-muted-foreground">
+        <li><strong class="text-foreground">#1 Chord Sequence</strong> — Best free browser bass tab maker. Piano-roll grid + fretboard view, Pick/Synth/Slap tones, recording mode, MIDI/ASCII/WAV export. No account.</li>
+        <li><strong class="text-foreground">#2 Guitar Pro 8</strong> — $69.99 one-time. Best pro editor — deep bass articulations, audio-sync transcription, 100+ sounds.</li>
+        <li><strong class="text-foreground">#3 Songsterr</strong> — Free tab library, $9.99/mo Plus. Best player — synced multi-track playback, isolate the bass track.</li>
+        <li><strong class="text-foreground">#4 Ultimate Guitar Pro</strong> — Free basic, Pro ~$99/yr. Biggest library — 800,000+ songs, official multi-instrument tabs.</li>
+        <li><strong class="text-foreground">#5 MuseScore Studio</strong> — Free, open source. Best free desktop editor — full notation linked to tab, Win/Mac/Linux.</li>
+      </ul>
+    </div>
+
+    <!-- Comparison table -->
+    <section class="mb-16">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Feature comparison</h2>
+      <div class="overflow-x-auto rounded-xl border border-border">
+        <table class="w-full text-sm">
+          <thead class="bg-muted/50 border-b border-border">
+            <tr>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tool</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Library</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Playback</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Editing</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Price</th>
+              <th class="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Platforms</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            {tools.map(t => (
+              <tr class={`hover:bg-muted/20 transition-colors ${t.ours ? 'bg-primary/5' : ''}`}>
+                <td class={`px-4 py-3 font-semibold ${t.ours ? 'text-primary' : 'text-foreground'}`}>{t.name}</td>
+                <td class="px-3 py-3 text-center text-primary text-xs tracking-widest">{dots(t.lib)}</td>
+                <td class="px-3 py-3 text-center text-primary text-xs tracking-widest">{dots(t.play)}</td>
+                <td class="px-3 py-3 text-center text-primary text-xs tracking-widest">{dots(t.edit)}</td>
+                <td class="px-3 py-3 text-center text-muted-foreground text-xs">{t.price}</td>
+                <td class="px-3 py-3 text-center text-muted-foreground text-xs">{t.platforms}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Individual reviews -->
+    <section class="space-y-16">
+      {tools.map(tool => (
+        <article id={`tool-${tool.rank}`} class="scroll-mt-24">
+          <!-- Header -->
+          <div class={`rounded-xl border p-6 mb-0 ${tool.ours ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}`}>
+            <div class="flex items-start justify-between gap-4 mb-1">
+              <div>
+                <span class={`text-xs font-bold uppercase tracking-wide ${tool.ours ? 'text-primary' : 'text-muted-foreground'}`}>
+                  #{tool.rank} · {tool.award}
+                </span>
+                <h2 class="text-2xl font-bold text-foreground mt-1">
+                  {tool.ours
+                    ? <a href={tool.url} class="hover:text-primary transition-colors">{tool.name}</a>
+                    : <a href={tool.url} target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors">{tool.name} ↗</a>
+                  }
+                </h2>
+                <p class="text-sm text-muted-foreground">{tool.tagline}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class={`text-lg font-bold ${tool.ours ? 'text-primary' : 'text-foreground'}`}>{tool.price}</p>
+                <p class="text-xs text-muted-foreground">{tool.platforms}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live embed for our tool -->
+          {tool.ours && (
+            <div class="mt-4 rounded-xl overflow-hidden border border-border">
+              <BassTabPreview client:visible presetId="preset-sevennationarmy" editorHref="/tools/bass-guitar-tab/" />
+            </div>
+          )}
+
+          <!-- Screenshot -->
+          {tool.image && (
+            <div class="mt-4 rounded-xl overflow-hidden border border-border">
+              <img
+                src={tool.image}
+                alt={tool.imageAlt}
+                width="2636"
+                height="1514"
+                class="w-full"
+                loading="lazy"
+              />
+            </div>
+          )}
+
+          <!-- YouTube embed -->
+          {tool.youtubeId && (
+            <YouTubeEmbed id={tool.youtubeId} title={tool.youtubeTitle} />
+          )}
+
+          <!-- Description -->
+          <div class="mt-6 space-y-4">
+            {tool.description.map(p => (
+              <p class="text-muted-foreground leading-relaxed" set:html={p} />
+            ))}
+          </div>
+
+          <!-- Pros / Cons -->
+          <div class="mt-6 grid sm:grid-cols-2 gap-4">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <p class="text-xs font-semibold text-foreground uppercase tracking-wide mb-3">Strengths</p>
+              <ul class="space-y-1.5">
+                {tool.strengths.map(s => (
+                  <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                    <span class="text-green-500 shrink-0 mt-0.5">✓</span>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div class="rounded-xl border border-border bg-card p-4">
+              <p class="text-xs font-semibold text-foreground uppercase tracking-wide mb-3">Limitations</p>
+              <ul class="space-y-1.5">
+                {tool.limitations.map(l => (
+                  <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                    <span class="text-muted-foreground/60 shrink-0 mt-0.5">–</span>
+                    {l}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <!-- Best for -->
+          <p class="mt-4 text-sm text-muted-foreground rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <strong class="text-foreground">Best for:</strong> {tool.bestFor}
+          </p>
+
+          <!-- CTA for our tool -->
+          {tool.ours && (
+            <div class="mt-4">
+              <a
+                href="/tools/bass-guitar-tab/"
+                class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Try the Bass Tab Player free →
+              </a>
+            </div>
+          )}
+          {!tool.ours && (
+            <div class="mt-4">
+              <a
+                href={tool.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+              >
+                Visit {tool.name} ↗
+              </a>
+            </div>
+          )}
+        </article>
+      ))}
+    </section>
+
+    <!-- The verdict -->
+    <div class="mt-16 rounded-xl bg-muted/40 border border-border p-6 sm:p-8">
+      <h2 class="text-xl font-bold text-foreground mb-3 font-serif">The verdict</h2>
+      <p class="text-muted-foreground leading-relaxed">
+        <strong class="text-foreground">Chord Sequence takes the crown in 2026</strong>: it does what most bassists actually need — write a tab, hear it played back with a real bass engine, see it on a fretboard — free, in the browser, with zero setup. <strong class="text-foreground">Guitar Pro 8</strong> remains the pro editor if you transcribe heavily, <strong class="text-foreground">Songsterr</strong> is the smoothest player for learning songs, and <strong class="text-foreground">Ultimate Guitar</strong> keeps the deepest catalog.
+      </p>
+    </div>
+
+    <!-- Which one to choose -->
+    <section class="mt-16 pt-10 border-t border-border">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Which one should you choose?</h2>
+      <div class="space-y-4">
+        {[
+          { q: 'I want to write and record my own bassline for free, no install', a: 'Chord Sequence is the fastest browser-based option — a piano-roll editor synced to a fretboard, real bass tones, and a recording mode for tapping out ideas at a slow tempo.' },
+          { q: 'I need the deepest editing tools and don\'t mind paying once', a: 'Guitar Pro 8 covers every bass articulation (slap, pop, bends, ghost notes) and can transcribe alongside an imported audio file — the most complete toolkit here for a one-time $69.99.' },
+          { q: 'I just want to learn an existing song\'s bass part, not write my own', a: 'Songsterr is built for exactly this — synced multi-track playback lets you isolate the bass line and follow along in real time. Its free tier covers browsing and playback; Plus ($9.99/mo) unlocks loop and speed control.' },
+          { q: 'I want the biggest possible tab catalog', a: 'Ultimate Guitar\'s library is the largest here at 800,000+ songs, with official Pro tabs that include a full multi-instrument breakdown — bass included.' },
+          { q: 'I need a real, free desktop editor with proper notation', a: 'MuseScore Studio is the right tool — completely free and open source, with linked standard notation and tab staves on Windows, macOS, and Linux.' },
+        ].map(({ q, a }) => (
+          <div class="rounded-xl border border-border bg-card p-5">
+            <p class="font-semibold text-foreground mb-2">{q}</p>
+            <p class="text-sm text-muted-foreground leading-relaxed">{a}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="mt-16 pt-10 border-t border-border">
+      <h2 class="text-2xl font-bold text-foreground mb-8">Frequently asked questions</h2>
+      <div class="space-y-6">
+        {faqData.map(faq => (
+          <div class="border-b border-border pb-6 last:border-0">
+            <h3 class="font-semibold text-foreground mb-2">{faq.question}</h3>
+            <p class="text-muted-foreground text-sm leading-relaxed">{faq.answer}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+      <h2 class="text-xl font-semibold text-foreground mb-2">Create your first bass tab now</h2>
+      <p class="text-sm text-muted-foreground mb-5">
+        Chord Sequence's Bass Tab Player is free, requires no account, and works in any browser. Piano-roll editing, real fretboard view, Pick/Synth/Slap tones, recording mode, MIDI/ASCII/WAV export.
+      </p>
+      <a href="/tools/bass-guitar-tab/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+        Open Bass Tab Player →
+      </a>
+      <p class="mt-3 text-xs text-muted-foreground">No account · No credit card · Works offline</p>
+    </div>
+
+    <!-- Internal links -->
+    <div class="mt-12 pt-8 border-t border-border">
+      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Related</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          { title: 'Bass Tab Player', href: '/tools/bass-guitar-tab/', desc: 'Our free browser-based bass tab editor' },
+          { title: 'Guitar Tab Player', href: '/tools/guitar-tab/', desc: '6-string tablature editor with the same drag & resize workflow' },
+          { title: 'Best guitar tab software', href: '/best-guitar-tab-software/', desc: 'Free vs paid guitar tab tools compared for 2026' },
+          { title: 'How to read bass tabs', href: '/tools/bass-guitar-tab/#what-is-a-bass-tab', desc: 'The fundamentals of reading tablature, applied to bass' },
+        ].map(link => (
+          <a href={link.href} class="group rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors">
+            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{link.title}</p>
+            <p class="text-xs text-muted-foreground mt-0.5">{link.desc}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+
+  </main>
+</BaseLayout>
