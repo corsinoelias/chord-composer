@@ -95,6 +95,13 @@ const ARTICLE_FAQ: Record<string, FAQItem[]> = {
     { question: 'What key signature does C major have?', answer: 'C major has no sharps and no flats — an empty key signature. It is the only major key with this property, which is why it is used as the reference point for explaining every other key.' },
     { question: 'What are the seventh chords in C major?', answer: 'Cmaj7, Dm7, Em7, Fmaj7, G7, Am7, and Bm7♭5 — the same seven diatonic chords as C major\'s triads, each with a 7th added on top. The only exception to the major7/minor7 pattern is the V chord, G7, which is a dominant 7th rather than a major 7th — that\'s what gives it its pull back to C.' },
   ],
+  'reggae-chord-progressions': [
+    { question: 'How do you strum the reggae skank?', answer: 'Strum the chord — typically an upstroke hitting the top three or four strings — then immediately release pressure with your fretting hand so the chord is choked dead almost as soon as it rings. The stroke lands on beats 2 and 4, the offbeats, while the bass and kick drum hold down beats 1 and 3.' },
+    { question: 'What tempo should I practice reggae rhythm guitar at?', answer: 'Classic roots reggae sits between 60 and 90 BPM. Start around 76 BPM — slow enough to nail the choke cleanly, fast enough to actually feel the groove. Resist the urge to speed up early; the feel of reggae comes from restraint, not speed.' },
+    { question: 'Should I use barre chords or open chords for the skank?', answer: 'Barre chords are the standard because they are easy to choke — you just release finger pressure across the whole shape and every string mutes at once. Open chords work for practice, but muting all six strings cleanly and simultaneously is harder to do consistently.' },
+    { question: 'What is the difference between the reggae skank and ska guitar?', answer: 'Ska is faster and hits every offbeat with a brighter, sharper attack, often at 150+ BPM. Reggae slows the same offbeat idea down to 60–90 BPM and leaves each chop more space to breathe. If a reggae skank still feels rushed, it usually means the tempo needs to come down, not the technique.' },
+    { question: 'Do I need pedals or effects to get an authentic reggae guitar tone?', answer: 'No. A clean amp tone, the neck or middle pickup, and the tone control rolled back slightly gets you most of the way there. A touch of spring reverb helps on recordings, but the reggae guitar tone comes mostly from technique — the choke and the offbeat placement — not from gear.' },
+  ],
 };
 
 const ARTICLE_RELATED: Record<string, ArticleRelated> = {
@@ -201,6 +208,14 @@ const ARTICLE_RELATED: Record<string, ArticleRelated> = {
       { href: '/learn/circle-of-fifths-explained/', label: 'The Circle of Fifths Explained', description: 'The full diatonic chord table for all 12 major keys' },
     ],
     tool: { href: '/tools/circle-of-fifths/', label: 'See how C major relates to every other key with the interactive Circle of Fifths', cta: 'Open Circle of Fifths →' },
+  },
+  'reggae-chord-progressions': {
+    progressions: [],
+    articles: [
+      { href: '/learn/chord-progressions-for-beginners/', label: 'Chord progressions for beginners', description: 'The essential progressions every guitarist should learn first' },
+      { href: '/learn/what-is-a-chord-progression/', label: 'What is a chord progression?', description: 'The theory behind why these chord combinations work' },
+    ],
+    tool: { href: '/tools/bass-guitar-tab/', label: 'Build the one-drop basslines that sit under these progressions in the free Bass Tab Player', cta: 'Open Bass Tab Player →' },
   },
 };
 
