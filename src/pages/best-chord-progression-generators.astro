@@ -381,7 +381,7 @@ const tools = [
                 </span>
                 <h2 class="text-2xl font-bold text-foreground mt-1">
                   {tool.ours
-                    ? tool.name
+                    ? <a href={tool.url} class="hover:text-primary transition-colors">{tool.name}</a>
                     : <a href={tool.url} target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors">{tool.name} ↗</a>
                   }
                 </h2>

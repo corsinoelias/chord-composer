@@ -146,7 +146,7 @@ const tools = [
     youtubeTitle: 'Quick Tip - Free Guitar Tab Maker',
     description: [
       'TabbyPro is a <strong class="text-foreground">free, browser-based tab creator</strong> that covers more than just guitar — it also supports <strong class="text-foreground">bass, ukulele, and mandolin</strong> from the same interface. <strong class="text-foreground">No account is required</strong> to create and store tabs; the editor saves your work directly in the browser\'s local storage, with an optional account if you want to access your tabs from another device or share them.',
-      'The editor supports capo positioning, time signatures, and common articulations like hammer-ons, pull-offs, bends, slides, and vibrato, alongside a bundled chord library and fretboard trainer. <strong class="text-foreground">Its public site doesn\'t document audio playback or export formats in detail</strong>, so if hearing your tab played back or exporting to a specific file format is a hard requirement, verify that directly on the site before relying on it.',
+      'The editor supports capo positioning, time signatures, and common articulations like hammer-ons, pull-offs, bends, slides, and vibrato, alongside a bundled chord library and fretboard trainer. <strong class="text-foreground">It doesn\'t play your tab back as audio, and there\'s no export</strong> to ASCII, MIDI, or any other file format — TabbyPro is a visual tab sketchpad, not a playback or export tool.',
     ],
     strengths: [
       'Free, no account required to create and edit tabs',
@@ -155,7 +155,8 @@ const tools = [
       'Bundled chord library and fretboard trainer',
     ],
     limitations: [
-      'Playback and export capabilities are not clearly documented publicly',
+      'No audio playback — can\'t hear your tab',
+      'No export to ASCII, MIDI, or any other format',
       'Less established brand and community than the other tools here',
       'Tabs saved to local browser storage by default (account needed for cross-device access)',
     ],
@@ -329,7 +330,7 @@ const tools = [
             {[
               { name: 'Chord Sequence', price: 'Free', type: 'Browser', platform: 'Any', audio: '✅', exp: 'ASCII + MIDI', ours: true },
               { name: 'TuxGuitar',      price: 'Free', type: 'Desktop', platform: 'Win/Mac/Linux', audio: '✅', exp: 'gp3-5 + MIDI', ours: false },
-              { name: 'Tabby.pro',      price: 'Free', type: 'Browser', platform: 'Any', audio: '⚠️ Undocumented', exp: '⚠️ Undocumented', ours: false },
+              { name: 'Tabby.pro',      price: 'Free', type: 'Browser', platform: 'Any', audio: '❌', exp: '❌', ours: false },
               { name: 'Dorico',         price: 'Free–€579', type: 'Desktop', platform: 'Win/Mac', audio: '✅', exp: 'MusicXML, MIDI, PDF', ours: false },
               { name: 'Songsterr',      price: 'Free / $9.99mo', type: 'Web + Mobile', platform: 'Web/iOS/Android', audio: '✅ Synced', exp: 'MIDI, GP, MP3, WAV (Plus)', ours: false },
               { name: 'Guitar Pro 8',   price: '$69.99', type: 'Desktop', platform: 'Win/Mac', audio: '✅', exp: 'gp, MIDI, MusicXML, PDF', ours: false },
@@ -361,7 +362,7 @@ const tools = [
                 </span>
                 <h2 class="text-2xl font-bold text-foreground mt-1">
                   {tool.ours
-                    ? tool.name
+                    ? <a href={tool.url} class="hover:text-primary transition-colors">{tool.name}</a>
                     : <a href={tool.url} target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors">{tool.name} ↗</a>
                   }
                 </h2>
