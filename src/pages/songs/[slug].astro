@@ -299,10 +299,12 @@ const breadcrumbSchema = {
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
 
-  <main class="mx-auto max-w-5xl px-4 sm:px-6 py-12 sm:py-20">
+  <main class="mx-auto max-w-5xl px-4 sm:px-6 pt-4 pb-10 sm:pt-8 sm:pb-16">
 
-    <!-- Breadcrumb -->
-    <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted-foreground mb-8">
+    <!-- Breadcrumb — kept close to the title below it (mb-3/4, not the old mb-8) so the
+         two read as one header block. The visual break for the next section happens after
+         the title via the sticky bar's own border-b, not here. -->
+    <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted-foreground mb-3 sm:mb-4">
       <a href="/" class="hover:text-foreground transition-colors">Home</a>
       <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
       <a href="/songs/" class="hover:text-foreground transition-colors">Songs</a>
@@ -312,7 +314,7 @@ const breadcrumbSchema = {
 
     <!-- Song header: title + cover + actions — sticky just below the site navbar (h-16),
          so Share/PDF/Image/Edit stay reachable the whole time you're reading the chart. -->
-    <div class="sticky top-16 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-5 flex items-start gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
+    <div class="sticky top-16 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-5 flex items-center gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
       {coverImage && (
         <img
           src={coverImage}
@@ -324,8 +326,8 @@ const breadcrumbSchema = {
         />
       )}
       <div class="flex-1 min-w-0">
-        <h1 class="text-2xl sm:text-3xl font-bold text-foreground leading-tight">{song.title} Chords</h1>
-        <p class="text-sm text-muted-foreground mt-0.5">
+        <h1 class="text-xl sm:text-3xl font-bold text-foreground leading-tight truncate">{song.title} Chords</h1>
+        <p class="text-sm text-muted-foreground mt-0.5 truncate">
           {song.artist}{song.year ? ` · ${song.year}` : ''}{song.album ? ` · ${song.album}` : ''}
         </p>
       </div>
