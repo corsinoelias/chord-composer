@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { importMidi, type MidiImportResult } from '../../lib/import/midiImport'
+import { parseGpFile } from '../../lib/bassTab/gpImport'
 import { BassTabSeekBar } from './BassTabSeekBar'
 import { MobileBarView } from './MobileBarView'
 import { MobileTabEditor } from './MobileTabEditor'
@@ -25,6 +26,8 @@ import { type Preset, PRESETS } from '../../data/presets'
 import { useIsMobile } from '../../hooks/use-mobile'
 import { useTrackEditor } from '../../hooks/useTrackEditor'
 import { useMidiInput } from '../../hooks/useMidiInput'
+
+const GP_EXTENSIONS = ['gp', 'gp3', 'gp4', 'gp5', 'gpx', 'gp7']
 
 function loadTrack(): BassTrack {
   if (typeof window !== 'undefined') {
@@ -117,9 +120,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   // ── MIDI import ───────────────────────────────────────────────────────────
   const [dragOver, setDragOver]                     = useState(false)
   const [midiPending, setMidiPending]               = useState<MidiImportResult | null>(null)
-  const [midiError, setMidiError]                   = useState<string | null>(null)
+  const [importError, setImportError]                   = useState<string | null>(null)
   const dragCounterRef                              = useRef(0)
   const fileInputRef                                = useRef<HTMLInputElement>(null)
+  const gpInputRef                                  = useRef<HTMLInputElement>(null)
   // Feature 6: MIDI input hook
   const midiInput = useMidiInput(sound)
 
@@ -173,30 +177,49 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     showToast(`Imported: ${imported.name}`)
   }, [editorImportTrack, showToast])
 
+  const handleGpImport = useCallback(async (file: File) => {
+    try {
+      const buf = await file.arrayBuffer()
+      const partial = await parseGpFile(buf)
+      handleImportTrack({ ...DEFAULT_TRACK, ...partial, id: `gp-${Date.now()}` })
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Could not read file.')
+      setTimeout(() => setImportError(null), 5000)
+    }
+  }, [handleImportTrack])
+
   const processDropFile = useCallback(async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
+    if (ext && GP_EXTENSIONS.includes(ext)) {
+      handleGpImport(file)
+      return
+    }
     if (ext !== 'mid' && ext !== 'midi') {
-      setMidiError(`Format .${ext ?? '?'} not supported. Drop a .mid or .midi file.`)
-      setTimeout(() => setMidiError(null), 4000)
+      setImportError(`Format .${ext ?? '?'} not supported. Drop a .mid, .midi, or Guitar Pro file.`)
+      setTimeout(() => setImportError(null), 4000)
       return
     }
     try {
       const buf = await file.arrayBuffer()
       const result = importMidi(buf)
       if (result.ok === false) {
-        setMidiError(result.error)
-        setTimeout(() => setMidiError(null), 5000)
+        setImportError(result.error)
+        setTimeout(() => setImportError(null), 5000)
         return
       }
       setMidiPending(result)
     } catch {
-      setMidiError('Could not read file.')
-      setTimeout(() => setMidiError(null), 4000)
+      setImportError('Could not read file.')
+      setTimeout(() => setImportError(null), 4000)
     }
-  }, [])
+  }, [handleGpImport])
 
   const handleImportMidiClick = useCallback(() => {
     fileInputRef.current?.click()
+  }, [])
+
+  const handleImportGpClick = useCallback(() => {
+    gpInputRef.current?.click()
   }, [])
 
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,6 +227,12 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     if (file) processDropFile(file)
     e.target.value = ''
   }, [processDropFile])
+
+  const handleGpFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleGpImport(file)
+    e.target.value = ''
+  }, [handleGpImport])
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -746,7 +775,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         onFretChange={handleFretChange} onVolumeChange={handleVolumeChange}
         onUndo={handleUndo} onRedo={handleRedo}
         onClearAll={handleClearAll} onExportAscii={handleExportAscii}
-        onExportMidi={handleExportMidi} onImportMidi={handleImportMidiClick} onShareUrl={handleShareUrl}
+        onExportMidi={handleExportMidi} onImportMidi={handleImportMidiClick} onImportGp={handleImportGpClick} onShareUrl={handleShareUrl}
         onMetronomeToggle={() => setMetronome(m => !m)}
         onNoteDurationChange={handleNoteDurationChange}
         isMobile={isMobile}
@@ -1046,7 +1075,16 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         onChange={handleFileInputChange}
       />
 
-      {/* ── MIDI drag-over overlay ─────────────────────────────────────────── */}
+      {/* ── Hidden file input for Guitar Pro import button ──────────────────── */}
+      <input
+        ref={gpInputRef}
+        type="file"
+        accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7"
+        style={{ display: 'none' }}
+        onChange={handleGpFileInputChange}
+      />
+
+      {/* ── Drag-over overlay (MIDI + Guitar Pro) ────────────────────────────── */}
       {dragOver && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 900,
@@ -1062,10 +1100,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             <circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
           </svg>
           <span style={{ color: 'hsl(262 80% 88%)', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>
-            Drop MIDI file
+            Drop MIDI or Guitar Pro file
           </span>
           <span style={{ color: 'hsl(220 10% 52%)', fontSize: 13 }}>
-            .mid · .midi
+            .mid · .midi · .gp · .gp3 · .gp4 · .gp5 · .gpx · .gp7
           </span>
         </div>
       )}
@@ -1177,10 +1215,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         </div>
       )}
 
-      {/* ── MIDI import error ──────────────────────────────────────────────── */}
-      {midiError && (
+      {/* ── Import error (MIDI or Guitar Pro) ────────────────────────────────── */}
+      {importError && (
         <div
-          onClick={() => setMidiError(null)}
+          onClick={() => setImportError(null)}
           style={{
             position: 'absolute', bottom: 72, left: '50%', transform: 'translateX(-50%)',
             zIndex: 1000, cursor: 'pointer',
@@ -1191,7 +1229,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
           }}
         >
-          {midiError}
+          {importError}
         </div>
       )}
 

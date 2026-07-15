@@ -1082,26 +1082,34 @@ export const MUSICAL_STYLES: StylePattern[] = [
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
   },
   // ============================================
-  // 21. JAZZ LIGERO (Medium Swing) - 130 BPM
+  // 21. JAZZ SWING (Medium Swing) - 130 BPM
   // ============================================
-  // Swing en ride. Guitarra Freddie Green (chop percusivo).
+  // Ride "ding-ding-a-ding" estándar (mismo patrón que el preset "Jazz Swing"
+  // de /drums/: tiempos 1,2,2&,3,4,4& con bombo apagado en 1 y 3).
+  // Bajo en negras. Piano/guitarra solo marcan el primer acorde en el tiempo 1.
   {
     id: 'jazz_light',
-    name: 'Jazz Ligero',
+    name: 'Jazz Swing',
     category: 'Jazz',
     bpm: 130,
     bpmRange: [115, 150],
-    description: 'Medium swing. Guitarra chop estilo big band.',
+    description: 'Medium swing. Ride "ding-ding-a-ding", bajo en negras, acorde sostenido.',
     rhythm: {
-      kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-      snare: [0, 0, 0.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.4, 0, 0, 0],
+      // B: bombo apagado en 1 y 3 (feathering)
+      kick:  [0.25, 0, 0, 0, 0, 0, 0, 0, 0.25, 0, 0, 0, 0, 0, 0, 0],
+      // C: acento suave en el swing del tiempo 4 ("4&")
+      snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0],
       hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      hihatFoot: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      ride:  [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0],
-      bass:  [1, 0, 0.3, 0, 0.8, 0, 0.3, 0, 1, 0, 0.3, 0, 0.8, 0, 0.3, 0],
-      piano: [0, 0, 0.4, 0, 0.8, 0, 0.4, 0, 0, 0, 0.4, 0, 0.8, 0, 0.4, 0],
-      // G: X - - | X - - | X - - | X - - (Chop percusivo en cada tiempo)
-      guitar: [0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0],
+      // HH pedal en 2 y 4
+      hihatFoot: [0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0],
+      // R: ding - ding-a - ding - ding-a (1, 2, 2&, 3, 4, 4&)
+      ride:  [0.8, 0, 0, 0, 0.9, 0, 0.55, 0, 0.8, 0, 0, 0, 0.9, 0, 0.55, 0],
+      // B: negras en cada tiempo
+      bass:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+      // P: solo el primer acorde, sostenido
+      piano: [0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // G: solo el primer acorde, sostenido
+      guitar: [0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     fill: {
       position: 8,
@@ -1112,6 +1120,24 @@ export const MUSICAL_STYLES: StylePattern[] = [
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
     instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'nylon' },
+    melodic: {
+      bass: {
+        enabled: true,
+        variations: [
+          {
+            // B: 1 - 3 - 5 - 3 (una nota por tiempo)
+            id: 'jzsw_bass_1', name: 'Var 1', loopBars: 1,
+            pattern: {
+              1: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              3: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+              5: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+            },
+          },
+        ],
+      },
+      piano: { enabled: false, variations: [] },
+      guitar: { enabled: false, variations: [] },
+    },
   },
 
   // ============================================

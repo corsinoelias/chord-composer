@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react'
 import {
   Play, Square, SkipBack, RotateCcw,
   Undo2, Redo2, Trash2, Download, Share2, Bell, BellOff, Music, Upload,
-  ChevronDown, ChevronUp, Waves, Piano, MoreHorizontal, ImageIcon, Video,
+  ChevronDown, ChevronUp, Waves, Piano, MoreHorizontal, ImageIcon, Video, FileMusic,
 } from 'lucide-react'
 import { type BassSound } from '../../lib/bassTab/types'
 
@@ -46,7 +46,7 @@ interface TransportProps {
   onZoomIn: () => void; onZoomOut: () => void; onZoomReset: () => void
   onFretChange: (fret: number) => void; onVolumeChange: (vol: number) => void
   onUndo: () => void; onRedo: () => void; onClearAll: () => void
-  onExportAscii: () => void; onExportMidi: () => void; onImportMidi: () => void
+  onExportAscii: () => void; onExportMidi: () => void; onImportMidi: () => void; onImportGp: () => void
   onShareUrl: () => void; onMetronomeToggle: () => void
   onNoteDurationChange: (d: number) => void
   // Responsive additions
@@ -85,7 +85,7 @@ export function BassTabTransport(props: TransportProps) {
     selectedNoteFret, hasSelectedNote, canUndo, canRedo, metronome,
     onPlay, onStop, onRewind, onLoopToggle, onBpmChange, onSoundChange,
     onBarsChange, onZoomIn, onZoomOut, onZoomReset, onFretChange, onVolumeChange,
-    onUndo, onRedo, onClearAll, onExportAscii, onExportMidi, onImportMidi, onShareUrl, onMetronomeToggle,
+    onUndo, onRedo, onClearAll, onExportAscii, onExportMidi, onImportMidi, onImportGp, onShareUrl, onMetronomeToggle,
     onNoteDurationChange,
     isMobile = false, compact = false, onToggleExpand,
     currentBeat = 0, beatsPerBar = 4,
@@ -375,6 +375,9 @@ export function BassTabTransport(props: TransportProps) {
               <MIconBtn onClick={onImportMidi} title="Import MIDI">
                 <Upload size={14} />
               </MIconBtn>
+              <MIconBtn onClick={onImportGp} title="Import Guitar Pro (.gp/.gpx)">
+                <FileMusic size={14} />
+              </MIconBtn>
               <MIconBtn onClick={onExportAscii} title="Copy ASCII tab">
                 <Download size={14} />
               </MIconBtn>
@@ -502,6 +505,9 @@ export function BassTabTransport(props: TransportProps) {
               <Group>
                 <IconBtn onClick={onImportMidi} title="Import MIDI (.mid)">
                   <Upload size={14} />
+                </IconBtn>
+                <IconBtn onClick={onImportGp} title="Import Guitar Pro (.gp/.gpx)">
+                  <FileMusic size={14} />
                 </IconBtn>
                 <ExportDropdown
                   onExportAscii={onExportAscii}
