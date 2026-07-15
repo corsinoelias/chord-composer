@@ -116,10 +116,10 @@ const Index = ({ songId }: IndexProps) => {
     if (styleParam && allStyles.some(s => s.id === styleParam)) return styleParam;
     // When loading an existing song the real styleId arrives async from Supabase.
     // Use a neutral placeholder so the pre-load render doesn't apply the wrong style
-    // overrides. For new songs (no id in path) default to merengue as before.
+    // overrides. For new songs (no id in path) default to reggaeton as before.
     const hasSongInUrl = window.location.pathname.includes('/chord-player/song_');
     if (hasSongInUrl) return 'rock_basic';
-    return allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic';
+    return allStyles.find(s => s.id === 'reggaeton')?.id || 'rock_basic';
   };
 
   const [selectedStyleId, setSelectedStyleId] = useState(getInitialStyleId);

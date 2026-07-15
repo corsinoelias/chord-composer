@@ -91,9 +91,9 @@ const webAppSchema = {
       the stacking-context gotcha this works around). The real
       "Virtual Drums" H1 is kept as genuine, non-shimmer text (deterministic,
       never changes per visitor); the kit-type toggle, Record/Play/Settings
-      buttons, and the kit visualization area are all interactive/stateful,
-      so they stay as loading shimmer. The mobile/desktop shape (aspect-ratio
-      kit box vs. fill-remaining-height) mirrors VirtualDrums's own
+      buttons, the beat-loop bar below it, and the kit visualization area are
+      all interactive/stateful, so they stay as loading shimmer. The
+      mobile/desktop shape (aspect-ratio kit box vs. fill-remaining-height) mirrors VirtualDrums's own
       `isNarrow` breakpoint (<=640px) via a plain CSS media query, so there's
       no shift from picking the wrong shape at different viewport widths
       either — this needs no JS, since the real component's own `isNarrow` is
@@ -114,6 +114,12 @@ const webAppSchema = {
                 <span class="h-9 w-28 rounded-full bg-muted animate-pulse"></span>
               </div>
             </div>
+          </div>
+        </div>
+        <div style="background: #efe8fb; border-top: 1px solid #e0d6f7; border-bottom: 1px solid #e0d6f7;">
+          <div style="max-width: 1280px; margin: 0 auto; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; flex-wrap: wrap;" aria-hidden="true">
+            <span class="h-5 w-32 rounded-full bg-muted animate-pulse"></span>
+            <span class="h-9 w-56 rounded-full bg-muted animate-pulse"></span>
           </div>
         </div>
         <div class="vd-skeleton-kit bg-muted animate-pulse" aria-hidden="true" style="width: 100%;"></div>

@@ -250,7 +250,7 @@ export const TransportControls = memo(function TransportControls({
             
             <Button variant="ghost" size="sm" onClick={onOpenRhythmEditor} className="gap-1 sm:gap-1.5 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
               <Grid3X3 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              <span className="hidden xs:inline">Rhythm</span>
+              <span className="hidden xs:inline">Edit Rhythm</span>
             </Button>
 
             {onCreateNewRhythm && (

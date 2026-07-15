@@ -58,7 +58,7 @@ export async function ensureGuitarSoundfontLoaded(soundTypeId: string, instrumen
 // ─────────────────────────────────────────────────────────────────────────────
 import { type InstrumentState, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
 import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir } from './bassTab/sampleEngine';
-import { type StylePattern, generateBarPattern, getSlotsPerBar, getMetronomeClickInterval, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
+import { type StylePattern, generateBarPattern, getSlotsPerBar, getMetronomeClickInterval, getSwingOffset, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
 import { type Section } from './sections';
 import { buildEffectsChain } from './audioEffects';
 import { getScale as getBassScale_getScale, resolveVariation } from './bassScale';
@@ -1549,12 +1549,11 @@ export function scheduleProgression(
     
     // Schedule each slot in this chord segment
     for (let i = 0; i < slotCount; i++) {
-      const slotTime = segmentStartTime + (i * slotDuration);
-      
       // CRITICAL: patternSlot is based on GLOBAL position, not chord position
       // The rhythm pattern runs continuously regardless of chord changes
       const currentGlobalSlot = globalSlotIndex + i;
       const patternSlot = currentGlobalSlot % slotsPerBar;
+      const slotTime = segmentStartTime + (i * slotDuration) + getSwingOffset(currentStyle, patternSlot, slotDuration);
 
       // Calculate bar number for fill logic based on GLOBAL slot position
       // This ensures fills happen at musically correct times (every 4 bars)
@@ -1946,12 +1945,11 @@ export async function renderProgressionOffline(
         
         // Process each slot in this chord
         for (let i = 0; i < slotCount; i++) {
-          const slotTime = chordStartTime + (i * slotDuration);
-          
           // CRITICAL: patternSlot and barNumber are based on GLOBAL position
           // The rhythm pattern runs continuously regardless of chord changes
           const currentGlobalSlot = globalSlotIndex + i;
           const patternSlot = currentGlobalSlot % slotsPerBar;
+          const slotTime = chordStartTime + (i * slotDuration) + getSwingOffset(style, patternSlot, slotDuration);
 
           // Bar changes every slotsPerBar slots (16 for 4/4, 12 for 6/8, etc.)
           const barNumber = Math.floor(currentGlobalSlot / slotsPerBar) + 1;

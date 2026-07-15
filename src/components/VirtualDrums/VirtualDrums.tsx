@@ -423,9 +423,13 @@ export function VirtualDrums() {
         }
       `}</style>
 
-      {/* TOP BAR — only the controls people reach for immediately; everything
-          else (scene, labels, shortcuts, beat loop, MIDI) lives behind
-          Settings so this doesn't compete with the site navbar above it.
+      {/* TOP BAR — only the controls people reach for immediately. Everything
+          else (scene, labels, shortcuts, MIDI) lives behind Settings so this
+          doesn't compete with the site navbar above it. The beat-loop picker
+          gets its own row below (see BEAT BAR) instead of living here or in
+          Settings — it's the easiest way for a new visitor to hear the kit
+          and want to play along, so it needs its own breathing room, not a
+          cramped pill squeezed between Record/Play/Settings.
           Inner content is capped at the same max-w-7xl the site navbar uses,
           so "Acoustic" lines up under the ChordSequence logo, not the
           viewport edge. */}
@@ -469,19 +473,6 @@ export function VirtualDrums() {
 
               <button onClick={() => { setShortcutsOpen(true); setSettingsOpen(false) }} style={{ width: '100%', textAlign: 'left', padding: '9px 14px', border: '1px solid #d6cdeb', borderRadius: 10, cursor: 'pointer', fontSize: 13, background: '#ffffff', color: '#3c3355' }}>Show shortcuts</button>
 
-              <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, borderRadius: 10, overflow: 'hidden' }}>
-                <select
-                  value={beatIdx}
-                  onChange={onBeatChange}
-                  style={{ flex: 1, appearance: 'none', padding: '9px 10px', border: 'none', background: beatOn ? '#ece5fb' : '#ffffff', color: '#3c3355', fontSize: 13, cursor: 'pointer', outline: 'none' }}
-                >
-                  {PATTERNS.map((p, i) => (
-                    <option key={p.name} value={i}>{p.name} · {p.bpm} bpm</option>
-                  ))}
-                </select>
-                <button onClick={toggleBeat} style={{ padding: '9px 14px', border: 'none', borderLeft: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, cursor: 'pointer', fontSize: 13, fontWeight: 600, background: beatOn ? '#ece5fb' : '#ffffff', color: '#3c3355', whiteSpace: 'nowrap' }}>{beatLabel}</button>
-              </div>
-
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px' }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: midiOk ? '#46c46e' : '#b9b3c9', display: 'inline-block' }} />
                 <span style={{ fontSize: 12, color: '#6d6685' }}>{midiText}</span>
@@ -490,6 +481,30 @@ export function VirtualDrums() {
           </>
         )}
       </div>
+      </div>
+
+      {/* BEAT BAR — dedicated, roomy row for the built-in beat loops so it
+          doesn't compete with Record/Play/Settings above or hide behind the
+          Settings gear. Own background tint + top/bottom border makes it
+          read as an inviting strip, not just another control. */}
+      <div style={{ background: '#efe8fb', borderTop: '1px solid #e0d6f7', borderBottom: '1px solid #e0d6f7' }}>
+        <div className="vd-topbar-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 10, paddingBottom: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#5a2fc0', whiteSpace: 'nowrap' }}>
+            🎵 Jam over a beat
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, borderRadius: 999, overflow: 'hidden', background: '#ffffff' }}>
+            <select
+              value={beatIdx}
+              onChange={onBeatChange}
+              style={{ appearance: 'none', padding: '9px 12px', border: 'none', background: beatOn ? '#ece5fb' : '#ffffff', color: '#3c3355', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none' }}
+            >
+              {PATTERNS.map((p, i) => (
+                <option key={p.name} value={i}>{p.name} · {p.bpm} bpm</option>
+              ))}
+            </select>
+            <button onClick={toggleBeat} style={{ padding: '9px 16px', border: 'none', borderLeft: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: beatOn ? '#7442d6' : '#f1edfa', color: beatOn ? '#ffffff' : '#5a2fc0', whiteSpace: 'nowrap' }}>{beatLabel}</button>
+          </div>
+        </div>
       </div>
 
       {/* KIT */}

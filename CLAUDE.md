@@ -88,12 +88,15 @@ Defined in `src/lib/bassTab/bassTheory.ts`. Index 0 = G2 (thinnest), index 3 = E
 
 `StylePattern` (in `src/lib/styles.ts`) defines a rhythm style:
 - `rhythm.*` arrays: 16 slots (16th note resolution). `0` = silence, `0.5` = ghost, `1` = accent
+- `swing?`: 0-1, opt-in per style (only `jazz_light`/"Jazz Swing" sets it today). Shifts the "and" 8th note of each beat (slot ≡ 2 mod 4) later in time via `getSwingOffset(style, patternSlot, slotDuration)` — 0 = straight (50% of the beat, every other style's behavior), 1 = full triplet swing (66.7%). Applied in both the live scheduler and the offline WAV-export path in `audioEngine.ts`; the 0-1 velocity values in `rhythm.*` are unaffected either way
 - `arpeggios.piano/guitar`: per-slot arpeggio cells (`type: 'up'|'down'|'updown'|'random'`, `speed`)
 - `fill`: pattern applied on bar 4 / bar 8
 - `instrumentSounds`: default sound type IDs per instrument for this style
 - `volumes`: per-instrument volume defaults
 
 **Custom styles and overrides** flow: Supabase `user_settings` table → `getUserSettings()` → `initCustomStylesCache()` (called at app init) → in-memory cache in `customStyles.ts` (`getCustomStyles()` / `getStyleOverride()`). Both are then passed into `PlayOptions` and read by `getStyle()` each bar.
+
+**Default style** — a brand-new song (no `?style=` param, no song id in the URL) defaults to `'reggaeton'`, set in `getInitialStyleId()` in `Index.tsx`. This is independent of `MUSICAL_STYLES[0]` (`'pop_1'`), which several components (`ChordEmbed`, `SongChordPlayer`, `resolveActiveStyle`) fall back to when a given style id isn't found — e.g. any content still using the stale, non-existent `style="pop_basic"` id silently resolves to `pop_1` via that fallback, not to the reggaeton default.
 
 **`useStyleInstruments` hook** — when `selectedStyleId` changes it automatically updates instrument sound types and volumes from `style.instrumentSounds` / `style.volumes`, preserving the user's mute/solo state. It skips the first render to avoid overwriting user customizations on load.
 

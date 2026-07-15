@@ -47,6 +47,14 @@ export interface StylePattern {
   // variation's own per-instrument `loopBars` (bassScale.ts) — this one applies
   // to the plain drum-grid arrays in `rhythm` below.
   loopBars?: number;
+  // Swing amount for the "and" 8th note of each beat (slot index ≡ 2 mod 4 —
+  // e.g. 2, 6, 10, 14 in a 16-slot 4/4 bar). 0 or omitted = straight (the "and"
+  // stays at 50% of the beat, same as every pre-existing style). 1 = full
+  // triplet swing (the "and" shifts to 66.7% of the beat, the classic 2:1
+  // long-short jazz ratio). Values between interpolate. Only affects
+  // scheduling time via `getSwingOffset` — the 0-1 velocity arrays below are
+  // unchanged either way.
+  swing?: number;
   // Rhythm patterns: 16 slots with velocity values (0 = silence, 0.5 = ghost, 1 = accent)
   rhythm: {
     piano: number[];        // Piano/keys pattern
@@ -171,6 +179,21 @@ export function getPulseInterval(style: StylePattern): number {
  */
 export function getMetronomeClickInterval(style: StylePattern): number {
   return 4;
+}
+
+/**
+ * Extra seconds to delay a slot's playback time for swing feel. Only the
+ * "and" 8th note of each beat moves (patternSlot ≡ 2 mod 4) — everything else
+ * (downbeats, 16th notes) stays exactly where the straight grid puts it.
+ * `style.swing` (0-1) interpolates between straight (50% of the beat,
+ * `swing` 0) and full triplet swing (66.7% of the beat, `swing` 1).
+ * `slotDuration` is the duration of one 16th-note slot in seconds.
+ */
+export function getSwingOffset(style: StylePattern, patternSlot: number, slotDuration: number): number {
+  const swing = style.swing ?? 0;
+  if (swing <= 0 || patternSlot % 4 !== 2) return 0;
+  const beatDuration = slotDuration * 4;
+  return swing * (beatDuration * (2 / 3) - beatDuration * 0.5);
 }
 
 /**
@@ -1094,10 +1117,11 @@ export const MUSICAL_STYLES: StylePattern[] = [
     bpm: 130,
     bpmRange: [115, 150],
     description: 'Medium swing. Ride "ding-ding-a-ding", bajo en negras, acorde sostenido.',
+    swing: 1,
     rhythm: {
       // B: bombo apagado en 1 y 3 (feathering)
       kick:  [0.25, 0, 0, 0, 0, 0, 0, 0, 0.25, 0, 0, 0, 0, 0, 0, 0],
-      // C: acento suave en el swing del tiempo 4 ("4&")
+      // C: acento suave en el swing del tiempo 3 ("3&")
       snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0],
       hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       // HH pedal en 2 y 4
@@ -1238,6 +1262,127 @@ export const MUSICAL_STYLES: StylePattern[] = [
           },
         ],
       },
+    },
+  },
+
+  // ============================================
+  // 23. REGGAETON - 95 BPM
+  // ============================================
+  // Bombo en cada tiempo, rimshot sincopado (dembow) y hi-hat en corcheas —
+  // mismo patrón que el preset "Reggaeton" de /drums/.
+  // Bajo: 1-5-1-5 (una nota por tiempo). Piano/guitarra solo marcan el
+  // primer acorde en el tiempo 1, igual que en Jazz Swing.
+  {
+    id: 'reggaeton',
+    name: 'Reggaeton',
+    category: 'Latin',
+    bpm: 95,
+    bpmRange: [85, 105],
+    description: 'Dembow: bombo en cada tiempo, rimshot sincopado. Bajo 1-5-1-5, acorde sostenido.',
+    rhythm: {
+      // B: bombo en cada tiempo (1 más fuerte en 1 y 3)
+      kick:  [1, 0, 0, 0, 0.9, 0, 0, 0, 1, 0, 0, 0, 0.9, 0, 0, 0],
+      snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // Rimshot dembow en "e" de 1 y 2, y "e" de 3 y 4
+      snareStick: [0, 0, 0, 0.85, 0, 0, 0.85, 0, 0, 0, 0, 0.85, 0, 0, 0.85, 0],
+      // HH cerrado en corcheas
+      hihat: [0.5, 0, 0.35, 0, 0.5, 0, 0.35, 0, 0.5, 0, 0.35, 0, 0.5, 0, 0.35, 0],
+      // P/G: solo el primer acorde, sostenido
+      piano: [0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      guitar: [0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      // B: fallback en negras (la línea real la marca melodic.bass)
+      bass:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        snareStick: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0.6, 0.5],
+        kick:       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      },
+    },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
+    instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    melodic: {
+      bass: {
+        enabled: true,
+        variations: [
+          {
+            // B: 1 - 5 - 1 - 5 (una nota por tiempo)
+            id: 'regg_bass_1', name: 'Var 1', loopBars: 1,
+            pattern: {
+              1: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+              5: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+            },
+          },
+        ],
+      },
+      piano: { enabled: false, variations: [] },
+      guitar: { enabled: false, variations: [] },
+    },
+  },
+
+  // ============================================
+  // 24. FUNK - 102 BPM
+  // ============================================
+  // Bombo sincopado, caja en 2 y 4 con ghost notes, hi-hat en corcheas con
+  // apertura en el "4&" — mismo patrón que el preset "Funk" de /drums/.
+  // Bajo/piano/guitarra solo marcan el primer tiempo, acorde sostenido.
+  {
+    id: 'funk',
+    name: 'Funk',
+    category: 'Funk',
+    bpm: 102,
+    bpmRange: [90, 115],
+    description: 'Bombo sincopado, caja con ghost notes. Línea de bajo sincopada 1-2-3-5-8, piano y guitarra sostenidos en el tiempo 1.',
+    rhythm: {
+      // B: 1, "e" de 1, "&" de 3
+      kick:  [1, 0, 0, 0.8, 0, 0, 0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0],
+      // C: 2 y 4 fuertes, ghost notes en "a" de 2 y "e" de 3, "a" de 4
+      snare: [0, 0, 0, 0, 0.95, 0, 0, 0.25, 0, 0.25, 0, 0, 0.95, 0, 0, 0.3],
+      // HH cerrado en corcheas
+      hihat: [0.8, 0, 0.5, 0, 0.7, 0, 0.5, 0, 0.8, 0, 0.5, 0, 0.7, 0, 0, 0],
+      // HH abierto en el "&" de 4
+      hihatOpen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0],
+      // B/P/G: solo el primer tiempo, sostenido
+      bass:   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      piano:  [0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      guitar: [0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    },
+    fill: {
+      position: 12,
+      pattern: {
+        snare: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0.5, 0.7, 0.5],
+        hihat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      },
+    },
+    volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
+    instrumentSounds: { piano: 'electric', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    melodic: {
+      bass: {
+        enabled: true,
+        variations: [
+          {
+            // B: 1 - 2 - 3 - 5 - 8 (línea sincopada, salta de octava en el "8")
+            id: 'funk_bass_1', name: 'Var 1', loopBars: 1,
+            pattern: {
+              1: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              2: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              3: [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+              5: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+              8: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+            },
+          },
+          {
+            // B: solo el primer tiempo, sostenido (versión anterior)
+            id: 'funk_bass_2', name: 'Var 2', loopBars: 1,
+            pattern: {
+              1: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            },
+          },
+        ],
+      },
+      piano: { enabled: false, variations: [] },
+      guitar: { enabled: false, variations: [] },
     },
   },
 ];
