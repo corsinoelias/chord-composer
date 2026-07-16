@@ -7,6 +7,7 @@ import { getGuitarVoicing } from '@/data/guitarChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { Trash2, Copy } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 import { getDiatonicChords } from '@/lib/musicKeys';
 
 // Parse simple diatonic chord strings ("Am", "Bdim", "F#") into component parts
@@ -341,6 +342,14 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
                       );
                     })}
                   </div>
+                  <Slider
+                    className="mt-3"
+                    value={[duration]}
+                    min={0.5}
+                    max={8}
+                    step={0.5}
+                    onValueChange={([val]) => setDuration(val)}
+                  />
                 </div>
               </div>
             );
