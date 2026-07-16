@@ -62,44 +62,38 @@ function extractCleanLyrics(s: Song): Array<{ name: string; lines: string[] }> {
 const lyricsData = extractCleanLyrics(song);
 const hasLyrics = lyricsData.some(s => s.lines.some(l => l.length > 0));
 
-function extractLyricLines(s: Song, maxLines = 3): string[] {
-  const lines: string[] = [];
-  for (const section of s.sections) {
-    for (const line of section.lines) {
-      const clean = line.replace(/\[([^\]]+)\]/g, '').trim();
-      if (clean.length > 8) {
-        lines.push(clean);
-        if (lines.length >= maxLines) return lines;
-      }
-    }
-  }
-  return lines;
-}
-
-// First real lyric line (with chords inlined, e.g. "C A thousand generations F falling...")
+// Real lyric lines (with chords inlined, e.g. "[C] A thousand generations [F] falling...")
 // — mirrors how Ultimate Guitar builds their description. Google discards templated/generic
 // descriptions in favor of on-page content (confirmed: Cifra Club's declared meta tag was
 // ignored entirely in favor of a raw lyric+chord snippet), so leading with real content
-// avoids that override instead of fighting it.
-function buildSeoExcerpt(s: Song, maxLen = 90): string {
+// avoids that override instead of fighting it. Pulls up to 3 lines (not just the first) to
+// use more of the 120-320 char budget search engines allow for descriptions.
+function buildSeoExcerpt(s: Song, maxLen = 220): string {
+  const parts: string[] = [];
+  let total = 0;
   for (const section of s.sections) {
     for (const line of section.lines) {
       // Skip instrumental/intro lines that are only chords with no actual lyric words
       // (e.g. "[Bb]   [C]   [F/A]   [Dm:2]  [C:2]") — strip the chords entirely first
       // to check what's left is real lyric text, not just chord-shaped tokens.
       const lyricOnly = line.replace(/\[[^\]]+\]/g, '').trim();
-      if (lyricOnly.length > 15) {
-        // Chord tags are "[Chord]" or "[Chord:duration]" (e.g. "[Bb:2]") — keep the
-        // brackets (just drop the duration suffix) instead of unwrapping to bare text.
-        // A bare "A" or "Am" right before a word reads as the English word "a"/"am"
-        // ("A Maybe we've made this complicated") — brackets remove that ambiguity
-        // for every chord, not just those two.
-        const withChords = line.replace(/\[([^:\]]+)(?::[\d.]+)?\]/g, '[$1] ').replace(/\s+/g, ' ').trim();
-        return withChords.length > maxLen ? withChords.slice(0, maxLen - 1) + '…' : withChords;
+      if (lyricOnly.length <= 15) continue;
+      // Chord tags are "[Chord]" or "[Chord:duration]" (e.g. "[Bb:2]") — keep the
+      // brackets (just drop the duration suffix) instead of unwrapping to bare text.
+      // A bare "A" or "Am" right before a word reads as the English word "a"/"am"
+      // ("A Maybe we've made this complicated") — brackets remove that ambiguity
+      // for every chord, not just those two.
+      const withChords = line.replace(/\[([^:\]]+)(?::[\d.]+)?\]/g, '[$1] ').replace(/\s+/g, ' ').trim();
+      if (total + withChords.length > maxLen) {
+        if (parts.length === 0) return withChords.slice(0, maxLen - 1) + '…';
+        return parts.join(' / ');
       }
+      parts.push(withChords);
+      total += withChords.length + 3; // + ' / ' separator
+      if (parts.length >= 3) return parts.join(' / ');
     }
   }
-  return '';
+  return parts.join(' / ');
 }
 
 function buildSeoDescription(s: Song): string {
@@ -109,7 +103,7 @@ function buildSeoDescription(s: Song): string {
     ? `${s.title} by ${artist} — ${excerpt}. Free chords & lyrics — play along, transpose to any key.`
     : `Play ${s.title} by ${artist} chords free — interactive chart with real-time playback. Key of ${s.key}.`;
 
-  return desc.length > 158 ? desc.slice(0, 155) + '…' : desc;
+  return desc.length > 320 ? desc.slice(0, 317) + '…' : desc;
 }
 
 // Google truncates titles past ~65 characters — fall back to shorter variants rather than
