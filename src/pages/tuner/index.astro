@@ -1,10 +1,10 @@
 ---
 export const prerender = true
 import BaseLayout from '../../layouts/BaseLayout.astro'
-import { OnlineTuner } from '../../components/Tuner/OnlineTuner'
+import { InstrumentTuner } from '../../components/Tuner/InstrumentTuner'
 import RelatedTools from '../../components/RelatedTools.astro'
 
-const instruments = [
+const tuningInstruments = [
   { name: 'Guitar',       notes: ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'] },
   { name: 'Bass guitar',  notes: ['E1', 'A1', 'D2', 'G2'] },
   { name: 'Ukulele',      notes: ['G4', 'C4', 'E4', 'A4'] },
@@ -17,41 +17,61 @@ const instruments = [
 ]
 
 // Precompute note sets (letter only, no octave) for the matrix
-const instrumentMatrix = instruments.map(inst => ({
+const tuningMatrix = tuningInstruments.map(inst => ({
   ...inst,
   noteSet: new Set(inst.notes.map(n => n.replace(/\d+/, ''))),
 }))
 
 // Columns sorted by how many instruments share that note
 const NOTE_COLS = [
-  { note: 'G', count: 9, labelClass: 'text-primary',           dotClass: 'bg-primary',            emptyClass: 'border-primary/25' },
-  { note: 'D', count: 8, labelClass: 'text-primary/80',        dotClass: 'bg-primary/80',         emptyClass: 'border-primary/20' },
-  { note: 'A', count: 8, labelClass: 'text-primary/80',        dotClass: 'bg-primary/80',         emptyClass: 'border-primary/20' },
-  { note: 'E', count: 6, labelClass: 'text-primary/55',        dotClass: 'bg-primary/55',         emptyClass: 'border-border' },
-  { note: 'C', count: 3, labelClass: 'text-muted-foreground',  dotClass: 'bg-muted-foreground/60',emptyClass: 'border-border' },
-  { note: 'B', count: 2, labelClass: 'text-muted-foreground/50', dotClass: 'bg-muted-foreground/35', emptyClass: 'border-border' },
+  { note: 'G', count: 9 },
+  { note: 'D', count: 8 },
+  { note: 'A', count: 8 },
+  { note: 'E', count: 6 },
+  { note: 'C', count: 3 },
+  { note: 'B', count: 2 },
 ]
 
 const faqs = [
   {
-    q: 'What does "chromatic" mean in a tuner?',
-    a: 'A chromatic tuner listens for any of the 12 notes in Western music — C, C#, D, D#, E, F, F#, G, G#, A, A#, B — and their octaves. This is different from tuner apps that only know about the standard open strings of one specific instrument. Because it covers every note, it works for any instrument in any tuning.',
+    q: "Why isn't the tuner picking up my instrument?",
+    a: "Make sure your browser has microphone permission and you're in a reasonably quiet room. Play one string at a time, close to the microphone, and let it ring. Very low bass strings carry less energy through laptop mics — plucking firmly over the pickup area helps.",
   },
   {
-    q: 'How accurate is this tuner?',
-    a: 'The tuner uses an autocorrelation algorithm that resolves pitch to within about 1–2 cents (there are 100 cents per semitone, so that is well below what the human ear can hear as out of tune). The main variable is your microphone — a built-in laptop mic is usually sufficient, but a noisy room or a very quiet room can occasionally cause the needle to waver.',
+    q: 'What does "cents" mean?',
+    a: 'A cent is 1/100 of a semitone. The meter shows how far your string is from the target pitch, from −50 (a quarter tone flat) to +50 (a quarter tone sharp). Within ±5 cents is considered in tune for practical purposes.',
   },
   {
-    q: 'The tuner is showing the right note but the wrong octave — is something broken?',
-    a: 'No, the string is still in tune. Very low strings (like the open E on a bass or guitar) sit near the edge of the detection range, and sometimes the algorithm latches onto a harmonic overtone rather than the fundamental frequency. The note name is what matters for tuning — if it says E and you\'re playing E, you\'re good.',
+    q: 'Which tuning should I use?',
+    a: "If you're not sure, use Standard. Drop tunings (Drop D, Drop C) lower only the thickest string for heavier riffs; Half Step and Full Step Down shift every string equally and are common in rock. BEAD gives a 4-string bass the range of a 5-string's lowest four strings.",
   },
   {
-    q: 'Does it work on a phone or tablet?',
-    a: 'Yes. The tuner runs on the Web Audio API, which works in Chrome on Android and Safari on iPhone and iPad. When you tap Start Tuning, your browser will ask for microphone permission — allow it and you\'re ready to go.',
+    q: 'Why does the needle drift as the note fades out?',
+    a: "As a string's sound decays, its overtones can briefly become louder than the fundamental pitch, which nudges the reading. Trust the needle in the first couple of seconds after plucking, and pluck again for a fresh reading.",
   },
   {
-    q: 'Is my audio sent anywhere?',
-    a: 'No. Everything runs locally in your browser. The microphone signal goes directly into the Web Audio API, the pitch is calculated on your own device, and nothing is uploaded or stored anywhere.',
+    q: 'Is my audio recorded or uploaded?',
+    a: 'No. Pitch detection runs entirely on your device using the Web Audio API. No sound ever leaves your browser.',
+  },
+  {
+    q: 'Should I tune up or down to the note?',
+    a: 'Always tune up. If a string is sharp, loosen it below the target and come back up to pitch — strings hold tune better when the final motion tightens them.',
+  },
+  {
+    q: 'What is the reference tone button for?',
+    a: "It plays the exact target pitch of the selected string so you can tune by ear — useful in noisy rooms, or if your microphone isn't available. Match your string to the tone until the \"beating\" between the two sounds disappears.",
+  },
+  {
+    q: 'Why do new strings keep going out of tune?',
+    a: "Fresh strings stretch during their first hours of playing. Tune, gently pull each string away from the fretboard, and tune again — repeat a few times and they'll settle. Temperature changes also detune any instrument, so retune after moving rooms.",
+  },
+  {
+    q: 'Does it work with an acoustic bass or laptop mic?',
+    a: "Yes, but very low notes (like a bass low B or E) are hard for small laptop microphones to capture. If detection struggles, play the 12th-fret harmonic instead — it's the same note one octave up, rings clearly, and the tuner reads it much more reliably.",
+  },
+  {
+    q: 'How often should I tune?',
+    a: 'Every time you pick up the instrument. Tuning drifts with temperature, humidity, and playing — even overnight. Tuning before every session also trains your ear to notice when something sounds off.',
   },
 ]
 
@@ -61,168 +81,158 @@ const breadcrumbSchema = {
   '@id': 'https://chordsequence.com/tuner/#breadcrumb',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
-    { '@type': 'ListItem', position: 2, name: 'Online Tuner', item: 'https://chordsequence.com/tuner/' },
+    { '@type': 'ListItem', position: 2, name: 'Online Instrument Tuner', item: 'https://chordsequence.com/tuner/' },
   ],
 };
 
 const webAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'Online Chromatic Tuner',
+  name: 'Online Instrument Tuner',
   url: 'https://chordsequence.com/tuner/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Free online chromatic tuner. Detects pitch via your device microphone and shows whether your note is flat, in tune, or sharp. Works for guitar, bass, ukulele, violin, and more.',
+  description: 'Free online chromatic tuner. Tune your bass (4 or 5-string), electric guitar, acoustic guitar, or ukulele using your microphone, with alternate tunings and a reference tone.',
   featureList: [
-    'Chromatic pitch detection — all 12 notes',
-    'Visual needle gauge with cents deviation',
-    'Real-time display — no latency',
-    'Works for guitar, bass, ukulele, violin, and more',
+    'Chromatic pitch detection with a visual needle gauge',
+    'Bass (4/5-string), electric, acoustic, and ukulele presets',
+    'Multiple alternate tunings per instrument',
+    'Auto string detection or manual string selection',
+    'Reference tone playback',
     'No signup, no download',
   ],
   browserRequirements: 'Requires a modern browser with Web Audio API and microphone access',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 }
-
 ---
 
 <BaseLayout
-  title="Online Chromatic Tuner for Guitar & Bass | Chord Sequence"
-  description="Free online chromatic tuner. Use your microphone to tune guitar, bass, ukulele, or violin in real time — note name, frequency, and cents deviation."
+  title="Online Instrument Tuner — Guitar, Bass & Ukulele | Chord Sequence"
+  description="Free online chromatic tuner. Use your microphone to tune bass, electric guitar, acoustic guitar, or ukulele — pick a tuning, follow the needle, or play the reference tone."
   canonicalUrl="https://chordsequence.com/tuner/"
   ogImage="/og/page/tuner/"
-  ogImageAlt="Online Guitar Tuner — Free | Chord Sequence"
+  ogImageAlt="Online Instrument Tuner — Free | Chord Sequence"
 >
   <Fragment slot="head">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
 
-  <main>
+  <main style="background:#faf9fc;">
+    <div style="max-width:1160px;margin:0 auto;padding:clamp(14px,3vw,24px) clamp(16px,4vw,32px) 48px;box-sizing:border-box;">
 
-    <!-- HERO -->
-    <section class="mx-auto max-w-5xl px-4 sm:px-6 pt-14 pb-10 text-center">
-      <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Free Online Tool</p>
-      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4 leading-tight">
-        Online Tuner
-      </h1>
-      <p class="text-lg text-muted-foreground max-w-xl mx-auto">
-        Tune any instrument in your browser using your device microphone. Free, instant, no signup.
-      </p>
-    </section>
+      <div style="margin-bottom:24px;">
+        <h1 style="margin:0;font-family:'Archivo',sans-serif;font-size:clamp(30px,6vw,40px);font-weight:800;letter-spacing:-0.02em;color:#241f33;">Online Instrument Tuner</h1>
+        <p style="margin:8px 0 0;font-family:'Archivo',sans-serif;font-size:17px;color:#6f6790;max-width:560px;">Tune your bass, guitar, or ukulele using your microphone. Pick an instrument and tuning, play a string, and follow the needle.</p>
+      </div>
 
-    <!-- TUNER COMPONENT -->
-    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-16">
-      <OnlineTuner client:only="react" />
-    </section>
-
-    <!-- HOW TO USE -->
-    <section class="bg-muted/30 border-t border-border py-16">
-      <div class="mx-auto max-w-3xl px-4 sm:px-6">
-        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-4">How to tune your instrument</h2>
-        <div class="text-muted-foreground space-y-4 leading-relaxed">
-          <p>
-            Hit <strong class="text-foreground">Start Tuning</strong> and allow microphone access when your browser asks.
-            Then play any string on your instrument and hold the note steady.
-          </p>
-          <p>
-            The needle tells you everything: if it swings left your string is <strong class="text-foreground">flat</strong> (too low) — tighten the tuning peg.
-            If it swings right, the string is <strong class="text-foreground">sharp</strong> (too high) — loosen it slightly.
-            When the needle centers and turns green, you're in tune.
-          </p>
-          <p>
-            Make small adjustments and let the note ring out fully after each turn of the peg.
-            Strings can take a moment to settle, especially if they're new.
-          </p>
+      <div style="position:relative;">
+        <div id="tuner-skeleton" style="display:flex;flex-wrap:wrap;gap:32px;">
+          <div class="animate-pulse" style="width:280px;max-width:90vw;aspect-ratio:2/3;border-radius:20px;background:#eeeaf6;"></div>
+          <div style="display:flex;flex-direction:column;gap:20px;flex:1 1 420px;min-width:0;">
+            <div class="animate-pulse" style="height:280px;border-radius:20px;background:#eeeaf6;"></div>
+            <div class="animate-pulse" style="height:64px;border-radius:14px;background:#eeeaf6;"></div>
+            <div class="animate-pulse" style="height:96px;border-radius:14px;background:#eeeaf6;"></div>
+          </div>
+        </div>
+        <div id="tuner-app">
+          <InstrumentTuner client:only="react" />
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- WHAT IS A TUNER -->
-    <section class="py-16">
-      <div class="mx-auto max-w-3xl px-4 sm:px-6">
-        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-4">What is a tuner?</h2>
-        <div class="text-muted-foreground space-y-4 leading-relaxed">
-          <p>
-            Every musical note has a specific frequency — a precise number of vibrations per second measured in Hz.
-            When a string is in tune, it vibrates at exactly the right frequency for its note.
-            A tuner listens to your instrument, measures that frequency, and tells you how close you are to the target.
-          </p>
-          <p>
-            String instruments go out of tune constantly: temperature changes, humidity, stretching strings, and just playing
-            all affect the tension. Tuning before every session is a basic habit every musician needs.
-          </p>
-          <p>
-            This tuner is <strong class="text-foreground">chromatic</strong>, meaning it recognizes all 12 notes —
-            not just the open strings of one specific instrument. It works for any instrument in any tuning.
-            Everything runs in your browser; no audio leaves your device.
-          </p>
-        </div>
-      </div>
-    </section>
+    <script>
+      document.addEventListener(
+        'astro:hydrate',
+        () => {
+          const skeleton = document.getElementById('tuner-skeleton')
+          skeleton?.remove()
+        },
+        { capture: true, once: true },
+      )
+    </script>
 
-    <!-- STANDARD TUNINGS: dot matrix -->
-    <section class="bg-muted/30 border-t border-border py-16">
-      <div class="mx-auto max-w-3xl px-4 sm:px-6">
-        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-2">Standard tunings</h2>
-        <p class="text-muted-foreground mb-8">
-          Each dot marks a note in that instrument's standard tuning. Brighter columns are shared by more instruments.
-        </p>
+    <!-- ABOUT -->
+    <div style="border-top:1px solid #e5e0f0;">
+      <div style="max-width:840px;margin:0 auto;padding:64px clamp(16px,4vw,32px) 80px;display:flex;flex-direction:column;gap:48px;font-family:'Archivo',sans-serif;color:#241f33;">
 
-        <div class="overflow-x-auto">
-          <table class="w-full border-collapse">
-            <thead>
-              <tr class="border-b border-border">
-                <th class="text-left pb-3 pr-6" style="min-width: 8rem"></th>
-                {NOTE_COLS.map(col => (
-                  <th class="pb-3 px-3 text-center w-12">
-                    <span class={`block text-sm font-bold font-mono ${col.labelClass}`}>{col.note}</span>
-                    <span class="block text-xs text-muted-foreground/40 mt-0.5">{col.count}/9</span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {instrumentMatrix.map(inst => (
-                <tr class="border-b border-border/40 last:border-0 hover:bg-muted/40 transition-colors">
-                  <td class="py-3 pr-6 text-sm font-medium text-foreground whitespace-nowrap">{inst.name}</td>
+        <section>
+          <h2 style="margin:0 0 12px;font-size:28px;font-weight:800;letter-spacing:-0.01em;">What is this?</h2>
+          <p style="margin:0;font-size:16px;line-height:1.65;color:#4b4463;">A free chromatic tuner that runs entirely in your browser. It listens through your microphone, detects the pitch of the string you play, and tells you whether to tighten or loosen it. It supports 4- and 5-string bass, electric and acoustic guitar, and ukulele — each with its most common alternate tunings.</p>
+        </section>
+
+        <section>
+          <h2 style="margin:0 0 16px;font-size:28px;font-weight:800;letter-spacing:-0.01em;">How it works</h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;">
+            <div style="background:#faf9fc;border:1px solid #e5e0f0;border-radius:16px;padding:20px;">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:#6d28d9;margin-bottom:8px;">STEP 1</div>
+              <p style="margin:0;font-size:15px;line-height:1.55;color:#4b4463;">Pick your instrument and tuning, then enable the microphone. Audio is processed locally — nothing is recorded or sent anywhere.</p>
+            </div>
+            <div style="background:#faf9fc;border:1px solid #e5e0f0;border-radius:16px;padding:20px;">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:#6d28d9;margin-bottom:8px;">STEP 2</div>
+              <p style="margin:0;font-size:15px;line-height:1.55;color:#4b4463;">Play one open string at a time. The tuner detects which string you're playing automatically, or tap a note pin to lock onto one string.</p>
+            </div>
+            <div style="background:#faf9fc;border:1px solid #e5e0f0;border-radius:16px;padding:20px;">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:#6d28d9;margin-bottom:8px;">STEP 3</div>
+              <p style="margin:0;font-size:15px;line-height:1.55;color:#4b4463;">Watch the needle. Left of center means too low (tighten); right means too high (loosen). Green means you're within 5 cents — in tune.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 style="margin:0 0 6px;font-size:28px;font-weight:800;letter-spacing:-0.01em;">Standard tunings</h2>
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#6f6790;">Each dot marks a note in that instrument's standard tuning. Brighter columns are shared by more instruments — the tuner above covers guitar, bass, and ukulele in detail; this table also covers banjo, mandolin, and the violin family.</p>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead>
+                <tr style="border-bottom:1px solid #e5e0f0;">
+                  <th style="text-align:left;padding-bottom:12px;padding-right:20px;min-width:9rem;"></th>
                   {NOTE_COLS.map(col => (
-                    <td class="py-3 px-3 text-center">
-                      {inst.noteSet.has(col.note) ? (
-                        <span class={`inline-block w-3.5 h-3.5 rounded-full ${col.dotClass}`} />
-                      ) : (
-                        <span class={`inline-block w-3.5 h-3.5 rounded-full border-2 ${col.emptyClass}`} />
-                      )}
-                    </td>
+                    <th style="padding-bottom:12px;padding:0 12px 12px;text-align:center;width:3rem;">
+                      <span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;color:#6d28d9;">{col.note}</span>
+                      <span style="display:block;font-size:11px;color:#a49bc4;margin-top:2px;">{col.count}/9</span>
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {tuningMatrix.map(inst => (
+                  <tr style="border-bottom:1px solid #f1eef8;">
+                    <td style="padding:12px 20px 12px 0;font-size:14px;font-weight:600;color:#241f33;white-space:nowrap;">{inst.name}</td>
+                    {NOTE_COLS.map(col => (
+                      <td style="padding:12px;text-align:center;">
+                        {inst.noteSet.has(col.note) ? (
+                          <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#6d28d9;"></span>
+                        ) : (
+                          <span style="display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid #e5e0f0;"></span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p style="margin:20px 0 0;padding-top:16px;border-top:1px solid #e5e0f0;font-size:13px;color:#6f6790;">
+            <strong style="color:#241f33;">G, D and A</strong> are the most universal — they appear in guitar, bass, mandolin, and the entire violin family (violin, viola, cello). Standard tuning only; drop, open, and alternate tunings vary.
+          </p>
+        </section>
 
-        <p class="text-xs text-muted-foreground mt-6 pt-4 border-t border-border">
-          <strong class="text-foreground">G, D and A</strong> are the most universal —
-          they appear in guitar, bass, mandolin, and the entire violin family (violin, viola, cello).
-          Standard tuning only; drop, open, and alternate tunings vary.
-        </p>
+        <section>
+          <h2 style="margin:0 0 16px;font-size:28px;font-weight:800;letter-spacing:-0.01em;">Frequently asked questions</h2>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            {faqs.map((f) => (
+              <details open style="background:#faf9fc;border:1px solid #e5e0f0;border-radius:14px;padding:16px 20px;">
+                <summary style="font-size:16px;font-weight:700;cursor:pointer;">{f.q}</summary>
+                <p style="margin:10px 0 0;font-size:15px;line-height:1.6;color:#4b4463;">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
       </div>
-    </section>
-
-    <!-- FAQ -->
-    <section class="py-16">
-      <div class="mx-auto max-w-3xl px-4 sm:px-6">
-        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-8">Frequently asked questions</h2>
-        <div class="space-y-5">
-          {faqs.map((f) => (
-            <div class="rounded-xl border border-border bg-card p-6">
-              <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
-              <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    </div>
 
     <!-- RELATED TOOLS -->
     <RelatedTools tools={[
