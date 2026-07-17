@@ -66,9 +66,9 @@ export const PAGES_REGISTRY: Record<string, PageMeta> = {
     tags: ['Real Samples', 'MIDI', 'Song Library'],
   },
   tuner: {
-    title: 'Online Guitar Tuner',
-    tagline: 'Tune your guitar, bass or ukulele in your browser using your microphone.',
-    tags: ['Guitar', 'Bass', 'Ukulele'],
+    title: 'Online Instrument Tuner',
+    tagline: 'Tune bass, guitar, or ukulele with real instrument sounds and alternate tunings.',
+    tags: ['Real Samples', 'Guitar', 'Bass'],
   },
   'bass-tab': {
     title: 'Bass Tab Player',
