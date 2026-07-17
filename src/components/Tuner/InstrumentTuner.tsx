@@ -179,6 +179,12 @@ export function InstrumentTuner() {
   const pendSelRef = useRef<{ i: number; n: number } | null>(null)
   const silenceRef = useRef(0)
   const tunedRef = useRef(false)
+  // performance.now() timestamp until which live detection is suppressed — set whenever we play
+  // our own preview sound, since the mic (with echo cancellation deliberately off, for accuracy)
+  // would otherwise pick up that speaker output as if it were a real played note.
+  const mutedUntilRef = useRef(0)
+  const PREVIEW_DURATION_SEC = 2.2
+  const PREVIEW_TAIL_SEC = 0.5 // extra guard for room reverb/decay after playback ends
 
   const streamRef = useRef<MediaStream | null>(null)
   const ctxRef = useRef<AudioContext | null>(null)
@@ -210,7 +216,17 @@ export function InstrumentTuner() {
   const previewNote = useCallback((midi: number) => {
     const ctx = getPreviewCtx()
     if (ctx.state === 'suspended') ctx.resume().catch(() => {})
-    playTunerNote(ctx, ctx.destination, instId as TunerInstrumentId, midi)
+    playTunerNote(ctx, ctx.destination, instId as TunerInstrumentId, midi, PREVIEW_DURATION_SEC)
+
+    // Mute live pitch detection for the duration of the preview (+ a tail for room decay) so the
+    // mic doesn't try to read back our own speaker output as a played note.
+    mutedUntilRef.current = performance.now() + (PREVIEW_DURATION_SEC + PREVIEW_TAIL_SEC) * 1000
+    emaRef.current = null
+    historyRef.current = []
+    pendSelRef.current = null
+    silenceRef.current = 0
+    setHasSignal(false)
+    setLive(false)
   }, [instId, getPreviewCtx])
 
   const resetSignal = useCallback((extra: { selIdx?: number; mode?: Mode; instId?: string; tuningIdx?: number }) => {
@@ -268,11 +284,20 @@ export function InstrumentTuner() {
     setLive(true)
   }, [tuning, selIdx, mode])
 
+  // `loop` re-schedules itself via requestAnimationFrame(loop), so its identity must stay stable
+  // forever — if it depended on `update` (which changes on every string/tuning selection), the
+  // running rAF chain would stay pinned to whichever `update` closure existed when startMic() first
+  // fired, silently ignoring every later selection change. Route through a ref instead so the loop
+  // always calls the *current* update.
+  const updateRef = useRef(update)
+  useEffect(() => { updateRef.current = update }, [update])
+
   const loop = useCallback(() => {
     rafRef.current = requestAnimationFrame(loop)
     const now = performance.now()
     if (now - lastDetectRef.current < 33) return
     lastDetectRef.current = now
+    if (performance.now() < mutedUntilRef.current) return // suppressed while our own preview sound plays
     const analyser = analyserRef.current, ctx = ctxRef.current
     if (!analyser || !ctx) return
     analyser.getFloatTimeDomainData(bufRef.current)
@@ -282,7 +307,7 @@ export function InstrumentTuner() {
       if (historyRef.current.length > 11) historyRef.current.shift()
       const sorted = [...historyRef.current].sort((a, b) => a - b)
       const med = sorted[Math.floor(sorted.length / 2)]
-      update(med)
+      updateRef.current(med)
       silenceRef.current = 0
     } else {
       // Hold the last reading on the needle; just mark the signal as stale
@@ -293,7 +318,7 @@ export function InstrumentTuner() {
         setLive(false)
       }
     }
-  }, [update])
+  }, [])
 
   const startMic = useCallback(async () => {
     try {
