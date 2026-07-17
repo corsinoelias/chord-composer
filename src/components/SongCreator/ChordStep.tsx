@@ -208,6 +208,8 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
     ) {
       // Drop on an empty line — add a new chord token
       const chord = a.data.current.chord as string;
+      // Moving an existing chord keeps its duration; a fresh palette chord starts at the default.
+      const duration = a.data.current?.type === 'chord' ? (a.data.current.duration as number) : 4;
       const srcTokenId = a.data.current?.tokenId as string | undefined;
       const { lineId: dstLine } = o.data.current as { lineId: string };
 
@@ -216,7 +218,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
           ...sec,
           lines: sec.lines.map(l => {
             if (l.id !== dstLine) return l;
-            const newToken: WordToken = { id: nid(), text: '', chord, duration: 4, isSpace: false };
+            const newToken: WordToken = { id: nid(), text: '', chord, duration, isSpace: false };
             const kept = l.tokens.filter(t => t.isSpace || t.text.trim() || t.chord);
             return { ...l, tokens: [...kept, newToken] };
           }),
