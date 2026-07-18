@@ -340,7 +340,7 @@ export const SONGS: Song[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     slug: 'oceans-hillsong-united',
-    lastModified: '2026-06-23',
+    lastModified: '2026-07-18',
     title: 'Oceans (Where Feet May Fail)',
     artist: 'Hillsong United',
     album: 'Zion',
@@ -357,39 +357,39 @@ export const SONGS: Song[] = [
       {
         name: 'Verse 1',
         lines: [
-          '[D]You call me out upon the [A]waters',
-          'The great un[Bm]known where feet may [G]fail',
-          '[D]And there I find You in the [A]mystery',
-          'In oceans [Bm]deep my faith will [G]stand',
-        ],
-      },
-      {
-        name: 'Chorus',
-        lines: [
-          '[D]And I will call upon Your [A]name',
-          'And keep my [Bm]eyes above the [G]waves',
-          '[D]When oceans rise my soul will [A]rest in Your embrace',
-          'For I am [Bm]Yours and You are [G]mine',
+          '[Bm:3]You call [A:1]me out upon the [D]waters',
+          'The great [A]unknown where feet may [G]fail',
+          '[Bm:3]And there [A:1]I find You [D]in the mystery',
+          'In oceans [A]deep my faith will [G]stand',
         ],
       },
       {
         name: 'Verse 2',
         lines: [
-          '[D]Your grace abounds in [A]deepest waters',
-          'Your sov\'reign [Bm]hand will be my [G]guide',
-          '[D]Where feet may fail and fear [A]surrounds me',
-          'You\'ve never [Bm]failed and You won\'t [G]start now',
+          '[Bm:3]Your grace [A:1]abounds in deepest [D]waters',
+          'Your sovereign [A]hand will be my [G]guide',
+          '[Bm:3]Where feet [A:1]may fail and fear [D]surrounds me',
+          'You\'ve never [A]failed and You won\'t start [G]now',
+        ],
+      },
+      {
+        name: 'Chorus',
+        lines: [
+          '[G:2]I will [D:2]call upon [A]Your Name',
+          '[G:2]And keep my [D:2]eyes [A]above the waves, when oceans rise',
+          '[G:2]My soul will [D:2]rest in Your [A]embrace',
+          'For I [G:2]am [A:2]Yours and You are [Bm]mine',
         ],
       },
       {
         name: 'Bridge',
         lines: [
-          '[Bm]Spirit lead me where my trust is with[G]out borders',
-          '[D]Let me walk upon the [A]waters',
-          '[Bm]Wherever You would call [G]me',
-          '[D]Take me deeper than my feet could ever [A]wander',
-          '[Bm]And my faith will be made [G]stronger',
-          '[D]In the presence of my [A]Savior',
+          '[Bm]Spirit lead me where my [G]trust is without borders',
+          'Let me [D]walk upon the waters',
+          '[A]Wherever You would call me',
+          '[Bm]Take me deeper than my [G]feet could ever wander',
+          'And my [D]faith will be made stronger',
+          'In the [A]presence of my Saviour',
         ],
       },
     ],
