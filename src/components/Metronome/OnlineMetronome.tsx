@@ -332,7 +332,7 @@ export function OnlineMetronome() {
         alignItems: 'center',
         justifyContent: 'center',
         gap: 22,
-        padding: '64px 20px 48px',
+        padding: '84px 20px 48px',
         position: 'relative',
         boxSizing: 'border-box',
         fontFamily: "'IBM Plex Sans', Helvetica, Arial, sans-serif",
@@ -340,9 +340,11 @@ export function OnlineMetronome() {
         userSelect: 'none',
       }}
     >
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px' }}>
-        <h1 style={{ fontWeight: 700, letterSpacing: '0.02em', fontSize: 15, margin: 0 }}>Online metronome</h1>
-        <div style={{ fontSize: 12, color: MUTED, letterSpacing: '0.04em' }}>free · precise · in your browser</div>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '26px 28px', boxSizing: 'border-box' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <h1 style={{ fontWeight: 700, letterSpacing: '-0.01em', fontSize: 'clamp(19px,2.6vw,23px)', margin: 0 }}>Online metronome</h1>
+          <div style={{ fontSize: 13, color: MUTED, letterSpacing: '0.04em' }}>free · precise · in your browser</div>
+        </div>
       </div>
 
       {/* Circle indicator */}
