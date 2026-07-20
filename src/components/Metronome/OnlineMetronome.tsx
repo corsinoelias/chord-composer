@@ -9,7 +9,7 @@ const STORAGE_KEY = 'metronome.settings.v1'
 const ACCENT = 'oklch(0.55 0.16 250)'
 const TEXT = '#15181d'
 const MUTED = '#5c6470'
-const FAINT = '#8a929c'
+const FAINT = '#6b7280' // meets WCAG AA 4.5:1 against white at the small sizes it's used for (#8a929c was 3.15:1)
 const BORDER = '#d8dde3'
 const BORDER_LIGHT = '#e3e7ec'
 const RING_TRACK = '#e6eaef'
@@ -272,7 +272,7 @@ export function OnlineMetronome() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
-      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'BUTTON') return
       if (e.code === 'Space') { e.preventDefault(); toggle() }
       else if (e.key === 'ArrowUp') { e.preventDefault(); nudge(e.shiftKey ? 10 : 1) }
       else if (e.key === 'ArrowDown') { e.preventDefault(); nudge(e.shiftKey ? -10 : -1) }
@@ -418,6 +418,8 @@ export function OnlineMetronome() {
         max={MAX_BPM}
         value={bpm}
         onChange={e => setBpm(Number(e.target.value))}
+        aria-label="Tempo"
+        aria-valuetext={`${bpm} BPM`}
         style={{ width: 'min(520px,84vw)', accentColor: ACCENT }}
       />
 
@@ -426,11 +428,13 @@ export function OnlineMetronome() {
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 12, alignItems: 'center', maxWidth: '92vw' }}>
           {accents.map((lvl, i) => {
             const active = playing && beat === i && !muted
+            const levelLabel = lvl === 2 ? 'strong accent' : lvl === 1 ? 'normal accent' : 'silent'
             return (
               <button
                 key={i}
                 onClick={() => cycleAccent(i)}
                 title="tap to change accent"
+                aria-label={`Beat ${i + 1}: ${levelLabel}. Tap to change.`}
                 style={{
                   width: 30, height: 30, borderRadius: '50%', cursor: 'pointer',
                   transition: 'transform 80ms ease, background 80ms ease',
@@ -455,7 +459,8 @@ export function OnlineMetronome() {
         </button>
         <button
           onClick={toggle}
-          aria-label="play or pause"
+          aria-label={playing ? 'Pause' : 'Play'}
+          aria-pressed={playing}
           style={{ width: 88, height: 88, borderRadius: '50%', border: 'none', cursor: 'pointer', background: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 18px oklch(0.55 0.16 250 / 0.35)' }}
         >
           {playing ? (
@@ -468,13 +473,15 @@ export function OnlineMetronome() {
           )}
         </button>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 110 }}>
-          <label style={{ fontSize: 11, color: MUTED, letterSpacing: '0.06em' }}>VOLUME</label>
+          <label htmlFor="metronome-volume" style={{ fontSize: 11, color: MUTED, letterSpacing: '0.06em' }}>VOLUME</label>
           <input
+            id="metronome-volume"
             type="range"
             min={0}
             max={100}
             value={Math.round(vol * 100)}
             onChange={e => onVol(Number(e.target.value) / 100)}
+            aria-valuetext={`${Math.round(vol * 100)}%`}
             style={{ width: '100%', accentColor: ACCENT }}
           />
         </div>
