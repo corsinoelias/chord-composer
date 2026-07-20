@@ -1,4 +1,5 @@
-import { type Chord, chordToMidiNotes } from '@/lib/musicTheory';
+import { type Chord, type ChordQuality, chordToMidiNotes } from '@/lib/musicTheory';
+import guitarVoicingsDb from './chordVoicingsGuitar.json';
 
 export interface GuitarVoicing {
   /** 6 strings [lowE, A, D, G, B, highE]. -1=muted, 0=open, n=fret */
@@ -189,9 +190,65 @@ const Q_MAP: Record<string, string> = {
 // ─── MIDI → pitch-class name ──────────────────────────────────────────────────
 
 const MIDI_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const FLAT_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
 function midiToName(midi: number, transposition: number): string {
   return MIDI_NAMES[((midi + transposition) % 12 + 12) % 12];
+}
+function midiToFlatName(midi: number, transposition: number): string {
+  return FLAT_NAMES[((midi + transposition) % 12 + 12) % 12];
+}
+
+// ─── Curated voicing database (chordVoicingsGuitar.json, built for Chord Lookup) ──
+// Real, hand-verified fingerings — preferred over the algorithmic shapes below,
+// which sometimes produce awkward or inaccurate positions for less common
+// chord types. Root keys in this database use flat spelling (Db, Eb, Gb, Ab,
+// Bb), and only covers the ~29 "standard" chord-type keys Chord Lookup uses —
+// rarer altered/extended qualities (minMaj7, 9sus4, aug9, aug7, 7#5, 9b5, 9#5,
+// maj7#11, add11, minadd9) aren't in it and keep using the algorithm below.
+const DB_QUALITY_KEY: Partial<Record<ChordQuality, string>> = {
+  maj: '', min: 'm', '5': '5', '6': '6', '7': '7', maj7: 'Maj7',
+  '9': '9', maj9: 'Maj9', '11': '11', '13': '13', maj13: 'Maj13',
+  min6: 'm6', min7: 'm7', min9: 'm9', min11: 'm11', min13: 'm13',
+  sus2: 'sus2', sus4: 'sus4', dim: 'dim', aug: 'aug', '6/9': '69',
+  '7sus4': '7sus4', '7b5': '7b5', '7b9': '7b9', add9: 'add9',
+  dim7: 'dim7', m7b5: 'm7b5', '7#9': '7#9', maj11: 'Maj11',
+};
+
+interface DbVoicingEntry { p: string; f: string }
+type GuitarVoicingsDb = { EADGBE: Record<string, DbVoicingEntry[]> };
+
+function fromDbEntry(entry: DbVoicingEntry): GuitarVoicing | null {
+  const frets = entry.p.split(',').map(t => (t === 'x' ? -1 : parseInt(t, 10)));
+  if (frets.length !== 6 || frets.some(isNaN)) return null;
+  const digits = String(entry.f || '').replace(/[^0-9]/g, '');
+  const fingers = new Array(6).fill(0);
+  let di = 0;
+  for (let s = 0; s < 6; s++) if (frets[s] > 0) { const d = digits[di++]; if (d && d !== '0') fingers[s] = +d; }
+
+  const groups: Record<string, number[]> = {};
+  fingers.forEach((f, s) => {
+    if (f > 0) { const k = f + '@' + frets[s]; (groups[k] = groups[k] || []).push(s); }
+  });
+  let barre: GuitarVoicing['barre'];
+  for (const k in groups) {
+    if (groups[k].length > 1) {
+      const [finger, fret] = k.split('@').map(Number);
+      barre = { fret, fromString: Math.min(...groups[k]), toString: Math.max(...groups[k]) };
+      break; // GuitarVoicing supports one barre; open/"Common" voicings never need more than one
+    }
+  }
+  return { frets, fingers, barre, baseFret: computeBaseFret(frets) };
+}
+
+function getCuratedVoicing(chord: Chord, transposition: number): GuitarVoicing | null {
+  const key = DB_QUALITY_KEY[chord.quality];
+  if (key === undefined) return null;
+  const midiNotes = chordToMidiNotes(chord);
+  const rootName = midiToFlatName(midiNotes[0], transposition);
+  const entries = (guitarVoicingsDb as GuitarVoicingsDb).EADGBE[rootName + key];
+  if (!entries || !entries.length) return null;
+  return fromDbEntry(entries[0]); // index 0 = "Common" / open position
 }
 
 // ─── baseFret computation ─────────────────────────────────────────────────────
@@ -223,22 +280,26 @@ function fromTemplate(tmpl: ShapeTemplate, rootFret: number): GuitarVoicing {
 // ─── Main lookup function ─────────────────────────────────────────────────────
 
 export function getGuitarVoicing(chord: Chord, transposition = 0): GuitarVoicing | null {
+  // 1. Curated database (accurate, hand-verified positions) — tried first
+  const curated = getCuratedVoicing(chord, transposition);
+  if (curated) return curated;
+
   const midiNotes = chordToMidiNotes(chord);
   const rootName = midiToName(midiNotes[0], transposition);
   const quality = Q_MAP[chord.quality] ?? 'maj';
 
-  // 1. Hardcoded open position
+  // 2. Hardcoded open position (fallback for qualities not in the curated database)
   const openKey = rootName + (quality === 'maj' ? 'maj' : quality === 'min' ? 'min' : quality);
   if (OPEN[openKey]) return OPEN[openKey];
 
-  // 2. E-shape (root on low E string)
+  // 3. E-shape (root on low E string)
   const eFret = E_FRET[rootName];
   if (eFret !== undefined) {
     const tmpl = E_SHAPES[quality] ?? E_SHAPES.maj;
     return fromTemplate(tmpl, eFret === 0 ? 12 : eFret);
   }
 
-  // 3. A-shape (root on A string)
+  // 4. A-shape (root on A string)
   const aFret = A_FRET[rootName];
   if (aFret !== undefined) {
     const tmpl = A_SHAPES[quality] ?? A_SHAPES.maj;
