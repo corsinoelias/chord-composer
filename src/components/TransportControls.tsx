@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Play, Square, Download, Loader2, Volume2, VolumeX, Settings2, Grid3X3, Plus, ChevronDown } from 'lucide-react';
+import { Play, Square, Download, Loader2, Volume2, VolumeX, Settings2, Grid3X3, Plus, ChevronDown, Save } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,8 @@ interface TransportControlsProps {
   onCreateNewRhythm?: () => void;
   hasChords: boolean;
   currentStep?: number;
+  showSaveCta?: boolean;
+  onSaveCtaClick?: () => void;
 }
 
 export const TransportControls = memo(function TransportControls({
@@ -65,6 +67,8 @@ export const TransportControls = memo(function TransportControls({
   onOpenRhythmEditor,
   onCreateNewRhythm,
   hasChords,
+  showSaveCta = false,
+  onSaveCtaClick,
 }: TransportControlsProps) {
   const isMobile = useIsMobile();
 
@@ -150,6 +154,21 @@ export const TransportControls = memo(function TransportControls({
 
               {/* Right Actions */}
               <div className="flex items-center gap-2 sm:gap-3 ml-auto shrink-0">
+                {/* Save CTA — appears once there's real work worth saving; plays a
+                    one-time entrance since it only mounts once (React won't re-run
+                    a CSS animation class on re-renders, only on actual (re)mount) */}
+                {showSaveCta && (
+                  <Button
+                    onClick={onSaveCtaClick}
+                    size={isMobile ? "sm" : "lg"}
+                    variant="outline"
+                    className="gap-1.5 sm:gap-2 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:duration-200"
+                  >
+                    <Save size={16} />
+                    <span className="hidden xs:inline">Save</span>
+                  </Button>
+                )}
+
                 {/* Metronome Toggle */}
                 <Tooltip>
                   <TooltipTrigger asChild>

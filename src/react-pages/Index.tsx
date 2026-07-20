@@ -56,14 +56,17 @@ import { MixingConsole } from '@/components/MixingConsole';
 import { AuthModal } from '@/components/AuthModal';
 import { AccountMenu } from '@/components/AccountMenu';
 import { Button } from '@/components/ui/button';
-import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders, Save } from 'lucide-react';
+import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 
 interface IndexProps {
   songId?: string;
 }
+
+const EXPORT_NUDGE_SESSION_KEY = 'chord-player-export-nudge-shown';
 
 const Index = ({ songId }: IndexProps) => {
   const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
@@ -79,6 +82,7 @@ const Index = ({ songId }: IndexProps) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalSource, setAuthModalSource] = useState('save_cta');
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Default chords for new songs
@@ -765,6 +769,30 @@ const Index = ({ songId }: IndexProps) => {
     }
   }, [sections]);
 
+  // Nudge anonymous users to save right after they export — the moment
+  // they've clearly gotten value out of the progression, not a moment of
+  // fear of loss. A toast, not a modal: doesn't interrupt them checking out
+  // their export, and shown once per session so it doesn't nag on repeat
+  // exports of the same song.
+  const showExportSaveNudge = useCallback(() => {
+    if (isLoggedIn) return;
+    if (sessionStorage.getItem(EXPORT_NUDGE_SESSION_KEY)) return;
+    sessionStorage.setItem(EXPORT_NUDGE_SESSION_KEY, 'true');
+    analytics.exportNudgeShown();
+    toast('Downloaded! Create a free account to save this progression and pick up where you left off.', {
+      duration: Infinity,
+      closeButton: true,
+      action: {
+        label: 'Sign up',
+        onClick: () => {
+          analytics.exportNudgeClicked();
+          setAuthModalSource('export_nudge');
+          setAuthModalOpen(true);
+        },
+      },
+    });
+  }, [isLoggedIn]);
+
   const handleExport = useCallback(async () => {
     const hasChords = sections.some(s => s.chords.length > 0);
     if (!hasChords) return;
@@ -779,13 +807,14 @@ const Index = ({ songId }: IndexProps) => {
       await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
       toast.success('WAV exported successfully!');
       analytics.exportWav();
+      showExportSaveNudge();
     } catch (error) {
       console.error('Export failed:', error);
       toast.error('Export failed. Please try again.');
     } finally {
       setIsExporting(false);
     }
-  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle]);
+  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, showExportSaveNudge]);
 
   const handleExportMidi = useCallback(() => {
     const hasChords = sections.some(s => s.chords.length > 0);
@@ -795,13 +824,18 @@ const Index = ({ songId }: IndexProps) => {
       exportMidi(sections, bpm, transposition, filename);
       toast.success('MIDI exported successfully!');
       analytics.exportMidi();
+      showExportSaveNudge();
     } catch (error) {
       console.error('MIDI export failed:', error);
       toast.error('MIDI export failed. Please try again.');
     }
-  }, [sections, bpm, transposition, songTitle]);
+  }, [sections, bpm, transposition, songTitle, showExportSaveNudge]);
 
   const hasChords = sections.some(s => s.chords.length > 0);
+
+  // Warn on tab close / navigation while there's real, unpersisted work —
+  // logged-in users with a saved song are already covered by autosave.
+  useUnsavedChangesGuard(hasChords && !(isLoggedIn && lastSavedAt));
 
   // Resolve which chord is currently highlighted during playback
   const currentPlayingChord = useMemo(() => {
@@ -1037,32 +1071,14 @@ const Index = ({ songId }: IndexProps) => {
                 <ShortcutsHelp />
               </div>
 
-              {/* Save / account */}
+              {/* Account status — the actual Save call-to-action now lives next to
+                  Play in TransportControls; this only shows once there's something
+                  to confirm (saving in progress, or already saved). */}
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {authChecked && !isLoggedIn ? (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setAuthModalOpen(true)}
-                    className="gap-1.5 h-8 px-3 shadow-sm"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    <span className="text-xs font-semibold">Save</span>
-                  </Button>
-                ) : isSaving ? (
+                {isSaving ? (
                   <span className="flex items-center gap-1">
                     <Loader2 className="h-3 w-3 animate-spin" />
                   </span>
-                ) : !currentSongId && !songId ? (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={handleSaveNewSong}
-                    className="gap-1.5 h-8 px-3 shadow-sm"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    <span className="text-xs font-semibold">Save</span>
-                  </Button>
                 ) : lastSavedAt ? (
                   <AccountMenu
                     displayName={displayName}
@@ -1135,6 +1151,16 @@ const Index = ({ songId }: IndexProps) => {
           }}
           onCreateNewRhythm={() => setCreateRhythmModalOpen(true)}
           hasChords={hasChords}
+          showSaveCta={hasChords && !(isLoggedIn && lastSavedAt)}
+          onSaveCtaClick={() => {
+            analytics.saveCtaClicked();
+            if (isLoggedIn) {
+              handleSaveNewSong();
+            } else {
+              setAuthModalSource('save_cta');
+              setAuthModalOpen(true);
+            }
+          }}
         />
 
         {/* Chord visualizer — always visible when chords exist */}
@@ -1365,6 +1391,7 @@ const Index = ({ songId }: IndexProps) => {
       <AuthModal
         open={authModalOpen}
         onOpenChange={setAuthModalOpen}
+        source={authModalSource}
         onSuccess={() => {
           setIsLoggedIn(true);
           getAuthState().then(({ displayName }) => setDisplayName(displayName));

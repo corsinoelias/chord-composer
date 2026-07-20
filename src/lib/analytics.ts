@@ -6,10 +6,15 @@ function track(eventName: string, params?: Record<string, unknown>) {
 }
 
 export const analytics = {
-  // Auth
-  signUp: () => track('sign_up', { method: 'email' }),
-  login: () => track('login', { method: 'email' }),
+  // Auth — `source` identifies which entry point opened the modal (e.g.
+  // 'save_cta', 'export_nudge') so conversion can be compared per entry point.
+  signUp: (source?: string) => track('sign_up', { method: 'email', source }),
+  login: (source?: string) => track('login', { method: 'email', source }),
   logout: () => track('logout'),
+  saveCtaClicked: () => track('save_cta_clicked'),
+  authModalCancelled: (source?: string) => track('auth_modal_cancelled', { source }),
+  exportNudgeShown: () => track('export_nudge_shown'),
+  exportNudgeClicked: () => track('export_nudge_clicked'),
 
   // Songs
   playSong: (songSlug: string, songTitle: string) => track('play_song', { song_slug: songSlug, song_title: songTitle }),
