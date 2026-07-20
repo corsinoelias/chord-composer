@@ -20,7 +20,7 @@ const features = [
   { t: 'Speed trainer', d: 'Raises the BPM automatically every N bars up to your target. Ideal for building speed.' },
   { t: 'Silent bars', d: 'Alternates sounding and muted bars to train your inner clock like a pro.' },
   { t: 'Visual beat indicator', d: 'A beat circle that fills as the bar progresses and highlights every accent.' },
-  { t: 'Web Audio precision', d: 'Every click is scheduled ahead in the audio engine: a stable pulse without JavaScript timer jitter.' },
+  { t: 'Rock-solid timing', d: 'Every click is scheduled a few milliseconds ahead, so the beat never drifts or lags — even if your browser tab is busy in the background.' },
 ]
 
 const shortcuts = [
@@ -32,7 +32,7 @@ const shortcuts = [
 ]
 
 const faqs = [
-  { q: 'Is this metronome accurate?', a: 'Yes. Each click is scheduled ahead of time in the browser\'s audio engine (Web Audio API), not with JavaScript timers. The result is a stable pulse with millisecond precision, even when the tab is busy.' },
+  { q: 'Is this metronome accurate?', a: 'Yes. Every click is calculated and queued a few milliseconds ahead of time instead of firing in real time, so the beat stays rock-solid — no drifting, no lag — even if your browser tab is busy doing something else.' },
   { q: 'What BPM should I practice at?', a: 'Start at a tempo where you can play the passage with no mistakes — usually slower than you think. Raise it 2 BPM at a time, only after playing it clean three times in a row. The speed trainer automates exactly that.' },
   { q: 'What are subdivisions?', a: 'The clicks between beats: two eighth notes, three triplet notes or four sixteenths per quarter note. Practicing with subdivisions helps you place every note exactly where it belongs.' },
   { q: 'What are silent bars for?', a: 'The metronome clicks for a few bars, then goes silent while you keep the tempo internally. When the click returns you find out if you rushed or dragged. It\'s one of the most effective timing exercises.' },
@@ -103,7 +103,7 @@ const webAppSchema = {
       <section>
         <h2 style="font-size:26px;margin:0 0 14px;letter-spacing:-0.01em">What is an online metronome?</h2>
         <p style="font-size:16px;line-height:1.7;color:#3c434d;margin:0">
-          A metronome keeps a steady beat so you can practice playing in time. This one runs right in your browser — free, no account, no install — and is built as a practice companion, not just a timer. It uses the browser's audio engine (Web Audio API) with look-ahead scheduling, so the click stays rock-solid from 20 to 400 BPM, on desktop and mobile. Your settings are remembered automatically.
+          A metronome keeps a steady beat so you can practice playing in time. This one runs right in your browser — free, no account, no install — and is built as a practice companion, not just a timer. It runs on the same low-level audio engine used by professional music software (the Web Audio API), so the click stays rock-solid from 20 to 400 BPM on desktop and mobile, with no drifting or lag. Your settings are remembered automatically.
         </p>
       </section>
 
