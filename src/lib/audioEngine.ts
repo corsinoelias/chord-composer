@@ -325,24 +325,21 @@ export function getAudioContext(): AudioContext {
 
     // Only load samples once per app lifecycle; buffers can be reused across contexts.
     if (!sampleLoadingComplete) {
-      // Bass dirs — fire and forget, lazy per sampleEngine
-      for (const dir of ['modo', 'slap', 'finger', 'muted']) {
-        preloadSampleDir(audioContext, dir).catch(() => {})
-      }
-
       // CRITICAL: drums have no synthesis fallback — must be ready before first beat
       drumSamplePromise = loadAcousticSamples(audioContext);
 
       // BACKGROUND: piano and guitar both have synthesis fallbacks, load after drums
       // so they don't compete for bandwidth on the critical path
       // Guitar: only load the default type (electric) — others load on demand via ensureGuitarSampleType
-      guitarTypeLoading['guitar-electric'] = loadGuitarSampleType(audioContext!, 'guitar-electric');
-      const backgroundLoad = drumSamplePromise.then(() =>
-        Promise.all([
+      // Bass sounds are not preloaded here at all — scheduleSampledNoteByDir/Async already
+      // load samples lazily on demand per sound, so an eager preload would just be redundant.
+      const backgroundLoad = drumSamplePromise.then(() => {
+        guitarTypeLoading['guitar-electric'] = loadGuitarSampleType(audioContext!, 'guitar-electric');
+        return Promise.all([
           loadPianoSamples(audioContext!),
-          guitarTypeLoading['guitar-electric']!,
-        ])
-      );
+          guitarTypeLoading['guitar-electric'],
+        ]);
+      });
 
       sampleLoadPromise = backgroundLoad
         .then(() => {

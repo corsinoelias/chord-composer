@@ -1,33 +1,61 @@
 User-agent: *
 Disallow: /app
 Disallow: /app/
+Disallow: /soundfonts/
+Disallow: /audio/
+Disallow: /samples/
 Allow: /chord-player/$
 Disallow: /chord-player/
 Allow: /
 
-# AI search crawlers — explicitly allowed
+# AI search crawlers — explicitly allowed, but not for heavy audio binaries
+# (soundfonts/samples) they don't need to index page text — bandwidth only.
 User-agent: GPTBot
+Disallow: /soundfonts/
+Disallow: /audio/
+Disallow: /samples/
 Allow: /
 
 User-agent: OAI-SearchBot
+Disallow: /soundfonts/
+Disallow: /audio/
+Disallow: /samples/
 Allow: /
 
 User-agent: ChatGPT-User
+Disallow: /soundfonts/
+Disallow: /audio/
+Disallow: /samples/
 Allow: /
 
 User-agent: ClaudeBot
+Disallow: /soundfonts/
+Disallow: /audio/
+Disallow: /samples/
 Allow: /
 
 User-agent: PerplexityBot
+Disallow: /soundfonts/
+Disallow: /audio/
+Disallow: /samples/
 Allow: /
 
 User-agent: Google-Extended
+Disallow: /soundfonts/
+Disallow: /audio/
+Disallow: /samples/
 Allow: /
 
 User-agent: Bytespider
+Disallow: /soundfonts/
+Disallow: /audio/
+Disallow: /samples/
 Allow: /
 
 User-agent: cohere-ai
+Disallow: /soundfonts/
+Disallow: /audio/
+Disallow: /samples/
 Allow: /
 
 # Training-only crawlers — blocked
