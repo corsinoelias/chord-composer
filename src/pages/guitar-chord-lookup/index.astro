@@ -1,0 +1,95 @@
+---
+export const prerender = true
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import { ChordFinderTool } from '../../components/ChordLookup/ChordFinderTool'
+
+const faqs = [
+  { q: 'What do the numbers on the dots mean?', a: 'They tell you which finger of your fretting hand to use: 1 = index, 2 = middle, 3 = ring, 4 = pinky. A long pill across several strings is a barre — one finger pressing them all at once.' },
+  { q: 'What do the &#215; and &#9675; symbols above the strings mean?', a: 'A cross (&#215;) means that string should not be played. A circle (&#9675;) means the string is played open, without pressing any fret.' },
+  { q: 'What does a label like "3fr" next to the diagram mean?', a: 'By default the second horizontal line from the top is the first fret. When you see "3fr", the diagram starts at the third fret instead — the chord is played higher up the neck.' },
+  { q: 'Why are there several positions for the same chord?', a: 'Most chords can be played in different places on the neck. The most common shape is shown first; click any thumbnail under "Positions" to see an alternative voicing with its own fingering.' },
+  { q: "Can I use it if I'm left-handed?", a: 'Yes — click the "Left-handed" button above the diagram and every chord is mirrored for a left-handed guitar.' },
+]
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  '@id': 'https://chordsequence.com/guitar-chord-lookup/#breadcrumb',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Chord Lookup', item: 'https://chordsequence.com/chord-lookup/' },
+    { '@type': 'ListItem', position: 3, name: 'Guitar Chord Lookup', item: 'https://chordsequence.com/guitar-chord-lookup/' },
+  ],
+}
+
+const webAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Guitar Chord Lookup',
+  url: 'https://chordsequence.com/guitar-chord-lookup/',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Any',
+  description: 'Guitar chord lookup: find any guitar chord in standard tuning with real fingerings, barre chords and alternative positions along the neck. Free and instant.',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}
+---
+
+<BaseLayout
+  title="Guitar Chord Lookup — Find Any Guitar Chord on the Fretboard"
+  description="Guitar chord lookup: find any guitar chord in standard tuning with real fingerings, barre chords and alternative positions along the neck. Free and instant."
+  canonicalUrl="https://chordsequence.com/guitar-chord-lookup/"
+>
+  <Fragment slot="head">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <main style="background:#f7f5fb;font-family:'Hanken Grotesk',system-ui,sans-serif;color:#241d33">
+    <div style="min-height:100vh;padding:24px 20px 64px;box-sizing:border-box">
+      <div style="max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
+        <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <a href="/chord-lookup/" style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">&larr; Chord Lookup</a>
+            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Guitar Chord Lookup</h1>
+            <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:620px">Find any guitar chord from the fretboard — real fingerings, barre chords, and several positions along the neck.</p>
+          </div>
+          <div style="display:inline-flex;background:#ece6f7;border-radius:12px;padding:4px;gap:2px">
+            <span style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;background:#ffffff;color:#241d33;box-shadow:0 1px 3px rgba(30,20,60,0.18)">Guitar</span>
+            <a href="/piano-chord-lookup/" style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;color:#6f6788">Piano</a>
+            <a href="/ukulele-chord-lookup/" style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;color:#6f6788">Ukulele</a>
+          </div>
+        </header>
+
+        <ChordFinderTool instrument="guitar" client:load />
+
+        <section style="background:#ffffff;border:1px solid #e7e0f2;border-radius:18px;padding:26px 28px;display:flex;flex-direction:column;gap:20px;box-shadow:0 1px 4px rgba(40,25,80,0.05)">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">About the guitar chord lookup</h2>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">A visual dictionary of guitar chords in standard EADGBE tuning. Pick any of the 12 root notes and 30 chord types — from an open C major to a Cmaj13 — and see the chord on a fretboard diagram: numbered dots for each finger, barres drawn as pills, &#215; for muted strings and &#9675; for open ones, plus the note each string sounds.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">Most chords include several voicings: the common open or low shape first, then alternatives higher up the neck. Press Play to hear the chord string by string and then strummed together. A left-handed mode mirrors every diagram.</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Guitar chord FAQs</h2>
+            <div style="display:flex;flex-direction:column;gap:8px;max-width:820px">
+              {faqs.map((f) => (
+                <details style="border:1px solid #e7e0f2;border-radius:12px;padding:13px 18px">
+                  <summary style="font-size:14.5px;font-weight:600;cursor:pointer" set:html={f.q} />
+                  <p style="margin:10px 0 2px;font-size:14px;line-height:1.6;color:#4c4462" set:html={f.a} />
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <footer style="font-size:13px;color:#8a819e;display:flex;gap:8px;flex-wrap:wrap">
+          <span>Also available:</span>
+          <a href="/piano-chord-lookup/" style="color:#7C3AED">Piano chord lookup</a> &middot;
+          <a href="/ukulele-chord-lookup/" style="color:#7C3AED">Ukulele chord lookup</a> &middot;
+          <a href="/chord-lookup/" style="color:#7C3AED">All instruments</a>
+        </footer>
+      </div>
+    </div>
+  </main>
+</BaseLayout>

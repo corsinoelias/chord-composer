@@ -64,6 +64,7 @@ Interactive chord charts with synchronized lyrics — press Play and follow each
 ${songLines}
 
 ## Tools
+- [Chord Lookup](${SITE}/chord-lookup/): Free chord lookup tool for guitar, piano, and ukulele. Pick any of 12 root notes and 30 chord types, see the exact fingering or keys to press, hear every note, and switch between C-D-E and Do-Re-Mi note names. Dedicated pages: [Guitar](${SITE}/guitar-chord-lookup/), [Piano](${SITE}/piano-chord-lookup/), [Ukulele](${SITE}/ukulele-chord-lookup/).
 - [Chord Transposer](${SITE}/tools/chord-transposer/): Instantly transpose any chord or progression to a different key. Includes semitone reference chart and worked examples.
 - [Circle of Fifths](${SITE}/tools/circle-of-fifths/): Interactive circle of fifths for navigating key relationships.
 - [Key Detector](${SITE}/tools/key-detector/): Detect the key of any chord progression.

@@ -260,6 +260,16 @@ export function previewNote(stringIndex: number, fret: number, sound: GuitarSoun
   else ctx.resume().then(play).catch(() => {})
 }
 
+// Plays an arbitrary MIDI note through the same engine previewNote uses (real
+// soundfont for 'sf2'-family sounds, Karplus-Strong pluck for 'nylon'/'acoustic'/
+// 'clean'), by expressing it as a (string, fret) pair on the low-E string —
+// previewNote only cares about the resulting pitch, not which physical string
+// it nominally came from. Used by Chord Lookup, which plays chords by MIDI
+// note rather than fret position.
+export function playGuitarToneAtMidi(midi: number, sound: GuitarSound, capo = 0): void {
+  previewNote(5, midi - STRING_MIDI_BASE[5] - capo, sound, capo)
+}
+
 export async function startPlayback(
   track: GuitarTrack,
   fromBeat: number,

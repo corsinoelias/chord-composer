@@ -1,0 +1,95 @@
+---
+export const prerender = true
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import { ChordFinderTool } from '../../components/ChordLookup/ChordFinderTool'
+
+const faqs = [
+  { q: 'How do I read the keyboard diagram?', a: 'Every highlighted key is part of the chord, labelled with its note name. The root note — the note the chord is named after — is shown in a solid, darker color; the other chord tones are lighter.' },
+  { q: 'Which hand should I play the chord with?', a: 'Either. The diagram shows the notes, not a hand. A common starting point: play the chord with your right hand and the root note an octave lower with your left.' },
+  { q: 'Can I play the chord in a different octave?', a: 'Yes — the pattern of keys is identical in every octave. Play the same shape higher for a brighter sound or lower for a fuller one.' },
+  { q: 'What about inversions?', a: 'The diagram shows the chord in root position (root at the bottom). To play an inversion, move the lowest highlighted note up an octave — the chord keeps its name and quality.' },
+  { q: 'What&rsquo;s the difference between &quot;C D E&quot; and &quot;Do Re Mi&quot;?', a: 'Two naming systems for the same notes: English notation (C, D, E&#8230;) and Latin solf&#232;ge (Do, Re, Mi&#8230;), common in Spain and Latin America. Use the toggle above the keyboard to switch — every label updates.' },
+]
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  '@id': 'https://chordsequence.com/piano-chord-lookup/#breadcrumb',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Chord Lookup', item: 'https://chordsequence.com/chord-lookup/' },
+    { '@type': 'ListItem', position: 3, name: 'Piano Chord Lookup', item: 'https://chordsequence.com/piano-chord-lookup/' },
+  ],
+}
+
+const webAppSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Piano Chord Lookup',
+  url: 'https://chordsequence.com/piano-chord-lookup/',
+  applicationCategory: 'MusicApplication',
+  operatingSystem: 'Any',
+  description: 'Piano chord lookup: see which keys to press for any piano chord, from triads to 13ths. Every note highlighted and named on the keyboard, with audio playback.',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+}
+---
+
+<BaseLayout
+  title="Piano Chord Lookup — Identify Piano Chords from Pressed Keys"
+  description="Piano chord lookup: see which keys to press for any piano chord, from triads to 13ths. Every note highlighted and named on the keyboard, with audio playback."
+  canonicalUrl="https://chordsequence.com/piano-chord-lookup/"
+>
+  <Fragment slot="head">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  </Fragment>
+
+  <main style="background:#f7f5fb;font-family:'Hanken Grotesk',system-ui,sans-serif;color:#241d33">
+    <div style="min-height:100vh;padding:24px 20px 64px;box-sizing:border-box">
+      <div style="max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
+        <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <a href="/chord-lookup/" style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">&larr; Chord Lookup</a>
+            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Piano Chord Lookup</h1>
+            <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:620px">Identify piano chords from pressed keys — every note of the chord highlighted on the keyboard, with its name.</p>
+          </div>
+          <div style="display:inline-flex;background:#ece6f7;border-radius:12px;padding:4px;gap:2px">
+            <a href="/guitar-chord-lookup/" style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;color:#6f6788">Guitar</a>
+            <span style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;background:#ffffff;color:#241d33;box-shadow:0 1px 3px rgba(30,20,60,0.18)">Piano</span>
+            <a href="/ukulele-chord-lookup/" style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;color:#6f6788">Ukulele</a>
+          </div>
+        </header>
+
+        <ChordFinderTool instrument="piano" client:load />
+
+        <section style="background:#ffffff;border:1px solid #e7e0f2;border-radius:18px;padding:26px 28px;display:flex;flex-direction:column;gap:20px;box-shadow:0 1px 4px rgba(40,25,80,0.05)">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">About the piano chord lookup</h2>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">A visual dictionary of piano chords. Pick any of the 12 root notes and 30 chord types — from a simple C major triad to a Cmaj13 — and the keys you need to press light up on a three-octave keyboard, each labelled with its note name. The root note is shown in a solid color so you always know where the chord is built from.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">Press Play to hear the chord note by note — each key lights up as it sounds — and then all notes together. Switch between English note names (C, D, E) and solf&#232;ge (Do, Re, Mi) with one click.</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Piano chord FAQs</h2>
+            <div style="display:flex;flex-direction:column;gap:8px;max-width:820px">
+              {faqs.map((f) => (
+                <details style="border:1px solid #e7e0f2;border-radius:12px;padding:13px 18px">
+                  <summary style="font-size:14.5px;font-weight:600;cursor:pointer" set:html={f.q} />
+                  <p style="margin:10px 0 2px;font-size:14px;line-height:1.6;color:#4c4462" set:html={f.a} />
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <footer style="font-size:13px;color:#8a819e;display:flex;gap:8px;flex-wrap:wrap">
+          <span>Also available:</span>
+          <a href="/guitar-chord-lookup/" style="color:#7C3AED">Guitar chord lookup</a> &middot;
+          <a href="/ukulele-chord-lookup/" style="color:#7C3AED">Ukulele chord lookup</a> &middot;
+          <a href="/chord-lookup/" style="color:#7C3AED">All instruments</a>
+        </footer>
+      </div>
+    </div>
+  </main>
+</BaseLayout>
