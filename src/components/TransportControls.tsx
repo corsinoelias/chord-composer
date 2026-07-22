@@ -86,6 +86,7 @@ export const TransportControls = memo(function TransportControls({
                   <button
                     onClick={isPlaying ? onStop : onPlay}
                     disabled={!hasChords || isExporting}
+                    data-tour="play-button"
                     className={`
                       relative shrink-0 rounded-full flex items-center justify-center
                       transition-all duration-300 
@@ -193,7 +194,7 @@ export const TransportControls = memo(function TransportControls({
                 </Tooltip>
 
                 {/* Export — split button: main action (WAV) + dropdown (MIDI) */}
-                <div className="flex items-stretch shadow-md rounded-lg overflow-hidden">
+                <div className="flex items-stretch shadow-md rounded-lg overflow-hidden" data-tour="export-button">
                   <Button
                     onClick={onExport}
                     disabled={!hasChords || isPlaying || isExporting}
@@ -253,13 +254,15 @@ export const TransportControls = memo(function TransportControls({
         {/* Style & Rhythm Controls */}
         <div className="px-3 sm:px-4 md:px-5 pb-3 sm:pb-4 md:pb-5 pt-0">
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-xl bg-secondary/30 border border-border/50">
-            <StyleSelector 
-              selectedStyleId={selectedStyleId} 
-              onStyleChange={onStyleChange}
-              customStyles={customStyles}
-              onCreateNew={onCreateNewRhythm}
-            />
-            
+            <div data-tour="style-selector">
+              <StyleSelector
+                selectedStyleId={selectedStyleId}
+                onStyleChange={onStyleChange}
+                customStyles={customStyles}
+                onCreateNew={onCreateNewRhythm}
+              />
+            </div>
+
             <div className="h-6 w-px bg-border/70 mx-0.5 sm:mx-1 hidden xs:block" />
             
             <Button variant="ghost" size="sm" onClick={onOpenInstruments} className="gap-1 sm:gap-1.5 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">

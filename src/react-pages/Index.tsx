@@ -44,7 +44,7 @@ import { CreateRhythmModal } from '@/components/CreateRhythmModal';
 import { InstrumentsPanel } from '@/components/InstrumentsPanel';
 import { ChordBlock } from '@/components/ChordBlock';
 import { ProgressBar } from '@/components/ProgressBar';
-import { WelcomeOverlay } from '@/components/WelcomeOverlay';
+import { GuidedTour } from '@/components/GuidedTour';
 import { BeatIndicator } from '@/components/BeatIndicator';
 import { CountdownOverlay } from '@/components/CountdownOverlay';
 import { ProgressionTemplatesModal } from '@/components/ProgressionTemplatesModal';
@@ -1194,7 +1194,7 @@ const Index = ({ songId }: IndexProps) => {
           onDragEnd={handleDragEnd}
         >
           <SortableContext items={allChordIds} strategy={rectSortingStrategy}>
-            <div className="space-y-3">
+            <div className="space-y-3" data-tour="chords-section">
               {sections.map((section, sectionIndex) => (
                 <SectionCard
                   key={section.id}
@@ -1253,8 +1253,8 @@ const Index = ({ songId }: IndexProps) => {
 
       </main>
 
-      {/* Welcome Overlay for first-time users */}
-      {showOnboarding && <WelcomeOverlay onDismiss={dismissOnboarding} />}
+      {/* Guided tour for first-time users */}
+      {showOnboarding && <GuidedTour onDismiss={dismissOnboarding} />}
 
       {/* Multi-select floating toolbar */}
       {selectedChordIds.size > 0 && (
