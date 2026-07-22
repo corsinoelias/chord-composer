@@ -1,4 +1,5 @@
 import { ALL_KEYS, SONG_GENRES } from '@/lib/musicKeys';
+import { StyleSelector } from '@/components/StyleSelector';
 import type { SongMeta } from './types';
 
 interface Props {
@@ -6,16 +7,6 @@ interface Props {
   onChange: (meta: SongMeta) => void;
   onNext: () => void;
 }
-
-const STYLES = [
-  { id: 'pop_basic', label: 'Pop' },
-  { id: 'pop_6_8', label: 'Pop 6/8' },
-  { id: 'rock_basic', label: 'Rock' },
-  { id: 'jazz_swing', label: 'Jazz' },
-  { id: 'folk_strum', label: 'Folk' },
-  { id: 'blues_shuffle', label: 'Blues' },
-  { id: 'lofi_chill', label: 'Lo-fi' },
-];
 
 export default function MetaStep({ meta, onChange, onNext }: Props) {
   const set = (patch: Partial<SongMeta>) => onChange({ ...meta, ...patch });
@@ -110,21 +101,12 @@ export default function MetaStep({ meta, onChange, onNext }: Props) {
         {/* Style */}
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">Rhythm style</label>
-          <div className="grid grid-cols-3 gap-2">
-            {STYLES.map(s => (
-              <button
-                key={s.id}
-                onClick={() => set({ style: s.id })}
-                className={`text-sm py-2 rounded-xl border transition-colors
-                  ${meta.style === s.id
-                    ? 'bg-primary text-primary-foreground border-primary font-semibold'
-                    : 'bg-background text-foreground border-border hover:border-primary/50'
-                  }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
+          <StyleSelector
+            selectedStyleId={meta.style}
+            onStyleChange={style => set({ style })}
+            showCustom={false}
+            triggerClassName="w-full h-11 bg-background border-border rounded-xl px-3 py-2.5 text-sm"
+          />
         </div>
 
         {/* Genre */}

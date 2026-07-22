@@ -13,6 +13,10 @@ interface StyleSelectorProps {
   onCreateNew?: () => void;
   onEditStyle?: (styleId: string) => void;
   customStyles?: StylePattern[];
+  /** Hide the "My Rhythms" (private, per-user) category — for contexts that should only
+   * offer the built-in rhythms everyone can hear/use, e.g. the public song creator. */
+  showCustom?: boolean;
+  triggerClassName?: string;
 }
 
 // Group styles by category for the dropdown
@@ -74,10 +78,17 @@ export const StyleSelector = memo(function StyleSelector({
   onStyleChange,
   onCreateNew,
   onEditStyle,
-  customStyles = []
+  customStyles = [],
+  showCustom = true,
+  triggerClassName = 'w-[180px] h-9 bg-secondary border-border',
 }: StyleSelectorProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [styleToDelete, setStyleToDelete] = useState<string | null>(null);
+
+  const categories = useMemo(
+    () => showCustom ? STYLE_CATEGORIES : STYLE_CATEGORIES.filter(c => c.id !== 'Custom'),
+    [showCustom],
+  );
 
   // Memoize built-in styles with overrides to prevent recalculation
   const builtInWithOverrides = useMemo(() => {
@@ -115,11 +126,11 @@ export const StyleSelector = memo(function StyleSelector({
       <div className="flex items-center gap-2">
         <Music className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
         <Select value={selectedStyleId} onValueChange={onStyleChange}>
-          <SelectTrigger aria-label="Rhythm style and tempo" className="w-[180px] h-9 bg-secondary border-border">
+          <SelectTrigger aria-label="Rhythm style and tempo" className={triggerClassName}>
             <SelectValue placeholder="Seleccionar estilo" />
           </SelectTrigger>
           <SelectContent className="bg-popover border-border z-50 max-h-[400px]">
-            {STYLE_CATEGORIES.map(category => {
+            {categories.map(category => {
             // For custom category, use customStyles prop; for built-in, apply overrides
             const stylesInCategory = category.id === 'Custom' 
               ? customStyles 

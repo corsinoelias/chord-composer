@@ -25,7 +25,9 @@ const STEPS: { key: Step; label: string }[] = [
 ];
 
 const DEFAULT_META: SongMeta = {
-  title: '', artist: '', album: '', key: 'C', capo: 0, bpm: 100, genre: [], style: 'pop_basic',
+  // 'pop_1' — a real MUSICAL_STYLES id, so the style picker shows an actual
+  // selection for a brand-new song instead of the empty "Seleccionar estilo" placeholder.
+  title: '', artist: '', album: '', key: 'C', capo: 0, bpm: 100, genre: [], style: 'pop_1',
 };
 
 function getParam(name: string): string | null {

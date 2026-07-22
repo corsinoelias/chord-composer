@@ -13,6 +13,8 @@ import { parseSectionBody } from './textParser';
 import ChordPalette from './ChordPalette';
 import { ChordEditModal } from '@/components/ChordEditModal';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { DurationDots } from '@/components/DurationDots';
+import { StyleSelector } from '@/components/StyleSelector';
 import SongChordPlayer from '@/components/SongChordPlayer';
 import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
 import { createSection } from '@/lib/sections';
@@ -86,12 +88,6 @@ function cloneLine(l: EditorSection['lines'][number]) {
 
 const SECTION_PRESETS = ['Intro','Verse 1','Verse 2','Pre-chorus','Chorus','Bridge','Outro','Solo','Interlude'];
 
-const STYLES = [
-  { id: 'pop_basic', label: 'Pop' },{ id: 'rock_basic', label: 'Rock' },
-  { id: 'jazz_swing', label: 'Jazz' },{ id: 'folk_strum', label: 'Folk' },
-  { id: 'blues_shuffle', label: 'Blues' },{ id: 'lofi_chill', label: 'Lo-fi' },
-];
-
 interface EditingChord { sectionId: string; lineId: string; tokenId: string; chord: Chord | null; duration: number; }
 
 interface Props {
@@ -125,7 +121,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
   const lineEditRef = useRef<HTMLTextAreaElement>(null);
 
   const { state: pbState, play, stop } = usePlayback();
-  const { isPlaying } = pbState;
+  const { isPlaying, currentChordIndex } = pbState;
 
   // Reset playing state when playback ends
   useEffect(() => { if (!isPlaying) setPlayingSectionId(null); }, [isPlaying]);
@@ -293,6 +289,21 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
     playChordPreview(parsed[0]);
   }, []);
 
+  // ── Now-playing chord highlight ─────────────────────────────────────────────
+  // Same token order handlePlaySection uses to build the chords array passed to
+  // the audio engine, so pbState.currentChordIndex indexes straight into it.
+  const playingChordTokenIds = useMemo(() => {
+    if (!playingSectionId) return [] as string[];
+    const section = sections.find(s => s.id === playingSectionId);
+    if (!section) return [] as string[];
+    return section.lines.flatMap(l => l.tokens).filter(t => t.chord && !t.isSpace).map(t => t.id);
+  }, [sections, playingSectionId]);
+
+  const activeTokenId = useMemo(() => {
+    if (!isPlaying || currentChordIndex < 0 || playingChordTokenIds.length === 0) return null;
+    return playingChordTokenIds[currentChordIndex % playingChordTokenIds.length] ?? null;
+  }, [isPlaying, currentChordIndex, playingChordTokenIds]);
+
   // Play / stop a whole section
   const handlePlaySection = useCallback(async (section: EditorSection) => {
     if (isPlaying && playingSectionId === section.id) { stop(); return; }
@@ -416,11 +427,13 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
                 className="w-full border border-border rounded-lg px-2 py-2 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" /></div>
           </div>
           <div><label className="block text-xs font-medium text-muted-foreground mb-2">Style</label>
-            <div className="flex gap-2 flex-wrap">
-              {STYLES.map(s => (
-                <button key={s.id} onClick={() => onMetaChange({ ...meta, style: s.id })}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${meta.style === s.id ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/40'}`}>
-                  {s.label}</button>))}</div></div>
+            <StyleSelector
+              selectedStyleId={meta.style}
+              onStyleChange={style => onMetaChange({ ...meta, style })}
+              showCustom={false}
+              triggerClassName="w-full h-9 bg-background border-border rounded-lg px-2 py-2 text-sm"
+            />
+          </div>
           <div><label className="block text-xs font-medium text-muted-foreground mb-2">Genre</label>
             <div className="flex flex-wrap gap-1.5">
               {SONG_GENRES.map(g => {
@@ -448,6 +461,9 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
                     editingLineText={editingLineText}
                     lineEditRef={lineEditRef}
                     isPlaying={isPlaying && playingSectionId === section.id}
+                    activeTokenId={playingSectionId === section.id ? activeTokenId : null}
+                    bpm={meta.bpm}
+                    rawIndex={currentChordIndex}
                     onRename={renameSect}
                     onDelete={deleteSection}
                     onDuplicate={duplicateSection}
@@ -684,6 +700,9 @@ interface SortableSectionProps {
   editingLineText: string;
   lineEditRef: React.RefObject<HTMLTextAreaElement>;
   isPlaying: boolean;
+  activeTokenId: string | null;
+  bpm: number;
+  rawIndex: number;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
@@ -837,6 +856,9 @@ function SortableSection({ section, canDelete, isPlaying, isDraggingChord, ...pr
                             key={token.id} token={token}
                             sectionId={section.id} lineId={line.id}
                             isDraggingChord={isDraggingChord}
+                            isActive={token.id === props.activeTokenId}
+                            bpm={props.bpm}
+                            rawIndex={props.rawIndex}
                             onOpenModal={() => props.onOpenChordModal(section.id, line.id, token.id, token.chord, token.duration)}
                             onRemove={() => props.onUpdateToken(section.id, line.id, token.id, { chord: '', duration: 4 })}
                             onPreview={() => props.onPreviewChord(token.chord)}
@@ -877,41 +899,22 @@ function SortableSection({ section, canDelete, isPlaying, isDraggingChord, ...pr
   );
 }
 
-// ── DurationDots ──────────────────────────────────────────────────────────────
-function DurationDots({ duration }: { duration: number }) {
-  const full = Math.floor(duration)
-  const half = duration % 1 >= 0.5
-  const isDefault = duration === 4
-  return (
-    <span className={`flex items-center gap-[3px] ${isDefault ? 'opacity-30' : 'opacity-75'}`}>
-      {Array.from({ length: Math.min(full, 8) }, (_, i) => (
-        <svg key={i} width="7" height="7" viewBox="0 0 6 6">
-          <circle cx="3" cy="3" r="3" fill="currentColor" />
-        </svg>
-      ))}
-      {half && (
-        <svg width="7" height="7" viewBox="0 0 6 6">
-          <circle cx="3" cy="3" r="2.5" fill="none" stroke="currentColor" strokeWidth="1" />
-          <path d="M3,0.5 A2.5,2.5 0 0,1 3,5.5 Z" fill="currentColor" />
-        </svg>
-      )}
-    </span>
-  )
-}
-
 // ── TokenChip ─────────────────────────────────────────────────────────────────
 interface ChipProps {
   token: WordToken;
   sectionId: string;
   lineId: string;
   isDraggingChord?: boolean;
+  isActive?: boolean;
+  bpm: number;
+  rawIndex: number;
   onOpenModal: () => void;
   onRemove: () => void;
   onPreview: () => void;
   onDuplicate: () => void;
 }
 
-function TokenChip({ token, sectionId, lineId, isDraggingChord, onOpenModal, onRemove, onPreview, onDuplicate }: ChipProps) {
+function TokenChip({ token, sectionId, lineId, isDraggingChord, isActive, bpm, rawIndex, onOpenModal, onRemove, onPreview, onDuplicate }: ChipProps) {
   if (token.isSpace) return <span className="text-sm select-none">{token.text}</span>;
 
   const hasChord = !!token.chord;
@@ -952,10 +955,13 @@ function TokenChip({ token, sectionId, lineId, isDraggingChord, onOpenModal, onR
               {...attributes}
               {...listeners}
               onClick={handleChordClick}
-              className={`inline-flex flex-col items-center gap-[3px] text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/60 rounded-lg px-2 py-1 transition-all hover:shadow-sm leading-none
+              className={`inline-flex flex-col items-center gap-[3px] text-xs font-bold text-primary rounded-lg px-2 py-1 transition-all hover:shadow-sm leading-none border
+                ${isActive
+                  ? 'bg-primary/20 border-primary/60 scale-105'
+                  : 'bg-primary/10 hover:bg-primary/20 border-primary/20 hover:border-primary/60'}
                 ${isDragging ? 'opacity-30 cursor-grabbing' : 'cursor-grab active:cursor-grabbing'}`}
             >
-              <DurationDots duration={token.duration} />
+              <DurationDots duration={token.duration} isActive={!!isActive} bpm={bpm} uid={token.id} rawIndex={rawIndex} size={7} />
               <span>{token.chord}</span>
             </button>
 
@@ -993,7 +999,9 @@ function TokenChip({ token, sectionId, lineId, isDraggingChord, onOpenModal, onR
       </span>
 
       {/* Word text */}
-      <span className={`text-sm leading-relaxed ${hasChord ? 'text-foreground' : 'text-muted-foreground/80'}`}>
+      <span className={`text-sm leading-relaxed transition-colors duration-100 ${
+        isActive ? 'text-foreground font-semibold underline decoration-primary/60 underline-offset-4' : hasChord ? 'text-foreground' : 'text-muted-foreground/80'
+      }`}>
         {token.text}
       </span>
     </span>
