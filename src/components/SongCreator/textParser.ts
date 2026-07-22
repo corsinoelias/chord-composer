@@ -175,6 +175,15 @@ function buildTokens(
   return tokens;
 }
 
+// Turns a chord-only line (no lyric ever followed it) into a real line on the
+// current section before it's discarded — e.g. an [Intro] section whose only
+// content is a bare chord line ("G G/F# G C") with no words underneath it.
+function flushPendingChords(current: EditorSection | null, pendingChords: ChordPos[] | null): void {
+  if (!pendingChords || !current) return;
+  const tokens = assignChordsToLyric(pendingChords, '');
+  if (tokens.length > 0) current.lines.push({ id: uid(), tokens });
+}
+
 function isSectionLine(content: string): boolean {
   // If it looks like a chord name (A-G root, no spaces, short), treat as chord, not section
   if (isChordName(content) && content.length <= 8) return false;
@@ -276,6 +285,7 @@ export function parseTextMode(raw: string): ParseResult {
     const bracketMatch = trimmed.match(SECTION_LINE_RE);
     if (bracketMatch && isSectionLine(bracketMatch[1])) {
       inHeader = false;
+      flushPendingChords(current, pendingChords);
       pendingChords = null;
       if (current && current.lines.length > 0) sections.push(current);
       const { name, repeatCount } = extractRepeat(bracketMatch[1]);
@@ -287,6 +297,7 @@ export function parseTextMode(raw: string): ParseResult {
     const { name: labelCandidate, repeatCount: labelRepeat } = extractRepeat(trimmed);
     if (SECTION_LABEL_RE.test(labelCandidate)) {
       inHeader = false;
+      flushPendingChords(current, pendingChords);
       pendingChords = null;
       if (current && current.lines.length > 0) sections.push(current);
       const label = labelCandidate.replace(/:$/, '');
@@ -328,11 +339,7 @@ export function parseTextMode(raw: string): ParseResult {
     current.lines.push(editorLine);
   }
 
-  // Flush any trailing pending chords
-  if (pendingChords && current) {
-    const tokens = assignChordsToLyric(pendingChords, '');
-    if (tokens.length > 0) current.lines.push({ id: uid(), tokens });
-  }
+  flushPendingChords(current, pendingChords);
 
   if (current && current.lines.length > 0) sections.push(current);
 
