@@ -54,6 +54,7 @@ import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { MixingConsole } from '@/components/MixingConsole';
 import { AuthModal } from '@/components/AuthModal';
+import { AccountPromptModal } from '@/components/AccountPromptModal';
 import { AccountMenu } from '@/components/AccountMenu';
 import { Button } from '@/components/ui/button';
 import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'lucide-react';
@@ -83,6 +84,7 @@ const Index = ({ songId }: IndexProps) => {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalSource, setAuthModalSource] = useState('save_cta');
+  const [accountPromptOpen, setAccountPromptOpen] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Default chords for new songs
@@ -1158,7 +1160,7 @@ const Index = ({ songId }: IndexProps) => {
               handleSaveNewSong();
             } else {
               setAuthModalSource('save_cta');
-              setAuthModalOpen(true);
+              setAccountPromptOpen(true);
             }
           }}
         />
@@ -1386,6 +1388,15 @@ const Index = ({ songId }: IndexProps) => {
       <MixingConsole
         open={mixingConsoleOpen}
         onOpenChange={setMixingConsoleOpen}
+      />
+
+      <AccountPromptModal
+        open={accountPromptOpen}
+        onOpenChange={setAccountPromptOpen}
+        onContinue={() => {
+          setAccountPromptOpen(false);
+          setAuthModalOpen(true);
+        }}
       />
 
       <AuthModal

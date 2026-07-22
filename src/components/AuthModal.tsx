@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 import { signInWithEmail, signUpWithEmail } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { analytics } from '@/lib/analytics';
@@ -20,8 +20,10 @@ interface AuthModalProps {
 // Every field in this form is required — the native `required` attribute
 // already tells assistive tech that; the asterisk is purely a visual cue for
 // sighted users, so it's aria-hidden to avoid a redundant "star" announcement.
+// Neutral color (not destructive/red) — "required" isn't an error state, so it
+// shouldn't read as one.
 function RequiredMark() {
-  return <span aria-hidden="true" className="text-destructive"> *</span>;
+  return <span aria-hidden="true" className="text-muted-foreground"> *</span>;
 }
 
 export function AuthModal({ open, onOpenChange, onSuccess, source }: AuthModalProps) {
@@ -100,101 +102,104 @@ export function AuthModal({ open, onOpenChange, onSuccess, source }: AuthModalPr
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Save your progress</DialogTitle>
-          <DialogDescription>
-            Sign in or create an account to save your work and access it from any device.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent aria-describedby={undefined} className="sm:max-w-sm p-0 gap-0 overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
+          <Lock className="w-4 h-4 text-primary shrink-0" />
+          <DialogTitle asChild>
+            <span className="font-semibold text-foreground">Save your progress</span>
+          </DialogTitle>
+        </div>
 
-        {checkEmail ? (
-          <p className="text-sm text-muted-foreground">
-            Check <span className="text-foreground font-medium">{email}</span> for a confirmation link, then sign in.
+        <div className="p-5">
+          <p className="text-sm text-muted-foreground mb-4">
+            Sign in or create an account to save your work and access it from any device.
           </p>
-        ) : (
-          <Tabs value={mode} onValueChange={(v) => setMode(v as 'sign-in' | 'sign-up')}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="sign-up">Sign up</TabsTrigger>
-              <TabsTrigger value="sign-in">Sign in</TabsTrigger>
-            </TabsList>
-            <p className="text-xs text-muted-foreground text-right mt-2">
-              <span aria-hidden="true" className="text-destructive">*</span> Required
+
+          {checkEmail ? (
+            <p className="text-sm text-muted-foreground">
+              Check <span className="text-foreground font-medium">{email}</span> for a confirmation link, then sign in.
             </p>
-            <TabsContent value={mode} className="mt-2">
-              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-                {mode === 'sign-up' && (
+          ) : (
+            <Tabs value={mode} onValueChange={(v) => setMode(v as 'sign-in' | 'sign-up')}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="sign-up">Sign up</TabsTrigger>
+                <TabsTrigger value="sign-in">Sign in</TabsTrigger>
+              </TabsList>
+              <TabsContent value={mode} className="mt-2">
+                <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+                  {mode === 'sign-up' && (
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="auth-display-name">Display name<RequiredMark /></Label>
+                      <Input
+                        id="auth-display-name"
+                        type="text"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        required
+                        autoComplete="nickname"
+                      />
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="auth-display-name">Display name<RequiredMark /></Label>
+                    <Label htmlFor="auth-email">Email<RequiredMark /></Label>
                     <Input
-                      id="auth-display-name"
-                      type="text"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
+                      id="auth-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
-                      autoComplete="nickname"
+                      autoComplete="email"
                     />
                   </div>
-                )}
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="auth-email">Email<RequiredMark /></Label>
-                  <Input
-                    id="auth-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="auth-password">Password<RequiredMark /></Label>
-                  <Input
-                    id="auth-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
-                  />
-                </div>
-                {mode === 'sign-up' && (
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="auth-confirm-password">Confirm password<RequiredMark /></Label>
+                    <Label htmlFor="auth-password">Password<RequiredMark /></Label>
                     <Input
-                      id="auth-confirm-password"
+                      id="auth-password"
                       type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      onBlur={() => setConfirmTouched(true)}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={6}
-                      autoComplete="new-password"
-                      aria-invalid={showMismatchError}
-                      aria-describedby={showMismatchError ? 'auth-confirm-password-error' : undefined}
-                      className={showMismatchError ? 'border-destructive focus-visible:ring-destructive' : undefined}
+                      autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
                     />
-                    {showMismatchError && (
-                      <p id="auth-confirm-password-error" role="alert" aria-live="polite" className="text-xs text-destructive">
-                        Passwords don&apos;t match
-                      </p>
-                    )}
                   </div>
-                )}
-                <Button type="submit" className="w-full mt-1" disabled={isLoading}>
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : mode === 'sign-up' ? (
-                    'Create account'
-                  ) : (
-                    'Sign in'
+                  {mode === 'sign-up' && (
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="auth-confirm-password">Confirm password<RequiredMark /></Label>
+                      <Input
+                        id="auth-confirm-password"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onBlur={() => setConfirmTouched(true)}
+                        required
+                        minLength={6}
+                        autoComplete="new-password"
+                        aria-invalid={showMismatchError}
+                        aria-describedby={showMismatchError ? 'auth-confirm-password-error' : undefined}
+                        className={showMismatchError ? 'border-destructive focus-visible:ring-destructive' : undefined}
+                      />
+                      {showMismatchError && (
+                        <p id="auth-confirm-password-error" role="alert" aria-live="polite" className="text-xs text-destructive">
+                          Passwords don&apos;t match
+                        </p>
+                      )}
+                    </div>
                   )}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        )}
+                  <Button type="submit" className="w-full mt-1" disabled={isLoading}>
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : mode === 'sign-up' ? (
+                      'Create account'
+                    ) : (
+                      'Sign in'
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
