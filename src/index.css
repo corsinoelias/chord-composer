@@ -173,5 +173,9 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    /* Safety net, not the fix — a single misbehaving row (fixed widths, no
+       flex-wrap) shouldn't be able to force whole-page horizontal scroll/zoom
+       on mobile. Clips instead of degrading the entire page. */
+    overflow-x: hidden;
   }
 }

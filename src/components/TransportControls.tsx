@@ -79,7 +79,7 @@ export const TransportControls = memo(function TransportControls({
         <div className="p-3 sm:p-4 md:p-5">
           <div className="flex flex-col gap-4">
             {/* Top Row: Play + BPM + Actions */}
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               {/* Hero Play Button */}
               <Tooltip>
                 <TooltipTrigger asChild>

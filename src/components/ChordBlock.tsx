@@ -67,7 +67,11 @@ export const ChordBlock = memo(function ChordBlock({
         ${isOutOfScale && !isPlaying ? 'opacity-35 grayscale-[60%]' : ''}
       `}
       style={{
-        width: fixedWidth ? '3.5rem' : `${Math.max(chord.duration * 3.5, 3.5)}rem`,
+        // Capped at 100vw minus a safety margin — a long-duration chord (up to
+        // 8 beats = 28rem/448px) would otherwise force page-wide horizontal
+        // scroll on mobile, since flex-wrap can't wrap a single item that's
+        // wider than its own container.
+        width: fixedWidth ? '3.5rem' : `min(${Math.max(chord.duration * 3.5, 3.5)}rem, calc(100vw - 4rem))`,
         minWidth: '3.5rem',
         height: '3.5rem',
         backgroundColor: isPlaying
