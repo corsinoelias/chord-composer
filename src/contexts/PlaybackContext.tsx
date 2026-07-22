@@ -10,6 +10,7 @@ import { type InstrumentState, getDefaultInstrumentStates, getSoundType } from '
 import { type StylePattern, MUSICAL_STYLES, resolveActiveStyle } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
 import { type MelodicData, resolveVariation } from '@/lib/bassScale';
+import { preloadSampleDir } from '@/lib/bassTab/sampleEngine';
 import {
   ensureSamplesLoaded,
   ensureGuitarSoundfontLoaded,
@@ -276,6 +277,22 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       if (guitarSoundDef?.sf2Instrument) {
         await ensureGuitarSoundfontLoaded(guitarSoundId, guitarSoundDef.sf2Instrument);
       }
+    }
+
+    // Sample-based bass sounds (Fender/Slap/Finger/Muted) fetch+decode their sample
+    // directory lazily, the first time a note actually needs it — fine for timing when
+    // everything's already cached, but on a cold session that fetch+decode can take
+    // longer than the gap between notes, and AudioBufferSourceNode.start(time) fires
+    // IMMEDIATELY (not at `time`) once `time` has already passed. That's what made the
+    // first few bass notes of a song sound rushed/glitchy on a fresh page load — same
+    // root cause the offline WAV export already avoids via this same preload (see
+    // renderProgressionOffline in audioEngine.ts). Awaiting it here, before the isPlaying
+    // flip, mirrors the guitar soundfont wait above: nothing sounds until it's ready.
+    const bassState = options.instruments.find(i => i.id === 'bass');
+    const bassSoundId = bassState?.soundTypeId ?? style.instrumentSounds?.bass ?? 'fender';
+    const bassSoundDef = getSoundType('bass', bassSoundId);
+    if (bassSoundDef?.useSamples && bassSoundDef.samplePath) {
+      await preloadSampleDir(getAudioContext(), bassSoundDef.samplePath);
     }
 
     // Vocal reference audio: decode once per URL (cached across replays within the

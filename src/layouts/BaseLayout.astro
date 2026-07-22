@@ -166,6 +166,51 @@ const orgSchema = {
     )}
   </head>
   <body class="flex flex-col min-h-screen">
+    <!-- Top progress bar — this is a traditional multi-page Astro site (no client
+         router/View Transitions), so every internal link is a full browser navigation
+         with no native loading indicator on mobile. Shows instantly on click; there's
+         no "finish" call because the real navigation destroys the page (and this bar
+         with it) once the next one loads. -->
+    <div id="nav-progress" class="fixed top-0 left-0 h-[3px] bg-primary z-[9999] opacity-0 pointer-events-none" style="width:0%"></div>
+    <script is:inline>
+      (function () {
+        var bar = document.getElementById('nav-progress');
+        if (!bar) return;
+
+        function start() {
+          bar.style.transition = 'none';
+          bar.style.width = '0%';
+          bar.style.opacity = '1';
+          // Force a reflow so the width change below animates from 0% instead of
+          // jumping straight to the target (transition + rAF wouldn't reliably catch
+          // a same-tick style change otherwise).
+          void bar.offsetWidth;
+          bar.style.transition = 'width 4s cubic-bezier(0.1, 0.7, 0.1, 0.9), opacity 0.2s';
+          bar.style.width = '90%';
+        }
+
+        document.addEventListener('click', function (e) {
+          if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          var target = e.target;
+          var link = target instanceof Element ? target.closest('a[href]') : null;
+          if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
+          var url;
+          try { url = new URL(link.href, window.location.href); } catch (err) { return; }
+          if (url.origin !== window.location.origin) return;
+          if (url.pathname === window.location.pathname && url.hash) return; // same-page anchor
+          start();
+        });
+
+        // A back/forward navigation can restore this exact page from bfcache mid-bar —
+        // snap it back to hidden instantly (no transition) rather than leave it stuck.
+        window.addEventListener('pageshow', function () {
+          bar.style.transition = 'none';
+          bar.style.opacity = '0';
+          bar.style.width = '0%';
+        });
+      })();
+    </script>
+
     {showNav && <Navbar />}
     <div class="flex-1">
       <slot />
