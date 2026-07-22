@@ -4,10 +4,17 @@ export interface SongToken {
   duration: number; // beats (default 2). Encoded as [Am:4] in lines.
 }
 
+export interface AudioRange {
+  startSec: number;
+  endSec: number;
+}
+
 export interface SongSection {
   name: string;   // "Verse 1", "Chorus", "Bridge", etc.
   lines: string[]; // Each line uses [Chord:beats]lyrics notation
   repeatCount?: number; // how many times the section plays back-to-back. Default 1 (no repeat).
+  // Which slice of the song's shared audioTrack (if any) plays under this section.
+  audioRange?: AudioRange;
 }
 
 export interface Song {
@@ -26,6 +33,12 @@ export interface Song {
   tags: string[];
   relatedProgressions: string[];
   sections: SongSection[];
+  // Vocal/reference recording shared by the whole song — a single file, sliced per
+  // section (or as one continuous span) via audioRange/audioWholeRange. `path` is the
+  // Supabase Storage object path (needed to delete/replace the file; irrelevant for
+  // read-only playback).
+  audioTrack?: { url: string; path: string };
+  audioWholeRange?: AudioRange;
 }
 
 // Matches [Am], [Am:2], [Am:0.5]

@@ -12,11 +12,18 @@ export interface EditorLine {
   tokens: WordToken[];
 }
 
+export interface AudioRange {
+  startSec: number;
+  endSec: number;
+}
+
 export interface EditorSection {
   id: string;
   name: string;
   lines: EditorLine[];
   repeatCount: number; // how many times the section plays back-to-back. Default 1 (no repeat).
+  // Which slice of the song's shared audioTrack (if any) plays under this section.
+  audioRange?: AudioRange;
 }
 
 // ── Primary editing model ─────────────────────────────────────────────────────
@@ -48,4 +55,10 @@ export interface SongMeta {
   bpm: number;
   genre: string[];
   style: string;
+  // Vocal/reference recording shared by the whole song — a single file uploaded to
+  // Supabase Storage (`path` is its storage object path, needed to delete/replace it).
+  // Sliced per section via EditorSection.audioRange, or as one continuous span via
+  // audioWholeRange.
+  audioTrack?: { url: string; path: string };
+  audioWholeRange?: AudioRange;
 }

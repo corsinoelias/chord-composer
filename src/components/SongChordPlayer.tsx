@@ -183,6 +183,20 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     );
   }, [song.sections, sectionStartIndices, sectionChordCounts, buildPlayback]);
 
+  // ── Vocal reference audio track for a full-song play() call — buildPlayback() mints a
+  // fresh Section.id per call, so sectionRanges has to be keyed off the SAME playback
+  // Section[] just built, matched by array position against song.sections' own audioRange.
+  const buildAudioTrack = useCallback((playbackSections: { id: string }[]) => {
+    if (!song.audioTrack) return undefined;
+    if (song.audioWholeRange) return { url: song.audioTrack.url, wholeRange: song.audioWholeRange };
+    const sectionRanges: Record<string, { startSec: number; endSec: number }> = {};
+    playbackSections.forEach((sec, i) => {
+      const range = song.sections[i]?.audioRange;
+      if (range) sectionRanges[sec.id] = range;
+    });
+    return Object.keys(sectionRanges).length > 0 ? { url: song.audioTrack.url, sectionRanges } : undefined;
+  }, [song.audioTrack, song.audioWholeRange, song.sections]);
+
   // ── Reset playing section when playback stops ──────────────────────────────
   useEffect(() => { if (!isPlaying) setPlayingSection(null); }, [isPlaying]);
 
@@ -275,13 +289,15 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     setAutoFollow(true);
     setIsLoading(true);
     try {
-      await play(buildFullSongSections(), {
+      const fullSections = buildFullSongSections();
+      await play(fullSections, {
         bpm, metronome: false, instruments,
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
         melodic: resolvedStyle.melodic,
+        audioTrack: buildAudioTrack(fullSections),
       });
     } finally { setIsLoading(false); }
-  }, [isPlaying, play, stop, allChordsFlat.length, bpm, song, transpose, buildFullSongSections, instruments, resolvedStyle]);
+  }, [isPlaying, play, stop, allChordsFlat.length, bpm, song, transpose, buildFullSongSections, instruments, resolvedStyle, buildAudioTrack]);
 
   // ── Play single section ────────────────────────────────────────────────────
   const handlePlaySection = useCallback(async (si: number) => {
@@ -292,13 +308,20 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     setAutoFollow(true);
     setIsLoading(true);
     try {
+      const sectionAudioRange = song.sections[si]?.audioRange;
       await play([buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name, song.sections[si].repeatCount ?? 1)], {
         bpm, metronome: false, instruments,
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
         melodic: resolvedStyle.melodic,
+        // Only one section is ever scheduled here, so its own audioRange (if set) can be
+        // treated as the whole clip for this play() call — a whole-song-scoped range
+        // (song.audioWholeRange) has no well-defined slice for an isolated section preview.
+        audioTrack: song.audioTrack && sectionAudioRange
+          ? { url: song.audioTrack.url, wholeRange: sectionAudioRange }
+          : undefined,
       });
     } finally { setIsLoading(false); }
-  }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments, resolvedStyle]);
+  }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments, resolvedStyle, song.audioTrack]);
 
   // ── Export WAV ─────────────────────────────────────────────────────────────
   const handleExportWav = useCallback(async () => {
@@ -357,6 +380,13 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         inline={inline}
         showWavExport={song.slug !== 'hay-poder-yeshua-averly-morillo'}
       />
+
+      {/* ─ Vocal reference muted while transposed — can't follow the pitch shift yet ─ */}
+      {song.audioTrack && transpose !== 0 && (
+        <p className={`text-xs text-muted-foreground text-center italic ${inline ? 'px-5 pt-2' : 'pt-2'}`}>
+          Referencia vocal silenciada — tono transpuesto
+        </p>
+      )}
 
       {/* ─ Resume auto-scroll pill — only once the user has scrolled away during playback ─ */}
       {!inline && isPlaying && !autoFollow && (

@@ -68,6 +68,7 @@ export function sectionsToSongFormat(sections: EditorSection[]): SongSection[] {
       return line;
     }).filter(l => l.trim() !== ''),
     ...(s.repeatCount > 1 ? { repeatCount: s.repeatCount } : {}),
+    ...(s.audioRange ? { audioRange: s.audioRange } : {}),
   }));
 }
 
@@ -133,5 +134,6 @@ export function songSectionsToEditorSections(sections: SongSection[]): EditorSec
       tokens: parseLineToTokens(line),
     })),
     repeatCount: s.repeatCount ?? 1,
+    audioRange: s.audioRange,
   }));
 }

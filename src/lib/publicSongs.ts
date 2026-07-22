@@ -1,5 +1,6 @@
 import { supabase, ensureAuth } from './supabase';
-import type { SongSection } from '@/data/songs';
+import { deleteSongAudio } from './songAudio';
+import type { SongSection, AudioRange } from '@/data/songs';
 
 export interface PublicSong {
   id: string;
@@ -17,6 +18,12 @@ export interface PublicSong {
   tags: string[];
   relatedProgressions: string[];
   sections: SongSection[];
+  // Vocal/reference recording shared by the whole song — see supabase/migrations/
+  // 20260723_song_audio_track.sql. Stored as flat audio_url/audio_path/
+  // audio_whole_start_sec/audio_whole_end_sec columns; fromDb/toDb translate to/from
+  // these nested shapes, same pattern as related_progressions <-> relatedProgressions.
+  audioTrack?: { url: string; path: string };
+  audioWholeRange?: AudioRange;
   created_by?: string;
   is_published: boolean;
   created_at?: string;
@@ -28,16 +35,33 @@ const TABLE = 'public_songs';
 // The DB column is related_progressions (snake_case); the app uses relatedProgressions (camelCase).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function fromDb(row: any): PublicSong {
-  const { related_progressions, ...rest } = row;
-  return { ...rest, relatedProgressions: related_progressions ?? [] } as PublicSong;
+  const { related_progressions, audio_url, audio_path, audio_whole_start_sec, audio_whole_end_sec, ...rest } = row;
+  return {
+    ...rest,
+    relatedProgressions: related_progressions ?? [],
+    audioTrack: audio_url && audio_path ? { url: audio_url, path: audio_path } : undefined,
+    audioWholeRange: audio_whole_start_sec != null && audio_whole_end_sec != null
+      ? { startSec: audio_whole_start_sec, endSec: audio_whole_end_sec }
+      : undefined,
+  } as PublicSong;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toDb(song: Record<string, any>): Record<string, any> {
-  const { relatedProgressions, ...rest } = song;
-  return relatedProgressions !== undefined
-    ? { ...rest, related_progressions: relatedProgressions }
-    : rest;
+  const { relatedProgressions, audioTrack, audioWholeRange, ...rest } = song;
+  const out = { ...rest };
+  if (relatedProgressions !== undefined) out.related_progressions = relatedProgressions;
+  // `null` (not just an omitted key) explicitly clears the columns — callers that mean
+  // to remove the audio track must pass `audioTrack: null`, not leave the key out.
+  if (audioTrack !== undefined) {
+    out.audio_url = audioTrack?.url ?? null;
+    out.audio_path = audioTrack?.path ?? null;
+  }
+  if (audioWholeRange !== undefined) {
+    out.audio_whole_start_sec = audioWholeRange?.startSec ?? null;
+    out.audio_whole_end_sec = audioWholeRange?.endSec ?? null;
+  }
+  return out;
 }
 
 export async function getPublishedSongs(): Promise<PublicSong[]> {
@@ -91,7 +115,11 @@ export async function getMyDraftSongs(): Promise<PublicSong[]> {
   return (data ?? []).map(fromDb);
 }
 
-export async function savePublicSong(song: Omit<PublicSong, 'id' | 'created_by' | 'created_at' | 'updated_at'>): Promise<PublicSong | null> {
+// `id` is optional and, when passed, is used as-is for the insert — lets the caller
+// mint a stable id client-side (crypto.randomUUID()) ahead of the first save, so
+// storage paths uploaded before this point (see songAudio.ts) end up matching the
+// song's real row id instead of needing a separate reconciliation step.
+export async function savePublicSong(song: Omit<PublicSong, 'id' | 'created_by' | 'created_at' | 'updated_at'> & { id?: string }): Promise<PublicSong | null> {
   const userId = await ensureAuth();
   if (!supabase || !userId) return null;
   const { data, error } = await supabase
@@ -138,10 +166,14 @@ export async function updatePublicSong(id: string, updates: Partial<PublicSong>)
   return !!data;
 }
 
-// Upsert by slug — creates if new, updates if already exists (for from-static flow)
+// Upsert by slug — creates if new, updates if already exists (for from-static flow).
+// `id` is only actually used on the create path — an existing row keeps its own id
+// regardless of what's passed (Postgres upsert never overwrites the conflict key's row
+// id), so passing a client-generated id here is safe even when a community version
+// already exists at that slug.
 export async function upsertPublicSongBySlug(
   slug: string,
-  song: Omit<PublicSong, 'id' | 'created_by' | 'created_at' | 'updated_at'>,
+  song: Omit<PublicSong, 'id' | 'created_by' | 'created_at' | 'updated_at'> & { id?: string },
 ): Promise<PublicSong | null> {
   const userId = await ensureAuth();
   if (!supabase || !userId) return null;
@@ -166,8 +198,12 @@ export async function upsertPublicSongBySlug(
 
 export async function deletePublicSong(id: string): Promise<boolean> {
   if (!supabase) return false;
+  // Fetch the audio path first — once the row is gone there's no other way to find
+  // which Storage object (if any) belonged to it, and it'd be orphaned forever.
+  const { data: existing } = await supabase.from(TABLE).select('audio_path').eq('id', id).maybeSingle();
   const { error } = await supabase.from(TABLE).delete().eq('id', id);
   if (error) { console.error('deletePublicSong:', error.message); return false; }
+  if (existing?.audio_path) await deleteSongAudio(existing.audio_path);
   return true;
 }
 

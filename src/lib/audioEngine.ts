@@ -1308,6 +1308,15 @@ export interface PlaybackOptions {
   getGuitarScale?: (sectionId: string) => import('./bassScale').BassScaleData | null;
   getSections?: () => Section[];
   getLoopingSectionId?: () => string | null;
+  // Vocal/reference audio track — a single decoded buffer sliced per section (keyed by
+  // Section.id) or as one continuous span for the whole song. Muted (not started) while
+  // the key is transposed, since it can't follow the pitch shift (local-only prototype —
+  // see the "Referencia vocal" plan for the eventual real pitch-shift/persistence phase).
+  audioTrack?: {
+    buffer: AudioBuffer;
+    wholeRange?: { startSec: number; endSec: number };
+    sectionRanges?: Record<string, { startSec: number; endSec: number }>;
+  };
 }
 
 /**
@@ -1341,6 +1350,7 @@ export function scheduleProgression(
     getGuitarScale,
     getSections,
     getLoopingSectionId,
+    audioTrack,
   } = options;
 
   const ctx = getAudioContext();
@@ -1367,6 +1377,13 @@ export function scheduleProgression(
     globalChordIndex: number;
     beatOffset: number;
     sectionId: string;
+    // True at the first chord of EACH pass through the section — including every
+    // repeat when repeatCount > 1, not just the section's very first occurrence.
+    // buildSectionBoundaries below merges all consecutive repeats of the same
+    // section into one boundary, so the vocal-track scheduler (which needs to
+    // restart the clip on every repeat, not just once for the whole merged span)
+    // keys off this flag instead.
+    isSectionRepeatStart: boolean;
   }
 
   // Section boundaries within the flat chordSegments array
@@ -1375,22 +1392,33 @@ export function scheduleProgression(
     startIdx: number;
     endIdx: number; // exclusive — boundary fires when currentSegmentIndex === endIdx
   }
-  
+
   const buildChordSegments = (secs: Section[] = sections): ChordSegment[] => {
     const segments: ChordSegment[] = [];
     let globalChordIndex = 0;
     let beatOffset = 0;
     secs.forEach(section => {
       for (let repeat = 0; repeat < section.repeatCount; repeat++) {
-        section.chords.forEach((chord) => {
+        section.chords.forEach((chord, chordIdx) => {
           const slotCount = chord.duration * 4;
-          segments.push({ chord, slotCount, globalChordIndex, beatOffset, sectionId: section.id });
+          segments.push({ chord, slotCount, globalChordIndex, beatOffset, sectionId: section.id, isSectionRepeatStart: chordIdx === 0 });
           beatOffset += chord.duration;
           globalChordIndex++;
         });
       }
     });
     return segments;
+  };
+
+  // The index just past the end of the single repeat pass starting at `startIdx`
+  // (stops at the next repeat-start of the same section, a different section, or the
+  // end of the array) — used to size the vocal clip's hard-stop to one pass, not the
+  // whole multi-repeat span buildSectionBoundaries would otherwise report.
+  const findRepeatSpanEnd = (segs: ChordSegment[], startIdx: number): number => {
+    let i = startIdx + 1;
+    const sectionId = segs[startIdx].sectionId;
+    while (i < segs.length && segs[i].sectionId === sectionId && !segs[i].isSectionRepeatStart) i++;
+    return i;
   };
 
   const buildSectionBoundaries = (segs: ChordSegment[]): SectionBoundary[] => {
@@ -1416,6 +1444,54 @@ export function scheduleProgression(
   // For progressions ≥ 8 bars, use 8-bar phrase length so fills land at the end of the
   // full phrase rather than mid-phrase (e.g. 34-beat progression: bar 4 fill was wrong)
   let phraseLength = Math.floor(totalSlots / getSlotsPerBar(style)) >= 8 ? 8 : 4;
+
+  // ── Vocal/reference audio track (local-only prototype) ─────────────────────
+  let vocalSource: AudioBufferSourceNode | null = null;
+  let vocalGain: GainNode | null = null;
+  let vocalMuted = getCurrentTransposition() !== 0;
+
+  const stopVocalClip = () => {
+    if (vocalSource) {
+      try { vocalSource.stop(); } catch { /* already stopped/ended */ }
+      try { vocalSource.disconnect(); } catch { /* already disconnected */ }
+      vocalSource = null;
+    }
+    if (vocalGain) {
+      try { vocalGain.disconnect(); } catch { /* already disconnected */ }
+      vocalGain = null;
+    }
+  };
+
+  // Starts a slice of the shared audio buffer at `when`. `hardStopTime`, if given, cuts
+  // the clip short at the end of the current pass through the section (the marked range
+  // can be longer than the section actually plays for, especially with live BPM changes).
+  const startVocalClip = (range: { startSec: number; endSec: number }, when: number, hardStopTime?: number) => {
+    if (!audioTrack) return;
+    const clipDuration = range.endSec - range.startSec;
+    if (clipDuration <= 0) return;
+    const source = ctx.createBufferSource();
+    source.buffer = audioTrack.buffer;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(vocalMuted ? 0 : 1, when);
+    source.connect(gain).connect(ctx.destination);
+    source.start(when, range.startSec, clipDuration);
+    if (hardStopTime !== undefined && hardStopTime < when + clipDuration - 0.001) {
+      source.stop(Math.max(when, hardStopTime));
+    }
+    vocalSource = source;
+    vocalGain = gain;
+  };
+
+  // Ramps (not hard-cuts) the currently playing clip's gain when the live transposition
+  // flips between 0/non-zero, so toggling the key mid-clip doesn't click/pop.
+  const applyVocalMute = (muted: boolean, when: number) => {
+    if (muted === vocalMuted) return;
+    vocalMuted = muted;
+    if (!vocalGain) return;
+    vocalGain.gain.cancelScheduledValues(when);
+    vocalGain.gain.setValueAtTime(vocalGain.gain.value, when);
+    vocalGain.gain.linearRampToValueAtTime(muted ? 0 : 1, when + 0.05);
+  };
 
   // Reference used to detect section changes between chord boundaries
   let lastKnownSections: Section[] | null = getSections ? getSections() : null;
@@ -1506,7 +1582,37 @@ export function scheduleProgression(
     const instruments = getInstrumentStates();
     const transposition = getCurrentTransposition();
     const metronomeOn = isMetronomeEnabled();
-    
+
+    // Vocal/reference audio track: (re)start a clip whenever a new pass through a
+    // section begins — including every repeat when repeatCount > 1, not just the
+    // section's first occurrence (buildSectionBoundaries merges repeats into one
+    // span, so this keys off isSectionRepeatStart instead). For a whole-song-scoped
+    // range, restart once at the very top, including on song-level loop restarts
+    // (currentSegmentIndex resets to 0 there too). Mute state stays in sync with
+    // live transposition changes every segment tick regardless of scope.
+    if (audioTrack) {
+      if (audioTrack.wholeRange) {
+        if (currentSegmentIndex === 0) {
+          stopVocalClip();
+          startVocalClip(audioTrack.wholeRange, segmentStartTime);
+        }
+      } else if (audioTrack.sectionRanges && segment.isSectionRepeatStart) {
+        stopVocalClip();
+        const range = audioTrack.sectionRanges[sectionId];
+        if (range) {
+          const spanEnd = findRepeatSpanEnd(chordSegments, currentSegmentIndex);
+          const sectionBeats = chordSegments
+            .slice(currentSegmentIndex, spanEnd)
+            .reduce((sum, seg) => sum + seg.slotCount / 4, 0);
+          const sectionDurationSec = sectionBeats * (60 / getCurrentBpm());
+          const clipDurationSec = range.endSec - range.startSec;
+          const hardStopTime = segmentStartTime + Math.min(clipDurationSec, sectionDurationSec);
+          startVocalClip(range, segmentStartTime, hardStopTime);
+        }
+      }
+      applyVocalMute(transposition !== 0, segmentStartTime);
+    }
+
     // Get sound types - prefer style's instrumentSounds, fallback to global instrument settings
     const pianoState = instruments.find(i => i.id === 'piano');
     const bassState = instruments.find(i => i.id === 'bass');
@@ -1826,6 +1932,7 @@ export function scheduleProgression(
       cancelled = true;
       timeouts.forEach(t => clearTimeout(t));
       if (nextBarTimeout) clearTimeout(nextBarTimeout);
+      stopVocalClip();
     }
   };
 }

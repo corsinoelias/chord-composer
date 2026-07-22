@@ -7,27 +7,30 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { EditorSection, WordToken, SongMeta } from './types';
+import type { EditorSection, WordToken, SongMeta, AudioRange } from './types';
 import { sectionsToSongFormat, tokensToRawLine, parseLineToTokens, makeEmptyLine, makeNewSection } from './lyricsParser';
 import { parseSectionBody } from './textParser';
 import ChordPalette from './ChordPalette';
 import { ChordEditModal } from '@/components/ChordEditModal';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DurationDots } from '@/components/DurationDots';
 import { StyleSelector } from '@/components/StyleSelector';
 import SongChordPlayer from '@/components/SongChordPlayer';
 import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
-import { createSection } from '@/lib/sections';
+import { createSection, type Section } from '@/lib/sections';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 import { playChordPreview } from '@/lib/audioEngine';
 import type { Song } from '@/data/songs';
 import { ALL_KEYS, SONG_GENRES } from '@/lib/musicKeys';
 import { parseChordString, serializeChords } from '@/lib/chordParser';
 import type { Chord } from '@/lib/musicTheory';
+import { uploadSongAudio, deleteSongAudio, type SongAudioUploadResult, type SongAudioUploadError } from '@/lib/songAudio';
+import AudioRangeEditor from './AudioRangeEditor';
 
 import {
   Music2, Plus, Trash2, Pencil, Check, X,
-  GripVertical, ChevronDown, ChevronUp, Copy, Play, Square, ClipboardPaste,
+  GripVertical, ChevronDown, ChevronUp, Copy, Play, Square, ClipboardPaste, AudioLines,
 } from 'lucide-react';
 
 // ── Transpose helpers ─────────────────────────────────────────────────────────
@@ -80,13 +83,17 @@ let _n = 9999;
 const nid = () => String(++_n);
 
 function cloneSection(s: EditorSection, suffix = ' (2)'): EditorSection {
-  return { id: nid(), name: s.name + suffix, lines: s.lines.map(l => ({ id: nid(), tokens: l.tokens.map(t => ({ ...t, id: nid() })) })), repeatCount: s.repeatCount };
+  return { id: nid(), name: s.name + suffix, lines: s.lines.map(l => ({ id: nid(), tokens: l.tokens.map(t => ({ ...t, id: nid() })) })), repeatCount: s.repeatCount, audioRange: s.audioRange };
 }
 function cloneLine(l: EditorSection['lines'][number]) {
   return { id: nid(), tokens: l.tokens.map(t => ({ ...t, id: nid() })) };
 }
 
 const SECTION_PRESETS = ['Intro','Verse 1','Verse 2','Pre-chorus','Chorus','Bridge','Outro','Solo','Interlude'];
+
+// Sentinel for `playingSectionId` when previewing the whole song's vocal clip from the
+// audio modal — distinct from any real section id, and from `null` (nothing playing).
+const WHOLE_SONG_AUDIO_PREVIEW_ID = '__whole_song_audio_preview__';
 
 interface EditingChord { sectionId: string; lineId: string; tokenId: string; chord: Chord | null; duration: number; }
 
@@ -98,9 +105,15 @@ interface Props {
   onPublish: (sections: EditorSection[]) => void;
   isPublishing: boolean;
   isEditMode?: boolean;
+  // Song id to key the shared audio file's Storage path off of — stable across
+  // renders even before the song has a real DB row (see SongCreator/index.tsx).
+  songId: string;
+  // Gates an action behind login, opening the sign-in modal and retrying once
+  // successful — same mechanism onPublish itself uses.
+  onRequireAuth: (action: () => void) => void;
 }
 
-export default function ChordStep({ sections: init, meta, onMetaChange, onBack, onPublish, isPublishing, isEditMode }: Props) {
+export default function ChordStep({ sections: init, meta, onMetaChange, onBack, onPublish, isPublishing, isEditMode, songId, onRequireAuth }: Props) {
   const [sections, setSections] = useState(init);
   const [savedSectionsJson, setSavedSectionsJson] = useState(() => JSON.stringify(init));
   const [savedMetaJson, setSavedMetaJson] = useState(() => JSON.stringify(meta));
@@ -116,6 +129,11 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
   const [pasteName, setPasteName] = useState('');
   const [pasteText, setPasteText] = useState('');
   const closePasteImport = () => { setPasteTarget(null); setPasteName(''); setPasteText(''); };
+
+  // null = closed, 'whole' = whole-song reference clip, otherwise = a section id
+  const [audioModalTarget, setAudioModalTarget] = useState<'whole' | string | null>(null);
+  const [isAttachingAudio, setIsAttachingAudio] = useState(false);
+  const [attachAudioError, setAttachAudioError] = useState<string | null>(null);
 
   const hasChanges = JSON.stringify(sections) !== savedSectionsJson || JSON.stringify(meta) !== savedMetaJson;
   const lineEditRef = useRef<HTMLTextAreaElement>(null);
@@ -150,6 +168,40 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
     }
     closePasteImport();
   };
+
+  // ── Vocal reference audio ───────────────────────────────────────────────────────
+  const anySectionHasAudioRange = sections.some(s => s.audioRange);
+
+  const handleAttachAudioFile = (file: File) => {
+    onRequireAuth(async () => {
+      setIsAttachingAudio(true);
+      setAttachAudioError(null);
+      const result = await uploadSongAudio(songId, file);
+      setIsAttachingAudio(false);
+      if (!result.ok) { setAttachAudioError((result as SongAudioUploadError).reason); return; }
+      const { url, path } = result as SongAudioUploadResult;
+      onMetaChange({ ...meta, audioTrack: { url, path } });
+    });
+  };
+
+  // Picking a different file invalidates every existing range (they were marked against
+  // the old file's timeline), so clear them all rather than leave stale offsets around.
+  const handleReplaceAudioFile = () => {
+    if (meta.audioTrack) deleteSongAudio(meta.audioTrack.path);
+    onMetaChange({ ...meta, audioTrack: undefined, audioWholeRange: undefined });
+    setSections(p => p.map(s => ({ ...s, audioRange: undefined })));
+    setAttachAudioError(null);
+  };
+
+  const handleAudioRangeChange = (range: AudioRange | undefined) => {
+    if (audioModalTarget === 'whole') {
+      onMetaChange({ ...meta, audioWholeRange: range });
+    } else if (audioModalTarget) {
+      const targetId = audioModalTarget;
+      setSections(p => p.map(s => s.id === targetId ? { ...s, audioRange: range } : s));
+    }
+  };
+
   const handleDragStart = ({ active }: DragStartEvent) => {
     const type = active.data.current?.type;
     if (type === 'chord' || type === 'palette-chord') {
@@ -315,8 +367,68 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
 
     if (!chords.length) return;
     setPlayingSectionId(section.id);
-    await play([{ ...createSection(section.name), chords, repeatCount: section.repeatCount }], playbackOpts());
-  }, [isPlaying, playingSectionId, play, stop, playbackOpts]);
+    await play([{ ...createSection(section.name), chords, repeatCount: section.repeatCount }], {
+      ...playbackOpts(),
+      // createSection() above mints a fresh Section.id, so section-keyed sectionRanges
+      // wouldn't match here — since this call only ever plays one section at a time,
+      // its own audioRange (if any) can just be treated as the whole clip for this play().
+      audioTrack: meta.audioTrack && section.audioRange
+        ? { url: meta.audioTrack.url, wholeRange: section.audioRange }
+        : undefined,
+    });
+  }, [isPlaying, playingSectionId, play, stop, playbackOpts, meta.audioTrack]);
+
+  // ── Whole-song audio-clip preview (audio modal, "whole song" target) ───────────
+  // Builds one temporary Section per editor section (mirrors handlePlaySection's own
+  // per-section conversion) so the vocal reference plays back-to-back with the actual
+  // chord progression, exactly like the real thing — not the acapella clip alone.
+  const buildEditorPlaybackSections = useCallback((): Section[] => {
+    return sections.map(section => {
+      const chords = section.lines.flatMap(l => l.tokens)
+        .filter(t => t.chord && !t.isSpace)
+        .flatMap(t => parseChordString(t.chord).map(c => ({ ...c, duration: t.duration })));
+      return { ...createSection(section.name), chords, repeatCount: section.repeatCount };
+    });
+  }, [sections]);
+
+  // createSection() mints a fresh id per playback Section, so section-keyed
+  // sectionRanges have to be matched by array position against the editor's own
+  // sections[i].audioRange, the same trick SongChordPlayer's buildAudioTrack uses.
+  const buildEditorAudioTrack = useCallback((playbackSections: Section[]) => {
+    if (!meta.audioTrack) return undefined;
+    if (meta.audioWholeRange) return { url: meta.audioTrack.url, wholeRange: meta.audioWholeRange };
+    const sectionRanges: Record<string, AudioRange> = {};
+    playbackSections.forEach((sec, i) => {
+      const range = sections[i]?.audioRange;
+      if (range) sectionRanges[sec.id] = range;
+    });
+    return Object.keys(sectionRanges).length > 0 ? { url: meta.audioTrack.url, sectionRanges } : undefined;
+  }, [meta.audioTrack, meta.audioWholeRange, sections]);
+
+  const handlePreviewWholeSongAudio = useCallback(async () => {
+    if (isPlaying && playingSectionId === WHOLE_SONG_AUDIO_PREVIEW_ID) { stop(); return; }
+    if (isPlaying) stop();
+
+    const playbackSections = buildEditorPlaybackSections();
+    if (!playbackSections.some(s => s.chords.length > 0)) return;
+    setPlayingSectionId(WHOLE_SONG_AUDIO_PREVIEW_ID);
+    await play(playbackSections, { ...playbackOpts(), audioTrack: buildEditorAudioTrack(playbackSections) });
+  }, [isPlaying, playingSectionId, play, stop, playbackOpts, buildEditorPlaybackSections, buildEditorAudioTrack]);
+
+  // Whichever target the audio modal is currently showing, is ITS preview (not some
+  // unrelated section played from the main list) the thing actually sounding right now?
+  const isAudioModalChordsPreviewPlaying = isPlaying && (
+    audioModalTarget === 'whole'
+      ? playingSectionId === WHOLE_SONG_AUDIO_PREVIEW_ID
+      : audioModalTarget !== null && playingSectionId === audioModalTarget
+  );
+
+  const handleToggleAudioModalChordsPreview = useCallback(() => {
+    if (audioModalTarget === 'whole') { handlePreviewWholeSongAudio(); return; }
+    if (!audioModalTarget) return;
+    const section = sections.find(s => s.id === audioModalTarget);
+    if (section) handlePlaySection(section);
+  }, [audioModalTarget, sections, handlePlaySection, handlePreviewWholeSongAudio]);
 
   const handleChordSave = (saved: Chord) => {
     if (!editingChord) return;
@@ -356,6 +468,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
     key: meta.key, capo: meta.capo || undefined, bpm: meta.bpm, style: meta.style,
     description: '', tags: [], relatedProgressions: [], genre: meta.genre,
     sections: sectionsToSongFormat(sections),
+    audioTrack: meta.audioTrack, audioWholeRange: meta.audioWholeRange,
   };
 
   const totalChords = sections.flatMap(s => s.lines.flatMap(l => l.tokens)).filter(t => t.chord).length;
@@ -434,6 +547,18 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
               triggerClassName="w-full h-9 bg-background border-border rounded-lg px-2 py-2 text-sm"
             />
           </div>
+          <div><label className="block text-xs font-medium text-muted-foreground mb-2">Referencia vocal (toda la canción)</label>
+            <button
+              onClick={() => setAudioModalTarget('whole')}
+              disabled={anySectionHasAudioRange}
+              title={anySectionHasAudioRange ? 'Hay una referencia vocal adjuntada por sección — quitala para usar una de toda la canción' : undefined}
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5
+                ${meta.audioWholeRange ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/40'}`}
+            >
+              <AudioLines className="w-3.5 h-3.5" />
+              {meta.audioWholeRange ? 'Editar referencia vocal' : 'Adjuntar referencia vocal'}
+            </button>
+          </div>
           <div><label className="block text-xs font-medium text-muted-foreground mb-2">Genre</label>
             <div className="flex flex-wrap gap-1.5">
               {SONG_GENRES.map(g => {
@@ -469,6 +594,8 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
                     onDuplicate={duplicateSection}
                     onRepeatChange={changeRepeat}
                     onPlaySection={handlePlaySection}
+                    onOpenAudioModal={setAudioModalTarget}
+                    wholeSongAudioActive={!!meta.audioWholeRange}
                     onAddLine={addLine}
                     onPasteLines={setPasteTarget}
                     onDeleteLine={deleteLine}
@@ -579,10 +706,12 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
 
       {/* ── Preview modal ── */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="w-[calc(100%-1rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+        <DialogContent aria-describedby={undefined} className="w-[calc(100%-1rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
           <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
             <Music2 className="w-4 h-4 text-primary shrink-0" />
-            <span className="font-semibold text-foreground truncate">{meta.title || 'Preview'}</span>
+            <DialogTitle asChild>
+              <span className="font-semibold text-foreground truncate">{meta.title || 'Preview'}</span>
+            </DialogTitle>
             {meta.artist && <span className="text-sm text-muted-foreground truncate">— {meta.artist}</span>}
           </div>
           <PlaybackProvider>
@@ -593,14 +722,16 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
 
       {/* ── Paste chords modal ── */}
       <Dialog open={pasteTarget !== null} onOpenChange={o => { if (!o) closePasteImport(); }}>
-        <DialogContent className="w-[calc(100%-1rem)] sm:max-w-lg p-0 gap-0">
+        <DialogContent aria-describedby={undefined} className="w-[calc(100%-1rem)] sm:max-w-lg p-0 gap-0">
           <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
             <ClipboardPaste className="w-4 h-4 text-primary shrink-0" />
-            <span className="font-semibold text-foreground">
-              {pasteTarget === 'new'
-                ? 'Paste chords into a new section'
-                : `Paste chords into ${sections.find(s => s.id === pasteTarget)?.name ?? 'section'}`}
-            </span>
+            <DialogTitle asChild>
+              <span className="font-semibold text-foreground">
+                {pasteTarget === 'new'
+                  ? 'Paste chords into a new section'
+                  : `Paste chords into ${sections.find(s => s.id === pasteTarget)?.name ?? 'section'}`}
+              </span>
+            </DialogTitle>
           </div>
           <div className="p-5 space-y-3">
             {pasteTarget === 'new' && (
@@ -644,6 +775,23 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Vocal reference audio modal ── */}
+      <AudioClipModal
+        target={audioModalTarget}
+        onTargetChange={target => { if (isAudioModalChordsPreviewPlaying) stop(); setAudioModalTarget(target); }}
+        onClose={() => { if (isAudioModalChordsPreviewPlaying) stop(); setAudioModalTarget(null); }}
+        sections={sections}
+        audioTrack={meta.audioTrack}
+        audioWholeRange={meta.audioWholeRange}
+        onAttachFile={handleAttachAudioFile}
+        onReplaceFile={handleReplaceAudioFile}
+        onRangeChange={handleAudioRangeChange}
+        attachError={attachAudioError}
+        isAttaching={isAttachingAudio}
+        isChordsPreviewPlaying={isAudioModalChordsPreviewPlaying}
+        onToggleChordsPreview={handleToggleAudioModalChordsPreview}
+      />
     </div>
   );
 }
@@ -708,6 +856,8 @@ interface SortableSectionProps {
   onDuplicate: (id: string) => void;
   onRepeatChange: (id: string, repeatCount: number) => void;
   onPlaySection: (section: EditorSection) => void;
+  onOpenAudioModal: (sectionId: string) => void;
+  wholeSongAudioActive: boolean;
   onAddLine: (sid: string) => void;
   onPasteLines: (sid: string) => void;
   onDeleteLine: (sid: string, lid: string) => void;
@@ -782,6 +932,21 @@ function SortableSection({ section, canDelete, isPlaying, isDraggingChord, ...pr
               {isPlaying ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
             </button>
           )}
+          {/* Vocal reference audio */}
+          <button
+            onClick={() => props.onOpenAudioModal(section.id)}
+            disabled={props.wholeSongAudioActive}
+            title={props.wholeSongAudioActive
+              ? 'Hay una referencia vocal activa para toda la canción — quitala para usar audio por sección'
+              : section.audioRange ? 'Editar referencia vocal de esta sección' : 'Adjuntar referencia vocal a esta sección'}
+            className={`p-1.5 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+              section.audioRange
+                ? 'text-primary bg-primary/10 hover:bg-primary/20'
+                : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+            }`}
+          >
+            <AudioLines className="w-3.5 h-3.5" />
+          </button>
           {/* Repeat count */}
           <div className="relative">
             <button
@@ -1005,5 +1170,216 @@ function TokenChip({ token, sectionId, lineId, isDraggingChord, isActive, bpm, r
         {token.text}
       </span>
     </span>
+  );
+}
+
+// ── Read-only lyrics/chords reference shown next to the waveform — lets the person
+// trimming a clip see where the section's actual words land, instead of guessing blind
+// from the audio alone ────────────────────────────────────────────────────────────
+function SectionLyricsPreview({ section }: { section: EditorSection }) {
+  const hasContent = section.lines.some(l => l.tokens.some(t => t.chord || t.text.trim()));
+  if (!hasContent) {
+    return <p className="text-xs text-muted-foreground italic">Esta sección todavía no tiene acordes ni letra.</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {section.lines.map(line => (
+        <div key={line.id} className="flex flex-wrap gap-x-1 gap-y-1.5">
+          {line.tokens.map(token => {
+            if (token.isSpace) return <span key={token.id} className="text-sm">{token.text}</span>;
+            if (!token.chord && !token.text.trim()) return null;
+            return (
+              <span key={token.id} className="inline-flex flex-col items-start" style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+                <span className="text-[10px] font-bold text-primary leading-none mb-0.5 h-3">{token.chord}</span>
+                <span className="text-sm text-foreground leading-snug">{token.text}</span>
+              </span>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function WholeSongLyricsPreview({ sections }: { sections: EditorSection[] }) {
+  return (
+    <div className="space-y-4">
+      {sections.map(s => (
+        <div key={s.id}>
+          <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-widest mb-1">{s.name}</p>
+          <SectionLyricsPreview section={s} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── AudioClipModal — attach the shared song audio file, pick which section (or the
+// whole song) it applies to, and mark a start/end range for that target ───────────
+interface AudioClipModalProps {
+  target: 'whole' | string | null; // null = closed
+  onTargetChange: (target: 'whole' | string) => void;
+  onClose: () => void;
+  sections: EditorSection[];
+  audioTrack?: { url: string };
+  audioWholeRange?: AudioRange;
+  onAttachFile: (file: File) => void;
+  onReplaceFile: () => void;
+  onRangeChange: (range: AudioRange | undefined) => void; // applies to the current target
+  attachError: string | null;
+  isAttaching: boolean;
+  // Real synced playback (chords + vocal reference together, via the same audio engine
+  // path as the section Play buttons) — separate from the raw scrub-preview inside
+  // AudioRangeEditor, which stays isolated for precise trimming.
+  isChordsPreviewPlaying: boolean;
+  onToggleChordsPreview: () => void;
+}
+
+function AudioClipModal({
+  target, onTargetChange, onClose, sections, audioTrack, audioWholeRange,
+  onAttachFile, onReplaceFile, onRangeChange, attachError, isAttaching,
+  isChordsPreviewPlaying, onToggleChordsPreview,
+}: AudioClipModalProps) {
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  // Guard against the target section having been deleted out from under the modal
+  // (e.g. a future non-blocking dialog variant, or a bulk-edit path) — close rather
+  // than show a picker referencing a section that no longer exists.
+  useEffect(() => {
+    if (target && target !== 'whole' && !sections.some(s => s.id === target)) onClose();
+  }, [target, sections, onClose]);
+
+  const currentSection = target && target !== 'whole' ? sections.find(s => s.id === target) : null;
+  const currentRange = target === 'whole' ? audioWholeRange : currentSection?.audioRange;
+  const anySectionHasRange = sections.some(s => s.audioRange);
+  const wholeActive = !!audioWholeRange;
+  // Other sections' clips on the same shared file, shown as reference bands while
+  // editing this one — irrelevant (and always empty) in whole-song scope.
+  const otherRanges = target && target !== 'whole'
+    ? sections.filter(s => s.id !== target && s.audioRange).map(s => ({ label: s.name, range: s.audioRange! }))
+    : [];
+
+  const chipClass = (active: boolean, disabled: boolean) => `text-xs px-2.5 py-1 rounded-full border transition-colors whitespace-nowrap
+    ${active ? 'bg-primary text-primary-foreground border-primary font-semibold' : 'border-border text-muted-foreground hover:border-primary/40'}
+    ${disabled ? 'opacity-30 cursor-not-allowed hover:border-border' : ''}`;
+
+  return (
+    <Dialog open={target !== null} onOpenChange={o => { if (!o) onClose(); }}>
+      <DialogContent aria-describedby={undefined} className="w-[calc(100%-1rem)] sm:max-w-5xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
+          <AudioLines className="w-4 h-4 text-primary shrink-0" />
+          <DialogTitle asChild>
+            <span className="font-semibold text-foreground truncate">Referencia vocal</span>
+          </DialogTitle>
+        </div>
+
+        {/* Section picker — choose what this clip/range applies to, without closing */}
+        {audioTrack && (
+          <div className="px-5 py-3 border-b border-border bg-muted/20">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">¿A qué parte se refiere?</p>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => onTargetChange('whole')}
+                disabled={anySectionHasRange && target !== 'whole'}
+                title={anySectionHasRange ? 'Hay recortes por sección — quitalos para usar uno de toda la canción' : undefined}
+                className={chipClass(target === 'whole', anySectionHasRange && target !== 'whole')}
+              >
+                Toda la canción
+              </button>
+              {sections.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => onTargetChange(s.id)}
+                  disabled={wholeActive && target !== s.id}
+                  title={wholeActive ? 'Hay una referencia para toda la canción — quitala para usar recortes por sección' : undefined}
+                  className={chipClass(target === s.id, wholeActive && target !== s.id)}
+                >
+                  {s.name}{s.audioRange ? ' •' : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="p-5 space-y-4">
+          {!audioTrack ? (
+            <div>
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={e => { const f = e.target.files?.[0]; if (f) onAttachFile(f); }}
+                className="block w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:text-sm file:font-medium file:cursor-pointer hover:file:bg-primary/20"
+              />
+              {isAttaching && <p className="text-xs text-muted-foreground mt-2">Cargando…</p>}
+              {attachError && <p className="text-xs text-destructive mt-2">{attachError}</p>}
+              <p className="text-xs text-muted-foreground mt-3">
+                Subí la grabación completa de la canción (voz + instrumentos) una sola vez.
+                Después vas a poder recortar qué parte suena en cada sección. Se guarda con
+                la canción y suena también en su página pública — te va a pedir iniciar
+                sesión si todavía no lo hiciste.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
+              <div className="space-y-4 min-w-0">
+                <AudioRangeEditor
+                  audioUrl={audioTrack.url}
+                  range={currentRange}
+                  onRangeChange={onRangeChange}
+                  otherRanges={otherRanges}
+                  targetLabel={target === 'whole' ? 'toda la canción' : currentSection ? `"${currentSection.name}"` : 'esta sección'}
+                  isChordsPreviewPlaying={isChordsPreviewPlaying}
+                  onToggleChordsPreview={onToggleChordsPreview}
+                  chordsPreviewLabel={target === 'whole' ? 'Escuchar toda la canción con los acordes' : 'Escuchar esta sección con los acordes'}
+                />
+                <button
+                  onClick={() => setConfirmDeleteOpen(true)}
+                  className="text-xs text-destructive/80 hover:text-destructive transition-colors"
+                >
+                  Eliminar referencia de audio
+                </button>
+              </div>
+
+              {/* Lyrics/chords reference — see where the section's text lands so the
+                  audio cut can be lined up with where it actually starts/ends */}
+              <div className="lg:border-l lg:border-border lg:pl-5 lg:max-h-[26rem] lg:overflow-y-auto">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
+                  {target === 'whole' ? 'Letra de toda la canción' : `Letra — ${currentSection?.name ?? ''}`}
+                </p>
+                {target === 'whole'
+                  ? <WholeSongLyricsPreview sections={sections} />
+                  : currentSection && <SectionLyricsPreview section={currentSection} />}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+          <button onClick={onClose} className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors">
+            Listo
+          </button>
+        </div>
+      </DialogContent>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar la referencia de audio?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se borra el archivo adjunto y todos los recortes marcados, tanto por sección
+              como el de toda la canción. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { onReplaceFile(); setConfirmDeleteOpen(false); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Dialog>
   );
 }

@@ -47,7 +47,13 @@ export default function SongCreator() {
   const [editSlug, setEditSlug] = useState<string>('');
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [pendingSections, setPendingSections] = useState<EditorSection[] | null>(null);
+  // Generic "run this once logged in" gate — reused by both Publish and the audio
+  // upload flow (both need a real session before writing to Supabase).
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  // Minted once per mount so Storage uploads (which need a stable song id) have
+  // something to key off of even before the song's real DB row exists — see
+  // songIdForAudio below and the "song-audio insert (owner or new song)" RLS policy.
+  const [newSongId] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
     const editSlugParam = getParam('edit');
@@ -101,12 +107,25 @@ export default function SongCreator() {
   }, []);
 
   const stepIndex = STEPS.findIndex(s => s.key === step);
+  // The song id to use for anything that needs one before the row necessarily exists
+  // (Storage upload paths) — the real DB id once editing an existing song, otherwise
+  // the freshly-minted one that becomes the real id on first publish.
+  const songIdForAudio = editId ?? newSongId;
 
   function handleAuthSuccess() {
-    if (!pendingSections) return;
-    const sections = pendingSections;
-    setPendingSections(null);
-    handlePublish(sections);
+    const action = pendingAction;
+    setPendingAction(null);
+    action?.();
+  }
+
+  // Runs `action` immediately if already logged in; otherwise opens the login modal
+  // and retries `action` once it succeeds (mirrors what handlePublish did on its own
+  // before this was generalized to also gate the audio-attach flow in ChordStep).
+  async function requireAuthThen(action: () => void) {
+    const userId = await ensureAuth();
+    if (userId) { action(); return; }
+    setPendingAction(() => action);
+    setAuthModalOpen(true);
   }
 
   function handleTextImport(parsedMeta: Partial<SongMeta>, parsedSections: EditorSection[]) {
@@ -125,14 +144,11 @@ export default function SongCreator() {
     setStep('chords');
   }
 
-  async function handlePublish(finalSections: EditorSection[]) {
-    const userId = await ensureAuth();
-    if (!userId) {
-      setPendingSections(finalSections);
-      setAuthModalOpen(true);
-      return;
-    }
+  function handlePublish(finalSections: EditorSection[]) {
+    requireAuthThen(() => doPublish(finalSections));
+  }
 
+  async function doPublish(finalSections: EditorSection[]) {
     setIsPublishing(true);
     try {
       const songSections = sectionsToSongFormat(finalSections);
@@ -151,12 +167,18 @@ export default function SongCreator() {
           tags: [...meta.genre],
           description: `${meta.title} by ${meta.artist} — interactive chord chart with lyrics. Key of ${meta.key}.`,
           sections: songSections,
+          // Explicit null (not undefined) when absent — toDb only clears the DB
+          // columns for a key it actually receives, so this is what lets removing
+          // the audio track in the editor actually clear it on next publish.
+          audioTrack: meta.audioTrack ?? null,
+          audioWholeRange: meta.audioWholeRange ?? null,
         });
         if (!ok) { toast.error('Failed to update song.'); return; }
         setPublishedSlug(editSlug || getParam('edit') || '');
       } else {
         const slug = generateSlug(meta.title, meta.artist);
         const songPayload = {
+          id: newSongId,
           slug,
           title: meta.title,
           artist: meta.artist,
@@ -171,6 +193,8 @@ export default function SongCreator() {
           relatedProgressions: [] as string[],
           sections: songSections,
           is_published: true,
+          audioTrack: meta.audioTrack,
+          audioWholeRange: meta.audioWholeRange,
         };
 
         // If coming from a static song, upsert by slug (update if exists, create if not)
@@ -299,6 +323,8 @@ export default function SongCreator() {
                 onPublish={handlePublish}
                 isPublishing={isPublishing}
                 isEditMode={!!editId}
+                songId={songIdForAudio}
+                onRequireAuth={requireAuthThen}
               />
             </PlaybackProvider>
           )}

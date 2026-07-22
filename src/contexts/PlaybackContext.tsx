@@ -56,6 +56,14 @@ interface PlayOptions {
   loopingSectionIndex?: number | null;
   melodic?: MelodicData;
   sections?: Section[];
+  // Vocal/reference audio — a single file, sliced per section (keyed by Section.id) or
+  // as one continuous span for the whole song. Decoded once per URL (see
+  // audioTrackBufferRef) and muted while transposition !== 0 (local-only prototype).
+  audioTrack?: {
+    url: string;
+    wholeRange?: { startSec: number; endSec: number };
+    sectionRanges?: Record<string, { startSec: number; endSec: number }>;
+  };
 }
 
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
@@ -81,6 +89,9 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const rafRef = useRef<number>();
   const optionsRef = useRef<PlayOptions | null>(null);
   const sectionsRef = useRef<Section[]>([]);
+  // Caches the decoded vocal-reference buffer by URL so replaying/looping the same
+  // song doesn't re-fetch+decode on every play() call within the session.
+  const audioTrackBufferRef = useRef<{ url: string; buffer: AudioBuffer } | null>(null);
   const audioPreloaded = useRef(false);
   // Identifies this PlaybackProvider instance — multiple can exist at once (e.g. one
   // per ChordEmbed on a page), but they all share the same underlying audio engine.
@@ -267,6 +278,27 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Vocal reference audio: decode once per URL (cached across replays within the
+    // session), regardless of the current transposition — only the audible gain depends
+    // on transposition (see audioEngine.ts), so returning to key 0 mid-session doesn't
+    // need a re-fetch.
+    let decodedAudioTrackBuffer: AudioBuffer | null = null;
+    if (options.audioTrack) {
+      const { url } = options.audioTrack;
+      if (audioTrackBufferRef.current?.url === url) {
+        decodedAudioTrackBuffer = audioTrackBufferRef.current.buffer;
+      } else {
+        try {
+          const res = await fetch(url);
+          const arrayBuffer = await res.arrayBuffer();
+          decodedAudioTrackBuffer = await getAudioContext().decodeAudioData(arrayBuffer);
+          audioTrackBufferRef.current = { url, buffer: decodedAudioTrackBuffer };
+        } catch (err) {
+          console.warn('Vocal reference audio failed to load/decode:', err);
+        }
+      }
+    }
+
     setState(prev => ({
       ...prev,
       isPlaying: true,
@@ -281,6 +313,11 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     const { cancel } = scheduleProgression(sections, options.bpm, {
       loop: true,
       metronome: options.metronome,
+      audioTrack: decodedAudioTrackBuffer ? {
+        buffer: decodedAudioTrackBuffer,
+        wholeRange: options.audioTrack?.wholeRange,
+        sectionRanges: options.audioTrack?.sectionRanges,
+      } : undefined,
       instruments: options.instruments,
       style,
       transposition: options.transposition,
