@@ -325,12 +325,15 @@ export function MelodicPatternGrid({
             const chordHitSlots = activeVariation.chordHit ?? [];
             return (
               <div className="flex items-center gap-2">
-                <div
-                  title="Chord — all chord tones together"
-                  className="w-9 h-9 shrink-0 rounded-lg grid place-items-center border text-amber-600 dark:text-amber-400"
-                  style={{ backgroundColor: 'rgba(245,158,11,0.14)', borderColor: 'rgba(245,158,11,0.34)' }}
-                >
-                  <Layers className="w-4 h-4" />
+                <div className="shrink-0 w-11 flex flex-col items-center gap-0.5">
+                  <div
+                    title="Chord — all chord tones together"
+                    className="w-9 h-9 rounded-lg grid place-items-center border text-amber-600 dark:text-amber-400"
+                    style={{ backgroundColor: 'rgba(245,158,11,0.14)', borderColor: 'rgba(245,158,11,0.34)' }}
+                  >
+                    <Layers className="w-4 h-4" />
+                  </div>
+                  <span className="text-[8px] leading-none text-amber-600/80 dark:text-amber-400/80 text-center w-full">Chord</span>
                 </div>
                 <div className="grid flex-1 gap-1.5" style={gridCols}>
                   {visibleSlots.map(slot => {
@@ -362,12 +365,13 @@ export function MelodicPatternGrid({
             const displayOctave = storedOctave - naturalOctave;
             return (
               <div key={degree} className="flex items-center gap-2">
+                <div className="shrink-0 w-11 flex flex-col items-center gap-0.5">
                 <Popover>
                   <PopoverTrigger asChild>
                     <button
                       title={`Degree ${degree} · ${pitchClass(noteNames[degree])} — tap for octave`}
                       className={cn(
-                        'w-9 h-9 shrink-0 rounded-lg grid place-items-center border relative text-xs font-bold transition-transform active:scale-95',
+                        'w-9 h-9 rounded-lg grid place-items-center border relative text-xs font-bold transition-transform active:scale-95',
                         !isChordTone && 'bg-muted text-muted-foreground border-border',
                       )}
                       style={isChordTone
@@ -398,6 +402,8 @@ export function MelodicPatternGrid({
                     </div>
                   </PopoverContent>
                 </Popover>
+                  <span className="text-[8px] leading-none text-muted-foreground text-center w-full">{degree}</span>
+                </div>
                 <div className="grid flex-1 gap-1.5" style={gridCols}>
                   {visibleSlots.map(slot => {
                     const active = (degSlots[slot] ?? 0) > 0;
@@ -424,7 +430,7 @@ export function MelodicPatternGrid({
 
           {/* Beat ruler at the bottom (like the drum grid) */}
           <div className="flex items-center gap-2 pt-0.5">
-            <div className="w-9 shrink-0" />
+            <div className="w-11 shrink-0" />
             <div className="grid flex-1 gap-1.5" style={gridCols}>
               {visibleSlots.map(slot => {
                 const isBeat = slot % slotsPerBeatGroup === 0;

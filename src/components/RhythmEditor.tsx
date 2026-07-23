@@ -1163,12 +1163,13 @@ export function RhythmEditor({
 
                   return (
                     <div key={instrument.key} className="flex items-center gap-2">
-                      {/* Icon rail — tap the instrument for row options (clear / remove) */}
+                      {/* Icon rail — tap for row options; tiny name below like a mixer channel */}
+                      <div className="shrink-0 w-11 flex flex-col items-center gap-0.5">
                       <Popover>
                         <PopoverTrigger asChild>
                           <button
                             title={instrument.label}
-                            className="w-9 h-9 shrink-0 rounded-lg grid place-items-center border transition-transform active:scale-95"
+                            className="w-9 h-9 rounded-lg grid place-items-center border transition-transform active:scale-95"
                             style={{ color: instColor, backgroundColor: hexToRgba(instColor, 0.14), borderColor: hexToRgba(instColor, 0.32) }}
                           >
                             <Icon className="w-4 h-4" />
@@ -1194,6 +1195,8 @@ export function RhythmEditor({
                           )}
                         </PopoverContent>
                       </Popover>
+                        <span className="text-[8px] leading-none text-muted-foreground text-center w-full truncate">{instrument.label}</span>
+                      </div>
 
                       {/* Step pads for the current page */}
                       <div className="grid flex-1 gap-1.5" style={{ gridTemplateColumns: `repeat(${drumPageSize}, minmax(0, 1fr))` }}>
@@ -1315,13 +1318,15 @@ export function RhythmEditor({
 
                 {/* Ruler row — "+" to add an instrument, then the beat numbers for this page */}
                 <div className="flex items-center gap-2 pt-1">
-                  <button
-                    title="Add instrument"
-                    onClick={() => setAddSheetOpen(true)}
-                    className="w-9 h-9 shrink-0 rounded-lg grid place-items-center border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
+                  <div className="shrink-0 w-11 flex justify-center">
+                    <button
+                      title="Add instrument"
+                      onClick={() => setAddSheetOpen(true)}
+                      className="w-9 h-9 rounded-lg grid place-items-center border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                   <div className="grid flex-1 gap-1.5" style={{ gridTemplateColumns: `repeat(${drumPageSize}, minmax(0, 1fr))` }}>
                     {drumVisibleSteps.map(step => {
                       const slotInBar = step % slotsPerBar;
