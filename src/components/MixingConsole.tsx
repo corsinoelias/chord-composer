@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import * as SliderPrimitive from '@radix-ui/react-slider';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -42,10 +43,10 @@ function EQBand({
   value: number; 
   onChange: (v: number) => void; 
 }) {
-  const percentage = ((value + 12) / 24) * 100;
+  const percentage = ((value + 12) / 24) * 100; // 0..100, 50 = center (0 dB)
   const isBoost = value > 0;
   const isCut = value < 0;
-  
+
   return (
     <div className="flex flex-col items-center gap-2 flex-1">
       {/* Gain value */}
@@ -54,51 +55,44 @@ function EQBand({
       }`}>
         {value > 0 ? '+' : ''}{value.toFixed(1)}
       </span>
-      
-      {/* Vertical slider track */}
-      <div className="relative w-8 h-32 flex items-center justify-center">
-        {/* Track background */}
-        <div className="absolute w-1.5 h-full rounded-full bg-secondary overflow-hidden">
-          {/* Filled portion from center */}
-          <div 
+
+      {/* Vertical fader — Radix Slider handles touch/pointer natively (the previous
+          rotated <input type="range"> was unusable on mobile: the browser maps touch
+          to the un-rotated element, so dragging didn't track the finger). The root is
+          intentionally wide (w-10) to give a comfortable touch target around the thin
+          visible track. */}
+      <SliderPrimitive.Root
+        orientation="vertical"
+        min={-12}
+        max={12}
+        step={0.5}
+        value={[value]}
+        onValueChange={([v]) => onChange(v)}
+        aria-label={`${label} EQ gain`}
+        className="relative flex flex-col items-center justify-center w-10 h-32 touch-none select-none"
+      >
+        <SliderPrimitive.Track className="relative w-1.5 h-full rounded-full bg-secondary overflow-hidden">
+          {/* Bipolar fill from center: green up when boosting, red down when cutting */}
+          <div
             className="absolute w-full transition-all duration-75"
             style={{
-              backgroundColor: isBoost 
-                ? 'hsl(var(--success))' 
-                : isCut 
-                  ? 'hsl(var(--destructive))' 
+              backgroundColor: isBoost
+                ? 'hsl(var(--success))'
+                : isCut
+                  ? 'hsl(var(--destructive))'
                   : 'hsl(var(--primary))',
               top: isBoost ? `${100 - percentage}%` : '50%',
               bottom: isCut ? `${percentage}%` : '50%',
-              height: 'auto',
             }}
           />
-          {/* Center line */}
+          {/* Center (0 dB) line */}
           <div className="absolute w-full h-px bg-muted-foreground/40 top-1/2" />
-        </div>
-        
-        {/* Slider input */}
-        <input
-          type="range"
-          min={-12}
-          max={12}
-          step={0.5}
-          value={value}
-          onChange={(e) => onChange(parseFloat(e.target.value))}
-          className="absolute w-32 h-8 opacity-0 cursor-pointer"
-          style={{ 
-            transform: 'rotate(-90deg)',
-            WebkitAppearance: 'none',
-          }}
+        </SliderPrimitive.Track>
+        <SliderPrimitive.Thumb
+          className="block w-6 h-3 rounded-sm bg-foreground/90 border border-border shadow-sm cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-        
-        {/* Thumb indicator */}
-        <div 
-          className="absolute w-6 h-3 rounded-sm bg-foreground/80 border border-border shadow-sm pointer-events-none transition-all duration-75"
-          style={{ top: `${100 - percentage}%`, transform: 'translateY(-50%)' }}
-        />
-      </div>
-      
+      </SliderPrimitive.Root>
+
       {/* Labels */}
       <div className="text-center">
         <div className="text-xs font-medium text-foreground">{label}</div>
