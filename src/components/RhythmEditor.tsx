@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties, type ReactNode } from 'react';
 import { analytics } from '@/lib/analytics';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { 
   Play, 
   Square, 
@@ -25,7 +26,7 @@ import {
   RotateCw
 } from 'lucide-react';
 import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar, getStyleTotalSlots, getPulseInterval } from '@/lib/styles';
-import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
+import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback, previewDrumHit } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates, INSTRUMENTS, type InstrumentType } from '@/lib/instruments';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
@@ -45,20 +46,57 @@ import {
 } from '@/components/ui/alert-dialog';
 import { MelodicPatternGrid } from '@/components/MelodicPatternGrid';
 import { emptyMelodicData, createVariation, scalePatternIsEmpty, type InstrumentMelodic } from '@/lib/bassScale';
+import { useIsMobile } from '@/hooks/use-mobile';
+
+// Custom line-art glyphs per drum part — lucide only ships a generic `Drum`, so these
+// let the player tell a kick from a hi-hat from a crash at a glance. Rendered like a
+// lucide icon (24 viewBox, currentColor stroke; size/color come from className/style).
+type PartIconProps = { className?: string; style?: CSSProperties };
+const makePartIcon = (children: ReactNode) =>
+  function PartIcon({ className, style }: PartIconProps) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        width="24"
+        height="24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+        style={style}
+        aria-hidden="true"
+      >
+        {children}
+      </svg>
+    );
+  };
+
+const KickIcon = makePartIcon(<><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="2.3" /></>);
+const SnareIcon = makePartIcon(<><ellipse cx="12" cy="8" rx="7" ry="2.2" /><path d="M5 8v5a7 2.2 0 0 0 14 0V8" /><path d="M5 11h14" /></>);
+const SnareStickIcon = makePartIcon(<><path d="M5 6.5l13 11" /><path d="M19 6.5l-13 11" /></>);
+const HiHatIcon = makePartIcon(<><path d="M4 10.5h16" /><path d="M5.5 12.5h13" /><path d="M12 12.5v5.5" /><path d="M9 19.5h6" /></>);
+const HiHatOpenIcon = makePartIcon(<><path d="M4 8.5h16" /><path d="M4 12.8h16" /><path d="M12 12.8v5" /><path d="M9 19.5h6" /></>);
+const HiHatFootIcon = makePartIcon(<><path d="M5.5 10.5h13" /><path d="M6.5 12.5h11" /><path d="M12 12.5v4.5" /><path d="M7 20l5-2 5 2" /></>);
+const TomIcon = makePartIcon(<><ellipse cx="12" cy="7.5" rx="6.5" ry="2" /><path d="M5.5 7.5v6a6.5 2 0 0 0 13 0v-6" /></>);
+const FloorTomIcon = makePartIcon(<><ellipse cx="12" cy="7" rx="6" ry="1.8" /><path d="M6 7v7a6 1.8 0 0 0 12 0V7" /><path d="M7 15l-1.5 5M17 15l1.5 5" /></>);
+const RideIcon = makePartIcon(<><ellipse cx="12" cy="10" rx="9" ry="2.2" /><circle cx="12" cy="10" r="1" /><path d="M12 12v7" /><path d="M9 20h6" /></>);
+const CrashIcon = makePartIcon(<><ellipse cx="12" cy="11" rx="9" ry="2" transform="rotate(-14 12 11)" /><path d="M12 12.8V19" /><path d="M9 20h6" /></>);
 
 // All possible instruments in the editor
 const ALL_INSTRUMENTS = [
-  { key: 'kick', label: 'Kick', category: 'drums', icon: Drum },
-  { key: 'snare', label: 'Snare', category: 'drums', icon: Drum },
-  { key: 'snareStick', label: 'Snare Stick', category: 'drums', icon: Drum },
-  { key: 'hihat', label: 'Hi-Hat', category: 'drums', icon: Drum },
-  { key: 'hihatOpen', label: 'Hi-Hat Open', category: 'drums', icon: Drum },
-  { key: 'hihatFoot', label: 'Hi-Hat Foot', category: 'drums', icon: Drum },
-  { key: 'tom1', label: 'Tom 1', category: 'drums', icon: Drum },
-  { key: 'tom2', label: 'Tom 2', category: 'drums', icon: Drum },
-  { key: 'floorTom', label: 'Floor Tom', category: 'drums', icon: Drum },
-  { key: 'ride', label: 'Ride', category: 'drums', icon: Drum },
-  { key: 'crash', label: 'Crash', category: 'drums', icon: Drum },
+  { key: 'kick', label: 'Kick', category: 'drums', icon: KickIcon },
+  { key: 'snare', label: 'Snare', category: 'drums', icon: SnareIcon },
+  { key: 'snareStick', label: 'Snare Stick', category: 'drums', icon: SnareStickIcon },
+  { key: 'hihat', label: 'Hi-Hat', category: 'drums', icon: HiHatIcon },
+  { key: 'hihatOpen', label: 'Hi-Hat Open', category: 'drums', icon: HiHatOpenIcon },
+  { key: 'hihatFoot', label: 'Hi-Hat Foot', category: 'drums', icon: HiHatFootIcon },
+  { key: 'tom1', label: 'Tom 1', category: 'drums', icon: TomIcon },
+  { key: 'tom2', label: 'Tom 2', category: 'drums', icon: TomIcon },
+  { key: 'floorTom', label: 'Floor Tom', category: 'drums', icon: FloorTomIcon },
+  { key: 'ride', label: 'Ride', category: 'drums', icon: RideIcon },
+  { key: 'crash', label: 'Crash', category: 'drums', icon: CrashIcon },
   { key: 'bass', label: 'Bass', category: 'bass', icon: Music },
   { key: 'piano', label: 'Piano', category: 'piano', icon: Piano },
   { key: 'guitar', label: 'Guitar', category: 'guitar', icon: Guitar },
@@ -111,14 +149,33 @@ function migrateRhythmToMelodic(style: StylePattern): StylePattern {
   return changed ? { ...style, melodic } : style;
 }
 
-const VELOCITY_LEVELS = [0, 0.3, 0.5, 0.7, 1];
-const VELOCITY_COLORS = [
-  'bg-secondary',
-  'bg-chart-4/40',
-  'bg-chart-4/60',
-  'bg-chart-4/80',
-  'bg-chart-4',
-];
+// A signature color per instrument row — active cells are painted in this hue with
+// intensity mapped to velocity (brighter = harder), so rows read at a glance instead
+// of every hit sharing one amber. Non-drum keys get a sensible fallback.
+const INSTRUMENT_COLORS: Record<string, string> = {
+  kick: '#ff5a5f',
+  snare: '#ffab1d',
+  snareStick: '#f6c344',
+  hihat: '#22bcd6',
+  hihatOpen: '#17b8a6',
+  hihatFoot: '#3b9ad1',
+  tom1: '#ff8a3d',
+  tom2: '#ff7a59',
+  floorTom: '#e8623d',
+  ride: '#46c26a',
+  crash: '#9b7cff',
+  bass: '#6d8bff',
+  piano: '#a78bfa',
+  guitar: '#f26fb0',
+};
+const DEFAULT_INSTRUMENT_COLOR = '#8b7cff';
+
+// hex (#rrggbb) → rgba string at the given alpha, for velocity-scaled cell fills.
+function hexToRgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 // All drum instrument keys for Fill mode
 const DRUM_INSTRUMENT_KEYS: InstrumentKey[] = [
@@ -208,8 +265,14 @@ export function RhythmEditor({
   // so subscribing here doesn't re-render on unrelated playback changes.
   const mainPlayheadStep = useCurrentStep();
   
+  const isMobile = useIsMobile();
   const [editedStyle, setEditedStyle] = useState<StylePattern>(cloneStyle(style));
   const [originalStyleName, setOriginalStyleName] = useState(style.name); // For dropdown display
+  // Which page of the drum grid is visible. Steps are shown a page at a time
+  // (half a bar on phones, a full bar on wider screens) and navigated with dots —
+  // no horizontal scrolling.
+  const [drumPage, setDrumPage] = useState(0);
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [isLocalPlaying, setIsLocalPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
   const [showFill, setShowFill] = useState(false);
@@ -244,6 +307,10 @@ export function RhythmEditor({
   const initializedStyleIdRef = useRef<string>('');
   const stepAnimationRef = useRef<number | null>(null);
   const loopStartTimeRef = useRef<number>(0);
+  // Long-press bookkeeping: a tap toggles the cell, holding (>420ms) opens the
+  // velocity control instead. longFiredRef guards the trailing click after a hold.
+  const pressTimerRef = useRef<number | null>(null);
+  const longFiredRef = useRef(false);
   
   const isSyncedWithMain = isMainPlaying && !isLocalPlaying;
   const isPlaying = isLocalPlaying || isMainPlaying;
@@ -504,9 +571,54 @@ export function RhythmEditor({
     startLocalPlayback();
   }, [isLocalPlaying, isMainPlaying, startLocalPlayback, stopLocalPlayback, stopMainPlayback]);
 
-  const handleCellClick = (instrument: InstrumentKey, step: number, isFill: boolean) => {
-    // Open velocity popover for this cell
-    setVelocityPopover({ instrument, step, isFill });
+  // Audible feedback: fire the instrument's own sound so the user hears what they placed.
+  const previewInstrument = (instrument: InstrumentKey, velocity: number) => {
+    if (velocity <= 0 || !DRUM_INSTRUMENT_KEYS.includes(instrument)) return;
+    const soundId = editedStyleRef.current.instrumentSounds?.drums ?? 'standard';
+    const drumsVol = editedStyleRef.current.volumes?.drums ?? 0.8;
+    previewDrumHit(instrument, soundId, Math.min(1, velocity) * drumsVol);
+  };
+
+  // Tap = toggle the step on/off (default velocity = accent). Long-press or right-click
+  // opens the velocity control. This replaces the old "every tap opens a menu" flow.
+  const toggleCell = (instrument: InstrumentKey, step: number, isFill: boolean) => {
+    const bucket = isFill ? editedStyleRef.current.fill.pattern : editedStyleRef.current.rhythm;
+    const next = (bucket[instrument]?.[step] ?? 0) > 0 ? 0 : 1;
+    if (next > 0) previewInstrument(instrument, next); // sound only when turning a hit on
+    setEditedStyle(prev => {
+      const newStyle = cloneStyle(prev);
+      const b = isFill ? newStyle.fill.pattern : newStyle.rhythm;
+      if (!b[instrument]) {
+        b[instrument] = createEmptyPattern(getStyleTotalSlots(newStyle));
+      }
+      b[instrument]![step] = next;
+      return newStyle;
+    });
+  };
+
+  const startCellPress = (instrument: InstrumentKey, step: number, isFill: boolean) => {
+    longFiredRef.current = false;
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    pressTimerRef.current = window.setTimeout(() => {
+      longFiredRef.current = true;
+      setVelocityPopover({ instrument, step, isFill });
+    }, 420);
+  };
+
+  const endCellPress = () => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+  };
+
+  const handleCellTap = (instrument: InstrumentKey, step: number, isFill: boolean) => {
+    // Swallow the click that trails a long-press (which already opened the velocity control).
+    if (longFiredRef.current) {
+      longFiredRef.current = false;
+      return;
+    }
+    toggleCell(instrument, step, isFill);
   };
 
   const handleVelocityChange = (value: number) => {
@@ -528,25 +640,6 @@ export function RhythmEditor({
         newStyle.rhythm[instrument]![step] = value;
       }
 
-      return newStyle;
-    });
-  };
-
-  const handleCellRightClick = (e: React.MouseEvent, instrument: InstrumentKey, step: number, isFill: boolean) => {
-    e.preventDefault();
-    setEditedStyle(prev => {
-      const newStyle = cloneStyle(prev);
-      
-      if (isFill) {
-        if (newStyle.fill.pattern[instrument]) {
-          newStyle.fill.pattern[instrument]![step] = 0;
-        }
-      } else {
-        if (newStyle.rhythm[instrument]) {
-          newStyle.rhythm[instrument]![step] = 0;
-        }
-      }
-      
       return newStyle;
     });
   };
@@ -720,12 +813,6 @@ export function RhythmEditor({
     setShowFill(checked);
   };
 
-  const getVelocityColor = (value: number): string => {
-    const idx = VELOCITY_LEVELS.findIndex(v => Math.abs(v - value) < 0.1);
-    return VELOCITY_COLORS[idx === -1 ? 0 : idx];
-  };
-
-  const availableInstruments = ALL_INSTRUMENTS.filter(i => !activeInstruments.has(i.key));
   const sortedActiveInstruments = ALL_INSTRUMENTS.filter(i => activeInstruments.has(i.key));
   // Slots per bar for the style being edited (16 for 4/4, 12 for 6/8, etc.)
   const slotsPerBar = getSlotsPerBar(editedStyle);
@@ -738,6 +825,31 @@ export function RhythmEditor({
   // in 6/8 (2 slots), one quarter note in 4/4 (4 slots) — so cells are numbered
   // 1..6 continuously in 6/8 instead of the old fixed "4 quarter-note groups".
   const slotsPerBeatGroup = getPulseInterval(editedStyle);
+
+  // Paging: half a bar per page on phones (keeps pads finger-sized without side-scroll),
+  // a whole bar per page on wider screens (fills the dialog). Steps are grouped into
+  // pages navigated by dots — never a horizontal scrollbar.
+  const drumPageSize = isMobile ? Math.max(4, Math.ceil(slotsPerBar / 2)) : slotsPerBar;
+  const drumTotalPages = Math.max(1, Math.ceil(totalSlots / drumPageSize));
+  const drumViewPage = Math.min(drumPage, drumTotalPages - 1);
+  const drumPageStart = drumViewPage * drumPageSize;
+  const drumVisibleSteps = Array.from(
+    { length: Math.min(drumPageSize, totalSlots - drumPageStart) },
+    (_, i) => drumPageStart + i,
+  );
+
+  // Reset to the first page whenever the grid's shape changes (bars, meter, Fill mode,
+  // switching phone/desktop page size).
+  useEffect(() => {
+    setDrumPage(0);
+  }, [totalSlots, showFill, drumPageSize]);
+
+  // While playing, follow the playhead across pages so the moving cell stays on screen.
+  useEffect(() => {
+    if (!(isLocalPlaying || isMainPlaying) || displayStep < 0) return;
+    const p = Math.floor(displayStep / drumPageSize);
+    setDrumPage(prev => (prev !== p ? p : prev));
+  }, [displayStep, isLocalPlaying, isMainPlaying, drumPageSize]);
 
   const handleDeleteStyle = (styleToDelete: StylePattern) => {
     setStyleToDelete(styleToDelete);
@@ -1039,55 +1151,60 @@ export function RhythmEditor({
             </div>
           </div>
 
-          {/* Grid Area */}
-          <div className="flex-1 min-h-0 sm:max-h-[400px] overflow-auto">
-            <div className="p-3 sm:p-4 min-w-0 sm:min-w-[340px]">
-              {/* Grid Rows — a single flat row of slotsPerBar steps per instrument.
-                  Pulse numbers (1, 2, 3…) are printed inside the empty cell at each
-                  pulse start instead of a separate header row above the grid. */}
-              <div className="space-y-3 sm:space-y-1">
+          {/* Grid Area — a paged step sequencer: instrument rows (icon rail) × step pads */}
+          <div className="flex-1 min-h-0 overflow-auto">
+            <div className="p-3 sm:p-4">
+              <div className="space-y-1.5">
                 {sortedActiveInstruments.filter(i => i.category === 'drums').map(instrument => {
                   const basePattern = editedStyle.rhythm[instrument.key] || createEmptyPattern(totalSlots);
                   const fillPattern = editedStyle.fill.pattern[instrument.key];
                   const Icon = instrument.icon;
+                  const instColor = INSTRUMENT_COLORS[instrument.key] ?? DEFAULT_INSTRUMENT_COLOR;
 
                   return (
-                    <div key={instrument.key} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 pb-2 sm:pb-0 border-b border-border/40 sm:border-0 last:border-0">
-                      {/* Mobile header: label + clear on their own row above the pads */}
-                      <div className="flex items-center justify-between sm:hidden">
-                        <div className="flex items-center gap-1.5">
-                          <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-                          <span className="text-sm font-medium">{instrument.label}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setClearConfirm({ instrument: instrument.key, isFill: showFill })}
-                          title="Clear pattern"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </Button>
-                      </div>
+                    <div key={instrument.key} className="flex items-center gap-2">
+                      {/* Icon rail — tap the instrument for row options (clear / remove) */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            title={instrument.label}
+                            className="w-9 h-9 shrink-0 rounded-lg grid place-items-center border transition-transform active:scale-95"
+                            style={{ color: instColor, backgroundColor: hexToRgba(instColor, 0.14), borderColor: hexToRgba(instColor, 0.32) }}
+                          >
+                            <Icon className="w-4 h-4" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent side="right" align="start" className="w-44 p-1">
+                          <div className="px-2 py-1.5 text-xs font-semibold flex items-center gap-1.5">
+                            <Icon className="w-3.5 h-3.5" style={{ color: instColor }} />{instrument.label}
+                          </div>
+                          <button
+                            onClick={() => setClearConfirm({ instrument: instrument.key, isFill: showFill })}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-muted text-left"
+                          >
+                            <RotateCcw className="w-4 h-4" /> Clear row
+                          </button>
+                          {!['kick', 'snare', 'hihat', 'bass', 'piano', 'guitar'].includes(instrument.key) && (
+                            <button
+                              onClick={() => removeInstrument(instrument.key)}
+                              className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-muted text-destructive text-left"
+                            >
+                              <Trash2 className="w-4 h-4" /> Remove
+                            </button>
+                          )}
+                        </PopoverContent>
+                      </Popover>
 
-                      {/* Desktop label (narrow left column) */}
-                      <div className="hidden sm:flex w-24 items-center gap-0.5 shrink-0 overflow-hidden">
-                        <Icon className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <span className="text-xs font-medium truncate">{instrument.label}</span>
-                      </div>
-
-                      {/* Steps — 4-per-row grid of big pads on mobile, single horizontal row on desktop */}
-                      <div className="grid grid-cols-4 gap-1.5 sm:flex sm:flex-1 sm:gap-0.5 sm:px-0.5">
-                        {Array.from({ length: totalSlots }, (_, i) => i).map(step => {
+                      {/* Step pads for the current page */}
+                      <div className="grid flex-1 gap-1.5" style={{ gridTemplateColumns: `repeat(${drumPageSize}, minmax(0, 1fr))` }}>
+                        {drumVisibleSteps.map(step => {
                               // slotInBar restarts every bar (0..slotsPerBar-1) — used for
                               // pulse numbering, the fill zone, and reading/writing the
                               // (still single-bar) fill pattern. `step` (raw, spans all
                               // loopBars) indexes the main rhythm array, which is
                               // loopBars*slotsPerBar long when editing >1 bar.
                               const slotInBar = step % slotsPerBar;
-                              const isBarStart = slotInBar === 0 && step > 0;
                               const isDownbeat = slotInBar % slotsPerBeatGroup === 0;
-                              const pulseNumber = slotInBar / slotsPerBeatGroup + 1;
                               // Local preview tracks the absolute step across the whole loop
                               // (see updatePlayhead), so this correctly highlights only the
                               // one cell actually playing even with loopBars>1. When synced
@@ -1126,37 +1243,31 @@ export function RhythmEditor({
                                   <PopoverTrigger asChild>
                                     <button
                                       disabled={isLockedInFill}
-                                      onClick={() => handleCellClick(instrument.key, step, showFill)}
-                                      onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
+                                      onPointerDown={() => startCellPress(instrument.key, step, showFill)}
+                                      onPointerUp={endCellPress}
+                                      onPointerLeave={endCellPress}
+                                      onPointerCancel={endCellPress}
+                                      onClick={() => handleCellTap(instrument.key, step, showFill)}
+                                      onContextMenu={e => { e.preventDefault(); setVelocityPopover({ instrument: instrument.key, step, isFill: showFill }); }}
+                                      style={value > 0 ? {
+                                        backgroundColor: hexToRgba(instColor, 0.25 + value * 0.6),
+                                        borderColor: hexToRgba(instColor, 0.65),
+                                      } : undefined}
                                       className={cn(
-                                        "aspect-square rounded border transition-all relative flex items-center justify-center sm:flex-1 sm:rounded-sm sm:min-w-[24px] sm:max-w-[32px]",
-                                        // Bar-start gap is a horizontal-row artifact; skip it in the mobile grid.
-                                        isBarStart && "sm:ml-2.5",
-                                        isDownbeat ? "border-border" : "border-border/40",
+                                        "aspect-square rounded-md border transition-all relative select-none",
+                                        // Off cells: neutral surface + downbeat-emphasized border
+                                        value === 0 && !isInactiveInFill && "bg-secondary",
+                                        value === 0 && (isDownbeat ? "border-border" : "border-border/40"),
                                         // Fill mode: locked zone gets muted background
-                                        isInactiveInFill && "opacity-40 cursor-not-allowed bg-muted/50",
-                                        // Fill mode: active zone gets highlighted background
-                                        isActiveInFill && value === 0 && "bg-chart-4/10",
-                                        isActiveInFill && "border-chart-4/60",
-                                        // Normal velocity colors (override fill bg when has value)
-                                        getVelocityColor(value),
-                                        value > 0 ? "border-chart-4/50" : "",
+                                        isInactiveInFill && "opacity-40 cursor-not-allowed bg-muted/50 border-border/40",
+                                        // Fill mode: active but empty zone gets a faint tint
+                                        isActiveInFill && value === 0 && "bg-chart-4/10 border-chart-4/40",
                                         // Popover open indicator
                                         isPopoverOpen && "ring-2 ring-primary",
                                         // Playhead indicator - ALWAYS on top with higher priority
                                         isCurrentStep && "ring-2 ring-primary ring-offset-1 ring-offset-background z-10"
                                       )}
-                                    >
-                                      {value > 0 ? (
-                                        <span className="text-sm sm:text-[9px] font-medium text-foreground/80">
-                                          {Math.round(value * 100)}
-                                        </span>
-                                      ) : isDownbeat && (
-                                        <span className="text-sm sm:text-xs font-medium text-muted-foreground/50">
-                                          {pulseNumber}
-                                        </span>
-                                      )}
-                                    </button>
+                                    />
                                   </PopoverTrigger>
                                   <PopoverContent 
                                     className="w-52 p-3" 
@@ -1198,74 +1309,82 @@ export function RhythmEditor({
                             })}
                       </div>
 
-                      {/* Desktop controls (right column) — on mobile, Clear lives in the header row above */}
-                      <div className="hidden sm:flex items-center shrink-0 w-16">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => setClearConfirm({ instrument: instrument.key, isFill: showFill })}
-                          title="Clear pattern"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                        </Button>
-                        {!['kick', 'snare', 'hihat', 'bass', 'piano'].includes(instrument.key) && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-destructive hover:text-destructive"
-                            onClick={() => removeInstrument(instrument.key)}
-                            title="Remove instrument"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        )}
-                      </div>
                     </div>
                   );
                 })}
-              </div>
-              
-              {/* Add Instrument */}
-              {availableInstruments.length > 0 && (
-                <div className="mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-border">
-                  <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground">Add:</span>
-                    {availableInstruments.map(instrument => (
-                      <Button
-                        key={instrument.key}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addInstrument(instrument.key)}
-                        className="h-5 sm:h-7 text-[9px] sm:text-xs px-1 sm:px-2"
-                      >
-                        <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3 sm:mr-1" />
-                        <span className="hidden sm:inline">{instrument.label}</span>
-                        <span className="sm:hidden">{instrument.label.length > 5 ? instrument.label.slice(0, 3) : instrument.label}</span>
-                      </Button>
-                    ))}
+
+                {/* Ruler row — "+" to add an instrument, then the beat numbers for this page */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    title="Add instrument"
+                    onClick={() => setAddSheetOpen(true)}
+                    className="w-9 h-9 shrink-0 rounded-lg grid place-items-center border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <div className="grid flex-1 gap-1.5" style={{ gridTemplateColumns: `repeat(${drumPageSize}, minmax(0, 1fr))` }}>
+                    {drumVisibleSteps.map(step => {
+                      const slotInBar = step % slotsPerBar;
+                      const isDb = slotInBar % slotsPerBeatGroup === 0;
+                      return (
+                        <div
+                          key={step}
+                          className={cn(
+                            "h-5 flex items-center justify-center text-[10px] tabular-nums",
+                            isDb ? "text-foreground font-semibold" : "text-muted-foreground/40",
+                          )}
+                        >
+                          {isDb ? slotInBar / slotsPerBeatGroup + 1 : '·'}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              )}
+              </div>
+              
+              {/* Instruments are added from the "+" in the ruler row above */}
             </div>
           </div>
-          
-          {/* Footer / Legend */}
-          <div className="p-2 sm:p-3 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-              <span className="text-[10px] sm:text-xs text-muted-foreground">Click: velocity</span>
-              <Separator orientation="vertical" className="h-4 hidden sm:block" />
-              <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-[10px] sm:text-xs text-muted-foreground">Vel:</span>
-                {VELOCITY_LEVELS.slice(1).map((v, i) => (
-                  <div key={i} className="flex items-center gap-0.5 sm:gap-1">
-                    <div className={cn("w-3 h-3 sm:w-4 sm:h-4 rounded", VELOCITY_COLORS[i + 1])} />
-                    <span className="text-[8px] sm:text-[10px] text-muted-foreground">{Math.round(v * 100)}</span>
-                  </div>
+
+          {/* Page dots — navigate half-bar / bar pages without side-scrolling */}
+          {drumTotalPages > 1 && (
+            <div className="shrink-0 border-t border-border bg-muted/20 py-2 flex flex-col items-center gap-1.5">
+              <div className="flex items-center gap-2">
+                {Array.from({ length: drumTotalPages }).map((_, p) => (
+                  <button
+                    key={p}
+                    onClick={() => setDrumPage(p)}
+                    aria-label={`Page ${p + 1}`}
+                    className={cn(
+                      "h-3 w-3 rounded-full border transition-all",
+                      p === drumViewPage ? "bg-primary border-primary scale-110" : "border-muted-foreground/50 hover:border-primary",
+                    )}
+                  />
                 ))}
               </div>
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                Bar {Math.floor(drumPageStart / slotsPerBar) + 1}{loopBars > 1 ? ` / ${loopBars}` : ''}
+              </span>
             </div>
-
+          )}
+          
+          {/* Footer / Legend — explains the new gesture model at a glance */}
+          <div className="p-2 sm:p-3 border-t border-border bg-muted/30 flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1.5 text-[10px] sm:text-xs text-muted-foreground">
+            <span><span className="text-foreground font-medium">Tap</span> to add or remove</span>
+            <Separator orientation="vertical" className="h-4 hidden sm:block" />
+            <span><span className="text-foreground font-medium">Hold</span> a pad for velocity</span>
+            <Separator orientation="vertical" className="h-4 hidden sm:block" />
+            <div className="flex items-center gap-1.5">
+              <span>Soft</span>
+              {[0.3, 0.5, 0.7, 1].map(v => (
+                <div
+                  key={v}
+                  className="w-3.5 h-3.5 rounded-sm border border-border/40"
+                  style={{ backgroundColor: hexToRgba(DEFAULT_INSTRUMENT_COLOR, 0.25 + v * 0.6) }}
+                />
+              ))}
+              <span>Hard</span>
+            </div>
           </div>
           </>
           ) : (
@@ -1355,6 +1474,41 @@ export function RhythmEditor({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Add Instrument — bottom sheet of tappable instrument cards */}
+    <Sheet open={addSheetOpen} onOpenChange={setAddSheetOpen}>
+      <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
+        <SheetHeader className="text-left">
+          <SheetTitle>Add instrument</SheetTitle>
+          <SheetDescription>Drop another voice into the groove.</SheetDescription>
+        </SheetHeader>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4">
+          {ALL_INSTRUMENTS.filter(i => i.category === 'drums').map(inst => {
+            const added = activeInstruments.has(inst.key);
+            const c = INSTRUMENT_COLORS[inst.key] ?? DEFAULT_INSTRUMENT_COLOR;
+            const CardIcon = inst.icon;
+            return (
+              <button
+                key={inst.key}
+                disabled={added}
+                onClick={() => { addInstrument(inst.key); setAddSheetOpen(false); }}
+                className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border bg-card text-left text-sm font-medium transition-colors hover:border-primary disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <span
+                  className="w-8 h-8 rounded-lg grid place-items-center shrink-0"
+                  style={{ color: c, backgroundColor: hexToRgba(c, 0.16), border: `1px solid ${hexToRgba(c, 0.3)}` }}
+                >
+                  <CardIcon className="w-4 h-4" />
+                </span>
+                <span className="truncate">
+                  {inst.label}{added && <span className="text-muted-foreground"> · added</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </SheetContent>
+    </Sheet>
 
     {/* Delete Confirmation Dialog */}
     <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

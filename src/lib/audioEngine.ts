@@ -413,6 +413,41 @@ export async function ensureSamplesLoaded(): Promise<void> {
 }
 
 /**
+ * Fires a single drum hit immediately — audible feedback when a user taps a pad in
+ * the rhythm editor. Routes through masterGain (so effects apply) and reuses the same
+ * synthesis/samples as playback. Falls back to synth if acoustic samples aren't loaded.
+ */
+export function previewDrumHit(drumType: string, soundTypeId: string = 'standard', volume: number = 0.8): void {
+  const ctx = getAudioContext();
+  if (!masterGain) return;
+  if (ctx.state === 'suspended') { void ctx.resume(); }
+  const soundType = getSoundType('drums', soundTypeId) ?? getSoundType('drums', 'standard');
+  if (!soundType) return;
+  playDrumHit(
+    ctx,
+    masterGain,
+    ctx.currentTime + 0.005,
+    soundType,
+    volume,
+    drumType as Parameters<typeof playDrumHit>[5],
+  );
+}
+
+/**
+ * Fires a single pitched note immediately — audible feedback when a user taps a cell in
+ * the melodic (scale/chord) grids. Uses the sampled piano so the pitch is clear
+ * regardless of which instrument's pattern is being edited.
+ */
+export function previewNote(midi: number, volume: number = 0.5): void {
+  const ctx = getAudioContext();
+  if (!masterGain) return;
+  if (ctx.state === 'suspended') { void ctx.resume(); }
+  const soundType = getSoundType('piano', 'sampled') ?? getSoundType('piano', 'acoustic');
+  if (!soundType) return;
+  playPianoNote(ctx, masterGain, midiToFrequency(midi), ctx.currentTime + 0.005, 0.45, soundType, volume, midi);
+}
+
+/**
  * Plays a chord and sustains it until the returned stop function is called.
  * Used for press-and-hold chord previews (e.g. clicking a chord in a palette).
  * Self-contained, like playChordPreview.

@@ -2,8 +2,9 @@ import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   DEGREES, CHORD_TONES, BASS_SCALE_PRESETS, getScaleNoteNames, scalePatternIsEmpty,
-  createVariation, type Degree, type DegreePattern, type ScaleVariation, type InstrumentMelodic,
+  createVariation, degreeToSemitone, type Degree, type DegreePattern, type ScaleVariation, type InstrumentMelodic,
 } from '@/lib/bassScale';
+import { previewNote } from '@/lib/audioEngine';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -77,13 +78,21 @@ export function MelodicPatternGrid({
     update(variations.map(v => v.id === resolvedActiveId ? { ...v, octaveOffsets: updated } : v));
   };
 
+  // Audible feedback: play the real pitch of a degree (root + scale semitone + octave).
+  const previewDegree = (degree: Degree) => {
+    const off = activeVariation?.octaveOffsets?.[degree] ?? 0;
+    previewNote(referenceRootMidi + degreeToSemitone(degree, referenceQuality) + off * 12);
+  };
+
   const handleCellClick = (degree: Degree, slot: number) => {
     if (!activeVariation) return;
     const cur = activeVariation.pattern[degree] ?? Array(totalSlots).fill(0);
     const padded = cur.length < totalSlots
       ? [...cur, ...Array(totalSlots - cur.length).fill(0)]
       : [...cur];
-    padded[slot] = padded[slot] > 0 ? 0 : 1;
+    const wasOn = padded[slot] > 0;
+    padded[slot] = wasOn ? 0 : 1;
+    if (!wasOn) previewDegree(degree); // hear the note you just placed
     updateActivePattern({ ...activeVariation.pattern, [degree]: padded });
   };
 
@@ -93,7 +102,12 @@ export function MelodicPatternGrid({
     const padded = cur.length < totalSlots
       ? [...cur, ...Array(totalSlots - cur.length).fill(0)]
       : [...cur];
-    padded[slot] = padded[slot] > 0 ? 0 : 1;
+    const wasOn = padded[slot] > 0;
+    padded[slot] = wasOn ? 0 : 1;
+    if (!wasOn) {
+      // Chord hit = play the chord tones together (root, third, fifth)
+      ([1, 3, 5] as Degree[]).forEach(d => previewNote(referenceRootMidi + degreeToSemitone(d, referenceQuality)));
+    }
     update(variations.map(v => v.id === resolvedActiveId ? { ...v, chordHit: padded } : v));
   };
 
