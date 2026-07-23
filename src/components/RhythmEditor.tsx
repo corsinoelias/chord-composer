@@ -1400,6 +1400,7 @@ export function RhythmEditor({
             <div className="p-4">
             <MelodicPatternGrid
               melodic={migratedMelodic[activeTab as 'bass' | 'piano' | 'guitar']}
+              accentColor={INSTRUMENT_COLORS[activeTab] ?? DEFAULT_INSTRUMENT_COLOR}
               referenceRootMidi={referenceRootMidi}
               referenceQuality={referenceQuality}
               slotsPerBar={slotsPerBar}

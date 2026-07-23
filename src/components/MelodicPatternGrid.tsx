@@ -9,9 +9,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, Copy, Pencil, Check } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+
+// hex (#rrggbb) → rgba, for accent-tinted cell fills.
+function hexToRgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
 
 interface MelodicPatternGridProps {
   melodic: InstrumentMelodic;
+  /** Signature color of the instrument this grid edits (piano/guitar/bass). */
+  accentColor?: string;
   referenceRootMidi: number;
   referenceQuality: string;
   onChange: (melodic: InstrumentMelodic) => void;
@@ -28,6 +37,7 @@ interface MelodicPatternGridProps {
 
 export function MelodicPatternGrid({
   melodic,
+  accentColor = '#8b7cff',
   referenceRootMidi,
   referenceQuality,
   onChange,
@@ -38,10 +48,12 @@ export function MelodicPatternGrid({
   slotsPerBar = 16,
   slotsPerBeatGroup = 4,
 }: MelodicPatternGridProps) {
+  const isMobile = useIsMobile();
   const { variations, enabled } = melodic;
   const [activeVarId, setActiveVarId] = useState<string>(() => variations[0]?.id ?? '');
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [melPage, setMelPage] = useState(0);
 
   // Sync activeVarId when variations change (e.g. after external load)
   const resolvedActiveId = variations.find(v => v.id === activeVarId)
@@ -55,6 +67,30 @@ export function MelodicPatternGrid({
 
   const activeVariation = variations.find(v => v.id === resolvedActiveId);
   const totalSlots = (activeVariation?.loopBars ?? 1) * slotsPerBar;
+
+  // Paging: half a bar per page on phones, a whole bar on wider screens — navigated with
+  // dots so the grid never scrolls sideways (matches the drum grid).
+  const melPageSize = isMobile ? Math.max(4, Math.ceil(slotsPerBar / 2)) : slotsPerBar;
+  const melTotalPages = Math.max(1, Math.ceil(totalSlots / melPageSize));
+  const viewPage = Math.min(melPage, melTotalPages - 1);
+  const pageStart = viewPage * melPageSize;
+  const visibleSlots = Array.from(
+    { length: Math.min(melPageSize, totalSlots - pageStart) },
+    (_, i) => pageStart + i,
+  );
+  const gridCols = { gridTemplateColumns: `repeat(${melPageSize}, minmax(0, 1fr))` };
+
+  // Reset to page 0 when the grid's shape changes (variation, bars, meter, page size).
+  useEffect(() => {
+    setMelPage(0);
+  }, [resolvedActiveId, totalSlots, melPageSize]);
+
+  // Follow the playhead across pages while playing.
+  useEffect(() => {
+    if (!isPlaying || currentStep === undefined || currentStep < 0 || totalSlots === 0) return;
+    const p = Math.floor((currentStep % totalSlots) / melPageSize);
+    setMelPage(prev => (prev !== p ? p : prev));
+  }, [currentStep, isPlaying, melPageSize, totalSlots]);
 
   const noteNames = useMemo(
     () => getScaleNoteNames(referenceRootMidi, referenceQuality, activeVariation?.octaveOffsets),
@@ -276,32 +312,37 @@ export function MelodicPatternGrid({
         </div>
       )}
 
-      {/* Grid */}
+      {/* Grid — paged so it never scrolls sideways (like the drum grid) */}
       {activeVariation && (
-        <div className="overflow-x-auto">
-          <div className="flex flex-col gap-1 min-w-max">
-            {/* Beat markers */}
-            <div className="flex items-center">
-              <div className="w-28 flex-shrink-0" />
-              {Array.from({ length: totalSlots }, (_, slot) => (
-                <div key={slot} className={cn('w-8 sm:w-7 text-center text-[10px] font-mono', slot % slotsPerBeatGroup === 0 ? 'text-muted-foreground' : 'text-transparent')}>
-                  {slot % slotsPerBeatGroup === 0 ? Math.floor(slot / slotsPerBeatGroup) + 1 : '.'}
-                </div>
-              ))}
-            </div>
-
-            {/* Chord hit row — plays all chord tones simultaneously */}
-            {(() => {
-              const chordHitSlots = activeVariation.chordHit ?? [];
-              return (
-                <div className="flex items-center mb-1">
-                  <div className="w-28 flex-shrink-0 flex items-center gap-1 pr-2">
-                    <span className="text-sm font-mono w-3">♩</span>
-                    <span className="text-xs rounded px-1 min-w-[28px] text-center bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold">
-                      Chord
-                    </span>
+        <div className="flex flex-col gap-1">
+          {/* Beat markers */}
+          <div className="flex items-center">
+            <div className="w-24 sm:w-28 flex-shrink-0" />
+            <div className="grid flex-1 gap-1" style={gridCols}>
+              {visibleSlots.map(slot => {
+                const isBeat = slot % slotsPerBeatGroup === 0;
+                return (
+                  <div key={slot} className={cn('text-center text-[10px] font-mono', isBeat ? 'text-muted-foreground' : 'text-transparent')}>
+                    {isBeat ? Math.floor(slot / slotsPerBeatGroup) + 1 : '.'}
                   </div>
-                  {Array.from({ length: totalSlots }, (_, slot) => {
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Chord hit row — plays all chord tones simultaneously */}
+          {(() => {
+            const chordHitSlots = activeVariation.chordHit ?? [];
+            return (
+              <div className="flex items-center mb-1">
+                <div className="w-24 sm:w-28 flex-shrink-0 flex items-center gap-1 pr-2">
+                  <span className="text-sm font-mono w-3">♩</span>
+                  <span className="text-xs rounded px-1 min-w-[28px] text-center bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold">
+                    Chord
+                  </span>
+                </div>
+                <div className="grid flex-1 gap-1" style={gridCols}>
+                  {visibleSlots.map(slot => {
                     const active = (chordHitSlots[slot] ?? 0) > 0;
                     const isCurrent = isPlaying && currentStep !== undefined && currentStep >= 0 && (currentStep % totalSlots) === slot;
                     return (
@@ -309,7 +350,7 @@ export function MelodicPatternGrid({
                         key={slot}
                         onClick={() => handleChordHitClick(slot)}
                         className={cn(
-                          'w-8 h-10 sm:w-7 sm:h-8 border transition-colors rounded-sm',
+                          'h-9 sm:h-8 border transition-colors rounded-sm',
                           slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
                           isCurrent && !active && 'bg-amber-500/20',
                           active
@@ -320,61 +361,90 @@ export function MelodicPatternGrid({
                     );
                   })}
                 </div>
-              );
-            })()}
+              </div>
+            );
+          })()}
 
-            {DEGREES.map(degree => {
-              const isChordTone = CHORD_TONES.has(degree);
-              const degSlots = activeVariation.pattern[degree] ?? [];
-              const storedOctave = activeVariation.octaveOffsets?.[degree] ?? naturalOctave;
-              const displayOctave = storedOctave - naturalOctave;
-              return (
-                <div key={degree} className="flex items-center">
-                  <div className={cn('w-28 flex-shrink-0 flex items-center gap-1 pr-2', isChordTone ? 'font-semibold' : 'text-muted-foreground')}>
-                    <span className="text-sm font-mono w-3">{degree}</span>
-                    <span className={cn('text-xs rounded px-1 min-w-[28px] text-center', isChordTone ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
-                      {noteNames[degree]}
+          {DEGREES.map(degree => {
+            const isChordTone = CHORD_TONES.has(degree);
+            const degSlots = activeVariation.pattern[degree] ?? [];
+            const storedOctave = activeVariation.octaveOffsets?.[degree] ?? naturalOctave;
+            const displayOctave = storedOctave - naturalOctave;
+            return (
+              <div key={degree} className="flex items-center">
+                <div className={cn('w-24 sm:w-28 flex-shrink-0 flex items-center gap-1 pr-2', isChordTone ? 'font-semibold' : 'text-muted-foreground')}>
+                  <span className="text-sm font-mono w-3">{degree}</span>
+                  <span
+                    className="text-xs rounded px-1 min-w-[28px] text-center font-medium"
+                    style={isChordTone
+                      ? { color: accentColor, backgroundColor: hexToRgba(accentColor, 0.14) }
+                      : undefined}
+                  >
+                    <span className={isChordTone ? '' : 'text-muted-foreground'}>{noteNames[degree]}</span>
+                  </span>
+                  <div className="flex items-center gap-px ml-auto">
+                    <button
+                      onClick={() => handleOctaveChange(degree, -1)}
+                      disabled={displayOctave <= -2}
+                      className="w-5 h-5 sm:w-4 sm:h-4 rounded text-[11px] sm:text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
+                      title="Bajar octava"
+                    >▾</button>
+                    <span className={cn('text-[9px] w-5 text-center', displayOctave !== 0 ? 'text-primary font-bold' : 'text-muted-foreground')}>
+                      {displayOctave > 0 ? `+${displayOctave}` : displayOctave}
                     </span>
-                    <div className="flex items-center gap-px ml-auto">
-                      <button
-                        onClick={() => handleOctaveChange(degree, -1)}
-                        disabled={displayOctave <= -2}
-                        className="w-5 h-5 sm:w-4 sm:h-4 rounded text-[11px] sm:text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
-                        title="Bajar octava"
-                      >▾</button>
-                      <span className={cn('text-[9px] w-5 text-center', displayOctave !== 0 ? 'text-primary font-bold' : 'text-muted-foreground')}>
-                        {displayOctave > 0 ? `+${displayOctave}` : displayOctave}
-                      </span>
-                      <button
-                        onClick={() => handleOctaveChange(degree, +1)}
-                        disabled={displayOctave >= 2}
-                        className="w-5 h-5 sm:w-4 sm:h-4 rounded text-[11px] sm:text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
-                        title="Subir octava"
-                      >▴</button>
-                    </div>
+                    <button
+                      onClick={() => handleOctaveChange(degree, +1)}
+                      disabled={displayOctave >= 2}
+                      className="w-5 h-5 sm:w-4 sm:h-4 rounded text-[11px] sm:text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
+                      title="Subir octava"
+                    >▴</button>
                   </div>
-                  {Array.from({ length: totalSlots }, (_, slot) => {
+                </div>
+                <div className="grid flex-1 gap-1" style={gridCols}>
+                  {visibleSlots.map(slot => {
                     const active = (degSlots[slot] ?? 0) > 0;
                     const isCurrent = isPlaying && currentStep !== undefined && currentStep >= 0 && (currentStep % totalSlots) === slot;
                     return (
                       <button
                         key={slot}
                         onClick={() => handleCellClick(degree, slot)}
+                        style={active
+                          ? { backgroundColor: isChordTone ? accentColor : hexToRgba(accentColor, 0.5), borderColor: hexToRgba(accentColor, 0.75) }
+                          : (isCurrent ? { backgroundColor: hexToRgba(accentColor, 0.18) } : undefined)}
                         className={cn(
-                          'w-8 h-10 sm:w-7 sm:h-8 border transition-colors rounded-sm',
+                          'h-9 sm:h-8 border transition-colors rounded-sm',
                           slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
-                          isCurrent && !active && 'bg-primary/20',
-                          active
-                            ? isChordTone ? 'bg-primary border-primary' : 'bg-blue-400 border-blue-400 dark:bg-blue-600 dark:border-blue-600'
-                            : isChordTone ? 'border-primary/25 hover:bg-primary/10' : 'border-muted-foreground/15 hover:bg-muted',
+                          !active && !isCurrent && (isChordTone ? 'border-primary/25 hover:bg-primary/10' : 'border-muted-foreground/15 hover:bg-muted'),
                         )}
                       />
                     );
                   })}
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Page dots — navigate half-bar / bar pages without side-scrolling */}
+      {activeVariation && melTotalPages > 1 && (
+        <div className="flex flex-col items-center gap-1.5 pt-1">
+          <div className="flex items-center gap-2">
+            {Array.from({ length: melTotalPages }).map((_, p) => (
+              <button
+                key={p}
+                onClick={() => setMelPage(p)}
+                aria-label={`Page ${p + 1}`}
+                className={cn(
+                  'h-3 w-3 rounded-full border transition-all',
+                  p === viewPage ? 'bg-primary border-primary scale-110' : 'border-muted-foreground/50 hover:border-primary',
+                )}
+              />
+            ))}
           </div>
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            Bar {Math.floor(pageStart / slotsPerBar) + 1}{(activeVariation.loopBars ?? 1) > 1 ? ` / ${activeVariation.loopBars}` : ''}
+          </span>
         </div>
       )}
 
