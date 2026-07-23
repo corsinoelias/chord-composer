@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { StyleSelector } from './StyleSelector';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile, useIsDesktop } from '@/hooks/use-mobile';
 
 import { type StylePattern } from '@/lib/styles';
 
@@ -99,6 +99,7 @@ export const TransportControls = memo(function TransportControls({
   onSaveCtaClick,
 }: TransportControlsProps) {
   const isMobile = useIsMobile();
+  const isDesktop = useIsDesktop();
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -238,8 +239,182 @@ export const TransportControls = memo(function TransportControls({
           </div>
         )}
 
-        {/* ─────────────────────────── DESKTOP LAYOUT (unchanged) ─────────────────────────── */}
-        {!isMobile && (<>
+        {/* ─────────────────────────── DESKTOP LAYOUT (lg+) ───────────────────────────
+            Dedicated wide layout. Band 1 groups Play + all timing controls (Tempo · Key ·
+            Metronome) into one console, then the Song Title fills to the right edge. Band 2
+            keeps Style + sound tools on the left and the output actions (Save · Export) on
+            the right — every control on a shared height baseline for a clean, symmetric bar. */}
+        {isDesktop && (<>
+          {/* Band 1 — Transport + Project */}
+          <div className="p-4 lg:p-5">
+            <div className="flex items-center gap-4">
+              {/* Play (hero) */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={isPlaying ? onStop : onPlay}
+                    disabled={!hasChords || isExporting}
+                    data-tour="play-button"
+                    className={`relative shrink-0 rounded-full flex items-center justify-center w-16 h-16 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 ${
+                      isPlaying
+                        ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                        : 'bg-primary text-primary-foreground hover:scale-105 hover:shadow-[var(--shadow-glow)]'
+                    }`}
+                    style={{ boxShadow: isPlaying ? 'none' : 'var(--shadow-lg)' }}
+                    aria-label={isPlaying ? 'Stop' : 'Play'}
+                  >
+                    {isPlaying ? <Square size={22} fill="currentColor" /> : <Play size={26} fill="currentColor" className="ml-1" />}
+                    {isPlaying && <span className="absolute inset-0 rounded-full bg-destructive animate-ping opacity-20" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{isPlaying ? 'Stop playback' : 'Start playback'}</TooltipContent>
+              </Tooltip>
+
+              {/* Playback console — Tempo · Key · Metronome grouped as one unit */}
+              <div className="flex items-stretch gap-3 h-14 px-4 rounded-xl bg-secondary/40 border border-border/50">
+                {/* Tempo */}
+                <div className="flex flex-col justify-center">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Tempo</span>
+                  <div className="flex items-center gap-2 -mt-0.5">
+                    <span className="font-mono text-lg font-bold tabular-nums w-9 text-foreground">{bpm}</span>
+                    <input
+                      id="bpm-range-d"
+                      type="range"
+                      min={40}
+                      max={200}
+                      value={bpm}
+                      onChange={(e) => onBpmChange(parseInt(e.target.value))}
+                      disabled={isExporting}
+                      className="w-28 h-1.5 bg-secondary rounded-full appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label={`Tempo, ${bpm} beats per minute`}
+                    />
+                  </div>
+                </div>
+
+                <div className="self-center h-8 w-px bg-border/60" />
+
+                {/* Key */}
+                <div className="flex flex-col justify-center">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Key</span>
+                  <div className="flex items-center gap-1 -mt-0.5">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="sm" onClick={() => onTranspositionChange(transposition - 1)} disabled={transposition <= -12} className="h-6 w-6 p-0" aria-label="Transpose down one semitone">-</Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Transpose down</TooltipContent>
+                    </Tooltip>
+                    <span className={`w-8 text-center font-mono text-sm font-medium ${transposition !== 0 ? 'text-primary' : ''}`}>
+                      {transposition > 0 ? `+${transposition}` : transposition}
+                    </span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="sm" onClick={() => onTranspositionChange(transposition + 1)} disabled={transposition >= 12} className="h-6 w-6 p-0" aria-label="Transpose up one semitone">+</Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Transpose up</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+
+                <div className="self-center h-8 w-px bg-border/60" />
+
+                {/* Metronome */}
+                <div className="flex flex-col justify-center">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Metronome</span>
+                  <label className="flex items-center gap-2 -mt-0.5 cursor-pointer">
+                    <MetronomeIcon size={16} className={metronomeEnabled ? 'text-primary' : 'text-muted-foreground'} />
+                    <Switch checked={metronomeEnabled} onCheckedChange={onMetronomeToggle} disabled={isExporting} aria-label="Toggle metronome" />
+                  </label>
+                </div>
+              </div>
+
+              {/* Song Title — fills the rest of the row to the right edge */}
+              <div className="flex-1 min-w-0 2xl:max-w-3xl">
+                <Label htmlFor="song-title-d" className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1 block">
+                  Song Title
+                </Label>
+                <Input
+                  id="song-title-d"
+                  value={songTitle}
+                  onChange={(e) => onSongTitleChange(e.target.value)}
+                  placeholder="My Song"
+                  className="bg-background/50 border-border/50 focus:border-primary h-9"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Band 2 — Sound + Output */}
+          <div className="px-4 lg:px-5 pb-4 lg:pb-5 pt-0">
+            <div className="flex items-center gap-2 p-2 rounded-xl bg-secondary/30 border border-border/50">
+              <div data-tour="style-selector">
+                <StyleSelector
+                  selectedStyleId={selectedStyleId}
+                  onStyleChange={onStyleChange}
+                  customStyles={customStyles}
+                  onCreateNew={onCreateNewRhythm}
+                  triggerClassName="w-[200px] h-9 bg-secondary border-border"
+                />
+              </div>
+
+              <div className="h-6 w-px bg-border/70 mx-1" />
+
+              <Button variant="ghost" size="sm" onClick={onOpenInstruments} className="gap-1.5 h-9 px-3">
+                <Settings2 className="h-4 w-4" />
+                <span>Instruments</span>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onOpenRhythmEditor} className="gap-1.5 h-9 px-3">
+                <Grid3X3 className="h-4 w-4" />
+                <span>Edit Rhythm</span>
+              </Button>
+              {onCreateNewRhythm && (
+                <Button variant="ghost" size="sm" onClick={onCreateNewRhythm} className="gap-1.5 h-9 px-3">
+                  <Plus className="h-4 w-4" />
+                  <span>New</span>
+                </Button>
+              )}
+
+              {/* Output actions — anchored right, same height as the tools */}
+              <div className="ml-auto flex items-center gap-2">
+                {showSaveCta && (
+                  <Button
+                    onClick={onSaveCtaClick}
+                    variant="outline"
+                    className="h-9 gap-2 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:duration-200"
+                  >
+                    <Save size={16} />
+                    <span>Save</span>
+                  </Button>
+                )}
+                <div className="flex items-stretch shadow-sm rounded-lg overflow-hidden" data-tour="export-button">
+                  <Button
+                    onClick={onExport}
+                    disabled={!hasChords || isPlaying || isExporting}
+                    className="h-9 gap-2 rounded-none rounded-l-lg border-r border-primary-foreground/20"
+                  >
+                    {isExporting ? <><Loader2 size={16} className="animate-spin" /><span>Exporting…</span></> : <><Download size={16} /><span>WAV</span></>}
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button disabled={!hasChords || isPlaying || isExporting} className="h-9 rounded-none rounded-r-lg px-2" aria-label="More export options">
+                        <ChevronDown size={14} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={onExport} disabled={isExporting}><Download size={14} className="mr-2" />Export WAV</DropdownMenuItem>
+                      <DropdownMenuItem onClick={onExportMidi}><Download size={14} className="mr-2" />Export MIDI</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>)}
+
+        {/* ─────────────────────────── TABLET LAYOUT (768–1023px) ───────────────────────────
+            The mid-width layout: two stacked bands with the actions wrapping to a full-width
+            bar. Desktop (lg+) uses its own dedicated layout above; mobile uses the vertical
+            stack up top. */}
+        {!isMobile && !isDesktop && (<>
         {/* Main Controls Row - Responsive layout */}
         <div className="p-3 sm:p-4 md:p-5">
           <div className="flex flex-col gap-4">
@@ -306,11 +481,9 @@ export const TransportControls = memo(function TransportControls({
 
               {/* Song Title - grows to fill space. Keeps a comfortable min width so on
                   tablet it never gets crushed: when the row runs out of room the Right
-                  Actions wrap to their own line instead of squeezing this input. On tablet
-                  it stretches to the container's right edge (aligning with the action bar
-                  and style row below); only at lg+, where it shares row 1 with the actions,
-                  is it capped so it doesn't grow unbounded. */}
-              <div className="flex-1 min-w-[14rem] hidden sm:block lg:max-w-sm">
+                  Actions wrap to their own line instead of squeezing this input, and it
+                  stretches to the container's right edge (aligning with the bars below). */}
+              <div className="flex-1 min-w-[14rem] hidden sm:block">
                 <Label htmlFor="song-title" className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
                   Song Title
                 </Label>
