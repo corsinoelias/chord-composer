@@ -1534,6 +1534,13 @@ export function scheduleProgression(
   // Schedule a batch of slots (one chord segment at a time for efficiency)
   const scheduleSegment = (segmentStartTime: number) => {
     if (cancelled) return;
+    // Context-consistency guard: stopPlayback() closes the AudioContext and nulls
+    // masterGain, and the next play() builds a fresh context. A segment already queued
+    // via setTimeout from this (now-stale) scheduler would otherwise create nodes on the
+    // old `ctx` and connect them to the new module-level `masterGain` — an
+    // InvalidAccessError ("connect to a node belonging to a different audio context").
+    // If the live context is no longer the one we captured, this scheduler is dead: bail.
+    if (ctx !== audioContext || !masterGain) return;
 
     // Rebuild chord segments immediately when sections change so the very next
     // chord played matches what the user sees — no need to wait for loop end.

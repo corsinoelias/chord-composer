@@ -70,14 +70,14 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-lg bg-card border-border">
-        <DialogHeader>
-          <DialogTitle className="text-foreground">
+      <DialogContent className="sm:max-w-lg bg-card border-border p-0 gap-0 flex flex-col max-h-[92dvh] overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
+          <DialogTitle className="text-foreground pr-6">
             Add Chord to {sectionName}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-2 space-y-4">
           {/* Root Note */}
           <div>
             <label className="block text-xs text-muted-foreground mb-2">Root Note</label>
@@ -283,7 +283,7 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t border-border shrink-0">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleAdd}>Add Chord</Button>
         </DialogFooter>
