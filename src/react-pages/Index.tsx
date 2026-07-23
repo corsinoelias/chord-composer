@@ -25,7 +25,7 @@ import { getCustomStyles, getStyleOverride, saveStyleOverride, saveCustomStyle, 
 import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAudio } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { exportMidi } from '@/lib/midiExporter';
-import { usePlayback } from '@/contexts/PlaybackContext';
+import { usePlayback, useCurrentStep } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
 import { type Song, createSong } from '@/lib/songs';
 import { parseChordString } from '@/lib/chordParser';
@@ -69,10 +69,21 @@ interface IndexProps {
 
 const EXPORT_NUDGE_SESSION_KEY = 'chord-player-export-nudge-shown';
 
+// Isolated subscriber to the 16th-note playhead: the only thing that re-renders on
+// every step, keeping those ~6.7x/sec updates out of the big editor tree.
+const PlayheadBeatIndicator = ({ isPlaying }: { isPlaying: boolean }) => {
+  const currentStep = useCurrentStep();
+  return <BeatIndicator currentStep={currentStep} isPlaying={isPlaying} />;
+};
+
 const Index = ({ songId }: IndexProps) => {
   const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
-  const { state: playbackState, play, stop: stopPlayback, updatePlaybackOptions } = usePlayback();
-  const { isPlaying, currentChordIndex, currentStep: currentPlayheadStep } = playbackState;
+  const { state: playbackState, play, warmup, stop: stopPlayback, updatePlaybackOptions } = usePlayback();
+  const { isPlaying, currentChordIndex } = playbackState;
+  // `currentStep` is intentionally NOT read here — it changes ~6.7x/sec and reading it
+  // at this top level would re-render the entire editor tree every 16th note (the cause
+  // of the audio crackle). The beat playhead subscribes to it in isolation via
+  // <PlayheadBeatIndicator> (see below), which uses useCurrentStep().
 
   // Song loading state
   const [currentSongId, setCurrentSongId] = useState<string | null>(null);
@@ -956,8 +967,23 @@ const Index = ({ songId }: IndexProps) => {
   const handlePlayWithCountdown = useCallback(() => {
     if (!hasChords || isExporting) return;
     analytics.playProgression(selectedStyleId);
+    // Warm up all the audio play() will await (samples, bass sample dir, guitar
+    // soundfont) DURING the countdown, so it overlaps that ~1.2-2.4s window instead of
+    // freezing after "1" like it used to. Fire-and-forget; play() still awaits as a
+    // safety net if warmup hasn't finished. Uses the same refs startPlayback reads.
+    warmup({
+      bpm: bpmRef.current,
+      metronome: metronomeRef.current,
+      instruments: instrumentsRef.current,
+      styleId: styleRef.current,
+      transposition: transpositionRef.current,
+      liveEditedStyle: liveEditedStyleRef.current,
+      customStyles: customStylesRef.current,
+      loopingSectionIndex: loopingSectionRef.current,
+      melodic: melodicRef.current,
+    }).catch(() => {});
     setShowCountdown(true);
-  }, [hasChords, isExporting, selectedStyleId]);
+  }, [hasChords, isExporting, selectedStyleId, warmup]);
 
   const handleCountdownComplete = useCallback(() => {
     setShowCountdown(false);
@@ -1034,13 +1060,11 @@ const Index = ({ songId }: IndexProps) => {
                 </div>
               )}
               
-              {/* Beat indicator - only on desktop */}
+              {/* Beat indicator - only on desktop. Wrapped in its own subscriber so the
+                  ~6.7x/sec step updates re-render ONLY this indicator, not the editor. */}
               {isPlaying && (
                 <div className="hidden md:block">
-                  <BeatIndicator
-                    currentStep={currentPlayheadStep}
-                    isPlaying={isPlaying}
-                  />
+                  <PlayheadBeatIndicator isPlaying={isPlaying} />
                 </div>
               )}
               

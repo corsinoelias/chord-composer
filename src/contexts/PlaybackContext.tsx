@@ -4,7 +4,7 @@
  * Includes Media Session API for background playback on mobile
  */
 
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useSyncExternalStore } from 'react';
 import { type Section } from '@/lib/sections';
 import { type InstrumentState, getDefaultInstrumentStates, getSoundType } from '@/lib/instruments';
 import { type StylePattern, MUSICAL_STYLES, resolveActiveStyle } from '@/lib/styles';
@@ -27,7 +27,12 @@ import {
 interface PlaybackState {
   isPlaying: boolean;
   currentChordIndex: number;
-  currentStep: number;
+  // NOTE: `currentStep` (the 16th-note playhead) is deliberately NOT part of this state
+  // object. It changes ~6.7x/sec, and any field in `state` re-renders EVERY usePlayback()
+  // consumer on change — including the huge editor tree, which starved the audio
+  // scheduler and caused crackle. It now flows through a separate ref+listener channel
+  // (subscribeStep/getStep, read via useCurrentStep) so only the tiny playhead UI
+  // re-renders. See useCurrentStep below.
   bpm: number;
   metronomeEnabled: boolean;
 }
@@ -35,15 +40,23 @@ interface PlaybackState {
 interface PlaybackContextValue {
   // State
   state: PlaybackState;
-  
+
   // Actions
   play: (sections: Section[], options: PlayOptions) => Promise<void>;
+  // Preloads everything play() would await (samples, bass sample dir, guitar soundfont)
+  // WITHOUT starting playback — call this when a pre-roll/countdown begins so the load
+  // overlaps that window and play() then starts instantly. Idempotent & fire-and-forget.
+  warmup: (options: PlayOptions) => Promise<void>;
   stop: () => void;
   setBpm: (bpm: number) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
-  
+
   // For live updates during playback
   updatePlaybackOptions: (options: Partial<PlayOptions>) => void;
+
+  // High-frequency 16th-note playhead — separate channel (see PlaybackState note).
+  subscribeStep: (cb: () => void) => () => void;
+  getStep: () => number;
 }
 
 interface PlayOptions {
@@ -77,14 +90,40 @@ export function usePlayback() {
   return context;
 }
 
+// Subscribe to the 16th-note playhead without re-rendering on every other playback
+// state change (and without forcing the whole usePlayback() tree to re-render on every
+// step). Only components that actually display the playhead should call this.
+export function useCurrentStep(): number {
+  const context = useContext(PlaybackContext);
+  if (!context) {
+    throw new Error('useCurrentStep must be used within a PlaybackProvider');
+  }
+  return useSyncExternalStore(context.subscribeStep, context.getStep, context.getStep);
+}
+
 export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<PlaybackState>({
     isPlaying: false,
     currentChordIndex: -1,
-    currentStep: -1,
     bpm: 100,
     metronomeEnabled: true,
   });
+
+  // 16th-note playhead channel — a ref + listener set instead of React state, so the
+  // ~6.7x/sec updates during playback don't re-render every usePlayback() consumer
+  // (only useCurrentStep subscribers). See the PlaybackState note above.
+  const stepRef = useRef(-1);
+  const stepListenersRef = useRef<Set<() => void>>(new Set());
+  const setStep = useCallback((step: number) => {
+    if (stepRef.current === step) return;
+    stepRef.current = step;
+    stepListenersRef.current.forEach(l => l());
+  }, []);
+  const subscribeStep = useCallback((cb: () => void) => {
+    stepListenersRef.current.add(cb);
+    return () => { stepListenersRef.current.delete(cb); };
+  }, []);
+  const getStep = useCallback(() => stepRef.current, []);
 
   const cancelRef = useRef<(() => void) | null>(null);
   const rafRef = useRef<number>();
@@ -107,11 +146,12 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       const startedId = (e as CustomEvent<{ instanceId: string }>).detail?.instanceId;
       if (startedId === instanceIdRef.current) return;
       cancelRef.current = null;
-      setState(prev => ({ ...prev, isPlaying: false, currentChordIndex: -1, currentStep: -1 }));
+      setState(prev => ({ ...prev, isPlaying: false, currentChordIndex: -1 }));
+      setStep(-1);
     };
     window.addEventListener('chordplayer:playback-started', handleOtherInstanceStarted);
     return () => window.removeEventListener('chordplayer:playback-started', handleOtherInstanceStarted);
-  }, []);
+  }, [setStep]);
 
   // Pre-load audio during browser idle time so it's ready by the time the user hits
   // Play, instead of only starting the ~79MB sample fetch on their first interaction
@@ -175,9 +215,9 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       isPlaying: false,
       currentChordIndex: -1,
-      currentStep: -1,
     }));
-  }, []);
+    setStep(-1);
+  }, [setStep]);
 
   // Setup Media Session for background playback on mobile
   const setupMediaSession = useCallback((songTitle: string = 'Chord Progression') => {
@@ -340,7 +380,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       transposition: options.transposition,
       onChordChange: undefined,
       onLoopEnd: undefined,
-      onStepChange: (step) => setState(prev => ({ ...prev, currentStep: step })),
+      onStepChange: (step) => setStep(step),
       getStyle,
       // Dynamic getters for real-time updates without restart
       getMetronome: () => optionsRef.current?.metronome ?? true,
@@ -382,7 +422,38 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     });
 
     cancelRef.current = cancel;
-  }, [stop, setupMediaSession]);
+  }, [stop, setupMediaSession, setStep]);
+
+  // Preloads everything play() awaits, without starting playback — used to overlap
+  // loading with the countdown so the first play doesn't freeze after the count hits 0.
+  const warmup = useCallback(async (options: PlayOptions) => {
+    try {
+      await ensureSamplesLoaded();
+    } catch { /* proceed — play() will retry/await as needed */ }
+
+    const style = resolveActiveStyle(
+      options.styleId,
+      options.liveEditedStyle,
+      options.customStyles ?? getCustomStyles(),
+      getStyleOverride,
+    );
+
+    const guitarState = options.instruments.find(i => i.id === 'guitar');
+    const guitarSoundId = guitarState?.soundTypeId ?? style.instrumentSounds?.guitar;
+    if (guitarSoundId) {
+      const guitarSoundDef = getSoundType('guitar', guitarSoundId);
+      if (guitarSoundDef?.sf2Instrument) {
+        try { await ensureGuitarSoundfontLoaded(guitarSoundId, guitarSoundDef.sf2Instrument); } catch { /* play() awaits it too */ }
+      }
+    }
+
+    const bassState = options.instruments.find(i => i.id === 'bass');
+    const bassSoundId = bassState?.soundTypeId ?? style.instrumentSounds?.bass ?? 'fender';
+    const bassSoundDef = getSoundType('bass', bassSoundId);
+    if (bassSoundDef?.useSamples && bassSoundDef.samplePath) {
+      try { await preloadSampleDir(getAudioContext(), bassSoundDef.samplePath); } catch { /* play() awaits it too */ }
+    }
+  }, []);
 
   const setBpm = useCallback((bpm: number) => {
     setState(prev => ({ ...prev, bpm }));
@@ -447,10 +518,13 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const value: PlaybackContextValue = {
     state,
     play,
+    warmup,
     stop,
     setBpm,
     setMetronomeEnabled,
     updatePlaybackOptions,
+    subscribeStep,
+    getStep,
   };
 
   return (

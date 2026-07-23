@@ -30,7 +30,7 @@ import { getDefaultInstrumentStates, INSTRUMENTS, type InstrumentType } from '@/
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
 import { useStylePreview } from '@/hooks/useStylePreview';
-import { usePlayback } from '@/contexts/PlaybackContext';
+import { usePlayback, useCurrentStep } from '@/contexts/PlaybackContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
@@ -203,7 +203,10 @@ export function RhythmEditor({
 }: RhythmEditorProps) {
   // Use centralized playback state
   const { state: playbackState, stop: stopMainPlayback } = usePlayback();
-  const { isPlaying: isMainPlaying, currentStep: mainPlayheadStep } = playbackState;
+  const { isPlaying: isMainPlaying } = playbackState;
+  // 16th-note playhead comes through its own channel now (not the shared state object),
+  // so subscribing here doesn't re-render on unrelated playback changes.
+  const mainPlayheadStep = useCurrentStep();
   
   const [editedStyle, setEditedStyle] = useState<StylePattern>(cloneStyle(style));
   const [originalStyleName, setOriginalStyleName] = useState(style.name); // For dropdown display
