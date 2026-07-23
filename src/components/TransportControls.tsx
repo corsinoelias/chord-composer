@@ -306,8 +306,11 @@ export const TransportControls = memo(function TransportControls({
 
               {/* Song Title - grows to fill space. Keeps a comfortable min width so on
                   tablet it never gets crushed: when the row runs out of room the Right
-                  Actions wrap to their own line instead of squeezing this input. */}
-              <div className="flex-1 min-w-[14rem] hidden sm:block max-w-sm">
+                  Actions wrap to their own line instead of squeezing this input. On tablet
+                  it stretches to the container's right edge (aligning with the action bar
+                  and style row below); only at lg+, where it shares row 1 with the actions,
+                  is it capped so it doesn't grow unbounded. */}
+              <div className="flex-1 min-w-[14rem] hidden sm:block lg:max-w-sm">
                 <Label htmlFor="song-title" className="text-xs text-muted-foreground uppercase tracking-wide mb-1 block">
                   Song Title
                 </Label>
