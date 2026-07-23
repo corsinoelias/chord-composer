@@ -8,7 +8,8 @@ import { previewNote } from '@/lib/audioEngine';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Copy, Pencil, Check } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Plus, Trash2, Copy, Pencil, Check, Layers } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 // hex (#rrggbb) → rgba, for accent-tinted cell fills.
@@ -16,6 +17,9 @@ function hexToRgba(hex: string, alpha: number): string {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
+
+// "C4" / "C#4" → "C" / "C#" — drop the octave number to save space.
+const pitchClass = (name: string) => name.replace(/-?\d+$/, '');
 
 interface MelodicPatternGridProps {
   melodic: InstrumentMelodic;
@@ -269,7 +273,7 @@ export function MelodicPatternGrid({
         ))}
 
         <Button variant="ghost" size="sm" className="h-7 px-2 gap-1" onClick={handleNewVariation}>
-          <Plus className="h-3 w-3" /> Nueva
+          <Plus className="h-3 w-3" /> New variation
         </Button>
       </div>
 
@@ -312,36 +316,23 @@ export function MelodicPatternGrid({
         </div>
       )}
 
-      {/* Grid — paged so it never scrolls sideways (like the drum grid) */}
+      {/* Grid — same look as the drum sequencer (chip rail + colored pads). The amber
+          Chord row is the one intentional exception. Octave lives in the chip's popover. */}
       {activeVariation && (
-        <div className="flex flex-col gap-1">
-          {/* Beat markers */}
-          <div className="flex items-center">
-            <div className="w-24 sm:w-28 flex-shrink-0" />
-            <div className="grid flex-1 gap-1" style={gridCols}>
-              {visibleSlots.map(slot => {
-                const isBeat = slot % slotsPerBeatGroup === 0;
-                return (
-                  <div key={slot} className={cn('text-center text-[10px] font-mono', isBeat ? 'text-muted-foreground' : 'text-transparent')}>
-                    {isBeat ? Math.floor(slot / slotsPerBeatGroup) + 1 : '.'}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Chord hit row — plays all chord tones simultaneously */}
+        <div className="flex flex-col gap-1.5">
+          {/* Chord row — all chord tones together (kept visually distinct in amber) */}
           {(() => {
             const chordHitSlots = activeVariation.chordHit ?? [];
             return (
-              <div className="flex items-center mb-1">
-                <div className="w-24 sm:w-28 flex-shrink-0 flex items-center gap-1 pr-2">
-                  <span className="text-sm font-mono w-3">♩</span>
-                  <span className="text-xs rounded px-1 min-w-[28px] text-center bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold">
-                    Chord
-                  </span>
+              <div className="flex items-center gap-2">
+                <div
+                  title="Chord — all chord tones together"
+                  className="w-9 h-9 shrink-0 rounded-lg grid place-items-center border text-amber-600 dark:text-amber-400"
+                  style={{ backgroundColor: 'rgba(245,158,11,0.14)', borderColor: 'rgba(245,158,11,0.34)' }}
+                >
+                  <Layers className="w-4 h-4" />
                 </div>
-                <div className="grid flex-1 gap-1" style={gridCols}>
+                <div className="grid flex-1 gap-1.5" style={gridCols}>
                   {visibleSlots.map(slot => {
                     const active = (chordHitSlots[slot] ?? 0) > 0;
                     const isCurrent = isPlaying && currentStep !== undefined && currentStep >= 0 && (currentStep % totalSlots) === slot;
@@ -350,12 +341,10 @@ export function MelodicPatternGrid({
                         key={slot}
                         onClick={() => handleChordHitClick(slot)}
                         className={cn(
-                          'h-9 sm:h-8 border transition-colors rounded-sm',
+                          'aspect-square rounded-md border transition-colors',
                           slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
                           isCurrent && !active && 'bg-amber-500/20',
-                          active
-                            ? 'bg-amber-500 border-amber-500'
-                            : 'border-amber-400/25 hover:bg-amber-500/10',
+                          active ? 'bg-amber-500 border-amber-500' : 'border-amber-400/25 hover:bg-amber-500/10',
                         )}
                       />
                     );
@@ -365,42 +354,51 @@ export function MelodicPatternGrid({
             );
           })()}
 
+          {/* Degree rows — chip (note) + colored pads, matching the drum rows */}
           {DEGREES.map(degree => {
             const isChordTone = CHORD_TONES.has(degree);
             const degSlots = activeVariation.pattern[degree] ?? [];
             const storedOctave = activeVariation.octaveOffsets?.[degree] ?? naturalOctave;
             const displayOctave = storedOctave - naturalOctave;
             return (
-              <div key={degree} className="flex items-center">
-                <div className={cn('w-24 sm:w-28 flex-shrink-0 flex items-center gap-1 pr-2', isChordTone ? 'font-semibold' : 'text-muted-foreground')}>
-                  <span className="text-sm font-mono w-3">{degree}</span>
-                  <span
-                    className="text-xs rounded px-1 min-w-[28px] text-center font-medium"
-                    style={isChordTone
-                      ? { color: accentColor, backgroundColor: hexToRgba(accentColor, 0.14) }
-                      : undefined}
-                  >
-                    <span className={isChordTone ? '' : 'text-muted-foreground'}>{noteNames[degree]}</span>
-                  </span>
-                  <div className="flex items-center gap-px ml-auto">
+              <div key={degree} className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
                     <button
-                      onClick={() => handleOctaveChange(degree, -1)}
-                      disabled={displayOctave <= -2}
-                      className="w-5 h-5 sm:w-4 sm:h-4 rounded text-[11px] sm:text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
-                      title="Bajar octava"
-                    >▾</button>
-                    <span className={cn('text-[9px] w-5 text-center', displayOctave !== 0 ? 'text-primary font-bold' : 'text-muted-foreground')}>
-                      {displayOctave > 0 ? `+${displayOctave}` : displayOctave}
-                    </span>
-                    <button
-                      onClick={() => handleOctaveChange(degree, +1)}
-                      disabled={displayOctave >= 2}
-                      className="w-5 h-5 sm:w-4 sm:h-4 rounded text-[11px] sm:text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
-                      title="Subir octava"
-                    >▴</button>
-                  </div>
-                </div>
-                <div className="grid flex-1 gap-1" style={gridCols}>
+                      title={`Degree ${degree} · ${pitchClass(noteNames[degree])} — tap for octave`}
+                      className={cn(
+                        'w-9 h-9 shrink-0 rounded-lg grid place-items-center border relative text-xs font-bold transition-transform active:scale-95',
+                        !isChordTone && 'bg-muted text-muted-foreground border-border',
+                      )}
+                      style={isChordTone
+                        ? { color: accentColor, backgroundColor: hexToRgba(accentColor, 0.16), borderColor: hexToRgba(accentColor, 0.34) }
+                        : undefined}
+                    >
+                      {pitchClass(noteNames[degree])}
+                      {displayOctave !== 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[15px] h-3.5 px-0.5 rounded-full bg-primary text-primary-foreground text-[8px] font-bold grid place-items-center">
+                          {displayOctave > 0 ? `+${displayOctave}` : displayOctave}
+                        </span>
+                      )}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent side="right" align="center" className="w-auto p-2.5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold" style={isChordTone ? { color: accentColor } : undefined}>
+                        {degree} · {pitchClass(noteNames[degree])}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide mr-1">Octave</span>
+                        <button onClick={() => handleOctaveChange(degree, -1)} disabled={displayOctave <= -2} className="w-7 h-7 rounded-md bg-muted hover:bg-muted-foreground/20 disabled:opacity-30 grid place-items-center" title="Down an octave">▾</button>
+                        <span className={cn('text-sm w-7 text-center font-mono', displayOctave !== 0 ? 'text-primary font-bold' : 'text-muted-foreground')}>
+                          {displayOctave > 0 ? `+${displayOctave}` : displayOctave}
+                        </span>
+                        <button onClick={() => handleOctaveChange(degree, +1)} disabled={displayOctave >= 2} className="w-7 h-7 rounded-md bg-muted hover:bg-muted-foreground/20 disabled:opacity-30 grid place-items-center" title="Up an octave">▴</button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <div className="grid flex-1 gap-1.5" style={gridCols}>
                   {visibleSlots.map(slot => {
                     const active = (degSlots[slot] ?? 0) > 0;
                     const isCurrent = isPlaying && currentStep !== undefined && currentStep >= 0 && (currentStep % totalSlots) === slot;
@@ -412,7 +410,7 @@ export function MelodicPatternGrid({
                           ? { backgroundColor: isChordTone ? accentColor : hexToRgba(accentColor, 0.5), borderColor: hexToRgba(accentColor, 0.75) }
                           : (isCurrent ? { backgroundColor: hexToRgba(accentColor, 0.18) } : undefined)}
                         className={cn(
-                          'h-9 sm:h-8 border transition-colors rounded-sm',
+                          'aspect-square rounded-md border transition-colors',
                           slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
                           !active && !isCurrent && (isChordTone ? 'border-primary/25 hover:bg-primary/10' : 'border-muted-foreground/15 hover:bg-muted'),
                         )}
@@ -423,6 +421,21 @@ export function MelodicPatternGrid({
               </div>
             );
           })}
+
+          {/* Beat ruler at the bottom (like the drum grid) */}
+          <div className="flex items-center gap-2 pt-0.5">
+            <div className="w-9 shrink-0" />
+            <div className="grid flex-1 gap-1.5" style={gridCols}>
+              {visibleSlots.map(slot => {
+                const isBeat = slot % slotsPerBeatGroup === 0;
+                return (
+                  <div key={slot} className={cn('h-5 flex items-center justify-center text-[10px] tabular-nums', isBeat ? 'text-foreground font-semibold' : 'text-muted-foreground/40')}>
+                    {isBeat ? Math.floor(slot / slotsPerBeatGroup) + 1 : '·'}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
