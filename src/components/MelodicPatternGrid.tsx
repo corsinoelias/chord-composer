@@ -331,7 +331,7 @@ export function MelodicPatternGrid({
                   style={{ backgroundColor: 'rgba(245,158,11,0.14)', borderColor: 'rgba(245,158,11,0.34)' }}
                 >
                   <Layers className="w-3.5 h-3.5" />
-                  <span className="text-[8px] leading-none font-medium">Chord</span>
+                  <span className="text-[8px] leading-none font-medium text-foreground">Chord</span>
                 </div>
                 <div className="grid flex-1 gap-1.5" style={gridCols}>
                   {visibleSlots.map(slot => {
@@ -375,8 +375,8 @@ export function MelodicPatternGrid({
                         ? { color: accentColor, backgroundColor: hexToRgba(accentColor, 0.16), borderColor: hexToRgba(accentColor, 0.34) }
                         : undefined}
                     >
-                      <span className="text-sm font-bold leading-none">{pitchClass(noteNames[degree])}</span>
-                      <span className="text-[8px] leading-none opacity-70">{degree}</span>
+                      <span className="text-sm font-bold leading-none text-foreground">{pitchClass(noteNames[degree])}</span>
+                      <span className="text-[8px] leading-none text-muted-foreground">{degree}</span>
                       {displayOctave !== 0 && (
                         <span className="absolute -top-1.5 -right-1.5 min-w-[15px] h-3.5 px-0.5 rounded-full bg-primary text-primary-foreground text-[8px] font-bold grid place-items-center">
                           {displayOctave > 0 ? `+${displayOctave}` : displayOctave}

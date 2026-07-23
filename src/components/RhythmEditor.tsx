@@ -1172,7 +1172,7 @@ export function RhythmEditor({
                             style={{ color: instColor, backgroundColor: hexToRgba(instColor, 0.14), borderColor: hexToRgba(instColor, 0.32) }}
                           >
                             <Icon className="w-3.5 h-3.5 shrink-0" />
-                            <span className="text-[8px] leading-none font-medium max-w-full truncate">{instrument.label}</span>
+                            <span className="text-[8px] leading-none font-medium max-w-full truncate text-foreground">{instrument.label}</span>
                           </button>
                         </PopoverTrigger>
                         <PopoverContent side="right" align="start" className="w-44 p-1">
@@ -1416,7 +1416,22 @@ export function RhythmEditor({
               onChange={updated => {
                 // A real edit is unambiguous intent to have this variation play — mark it
                 // enabled here (not on mere tab navigation) so saving actually applies it.
-                setEditedStyle(prev => ({ ...prev, melodic: { ...(prev.melodic ?? emptyMelodicData()), [activeTab]: { ...updated, enabled: true } } }));
+                setEditedStyle(prev => {
+                  // The melodic grid is now the source of truth for this instrument, so
+                  // retire the legacy rhythm.* fallback (which the engine plays when the
+                  // melodic variation is empty). Otherwise clearing the grid leaves nothing
+                  // marked yet the old rhythm pattern keeps sounding — incoherent.
+                  const rhythm = { ...prev.rhythm };
+                  const key = activeTab as 'bass' | 'piano' | 'guitar';
+                  if (rhythm[key]?.some(v => v > 0)) {
+                    rhythm[key] = createEmptyPattern(getStyleTotalSlots(prev));
+                  }
+                  return {
+                    ...prev,
+                    rhythm,
+                    melodic: { ...(prev.melodic ?? emptyMelodicData()), [activeTab]: { ...updated, enabled: true } },
+                  };
+                });
               }}
             />
             </div>
