@@ -26,7 +26,7 @@ import {
   RotateCw
 } from 'lucide-react';
 import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar, getStyleTotalSlots, getPulseInterval } from '@/lib/styles';
-import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback, previewDrumHit } from '@/lib/audioEngine';
+import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback, previewDrumHit, ensureGuitarSoundfont, ensureGuitarSampleType } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates, INSTRUMENTS, type InstrumentType } from '@/lib/instruments';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
@@ -198,10 +198,12 @@ function InstrumentMixControl({
   instType,
   editedStyle,
   onChange,
+  onSoundTypeChange,
 }: {
   instType: InstrumentType;
   editedStyle: StylePattern;
   onChange: (updater: (prev: StylePattern) => StylePattern) => void;
+  onSoundTypeChange?: () => void;
 }) {
   const config = INSTRUMENTS.find(i => i.id === instType);
   if (!config) return null;
@@ -225,10 +227,21 @@ function InstrumentMixControl({
       </div>
       <Select
         value={currentSoundId}
-        onValueChange={(soundId) => onChange(prev => ({
-          ...prev,
-          instrumentSounds: { ...prev.instrumentSounds, [instType]: soundId },
-        }))}
+        onValueChange={(soundId) => {
+          onChange(prev => ({
+            ...prev,
+            instrumentSounds: { ...prev.instrumentSounds, [instType]: soundId },
+          }));
+          // Guitar tones (soundfonts / sample kits) lazy-load, so the first bars after a
+          // switch fall back to the synth. Kick off the load now so the new sound is ready.
+          const sound = config.soundTypes.find(s => s.id === soundId);
+          if (instType === 'guitar' && sound) {
+            getAudioContext();
+            if (sound.sf2Instrument) ensureGuitarSoundfont(soundId, sound.sf2Instrument);
+            else if (sound.useSamples && sound.samplePath) ensureGuitarSampleType(sound.samplePath);
+          }
+          onSoundTypeChange?.();
+        }}
       >
         <SelectTrigger className="h-7 w-28 sm:w-32 text-[10px] sm:text-xs px-1.5">
           <SelectValue />
@@ -1147,7 +1160,7 @@ export function RhythmEditor({
             
             {/* Drums' own volume + kit selector — scoped to this tab only */}
             <div className="ml-auto">
-              <InstrumentMixControl instType="drums" editedStyle={editedStyle} onChange={setEditedStyle} />
+              <InstrumentMixControl instType="drums" editedStyle={editedStyle} onChange={setEditedStyle} onSoundTypeChange={() => { if (isLocalPlaying) startLocalPlayback(); }} />
             </div>
           </div>
 
@@ -1396,6 +1409,7 @@ export function RhythmEditor({
                 instType={activeTab as InstrumentType}
                 editedStyle={editedStyle}
                 onChange={setEditedStyle}
+                onSoundTypeChange={() => { if (isLocalPlaying) startLocalPlayback(); }}
               />
             </div>
             <div className="p-4">
