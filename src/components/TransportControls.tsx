@@ -291,10 +291,11 @@ export const TransportControls = memo(function TransportControls({
 
             <div className="h-6 w-px bg-border/70 mx-0.5 sm:mx-1 hidden xs:block" />
 
-            {/* Transpose Control */}
+            {/* Transpose Control — its own -/+ buttons already carry borders, so no chip
+                wrapper here (would be border-in-border); just a clear label on mobile. */}
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide whitespace-nowrap hidden sm:block">
-                Transpose
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                <span className="sm:hidden">Key</span><span className="hidden sm:inline">Transpose</span>
               </Label>
               <div className="flex items-center gap-1">
                 <Tooltip>
