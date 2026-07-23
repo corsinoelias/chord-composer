@@ -270,7 +270,7 @@ export function MelodicPatternGrid({
             <div className="flex items-center">
               <div className="w-28 flex-shrink-0" />
               {Array.from({ length: totalSlots }, (_, slot) => (
-                <div key={slot} className={cn('w-7 text-center text-[10px] font-mono', slot % slotsPerBeatGroup === 0 ? 'text-muted-foreground' : 'text-transparent')}>
+                <div key={slot} className={cn('w-8 sm:w-7 text-center text-[10px] font-mono', slot % slotsPerBeatGroup === 0 ? 'text-muted-foreground' : 'text-transparent')}>
                   {slot % slotsPerBeatGroup === 0 ? Math.floor(slot / slotsPerBeatGroup) + 1 : '.'}
                 </div>
               ))}
@@ -295,7 +295,7 @@ export function MelodicPatternGrid({
                         key={slot}
                         onClick={() => handleChordHitClick(slot)}
                         className={cn(
-                          'w-7 h-8 border transition-colors rounded-sm',
+                          'w-8 h-10 sm:w-7 sm:h-8 border transition-colors rounded-sm',
                           slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
                           isCurrent && !active && 'bg-amber-500/20',
                           active
@@ -325,7 +325,7 @@ export function MelodicPatternGrid({
                       <button
                         onClick={() => handleOctaveChange(degree, -1)}
                         disabled={displayOctave <= -2}
-                        className="w-4 h-4 rounded text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
+                        className="w-5 h-5 sm:w-4 sm:h-4 rounded text-[11px] sm:text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
                         title="Bajar octava"
                       >▾</button>
                       <span className={cn('text-[9px] w-5 text-center', displayOctave !== 0 ? 'text-primary font-bold' : 'text-muted-foreground')}>
@@ -334,7 +334,7 @@ export function MelodicPatternGrid({
                       <button
                         onClick={() => handleOctaveChange(degree, +1)}
                         disabled={displayOctave >= 2}
-                        className="w-4 h-4 rounded text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
+                        className="w-5 h-5 sm:w-4 sm:h-4 rounded text-[11px] sm:text-[9px] leading-none flex items-center justify-center bg-muted hover:bg-muted-foreground/20 disabled:opacity-30"
                         title="Subir octava"
                       >▴</button>
                     </div>
@@ -347,7 +347,7 @@ export function MelodicPatternGrid({
                         key={slot}
                         onClick={() => handleCellClick(degree, slot)}
                         className={cn(
-                          'w-7 h-8 border transition-colors rounded-sm',
+                          'w-8 h-10 sm:w-7 sm:h-8 border transition-colors rounded-sm',
                           slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
                           isCurrent && !active && 'bg-primary/20',
                           active

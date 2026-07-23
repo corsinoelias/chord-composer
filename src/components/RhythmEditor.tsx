@@ -225,6 +225,8 @@ export function RhythmEditor({
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  // Pending "clear pattern" awaiting confirmation (clearing wipes a whole instrument row).
+  const [clearConfirm, setClearConfirm] = useState<{ instrument: InstrumentKey; isFill: boolean } | null>(null);
   const [velocityPopover, setVelocityPopover] = useState<{
     instrument: InstrumentKey;
     step: number;
@@ -787,8 +789,21 @@ export function RhythmEditor({
   return (
     <>
       <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) handleCloseAttempt(); }}>
-        <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] p-0 gap-0 overflow-hidden">
-          <DialogHeader className="p-4 pb-2 border-b border-border">
+        {/* Mobile-first: full-screen on phones (the dense sequencer needs every pixel),
+            restored to the centered desktop dialog at sm+. Base classes win below sm;
+            sm: overrides win above — the centering translate math already makes a
+            100vw/100dvh box fill the screen, so no translate override is needed. */}
+        <DialogContent
+          // Don't let a stray tap dismiss the editor — on the full-screen mobile dialog
+          // a tap near the bottom edge (e.g. on the Play button) could land on the
+          // overlay if 100dvh doesn't perfectly match it, closing the dialog and popping
+          // the "Unsaved Changes" guard. Closing is only via the X button or Escape, both
+          // of which still run through the guarded onOpenChange flow. Also prevents
+          // accidental data loss from click-outside on desktop.
+          onInteractOutside={(e) => e.preventDefault()}
+          className="flex flex-col w-screen h-[100dvh] max-w-none rounded-none p-0 gap-0 overflow-hidden sm:w-[95vw] sm:max-w-5xl sm:h-auto sm:max-h-[90vh] sm:rounded-lg"
+        >
+          <DialogHeader className="p-4 pb-2 border-b border-border shrink-0">
             <DialogTitle className="flex items-center gap-3">
               <Drum className="w-5 h-5" />
               
@@ -813,10 +828,10 @@ export function RhythmEditor({
               )}
             </DialogTitle>
           </DialogHeader>
-          
-          <div className="flex flex-col h-full">
+
+          <div className="flex flex-col flex-1 min-h-0">
             {/* Top Controls */}
-            <div className="p-2 sm:p-4 border-b border-border bg-card/50 flex flex-wrap items-center gap-2 sm:gap-4">
+            <div className="p-2 sm:p-4 border-b border-border bg-card/50 flex flex-wrap items-center gap-2 sm:gap-4 shrink-0">
               {/* Style Name (editable) */}
               <div className="flex items-center gap-2">
                 <Label className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">Name:</Label>
@@ -861,8 +876,9 @@ export function RhythmEditor({
                 </Select>
               </div>
               
-              {/* Playback & Save Controls */}
-              <div className="flex items-center gap-1 sm:gap-2 ml-auto">
+              {/* Playback & Save Controls — desktop only; on mobile these live in the
+                  sticky bottom action bar so they're always reachable & finger-sized. */}
+              <div className="hidden sm:flex items-center gap-1 sm:gap-2 ml-auto">
                 {/* Reset to default (only for built-in styles with a saved override) */}
                 {hasOverride && !hasUnsavedChanges && (
                   <Button
@@ -932,8 +948,8 @@ export function RhythmEditor({
               </div>
             </div>
 
-          {/* Tab Navigation */}
-          <div className="px-4 border-b border-border flex gap-0">
+          {/* Tab Navigation — labels always visible; full-width even split on mobile */}
+          <div className="px-2 sm:px-4 border-b border-border flex gap-0 shrink-0">
             {([
               { key: 'drums', label: 'Drums', Icon: Drum },
               { key: 'piano', label: 'Piano', Icon: Piano },
@@ -944,14 +960,14 @@ export function RhythmEditor({
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={cn(
-                  'px-3 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5',
+                  'flex-1 sm:flex-none justify-center px-3 py-3 sm:py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5',
                   activeTab === tab.key
                     ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground',
                 )}
               >
                 <tab.Icon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{tab.label}</span>
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
@@ -1024,25 +1040,44 @@ export function RhythmEditor({
           </div>
 
           {/* Grid Area */}
-          <div className="flex-1 max-h-[50vh] sm:max-h-[400px] overflow-auto">
-            <div className="p-2 sm:p-4 min-w-[340px]">
+          <div className="flex-1 min-h-0 sm:max-h-[400px] overflow-auto">
+            <div className="p-3 sm:p-4 min-w-0 sm:min-w-[340px]">
               {/* Grid Rows — a single flat row of slotsPerBar steps per instrument.
                   Pulse numbers (1, 2, 3…) are printed inside the empty cell at each
                   pulse start instead of a separate header row above the grid. */}
-              <div className="space-y-0.5 sm:space-y-1">
+              <div className="space-y-3 sm:space-y-1">
                 {sortedActiveInstruments.filter(i => i.category === 'drums').map(instrument => {
                   const basePattern = editedStyle.rhythm[instrument.key] || createEmptyPattern(totalSlots);
                   const fillPattern = editedStyle.fill.pattern[instrument.key];
                   const Icon = instrument.icon;
 
                   return (
-                    <div key={instrument.key} className="flex items-center gap-0.5 sm:gap-2">
-                      <div className="w-12 sm:w-24 flex items-center gap-0.5 shrink-0 overflow-hidden">
-                        <Icon className="w-3 h-3 text-muted-foreground hidden sm:block shrink-0" />
-                        <span className="text-[8px] sm:text-xs font-medium truncate">{instrument.label}</span>
+                    <div key={instrument.key} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 pb-2 sm:pb-0 border-b border-border/40 sm:border-0 last:border-0">
+                      {/* Mobile header: label + clear on their own row above the pads */}
+                      <div className="flex items-center justify-between sm:hidden">
+                        <div className="flex items-center gap-1.5">
+                          <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <span className="text-sm font-medium">{instrument.label}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setClearConfirm({ instrument: instrument.key, isFill: showFill })}
+                          title="Clear pattern"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </Button>
                       </div>
 
-                      <div className="flex-1 flex gap-px sm:gap-0.5 px-px sm:px-0.5">
+                      {/* Desktop label (narrow left column) */}
+                      <div className="hidden sm:flex w-24 items-center gap-0.5 shrink-0 overflow-hidden">
+                        <Icon className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <span className="text-xs font-medium truncate">{instrument.label}</span>
+                      </div>
+
+                      {/* Steps — 4-per-row grid of big pads on mobile, single horizontal row on desktop */}
+                      <div className="grid grid-cols-4 gap-1.5 sm:flex sm:flex-1 sm:gap-0.5 sm:px-0.5">
                         {Array.from({ length: totalSlots }, (_, i) => i).map(step => {
                               // slotInBar restarts every bar (0..slotsPerBar-1) — used for
                               // pulse numbering, the fill zone, and reading/writing the
@@ -1094,8 +1129,9 @@ export function RhythmEditor({
                                       onClick={() => handleCellClick(instrument.key, step, showFill)}
                                       onContextMenu={e => handleCellRightClick(e, instrument.key, step, showFill)}
                                       className={cn(
-                                        "flex-1 aspect-square rounded-[2px] sm:rounded-sm border transition-all relative flex items-center justify-center min-w-[14px] sm:min-w-[24px] max-w-[32px]",
-                                        isBarStart && "ml-1.5 sm:ml-2.5",
+                                        "aspect-square rounded border transition-all relative flex items-center justify-center sm:flex-1 sm:rounded-sm sm:min-w-[24px] sm:max-w-[32px]",
+                                        // Bar-start gap is a horizontal-row artifact; skip it in the mobile grid.
+                                        isBarStart && "sm:ml-2.5",
                                         isDownbeat ? "border-border" : "border-border/40",
                                         // Fill mode: locked zone gets muted background
                                         isInactiveInFill && "opacity-40 cursor-not-allowed bg-muted/50",
@@ -1112,11 +1148,11 @@ export function RhythmEditor({
                                       )}
                                     >
                                       {value > 0 ? (
-                                        <span className="text-[7px] sm:text-[9px] font-medium text-foreground/80">
+                                        <span className="text-sm sm:text-[9px] font-medium text-foreground/80">
                                           {Math.round(value * 100)}
                                         </span>
                                       ) : isDownbeat && (
-                                        <span className="text-[9px] sm:text-xs font-medium text-muted-foreground/50">
+                                        <span className="text-sm sm:text-xs font-medium text-muted-foreground/50">
                                           {pulseNumber}
                                         </span>
                                       )}
@@ -1162,25 +1198,26 @@ export function RhythmEditor({
                             })}
                       </div>
 
-                      <div className="flex items-center shrink-0 w-6 sm:w-16">
+                      {/* Desktop controls (right column) — on mobile, Clear lives in the header row above */}
+                      <div className="hidden sm:flex items-center shrink-0 w-16">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-4 w-4 sm:h-6 sm:w-6"
-                          onClick={() => clearPattern(instrument.key, showFill)}
+                          className="h-6 w-6"
+                          onClick={() => setClearConfirm({ instrument: instrument.key, isFill: showFill })}
                           title="Clear pattern"
                         >
-                          <RotateCcw className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                          <RotateCcw className="w-3 h-3" />
                         </Button>
                         {!['kick', 'snare', 'hihat', 'bass', 'piano'].includes(instrument.key) && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-4 w-4 sm:h-6 sm:w-6 text-destructive hover:text-destructive hidden sm:flex"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
                             onClick={() => removeInstrument(instrument.key)}
                             title="Remove instrument"
                           >
-                            <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         )}
                       </div>
@@ -1264,10 +1301,61 @@ export function RhythmEditor({
             </div>
           </div>
           )}
+
+          {/* Mobile sticky action bar — the primary actions (moved out of the cramped top
+              toolbar) always visible & finger-sized. Desktop keeps them in the toolbar. */}
+          <div className="sm:hidden shrink-0 border-t border-border bg-background p-3 flex items-center gap-2">
+            {hasUnsavedChanges ? (
+              <Button variant="outline" onClick={() => setResetDialogOpen(true)} className="gap-1.5 shrink-0">
+                <RotateCcw className="w-4 h-4" /> Discard
+              </Button>
+            ) : hasOverride ? (
+              <Button
+                variant="outline"
+                className="gap-1.5 shrink-0"
+                // Mirrors the desktop toolbar's Reset (immediate, no confirm): drop the
+                // saved override and restore the original built-in style.
+                onClick={() => {
+                  deleteStyleOverride(style.id);
+                  const original = MUSICAL_STYLES.find(s => s.id === style.id);
+                  if (original) {
+                    const cloned = cloneStyle(original);
+                    setEditedStyle(cloned);
+                    editedStyleRef.current = cloned;
+                    originalStyleRef.current = JSON.stringify(cloned);
+                    setHasUnsavedChanges(false);
+                    onStyleChange?.(cloned);
+                  }
+                  toast.success('Reset to default');
+                }}
+              >
+                <RotateCw className="w-4 h-4" /> Reset
+              </Button>
+            ) : null}
+
+            <Button
+              variant={(isLocalPlaying || isMainPlaying) ? 'destructive' : 'default'}
+              onClick={togglePlayback}
+              className="flex-1 gap-1.5"
+            >
+              {(isLocalPlaying || isMainPlaying) ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              {(isLocalPlaying || isMainPlaying) ? 'Stop' : (showFill ? 'Preview Fill' : 'Play')}
+            </Button>
+
+            {isCustomStyle(editedStyle.id) && (
+              <Button variant="destructive" size="icon" onClick={() => handleDeleteStyle(editedStyle)} aria-label="Delete rhythm" className="shrink-0">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+
+            <Button variant="outline" onClick={handleSaveClick} className="gap-1.5 shrink-0">
+              <Save className="w-4 h-4" /> Save
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
-    
+
     {/* Delete Confirmation Dialog */}
     <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
       <AlertDialogContent>
@@ -1343,6 +1431,30 @@ export function RhythmEditor({
           <AlertDialogCancel>Keep Editing</AlertDialogCancel>
           <AlertDialogAction onClick={handleDiscardChanges} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
             Discard Changes
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* Clear Pattern Confirmation */}
+    <AlertDialog open={clearConfirm !== null} onOpenChange={(o) => { if (!o) setClearConfirm(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Clear pattern?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This removes every step for this instrument{clearConfirm?.isFill ? ' in the current fill' : ''}. You can undo by not saving.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              if (clearConfirm) clearPattern(clearConfirm.instrument, clearConfirm.isFill);
+              setClearConfirm(null);
+            }}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Clear
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

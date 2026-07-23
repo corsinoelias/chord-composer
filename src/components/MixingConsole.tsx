@@ -233,8 +233,8 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto p-0">
-        <div className="p-4 border-b border-border">
+      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
+        <div className="p-4 border-b border-border shrink-0">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
@@ -251,7 +251,7 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
           </SheetHeader>
         </div>
 
-        <div className="p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* ─── EQUALIZER ─── */}
           <EffectSection title="Equalizer" badge="3-Band">
             <div className="bg-secondary/30 rounded-lg p-4">
@@ -363,9 +363,10 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
             </div>
           </EffectSection>
 
-          <Separator />
+        </div>
 
-          {/* Reset */}
+        {/* Sticky footer — Reset stays reachable without scrolling to the bottom */}
+        <div className="shrink-0 border-t border-border bg-background p-4">
           <Button
             variant="outline"
             className="w-full"
