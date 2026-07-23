@@ -926,7 +926,10 @@ export function RhythmEditor({
           // of which still run through the guarded onOpenChange flow. Also prevents
           // accidental data loss from click-outside on desktop.
           onInteractOutside={(e) => e.preventDefault()}
-          className="flex flex-col w-screen h-[100dvh] max-w-none rounded-none p-0 gap-0 overflow-hidden sm:w-[95vw] sm:max-w-5xl sm:h-auto sm:max-h-[90vh] sm:rounded-lg"
+          // Don't auto-focus the Name field on open (pops the mobile keyboard and pulls
+          // attention off the grid). Let the user land on the sequencer instead.
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="flex flex-col w-screen h-[100dvh] max-w-none rounded-none p-0 gap-0 overflow-hidden select-none sm:w-[95vw] sm:max-w-5xl sm:h-auto sm:max-h-[90vh] sm:rounded-lg"
         >
           <DialogHeader className="p-4 pb-2 border-b border-border shrink-0">
             <DialogTitle className="flex items-center gap-3">
@@ -963,7 +966,7 @@ export function RhythmEditor({
                 <Input
                   value={editedStyle.name}
                   onChange={e => setEditedStyle(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-28 sm:w-40 h-8 text-sm"
+                  className="w-28 sm:w-40 h-8 text-sm select-text"
                   placeholder="Name"
                 />
               </div>
@@ -1268,7 +1271,7 @@ export function RhythmEditor({
                                         borderColor: hexToRgba(instColor, 0.65),
                                       } : undefined}
                                       className={cn(
-                                        "aspect-square rounded-md border transition-all relative select-none",
+                                        "aspect-square rounded-md border transition-all relative select-none cursor-pointer",
                                         // Off cells: neutral surface + downbeat-emphasized border
                                         value === 0 && !isInactiveInFill && "bg-secondary",
                                         value === 0 && (isDownbeat ? "border-border" : "border-border/40"),

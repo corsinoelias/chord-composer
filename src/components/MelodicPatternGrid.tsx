@@ -255,7 +255,7 @@ export function MelodicPatternGrid({
                   value={editingName}
                   onChange={e => setEditingName(e.target.value)}
                   onBlur={commitRename}
-                  className="h-5 w-24 text-xs px-1 bg-background text-foreground"
+                  className="h-5 w-24 text-xs px-1 bg-background text-foreground select-text"
                 />
                 <button type="submit"><Check className="h-3 w-3" /></button>
               </form>
@@ -342,10 +342,10 @@ export function MelodicPatternGrid({
                         key={slot}
                         onClick={() => handleChordHitClick(slot)}
                         className={cn(
-                          'aspect-square rounded-md border transition-colors',
+                          'aspect-square rounded-md border transition-all cursor-pointer hover:brightness-110',
                           slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
-                          isCurrent && !active && 'bg-amber-500/20',
-                          active ? 'bg-amber-500 border-amber-500' : 'border-amber-400/25 hover:bg-amber-500/10',
+                          isCurrent && !active && 'bg-amber-500/25 border-amber-500/50',
+                          active ? 'bg-amber-500 border-amber-500' : 'bg-amber-500/5 border-amber-400/45',
                         )}
                       />
                     );
@@ -409,12 +409,17 @@ export function MelodicPatternGrid({
                         key={slot}
                         onClick={() => handleCellClick(degree, slot)}
                         style={active
-                          ? { backgroundColor: isChordTone ? accentColor : hexToRgba(accentColor, 0.5), borderColor: hexToRgba(accentColor, 0.75) }
-                          : (isCurrent ? { backgroundColor: hexToRgba(accentColor, 0.18) } : undefined)}
+                          ? { backgroundColor: isChordTone ? accentColor : hexToRgba(accentColor, 0.5), borderColor: hexToRgba(accentColor, 0.85) }
+                          : isCurrent
+                            ? { backgroundColor: hexToRgba(accentColor, 0.22), borderColor: hexToRgba(accentColor, 0.55) }
+                            : isChordTone
+                              ? { backgroundColor: hexToRgba(accentColor, 0.08), borderColor: hexToRgba(accentColor, 0.36) }
+                              : undefined}
                         className={cn(
-                          'aspect-square rounded-md border transition-colors',
+                          'aspect-square rounded-md border transition-all cursor-pointer',
                           slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
-                          !active && !isCurrent && (isChordTone ? 'border-primary/25 hover:bg-primary/10' : 'border-muted-foreground/15 hover:bg-muted'),
+                          !active && !isCurrent && !isChordTone && 'bg-secondary border-border/70',
+                          !active && 'hover:brightness-110',
                         )}
                       />
                     );
