@@ -3,6 +3,7 @@ import { type BassNote, type BassTrack } from '../../lib/bassTab/types'
 import { TabNotationView } from './TabNotationView'
 import { startPlayback, stopPlayback } from '../../lib/bassTab/bassAudio'
 import { PRESETS } from '../../data/presets'
+import { BT_VARS } from '../../lib/bassTab/theme'
 
 const noop = () => {}
 
@@ -58,7 +59,10 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
   const barFraction = (currentBeat % track.beatsPerBar) / track.beatsPerBar
 
   return (
-    <div className="relative rounded-xl border border-border bg-background overflow-hidden" style={{ height: 196 }}>
+    // Los tokens hay que declararlos también aquí: este componente se incrusta
+    // en los artículos de /learn, fuera del player, y tanto él como el
+    // `TabNotationView` que envuelve pintan con `var(--bt-*)`.
+    <div className="relative rounded-xl border border-border bg-background overflow-hidden" style={{ ...BT_VARS, height: 196 }}>
       {/* Read-only notation — one bar at a time */}
       <div className="absolute inset-0 bottom-14 overflow-hidden pointer-events-none select-none">
         <TabNotationView
@@ -82,15 +86,15 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
       {/* Bar progress strip */}
       <div
         className="absolute left-0 right-0 pointer-events-none"
-        style={{ bottom: 56, height: 2, background: 'hsl(224 20% 18%)' }}
+        style={{ bottom: 56, height: 2, background: 'var(--bt-rule)' }}
       >
         <div
           style={{
             height: '100%',
-            background: 'hsl(262 83% 58%)',
+            background: 'var(--bt-accent)',
             width: `${((currentBar - 1 + barFraction) / totalBars) * 100}%`,
             transition: 'width 0.08s linear',
-            boxShadow: '2px 0 6px hsl(262 83% 58% / 0.6)',
+            boxShadow: '2px 0 6px var(--bt-accent)',
           }}
         />
       </div>
@@ -99,17 +103,17 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
       <div
         className="absolute top-2 right-2 pointer-events-none"
         style={{
-          background: 'hsl(224 24% 8% / 0.85)',
-          border: '1px solid hsl(224 15% 20%)',
+          background: 'rgba(244,242,236,0.85)',
+          border: '1px solid var(--bt-rule)',
           borderRadius: 6,
           padding: '2px 7px',
-          fontFamily: 'ui-monospace, monospace',
+          fontFamily: 'var(--bt-mono)',
           fontSize: 11,
-          color: 'hsl(220 10% 50%)',
+          color: 'var(--bt-soft)',
           lineHeight: 1.6,
         }}
       >
-        <span style={{ color: 'hsl(220 14% 72%)' }}>{currentBar}</span>
+        <span style={{ color: 'var(--bt-muted)' }}>{currentBar}</span>
         <span style={{ opacity: 0.4 }}>/{totalBars}</span>
       </div>
 

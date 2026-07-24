@@ -40,7 +40,7 @@ export function TabNotationCursor({ x, isPlaying }: Props) {
       {/* shadow */}
       <path filter="url(#CursorShadow)" d={BODY_PATH} fill="rgba(0,0,0,0.35)" />
       {/* body */}
-      <path d={BODY_PATH} fill="hsl(262 83% 58% / 0.88)" />
+      <path d={BODY_PATH} fill="var(--bt-accent)" />
       {/* diamond icon at top */}
       <path d={DIAMOND} fill="white" opacity={0.92} />
     </g>

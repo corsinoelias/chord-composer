@@ -158,13 +158,13 @@ export function MobileTabEditor({
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: 'hsl(224 24% 8%)', userSelect: 'none', WebkitUserSelect: 'none' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: 'var(--bt-paper)', userSelect: 'none', WebkitUserSelect: 'none' }}>
 
       {/* Bar navigation */}
-      <div style={{ flexShrink: 0, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', background: 'hsl(224 20% 9%)', borderBottom: '1px solid hsl(224 15% 14%)' }}>
+      <div style={{ flexShrink: 0, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', background: 'var(--bt-sunken)', borderBottom: '1px solid var(--bt-card)' }}>
         <NavBtn onClick={() => goTo(displayBar - 1)} enabled={displayBar > 0}>‹</NavBtn>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'hsl(220 14% 65%)', letterSpacing: '0.03em', fontFamily: "'Inter',sans-serif" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--bt-muted)', letterSpacing: '0.03em', fontFamily: 'var(--bt-ui)' }}>
             Compás {displayBar + 1} / {totalBars}
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
@@ -173,8 +173,8 @@ export function MobileTabEditor({
                 width: i === displayBar ? 8 : 5, height: i === displayBar ? 8 : 5,
                 borderRadius: '50%', cursor: 'pointer', transition: 'all 0.12s',
                 background: i === displayBar
-                  ? (isPlaying ? 'hsl(262 83% 58%)' : 'hsl(220 14% 55%)')
-                  : 'hsl(224 15% 22%)',
+                  ? (isPlaying ? 'var(--bt-accent)' : 'var(--bt-muted)')
+                  : 'var(--bt-rule)',
               }} />
             ))}
           </div>
@@ -192,25 +192,25 @@ export function MobileTabEditor({
           return (
             <div
               key={si}
-              style={{ flex: 1, display: 'flex', minHeight: 0, borderBottom: si < 3 ? '1px solid hsl(224 15% 12%)' : 'none', cursor: 'crosshair' }}
+              style={{ flex: 1, display: 'flex', minHeight: 0, borderBottom: si < 3 ? '1px solid var(--bt-card)' : 'none', cursor: 'crosshair' }}
               onClick={e => handleRowTap(e, si as StringIndex)}
             >
               {/* String label */}
-              <div style={{ width: LABEL_W, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'hsl(224 20% 9%)', borderRight: '1px solid hsl(224 15% 14%)', pointerEvents: 'none', zIndex: 1 }}>
-                <span style={{ color: s.color, fontSize: 11, fontWeight: 700, fontFamily: 'ui-monospace,monospace' }}>{s.displayName}</span>
+              <div style={{ width: LABEL_W, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bt-sunken)', borderRight: '1px solid var(--bt-card)', pointerEvents: 'none', zIndex: 1 }}>
+                <span style={{ color: s.color, fontSize: 11, fontWeight: 700, fontFamily: 'var(--bt-mono)' }}>{s.displayName}</span>
               </div>
 
               {/* Content */}
               <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
                 {/* String line */}
-                <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: STRING_PX[si], background: 'hsl(224 15% 19%)', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: STRING_PX[si], background: 'var(--bt-rule)', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
 
                 {/* Beat markers */}
                 {Array.from({ length: beatsPerBar - 1 }, (_, i) => (
                   <div key={i} style={{
                     position: 'absolute', top: 0, bottom: 0, width: 1, pointerEvents: 'none',
                     left: `${((i + 1) / beatsPerBar) * 100}%`,
-                    background: 'hsl(224 15% 16%)',
+                    background: 'var(--bt-rule)',
                   }} />
                 ))}
                 {/* Half-beat markers */}
@@ -220,7 +220,7 @@ export function MobileTabEditor({
                     <div key={i} style={{
                       position: 'absolute', top: '25%', bottom: '25%', width: 1, pointerEvents: 'none',
                       left: `${((i + 1) / (beatsPerBar * 2)) * 100}%`,
-                      background: 'hsl(224 15% 13%)',
+                      background: 'var(--bt-card)',
                     }} />
                   )
                 })}
@@ -249,12 +249,12 @@ export function MobileTabEditor({
                         touchAction: 'manipulation',
                       }}
                     >
-                      <span style={{ fontSize: 13, fontWeight: 700, color: isSel ? s.color : `${s.color}cc`, fontFamily: 'ui-monospace,monospace', pointerEvents: 'none' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: isSel ? s.color : `${s.color}cc`, fontFamily: 'var(--bt-mono)', pointerEvents: 'none' }}>
                         {note.fret}
                       </span>
                       {/* Delete hint on selected note */}
                       {isSel && (
-                        <span style={{ position: 'absolute', top: -6, right: -6, width: 14, height: 14, borderRadius: '50%', background: 'hsl(0 70% 50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: 'white', pointerEvents: 'none', fontWeight: 700 }}>
+                        <span style={{ position: 'absolute', top: -6, right: -6, width: 14, height: 14, borderRadius: '50%', background: 'var(--bt-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: 'white', pointerEvents: 'none', fontWeight: 700 }}>
                           ×
                         </span>
                       )}
@@ -264,7 +264,7 @@ export function MobileTabEditor({
 
                 {/* Playhead */}
                 {showPlayhead && (
-                  <div style={{ position: 'absolute', top: 0, bottom: 0, width: 2, pointerEvents: 'none', zIndex: 4, left: `${cursorPct}%`, background: 'hsl(262 83% 62%)', boxShadow: '0 0 6px hsl(262 83% 62% / 0.4)' }} />
+                  <div style={{ position: 'absolute', top: 0, bottom: 0, width: 2, pointerEvents: 'none', zIndex: 4, left: `${cursorPct}%`, background: 'var(--bt-accent)', boxShadow: '0 0 6px var(--bt-accent-wash)' }} />
                 )}
               </div>
             </div>
@@ -273,18 +273,18 @@ export function MobileTabEditor({
       </div>
 
       {/* Duration + hint bar */}
-      <div style={{ flexShrink: 0, height: 42, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', background: 'hsl(224 20% 9%)', borderTop: '1px solid hsl(224 15% 14%)' }}>
-        <span style={{ fontSize: 10, color: 'hsl(220 10% 30%)', fontFamily: "'Inter',sans-serif", letterSpacing: '0.04em', marginRight: 2 }}>DUR</span>
+      <div style={{ flexShrink: 0, height: 42, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', background: 'var(--bt-sunken)', borderTop: '1px solid var(--bt-card)' }}>
+        <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: 'var(--bt-ui)', letterSpacing: '0.04em', marginRight: 2 }}>DUR</span>
         {DURATIONS.map(d => {
           const on = d.beats === activeDuration
           return (
             <button key={d.beats} onClick={() => handleDurationChange(d.beats)} style={{
               height: 28, minWidth: 34, paddingInline: 8, borderRadius: 6,
-              background: on ? 'hsl(262 50% 20%)' : 'hsl(224 18% 13%)',
-              border: `1px solid ${on ? 'hsl(262 60% 42%)' : 'hsl(224 15% 19%)'}`,
-              color: on ? 'hsl(262 80% 85%)' : 'hsl(220 10% 48%)',
+              background: on ? 'var(--bt-accent-wash)' : 'var(--bt-card)',
+              border: `1px solid ${on ? 'var(--bt-accent)' : 'var(--bt-rule)'}`,
+              color: on ? 'var(--bt-accent)' : 'var(--bt-soft)',
               fontSize: 13, fontWeight: on ? 700 : 400,
-              fontFamily: 'ui-monospace,monospace', cursor: 'pointer',
+              fontFamily: 'var(--bt-mono)', cursor: 'pointer',
               WebkitTapHighlightColor: 'transparent',
             }}>
               {d.label}
@@ -293,11 +293,11 @@ export function MobileTabEditor({
         })}
         <div style={{ flex: 1 }} />
         {selectedNote ? (
-          <span style={{ fontSize: 10, color: 'hsl(220 10% 38%)', fontFamily: "'Inter',sans-serif" }}>
+          <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: 'var(--bt-ui)' }}>
             toca de nuevo para borrar
           </span>
         ) : (
-          <span style={{ fontSize: 10, color: 'hsl(220 10% 28%)', fontFamily: "'Inter',sans-serif" }}>
+          <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: 'var(--bt-ui)' }}>
             toca la cuerda para colocar
           </span>
         )}
@@ -306,7 +306,7 @@ export function MobileTabEditor({
       {/* Fret row — large scrollable buttons */}
       <div
         ref={fretRowRef}
-        style={{ flexShrink: 0, height: 54, display: 'flex', overflowX: 'auto', scrollbarWidth: 'none', background: 'hsl(224 20% 8%)', borderTop: '1px solid hsl(224 15% 14%)' }}
+        style={{ flexShrink: 0, height: 54, display: 'flex', overflowX: 'auto', scrollbarWidth: 'none', background: 'var(--bt-card)', borderTop: '1px solid var(--bt-card)' }}
       >
         {Array.from({ length: 25 }, (_, fret) => {
           const on = fret === activeFret
@@ -316,13 +316,13 @@ export function MobileTabEditor({
               onPointerDown={e => { e.preventDefault(); handleFretTap(fret) }}
               style={{
                 flexShrink: 0, width: 56, height: '100%',
-                background: on ? 'hsl(262 50% 20%)' : 'transparent',
+                background: on ? 'var(--bt-accent-wash)' : 'transparent',
                 border: 'none',
-                borderRight: '1px solid hsl(224 15% 12%)',
-                borderTop: `2px solid ${on ? 'hsl(262 83% 58%)' : 'transparent'}`,
-                color: on ? 'hsl(262 80% 88%)' : 'hsl(220 10% 42%)',
+                borderRight: '1px solid var(--bt-card)',
+                borderTop: `2px solid ${on ? 'var(--bt-accent)' : 'transparent'}`,
+                color: on ? 'var(--bt-accent)' : 'var(--bt-soft)',
                 fontSize: on ? 18 : 15, fontWeight: on ? 700 : 400,
-                fontFamily: 'ui-monospace,monospace',
+                fontFamily: 'var(--bt-mono)',
                 cursor: 'pointer', transition: 'all 0.1s',
                 WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
               }}
@@ -341,9 +341,9 @@ function NavBtn({ onClick, enabled, children }: { onClick: () => void; enabled: 
   return (
     <button onClick={onClick} disabled={!enabled} style={{
       width: 36, height: 36, borderRadius: 8,
-      background: enabled ? 'hsl(224 18% 14%)' : 'transparent',
-      border: `1px solid ${enabled ? 'hsl(224 15% 22%)' : 'transparent'}`,
-      color: enabled ? 'hsl(220 10% 55%)' : 'hsl(224 15% 22%)',
+      background: enabled ? 'var(--bt-card)' : 'transparent',
+      border: `1px solid ${enabled ? 'var(--bt-rule)' : 'transparent'}`,
+      color: enabled ? 'var(--bt-muted)' : 'var(--bt-rule)',
       fontSize: 20, cursor: enabled ? 'pointer' : 'default',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',

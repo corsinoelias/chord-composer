@@ -5,7 +5,7 @@ import {
 } from '../../lib/bassTab/types'
 import {
   STRING_Y, STAFF_H, ABOVE_H, BELOW_H, LABEL_W, PPB, TICK_OFFSET, TICK_H, NOTE_GAP,
-  beatToX, barLineX, xToBeat, yToStringIndex, svgTotalWidth, buildStringPath,
+  beatToX, barLineX, xToBeat, yToStringIndex, buildStringPath,
   computeBeamGroups,
 } from '../../lib/bassTab/tabNotation'
 import { snapToGrid, findNoteAtBeat, clampDuration } from '../../lib/bassTab/bassTheory'
@@ -13,6 +13,9 @@ import { previewNote } from '../../lib/bassTab/bassAudio'
 import { TabNotationCursor } from './TabNotationCursor'
 
 const STRING_LABELS = ['G', 'D', 'A', 'E']
+
+/** Aire entre una línea de tablatura y la siguiente. */
+const ROW_GAP = 16
 
 interface EditCursor {
   beat: number
@@ -36,8 +39,6 @@ interface Props {
   onBeginEdit?: () => void
   onSectionChange?: (sections: TrackSection[]) => void
   // Fit-to-width
-  fitWidth?: boolean
-  onFitZoomChange?: (z: number) => void
 }
 
 const SNAP = 0.25
@@ -45,7 +46,6 @@ const SNAP = 0.25
 export function TabScore({
   track, zoom, currentBeat, cursorBeat, isPlaying, selectedNoteId, sound, noteDuration,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote, onCursorBeatChange, onBeginEdit, onSectionChange,
-  fitWidth = false, onFitZoomChange,
 }: Props) {
   const isMobile        = useIsMobile()
   const containerRef    = useRef<HTMLDivElement>(null)
@@ -85,7 +85,11 @@ export function TabScore({
   useEffect(() => { soundRef.current = sound }, [sound])
   useEffect(() => { totalBeatsRef.current = track.totalBars * track.beatsPerBar }, [track.totalBars, track.beatsPerBar])
 
-  // ── Fit-to-width ───────────────────────────────────────────────────────────
+  // ── Maquetado por sistemas ─────────────────────────────────────────────────
+  // La tablatura se lee como una partitura: los compases llenan el ancho y
+  // saltan a la línea siguiente, y lo que crece es el alto. Nunca hay barra de
+  // desplazamiento horizontal — arrastrarse de lado para seguir un riff es
+  // justo lo que impide leerlo de un vistazo.
   const [containerW, setContainerW] = useState(0)
   useEffect(() => {
     const el = scrollRef.current
@@ -96,38 +100,62 @@ export function TabScore({
     return () => ro.disconnect()
   }, [])
 
-  const totalBeats   = track.totalBars * track.beatsPerBar
-  const fitZoom      = fitWidth && containerW > 0 && totalBeats > 0
-    ? Math.max(0.2, (containerW - LABEL_W) / (totalBeats * PPB))
-    : null
-  const effectiveZoom = fitZoom ?? zoom
-  const pxPerBeat     = PPB * effectiveZoom
+  const totalBeats = track.totalBars * track.beatsPerBar
 
-  useEffect(() => {
-    if (fitZoom !== null) onFitZoomChange?.(fitZoom)
-  }, [fitZoom, onFitZoomChange])
+  // Cuántos compases caben por línea al zoom pedido. El zoom ya no estira una
+  // tira infinita: decide cuántos compases entran, que es lo que de verdad
+  // controla el tamaño al que se ve cada nota.
+  const availW     = Math.max(120, containerW - LABEL_W - 4)
+  const wantedBarW = track.beatsPerBar * PPB * zoom
+  const barsPerRow = Math.max(1, Math.floor(availW / wantedBarW))
 
-  const svgW = svgTotalWidth(track.totalBars, track.beatsPerBar, pxPerBeat)
-  const svgH = ABOVE_H + STAFF_H + BELOW_H
+  // Y una vez sabido, los compases se reparten el ancho exacto. Es lo que hace
+  // una partitura grabada: los sistemas se justifican, así que todas las líneas
+  // empiezan y acaban en la misma vertical. La última se queda corta, como debe.
+  const pxPerBeat = availW / (barsPerRow * track.beatsPerBar)
+  const barW      = track.beatsPerBar * pxPerBeat
 
-  // ── Auto-scroll ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!isPlaying || !scrollRef.current) return
+  const rowCount = Math.max(1, Math.ceil(track.totalBars / barsPerRow))
+
+  const rowH      = ABOVE_H + STAFF_H + BELOW_H
+  const rowStride = rowH + ROW_GAP
+
+  const svgW = Math.max(containerW, LABEL_W + barW + 4)
+  const svgH = rowCount * rowStride
+
+  /** Línea en la que cae un compás. */
+  const rowOfBar = useCallback((bar: number) => Math.floor(bar / barsPerRow), [barsPerRow])
+
+  /**
+   * Desplazamiento horizontal que lleva las coordenadas absolutas —las que
+   * siguen produciendo `beatToX` y compañía— al origen de su línea. Así el
+   * dibujo de notas, plicas y barras de compás no se entera de que hay líneas.
+   */
+  const rowDx = useCallback(
+    (row: number) => LABEL_W - barLineX(row * barsPerRow, track.beatsPerBar, pxPerBeat),
+    [barsPerRow, track.beatsPerBar, pxPerBeat],
+  )
+
+  // ── Auto-scroll vertical ───────────────────────────────────────────────────
+  const scrollRowIntoView = useCallback((beat: number) => {
     const el = scrollRef.current
-    const px = beatToX(currentBeat, pxPerBeat)
-    const w  = el.clientWidth
-    if (px > el.scrollLeft + w * 0.7) el.scrollLeft = px - w * 0.25
-    else if (px < el.scrollLeft)       el.scrollLeft = Math.max(0, px - 20)
-  }, [currentBeat, isPlaying, pxPerBeat])
+    if (!el) return
+    const row  = rowOfBar(Math.floor(beat / track.beatsPerBar))
+    const top  = row * rowStride
+    const h    = el.clientHeight
+    if (top + rowStride > el.scrollTop + h) el.scrollTop = top + rowStride - h
+    else if (top < el.scrollTop)            el.scrollTop = top
+  }, [rowOfBar, rowStride, track.beatsPerBar])
 
   useEffect(() => {
-    if (!editCursor || !scrollRef.current) return
-    const el = scrollRef.current
-    const px = beatToX(editCursor.beat, pxPerBeat)
-    const w  = el.clientWidth
-    if (px > el.scrollLeft + w * 0.8) el.scrollLeft = px - w * 0.4
-    else if (px < el.scrollLeft + 40)  el.scrollLeft = Math.max(0, px - 60)
-  }, [editCursor, pxPerBeat])
+    if (!isPlaying) return
+    scrollRowIntoView(currentBeat)
+  }, [currentBeat, isPlaying, scrollRowIntoView])
+
+  useEffect(() => {
+    if (!editCursor) return
+    scrollRowIntoView(editCursor.beat)
+  }, [editCursor, scrollRowIntoView])
 
   // ── Commit fret ────────────────────────────────────────────────────────────
   // Stable callback — reads live values from refs so timers always get fresh data
@@ -410,12 +438,23 @@ export function TabScore({
     const scaleY = svgH / rect.height
     const rawX   = (e.clientX - rect.left) * scaleX
     const rawY   = (e.clientY - rect.top)  * scaleY
-    const staffY = rawY - ABOVE_H
 
+    // Primero la línea, después la posición dentro de ella: deshacer el
+    // desplazamiento de la línea devuelve la x absoluta, que es la que el resto
+    // del componente entiende.
+    const row = Math.floor(rawY / rowStride)
+    if (row < 0 || row >= rowCount) return
+
+    const staffY = rawY - row * rowStride - ABOVE_H
     if (staffY < -8 || staffY > STAFF_H + 8) return
 
-    const beat = snapToGrid(Math.max(0, xToBeat(rawX, pxPerBeat)), SNAP)
+    const absX = rawX - rowDx(row)
+    const beat = snapToGrid(Math.max(0, xToBeat(absX, pxPerBeat)), SNAP)
     if (beat >= totalBeats) return
+
+    // Un clic en el hueco sobrante de la última línea no debe saltar al
+    // principio del siguiente sistema, que no existe.
+    if (Math.floor(beat / track.beatsPerBar) >= (row + 1) * barsPerRow) return
 
     const si = yToStringIndex(Math.max(0, Math.min(STAFF_H, staffY)))
 
@@ -424,7 +463,8 @@ export function TabScore({
     setEditCursor({ beat, stringIndex: si })
     onCursorBeatChange(beat)
     containerRef.current?.focus()
-  }, [isPlaying, svgW, svgH, pxPerBeat, totalBeats, onCursorBeatChange, setFretBuffer, setEditCursor])
+  }, [isPlaying, svgW, svgH, pxPerBeat, totalBeats, rowStride, rowCount, rowDx,
+      barsPerRow, track.beatsPerBar, onCursorBeatChange, setFretBuffer, setEditCursor])
 
   // ── Section name commit ────────────────────────────────────────────────────
   const commitSection = useCallback(() => {
@@ -440,37 +480,60 @@ export function TabScore({
   }, [pendingSection, sectionNameVal, track.sections, onSectionChange])
 
   // ── SVG data ───────────────────────────────────────────────────────────────
-  const stringPaths = useMemo(
-    () => [0, 1, 2, 3].map(si => buildStringPath(si, track.notes, svgW, pxPerBeat)),
-    [track.notes, svgW, pxPerBeat],
-  )
+  // Cada línea dibuja solo su tramo de compases. El contenido se sigue
+  // calculando en coordenadas absolutas —`beatToX` no sabe que hay líneas— y es
+  // el `translate` de la línea el que lo trae a su sitio.
+  const rows = useMemo(() => Array.from({ length: rowCount }, (_, r) => {
+    const startBar  = r * barsPerRow
+    const endBar    = Math.min(startBar + barsPerRow, track.totalBars)
+    const startBeat = startBar * track.beatsPerBar
+    const endBeat   = endBar * track.beatsPerBar
+    return {
+      r, startBar, endBar, startBeat, endBeat,
+      y:  r * rowStride,
+      dx: rowDx(r),
+      x1: barLineX(startBar, track.beatsPerBar, pxPerBeat),
+      x2: barLineX(endBar,   track.beatsPerBar, pxPerBeat),
+    }
+  }), [rowCount, barsPerRow, track.totalBars, track.beatsPerBar, pxPerBeat, rowStride, rowDx])
 
-  // Duration bars: horizontal bar from note right-edge to end of its duration
-  const durationBars = useMemo(() => track.notes.map(note => {
-    const cx    = beatToX(note.startBeat, pxPerBeat)
-    const rw    = note.fret >= 10 ? 22 : 16
-    const barX1 = cx + Math.max(NOTE_GAP / 2, rw / 2)
-    const barX2 = beatToX(note.startBeat + note.durationBeats, pxPerBeat)
-    const w     = barX2 - barX1
-    if (w <= 1) return null
-    const cy         = ABOVE_H + STRING_Y[note.stringIndex]
-    const isSelected = note.id === selectedNoteId
-    return (
-      <rect
-        key={`dur-${note.id}`}
-        x={barX1} y={cy - 1}
-        width={w} height={2}
-        rx={1}
-        fill={isSelected ? 'hsl(262 60% 62%)' : 'hsl(262 35% 38%)'}
-        style={{ pointerEvents: 'none' }}
-      />
-    )
-  }), [track.notes, pxPerBeat, selectedNoteId])
+  type Row = typeof rows[number]
 
-  const beatElements = useMemo(() => {
+  const stringPathsFor = useCallback((row: Row) => {
+    const inRow = track.notes.filter(n => n.startBeat >= row.startBeat && n.startBeat < row.endBeat)
+    return [0, 1, 2, 3].map(si => buildStringPath(si, inRow, row.x2, pxPerBeat, row.x1))
+  }, [track.notes, pxPerBeat])
+
+  // Barra de duración: del borde derecho de la nota al final de lo que dura.
+  // Se recorta al final de la línea — una nota larga no debe desbordar hacia el
+  // sistema siguiente, que en pantalla está en otro sitio.
+  const durationBarsFor = useCallback((row: Row) => track.notes
+    .filter(n => n.startBeat >= row.startBeat && n.startBeat < row.endBeat)
+    .map(note => {
+      const cx    = beatToX(note.startBeat, pxPerBeat)
+      const rw    = note.fret >= 10 ? 22 : 16
+      const barX1 = cx + Math.max(NOTE_GAP / 2, rw / 2)
+      const barX2 = Math.min(beatToX(note.startBeat + note.durationBeats, pxPerBeat), row.x2)
+      const w     = barX2 - barX1
+      if (w <= 1) return null
+      const cy         = ABOVE_H + STRING_Y[note.stringIndex]
+      const isSelected = note.id === selectedNoteId
+      return (
+        <rect
+          key={`dur-${note.id}`}
+          x={barX1} y={cy - 1}
+          width={w} height={2}
+          rx={1}
+          fill={isSelected ? 'var(--bt-accent)' : 'var(--bt-dim)'}
+          style={{ pointerEvents: 'none' }}
+        />
+      )
+    }), [track.notes, pxPerBeat, selectedNoteId])
+
+  const beatElementsFor = useCallback((row: Row) => {
     const els: React.ReactNode[] = []
     const subDiv = 0.5
-    for (let bar = 0; bar < track.totalBars; bar++) {
+    for (let bar = row.startBar; bar < row.endBar; bar++) {
       for (let s = 0; s < track.beatsPerBar; s += subDiv) {
         const beat = bar * track.beatsPerBar + s
         const x    = beatToX(beat, pxPerBeat)
@@ -479,7 +542,7 @@ export function TabScore({
             x1={x} x2={x}
             y1={ABOVE_H + STAFF_H + TICK_OFFSET}
             y2={ABOVE_H + STAFF_H + TICK_OFFSET + TICK_H}
-            stroke="#383858" strokeWidth={1}
+            stroke="var(--bt-rule)" strokeWidth={1}
           />,
         )
       }
@@ -489,47 +552,49 @@ export function TabScore({
         els.push(
           <rect key={`b1-${bar}-${gi}`}
             x={beamX1} y={ABOVE_H + STAFF_H + TICK_OFFSET + TICK_H - 2}
-            width={beamX2 - beamX1} height={2} fill="#383858"
+            width={beamX2 - beamX1} height={2} fill="var(--bt-rule)"
           />,
         )
         if (level === 2) {
           els.push(
             <rect key={`b2-${bar}-${gi}`}
               x={beamX1} y={ABOVE_H + STAFF_H + TICK_OFFSET + TICK_H - 6}
-              width={beamX2 - beamX1} height={2} fill="#383858"
+              width={beamX2 - beamX1} height={2} fill="var(--bt-rule)"
             />,
           )
         }
       }
     }
     return els
-  }, [track.notes, track.totalBars, track.beatsPerBar, pxPerBeat])
+  }, [track.notes, track.beatsPerBar, pxPerBeat])
 
   const header = useMemo(() => {
     const x0 = barLineX(0, track.beatsPerBar, pxPerBeat)
     return (
       <>
-        <text x={x0 + 2} y={ABOVE_H - 28} fontSize={9} fill="#60607a" fontFamily="monospace">
+        <text x={x0 + 2} y={ABOVE_H - 28} fontSize={9} fill="var(--bt-dim)" fontFamily="var(--bt-mono)">
           ♩= {track.bpm}
         </text>
-        <text x={x0 + 3} y={ABOVE_H - 15} fontSize={12} fill="#60607a" fontFamily="serif">
+        <text x={x0 + 3} y={ABOVE_H - 15} fontSize={12} fill="var(--bt-dim)" fontFamily="var(--bt-mono)">
           {track.beatsPerBar}
         </text>
-        <text x={x0 + 3} y={ABOVE_H - 3} fontSize={12} fill="#60607a" fontFamily="serif">
+        <text x={x0 + 3} y={ABOVE_H - 3} fontSize={12} fill="var(--bt-dim)" fontFamily="var(--bt-mono)">
           {track.beatsPerBar}
         </text>
       </>
     )
   }, [track.beatsPerBar, track.bpm, pxPerBeat])
 
-  const sectionEls = useMemo(() => (track.sections ?? []).map(sec => {
+  const sectionElsFor = useCallback((row: Row) => (track.sections ?? [])
+    .filter(sec => sec.startBar >= row.startBar && sec.startBar < row.endBar)
+    .map(sec => {
     const x = barLineX(sec.startBar, track.beatsPerBar, pxPerBeat) + 2
     return (
       <text
         key={sec.startBar}
         x={x} y={ABOVE_H - 40}
         fontSize={10} fontWeight="600"
-        fill="#a0a0c8" fontFamily="monospace"
+        fill="var(--bt-soft)" fontFamily="var(--bt-mono)"
         style={{ cursor: 'pointer', userSelect: 'none' }}
         onDoubleClick={(e) => {
           e.stopPropagation()
@@ -546,6 +611,12 @@ export function TabScore({
     )
   }), [track.sections, track.beatsPerBar, pxPerBeat])
 
+  /** Línea en la que cae un pulso. */
+  const rowOfBeat = useCallback(
+    (beat: number) => Math.min(rowCount - 1, Math.max(0, rowOfBar(Math.floor(beat / track.beatsPerBar)))),
+    [rowCount, rowOfBar, track.beatsPerBar],
+  )
+
   // ── Edit cursor SVG element ────────────────────────────────────────────────
   const editCursorEl = useMemo(() => {
     if (!editCursor) return null
@@ -559,15 +630,15 @@ export function TabScore({
           x={cx - rw / 2} y={ABOVE_H - 4}
           width={rw} height={STAFF_H + 8}
           rx={2}
-          fill="hsl(262 83% 58% / 0.06)"
+          fill="var(--bt-accent-wash)"
         />
         {/* Active string cell */}
         <rect
           x={cx - rw / 2} y={cy - 8}
           width={rw} height={16}
           rx={2}
-          fill="hsl(262 83% 58% / 0.18)"
-          stroke="hsl(262 83% 58%)"
+          fill="var(--bt-accent-wash)"
+          stroke="var(--bt-accent)"
           strokeWidth={1.5}
           strokeDasharray={fretBuffer ? undefined : '4,3'}
         />
@@ -575,8 +646,8 @@ export function TabScore({
           <text
             x={cx} y={cy + 4.5}
             textAnchor="middle" fontSize={9} fontWeight="bold"
-            fill="hsl(262 80% 90%)"
-            fontFamily="ui-monospace,'SF Mono',monospace"
+            fill="var(--bt-accent)"
+            fontFamily="var(--bt-mono)"
             style={{ pointerEvents: 'none' }}
           >
             {fretBuffer}
@@ -597,6 +668,7 @@ export function TabScore({
 
   const activeBeat = isPlaying ? currentBeat : cursorBeat
   const cursorX    = beatToX(activeBeat, pxPerBeat)
+  const cursorRow  = rowOfBeat(activeBeat)
 
   return (
     <div
@@ -609,11 +681,13 @@ export function TabScore({
         ref={scrollRef}
         style={{
           flex: 1,
-          overflowX: fitWidth ? 'hidden' : 'auto',
-          overflowY: 'hidden',
+          // El eje largo es el vertical: los compases saltan de línea, así que
+          // nunca hay desplazamiento horizontal.
+          overflowX: 'hidden',
+          overflowY: 'auto',
           position: 'relative',
-          background: 'hsl(224 24% 8%)',
-          minHeight: svgH,
+          // Sin fondo propio: la tarjeta que envuelve el lienzo pone el papel.
+          background: 'transparent',
         }}
       >
         <svg
@@ -627,7 +701,7 @@ export function TabScore({
           <defs>
             <filter id="note-glow" x="-60%" y="-60%" width="220%" height="220%">
               <feGaussianBlur stdDeviation="2.5" result="blur"/>
-              <feFlood floodColor="hsl(262,83%,70%)" floodOpacity="0.9" result="color"/>
+              <feFlood floodColor="var(--bt-accent)" floodOpacity="0.9" result="color"/>
               <feComposite in="color" in2="blur" operator="in" result="coloredBlur"/>
               <feMerge>
                 <feMergeNode in="coloredBlur"/>
@@ -635,117 +709,137 @@ export function TabScore({
               </feMerge>
             </filter>
           </defs>
-          {header}
-          {sectionEls}
+          {rows.map(row => (
+            <g key={row.r} transform={`translate(0,${row.y})`}>
 
-          {/* ── Measure numbers ── */}
-          {Array.from({ length: track.totalBars }, (_, bar) => (
-            <text
-              key={bar}
-              x={barLineX(bar, track.beatsPerBar, pxPerBeat) + 4}
-              y={ABOVE_H - 10}
-              fontSize={9} fill="#404068" fontFamily="monospace"
-              data-bar={bar}
-              style={{ cursor: 'context-menu' }}
-            >
-              {bar + 1}
-            </text>
-          ))}
-
-          {/* ── String labels ── */}
-          {STRING_LABELS.map((label, i) => (
-            <text key={label} x={6} y={ABOVE_H + STRING_Y[i] + 4}
-              fontSize={10} fill="#505070" fontFamily="monospace">
-              {label}
-            </text>
-          ))}
-
-          {/* ── Bar lines ── */}
-          {Array.from({ length: track.totalBars + 1 }, (_, bar) => {
-            const x      = barLineX(bar, track.beatsPerBar, pxPerBeat)
-            const isEdge = bar === 0 || bar === track.totalBars
-            return (
-              <line key={bar}
-                x1={x} x2={x} y1={ABOVE_H} y2={ABOVE_H + STAFF_H}
-                stroke={isEdge ? '#505078' : '#383858'}
-                strokeWidth={isEdge ? 2 : 1}
-              />
-            )
-          })}
-
-          {/* ── String lines with gaps ── */}
-          {stringPaths.map((d, si) => (
-            <path key={si} d={d}
-              transform={`translate(0,${ABOVE_H})`}
-              stroke="#383858" strokeWidth={1} fill="none"
-            />
-          ))}
-
-          {/* ── Duration bars (over string, behind notes) ── */}
-          {durationBars}
-
-          {/* ── Beat ticks + beams ── */}
-          {beatElements}
-
-          {/* ── Edit cursor (behind notes) ── */}
-          {editCursorEl}
-
-          {/* ── Fret numbers ── */}
-          {track.notes.map(note => {
-            const nx         = beatToX(note.startBeat, pxPerBeat)
-            const ny         = ABOVE_H + STRING_Y[note.stringIndex]
-            const isSelected = note.id === selectedNoteId
-            const isActive   = activeNoteIds.has(note.id)
-            const rw         = note.fret >= 10 ? 22 : 16
-            const isCursorOn = editCursor?.beat === note.startBeat && editCursor?.stringIndex === note.stringIndex
-
-            return (
-              <g
-                key={note.id}
-                data-note-id={note.id}
-                style={{ cursor: 'pointer' }}
-                filter={isActive ? 'url(#note-glow)' : undefined}
-                onPointerDown={e => {
-                  e.stopPropagation()
-                  clearTimeout(fretTimerRef.current!)
-                  setFretBuffer('')
-                  setEditCursor({ beat: note.startBeat, stringIndex: note.stringIndex })
-                  onSelectNote(note.id)
-                  previewNote(note.stringIndex, note.fret, sound)
-                  onCursorBeatChange(note.startBeat)
-                  containerRef.current?.focus()
-                }}
-              >
-                <rect
-                  x={nx - rw / 2} y={ny - 7}
-                  width={rw} height={14} rx={2}
-                  fill={
-                    isActive   ? 'hsl(262 83% 52%)' :
-                    isSelected ? 'hsl(262 83% 40%)' :
-                    isCursorOn ? 'hsl(262 60% 25%)' : 'hsl(224 24% 11%)'
-                  }
-                  stroke={
-                    isActive   ? 'hsl(262 90% 82%)' :
-                    isSelected ? 'hsl(262 60% 68%)' :
-                    isCursorOn ? 'hsl(262 83% 58%)' : '#383858'
-                  }
-                  strokeWidth={isActive ? 1.5 : 1}
-                />
-                <text
-                  x={nx} y={ny + 4.5}
-                  textAnchor="middle" fontSize={9} fontWeight="bold"
-                  fill={isActive ? 'white' : isSelected ? '#e8deff' : '#b8b0d0'}
-                  fontFamily="ui-monospace,'SF Mono',monospace"
-                  style={{ pointerEvents: 'none', userSelect: 'none' }}
-                >
-                  {note.fret}
+              {/* ── Etiquetas de cuerda: se repiten en cada sistema, igual que
+                     la clave en una partitura ── */}
+              {STRING_LABELS.map((label, i) => (
+                <text key={label} x={6} y={ABOVE_H + STRING_Y[i] + 4}
+                  fontSize={10} fill="var(--bt-dim)" fontFamily="var(--bt-mono)">
+                  {label}
                 </text>
-              </g>
-            )
-          })}
+              ))}
 
-          {/* ── Playback cursor ── */}
-          <TabNotationCursor x={cursorX} isPlaying={isPlaying} />
+              {/* Tempo y compás solo encabezan la obra */}
+              {row.r === 0 && header}
+
+              {/* Todo lo demás va en coordenadas absolutas y se desplaza */}
+              <g transform={`translate(${row.dx},0)`}>
+                {sectionElsFor(row)}
+
+                {/* ── Measure numbers ── */}
+                {Array.from({ length: row.endBar - row.startBar }, (_, i) => {
+                  const bar = row.startBar + i
+                  return (
+                    <text
+                      key={bar}
+                      x={barLineX(bar, track.beatsPerBar, pxPerBeat) + 4}
+                      y={ABOVE_H - 10}
+                      fontSize={9} fill="var(--bt-rule)" fontFamily="var(--bt-mono)"
+                      data-bar={bar}
+                      style={{ cursor: 'context-menu' }}
+                    >
+                      {bar + 1}
+                    </text>
+                  )
+                })}
+
+                {/* ── Bar lines ── */}
+                {Array.from({ length: row.endBar - row.startBar + 1 }, (_, i) => {
+                  const bar    = row.startBar + i
+                  const x      = barLineX(bar, track.beatsPerBar, pxPerBeat)
+                  // Doble grosor al abrir y cerrar cada sistema, y al cerrar la obra
+                  const isEdge = bar === row.startBar || bar === row.endBar
+                  return (
+                    <line key={bar}
+                      x1={x} x2={x} y1={ABOVE_H} y2={ABOVE_H + STAFF_H}
+                      stroke={isEdge ? 'var(--bt-dim)' : 'var(--bt-rule)'}
+                      strokeWidth={isEdge ? 2 : 1}
+                    />
+                  )
+                })}
+
+                {/* ── String lines with gaps ── */}
+                {stringPathsFor(row).map((d, si) => (
+                  <path key={si} d={d}
+                    transform={`translate(0,${ABOVE_H})`}
+                    stroke="var(--bt-rule)" strokeWidth={1} fill="none"
+                  />
+                ))}
+
+                {/* ── Duration bars (over string, behind notes) ── */}
+                {durationBarsFor(row)}
+
+                {/* ── Beat ticks + beams ── */}
+                {beatElementsFor(row)}
+
+                {/* ── Edit cursor (behind notes) ── */}
+                {editCursor && rowOfBeat(editCursor.beat) === row.r && editCursorEl}
+
+                {/* ── Fret numbers ── */}
+                {track.notes
+                  .filter(n => n.startBeat >= row.startBeat && n.startBeat < row.endBeat)
+                  .map(note => {
+                  const nx         = beatToX(note.startBeat, pxPerBeat)
+                  const ny         = ABOVE_H + STRING_Y[note.stringIndex]
+                  const isSelected = note.id === selectedNoteId
+                  const isActive   = activeNoteIds.has(note.id)
+                  const rw         = note.fret >= 10 ? 22 : 16
+                  const isCursorOn = editCursor?.beat === note.startBeat && editCursor?.stringIndex === note.stringIndex
+
+                  return (
+                    <g
+                      key={note.id}
+                      data-note-id={note.id}
+                      style={{ cursor: 'pointer' }}
+                      filter={isActive ? 'url(#note-glow)' : undefined}
+                      onPointerDown={e => {
+                        e.stopPropagation()
+                        clearTimeout(fretTimerRef.current!)
+                        setFretBuffer('')
+                        setEditCursor({ beat: note.startBeat, stringIndex: note.stringIndex })
+                        onSelectNote(note.id)
+                        previewNote(note.stringIndex, note.fret, sound)
+                        onCursorBeatChange(note.startBeat)
+                        containerRef.current?.focus()
+                      }}
+                    >
+                      <rect
+                        x={nx - rw / 2} y={ny - 7}
+                        width={rw} height={14} rx={2}
+                        fill={
+                          isActive   ? 'var(--bt-accent)' :
+                          isSelected ? 'var(--bt-accent)' :
+                          isCursorOn ? 'var(--bt-accent-wash)' : 'var(--bt-card)'
+                        }
+                        stroke={
+                          isActive   ? 'var(--bt-accent)' :
+                          isSelected ? 'var(--bt-accent)' :
+                          isCursorOn ? 'var(--bt-accent)' : 'var(--bt-rule)'
+                        }
+                        strokeWidth={isActive ? 1.5 : 1}
+                      />
+                      <text
+                        x={nx} y={ny + 4.5}
+                        textAnchor="middle" fontSize={9} fontWeight="bold"
+                        fill={isActive ? 'white' : isSelected ? 'var(--bt-staff)' : 'var(--bt-muted)'}
+                        fontFamily="var(--bt-mono)"
+                        style={{ pointerEvents: 'none', userSelect: 'none' }}
+                      >
+                        {note.fret}
+                      </text>
+                    </g>
+                  )
+                })}
+
+                {/* ── Playback cursor: solo en la línea que se está tocando ── */}
+                {cursorRow === row.r && (
+                  <TabNotationCursor x={cursorX} isPlaying={isPlaying} />
+                )}
+              </g>
+            </g>
+          ))}
         </svg>
 
         {/* ── Section name input overlay ── */}
@@ -772,11 +866,11 @@ export function TabScore({
               onBlur={commitSection}
               style={{
                 width: 120, height: 22, padding: '0 6px', borderRadius: 4,
-                border: '2px solid hsl(262 83% 58%)',
-                background: 'hsl(224 20% 13%)',
-                color: '#a0a0c8', fontFamily: 'monospace',
+                border: '2px solid var(--bt-accent)',
+                background: 'var(--bt-rule)',
+                color: 'var(--bt-soft)', fontFamily: 'var(--bt-mono)',
                 fontSize: 10, fontWeight: 600, outline: 'none',
-                boxShadow: '0 0 10px hsl(262 83% 58% / 0.35)',
+                boxShadow: '0 0 10px transparent',
               }}
             />
           </div>
@@ -788,32 +882,32 @@ export function TabScore({
         <div
           style={{
             flexShrink: 0, height: 28,
-            background: 'hsl(224 20% 10%)',
-            borderTop: '1px solid hsl(262 40% 20%)',
+            background: 'var(--bt-sunken)',
+            borderTop: '1px solid var(--bt-accent-wash)',
             display: 'flex', alignItems: 'center', gap: 20,
             paddingLeft: 16, paddingRight: 16,
-            fontFamily: "ui-monospace,'SF Mono',monospace",
+            fontFamily: 'var(--bt-mono)',
             fontSize: 11,
           }}
         >
-          <span style={{ color: 'hsl(262 60% 75%)', fontWeight: 600 }}>
+          <span style={{ color: 'var(--bt-accent)', fontWeight: 600 }}>
             {STRING_LABELS[editCursor.stringIndex]}
           </span>
-          <span style={{ color: 'hsl(220 10% 50%)' }}>
+          <span style={{ color: 'var(--bt-soft)' }}>
             bar {Math.floor(editCursor.beat / track.beatsPerBar) + 1}
             {' · '}
             beat {(editCursor.beat % track.beatsPerBar + 1).toFixed(editCursor.beat % 1 === 0 ? 0 : 2)}
           </span>
           {fretBuffer
-            ? <span style={{ color: 'hsl(220 14% 80%)' }}>fret: <strong style={{ color: 'white', fontSize: 13 }}>{fretBuffer}</strong>_</span>
-            : <span style={{ color: 'hsl(224 15% 32%)' }}>{isMobile ? 'toca un traste ↓' : 'type fret · ←→ move · ↑↓ string · Del delete'}</span>
+            ? <span style={{ color: 'var(--bt-ink)' }}>fret: <strong style={{ color: 'white', fontSize: 13 }}>{fretBuffer}</strong>_</span>
+            : <span style={{ color: 'var(--bt-dim)' }}>{isMobile ? 'toca un traste ↓' : 'type fret · ←→ move · ↑↓ string · Del delete'}</span>
           }
         </div>
       )}
 
       {/* ── Mobile numpad ──────────────────────────────────────────────────── */}
       {isMobile && editCursor && !isPlaying && (
-        <div style={{ flexShrink: 0, background: 'hsl(224 20% 9%)', borderTop: '1px solid hsl(224 15% 16%)' }}>
+        <div style={{ flexShrink: 0, background: 'var(--bt-sunken)', borderTop: '1px solid var(--bt-rule)' }}>
 
           {/* Row 1: string selector · beat nav · backspace · dismiss */}
           <div style={{ display: 'flex', gap: 3, padding: '4px 4px 2px' }}>
@@ -864,20 +958,20 @@ function NpadBtn({
       style={{
         flex: 1, minWidth: 0, height: 42,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: confirm ? 'hsl(262 50% 28%)'
-          : active  ? 'hsl(262 40% 22%)'
-          : 'hsl(224 18% 15%)',
+        background: confirm ? 'var(--bt-accent-wash)'
+          : active  ? 'var(--bt-accent-wash)'
+          : 'var(--bt-card)',
         border: `1px solid ${
-          confirm ? 'hsl(262 60% 45%)'
-          : active  ? 'hsl(262 40% 35%)'
-          : 'hsl(224 15% 22%)'}`,
+          confirm ? 'var(--bt-accent)'
+          : active  ? 'var(--bt-accent-wash)'
+          : 'var(--bt-rule)'}`,
         borderRadius: 7,
-        color: confirm ? 'hsl(262 80% 88%)'
-          : danger  ? 'hsl(0 72% 65%)'
-          : active  ? 'hsl(262 80% 85%)'
-          : 'hsl(220 10% 68%)',
+        color: confirm ? 'var(--bt-accent)'
+          : danger  ? 'var(--bt-danger)'
+          : active  ? 'var(--bt-accent)'
+          : 'var(--bt-ink)',
         fontSize: 15,
-        fontFamily: "'Inter', ui-sans-serif, sans-serif",
+        fontFamily: 'var(--bt-ui)',
         fontWeight: active || confirm ? 600 : 400,
         cursor: 'pointer',
         touchAction: 'manipulation',

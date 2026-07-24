@@ -10,18 +10,18 @@ interface Props {
 }
 
 const S = {
-  bg:          'hsl(224 20% 11%)',
-  border:      'hsl(224 15% 22%)',
-  text:        'hsl(220 14% 82%)',
-  muted:       'hsl(220 10% 46%)',
-  primary:     'hsl(262 83% 58%)',
-  primaryBg:   'hsl(262 60% 25%)',
-  primaryText: 'hsl(262 80% 85%)',
-  surface:     'hsl(224 18% 15%)',
-  danger:      'hsl(0 72% 51%)',
-  dangerBg:    'hsl(0 60% 20%)',
+  bg:          'var(--bt-sunken)',
+  border:      'var(--bt-rule)',
+  text:        'var(--bt-ink)',
+  muted:       'var(--bt-soft)',
+  primary:     'var(--bt-accent)',
+  primaryBg:   'var(--bt-accent-wash)',
+  primaryText: 'var(--bt-accent)',
+  surface:     'var(--bt-card)',
+  danger:      'var(--bt-danger)',
+  dangerBg:    'var(--bt-danger-wash)',
 }
-const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
+const FONT = 'var(--bt-ui)'
 
 function sanitize(s: string) {
   return s.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'bass-tab'
@@ -144,7 +144,7 @@ export function ExportImageModal({ track, onClose }: Props) {
             />
             <span style={{
               height: 34, padding: '0 10px',
-              background: 'hsl(224 24% 9%)', border: `1px solid ${S.border}`,
+              background: 'var(--bt-paper)', border: `1px solid ${S.border}`,
               borderRadius: '0 6px 6px 0',
               color: S.muted, fontSize: 12, fontFamily: FONT,
               display: 'flex', alignItems: 'center',
@@ -156,7 +156,7 @@ export function ExportImageModal({ track, onClose }: Props) {
 
         {/* Track info */}
         <div style={{
-          background: 'hsl(224 24% 7%)', border: `1px solid ${S.border}`,
+          background: 'var(--bt-paper)', border: `1px solid ${S.border}`,
           borderRadius: 8, padding: '10px 12px', marginBottom: 16,
           display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4,
         }}>
@@ -167,7 +167,7 @@ export function ExportImageModal({ track, onClose }: Props) {
           ]).map(({ label, value }) => (
             <div key={label} style={{ textAlign: 'center' }}>
               <div style={{ color: S.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-              <div style={{ color: S.primaryText, fontSize: 15, fontWeight: 700, fontFamily: 'ui-monospace, monospace', marginTop: 2 }}>{value}</div>
+              <div style={{ color: S.primaryText, fontSize: 15, fontWeight: 700, fontFamily: 'var(--bt-mono)', marginTop: 2 }}>{value}</div>
             </div>
           ))}
         </div>
@@ -177,7 +177,7 @@ export function ExportImageModal({ track, onClose }: Props) {
           <div style={{
             background: S.dangerBg, border: `1px solid ${S.danger}55`,
             borderRadius: 7, padding: '8px 12px', marginBottom: 12,
-            color: 'hsl(0 80% 80%)', fontSize: 12,
+            color: 'var(--bt-danger)', fontSize: 12,
           }}>
             {error}
           </div>
@@ -192,7 +192,7 @@ export function ExportImageModal({ track, onClose }: Props) {
               color: S.muted, fontSize: 13, fontWeight: 500,
               cursor: 'pointer', fontFamily: FONT, transition: 'border-color 0.12s, color 0.12s',
             }}
-            onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'hsl(224 15% 36%)'; el.style.color = S.text }}
+            onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'var(--bt-dim)'; el.style.color = S.text }}
             onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = S.border; el.style.color = S.muted }}
           >
             Cancel
@@ -205,7 +205,7 @@ export function ExportImageModal({ track, onClose }: Props) {
               background: loading ? S.primaryBg : S.primary, border: 'none',
               color: 'white', fontSize: 13, fontWeight: 600,
               cursor: loading ? 'not-allowed' : 'pointer', fontFamily: FONT,
-              boxShadow: loading ? 'none' : `0 0 18px hsl(262 83% 58% / 0.32)`,
+              boxShadow: loading ? 'none' : `0 0 18px transparent`,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
               opacity: loading ? 0.7 : 1,
               transition: 'opacity 0.12s',

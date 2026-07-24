@@ -9,20 +9,20 @@ interface Props {
 }
 
 const S = {
-  bg:          'hsl(224 20% 11%)',
-  border:      'hsl(224 15% 22%)',
-  text:        'hsl(220 14% 82%)',
-  muted:       'hsl(220 10% 46%)',
-  primary:     'hsl(262 83% 58%)',
-  primaryBg:   'hsl(262 60% 25%)',
-  primaryText: 'hsl(262 80% 85%)',
-  surface:     'hsl(224 18% 15%)',
-  danger:      'hsl(0 72% 51%)',
-  dangerBg:    'hsl(0 60% 20%)',
-  green:       'hsl(142 71% 45%)',
-  greenBg:     'hsl(142 50% 12%)',
+  bg:          'var(--bt-sunken)',
+  border:      'var(--bt-rule)',
+  text:        'var(--bt-ink)',
+  muted:       'var(--bt-soft)',
+  primary:     'var(--bt-accent)',
+  primaryBg:   'var(--bt-accent-wash)',
+  primaryText: 'var(--bt-accent)',
+  surface:     'var(--bt-card)',
+  danger:      'var(--bt-danger)',
+  dangerBg:    'var(--bt-danger-wash)',
+  green:       'var(--bt-ok)',
+  greenBg:     'var(--bt-ok-wash)',
 }
-const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
+const FONT = 'var(--bt-ui)'
 
 function fmtTime(s: number) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
@@ -52,8 +52,8 @@ function formatSuffix(ar: AspectRatio): string {
 
 // ── Format thumbnail shapes ───────────────────────────────────────────────────
 function FormatThumb({ ar, active }: { ar: AspectRatio; active: boolean }) {
-  const color  = active ? 'hsl(262 80% 72%)' : 'hsl(220 10% 38%)'
-  const border = active ? 'hsl(262 83% 58%)' : 'hsl(224 15% 28%)'
+  const color  = active ? 'var(--bt-accent)' : 'var(--bt-dim)'
+  const border = active ? 'var(--bt-accent)' : 'var(--bt-dim)'
 
   const shapes: Record<AspectRatio, { w: number; h: number }> = {
     '16:9': { w: 32, h: 18 },
@@ -66,7 +66,7 @@ function FormatThumb({ ar, active }: { ar: AspectRatio; active: boolean }) {
     <div style={{
       width: w, height: h, borderRadius: 3,
       border: `2px solid ${border}`,
-      background: active ? 'hsl(262 60% 22%)' : 'hsl(224 20% 14%)',
+      background: active ? 'var(--bt-accent-wash)' : 'var(--bt-rule)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       transition: 'all 0.12s', flexShrink: 0,
     }}>
@@ -370,11 +370,11 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
                 />
                 <span style={{
                   height: 34, padding: '0 10px', whiteSpace: 'nowrap',
-                  background: 'hsl(224 24% 9%)', borderLeft: `1px solid ${S.border}`,
+                  background: 'var(--bt-paper)', borderLeft: `1px solid ${S.border}`,
                   color: S.muted, fontSize: 11, fontFamily: FONT,
                   display: 'flex', alignItems: 'center', gap: 1,
                 }}>
-                  {suffix && <span style={{ color: 'hsl(262 60% 62%)' }}>{suffix}</span>}
+                  {suffix && <span style={{ color: 'var(--bt-accent)' }}>{suffix}</span>}
                   <span>.webm</span>
                 </span>
               </div>
@@ -399,7 +399,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
           {!loading && !done && (
             <div style={{
               position: 'absolute', bottom: 6, right: 8,
-              fontSize: 10, fontWeight: 600, fontFamily: 'ui-monospace, monospace',
+              fontSize: 10, fontWeight: 600, fontFamily: 'var(--bt-mono)',
               color: 'rgba(160,140,220,0.70)',
               background: 'rgba(8,10,20,0.65)', borderRadius: 4, padding: '2px 6px',
               pointerEvents: 'none',
@@ -412,20 +412,20 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
         {/* ── Progress (during export) ── */}
         {loading && (
           <div style={{ marginBottom: 10 }}>
-            <div style={{ background: 'hsl(224 24% 7%)', borderRadius: 6, height: 5, overflow: 'hidden', marginBottom: 6 }}>
+            <div style={{ background: 'var(--bt-paper)', borderRadius: 6, height: 5, overflow: 'hidden', marginBottom: 6 }}>
               <div style={{
                 height: '100%', borderRadius: 6,
-                background: `linear-gradient(90deg, hsl(262 70% 45%), hsl(262 83% 68%))`,
+                background: `linear-gradient(90deg, var(--bt-accent), var(--bt-accent))`,
                 width: `${progress * 100}%`,
                 transition: 'width 0.15s linear',
-                boxShadow: `0 0 10px hsl(262 83% 58% / 0.55)`,
+                boxShadow: `0 0 10px var(--bt-accent-wash)`,
               }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
               <span style={{ color: S.primary, fontWeight: 600 }}>
                 Procesando… {Math.round(progress * 100)}%
               </span>
-              <span style={{ color: S.muted, fontFamily: 'ui-monospace, monospace', fontSize: 10 }}>
+              <span style={{ color: S.muted, fontFamily: 'var(--bt-mono)', fontSize: 10 }}>
                 Frame {frameInfo.cur.toLocaleString()} / {frameInfo.total.toLocaleString()}
               </span>
             </div>
@@ -454,7 +454,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
           <div style={{
             background: S.dangerBg, border: `1px solid ${S.danger}55`,
             borderRadius: 7, padding: '8px 12px', marginBottom: 10,
-            color: 'hsl(0 80% 80%)', fontSize: 12,
+            color: 'var(--bt-danger)', fontSize: 12,
           }}>
             {error}
           </div>
@@ -467,7 +467,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
               style={{
                 flex: 1, padding: '9px 0', borderRadius: 8,
                 background: S.dangerBg, border: `1px solid ${S.danger}55`,
-                color: 'hsl(0 80% 80%)', fontSize: 13, fontWeight: 500,
+                color: 'var(--bt-danger)', fontSize: 13, fontWeight: 500,
                 cursor: 'pointer', fontFamily: FONT,
               }}
             >
@@ -507,7 +507,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
                   color: S.muted, fontSize: 13, fontWeight: 500,
                   cursor: 'pointer', fontFamily: FONT, transition: 'border-color 0.12s, color 0.12s',
                 }}
-                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'hsl(224 15% 36%)'; el.style.color = S.text }}
+                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'var(--bt-dim)'; el.style.color = S.text }}
                 onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = S.border; el.style.color = S.muted }}
               >
                 Cancelar
@@ -518,7 +518,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
                   background: S.primary, border: 'none',
                   color: 'white', fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', fontFamily: FONT,
-                  boxShadow: `0 0 18px hsl(262 83% 58% / 0.35)`,
+                  boxShadow: `0 0 18px transparent`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
                   transition: 'opacity 0.12s',
                 }}

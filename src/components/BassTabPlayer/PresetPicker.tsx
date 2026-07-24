@@ -18,7 +18,7 @@ const GENRE_COLOR: Record<string, { bg: string; text: string; border: string }> 
   'Pop / Rock': { bg: 'hsl(0 42% 14%)',   text: 'hsl(0 65% 65%)',   border: 'hsl(0 42% 26%)' },
 }
 
-const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
+const FONT = 'var(--bt-ui)'
 
 // Bassist accent colours (Louis = gold, Nathan = blue, Wilton = green)
 const BASSIST_COLOR: Record<string, string> = {
@@ -41,8 +41,8 @@ export function PresetPicker({ onSelect, onClose }: Props) {
       }}
     >
       <div style={{
-        background: 'hsl(224 22% 10%)',
-        border: '1px solid hsl(224 15% 20%)',
+        background: 'var(--bt-sunken)',
+        border: '1px solid var(--bt-rule)',
         borderRadius: 18,
         width: '100%', maxWidth: 680,
         maxHeight: '90vh',
@@ -55,14 +55,14 @@ export function PresetPicker({ onSelect, onClose }: Props) {
         <div style={{
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
           padding: '18px 20px 14px',
-          borderBottom: '1px solid hsl(224 15% 16%)',
+          borderBottom: '1px solid var(--bt-rule)',
           flexShrink: 0,
         }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'hsl(220 14% 93%)', letterSpacing: '-0.01em' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--bt-ink)', letterSpacing: '-0.01em' }}>
               Michael Jackson — Bass Lines
             </div>
-            <div style={{ fontSize: 11, color: 'hsl(220 10% 46%)', marginTop: 4, lineHeight: 1.4 }}>
+            <div style={{ fontSize: 11, color: 'var(--bt-soft)', marginTop: 4, lineHeight: 1.4 }}>
               Select a song to load its bass tab. BPM and sound are set automatically.
             </div>
           </div>
@@ -70,14 +70,14 @@ export function PresetPicker({ onSelect, onClose }: Props) {
             onClick={onClose}
             style={{
               width: 30, height: 30, borderRadius: 8, flexShrink: 0, marginLeft: 12,
-              border: '1px solid hsl(224 15% 22%)',
-              background: 'hsl(224 20% 16%)',
-              color: 'hsl(220 10% 52%)',
+              border: '1px solid var(--bt-rule)',
+              background: 'var(--bt-rule)',
+              color: 'var(--bt-muted)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', transition: 'background 0.1s',
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 21%)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 16%)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bt-rule)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bt-rule)' }}
           >
             <X size={14} />
           </button>
@@ -92,15 +92,15 @@ export function PresetPicker({ onSelect, onClose }: Props) {
           gap: 10,
         }}>
           {PRESETS.map(preset => {
-            const gc = GENRE_COLOR[preset.genre] ?? { bg: 'hsl(224 20% 14%)', text: 'hsl(220 10% 55%)', border: 'hsl(224 15% 22%)' }
-            const bassistColor = BASSIST_COLOR[preset.bassist] ?? 'hsl(220 10% 40%)'
+            const gc = GENRE_COLOR[preset.genre] ?? { bg: 'var(--bt-rule)', text: 'var(--bt-muted)', border: 'var(--bt-rule)' }
+            const bassistColor = BASSIST_COLOR[preset.bassist] ?? 'var(--bt-dim)'
             return (
               <button
                 key={preset.id}
                 onClick={() => { analytics.bassTabPresetLoaded(preset.name); onSelect(preset); onClose() }}
                 style={{
-                  background: 'hsl(224 22% 13%)',
-                  border: '1px solid hsl(224 15% 19%)',
+                  background: 'var(--bt-rule)',
+                  border: '1px solid var(--bt-rule)',
                   borderRadius: 12,
                   padding: '13px 14px 11px',
                   textAlign: 'left',
@@ -112,24 +112,24 @@ export function PresetPicker({ onSelect, onClose }: Props) {
                 }}
                 onMouseEnter={e => {
                   const el = e.currentTarget as HTMLElement
-                  el.style.borderColor = 'hsl(262 55% 52%)'
-                  el.style.background = 'hsl(224 22% 16%)'
+                  el.style.borderColor = 'var(--bt-accent)'
+                  el.style.background = 'var(--bt-rule)'
                   el.style.boxShadow = '0 4px 24px rgba(0,0,0,0.5)'
                 }}
                 onMouseLeave={e => {
                   const el = e.currentTarget as HTMLElement
-                  el.style.borderColor = 'hsl(224 15% 19%)'
-                  el.style.background = 'hsl(224 22% 13%)'
+                  el.style.borderColor = 'var(--bt-rule)'
+                  el.style.background = 'var(--bt-rule)'
                   el.style.boxShadow = 'none'
                 }}
               >
                 {/* Song title */}
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'hsl(220 14% 92%)', lineHeight: 1.25, marginBottom: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--bt-ink)', lineHeight: 1.25, marginBottom: 1 }}>
                   {preset.name}
                 </div>
 
                 {/* Artist */}
-                <div style={{ fontSize: 11, color: 'hsl(220 10% 50%)', lineHeight: 1.2 }}>
+                <div style={{ fontSize: 11, color: 'var(--bt-soft)', lineHeight: 1.2 }}>
                   {preset.artist}
                 </div>
 
@@ -147,11 +147,11 @@ export function PresetPicker({ onSelect, onClose }: Props) {
                   }}>
                     {preset.genre}
                   </span>
-                  <span style={{ fontSize: 10, color: 'hsl(220 10% 40%)', fontFamily: 'ui-monospace, monospace' }}>
+                  <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: 'var(--bt-mono)' }}>
                     {preset.bpm} BPM
                   </span>
                   <span style={{
-                    fontSize: 9, color: 'hsl(220 10% 38%)', fontFamily: 'ui-monospace, monospace',
+                    fontSize: 9, color: 'var(--bt-dim)', fontFamily: 'var(--bt-mono)',
                     textTransform: 'uppercase', letterSpacing: '0.04em',
                   }}>
                     {preset.defaultSound}

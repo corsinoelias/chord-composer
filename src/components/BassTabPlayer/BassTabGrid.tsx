@@ -384,8 +384,8 @@ export function BassTabGrid({
           flexShrink: 0,
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '5px 10px',
-          background: 'hsl(224 20% 9%)',
-          borderBottom: '1px solid hsl(224 15% 17%)',
+          background: 'var(--bt-sunken)',
+          borderBottom: '1px solid var(--bt-rule)',
         }}>
           {/* Mobile multi-select toggle */}
           {isMobile && (
@@ -393,9 +393,9 @@ export function BassTabGrid({
               onClick={() => { setMultiMode(m => !m); if (multiMode) setSelIds(new Set()) }}
               style={{
                 height: 28, padding: '0 10px', borderRadius: 6,
-                background: multiMode ? 'hsl(262 60% 22%)' : 'hsl(224 18% 17%)',
-                border: `1px solid ${multiMode ? 'hsl(262 83% 58%)' : 'hsl(224 15% 24%)'}`,
-                color: multiMode ? 'hsl(262 80% 85%)' : 'hsl(220 14% 55%)',
+                background: multiMode ? 'var(--bt-accent-wash)' : 'var(--bt-sunken)',
+                border: `1px solid ${multiMode ? 'var(--bt-accent)' : 'var(--bt-rule)'}`,
+                color: multiMode ? 'var(--bt-accent)' : 'var(--bt-muted)',
                 fontSize: 11, fontWeight: 600, cursor: 'pointer',
                 letterSpacing: '0.04em',
               }}
@@ -406,7 +406,7 @@ export function BassTabGrid({
 
           {/* Selection count */}
           {hasMultiSel && (
-            <span style={{ fontSize: 11, color: 'hsl(262 60% 65%)', fontWeight: 600 }}>
+            <span style={{ fontSize: 11, color: 'var(--bt-accent)', fontWeight: 600 }}>
               {selIds.size} notas
             </span>
           )}
@@ -434,7 +434,7 @@ export function BassTabGrid({
 
           {/* Deselect hint */}
           {!isMobile && hasMultiSel && (
-            <span style={{ marginLeft: 'auto', fontSize: 10, color: 'hsl(220 10% 35%)' }}>
+            <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--bt-dim)' }}>
               Shift+click · Shift+arrastrar · Ctrl+C/V
             </span>
           )}
@@ -445,47 +445,51 @@ export function BassTabGrid({
       <div ref={outerRef} className="flex flex-1 min-h-0" style={{ overflow: 'hidden' }}>
 
         {/* String-label column */}
-        <div className="flex-shrink-0 flex flex-col z-10" style={{ width: LABEL_W, background: 'hsl(224 20% 9%)', borderRight: '1px solid hsl(224 15% 18%)' }}>
-          <div style={{ height: RULER_H, flexShrink: 0, borderBottom: '1px solid hsl(224 15% 16%)' }} />
+        <div className="flex-shrink-0 flex flex-col z-10" style={{ width: LABEL_W, background: 'var(--bt-sunken)', borderRight: '1px solid var(--bt-rule)' }}>
+          <div style={{ height: RULER_H, flexShrink: 0, borderBottom: '1px solid var(--bt-rule)' }} />
           {STRINGS.map((s) => (
-            <div key={s.index} className="flex items-center justify-center flex-1" style={{ borderBottom: '1px solid hsl(224 15% 14%)', minHeight: ROW_H_MIN }}>
-              <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'ui-monospace, monospace', color: s.color }}>{s.displayName}</span>
+            <div key={s.index} className="flex items-center justify-center flex-1" style={{ borderBottom: '1px solid var(--bt-card)', minHeight: ROW_H_MIN }}>
+              <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--bt-mono)', color: s.color }}>{s.displayName}</span>
             </div>
           ))}
         </div>
 
-        {/* Scrollable content */}
-        <div ref={scrollRef} className="flex-1 overflow-y-hidden" style={{ overflowX: fitWidth ? 'hidden' : 'auto', cursor: 'crosshair' }} onWheel={handleWheel}>
+        {/* Scrollable content.
+            `minWidth: 0` es imprescindible: sin él, este hijo flex crece hasta el
+            ancho del contenido en vez de quedarse en el del viewport, así que no
+            hay overflow que desplazar y el auto-scroll del playhead no encuentra
+            nada que mover (su clientWidth sería el del contenido, no el visible). */}
+        <div ref={scrollRef} className="flex-1 overflow-y-hidden" style={{ minWidth: 0, overflowX: fitWidth ? 'hidden' : 'auto', cursor: 'crosshair' }} onWheel={handleWheel}>
           <div style={{ width: totalWidth, minWidth: totalWidth }}>
 
             {/* Ruler */}
             <div
               ref={rulerRef}
-              style={{ height: RULER_H, width: totalWidth, position: 'relative', background: 'hsl(224 20% 9%)', borderBottom: '1px solid hsl(224 15% 16%)', cursor: 'col-resize', userSelect: 'none' }}
+              style={{ height: RULER_H, width: totalWidth, position: 'relative', background: 'var(--bt-sunken)', borderBottom: '1px solid var(--bt-rule)', cursor: 'col-resize', userSelect: 'none' }}
               onPointerDown={handleRulerPointerDown}
             >
               {barTicks.map(tick => (
                 <div key={tick.x} style={{ position:'absolute', left:tick.x, top:0, bottom:0, display:'flex', alignItems:'flex-end', paddingBottom:5, paddingLeft:4 }}>
-                  <div style={{ position:'absolute', left:0, top:0, bottom:0, width:1.5, background:'hsl(224 15% 26%)' }} />
-                  <span style={{ color:'hsl(220 10% 50%)', fontSize:11, fontFamily:'ui-monospace, monospace', userSelect:'none', paddingLeft:3 }}>{tick.bar}</span>
+                  <div style={{ position:'absolute', left:0, top:0, bottom:0, width:1.5, background:'var(--bt-rule)' }} />
+                  <span style={{ color:'var(--bt-soft)', fontSize:11, fontFamily:'var(--bt-mono)', userSelect:'none', paddingLeft:3 }}>{tick.bar}</span>
                 </div>
               ))}
               {beatTicks.map((tick, i) => (
-                <div key={i} style={{ position:'absolute', left:tick.x, top:0, bottom:0, width:1, background:'hsl(224 15% 14%)' }} />
+                <div key={i} style={{ position:'absolute', left:tick.x, top:0, bottom:0, width:1, background:'var(--bt-card)' }} />
               ))}
               {/* Insertion cursor ▼ */}
-              <div style={{ position:'absolute', left:insertionLeft, top:0, height:'100%', width:2, background:'#e2e8f0', opacity:0.85, pointerEvents:'none', zIndex:10 }}>
-                <div style={{ position:'absolute', bottom:-1, left:'50%', transform:'translateX(-50%)', width:0, height:0, borderLeft:'5px solid transparent', borderRight:'5px solid transparent', borderTop:'6px solid #e2e8f0' }} />
+              <div style={{ position:'absolute', left:insertionLeft, top:0, height:'100%', width:2, background:'var(--bt-accent)', opacity:0.85, pointerEvents:'none', zIndex:10 }}>
+                <div style={{ position:'absolute', bottom:-1, left:'50%', transform:'translateX(-50%)', width:0, height:0, borderLeft:'5px solid transparent', borderRight:'5px solid transparent', borderTop:'6px solid var(--bt-accent)' }} />
               </div>
               {showPlayhead && (
-                <div style={{ position:'absolute', left:playheadLeft, top:0, height:'100%', width:2, background:'#60a5fa', pointerEvents:'none', zIndex:11 }} />
+                <div style={{ position:'absolute', left:playheadLeft, top:0, height:'100%', width:2, background:'var(--bt-accent)', pointerEvents:'none', zIndex:11 }} />
               )}
             </div>
 
             {/* Notes area */}
             <div
               ref={gridRef}
-              style={{ width:totalWidth, height:rowH*4, position:'relative', background:'hsl(224 22% 10%)', userSelect:'none', touchAction:'none' }}
+              style={{ width:totalWidth, height:rowH*4, position:'relative', background:'var(--bt-sunken)', userSelect:'none', touchAction:'none' }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
@@ -499,22 +503,22 @@ export function BassTabGrid({
                     background: rowActive
                       ? `${s.color}12`
                       : i%2===0 ? 'rgba(255,255,255,0.015)' : 'transparent',
-                    borderBottom:'1px solid hsl(224 15% 14%)',
+                    borderBottom:'1px solid var(--bt-card)',
                     pointerEvents:'none',
                     transition:'background 0.12s',
                   }} />
                 )
               })}
               {barTicks.map(tick => (
-                <div key={tick.x} style={{ position:'absolute', left:tick.x, top:0, width:1, height:'100%', background:'hsl(224 15% 18%)', pointerEvents:'none' }} />
+                <div key={tick.x} style={{ position:'absolute', left:tick.x, top:0, width:1, height:'100%', background:'var(--bt-rule)', pointerEvents:'none' }} />
               ))}
               {beatTicks.map((tick, i) => (
-                <div key={i} style={{ position:'absolute', left:tick.x, top:0, width:1, height:'100%', background:'hsl(224 15% 13%)', pointerEvents:'none' }} />
+                <div key={i} style={{ position:'absolute', left:tick.x, top:0, width:1, height:'100%', background:'var(--bt-card)', pointerEvents:'none' }} />
               ))}
 
               {track.notes.length === 0 && (
                 <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', textAlign:'center', pointerEvents:'none' }}>
-                  <p style={{ color:'#2d3748', fontSize:12, fontFamily:'monospace', margin:0 }}>Tap a fret above ↑ — or click here to add a note</p>
+                  <p style={{ color:'var(--bt-staff)', fontSize:12, fontFamily:'var(--bt-mono)', margin:0 }}>Tap a fret above ↑ — or click here to add a note</p>
                 </div>
               )}
 
@@ -538,13 +542,13 @@ export function BassTabGrid({
                         ? `linear-gradient(135deg, ${c.bg}, ${strColor}aa)`
                         : c.bg,
                       border: inMulti
-                        ? `1.5px solid hsl(262 83% 68%)`
+                        ? `1.5px solid var(--bt-accent)`
                         : playing
                           ? `1.5px solid ${strColor}`
                           : `1.5px solid ${c.border}`,
                       borderRadius:5, cursor:'grab',
                       boxShadow: inMulti
-                        ? `0 0 0 2px hsl(262 83% 58%), 0 0 10px hsl(262 83% 58% / 0.35)`
+                        ? `0 0 0 2px var(--bt-accent), 0 0 10px transparent`
                         : sel
                           ? `0 0 0 2px #fff, 0 0 12px rgba(255,255,255,0.2)`
                           : playing
@@ -555,7 +559,7 @@ export function BassTabGrid({
                       transition: 'box-shadow 0.08s, border-color 0.08s, background 0.08s',
                     }}
                   >
-                    <span style={{ color:'#fff', fontSize:noteH>32?14:11, fontWeight:700, fontFamily:'ui-monospace,monospace', lineHeight:1, pointerEvents:'none', flexShrink:0 }}>
+                    <span style={{ color:'#fff', fontSize:noteH>32?14:11, fontWeight:700, fontFamily:'var(--bt-mono)', lineHeight:1, pointerEvents:'none', flexShrink:0 }}>
                       {note.fret}
                     </span>
                     <div data-resize="true" style={{ position:'absolute', right:0, top:0, width: isMobile ? 32 : 14, height:'100%', cursor:'ew-resize', background:'rgba(255,255,255,0.08)', borderLeft:'1px solid rgba(255,255,255,0.08)', touchAction:'none' }} />
@@ -572,12 +576,12 @@ export function BassTabGrid({
                   <div style={{
                     position:'absolute', left:playheadLeft-16, top:0, height:'100%',
                     width:32, pointerEvents:'none', zIndex:19,
-                    background:'linear-gradient(90deg, transparent 0%, rgba(96,165,250,0.06) 50%, transparent 100%)',
+                    background:'linear-gradient(90deg, transparent 0%, rgba(106,31,234,0.06) 50%, transparent 100%)',
                   }} />
                   <div style={{
                     position:'absolute', left:playheadLeft, top:0, height:'100%',
-                    width:2, background:'#60a5fa',
-                    boxShadow:'0 0 10px 2px rgba(96,165,250,0.55), 0 0 3px rgba(96,165,250,0.9)',
+                    width:2.5, background:'var(--bt-accent)', borderRadius:2,
+                    boxShadow:'0 0 6px rgba(106,31,234,0.5)',
                     pointerEvents:'none', zIndex:20,
                   }} />
                 </>
@@ -591,8 +595,8 @@ export function BassTabGrid({
                   top:    Math.min(rbBand.y0, rbBand.y1),
                   width:  Math.abs(rbBand.x1 - rbBand.x0),
                   height: Math.abs(rbBand.y1 - rbBand.y0),
-                  border: '1.5px dashed hsl(262 83% 58%)',
-                  background: 'hsl(262 83% 58% / 0.08)',
+                  border: '1.5px dashed var(--bt-accent)',
+                  background: 'var(--bt-accent-wash)',
                   borderRadius: 3,
                   pointerEvents: 'none', zIndex: 25,
                 }} />
