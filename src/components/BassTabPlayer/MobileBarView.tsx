@@ -298,7 +298,6 @@ export function MobileBarView({ track, currentBeat, isPlaying, onSeek, viewMode 
           <TabNotationView
             track={singleBarTrack}
             zoom={1}
-            fitWidth={true}
             currentBeat={beatInSingleBar}
             cursorBeat={beatInSingleBar}
             isPlaying={isPlaying && isBarActive}
@@ -314,7 +313,6 @@ export function MobileBarView({ track, currentBeat, isPlaying, onSeek, viewMode 
             onCursorBeatChange={() => {}}
             onBeginEdit={editable && onBeginEdit ? onBeginEdit : () => {}}
             onSectionChange={() => {}}
-            onFitZoomChange={() => {}}
           />
         ) : (
           <BarSVG

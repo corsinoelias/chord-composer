@@ -35,6 +35,9 @@ const BEAM_THICK = NOTATION.lineSpacing * 0.5
 
 const STRING_LABELS = ['G', 'D', 'A', 'E']
 
+/** Aire entre un sistema y el siguiente. */
+const ROW_GAP = 22
+
 // ── Types ─────────────────────────────────────────────────────────────────
 interface EditCursor { beat: number; stringIndex: StringIndex }
 
@@ -54,10 +57,8 @@ export interface TabNotationViewProps {
   onCursorBeatChange: (beat: number) => void
   onBeginEdit?: () => void
   onSectionChange?: (sections: TrackSection[]) => void
-  fitWidth?: boolean
   barView?: boolean
   visibleBars?: number
-  onFitZoomChange?: (z: number) => void
 }
 
 // ── Component ─────────────────────────────────────────────────────────────
@@ -68,7 +69,7 @@ export function TabNotationView({
   selectedNoteId, sound, noteDuration,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote,
   onCursorBeatChange, onBeginEdit, onSectionChange,
-  fitWidth = false, barView = false, visibleBars, onFitZoomChange,
+  barView = false, visibleBars,
 }: TabNotationViewProps) {
   const isMobile         = useIsMobile()
   const containerRef     = useRef<HTMLDivElement>(null)
@@ -112,21 +113,64 @@ export function TabNotationView({
     return () => ro.disconnect()
   }, [])
 
-  const totalBeats    = track.totalBars * track.beatsPerBar
-  const fitZoom       = fitWidth && containerW > 0 && totalBeats > 0
-    ? Math.max(0.2, (containerW - LABEL_W) / (totalBeats * PPB))
-    : null
+  const totalBeats = track.totalBars * track.beatsPerBar
+
+  // Se maqueta por sistemas —compases que llenan el ancho y saltan de línea—
+  // salvo cuando alguien pide explícitamente una tira: `barView` (el pase
+  // compás a compás de móvil) y `visibleBars` (la vista previa de /learn)
+  // quieren una sola línea con desplazamiento horizontal.
+  const wrapped = !barView && !visibleBars && containerW > 0
+
+  const availW     = Math.max(120, containerW - LABEL_W - 4)
+  const wantedBarW = track.beatsPerBar * PPB * zoom
+  const barsPerRow = wrapped
+    ? Math.max(1, Math.floor(availW / wantedBarW))
+    : track.totalBars
+
   const barViewZoom    = barView && containerW > 0 && track.beatsPerBar > 0
     ? Math.max(0.2, (containerW - LABEL_W) / (track.beatsPerBar * PPB))
     : null
   const visibleBarsZoom = visibleBars && containerW > 0 && track.beatsPerBar > 0
     ? Math.max(0.2, (containerW - LABEL_W) / (visibleBars * track.beatsPerBar * PPB))
     : null
-  const effectiveZoom = barViewZoom ?? visibleBarsZoom ?? fitZoom ?? zoom
-  const pxPerBeat     = PPB * effectiveZoom
-  const svgW          = svgTotalWidth(track.totalBars, track.beatsPerBar, pxPerBeat)
 
-  useEffect(() => { if (fitZoom !== null) onFitZoomChange?.(fitZoom) }, [fitZoom, onFitZoomChange])
+  // Justificado: los compases de una línea se reparten el ancho exacto, así que
+  // todos los sistemas empiezan y acaban en la misma vertical.
+  const pxPerBeat = wrapped
+    ? availW / (barsPerRow * track.beatsPerBar)
+    : PPB * (barViewZoom ?? visibleBarsZoom ?? zoom)
+
+  const rowCount  = Math.max(1, Math.ceil(track.totalBars / barsPerRow))
+  const rowStride = TOTAL_H + ROW_GAP
+  const svgW      = wrapped
+    ? Math.max(containerW, LABEL_W + track.beatsPerBar * pxPerBeat + 4)
+    : svgTotalWidth(track.totalBars, track.beatsPerBar, pxPerBeat)
+  const svgH      = rowCount * rowStride
+
+  /** Desplazamiento que lleva las coordenadas absolutas al origen de su línea. */
+  const rowDx = useCallback(
+    (row: number) => LABEL_W - barLineX(row * barsPerRow, track.beatsPerBar, pxPerBeat),
+    [barsPerRow, track.beatsPerBar, pxPerBeat],
+  )
+  const rowOfBeat = useCallback(
+    (beat: number) => Math.min(rowCount - 1, Math.max(0,
+      Math.floor(Math.floor(beat / track.beatsPerBar) / barsPerRow))),
+    [rowCount, barsPerRow, track.beatsPerBar],
+  )
+
+  const rows = useMemo(() => Array.from({ length: rowCount }, (_, r) => {
+    const startBar  = r * barsPerRow
+    const endBar    = Math.min(startBar + barsPerRow, track.totalBars)
+    return {
+      r, startBar, endBar,
+      startBeat: startBar * track.beatsPerBar,
+      endBeat:   endBar * track.beatsPerBar,
+      y:  r * rowStride,
+      dx: rowDx(r),
+      x1: barLineX(startBar, track.beatsPerBar, pxPerBeat),
+      x2: barLineX(endBar,   track.beatsPerBar, pxPerBeat),
+    }
+  }), [rowCount, barsPerRow, track.totalBars, track.beatsPerBar, pxPerBeat, rowStride, rowDx])
 
   // ── Custom notation pipeline ──────────────────────────────────────────
   const notated = useMemo(
@@ -135,6 +179,24 @@ export function TabNotationView({
   )
 
   // ── Auto-scroll ────────────────────────────────────────────────────────
+  // Maquetado por sistemas el eje largo es el vertical; en tira sigue siendo
+  // el horizontal.
+  const followBeat = useCallback((beat: number) => {
+    const el = scrollRef.current
+    if (!el) return
+    if (wrapped) {
+      const top = rowOfBeat(beat) * rowStride
+      const h   = el.clientHeight
+      if (top + rowStride > el.scrollTop + h) el.scrollTop = top + rowStride - h
+      else if (top < el.scrollTop)            el.scrollTop = top
+      return
+    }
+    const px = beatToX(beat, pxPerBeat)
+    const w  = el.clientWidth
+    if (px > el.scrollLeft + w * 0.7) el.scrollLeft = px - w * 0.3
+    else if (px < el.scrollLeft)       el.scrollLeft = Math.max(0, px - 20)
+  }, [wrapped, rowOfBeat, rowStride, pxPerBeat])
+
   useEffect(() => {
     if (!scrollRef.current) return
     if (barView) {
@@ -143,21 +205,13 @@ export function TabNotationView({
       return
     }
     if (!isPlaying) return
-    const el = scrollRef.current
-    const px = beatToX(currentBeat, pxPerBeat)
-    const w  = el.clientWidth
-    if (px > el.scrollLeft + w * 0.7) el.scrollLeft = px - w * 0.3
-    else if (px < el.scrollLeft)       el.scrollLeft = Math.max(0, px - 20)
-  }, [currentBeat, isPlaying, pxPerBeat, barView, track.beatsPerBar])
+    followBeat(currentBeat)
+  }, [currentBeat, isPlaying, pxPerBeat, barView, track.beatsPerBar, followBeat])
 
   useEffect(() => {
-    if (!editCursor || !scrollRef.current) return
-    const el = scrollRef.current
-    const px = beatToX(editCursor.beat, pxPerBeat)
-    const w  = el.clientWidth
-    if (px > el.scrollLeft + w * 0.8) el.scrollLeft = px - w * 0.4
-    else if (px < el.scrollLeft + 40)  el.scrollLeft = Math.max(0, px - 60)
-  }, [editCursor, pxPerBeat])
+    if (!editCursor) return
+    followBeat(editCursor.beat)
+  }, [editCursor, followBeat])
 
   // ── Fret commit ────────────────────────────────────────────────────────
   const commitFret = useCallback((buf: string) => {
@@ -292,22 +346,28 @@ export function TabNotationView({
 
     const rect   = overlaySvgRef.current!.getBoundingClientRect()
     const scaleX = svgW / rect.width
-    const scaleY = TOTAL_H / rect.height
+    const scaleY = svgH / rect.height
     const rawX   = (e.clientX - rect.left) * scaleX
     const rawY   = (e.clientY - rect.top)  * scaleY
 
+    // Primero el sistema, después la posición dentro de él
+    const row = Math.floor(rawY / rowStride)
+    if (row < 0 || row >= rowCount) return
+
     // Only handle clicks in TAB string zone
-    const tabRawY = rawY - TAB_OVERLAY_Y
+    const tabRawY = rawY - row * rowStride - TAB_OVERLAY_Y
     if (tabRawY < -10 || tabRawY > TAB_OVERLAY_STAFF_H + 10) return
 
-    const beat = snapToGrid(Math.max(0, xToBeat(rawX, pxPerBeat)), SNAP)
+    const beat = snapToGrid(Math.max(0, xToBeat(rawX - rowDx(row), pxPerBeat)), SNAP)
     if (beat >= totalBeats) return
+    if (Math.floor(beat / track.beatsPerBar) >= (row + 1) * barsPerRow) return
     const si = yToStringIndex(Math.max(0, Math.min(TAB_OVERLAY_STAFF_H, tabRawY)))
 
     clearTimeout(fretTimerRef.current!); setFretBuffer('')
     setEditCursor({ beat, stringIndex: si }); onCursorBeatChange(beat)
     containerRef.current?.focus()
-  }, [isPlaying, svgW, pxPerBeat, totalBeats, onCursorBeatChange, setFretBuffer, setEditCursor])
+  }, [isPlaying, svgW, svgH, pxPerBeat, totalBeats, rowStride, rowCount, rowDx,
+      barsPerRow, track.beatsPerBar, onCursorBeatChange, setFretBuffer, setEditCursor])
 
   // ── Note click on overlay ─────────────────────────────────────────────
   const handleNoteClick = useCallback((note: BassNote) => (e: React.PointerEvent) => {
@@ -332,6 +392,7 @@ export function TabNotationView({
 
   const activeBeat = isPlaying ? currentBeat : cursorBeat
   const cursorX    = beatToX(activeBeat, pxPerBeat)
+  const cursorRow  = rowOfBeat(activeBeat)
   const cursorY1   = 3
   const cursorY2   = TOTAL_H - 3
 
@@ -361,7 +422,9 @@ export function TabNotationView({
       <div
         ref={scrollRef}
         style={{
-          flex: 1, overflowX: fitWidth || barView || visibleBars ? 'hidden' : 'auto', overflowY: 'hidden',
+          flex: 1,
+          overflowX: wrapped ? 'hidden' : 'auto',
+          overflowY: wrapped ? 'auto' : 'hidden',
           // Sin fondo propio: la tarjeta que envuelve el lienzo pone el papel.
           position: 'relative', background: 'transparent',
           minHeight: TOTAL_H,
@@ -372,8 +435,8 @@ export function TabNotationView({
         <svg
           ref={overlaySvgRef}
           width={svgW}
-          height={TOTAL_H}
-          viewBox={`0 0 ${svgW} ${TOTAL_H}`}
+          height={svgH}
+          viewBox={`0 0 ${svgW} ${svgH}`}
           onPointerDown={handleOverlayPointerDown}
           style={{
             position: 'relative', display: 'block',
@@ -381,19 +444,22 @@ export function TabNotationView({
             userSelect: 'none',
           }}
         >
+        {rows.map(row => (
+        <g key={row.r} transform={`translate(0,${row.y})`}>
           {/* ── Notation staff lines ── */}
           {[0,1,2,3,4].map(line => {
             const ly = NOTA_ORIGIN_Y + NOTATION.lineToY(line)
-            return <line key={`sl${line}`} x1={LABEL_W} x2={svgW} y1={ly} y2={ly}
+            return <line key={`sl${line}`} x1={LABEL_W} x2={LABEL_W + (row.x2 - row.x1)} y1={ly} y2={ly}
               stroke={staffLineColor} strokeWidth={0.8} style={{ pointerEvents: 'none' }} />
           })}
 
           {/* ── System bar lines: span notation top → TAB bottom ── */}
-          {Array.from({ length: track.totalBars + 1 }, (_, bar) => {
-            const bx = barLineX(bar, track.beatsPerBar, pxPerBeat)
+          {Array.from({ length: row.endBar - row.startBar + 1 }, (_, i) => {
+            const bar = row.startBar + i
+            const bx = barLineX(bar, track.beatsPerBar, pxPerBeat) + row.dx
             const y1 = NOTA_ORIGIN_Y + NOTATION.lineToY(4)
             const y2 = TAB_OVERLAY_Y + TAB_OVERLAY_STAFF_H
-            const thick = bar === 0 || bar === track.totalBars
+            const thick = bar === row.startBar || bar === row.endBar
             return <line key={`sbl${bar}`} x1={bx} x2={bx} y1={y1} y2={y2}
               stroke={staffLineColor} strokeWidth={thick ? 1.4 : 0.7}
               style={{ pointerEvents: 'none' }} />
@@ -436,26 +502,51 @@ export function TabNotationView({
                     fill={staffLineColor}>
                     {String.fromCodePoint(0xE062)}
                   </text>
-                  {/* Time signature: SMuFL digits U+E080-E089 */}
-                  <text x={40} y={yF}
-                    fontFamily="Bravura, serif" fontSize={ls * 2.5}
-                    textAnchor="middle" dominantBaseline="middle"
-                    fill={staffLineColor}>
-                    {String.fromCodePoint(0xE080 + track.beatsPerBar)}
-                  </text>
-                  <text x={40} y={yLn(1)}
-                    fontFamily="Bravura, serif" fontSize={ls * 2.5}
-                    textAnchor="middle" dominantBaseline="middle"
-                    fill={staffLineColor}>
-                    {String.fromCodePoint(0xE084)}
-                  </text>
+                  {/* Time signature: SMuFL digits U+E080-E089.
+                      Solo encabeza la obra: la clave se repite en cada sistema
+                      pero el compás no, salvo que cambie. */}
+                  {row.r === 0 && (
+                    <>
+                      <text x={40} y={yF}
+                        fontFamily="Bravura, serif" fontSize={ls * 2.5}
+                        textAnchor="middle" dominantBaseline="middle"
+                        fill={staffLineColor}>
+                        {String.fromCodePoint(0xE080 + track.beatsPerBar)}
+                      </text>
+                      <text x={40} y={yLn(1)}
+                        fontFamily="Bravura, serif" fontSize={ls * 2.5}
+                        textAnchor="middle" dominantBaseline="middle"
+                        fill={staffLineColor}>
+                        {String.fromCodePoint(0xE084)}
+                      </text>
+                    </>
+                  )}
                 </g>
               </>
             )
           })()}
 
+          {/* ── TAB stave: líneas de cuerda y etiqueta, del ancho del sistema ── */}
+          {[0,1,2,3].map(si => {
+            const ly = TAB_OVERLAY_Y + STRING_Y[si]
+            return <line key={si} x1={LABEL_W} x2={LABEL_W + (row.x2 - row.x1)} y1={ly} y2={ly}
+              stroke="var(--bt-muted)" strokeWidth={0.9} style={{ pointerEvents: 'none' }} />
+          })}
+          {['T','A','B'].map((c, i) => (
+            <text key={c} x={LABEL_W / 2} y={TAB_OVERLAY_Y + i * TAB_SPACING * (3/2) + TAB_SPACING / 2}
+              textAnchor="middle" dominantBaseline="middle"
+              fontSize={8} fontWeight="bold" fontFamily="var(--bt-mono)"
+              fill="var(--bt-muted)" style={{ pointerEvents: 'none' }}>
+              {c}
+            </text>
+          ))}
+
+          {/* Lo que sigue va en coordenadas absolutas: el translate lo trae a
+              su sistema, y cada lista se recorta a los compases de la línea. */}
+          <g transform={`translate(${row.dx},0)`}>
+
           {/* ── Notation notes ── */}
-          {notated.notes.map(nn => {
+          {notated.notes.filter(nn => nn.x >= row.x1 && nn.x < row.x2).map(nn => {
             const color = noteColorMap.get(nn.noteId) ?? 'var(--bt-ink)'
             const stemColor = nn.beamGroupId !== null ? beamColor : color
             return (
@@ -518,7 +609,7 @@ export function TabNotationView({
           })}
 
           {/* ── Beams ── */}
-          {notated.beams.map(beam => {
+          {notated.beams.filter(b => b.x1 >= row.x1 && b.x1 < row.x2).map(beam => {
             const dir = beam.dir === 'up' ? -1 : 1
             return (
               <g key={`beam-${beam.id}`} style={{ pointerEvents: 'none' }}>
@@ -532,25 +623,8 @@ export function TabNotationView({
             )
           })}
 
-          {/* ── TAB stave ── */}
-          {/* String lines */}
-          {[0,1,2,3].map(si => {
-            const ly = TAB_OVERLAY_Y + STRING_Y[si]
-            return <line key={si} x1={LABEL_W} x2={svgW} y1={ly} y2={ly}
-              stroke="var(--bt-muted)" strokeWidth={0.9} style={{ pointerEvents: 'none' }} />
-          })}
-          {/* Bar lines handled by system bar lines above */}
-          {/* T·A·B label */}
-          {['T','A','B'].map((c, i) => (
-            <text key={c} x={LABEL_W / 2} y={TAB_OVERLAY_Y + i * TAB_SPACING * (3/2) + TAB_SPACING / 2}
-              textAnchor="middle" dominantBaseline="middle"
-              fontSize={8} fontWeight="bold" fontFamily="var(--bt-mono)"
-              fill="var(--bt-muted)" style={{ pointerEvents: 'none' }}>
-              {c}
-            </text>
-          ))}
           {/* Fret numbers */}
-          {track.notes.map(note => {
+          {track.notes.filter(n => n.startBeat >= row.startBeat && n.startBeat < row.endBeat).map(note => {
             const x   = beatToX(note.startBeat, pxPerBeat)
             const y   = TAB_OVERLAY_Y + STRING_Y[note.stringIndex]
             const isActive   = currentBeat >= note.startBeat && currentBeat < note.startBeat + note.durationBeats
@@ -573,7 +647,7 @@ export function TabNotationView({
           })}
 
           {/* Invisible hit targets for each note (TAB area) */}
-          {track.notes.map(note => {
+          {track.notes.filter(n => n.startBeat >= row.startBeat && n.startBeat < row.endBeat).map(note => {
             const nx  = beatToX(note.startBeat, pxPerBeat)
             const ny  = TAB_OVERLAY_Y + STRING_Y[note.stringIndex]
             const rw  = note.fret >= 10 ? 24 : 18
@@ -589,7 +663,7 @@ export function TabNotationView({
           })}
 
           {/* Edit cursor (TAB zone) */}
-          {editCursor && (() => {
+          {editCursor && rowOfBeat(editCursor.beat) === row.r && (() => {
             const cx = beatToX(editCursor.beat, pxPerBeat)
             const cy = TAB_OVERLAY_Y + STRING_Y[editCursor.stringIndex]
             const rw = fretBuffer.length > 1 ? 26 : 18
@@ -614,21 +688,25 @@ export function TabNotationView({
             )
           })()}
 
-          {/* Playback / edit cursor line */}
-          <line
-            x1={cursorX} x2={cursorX} y1={cursorY1} y2={cursorY2}
-            stroke={isPlaying ? 'var(--bt-accent)' : 'var(--bt-accent)'}
-            strokeWidth={isPlaying ? 1.5 : 1}
-            style={{ pointerEvents: 'none' }}
-          />
-          <polygon
-            points={`${cursorX - 5},${cursorY1} ${cursorX + 5},${cursorY1} ${cursorX},${cursorY1 + 9}`}
-            fill={isPlaying ? 'var(--bt-accent)' : 'var(--bt-accent)'}
-            style={{ pointerEvents: 'none' }}
-          />
+          {/* Playback / edit cursor line — solo en el sistema que se está tocando */}
+          {cursorRow === row.r && (
+            <>
+              <line
+                x1={cursorX} x2={cursorX} y1={cursorY1} y2={cursorY2}
+                stroke="var(--bt-accent)"
+                strokeWidth={isPlaying ? 1.5 : 1}
+                style={{ pointerEvents: 'none' }}
+              />
+              <polygon
+                points={`${cursorX - 5},${cursorY1} ${cursorX + 5},${cursorY1} ${cursorX},${cursorY1 + 9}`}
+                fill="var(--bt-accent)"
+                style={{ pointerEvents: 'none' }}
+              />
+            </>
+          )}
 
           {/* Section labels */}
-          {(track.sections ?? []).map(sec => {
+          {(track.sections ?? []).filter(s => s.startBar >= row.startBar && s.startBar < row.endBar).map(sec => {
             const x = barLineX(sec.startBar, track.beatsPerBar, pxPerBeat) + 2
             return (
               <text key={sec.startBar} x={x} y={8}
@@ -647,6 +725,9 @@ export function TabNotationView({
               </text>
             )
           })}
+          </g>
+        </g>
+        ))}
         </svg>
 
         {/* Section name input overlay */}

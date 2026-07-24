@@ -75,7 +75,6 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
   const containerRef              = useRef<HTMLDivElement>(null)
   const [fretCount, setFretCount] = useState(MIN_FRETS)
   const [scale, setScale]         = useState(1)
-  const [containerW, setContainerW] = useState(0)
 
   useEffect(() => {
     const el = containerRef.current
@@ -97,7 +96,7 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
       const naturalW = LABEL_W + OPEN_W + frets * CELL_W
       setFretCount(frets)
       setScale(Math.min(scaleH, w / naturalW))
-      setContainerW(w)
+
     }
     const ro = new ResizeObserver(measure)
     ro.observe(el)
@@ -162,27 +161,32 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
   }, [triggerStrike, onNoteClick])
 
   return (
+    // El div medido va sin fondo y a todo lo ancho; el fondo lo lleva el de
+    // dentro, ajustado al mástil. Con 24 trastes ya dibujados puede seguir
+    // sobrando ancho, y así lo que sobra es el chasis del dock y no una banda
+    // negra pegada al diapasón.
     <div
       ref={containerRef}
       className="flex-shrink-0"
       style={{
-        background: '#07050a',
-        overflow: 'hidden',
-        borderBottom: '1px solid hsl(224 15% 16%)',
         height: Math.round(NATURAL_H * scale),
         userSelect: 'none',
         WebkitUserSelect: 'none',
       }}
     >
-      {/* Con 24 trastes ya dibujados puede seguir sobrando ancho: ahí el mástil
-          se centra, para que lo que sobre no quede todo en un margen a la
-          derecha. */}
       <div style={{
-        width: totalW,
-        transform: `scale(${scale})`,
-        transformOrigin: 'top left',
-        marginLeft: Math.max(0, (containerW - totalW * scale) / 2),
+        width: Math.round(totalW * scale),
+        maxWidth: '100%',
+        marginInline: 'auto',
+        height: '100%',
+        overflow: 'hidden',
+        background: '#07050a',
       }}>
+        <div style={{
+          width: totalW,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+        }}>
 
         {/* ── Fret-number header ─────────────────────────────────────────── */}
         <div style={{ display:'flex', height:26, background:'hsl(224 20% 9%)', borderBottom:'1px solid hsl(224 15% 16%)', userSelect:'none' }}>
@@ -233,6 +237,7 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
               {isInteractive ? (placementHint ? 'Tap a fret to place note at cursor' : 'Tap a fret to hear the note') : ''}
             </span>
           )}
+        </div>
         </div>
       </div>
     </div>

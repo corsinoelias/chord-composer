@@ -81,11 +81,17 @@ export function computeBeamGroups(
 }
 
 // ── String path with gaps at note x-positions ─────────────────────────────
+/**
+ * `fromX` existe porque la tablatura se maqueta por sistemas: cada línea dibuja
+ * su tramo de cuerda, no la cuerda entera. Por omisión arranca en el margen
+ * izquierdo, que es el caso de una sola línea.
+ */
 export function buildStringPath(
   si: number,
   notes: BassNote[],
   totalW: number,
   ppb: number,
+  fromX: number = LABEL_W,
 ): string {
   const y    = STRING_Y[si] + 0.5
   const half = NOTE_GAP / 2
@@ -93,12 +99,12 @@ export function buildStringPath(
   const onStr = [...notes.filter(n => n.stringIndex === si)]
     .sort((a, b) => a.startBeat - b.startBeat)
 
-  if (onStr.length === 0) return `M${LABEL_W},${y} H${totalW}`
+  if (onStr.length === 0) return `M${fromX},${y} H${totalW}`
 
   // Build gap intervals [left, right]
   const gaps: [number, number][] = onStr.map(n => {
     const cx = beatToX(n.startBeat, ppb)
-    return [Math.max(LABEL_W, cx - half), cx + half]
+    return [Math.max(fromX, cx - half), cx + half]
   })
 
   // Merge overlapping gaps
@@ -111,12 +117,12 @@ export function buildStringPath(
 
   // Build SVG path segments: line from cursor to gap start, skip gap, repeat
   const segs: string[] = []
-  let x = LABEL_W
+  let x = fromX
   for (const [l, r] of merged) {
     if (l > x) segs.push(`M${x.toFixed(1)},${y} H${l.toFixed(1)}`)
     x = r
   }
   if (x < totalW) segs.push(`M${x.toFixed(1)},${y} H${totalW}`)
 
-  return segs.join(' ') || `M${LABEL_W},${y} H${totalW}`
+  return segs.join(' ') || `M${fromX},${y} H${totalW}`
 }

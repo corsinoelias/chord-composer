@@ -139,10 +139,11 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   }, [])
 
   const [fretboardVisible, setFretboardVisible]   = useState(true)
-  // Alto del diapasón en el dock. 240 no es arbitrario: por debajo de ~240 el
-  // mástil se encoge tanto que ni con los 24 trastes llena el ancho de un
-  // escritorio de 1440, y sobra fondo a los lados.
-  const fretboardHeight = isShortScreen ? 170 : 240
+  // Alto del diapasón en el dock. Es un acompañante, no el asunto principal:
+  // manda la partitura. A este alto el mástil no llega a cubrir el ancho de un
+  // escritorio grande —con 24 trastes ya no da más de sí— y por eso el propio
+  // componente lo centra en vez de dejar el sobrante en un margen.
+  const fretboardHeight = isShortScreen ? 140 : 180
   const [editingTrackName, setEditingTrackName]   = useState(false)
   const [recordingOpen, setRecordingOpen]         = useState(false)
   const [exportImageOpen, setExportImageOpen]   = useState(false)
@@ -920,24 +921,40 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           <div style={{ flex: 1 }} />
 
           {/* Zoom. Vive aquí y no en el transporte porque afecta a lo que se
-              ve, igual que el conmutador de vistas que tiene al lado. */}
-          {activeView !== 'guitar' && (
-            <div style={{
-              display: 'flex', alignItems: 'center', overflow: 'hidden',
-              border: `1px solid ${v('rule')}`, borderRadius: 8, background: v('card'),
-            }}>
-              <ZoomBtn title="Alejar" onClick={() => handleZoomChange(zoom - 0.25)} disabled={fitWidth || zoom <= 0.4}>−</ZoomBtn>
-              <ZoomBtn title="Acercar" onClick={() => handleZoomChange(zoom + 0.25)} disabled={fitWidth || zoom >= 4}>+</ZoomBtn>
-              <ZoomBtn
-                title="Ajustar al ancho de la ventana"
-                onClick={() => setFitWidth(f => !f)}
-                active={fitWidth}
-                wide
-              >
-                {fitWidth ? 'Fit' : `${Math.round(zoom * 100)}%`}
-              </ZoomBtn>
-            </div>
-          )}
+              ve, igual que el conmutador de vistas que tiene al lado.
+
+              En Tab y Score no hay botón "Fit": esas vistas maquetan por
+              sistemas y siempre ajustan al ancho, así que el zoom decide
+              cuántos compases entran por línea. Grid sigue siendo una tira
+              horizontal y ahí "Fit" sí tiene sentido. */}
+          {activeView !== 'guitar' && (() => {
+            const isGrid = activeView === 'grid'
+            return (
+              <div style={{
+                display: 'flex', alignItems: 'center', overflow: 'hidden',
+                border: `1px solid ${v('rule')}`, borderRadius: 8, background: v('card'),
+              }}>
+                <ZoomBtn
+                  title={isGrid ? 'Alejar' : 'Más compases por línea'}
+                  onClick={() => handleZoomChange(zoom - 0.25)}
+                  disabled={(isGrid && fitWidth) || zoom <= 0.4}
+                >−</ZoomBtn>
+                <ZoomBtn
+                  title={isGrid ? 'Acercar' : 'Menos compases por línea'}
+                  onClick={() => handleZoomChange(zoom + 0.25)}
+                  disabled={(isGrid && fitWidth) || zoom >= 4}
+                >+</ZoomBtn>
+                <ZoomBtn
+                  title={isGrid ? 'Ajustar al ancho de la ventana' : 'Volver al tamaño normal'}
+                  onClick={() => isGrid ? setFitWidth(f => !f) : handleZoomChange(1)}
+                  active={isGrid && fitWidth}
+                  wide
+                >
+                  {isGrid && fitWidth ? 'Fit' : `${Math.round(zoom * 100)}%`}
+                </ZoomBtn>
+              </div>
+            )
+          })()}
         </div>
       )}
 
@@ -990,10 +1007,9 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             }}>
               <div style={{
                 minWidth: 0, display: 'flex',
-                // Tab y Score son pentagramas de alto fijo: centrados se leen
-                // como una hoja, no como algo pegado al borde superior. Grid es
-                // un piano roll y sí quiere todo el alto disponible.
-                alignItems: activeView === 'grid' ? 'stretch' : 'center',
+                // Todas las vistas crecen hacia abajo y se desplazan solas, así
+                // que necesitan el alto entero de la tarjeta.
+                alignItems: 'stretch',
                 background: v('card'),
                 border: `1px solid ${v('rule')}`,
                 borderRadius: 12, boxShadow: v('shadow'),
@@ -1004,7 +1020,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                   <TabScore
                     track={track} zoom={zoom} currentBeat={currentBeat}
                     cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
-                    sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
+                    sound={sound} noteDuration={noteDuration}
                     onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
                     onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
                     onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
@@ -1013,11 +1029,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                   <TabNotationView
                     track={track} zoom={zoom} currentBeat={currentBeat}
                     cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
-                    sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
+                    sound={sound} noteDuration={noteDuration}
                     onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
                     onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
                     onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
-                    onFitZoomChange={handleZoomChange}
                   />
                 ) : (
                   <BassTabGrid
