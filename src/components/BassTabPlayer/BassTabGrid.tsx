@@ -454,8 +454,12 @@ export function BassTabGrid({
           ))}
         </div>
 
-        {/* Scrollable content */}
-        <div ref={scrollRef} className="flex-1 overflow-y-hidden" style={{ overflowX: fitWidth ? 'hidden' : 'auto', cursor: 'crosshair' }} onWheel={handleWheel}>
+        {/* Scrollable content.
+            `minWidth: 0` es imprescindible: sin él, este hijo flex crece hasta el
+            ancho del contenido en vez de quedarse en el del viewport, así que no
+            hay overflow que desplazar y el auto-scroll del playhead no encuentra
+            nada que mover (su clientWidth sería el del contenido, no el visible). */}
+        <div ref={scrollRef} className="flex-1 overflow-y-hidden" style={{ minWidth: 0, overflowX: fitWidth ? 'hidden' : 'auto', cursor: 'crosshair' }} onWheel={handleWheel}>
           <div style={{ width: totalWidth, minWidth: totalWidth }}>
 
             {/* Ruler */}
@@ -478,7 +482,7 @@ export function BassTabGrid({
                 <div style={{ position:'absolute', bottom:-1, left:'50%', transform:'translateX(-50%)', width:0, height:0, borderLeft:'5px solid transparent', borderRight:'5px solid transparent', borderTop:'6px solid var(--bt-accent)' }} />
               </div>
               {showPlayhead && (
-                <div style={{ position:'absolute', left:playheadLeft, top:0, height:'100%', width:2, background:'#60a5fa', pointerEvents:'none', zIndex:11 }} />
+                <div style={{ position:'absolute', left:playheadLeft, top:0, height:'100%', width:2, background:'var(--bt-accent)', pointerEvents:'none', zIndex:11 }} />
               )}
             </div>
 
@@ -572,12 +576,12 @@ export function BassTabGrid({
                   <div style={{
                     position:'absolute', left:playheadLeft-16, top:0, height:'100%',
                     width:32, pointerEvents:'none', zIndex:19,
-                    background:'linear-gradient(90deg, transparent 0%, rgba(96,165,250,0.06) 50%, transparent 100%)',
+                    background:'linear-gradient(90deg, transparent 0%, rgba(106,31,234,0.06) 50%, transparent 100%)',
                   }} />
                   <div style={{
                     position:'absolute', left:playheadLeft, top:0, height:'100%',
-                    width:2, background:'#60a5fa',
-                    boxShadow:'0 0 10px 2px rgba(96,165,250,0.55), 0 0 3px rgba(96,165,250,0.9)',
+                    width:2.5, background:'var(--bt-accent)', borderRadius:2,
+                    boxShadow:'0 0 6px rgba(106,31,234,0.5)',
                     pointerEvents:'none', zIndex:20,
                   }} />
                 </>

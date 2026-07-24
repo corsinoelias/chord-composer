@@ -123,9 +123,24 @@ interface BarGeom {
   tabStringY: number[]
   tabBottomY: number
   ticks: Array<{ beat: number; x: number; dur: number }>  // figura: beat, x real, duración
+  heads: Array<{ beat: number; stringIndex: number; x: number; y: number }>  // cabezas en el pentagrama
 }
 
 const STRING_LABELS = ['G', 'D', 'A', 'E']
+
+/** Elipse de acento del tamaño de una cabeza de nota, para resaltarla en el
+ *  pentagrama (selección y reproducción). `getYs` da el centro; `getAbsoluteX`
+ *  cae un poco a la izquierda de la cabeza, de ahí el +3 de ajuste. */
+function HeadDot({ x, y }: { x: number; y: number }) {
+  return (
+    <div style={{
+      position: 'absolute', left: x + 3 - 5.5, top: y - 4,
+      width: 11, height: 8, borderRadius: '50%',
+      background: BT.accent, transform: 'rotate(-16deg)',
+      pointerEvents: 'none',
+    }} />
+  )
+}
 
 interface Props {
   track: BassTrack
@@ -302,10 +317,22 @@ export function ScoreView({
           beams.forEach(b => b.setContext(ctx).draw())
 
           const ticks: Array<{ beat: number; x: number; dur: number }> = []
+          const heads: Array<{ beat: number; stringIndex: number; x: number; y: number }> = []
           seq.forEach((item, i) => {
+            const beat = bar * bpb + item.beatInBar
             const t = tNotes[i]
             const gx = (t as { getAbsoluteX?: () => number }).getAbsoluteX?.()
-            if (typeof gx === 'number') ticks.push({ beat: bar * bpb + item.beatInBar, x: gx, dur: vexDurToBeats(item.noteDur) })
+            if (typeof gx === 'number') ticks.push({ beat, x: gx, dur: vexDurToBeats(item.noteDur) })
+            if (!item.isRest) {
+              // Cabezas del pentagrama: getYs() da una y por tono, en el mismo
+              // orden en que se pasaron las claves (item.notes ascendente).
+              const sn = sNotes[i]
+              const hx = sn.getAbsoluteX()
+              const ys = sn.getYs()
+              item.notes.forEach((n, k) => {
+                if (typeof ys[k] === 'number') heads.push({ beat, stringIndex: n.str - 1, x: hx, y: ys[k] })
+              })
+            }
           })
 
           geom.push({
@@ -315,7 +342,7 @@ export function ScoreView({
             tabTopY: tabStave.getYForLine(0),
             tabStringY: [0, 1, 2, 3].map(i => tabStave.getYForLine(i)),
             tabBottomY: tabStave.getYForLine(nS - 1),
-            ticks,
+            ticks, heads,
           })
           x += w
         })
@@ -389,6 +416,13 @@ export function ScoreView({
 
   /** x real donde pintar el cursor/anillo en un beat: la de su figura. */
   const snapX = useCallback((beat: number): number | null => tickAt(beat)?.x ?? beatToX(beat), [tickAt, beatToX])
+
+  /** Cabeza en el pentagrama de una nota (beat de inicio + cuerda). */
+  const headAt = useCallback((beat: number, stringIndex: number) => {
+    const bg = barForBeat(beat)
+    if (!bg) return null
+    return bg.heads.find(h => Math.abs(h.beat - beat) < 1e-6 && h.stringIndex === stringIndex) ?? null
+  }, [barForBeat])
 
   // ── Fret commit + acciones de edición (idénticas al Score anterior) ───────
   const commitFret = useCallback((buf: string) => {
@@ -611,6 +645,16 @@ export function ScoreView({
       }
     }
 
+    // Resaltar en el PENTAGRAMA la cabeza de la nota seleccionada. En el diseño,
+    // seleccionar un número de la tab tiñe de acento su nota en el pentagrama.
+    if (!isPlaying) {
+      const sel = track.notes.find(n => n.id === selectedNoteId)
+      if (sel) {
+        const hd = headAt(sel.startBeat, sel.stringIndex)
+        if (hd) els.push(<HeadDot key="sel-head" x={hd.x} y={hd.y} />)
+      }
+    }
+
     // Etiquetas de cuerda por sistema + insignia azul de número de compás
     const seenSys = new Set<number>()
     g.forEach(bg => {
@@ -661,7 +705,21 @@ export function ScoreView({
 
     return els
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editCursor, fretBuffer, isPlaying, selectedNoteId, track.notes, track.sections, geomVersion, barForBeat, tickAt, snapX])
+  }, [editCursor, fretBuffer, isPlaying, selectedNoteId, track.notes, track.sections, geomVersion, barForBeat, tickAt, snapX, headAt])
+
+  // Resaltado de reproducción: la(s) cabeza(s) que suenan ahora, tintadas de
+  // acento como en la selección. Va aparte porque depende de `currentBeat` y se
+  // recalcula por frame; son pocas divs, así que es barato.
+  const playHeads = useMemo(() => {
+    if (!isPlaying) return null
+    void geomVersion
+    return track.notes
+      .filter(n => currentBeat >= n.startBeat && currentBeat < n.startBeat + n.durationBeats)
+      .map(n => {
+        const hd = headAt(n.startBeat, n.stringIndex)
+        return hd ? <HeadDot key={n.id} x={hd.x} y={hd.y} /> : null
+      })
+  }, [isPlaying, currentBeat, track.notes, geomVersion, headAt])
 
   // ── Marcador de reproducción (WAAPI, glide del compositor) ────────────────
   // Como el diseño: un div dedicado que se anima con keyframes precomputados a
@@ -756,6 +814,7 @@ export function ScoreView({
           <div ref={hostRef} />
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
             {overlays}
+            {playHeads}
           </div>
           {/* Marcador de reproducción — animado imperativamente (WAAPI) */}
           <div
