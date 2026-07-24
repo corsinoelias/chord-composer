@@ -969,12 +969,26 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             sound={sound} onSoundChange={handleSoundChange}
             beatsPerBar={track.beatsPerBar} onBeatsPerBarChange={handleBeatsPerBarChange}
             volume={volume} onVolumeChange={handleVolumeChange}
+            editingTools={activeView !== 'guitar'}
           />
         )}
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
       {activeView === 'guitar' ? (
-        <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-          <BassRealisticDisplay activeFrets={activeFrets} attackSignals={attackSignals} />
+        /* La vista Bass Guitar va en la misma tarjeta que las demás, pero
+           oscura: es madera y chasis, no papel, igual que el dock del diapasón.
+           Sin rail —no hay compases que añadir aquí. */
+        <div style={{
+          flex: 1, minHeight: 0, overflow: 'hidden',
+          padding: 14, background: v('paper'),
+        }}>
+          <div style={{
+            width: '100%', height: '100%', overflow: 'hidden',
+            background: v('wood'),
+            border: `1px solid ${v('panelRule')}`,
+            borderRadius: 12, boxShadow: v('shadow'),
+          }}>
+            <BassRealisticDisplay activeFrets={activeFrets} attackSignals={attackSignals} />
+          </div>
         </div>
       ) : (
         <>

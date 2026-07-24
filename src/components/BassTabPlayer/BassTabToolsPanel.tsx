@@ -41,6 +41,12 @@ interface Props {
   onBeatsPerBarChange?: (n: number) => void
   volume: number
   onVolumeChange: (vol: number) => void
+  /**
+   * Si la vista coloca notas. La vista Bass Guitar no —solo se explora el
+   * mástil—, así que allí Duration, compás y los atajos de escritura sobran, y
+   * quedan solo Sound y Volume, que sí afectan a lo que suena.
+   */
+  editingTools?: boolean
 }
 
 export function BassTabToolsPanel({
@@ -48,6 +54,7 @@ export function BassTabToolsPanel({
   sound, onSoundChange,
   beatsPerBar, onBeatsPerBarChange,
   volume, onVolumeChange,
+  editingTools = true,
 }: Props) {
   const activeDuration = DURATIONS.find(d => d.v === noteDuration)
 
@@ -61,6 +68,7 @@ export function BassTabToolsPanel({
         display: 'flex', flexDirection: 'column',
       }}
     >
+      {editingTools && (
       <Section title="Duration">
         <div style={{ display: 'flex', background: v('sunken'), borderRadius: 9, padding: 3, gap: 2 }}>
           {DURATIONS.map(d => {
@@ -97,6 +105,7 @@ export function BassTabToolsPanel({
           {activeDuration?.name ?? `${noteDuration} beats`}
         </div>
       </Section>
+      )}
 
       <Section title="Sound">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
@@ -123,7 +132,7 @@ export function BassTabToolsPanel({
         </div>
       </Section>
 
-      {onBeatsPerBarChange && (
+      {editingTools && onBeatsPerBarChange && (
         <Section title="Time signature">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{
@@ -156,9 +165,19 @@ export function BassTabToolsPanel({
           fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase',
           color: v('dim'), fontWeight: 700, margin: '0 0 6px',
         }}>Shortcuts</h2>
-        <div><Key>0–9</Key> traste · <Key>↑↓</Key> cuerda · <Key>←→</Key> nota</div>
-        <div><Key>1–5</Key> duración · <Key>Del</Key> borrar</div>
-        <div><Key>Space</Key> play · <Key>Ctrl+Z</Key> deshacer</div>
+        {editingTools ? (
+          <>
+            <div><Key>0–9</Key> traste · <Key>↑↓</Key> cuerda · <Key>←→</Key> nota</div>
+            <div><Key>1–5</Key> duración · <Key>Del</Key> borrar</div>
+            <div><Key>Space</Key> play · <Key>Ctrl+Z</Key> deshacer</div>
+          </>
+        ) : (
+          <>
+            <div><Key>Arrastra</Key> mover · <Key>Shift</Key> girar</div>
+            <div><Key>Rueda</Key> zoom · <Key>Doble clic</Key> reencuadrar</div>
+            <div><Key>Space</Key> play</div>
+          </>
+        )}
       </div>
     </aside>
   )
