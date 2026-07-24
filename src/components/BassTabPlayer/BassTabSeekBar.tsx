@@ -261,7 +261,7 @@ export function BassTabSeekBar({
         top:        '50%',
         transform:  'translateY(-50%)',
         fontSize:   9,
-        fontFamily: 'ui-monospace, monospace',
+        fontFamily: 'var(--bt-mono)',
         color:      C.label,
         pointerEvents: 'none',
         letterSpacing: '0.04em',

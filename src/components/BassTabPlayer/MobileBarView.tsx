@@ -91,7 +91,7 @@ function BarSVG({ track, barIndex, beatInBar, isPlaying }: BarSVGProps) {
             x={LABEL_W - 6} y={y + 5}
             textAnchor="end"
             fontSize={11} fill={C.stringLabel}
-            fontFamily="ui-monospace, monospace"
+            fontFamily="var(--bt-mono)"
           >
             {STRING_NAMES[i]}
           </text>
@@ -143,7 +143,7 @@ function BarSVG({ track, barIndex, beatInBar, isPlaying }: BarSVGProps) {
               textAnchor="middle"
               fontSize={13} fontWeight={isActive ? '700' : '500'}
               fill={isActive ? C.noteActive : C.noteFret}
-              fontFamily="ui-monospace, monospace"
+              fontFamily="var(--bt-mono)"
             >
               {n.fret}
             </text>

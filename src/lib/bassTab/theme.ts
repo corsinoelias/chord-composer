@@ -74,6 +74,25 @@ export const BT = {
 
 export type BtToken = keyof typeof BT
 
+/**
+ * Pilas tipográficas. Van en un objeto aparte de `BT` porque `alpha()` da por
+ * hecho que todo token de `BT` es un color hexadecimal, y porque los tipos
+ * tienen un consumidor más: los `fontFamily` de SVG y canvas.
+ *
+ * `ui` mantiene Inter al frente — la carga `BaseLayout.astro` para todo el
+ * sitio, así que el player no puede desviarse sin desentonar con el resto.
+ * `mono` es la pila del sistema y no Space Mono: los números de traste se leen
+ * a 9px sobre la cuerda, y ahí una mono de carácter estorba. Va con
+ * `tabular-nums` allí donde el número cambia (BPM, compás:pulso) para que no
+ * baile el ancho.
+ */
+export const BT_FONT = {
+  ui:   "'Inter', ui-sans-serif, 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif",
+  mono: "ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace",
+} as const
+
+export type BtFontToken = keyof typeof BT_FONT
+
 /** Nombre de la variable CSS de un token: `paper` → `--bt-paper`. */
 const cssVarName = (token: string) =>
   '--bt-' + token.replace(/[A-Z]/g, c => '-' + c.toLowerCase())
@@ -84,11 +103,15 @@ const cssVarName = (token: string) =>
  * propiedades personalizadas sin un cast en cada una.
  */
 export const BT_VARS: Record<string, string> = Object.fromEntries(
-  Object.entries(BT).map(([token, value]) => [cssVarName(token), value]),
+  [...Object.entries(BT), ...Object.entries(BT_FONT)]
+    .map(([token, value]) => [cssVarName(token), value]),
 )
 
 /** Referencia a un token desde un `style={{ }}`: `v('accent')` → `var(--bt-accent)`. */
 export const v = (token: BtToken) => `var(${cssVarName(token)})`
+
+/** Igual que `v`, para las pilas tipográficas: `f('mono')` → `var(--bt-mono)`. */
+export const f = (token: BtFontToken) => `var(${cssVarName(token)})`
 
 /**
  * Alfa sobre un token hexadecimal, para estados de hover y capas por encima.

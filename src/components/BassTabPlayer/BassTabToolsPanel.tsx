@@ -1,5 +1,5 @@
 import type { BassSound } from '../../lib/bassTab/types'
-import { v, alpha } from '../../lib/bassTab/theme'
+import { v } from '../../lib/bassTab/theme'
 
 /**
  * Panel de herramientas lateral (escritorio).
@@ -84,7 +84,7 @@ export function BassTabToolsPanel({
                 <NoteGlyph value={d.v} />
                 <span style={{
                   position: 'absolute', bottom: 1, right: 3,
-                  fontSize: 8, opacity: .5, fontFamily: 'ui-monospace, monospace',
+                  fontSize: 8, opacity: .5, fontFamily: 'var(--bt-mono)',
                 }}>{d.key}</span>
               </button>
             )
@@ -92,7 +92,7 @@ export function BassTabToolsPanel({
         </div>
         <div style={{
           fontSize: 10, color: v('dim'), textAlign: 'center',
-          fontFamily: 'ui-monospace, monospace',
+          fontFamily: 'var(--bt-mono)',
         }}>
           {activeDuration?.name ?? `${noteDuration} beats`}
         </div>
@@ -133,11 +133,11 @@ export function BassTabToolsPanel({
               <Step label="−" onClick={() => onBeatsPerBarChange(Math.max(2, beatsPerBar - 1))} />
               <span style={{
                 flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 13,
-                fontFamily: 'ui-monospace, monospace', fontVariantNumeric: 'tabular-nums',
+                fontFamily: 'var(--bt-mono)', fontVariantNumeric: 'tabular-nums',
               }}>{beatsPerBar}</span>
               <Step label="+" onClick={() => onBeatsPerBarChange(Math.min(8, beatsPerBar + 1))} />
             </span>
-            <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: v('dim') }}>/ 4</span>
+            <span style={{ fontFamily: 'var(--bt-mono)', fontWeight: 700, color: v('dim') }}>/ 4</span>
           </div>
         </Section>
       )}
@@ -195,7 +195,7 @@ function Step({ label, onClick }: { label: string; onClick: () => void }) {
 
 function Key({ children }: { children: React.ReactNode }) {
   return (
-    <b style={{ color: v('soft'), fontFamily: 'ui-monospace, monospace', fontWeight: 700 }}>
+    <b style={{ color: v('soft'), fontFamily: 'var(--bt-mono)', fontWeight: 700 }}>
       {children}
     </b>
   )

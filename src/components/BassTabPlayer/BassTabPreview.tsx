@@ -3,6 +3,7 @@ import { type BassNote, type BassTrack } from '../../lib/bassTab/types'
 import { TabNotationView } from './TabNotationView'
 import { startPlayback, stopPlayback } from '../../lib/bassTab/bassAudio'
 import { PRESETS } from '../../data/presets'
+import { BT_VARS } from '../../lib/bassTab/theme'
 
 const noop = () => {}
 
@@ -58,7 +59,10 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
   const barFraction = (currentBeat % track.beatsPerBar) / track.beatsPerBar
 
   return (
-    <div className="relative rounded-xl border border-border bg-background overflow-hidden" style={{ height: 196 }}>
+    // Los tokens hay que declararlos también aquí: este componente se incrusta
+    // en los artículos de /learn, fuera del player, y tanto él como el
+    // `TabNotationView` que envuelve pintan con `var(--bt-*)`.
+    <div className="relative rounded-xl border border-border bg-background overflow-hidden" style={{ ...BT_VARS, height: 196 }}>
       {/* Read-only notation — one bar at a time */}
       <div className="absolute inset-0 bottom-14 overflow-hidden pointer-events-none select-none">
         <TabNotationView
@@ -103,7 +107,7 @@ export function BassTabPreview({ presetId, editorHref = '/bass-tab/' }: Props) {
           border: '1px solid var(--bt-rule)',
           borderRadius: 6,
           padding: '2px 7px',
-          fontFamily: 'ui-monospace, monospace',
+          fontFamily: 'var(--bt-mono)',
           fontSize: 11,
           color: 'var(--bt-soft)',
           lineHeight: 1.6,

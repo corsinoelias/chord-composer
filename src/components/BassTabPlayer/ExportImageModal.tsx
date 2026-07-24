@@ -21,7 +21,7 @@ const S = {
   danger:      'var(--bt-danger)',
   dangerBg:    'var(--bt-danger-wash)',
 }
-const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
+const FONT = 'var(--bt-ui)'
 
 function sanitize(s: string) {
   return s.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'bass-tab'
@@ -167,7 +167,7 @@ export function ExportImageModal({ track, onClose }: Props) {
           ]).map(({ label, value }) => (
             <div key={label} style={{ textAlign: 'center' }}>
               <div style={{ color: S.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-              <div style={{ color: S.primaryText, fontSize: 15, fontWeight: 700, fontFamily: 'ui-monospace, monospace', marginTop: 2 }}>{value}</div>
+              <div style={{ color: S.primaryText, fontSize: 15, fontWeight: 700, fontFamily: 'var(--bt-mono)', marginTop: 2 }}>{value}</div>
             </div>
           ))}
         </div>

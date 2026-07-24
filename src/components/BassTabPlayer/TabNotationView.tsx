@@ -362,7 +362,8 @@ export function TabNotationView({
         ref={scrollRef}
         style={{
           flex: 1, overflowX: fitWidth || barView || visibleBars ? 'hidden' : 'auto', overflowY: 'hidden',
-          position: 'relative', background: 'var(--bt-paper)',
+          // Sin fondo propio: la tarjeta que envuelve el lienzo pone el papel.
+          position: 'relative', background: 'transparent',
           minHeight: TOTAL_H,
         }}
       >
@@ -469,7 +470,7 @@ export function TabNotationView({
                 {/* Accidental */}
                 {nn.accidental === '#' && (
                   <text x={nn.x - NW * 2.4} y={nn.noteY + NH + 1}
-                    fontSize={NOTATION.lineSpacing * 1.5} fontFamily="serif"
+                    fontSize={NOTATION.lineSpacing * 1.5} fontFamily="var(--bt-mono)"
                     fill={color} textAnchor="middle"
                     style={{ pointerEvents: 'none' }}>
                     ♯
@@ -543,7 +544,7 @@ export function TabNotationView({
           {['T','A','B'].map((c, i) => (
             <text key={c} x={LABEL_W / 2} y={TAB_OVERLAY_Y + i * TAB_SPACING * (3/2) + TAB_SPACING / 2}
               textAnchor="middle" dominantBaseline="middle"
-              fontSize={8} fontWeight="bold" fontFamily="Arial, sans-serif"
+              fontSize={8} fontWeight="bold" fontFamily="var(--bt-mono)"
               fill="var(--bt-muted)" style={{ pointerEvents: 'none' }}>
               {c}
             </text>
@@ -563,7 +564,7 @@ export function TabNotationView({
                 <line x1={x - gapW} x2={x + gapW} y1={y} y2={y}
                   stroke="var(--bt-paper)" strokeWidth={2.5} />
                 <text x={x} y={y} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={11} fontWeight="bold" fontFamily="Arial, sans-serif"
+                  fontSize={11} fontWeight="bold" fontFamily="var(--bt-mono)"
                   fill={numColor}>
                   {note.fret}
                 </text>
@@ -604,7 +605,7 @@ export function TabNotationView({
                   style={{ pointerEvents: 'none' }} />
                 {fretBuffer && (
                   <text x={cx} y={cy + 5} textAnchor="middle" fontSize={10} fontWeight="bold"
-                    fill="var(--bt-accent)" fontFamily="ui-monospace,monospace"
+                    fill="var(--bt-accent)" fontFamily="var(--bt-mono)"
                     style={{ pointerEvents: 'none' }}>
                     {fretBuffer}
                   </text>
@@ -631,7 +632,7 @@ export function TabNotationView({
             const x = barLineX(sec.startBar, track.beatsPerBar, pxPerBeat) + 2
             return (
               <text key={sec.startBar} x={x} y={8}
-                fontSize={10} fontWeight={600} fill="var(--bt-muted)" fontFamily="monospace"
+                fontSize={10} fontWeight={600} fill="var(--bt-muted)" fontFamily="var(--bt-mono)"
                 style={{ cursor: 'pointer', userSelect: 'none' }}
                 onDoubleClick={e => {
                   e.stopPropagation()
@@ -660,7 +661,7 @@ export function TabNotationView({
                 if (e.key === 'Escape') { e.preventDefault(); setPendingSection(null) }
               }}
               onBlur={commitSection}
-              style={{ width: 120, height: 22, padding: '0 6px', borderRadius: 4, border: '2px solid var(--bt-accent)', background: 'var(--bt-rule)', color: 'var(--bt-soft)', fontFamily: 'monospace', fontSize: 10, fontWeight: 600, outline: 'none' }}
+              style={{ width: 120, height: 22, padding: '0 6px', borderRadius: 4, border: '2px solid var(--bt-accent)', background: 'var(--bt-rule)', color: 'var(--bt-soft)', fontFamily: 'var(--bt-mono)', fontSize: 10, fontWeight: 600, outline: 'none' }}
             />
           </div>
         )}
@@ -668,7 +669,7 @@ export function TabNotationView({
 
       {/* Edit cursor status bar */}
       {editCursor && !isPlaying && (
-        <div style={{ flexShrink: 0, height: 28, background: 'var(--bt-sunken)', borderTop: '1px solid var(--bt-accent-wash)', display: 'flex', alignItems: 'center', gap: 20, paddingLeft: 16, paddingRight: 16, fontFamily: "ui-monospace,'SF Mono',monospace", fontSize: 11 }}>
+        <div style={{ flexShrink: 0, height: 28, background: 'var(--bt-sunken)', borderTop: '1px solid var(--bt-accent-wash)', display: 'flex', alignItems: 'center', gap: 20, paddingLeft: 16, paddingRight: 16, fontFamily: 'var(--bt-mono)', fontSize: 11 }}>
           <span style={{ color: 'var(--bt-accent)', fontWeight: 600 }}>{STRING_LABELS[editCursor.stringIndex]}</span>
           <span style={{ color: 'var(--bt-soft)' }}>
             bar {Math.floor(editCursor.beat / track.beatsPerBar) + 1} · beat {(editCursor.beat % track.beatsPerBar + 1).toFixed(editCursor.beat % 1 === 0 ? 0 : 2)}
@@ -720,7 +721,7 @@ function NpadBtn({ children, onPress, active, danger, confirm }: {
         border: `1px solid ${confirm ? 'var(--bt-accent)' : active ? 'var(--bt-accent-wash)' : 'var(--bt-rule)'}`,
         borderRadius: 7,
         color: confirm ? 'var(--bt-accent)' : danger ? 'var(--bt-danger)' : active ? 'var(--bt-accent)' : 'var(--bt-ink)',
-        fontSize: 15, fontFamily: "'Inter', ui-sans-serif, sans-serif",
+        fontSize: 15, fontFamily: 'var(--bt-ui)',
         fontWeight: active || confirm ? 600 : 400,
         cursor: 'pointer', touchAction: 'manipulation', userSelect: 'none',
         WebkitTapHighlightColor: 'transparent',

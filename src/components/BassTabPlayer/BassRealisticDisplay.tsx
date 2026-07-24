@@ -432,7 +432,7 @@ export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
                       fontSize={11}
                       fontWeight="bold"
                       fill="white"
-                      fontFamily="ui-monospace, monospace"
+                      fontFamily="var(--bt-mono)"
                       style={{ userSelect: 'none', pointerEvents: 'none' }}
                     >
                       {active}
@@ -474,7 +474,7 @@ export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
         <div style={{
           position: 'absolute', bottom: 10, left: 10, zIndex: 10,
           color: 'hsl(220 10% 30%)', fontSize: 10,
-          fontFamily: 'ui-monospace, monospace',
+          fontFamily: 'var(--bt-mono)',
           pointerEvents: 'none', lineHeight: 1.6,
         }}>
           drag · shift+drag rotate<br />
@@ -489,7 +489,7 @@ export function BassRealisticDisplay({ activeFrets, attackSignals }: Props) {
           background: 'hsl(224 20% 8% / 0.8)', backdropFilter: 'blur(4px)',
           border: '1px solid hsl(224 15% 18%)',
           color: isRotating ? 'hsl(38 80% 65%)' : 'hsl(220 10% 55%)',
-          fontSize: 10, fontFamily: 'ui-monospace, monospace',
+          fontSize: 10, fontFamily: 'var(--bt-mono)',
           padding: '2px 10px', borderRadius: 8,
           pointerEvents: 'none', zIndex: 10,
         }}>
@@ -521,7 +521,7 @@ function VCtrl({ children, onClick, title, wide }: {
         borderRadius: 7,
         color: 'hsl(220 10% 55%)',
         fontSize: wide ? 10 : 15,
-        fontFamily: wide ? 'ui-monospace, monospace' : "'Inter', ui-sans-serif",
+        fontFamily: wide ? 'var(--bt-mono)' : 'var(--bt-ui)',
         cursor: onClick ? 'pointer' : 'default',
         padding: 0,
       }}

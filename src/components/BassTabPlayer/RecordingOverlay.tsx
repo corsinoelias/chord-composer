@@ -30,7 +30,7 @@ const R = {
   green:     'var(--bt-ok)',
   greenBg:   'var(--bt-ok-wash)',
   amber:     'var(--bt-warn)',
-  font:      "'Inter', ui-sans-serif, system-ui, sans-serif",
+  font:      'var(--bt-ui)',
 }
 
 const DURATION_OPTS = [
@@ -69,7 +69,7 @@ function LiveBarPreview({ notes, currentBeat, beatsPerBar, totalBars }: {
       }}>
         <span style={{ color: R.red, fontWeight: 600 }}>● PREVIEW</span>
         <span>Compás {bar + 1} / {totalBars}</span>
-        <span style={{ marginLeft: 'auto', fontFamily: 'ui-monospace, monospace' }}>
+        <span style={{ marginLeft: 'auto', fontFamily: 'var(--bt-mono)' }}>
           {barNotes.length} nota{barNotes.length !== 1 ? 's' : ''}
         </span>
       </div>
@@ -82,7 +82,7 @@ function LiveBarPreview({ notes, currentBeat, beatsPerBar, totalBars }: {
           {SY.map((y, i) => (
             <g key={i}>
               <text x={LABEL_W - 5} y={y + 4} textAnchor="end" fontSize={10}
-                fill="var(--bt-dim)" fontFamily="ui-monospace,monospace">{STRING_NAMES[i]}</text>
+                fill="var(--bt-dim)" fontFamily="var(--bt-mono)">{STRING_NAMES[i]}</text>
               <line x1={LABEL_W} y1={y} x2={VB_W - RIGHT_PAD} y2={y}
                 stroke="var(--bt-rule)" strokeWidth={1} />
             </g>
@@ -105,7 +105,7 @@ function LiveBarPreview({ notes, currentBeat, beatsPerBar, totalBars }: {
                 <rect x={-13} y={-10} width={26} height={20} rx={4}
                   fill="var(--bt-accent-wash)" stroke="var(--bt-accent)" strokeWidth={1.5} />
                 <text x={0} y={5} textAnchor="middle" fontSize={12} fontWeight={700}
-                  fill="var(--bt-accent)" fontFamily="ui-monospace,monospace">{n.fret}</text>
+                  fill="var(--bt-accent)" fontFamily="var(--bt-mono)">{n.fret}</text>
               </g>
             )
           })}

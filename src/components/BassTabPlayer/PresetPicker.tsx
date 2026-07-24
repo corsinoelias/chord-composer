@@ -18,7 +18,7 @@ const GENRE_COLOR: Record<string, { bg: string; text: string; border: string }> 
   'Pop / Rock': { bg: 'hsl(0 42% 14%)',   text: 'hsl(0 65% 65%)',   border: 'hsl(0 42% 26%)' },
 }
 
-const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
+const FONT = 'var(--bt-ui)'
 
 // Bassist accent colours (Louis = gold, Nathan = blue, Wilton = green)
 const BASSIST_COLOR: Record<string, string> = {
@@ -147,11 +147,11 @@ export function PresetPicker({ onSelect, onClose }: Props) {
                   }}>
                     {preset.genre}
                   </span>
-                  <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: 'ui-monospace, monospace' }}>
+                  <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: 'var(--bt-mono)' }}>
                     {preset.bpm} BPM
                   </span>
                   <span style={{
-                    fontSize: 9, color: 'var(--bt-dim)', fontFamily: 'ui-monospace, monospace',
+                    fontSize: 9, color: 'var(--bt-dim)', fontFamily: 'var(--bt-mono)',
                     textTransform: 'uppercase', letterSpacing: '0.04em',
                   }}>
                     {preset.defaultSound}

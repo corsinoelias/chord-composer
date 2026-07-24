@@ -169,7 +169,7 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
         {/* ── Fret-number header ─────────────────────────────────────────── */}
         <div style={{ display:'flex', height:26, background:'hsl(224 20% 9%)', borderBottom:'1px solid hsl(224 15% 16%)', userSelect:'none' }}>
           <div style={{ width: LABEL_W, flexShrink: 0 }} />
-          <div style={{ width:OPEN_W, flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'hsl(220 10% 38%)', fontSize:10, fontFamily:'ui-monospace,monospace' }}>
+          <div style={{ width:OPEN_W, flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'hsl(220 10% 38%)', fontSize:10, fontFamily:'var(--bt-mono)' }}>
             <span style={{ fontWeight:600 }}>0</span>
             <span style={{ fontSize:8, color:'hsl(220 10% 28%)' }}>{fretToNoteName(3, 0)}</span>
           </div>
@@ -177,7 +177,7 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
             const f = i + 1
             const isMark = MARK_FRETS.has(f)
             return (
-              <div key={f} style={{ width:CELL_W, flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:isMark?'hsl(220 10% 48%)':'hsl(220 10% 28%)', fontSize:10, fontFamily:'ui-monospace,monospace' }}>
+              <div key={f} style={{ width:CELL_W, flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:isMark?'hsl(220 10% 48%)':'hsl(220 10% 28%)', fontSize:10, fontFamily:'var(--bt-mono)' }}>
                 <span style={{ fontWeight: isMark ? 600 : 400 }}>{f}</span>
                 <span style={{ fontSize:8, color:'hsl(220 10% 22%)', lineHeight:1 }}>{fretToNoteName(3, f)}</span>
               </div>
@@ -206,12 +206,12 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
         {/* ── Footer ─────────────────────────────────────────────────────── */}
         <div style={{ height:18, background:'hsl(224 20% 9%)', borderTop:'1px solid hsl(224 15% 16%)', display:'flex', alignItems:'center', justifyContent:'center', userSelect:'none' }}>
           {hovered ? (
-            <span style={{ color: STRINGS[hovered[0]].color, fontSize:10, fontFamily:'ui-monospace,monospace' }}>
+            <span style={{ color: STRINGS[hovered[0]].color, fontSize:10, fontFamily:'var(--bt-mono)' }}>
               {STRINGS[hovered[0]].displayName} · Fret {hovered[1]} · {fretToNoteName(hovered[0], hovered[1])}
               {isInteractive && (placementHint ? ' — tap to place note at cursor ↓' : ' — tap another fret to hear it')}
             </span>
           ) : (
-            <span style={{ color:'hsl(220 10% 28%)', fontSize:10, fontFamily:'ui-monospace,monospace' }}>
+            <span style={{ color:'hsl(220 10% 28%)', fontSize:10, fontFamily:'var(--bt-mono)' }}>
               {isInteractive ? (placementHint ? 'Tap a fret to place note at cursor' : 'Tap a fret to hear the note') : ''}
             </span>
           )}
@@ -244,7 +244,7 @@ function StringRow({ s, si, neckW, fretCount, activeFret, vibeFret, vibeKey, vib
 
       {/* Label */}
       <div style={{ width:LABEL_W, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'hsl(224 20% 9%)', borderRight:'2px solid hsl(224 15% 16%)', zIndex:3 }}>
-        <span style={{ color:s.color, fontSize:11, fontFamily:'ui-monospace,monospace', fontWeight:700 }}>{s.displayName}</span>
+        <span style={{ color:s.color, fontSize:11, fontFamily:'var(--bt-mono)', fontWeight:700 }}>{s.displayName}</span>
       </div>
 
       {/* Neck wood */}
@@ -382,7 +382,7 @@ function FretCell({ si, fret, s, isHov, isActive, isInteractive, width, hasDot, 
           border:`2px solid ${s.color}`,
           boxShadow:`0 0 14px ${s.color}99, 0 0 4px ${s.color}, inset 0 1px 2px rgba(255,255,255,0.25)`,
           display:'flex', alignItems:'center', justifyContent:'center',
-          color:'white', fontSize:11, fontWeight:700, fontFamily:'ui-monospace,monospace',
+          color:'white', fontSize:11, fontWeight:700, fontFamily:'var(--bt-mono)',
           pointerEvents:'none', zIndex:6,
           opacity: isActive ? 1 : 0,
         }}
@@ -390,7 +390,7 @@ function FretCell({ si, fret, s, isHov, isActive, isInteractive, width, hasDot, 
         {fret}
       </div>
       {isHov && !isActive && (
-        <span style={{ color:`${s.color}cc`, fontSize:11, fontFamily:'ui-monospace,monospace', fontWeight:700, pointerEvents:'none', zIndex:6 }}>
+        <span style={{ color:`${s.color}cc`, fontSize:11, fontFamily:'var(--bt-mono)', fontWeight:700, pointerEvents:'none', zIndex:6 }}>
           {fretToNoteName(si, fret)}
         </span>
       )}

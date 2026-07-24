@@ -164,7 +164,7 @@ export function MobileTabEditor({
       <div style={{ flexShrink: 0, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', background: 'var(--bt-sunken)', borderBottom: '1px solid var(--bt-card)' }}>
         <NavBtn onClick={() => goTo(displayBar - 1)} enabled={displayBar > 0}>‹</NavBtn>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--bt-muted)', letterSpacing: '0.03em', fontFamily: "'Inter',sans-serif" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--bt-muted)', letterSpacing: '0.03em', fontFamily: 'var(--bt-ui)' }}>
             Compás {displayBar + 1} / {totalBars}
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
@@ -197,7 +197,7 @@ export function MobileTabEditor({
             >
               {/* String label */}
               <div style={{ width: LABEL_W, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bt-sunken)', borderRight: '1px solid var(--bt-card)', pointerEvents: 'none', zIndex: 1 }}>
-                <span style={{ color: s.color, fontSize: 11, fontWeight: 700, fontFamily: 'ui-monospace,monospace' }}>{s.displayName}</span>
+                <span style={{ color: s.color, fontSize: 11, fontWeight: 700, fontFamily: 'var(--bt-mono)' }}>{s.displayName}</span>
               </div>
 
               {/* Content */}
@@ -249,7 +249,7 @@ export function MobileTabEditor({
                         touchAction: 'manipulation',
                       }}
                     >
-                      <span style={{ fontSize: 13, fontWeight: 700, color: isSel ? s.color : `${s.color}cc`, fontFamily: 'ui-monospace,monospace', pointerEvents: 'none' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: isSel ? s.color : `${s.color}cc`, fontFamily: 'var(--bt-mono)', pointerEvents: 'none' }}>
                         {note.fret}
                       </span>
                       {/* Delete hint on selected note */}
@@ -274,7 +274,7 @@ export function MobileTabEditor({
 
       {/* Duration + hint bar */}
       <div style={{ flexShrink: 0, height: 42, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', background: 'var(--bt-sunken)', borderTop: '1px solid var(--bt-card)' }}>
-        <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: "'Inter',sans-serif", letterSpacing: '0.04em', marginRight: 2 }}>DUR</span>
+        <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: 'var(--bt-ui)', letterSpacing: '0.04em', marginRight: 2 }}>DUR</span>
         {DURATIONS.map(d => {
           const on = d.beats === activeDuration
           return (
@@ -284,7 +284,7 @@ export function MobileTabEditor({
               border: `1px solid ${on ? 'var(--bt-accent)' : 'var(--bt-rule)'}`,
               color: on ? 'var(--bt-accent)' : 'var(--bt-soft)',
               fontSize: 13, fontWeight: on ? 700 : 400,
-              fontFamily: 'ui-monospace,monospace', cursor: 'pointer',
+              fontFamily: 'var(--bt-mono)', cursor: 'pointer',
               WebkitTapHighlightColor: 'transparent',
             }}>
               {d.label}
@@ -293,11 +293,11 @@ export function MobileTabEditor({
         })}
         <div style={{ flex: 1 }} />
         {selectedNote ? (
-          <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: "'Inter',sans-serif" }}>
+          <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: 'var(--bt-ui)' }}>
             toca de nuevo para borrar
           </span>
         ) : (
-          <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: "'Inter',sans-serif" }}>
+          <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: 'var(--bt-ui)' }}>
             toca la cuerda para colocar
           </span>
         )}
@@ -322,7 +322,7 @@ export function MobileTabEditor({
                 borderTop: `2px solid ${on ? 'var(--bt-accent)' : 'transparent'}`,
                 color: on ? 'var(--bt-accent)' : 'var(--bt-soft)',
                 fontSize: on ? 18 : 15, fontWeight: on ? 700 : 400,
-                fontFamily: 'ui-monospace,monospace',
+                fontFamily: 'var(--bt-mono)',
                 cursor: 'pointer', transition: 'all 0.1s',
                 WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
               }}

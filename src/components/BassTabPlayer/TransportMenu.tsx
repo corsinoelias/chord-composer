@@ -110,12 +110,12 @@ export function TransportMenu({ label, items, align = 'right' }: Props) {
                   <span>{item.label}</span>
                   {item.isNew
                     ? <span style={{
-                        fontFamily: 'ui-monospace, monospace', fontSize: 9.5, color: '#fff',
+                        fontFamily: 'var(--bt-mono)', fontSize: 9.5, color: '#fff',
                         background: v('accent'), padding: '1px 5px', borderRadius: 4,
                       }}>nuevo</span>
                     : item.hint
                       ? <span style={{
-                          fontFamily: 'ui-monospace, monospace', fontSize: 10, color: v('dim'),
+                          fontFamily: 'var(--bt-mono)', fontSize: 10, color: v('dim'),
                         }}>{item.hint}</span>
                       : null}
                 </button>

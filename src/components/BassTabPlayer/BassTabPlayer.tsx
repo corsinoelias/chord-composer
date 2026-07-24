@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, Minus, Copy, Trash2 } from 'lucide-react'
 import { importMidi, type MidiImportResult } from '../../lib/import/midiImport'
 import { parseGpFile } from '../../lib/bassTab/gpImport'
 import { BassTabSeekBar } from './BassTabSeekBar'
@@ -26,7 +26,7 @@ import { type Preset, PRESETS } from '../../data/presets'
 import { useIsMobile } from '../../hooks/use-mobile'
 import { useTrackEditor } from '../../hooks/useTrackEditor'
 import { useMidiInput } from '../../hooks/useMidiInput'
-import { BT_VARS, v, alpha } from '../../lib/bassTab/theme'
+import { BT_VARS, v } from '../../lib/bassTab/theme'
 import { BassTabToolsPanel } from './BassTabToolsPanel'
 
 const GP_EXTENSIONS = ['gp', 'gp3', 'gp4', 'gp5', 'gpx', 'gp7']
@@ -93,7 +93,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   // Responsive UI state
   const [showPresets, setShowPresets]               = useState(false)
   const [transportExpanded, setTransportExpanded]   = useState(false)
-  const [desktopCompact, setDesktopCompact]         = useState(false)
   const [fitWidth, setFitWidth]                     = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
   // splitView removed
   const [isWide, setIsWide]                         = useState(false)
@@ -145,10 +144,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [exportImageOpen, setExportImageOpen]   = useState(false)
   const [exportVideoOpen, setExportVideoOpen]   = useState(false)
 
-  // Auto-compact on short desktop screens
+  // En pantallas bajas el diapasón se pliega solo: con el transporte al pie y
+  // la partitura en su tarjeta, es lo primero que sobra.
   useEffect(() => {
-    if (!isMobile && isShortScreen) { setDesktopCompact(true); setFretboardVisible(false) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!isMobile && isShortScreen) setFretboardVisible(false)
   }, [isShortScreen, isMobile])
 
   const handleLoadPreset = useCallback((preset: Preset) => {
@@ -416,6 +415,59 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     setSelectedId(dup.id)
   }, [track.notes, selectedNoteId, track.totalBars, track.beatsPerBar, addNote])
 
+  // ── Rail de compases ──────────────────────────────────────────────────────
+  // Índice del último compás que contiene notas. Es el que se duplica: el
+  // último compás del track casi siempre está vacío, porque `useTrackEditor`
+  // mantiene uno de margen al final.
+  const lastContentBar = useMemo(() => {
+    if (!track.notes.length) return -1
+    return Math.max(...track.notes.map(n => Math.floor(n.startBeat / track.beatsPerBar)))
+  }, [track.notes, track.beatsPerBar])
+
+  const handleAddBar = useCallback(() => {
+    setTrack(t => ({ ...t, totalBars: Math.min(64, t.totalBars + 1) }))
+  }, [setTrack])
+
+  const handleDeleteLastBar = useCallback(() => {
+    if (track.totalBars <= 1) return
+    beginEdit()
+    deleteBar(track.totalBars - 1)
+  }, [track.totalBars, beginEdit, deleteBar])
+
+  const handleDuplicateLastBar = useCallback(() => {
+    if (lastContentBar < 0) return
+    const bpb   = track.beatsPerBar
+    const start = lastContentBar * bpb
+    const inBar = track.notes.filter(n => n.startBeat >= start && n.startBeat < start + bpb)
+    if (!inBar.length) return
+    beginEdit()
+    // No hay que desplazar nada: por definición, después de `lastContentBar`
+    // solo quedan compases vacíos.
+    setTrack(t => ({
+      ...t,
+      totalBars: Math.min(64, Math.max(t.totalBars, lastContentBar + 3)),
+      notes: [
+        ...t.notes,
+        ...inBar.map(n => ({ ...n, id: crypto.randomUUID(), startBeat: n.startBeat + bpb })),
+      ],
+    }))
+    showToast(`Compás ${lastContentBar + 1} duplicado`)
+  }, [lastContentBar, track.beatsPerBar, track.notes, beginEdit, setTrack, showToast])
+
+  // Transponer = mover el traste, porque en la misma cuerda un traste es un
+  // semitono. Es todo o nada: si una sola nota se saldría del diapasón, no se
+  // mueve ninguna — transponer media línea la desafina respecto al resto.
+  const handleTranspose = useCallback((delta: number) => {
+    if (!track.notes.length) return
+    const blocked = track.notes.some(n => n.fret + delta < 0 || n.fret + delta > 24)
+    if (blocked) {
+      showToast(delta > 0 ? 'Alguna nota pasaría del traste 24' : 'Alguna nota bajaría del traste 0')
+      return
+    }
+    beginEdit()
+    setTrack(t => ({ ...t, notes: t.notes.map(n => ({ ...n, fret: n.fret + delta })) }))
+  }, [track.notes, beginEdit, setTrack, showToast])
+
   // ── Recording ─────────────────────────────────────────────────────────────
   const handleRecordingComplete = useCallback((notes: BassNote[]) => {
     stopPlayback()
@@ -587,13 +639,49 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     return () => window.removeEventListener('keydown', onKey)
   }, [isPlaying, handlePlay, handleStop, selectedNoteId, handleDeleteNote, selectedNote, updateNote, snap, handleUndo, handleRedo, duplicateNote])
 
+  // El transporte se monta en sitios distintos según el ancho —colgando de la
+  // cabecera en móvil, al pie en escritorio—, así que se declara una sola vez
+  // aquí en lugar de repetir treinta props en dos ramas del JSX.
+  const transportEl = (
+    <BassTabTransport
+      isPlaying={isPlaying} loop={loop} bpm={track.bpm} sound={sound}
+      totalBars={track.totalBars} volume={volume} noteDuration={noteDuration}
+      hasSelectedNote={!!selectedNote} selectedNoteFret={selectedNote?.fret ?? null}
+      canUndo={canUndo} canRedo={canRedo} metronome={metronome}
+      onPlay={handlePlay} onStop={handleStop} onRewind={handleRewind} onLoopToggle={handleLoopToggle}
+      onBpmChange={handleBpmChange} onSoundChange={handleSoundChange}
+      onBarsChange={(bars) => setTrack(t => ({ ...t, totalBars: bars }))}
+      onFretChange={handleFretChange} onVolumeChange={handleVolumeChange}
+      onUndo={handleUndo} onRedo={handleRedo}
+      onClearAll={handleClearAll} onExportAscii={handleExportAscii}
+      onExportMidi={handleExportMidi} onImportMidi={handleImportMidiClick} onImportGp={handleImportGpClick} onShareUrl={handleShareUrl}
+      onMetronomeToggle={() => setMetronome(m => !m)}
+      onNoteDurationChange={handleNoteDurationChange}
+      isMobile={isMobile}
+      compact={isMobile && !transportExpanded}
+      onToggleExpand={() => { setTransportExpanded(e => !e); setFretboardVisible(false) }}
+      currentBeat={currentBeat}
+      beatsPerBar={track.beatsPerBar}
+      midiInputAvailable={midiInput.available}
+      midiInputActive={midiInput.active}
+      midiDeviceName={midiInput.devices.find(d => d.id === midiInput.selectedDeviceId)?.name ?? null}
+      onMidiInputToggle={midiInput.toggle}
+      onExportWav={handleExportWav}
+      onExportImage={() => setExportImageOpen(true)}
+      onExportVideo={() => setExportVideoOpen(true)}
+      loopRangeActive={!!loopRange}
+      onToggleLoopRange={handleToggleLoopRange}
+      onRecord={() => { stopPlayback(); setIsPlaying(false); setRecordingOpen(true) }}
+    />
+  )
+
   return (
     <div
       className="flex flex-col"
       style={{
         ...BT_VARS,
         height: '100dvh', position: 'relative',
-        fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+        fontFamily: 'var(--bt-ui)',
         overflow: 'hidden', overscrollBehavior: 'none',
         background: v('paper'), color: v('ink'),
       }}
@@ -611,7 +699,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           borderBottom: '1px solid var(--bt-rule)',
           display: 'flex', alignItems: 'center', gap: 8,
           paddingLeft: 16, paddingRight: 16,
-          fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+          fontFamily: 'var(--bt-ui)',
         }}
       >
         {/* Logo */}
@@ -679,7 +767,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
               padding: '2px 8px',
               outline: 'none',
               width: 180, maxWidth: 220,
-              fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+              fontFamily: 'var(--bt-ui)',
             }}
           />
         ) : (
@@ -744,7 +832,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
             {isPlaying && (
               <span style={{
-                fontSize: 11, fontFamily: 'ui-monospace, monospace',
+                fontSize: 11, fontFamily: 'var(--bt-mono)',
                 color: 'var(--bt-accent)',
                 background: 'var(--bt-accent-wash)',
                 padding: '2px 10px', borderRadius: 10,
@@ -759,62 +847,29 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
         {/* Mobile: note count (compact) */}
         {isMobile && (
-          <span style={{ fontSize: 11, color: 'var(--bt-dim)', fontFamily: 'ui-monospace, monospace' }}>
+          <span style={{ fontSize: 11, color: 'var(--bt-dim)', fontFamily: 'var(--bt-mono)' }}>
             {track.notes.length}n
           </span>
         )}
       </div>
 
-      {/* ── Transport ─────────────────────────────────────────────────────── */}
-      <BassTabTransport
-        isPlaying={isPlaying} loop={loop} bpm={track.bpm} sound={sound}
-        totalBars={track.totalBars} zoom={zoom} volume={volume} noteDuration={noteDuration}
-        hasSelectedNote={!!selectedNote} selectedNoteFret={selectedNote?.fret ?? null}
-        canUndo={canUndo} canRedo={canRedo} metronome={metronome}
-        onPlay={handlePlay} onStop={handleStop} onRewind={handleRewind} onLoopToggle={handleLoopToggle}
-        onBpmChange={handleBpmChange} onSoundChange={handleSoundChange}
-        onBarsChange={(bars) => setTrack(t => ({ ...t, totalBars: bars }))}
-        onZoomIn={() => handleZoomChange(zoom + 0.25)} onZoomOut={() => handleZoomChange(zoom - 0.25)} onZoomReset={() => handleZoomChange(1)}
-        onFretChange={handleFretChange} onVolumeChange={handleVolumeChange}
-        onUndo={handleUndo} onRedo={handleRedo}
-        onClearAll={handleClearAll} onExportAscii={handleExportAscii}
-        onExportMidi={handleExportMidi} onImportMidi={handleImportMidiClick} onImportGp={handleImportGpClick} onShareUrl={handleShareUrl}
-        onMetronomeToggle={() => setMetronome(m => !m)}
-        onNoteDurationChange={handleNoteDurationChange}
-        isMobile={isMobile}
-        compact={isMobile && !transportExpanded}
-        onToggleExpand={() => { setTransportExpanded(e => !e); setFretboardVisible(false) }}
-        currentBeat={currentBeat}
-        beatsPerBar={track.beatsPerBar}
-        fitWidth={fitWidth}
-        onFitWidthToggle={() => setFitWidth(f => !f)}
-        desktopCompact={desktopCompact}
-        onToggleDesktopCompact={() => setDesktopCompact(c => !c)}
-        onBeatsPerBarChange={handleBeatsPerBarChange}
-        midiInputAvailable={midiInput.available}
-        midiInputActive={midiInput.active}
-        midiDeviceName={midiInput.devices.find(d => d.id === midiInput.selectedDeviceId)?.name ?? null}
-        onMidiInputToggle={midiInput.toggle}
-        onExportWav={handleExportWav}
-        onExportImage={() => setExportImageOpen(true)}
-        onExportVideo={() => setExportVideoOpen(true)}
-        loopRangeActive={!!loopRange}
-        onToggleLoopRange={handleToggleLoopRange}
-        onRecord={() => { stopPlayback(); setIsPlaying(false); setRecordingOpen(true) }}
-      />
-
-      {/* ── Seek bar ──────────────────────────────────────────────────────── */}
-      <div style={{ padding: '4px 12px 0' }}>
-        <BassTabSeekBar
-          currentBeat={currentBeat}
-          totalBeats={track.totalBars * track.beatsPerBar}
-          beatsPerBar={track.beatsPerBar}
-          isPlaying={isPlaying}
-          onSeek={handleSeek}
-          loopRange={loopRange}
-          onLoopRangeChange={setLoopRange}
-        />
-      </div>
+      {/* ── Transporte (móvil: colgando de la cabecera) ───────────────────── */}
+      {isMobile && (
+        <>
+          {transportEl}
+          <div style={{ padding: '4px 12px 0' }}>
+            <BassTabSeekBar
+              currentBeat={currentBeat}
+              totalBeats={track.totalBars * track.beatsPerBar}
+              beatsPerBar={track.beatsPerBar}
+              isPlaying={isPlaying}
+              onSeek={handleSeek}
+              loopRange={loopRange}
+              onLoopRangeChange={setLoopRange}
+            />
+          </div>
+        </>
+      )}
 
       {/* ── View bar (desktop) ────────────────────────────────────────────── */}
       {!isMobile && (
@@ -823,7 +878,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           height: 44, flexShrink: 0,
           background: v('sunken'),
           borderBottom: `1px solid ${v('rule')}`,
-          padding: '0 10px', gap: 4,
+          padding: '0 10px', gap: 8,
         }}>
           {([
             { id: 'tab',    label: 'Tab',         icon: <TabIcon /> },
@@ -843,7 +898,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                   color: active ? '#fff' : v('soft'),
                   fontSize: 12, fontWeight: 600,
                   cursor: 'pointer', transition: 'background .12s, color .12s',
-                  fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+                  fontFamily: 'var(--bt-ui)',
                   boxShadow: active ? v('shadow') : 'none',
                   userSelect: 'none',
                 }}
@@ -855,6 +910,28 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
               </button>
             )
           })}
+
+          <div style={{ flex: 1 }} />
+
+          {/* Zoom. Vive aquí y no en el transporte porque afecta a lo que se
+              ve, igual que el conmutador de vistas que tiene al lado. */}
+          {activeView !== 'guitar' && (
+            <div style={{
+              display: 'flex', alignItems: 'center', overflow: 'hidden',
+              border: `1px solid ${v('rule')}`, borderRadius: 8, background: v('card'),
+            }}>
+              <ZoomBtn title="Alejar" onClick={() => handleZoomChange(zoom - 0.25)} disabled={fitWidth || zoom <= 0.4}>−</ZoomBtn>
+              <ZoomBtn title="Acercar" onClick={() => handleZoomChange(zoom + 0.25)} disabled={fitWidth || zoom >= 4}>+</ZoomBtn>
+              <ZoomBtn
+                title="Ajustar al ancho de la ventana"
+                onClick={() => setFitWidth(f => !f)}
+                active={fitWidth}
+                wide
+              >
+                {fitWidth ? 'Fit' : `${Math.round(zoom * 100)}%`}
+              </ZoomBtn>
+            </div>
+          )}
         </div>
       )}
 
@@ -888,7 +965,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                   borderBottom: fretboardVisible ? 'none' : '1px solid var(--bt-rule)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                   color: 'var(--bt-dim)', fontSize: 10,
-                  fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+                  fontFamily: 'var(--bt-ui)',
                   cursor: 'pointer', userSelect: 'none', letterSpacing: '0.04em',
                   transition: 'background 0.1s, color 0.1s',
                 }}
@@ -913,62 +990,112 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           )}
 
           {/* Mobile: Edit (editable notation) or Score (read-only notation) */}
-          {isMobile && activeView === 'tab' ? (
-            <MobileBarView
-              track={track} currentBeat={currentBeat} isPlaying={isPlaying}
-              onSeek={handleSeek} viewMode="score"
-              editable selectedNoteId={selectedNoteId} sound={sound} noteDuration={noteDuration}
-              onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
-              onSelectNote={setSelectedId} onBeginEdit={beginEdit}
-            />
-          ) : isMobile && activeView === 'score' ? (
-            <MobileBarView
-              track={track} currentBeat={currentBeat} isPlaying={isPlaying}
-              onSeek={handleSeek} viewMode="score"
-            />
-          ) : isMobile ? null
-          : activeView === 'tab' ? (
-            <TabScore
-              track={track} zoom={zoom} currentBeat={currentBeat}
-              cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
-              sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
-              onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
-              onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
-              onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
-            />
-          ) : activeView === 'score' ? (
-            <TabNotationView
-              track={track} zoom={zoom} currentBeat={currentBeat}
-              cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
-              sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
-              onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
-              onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
-              onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
-              onFitZoomChange={handleZoomChange}
-            />
+          {isMobile ? (
+            activeView === 'tab' ? (
+              <MobileBarView
+                track={track} currentBeat={currentBeat} isPlaying={isPlaying}
+                onSeek={handleSeek} viewMode="score"
+                editable selectedNoteId={selectedNoteId} sound={sound} noteDuration={noteDuration}
+                onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
+                onSelectNote={setSelectedId} onBeginEdit={beginEdit}
+              />
+            ) : activeView === 'score' ? (
+              <MobileBarView
+                track={track} currentBeat={currentBeat} isPlaying={isPlaying}
+                onSeek={handleSeek} viewMode="score"
+              />
+            ) : null
           ) : (
-            <BassTabGrid
-              track={track} zoom={zoom} currentBeat={currentBeat}
-              cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
-              fitWidth={fitWidth} isMobile={isMobile}
-              onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
-              onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
-              onZoomChange={handleZoomChange} onBeginEdit={beginEdit}
-              onNotePreview={handleNotePreview} onLongPressNote={handleLongPress}
-            />
+            /* Lienzo de escritorio.
+               La partitura va dentro de una tarjeta sobre el fondo `paper` en
+               vez de ocupar el ancho completo: separa el papel del cromo que lo
+               rodea, que es lo que hace legible una partitura. El rail de
+               compases ocupa la segunda columna del grid. */
+            <div style={{
+              flex: 1, minHeight: 0, overflow: 'hidden',
+              display: 'grid', gridTemplateColumns: '1fr 40px', gap: 10,
+              padding: 14, background: v('paper'),
+            }}>
+              <div style={{
+                minWidth: 0, display: 'flex',
+                // Tab y Score son pentagramas de alto fijo: centrados se leen
+                // como una hoja, no como algo pegado al borde superior. Grid es
+                // un piano roll y sí quiere todo el alto disponible.
+                alignItems: activeView === 'grid' ? 'stretch' : 'center',
+                background: v('card'),
+                border: `1px solid ${v('rule')}`,
+                borderRadius: 12, boxShadow: v('shadow'),
+                padding: '10px 0',
+                overflow: 'hidden',
+              }}>
+                {activeView === 'tab' ? (
+                  <TabScore
+                    track={track} zoom={zoom} currentBeat={currentBeat}
+                    cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
+                    sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
+                    onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
+                    onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
+                    onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
+                  />
+                ) : activeView === 'score' ? (
+                  <TabNotationView
+                    track={track} zoom={zoom} currentBeat={currentBeat}
+                    cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
+                    sound={sound} noteDuration={noteDuration} fitWidth={fitWidth}
+                    onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
+                    onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
+                    onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
+                    onFitZoomChange={handleZoomChange}
+                  />
+                ) : (
+                  <BassTabGrid
+                    track={track} zoom={zoom} currentBeat={currentBeat}
+                    cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
+                    fitWidth={fitWidth} isMobile={isMobile}
+                    onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
+                    onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
+                    onZoomChange={handleZoomChange} onBeginEdit={beginEdit}
+                    onNotePreview={handleNotePreview} onLongPressNote={handleLongPress}
+                  />
+                )}
+              </div>
+
+              <BarRail
+                canDeleteBar={track.totalBars > 1}
+                hasNotes={track.notes.length > 0}
+                onAddBar={handleAddBar}
+                onDuplicateBar={handleDuplicateLastBar}
+                onDeleteBar={handleDeleteLastBar}
+                onTransposeUp={() => handleTranspose(1)}
+                onTransposeDown={() => handleTranspose(-1)}
+                onClearAll={handleClearAll}
+              />
+            </div>
           )}
         </>
       )}
         </div>
       </div>
 
-      {/* ── Desktop status bar ────────────────────────────────────────────── */}
+      {/* ── Bloque inferior de escritorio: seek + transporte ───────────────
+          La barra de estado que había aquí desaparece: repetía el compás:pulso
+          que ahora lleva el propio transporte y los atajos que lista el panel
+          lateral. */}
       {!isMobile && (
-        <StatusBar
-          isPlaying={isPlaying} selectedNote={selectedNote}
-          currentBeat={currentBeat} beatsPerBar={track.beatsPerBar} loop={loop}
-          guitarView={activeView === 'guitar'}
-        />
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ padding: '0 14px 6px', background: v('paper') }}>
+            <BassTabSeekBar
+              currentBeat={currentBeat}
+              totalBeats={track.totalBars * track.beatsPerBar}
+              beatsPerBar={track.beatsPerBar}
+              isPlaying={isPlaying}
+              onSeek={handleSeek}
+              loopRange={loopRange}
+              onLoopRangeChange={setLoopRange}
+            />
+          </div>
+          {transportEl}
+        </div>
       )}
 
       {/* ── Mobile bottom navigation ──────────────────────────────────────── */}
@@ -1000,7 +1127,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                   color: isActive ? 'var(--bt-accent)' : 'var(--bt-soft)',
                   transition: 'all 0.15s',
                   touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
-                  fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+                  fontFamily: 'var(--bt-ui)',
                 }}
               >
                 {tab.icon}
@@ -1027,7 +1154,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           borderRadius: 8,
           boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px var(--bt-rule)',
           minWidth: 180, overflow: 'hidden',
-          fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+          fontFamily: 'var(--bt-ui)',
         }
         const CtxBtn = ({ label, onClick, danger, disabled }: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean }) => (
           <button
@@ -1139,7 +1266,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             borderRadius: 14, padding: '24px 26px',
             width: 340, maxWidth: '92vw',
             boxShadow: '0 20px 60px rgba(0,0,0,0.65)',
-            fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+            fontFamily: 'var(--bt-ui)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
               <div style={{
@@ -1179,7 +1306,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                   <div style={{ color: 'var(--bt-dim)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     {label}
                   </div>
-                  <div style={{ color: 'var(--bt-accent)', fontSize: 16, fontWeight: 700, fontFamily: 'ui-monospace, monospace', marginTop: 2 }}>
+                  <div style={{ color: 'var(--bt-accent)', fontSize: 16, fontWeight: 700, fontFamily: 'var(--bt-mono)', marginTop: 2 }}>
                     {value}
                   </div>
                 </div>
@@ -1244,7 +1371,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             color: 'var(--bt-danger)', borderRadius: 9,
             padding: '10px 18px', fontSize: 13, maxWidth: 340, textAlign: 'center',
             boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
-            fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+            fontFamily: 'var(--bt-ui)',
           }}
         >
           {importError}
@@ -1259,7 +1386,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             background: 'var(--bt-accent-hi)',
             color: 'white', borderRadius: 10,
             padding: '9px 20px', fontSize: 13, zIndex: 9999,
-            fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+            fontFamily: 'var(--bt-ui)',
             fontWeight: 500,
             boxShadow: '0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px var(--bt-accent-wash)',
             pointerEvents: 'none',
@@ -1293,63 +1420,130 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   )
 }
 
-// ── Status bar ────────────────────────────────────────────────────────────
-const STRING_NAMES = ['G', 'D', 'A', 'E']
-function StatusBar({ isPlaying, selectedNote, currentBeat, beatsPerBar, loop, guitarView }: {
-  isPlaying: boolean; selectedNote: import('../../lib/bassTab/types').BassNote | null
-  currentBeat: number; beatsPerBar: number; loop: boolean; guitarView: boolean
+// ── Zoom (barra de vistas) ─────────────────────────────────────────────────
+function ZoomBtn({ children, title, onClick, disabled, active, wide }: {
+  children: React.ReactNode
+  title: string
+  onClick: () => void
+  disabled?: boolean
+  active?: boolean
+  wide?: boolean
 }) {
-  let hints: { text: string; accent?: boolean }[]
-
-  if (guitarView) {
-    hints = [
-      { text: 'Drag · pan   Shift+drag · rotate   Ctrl+scroll · zoom' },
-      { text: 'Double-click · reset view' },
-    ]
-  } else if (isPlaying) {
-    const bar  = Math.floor(currentBeat / beatsPerBar) + 1
-    const beat = Math.floor(currentBeat % beatsPerBar) + 1
-    hints = [
-      { text: `${bar}:${beat}`, accent: true },
-      { text: 'Space · stop' },
-      { text: `Loop ${loop ? 'on' : 'off'}` },
-    ]
-  } else if (selectedNote) {
-    hints = [
-      { text: `Fret ${selectedNote.fret} · ${STRING_NAMES[selectedNote.stringIndex]} string`, accent: true },
-      { text: '↑↓ · fret' },
-      { text: '←→ · move' },
-      { text: 'Ctrl+D · duplicate' },
-      { text: 'Del · delete' },
-    ]
-  } else {
-    hints = [
-      { text: 'Space · play/stop' },
-      { text: 'Click staff · place note' },
-      { text: 'Ctrl+scroll · zoom' },
-      { text: 'Right-click · menu' },
-    ]
-  }
-
+  const [hov, setHov] = useState(false)
   return (
-    <div style={{
-      height: 30, background: 'var(--bt-paper)',
-      borderTop: '1px solid var(--bt-rule)',
-      display: 'flex', alignItems: 'center', gap: 18,
-      paddingLeft: 16, paddingRight: 16,
-      fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
-      overflow: 'hidden',
-    }}>
-      {hints.map((h, i) => (
-        <span key={i} style={{
-          fontSize: 10, whiteSpace: 'nowrap',
-          color: h.accent ? 'var(--bt-accent)' : 'var(--bt-dim)',
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {h.text}
-        </span>
-      ))}
+    <button
+      onClick={onClick} disabled={disabled} title={title} aria-pressed={active}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{
+        width: wide ? undefined : 28, height: 28,
+        padding: wide ? '0 9px' : 0,
+        border: 'none',
+        borderLeft: wide ? `1px solid ${v('rule')}` : 'none',
+        background: active ? v('accentWash') : hov && !disabled ? v('sunken') : 'transparent',
+        color: active ? v('accent') : hov && !disabled ? v('ink') : v('muted'),
+        fontSize: wide ? 11 : 13,
+        fontWeight: wide ? 600 : 400,
+        fontVariantNumeric: 'tabular-nums',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.4 : 1,
+        fontFamily: 'var(--bt-ui)',
+        transition: 'background .12s, color .12s',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+// ── Rail de compases ───────────────────────────────────────────────────────
+/**
+ * Columna de acciones a la derecha de la partitura.
+ *
+ * Están aquí y no en el transporte porque operan sobre lo que se ve —añadir,
+ * duplicar o quitar compases, y transponer— y conviene tenerlas al lado del
+ * lienzo sin que tapen la partitura. El transporte queda para lo que pasa en
+ * el tiempo.
+ */
+function BarRail({
+  canDeleteBar, hasNotes,
+  onAddBar, onDuplicateBar, onDeleteBar,
+  onTransposeUp, onTransposeDown, onClearAll,
+}: {
+  canDeleteBar: boolean
+  hasNotes: boolean
+  onAddBar: () => void
+  onDuplicateBar: () => void
+  onDeleteBar: () => void
+  onTransposeUp: () => void
+  onTransposeDown: () => void
+  onClearAll: () => void
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+      <RailBtn title="Añadir un compás al final" onClick={onAddBar}>
+        <Plus size={15} />
+      </RailBtn>
+      <RailBtn title="Duplicar el último compás con notas" onClick={onDuplicateBar} disabled={!hasNotes}>
+        <Copy size={14} />
+      </RailBtn>
+      <RailBtn title="Quitar el último compás" onClick={onDeleteBar} disabled={!canDeleteBar}>
+        <Minus size={15} />
+      </RailBtn>
+
+      <div style={{ height: 6 }} />
+
+      <RailBtn title="Subir un semitono" onClick={onTransposeUp} disabled={!hasNotes}>
+        <span style={{ fontSize: 15, lineHeight: 1 }}>♯</span>
+      </RailBtn>
+      <RailBtn title="Bajar un semitono" onClick={onTransposeDown} disabled={!hasNotes}>
+        <span style={{ fontSize: 15, lineHeight: 1 }}>♭</span>
+      </RailBtn>
+
+      <div style={{ height: 6 }} />
+
+      <RailBtn title="Borrar todas las notas" onClick={onClearAll} disabled={!hasNotes} danger>
+        <Trash2 size={14} />
+      </RailBtn>
     </div>
+  )
+}
+
+function RailBtn({ children, title, onClick, disabled, danger }: {
+  children: React.ReactNode
+  title: string
+  onClick: () => void
+  disabled?: boolean
+  danger?: boolean
+}) {
+  const accent = danger ? v('danger') : v('accent')
+  return (
+    <button
+      onClick={onClick} disabled={disabled} title={title} aria-label={title}
+      style={{
+        width: 34, height: 34, flexShrink: 0,
+        display: 'grid', placeItems: 'center',
+        background: v('card'),
+        border: `1px solid ${v('rule')}`,
+        borderRadius: 9,
+        color: v('muted'),
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.35 : 1,
+        transition: 'color .13s, border-color .13s',
+      }}
+      onMouseEnter={e => {
+        if (disabled) return
+        const el = e.currentTarget as HTMLElement
+        el.style.color = accent
+        el.style.borderColor = accent
+      }}
+      onMouseLeave={e => {
+        const el = e.currentTarget as HTMLElement
+        el.style.color = v('muted')
+        el.style.borderColor = v('rule')
+      }}
+    >
+      {children}
+    </button>
   )
 }
 

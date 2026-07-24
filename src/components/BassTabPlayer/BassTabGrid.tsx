@@ -449,7 +449,7 @@ export function BassTabGrid({
           <div style={{ height: RULER_H, flexShrink: 0, borderBottom: '1px solid var(--bt-rule)' }} />
           {STRINGS.map((s) => (
             <div key={s.index} className="flex items-center justify-center flex-1" style={{ borderBottom: '1px solid var(--bt-card)', minHeight: ROW_H_MIN }}>
-              <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'ui-monospace, monospace', color: s.color }}>{s.displayName}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--bt-mono)', color: s.color }}>{s.displayName}</span>
             </div>
           ))}
         </div>
@@ -467,7 +467,7 @@ export function BassTabGrid({
               {barTicks.map(tick => (
                 <div key={tick.x} style={{ position:'absolute', left:tick.x, top:0, bottom:0, display:'flex', alignItems:'flex-end', paddingBottom:5, paddingLeft:4 }}>
                   <div style={{ position:'absolute', left:0, top:0, bottom:0, width:1.5, background:'var(--bt-rule)' }} />
-                  <span style={{ color:'var(--bt-soft)', fontSize:11, fontFamily:'ui-monospace, monospace', userSelect:'none', paddingLeft:3 }}>{tick.bar}</span>
+                  <span style={{ color:'var(--bt-soft)', fontSize:11, fontFamily:'var(--bt-mono)', userSelect:'none', paddingLeft:3 }}>{tick.bar}</span>
                 </div>
               ))}
               {beatTicks.map((tick, i) => (
@@ -514,7 +514,7 @@ export function BassTabGrid({
 
               {track.notes.length === 0 && (
                 <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', textAlign:'center', pointerEvents:'none' }}>
-                  <p style={{ color:'var(--bt-staff)', fontSize:12, fontFamily:'monospace', margin:0 }}>Tap a fret above ↑ — or click here to add a note</p>
+                  <p style={{ color:'var(--bt-staff)', fontSize:12, fontFamily:'var(--bt-mono)', margin:0 }}>Tap a fret above ↑ — or click here to add a note</p>
                 </div>
               )}
 
@@ -555,7 +555,7 @@ export function BassTabGrid({
                       transition: 'box-shadow 0.08s, border-color 0.08s, background 0.08s',
                     }}
                   >
-                    <span style={{ color:'#fff', fontSize:noteH>32?14:11, fontWeight:700, fontFamily:'ui-monospace,monospace', lineHeight:1, pointerEvents:'none', flexShrink:0 }}>
+                    <span style={{ color:'#fff', fontSize:noteH>32?14:11, fontWeight:700, fontFamily:'var(--bt-mono)', lineHeight:1, pointerEvents:'none', flexShrink:0 }}>
                       {note.fret}
                     </span>
                     <div data-resize="true" style={{ position:'absolute', right:0, top:0, width: isMobile ? 32 : 14, height:'100%', cursor:'ew-resize', background:'rgba(255,255,255,0.08)', borderLeft:'1px solid rgba(255,255,255,0.08)', touchAction:'none' }} />

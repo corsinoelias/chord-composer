@@ -201,7 +201,7 @@ export function TabNotationMeasure({
               y={ABOVE_H + STRING_Y[i] + 4}
               fontSize={10}
               fill="var(--bt-dim)"
-              fontFamily="monospace"
+              fontFamily="var(--bt-mono)"
             >
               {label}
             </text>
@@ -239,7 +239,7 @@ export function TabNotationMeasure({
             y={ABOVE_H - 10}
             fontSize={9}
             fill="var(--bt-rule)"
-            fontFamily="monospace"
+            fontFamily="var(--bt-mono)"
           >
             {currentBar + 1}
           </text>
@@ -275,7 +275,7 @@ export function TabNotationMeasure({
                   textAnchor="middle"
                   fontSize={9} fontWeight="bold"
                   fill={isSelected ? 'var(--bt-staff)' : 'var(--bt-muted)'}
-                  fontFamily="ui-monospace,'SF Mono',monospace"
+                  fontFamily="var(--bt-mono)"
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
                   {note.fret}
@@ -317,7 +317,7 @@ export function TabNotationMeasure({
                 border: '2px solid var(--bt-accent)',
                 background: 'var(--bt-rule)',
                 color: 'white',
-                fontFamily: "ui-monospace,'SF Mono',monospace",
+                fontFamily: 'var(--bt-mono)',
                 fontSize: 12, fontWeight: 'bold',
                 outline: 'none',
                 boxShadow: '0 0 12px var(--bt-accent-wash)',

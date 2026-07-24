@@ -22,7 +22,7 @@ const S = {
   green:       'var(--bt-ok)',
   greenBg:     'var(--bt-ok-wash)',
 }
-const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
+const FONT = 'var(--bt-ui)'
 
 function fmtTime(s: number) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
@@ -399,7 +399,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
           {!loading && !done && (
             <div style={{
               position: 'absolute', bottom: 6, right: 8,
-              fontSize: 10, fontWeight: 600, fontFamily: 'ui-monospace, monospace',
+              fontSize: 10, fontWeight: 600, fontFamily: 'var(--bt-mono)',
               color: 'rgba(160,140,220,0.70)',
               background: 'rgba(8,10,20,0.65)', borderRadius: 4, padding: '2px 6px',
               pointerEvents: 'none',
@@ -425,7 +425,7 @@ export function ExportVideoModal({ track, sound, onClose }: Props) {
               <span style={{ color: S.primary, fontWeight: 600 }}>
                 Procesando… {Math.round(progress * 100)}%
               </span>
-              <span style={{ color: S.muted, fontFamily: 'ui-monospace, monospace', fontSize: 10 }}>
+              <span style={{ color: S.muted, fontFamily: 'var(--bt-mono)', fontSize: 10 }}>
                 Frame {frameInfo.cur.toLocaleString()} / {frameInfo.total.toLocaleString()}
               </span>
             </div>

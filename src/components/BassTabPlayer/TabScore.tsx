@@ -509,13 +509,13 @@ export function TabScore({
     const x0 = barLineX(0, track.beatsPerBar, pxPerBeat)
     return (
       <>
-        <text x={x0 + 2} y={ABOVE_H - 28} fontSize={9} fill="var(--bt-dim)" fontFamily="monospace">
+        <text x={x0 + 2} y={ABOVE_H - 28} fontSize={9} fill="var(--bt-dim)" fontFamily="var(--bt-mono)">
           ♩= {track.bpm}
         </text>
-        <text x={x0 + 3} y={ABOVE_H - 15} fontSize={12} fill="var(--bt-dim)" fontFamily="serif">
+        <text x={x0 + 3} y={ABOVE_H - 15} fontSize={12} fill="var(--bt-dim)" fontFamily="var(--bt-mono)">
           {track.beatsPerBar}
         </text>
-        <text x={x0 + 3} y={ABOVE_H - 3} fontSize={12} fill="var(--bt-dim)" fontFamily="serif">
+        <text x={x0 + 3} y={ABOVE_H - 3} fontSize={12} fill="var(--bt-dim)" fontFamily="var(--bt-mono)">
           {track.beatsPerBar}
         </text>
       </>
@@ -529,7 +529,7 @@ export function TabScore({
         key={sec.startBar}
         x={x} y={ABOVE_H - 40}
         fontSize={10} fontWeight="600"
-        fill="var(--bt-soft)" fontFamily="monospace"
+        fill="var(--bt-soft)" fontFamily="var(--bt-mono)"
         style={{ cursor: 'pointer', userSelect: 'none' }}
         onDoubleClick={(e) => {
           e.stopPropagation()
@@ -576,7 +576,7 @@ export function TabScore({
             x={cx} y={cy + 4.5}
             textAnchor="middle" fontSize={9} fontWeight="bold"
             fill="var(--bt-accent)"
-            fontFamily="ui-monospace,'SF Mono',monospace"
+            fontFamily="var(--bt-mono)"
             style={{ pointerEvents: 'none' }}
           >
             {fretBuffer}
@@ -612,7 +612,8 @@ export function TabScore({
           overflowX: fitWidth ? 'hidden' : 'auto',
           overflowY: 'hidden',
           position: 'relative',
-          background: 'var(--bt-paper)',
+          // Sin fondo propio: la tarjeta que envuelve el lienzo pone el papel.
+          background: 'transparent',
           minHeight: svgH,
         }}
       >
@@ -644,7 +645,7 @@ export function TabScore({
               key={bar}
               x={barLineX(bar, track.beatsPerBar, pxPerBeat) + 4}
               y={ABOVE_H - 10}
-              fontSize={9} fill="var(--bt-rule)" fontFamily="monospace"
+              fontSize={9} fill="var(--bt-rule)" fontFamily="var(--bt-mono)"
               data-bar={bar}
               style={{ cursor: 'context-menu' }}
             >
@@ -655,7 +656,7 @@ export function TabScore({
           {/* ── String labels ── */}
           {STRING_LABELS.map((label, i) => (
             <text key={label} x={6} y={ABOVE_H + STRING_Y[i] + 4}
-              fontSize={10} fill="var(--bt-dim)" fontFamily="monospace">
+              fontSize={10} fill="var(--bt-dim)" fontFamily="var(--bt-mono)">
               {label}
             </text>
           ))}
@@ -735,7 +736,7 @@ export function TabScore({
                   x={nx} y={ny + 4.5}
                   textAnchor="middle" fontSize={9} fontWeight="bold"
                   fill={isActive ? 'white' : isSelected ? 'var(--bt-staff)' : 'var(--bt-muted)'}
-                  fontFamily="ui-monospace,'SF Mono',monospace"
+                  fontFamily="var(--bt-mono)"
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
                   {note.fret}
@@ -774,7 +775,7 @@ export function TabScore({
                 width: 120, height: 22, padding: '0 6px', borderRadius: 4,
                 border: '2px solid var(--bt-accent)',
                 background: 'var(--bt-rule)',
-                color: 'var(--bt-soft)', fontFamily: 'monospace',
+                color: 'var(--bt-soft)', fontFamily: 'var(--bt-mono)',
                 fontSize: 10, fontWeight: 600, outline: 'none',
                 boxShadow: '0 0 10px transparent',
               }}
@@ -792,7 +793,7 @@ export function TabScore({
             borderTop: '1px solid var(--bt-accent-wash)',
             display: 'flex', alignItems: 'center', gap: 20,
             paddingLeft: 16, paddingRight: 16,
-            fontFamily: "ui-monospace,'SF Mono',monospace",
+            fontFamily: 'var(--bt-mono)',
             fontSize: 11,
           }}
         >
@@ -877,7 +878,7 @@ function NpadBtn({
           : active  ? 'var(--bt-accent)'
           : 'var(--bt-ink)',
         fontSize: 15,
-        fontFamily: "'Inter', ui-sans-serif, sans-serif",
+        fontFamily: 'var(--bt-ui)',
         fontWeight: active || confirm ? 600 : 400,
         cursor: 'pointer',
         touchAction: 'manipulation',
