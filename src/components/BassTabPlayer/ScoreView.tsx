@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import type { BassNote, BassTrack, StringIndex, BassSound, TrackSection } from '../../lib/bassTab/types'
 import { OPEN_MIDI } from '../../lib/bassTab/notationTheory'
-import { snapToGrid, findNoteAtBeat, clampDuration } from '../../lib/bassTab/bassTheory'
+import { findNoteAtBeat, clampDuration } from '../../lib/bassTab/bassTheory'
 import { previewNote } from '../../lib/bassTab/bassAudio'
 import { BT } from '../../lib/bassTab/theme'
 
@@ -122,7 +122,7 @@ interface BarGeom {
   tabTopY: number
   tabStringY: number[]
   tabBottomY: number
-  ticks: Array<{ beat: number; x: number }>  // beat absoluto → x de la figura
+  ticks: Array<{ beat: number; x: number; dur: number }>  // figura: beat, x real, duración
 }
 
 const STRING_LABELS = ['G', 'D', 'A', 'E']
@@ -301,11 +301,11 @@ export function ScoreView({
           tvoice.draw(ctx, tabStave)
           beams.forEach(b => b.setContext(ctx).draw())
 
-          const ticks: Array<{ beat: number; x: number }> = []
+          const ticks: Array<{ beat: number; x: number; dur: number }> = []
           seq.forEach((item, i) => {
             const t = tNotes[i]
             const gx = (t as { getAbsoluteX?: () => number }).getAbsoluteX?.()
-            if (typeof gx === 'number') ticks.push({ beat: bar * bpb + item.beatInBar, x: gx })
+            if (typeof gx === 'number') ticks.push({ beat: bar * bpb + item.beatInBar, x: gx, dur: vexDurToBeats(item.noteDur) })
           })
 
           geom.push({
@@ -347,10 +347,11 @@ export function ScoreView({
     return g.find(bg => bg.bar === bar) ?? null
   }, [track.beatsPerBar])
 
-  /** Nodos de interpolación de un compás: bordes anclados + figuras. */
+  /** Nodos de interpolación de un compás: bordes anclados + figuras. Sólo para
+   *  el marcador de reproducción, que sí desliza suave entre notas. */
   const barNodes = useCallback((bg: BarGeom): Array<{ beat: number; x: number }> => {
     const bpb = track.beatsPerBar
-    const nodes = [{ beat: bg.barStartBeat, x: bg.noteStartX }, ...bg.ticks, { beat: bg.barStartBeat + bpb, x: bg.endX - 8 }]
+    const nodes = [{ beat: bg.barStartBeat, x: bg.noteStartX }, ...bg.ticks.map(t => ({ beat: t.beat, x: t.x })), { beat: bg.barStartBeat + bpb, x: bg.endX - 8 }]
     return nodes.sort((a, b) => a.beat - b.beat)
   }, [track.beatsPerBar])
 
@@ -367,6 +368,27 @@ export function ScoreView({
     }
     return nodes[nodes.length - 1].x
   }, [barForBeat, barNodes])
+
+  // ── Figuras reales (modelo del diseño): el cursor engancha a la figura que
+  // VexFlow dibuja, no a un beat libre. Así nunca flota en un hueco. ──────────
+  type Tick = { beat: number; x: number; dur: number; bg: BarGeom }
+  const allTicks = useCallback((): Tick[] => {
+    const out: Tick[] = []
+    for (const bg of barGeomRef.current) for (const t of bg.ticks) out.push({ ...t, bg })
+    return out.sort((a, b) => a.beat - b.beat)
+  }, [])
+
+  /** La figura que contiene un beat (la de mayor beat ≤ dado dentro del compás). */
+  const tickAt = useCallback((beat: number): Tick | null => {
+    const bg = barForBeat(beat)
+    if (!bg || !bg.ticks.length) return null
+    let found = bg.ticks[0]
+    for (const t of bg.ticks) { if (t.beat <= beat + 1e-6) found = t; else break }
+    return { ...found, bg }
+  }, [barForBeat])
+
+  /** x real donde pintar el cursor/anillo en un beat: la de su figura. */
+  const snapX = useCallback((beat: number): number | null => tickAt(beat)?.x ?? beatToX(beat), [tickAt, beatToX])
 
   // ── Fret commit + acciones de edición (idénticas al Score anterior) ───────
   const commitFret = useCallback((buf: string) => {
@@ -430,11 +452,16 @@ export function ScoreView({
     clearTimeout(fretTimerRef.current!)
     if (fretBufferRef.current) { commitFretRef.current(fretBufferRef.current); return }
     const cur = editCursorRef.current
-    const next = dir > 0
-      ? Math.min(snapToGrid(cur.beat + SNAP, SNAP), totalBeatsRef.current - SNAP)
-      : Math.max(0, snapToGrid(cur.beat - SNAP, SNAP))
+    // Entre figuras reales, como el diseño (←→ entre notas), no a saltos de 0.25.
+    const ticks = allTicks()
+    if (!ticks.length) return
+    // Índice de la figura actual (la que contiene el cursor)
+    let idx = 0
+    for (let i = 0; i < ticks.length; i++) { if (ticks[i].beat <= cur.beat + 1e-6) idx = i; else break }
+    const nextIdx = Math.max(0, Math.min(ticks.length - 1, idx + dir))
+    const next = ticks[nextIdx].beat
     setEditCursor({ ...cur, beat: next }); onCursorBeatChange(next)
-  }, [isPlaying, setEditCursor, onCursorBeatChange])
+  }, [isPlaying, allTicks, setEditCursor, onCursorBeatChange])
 
   const doMoveString = useCallback((delta: number) => {
     if (isPlaying || !editCursorRef.current) return
@@ -481,31 +508,21 @@ export function ScoreView({
     const rect = host.getBoundingClientRect()
     const px = e.clientX - rect.left
     const py = e.clientY - rect.top
-    const bpb = track.beatsPerBar
 
     const bg = barGeomRef.current.find(b =>
       px >= b.leftX - 2 && px <= b.endX + 2 && py >= b.staffTopY - 20 && py <= b.tabBottomY + 12)
-    if (!bg) return
+    if (!bg || !bg.ticks.length) return
     // ¿está en la zona de la tab?
     if (py < bg.tabTopY - 12 || py > bg.tabBottomY + 12) return
 
-    // x → beat, inverso de la interpolación
-    const nodes = barNodes(bg)
-    const cx = Math.max(nodes[0].x, Math.min(px, nodes[nodes.length - 1].x))
-    let beat = bg.barStartBeat
-    for (let i = 0; i < nodes.length - 1; i++) {
-      const a = nodes[i], b = nodes[i + 1]
-      if (cx >= a.x && cx <= b.x) {
-        const t = b.x === a.x ? 0 : (cx - a.x) / (b.x - a.x)
-        beat = a.beat + t * (b.beat - a.beat)
-        break
-      }
-    }
-    beat = snapToGrid(Math.max(0, Math.min(beat, bg.barStartBeat + bpb - SNAP)), SNAP)
+    // Modelo del diseño: engancha a la figura más cercana por su x real, no a
+    // un beat interpolado. Así el cursor cae siempre sobre una figura.
+    let beat = bg.ticks[0].beat, best = Infinity
+    for (const t of bg.ticks) { const d = Math.abs(px - t.x); if (d < best) { best = d; beat = t.beat } }
 
     // cuerda más cercana
-    let si: StringIndex = 0, best = Infinity
-    bg.tabStringY.forEach((y, i) => { const d = Math.abs(py - y); if (d < best) { best = d; si = i as StringIndex } })
+    let si: StringIndex = 0, bestS = Infinity
+    bg.tabStringY.forEach((y, i) => { const d = Math.abs(py - y); if (d < bestS) { bestS = d; si = i as StringIndex } })
 
     clearTimeout(fretTimerRef.current!); setFretBuffer('')
     setEditCursor({ beat, stringIndex: si })
@@ -513,7 +530,7 @@ export function ScoreView({
     const ex = findNoteAtBeat(track.notes, si, beat)
     onSelectNote(ex ? ex.id : null)
     containerRef.current?.focus()
-  }, [isPlaying, track.beatsPerBar, track.notes, barNodes, setFretBuffer, setEditCursor, onCursorBeatChange, onSelectNote])
+  }, [isPlaying, track.notes, setFretBuffer, setEditCursor, onCursorBeatChange, onSelectNote])
 
   // ── Auto-scroll vertical por sistema ──────────────────────────────────────
   const followBeat = useCallback((beat: number) => {
@@ -548,11 +565,13 @@ export function ScoreView({
         })())
       : null
     if (ringAt) {
-      const bg = barForBeat(ringAt.beat)
-      const x = beatToX(ringAt.beat)
+      const tk = tickAt(ringAt.beat)
+      const bg = tk?.bg ?? barForBeat(ringAt.beat)
+      const x  = tk?.x ?? snapX(ringAt.beat)
       if (bg && x !== null) {
+        const atBeat  = tk?.beat ?? ringAt.beat
         const sy = bg.tabStringY[ringAt.stringIndex]
-        const hasFret = !!findNoteAtBeat(track.notes, ringAt.stringIndex, ringAt.beat)
+        const hasFret = !!findNoteAtBeat(track.notes, ringAt.stringIndex, atBeat)
         // Columna
         els.push(
           <div key="col" style={{
@@ -642,7 +661,7 @@ export function ScoreView({
 
     return els
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editCursor, fretBuffer, isPlaying, selectedNoteId, track.notes, track.sections, geomVersion, barForBeat, beatToX])
+  }, [editCursor, fretBuffer, isPlaying, selectedNoteId, track.notes, track.sections, geomVersion, barForBeat, tickAt, snapX])
 
   // ── Marcador de reproducción (WAAPI, glide del compositor) ────────────────
   // Como el diseño: un div dedicado que se anima con keyframes precomputados a
