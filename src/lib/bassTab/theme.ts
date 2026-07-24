@@ -34,11 +34,15 @@ export const BT = {
   soft:  '#7d7a72',
   dim:   '#a29e93',
 
-  // Acento. `wash` es el relleno del cursor y de la selección: tiene que
-  // dejar leer la nota que hay debajo, por eso va con alfa y no sólido.
-  accent:     '#c8492f',
-  accentHi:   '#d8543a',
-  accentWash: 'rgba(200, 73, 47, 0.08)',
+  // Acento. Es el morado de marca de ChordSequence —`hsl(262 83% 52%)` en
+  // `index.css`, aquí en hexadecimal para no romper `alpha()`— y no el terracota
+  // del prototipo PentagramTab: el bass tab es una herramienta del sitio, no
+  // una isla, así que su color accionable es el mismo que el del resto.
+  // `wash` es el relleno del cursor y de la selección: tiene que dejar leer la
+  // nota que hay debajo, por eso va con alfa y no sólido.
+  accent:     '#6a1fea',
+  accentHi:   '#8344ee',
+  accentWash: 'rgba(106, 31, 234, 0.08)',
 
   // Colores semánticos. Van aparte del acento a propósito: el acento significa
   // "esto es accionable", mientras que estos significan "esto está bien / ojo /
