@@ -7,6 +7,7 @@ import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { DurationDots } from '@/components/DurationDots';
 import { playChordPreview } from '@/lib/audioEngine';
+import { analytics } from '@/lib/analytics';
 
 // ── Transpose helpers ─────────────────────────────────────────────────────────
 const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -38,11 +39,12 @@ function transposeKey(key: string, s: number) {
 interface Props {
   chords: string[];
   songKey: string;
+  songSlug: string;
 }
 
 type View = 'piano' | 'guitar';
 
-export default function ChordAside({ chords, songKey }: Props) {
+export default function ChordAside({ chords, songKey, songSlug }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>('piano');
   const [semitones, setSemitones] = useState(0);
@@ -181,7 +183,11 @@ export default function ChordAside({ chords, songKey }: Props) {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-bold font-mono text-foreground">{chord}</span>
                 <button
-                  onClick={() => chordObj && playChordPreview(chordObj)}
+                  onClick={() => {
+                    if (!chordObj) return;
+                    analytics.playChordPreview(songSlug, chord, 'aside');
+                    playChordPreview(chordObj);
+                  }}
                   title={`Play ${chord}`}
                   className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                 >

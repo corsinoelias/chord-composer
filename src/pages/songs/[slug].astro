@@ -554,7 +554,7 @@ const breadcrumbSchema = {
           <!-- top-40 (160px) clears both sticky bars above it: the navbar (h-16 = 64px, z-50)
                and the song header/actions bar (sticky top-16, ~88px tall, z-40). -->
           <aside class="lg:sticky lg:top-40">
-            <ChordAside client:load chords={uniqueChords} songKey={song.key} />
+            <ChordAside client:load chords={uniqueChords} songKey={song.key} songSlug={song.slug} />
           </aside>
         )}
 
