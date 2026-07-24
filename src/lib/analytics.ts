@@ -16,9 +16,19 @@ export const analytics = {
   exportNudgeShown: () => track('export_nudge_shown'),
   exportNudgeClicked: () => track('export_nudge_clicked'),
 
-  // Songs
+  // Songs — three distinct ways to hear audio on a song page. They're tracked
+  // separately because they answer different questions: `play_song` is "play the
+  // whole chart", `play_song_section` is "play just the chorus" (what someone
+  // learning a part actually does), and `play_chord_preview` is "what does this
+  // one chord sound like". Counting only `play_song` undercounts audio usage.
   playSong: (songSlug: string, songTitle: string) => track('play_song', { song_slug: songSlug, song_title: songTitle }),
+  playSongSection: (songSlug: string, sectionName: string) => track('play_song_section', { song_slug: songSlug, section_name: sectionName }),
+  playChordPreview: (songSlug: string, chord: string, source: 'chart' | 'aside') => track('play_chord_preview', { song_slug: songSlug, chord, source }),
   songPdfExported: (songSlug: string) => track('song_pdf_exported', { song_slug: songSlug }),
+  // Song page → editor. This is the SEO-traffic-to-product conversion: the visitor
+  // arrived to read a chart and leaves with it loaded in the editor. Fires on an <a>
+  // that navigates away — gtag sends via navigator.sendBeacon, which survives unload.
+  songEditorOpened: (songSlug: string) => track('song_editor_opened', { song_slug: songSlug }),
 
   // Editor
   playProgression: (styleId: string) => track('play_progression', { style_id: styleId }),

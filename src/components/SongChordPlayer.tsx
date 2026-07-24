@@ -304,6 +304,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     if (isPlaying && playingSection === si) { stop(); return; }
     if (isPlaying) stop();
     if (sectionChordCounts[si] === 0) return;
+    analytics.playSongSection(song.slug, song.sections[si].name);
     setPlayingSection(si);
     setAutoFollow(true);
     setIsLoading(true);
@@ -321,7 +322,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
           : undefined,
       });
     } finally { setIsLoading(false); }
-  }, [isPlaying, playingSection, play, stop, bpm, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments, resolvedStyle, song.audioTrack]);
+  }, [isPlaying, playingSection, play, stop, bpm, song.slug, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments, resolvedStyle, song.audioTrack]);
 
   // ── Export WAV ─────────────────────────────────────────────────────────────
   const handleExportWav = useCallback(async () => {
@@ -524,7 +525,10 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                                       onMouseEnter={() => setOpenTooltipIdx(token.globalIndex)}
                                       onClick={() => {
                                         const parsed = parseChordString(token.chord);
-                                        if (parsed[0]) playChordPreview(parsed[0]);
+                                        if (parsed[0]) {
+                                          analytics.playChordPreview(song.slug, token.chord, 'chart');
+                                          playChordPreview(parsed[0]);
+                                        }
                                       }}
                                     >
                                       {token.chord}

@@ -1,5 +1,6 @@
 import { Play, Square, Download, ExternalLink, Loader2 } from 'lucide-react';
 import type { Song } from '@/data/songs';
+import { analytics } from '@/lib/analytics';
 
 interface SongPlayerBarProps {
   song: Song;
@@ -144,6 +145,7 @@ export function SongPlayerBar({
           </button>
           <a
             href={editorUrl}
+            onClick={() => analytics.songEditorOpened(song.slug)}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary hover:text-primary/80 hover:bg-primary/5 transition-colors"
           >
             Editor
