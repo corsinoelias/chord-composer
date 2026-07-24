@@ -461,7 +461,7 @@ export function TabScore({
         x={barX1} y={cy - 1}
         width={w} height={2}
         rx={1}
-        fill={isSelected ? 'hsl(262 60% 62%)' : 'hsl(262 35% 38%)'}
+        fill={isSelected ? 'var(--bt-accent)' : 'var(--bt-dim)'}
         style={{ pointerEvents: 'none' }}
       />
     )
@@ -479,7 +479,7 @@ export function TabScore({
             x1={x} x2={x}
             y1={ABOVE_H + STAFF_H + TICK_OFFSET}
             y2={ABOVE_H + STAFF_H + TICK_OFFSET + TICK_H}
-            stroke="#383858" strokeWidth={1}
+            stroke="var(--bt-rule)" strokeWidth={1}
           />,
         )
       }
@@ -489,14 +489,14 @@ export function TabScore({
         els.push(
           <rect key={`b1-${bar}-${gi}`}
             x={beamX1} y={ABOVE_H + STAFF_H + TICK_OFFSET + TICK_H - 2}
-            width={beamX2 - beamX1} height={2} fill="#383858"
+            width={beamX2 - beamX1} height={2} fill="var(--bt-rule)"
           />,
         )
         if (level === 2) {
           els.push(
             <rect key={`b2-${bar}-${gi}`}
               x={beamX1} y={ABOVE_H + STAFF_H + TICK_OFFSET + TICK_H - 6}
-              width={beamX2 - beamX1} height={2} fill="#383858"
+              width={beamX2 - beamX1} height={2} fill="var(--bt-rule)"
             />,
           )
         }
@@ -509,13 +509,13 @@ export function TabScore({
     const x0 = barLineX(0, track.beatsPerBar, pxPerBeat)
     return (
       <>
-        <text x={x0 + 2} y={ABOVE_H - 28} fontSize={9} fill="#60607a" fontFamily="monospace">
+        <text x={x0 + 2} y={ABOVE_H - 28} fontSize={9} fill="var(--bt-dim)" fontFamily="monospace">
           ♩= {track.bpm}
         </text>
-        <text x={x0 + 3} y={ABOVE_H - 15} fontSize={12} fill="#60607a" fontFamily="serif">
+        <text x={x0 + 3} y={ABOVE_H - 15} fontSize={12} fill="var(--bt-dim)" fontFamily="serif">
           {track.beatsPerBar}
         </text>
-        <text x={x0 + 3} y={ABOVE_H - 3} fontSize={12} fill="#60607a" fontFamily="serif">
+        <text x={x0 + 3} y={ABOVE_H - 3} fontSize={12} fill="var(--bt-dim)" fontFamily="serif">
           {track.beatsPerBar}
         </text>
       </>
@@ -529,7 +529,7 @@ export function TabScore({
         key={sec.startBar}
         x={x} y={ABOVE_H - 40}
         fontSize={10} fontWeight="600"
-        fill="#a0a0c8" fontFamily="monospace"
+        fill="var(--bt-soft)" fontFamily="monospace"
         style={{ cursor: 'pointer', userSelect: 'none' }}
         onDoubleClick={(e) => {
           e.stopPropagation()
@@ -559,15 +559,15 @@ export function TabScore({
           x={cx - rw / 2} y={ABOVE_H - 4}
           width={rw} height={STAFF_H + 8}
           rx={2}
-          fill="hsl(262 83% 58% / 0.06)"
+          fill="var(--bt-accent-wash)"
         />
         {/* Active string cell */}
         <rect
           x={cx - rw / 2} y={cy - 8}
           width={rw} height={16}
           rx={2}
-          fill="hsl(262 83% 58% / 0.18)"
-          stroke="hsl(262 83% 58%)"
+          fill="var(--bt-accent-wash)"
+          stroke="var(--bt-accent)"
           strokeWidth={1.5}
           strokeDasharray={fretBuffer ? undefined : '4,3'}
         />
@@ -575,7 +575,7 @@ export function TabScore({
           <text
             x={cx} y={cy + 4.5}
             textAnchor="middle" fontSize={9} fontWeight="bold"
-            fill="hsl(262 80% 90%)"
+            fill="var(--bt-accent)"
             fontFamily="ui-monospace,'SF Mono',monospace"
             style={{ pointerEvents: 'none' }}
           >
@@ -612,7 +612,7 @@ export function TabScore({
           overflowX: fitWidth ? 'hidden' : 'auto',
           overflowY: 'hidden',
           position: 'relative',
-          background: 'hsl(224 24% 8%)',
+          background: 'var(--bt-paper)',
           minHeight: svgH,
         }}
       >
@@ -627,7 +627,7 @@ export function TabScore({
           <defs>
             <filter id="note-glow" x="-60%" y="-60%" width="220%" height="220%">
               <feGaussianBlur stdDeviation="2.5" result="blur"/>
-              <feFlood floodColor="hsl(262,83%,70%)" floodOpacity="0.9" result="color"/>
+              <feFlood floodColor="var(--bt-accent)" floodOpacity="0.9" result="color"/>
               <feComposite in="color" in2="blur" operator="in" result="coloredBlur"/>
               <feMerge>
                 <feMergeNode in="coloredBlur"/>
@@ -644,7 +644,7 @@ export function TabScore({
               key={bar}
               x={barLineX(bar, track.beatsPerBar, pxPerBeat) + 4}
               y={ABOVE_H - 10}
-              fontSize={9} fill="#404068" fontFamily="monospace"
+              fontSize={9} fill="var(--bt-rule)" fontFamily="monospace"
               data-bar={bar}
               style={{ cursor: 'context-menu' }}
             >
@@ -655,7 +655,7 @@ export function TabScore({
           {/* ── String labels ── */}
           {STRING_LABELS.map((label, i) => (
             <text key={label} x={6} y={ABOVE_H + STRING_Y[i] + 4}
-              fontSize={10} fill="#505070" fontFamily="monospace">
+              fontSize={10} fill="var(--bt-dim)" fontFamily="monospace">
               {label}
             </text>
           ))}
@@ -667,7 +667,7 @@ export function TabScore({
             return (
               <line key={bar}
                 x1={x} x2={x} y1={ABOVE_H} y2={ABOVE_H + STAFF_H}
-                stroke={isEdge ? '#505078' : '#383858'}
+                stroke={isEdge ? 'var(--bt-dim)' : 'var(--bt-rule)'}
                 strokeWidth={isEdge ? 2 : 1}
               />
             )
@@ -677,7 +677,7 @@ export function TabScore({
           {stringPaths.map((d, si) => (
             <path key={si} d={d}
               transform={`translate(0,${ABOVE_H})`}
-              stroke="#383858" strokeWidth={1} fill="none"
+              stroke="var(--bt-rule)" strokeWidth={1} fill="none"
             />
           ))}
 
@@ -720,21 +720,21 @@ export function TabScore({
                   x={nx - rw / 2} y={ny - 7}
                   width={rw} height={14} rx={2}
                   fill={
-                    isActive   ? 'hsl(262 83% 52%)' :
-                    isSelected ? 'hsl(262 83% 40%)' :
-                    isCursorOn ? 'hsl(262 60% 25%)' : 'hsl(224 24% 11%)'
+                    isActive   ? 'var(--bt-accent)' :
+                    isSelected ? 'var(--bt-accent)' :
+                    isCursorOn ? 'var(--bt-accent-wash)' : 'var(--bt-card)'
                   }
                   stroke={
-                    isActive   ? 'hsl(262 90% 82%)' :
-                    isSelected ? 'hsl(262 60% 68%)' :
-                    isCursorOn ? 'hsl(262 83% 58%)' : '#383858'
+                    isActive   ? 'var(--bt-accent)' :
+                    isSelected ? 'var(--bt-accent)' :
+                    isCursorOn ? 'var(--bt-accent)' : 'var(--bt-rule)'
                   }
                   strokeWidth={isActive ? 1.5 : 1}
                 />
                 <text
                   x={nx} y={ny + 4.5}
                   textAnchor="middle" fontSize={9} fontWeight="bold"
-                  fill={isActive ? 'white' : isSelected ? '#e8deff' : '#b8b0d0'}
+                  fill={isActive ? 'white' : isSelected ? 'var(--bt-staff)' : 'var(--bt-muted)'}
                   fontFamily="ui-monospace,'SF Mono',monospace"
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
@@ -772,11 +772,11 @@ export function TabScore({
               onBlur={commitSection}
               style={{
                 width: 120, height: 22, padding: '0 6px', borderRadius: 4,
-                border: '2px solid hsl(262 83% 58%)',
-                background: 'hsl(224 20% 13%)',
-                color: '#a0a0c8', fontFamily: 'monospace',
+                border: '2px solid var(--bt-accent)',
+                background: 'var(--bt-rule)',
+                color: 'var(--bt-soft)', fontFamily: 'monospace',
                 fontSize: 10, fontWeight: 600, outline: 'none',
-                boxShadow: '0 0 10px hsl(262 83% 58% / 0.35)',
+                boxShadow: '0 0 10px transparent',
               }}
             />
           </div>
@@ -788,32 +788,32 @@ export function TabScore({
         <div
           style={{
             flexShrink: 0, height: 28,
-            background: 'hsl(224 20% 10%)',
-            borderTop: '1px solid hsl(262 40% 20%)',
+            background: 'var(--bt-sunken)',
+            borderTop: '1px solid var(--bt-accent-wash)',
             display: 'flex', alignItems: 'center', gap: 20,
             paddingLeft: 16, paddingRight: 16,
             fontFamily: "ui-monospace,'SF Mono',monospace",
             fontSize: 11,
           }}
         >
-          <span style={{ color: 'hsl(262 60% 75%)', fontWeight: 600 }}>
+          <span style={{ color: 'var(--bt-accent)', fontWeight: 600 }}>
             {STRING_LABELS[editCursor.stringIndex]}
           </span>
-          <span style={{ color: 'hsl(220 10% 50%)' }}>
+          <span style={{ color: 'var(--bt-soft)' }}>
             bar {Math.floor(editCursor.beat / track.beatsPerBar) + 1}
             {' · '}
             beat {(editCursor.beat % track.beatsPerBar + 1).toFixed(editCursor.beat % 1 === 0 ? 0 : 2)}
           </span>
           {fretBuffer
-            ? <span style={{ color: 'hsl(220 14% 80%)' }}>fret: <strong style={{ color: 'white', fontSize: 13 }}>{fretBuffer}</strong>_</span>
-            : <span style={{ color: 'hsl(224 15% 32%)' }}>{isMobile ? 'toca un traste ↓' : 'type fret · ←→ move · ↑↓ string · Del delete'}</span>
+            ? <span style={{ color: 'var(--bt-ink)' }}>fret: <strong style={{ color: 'white', fontSize: 13 }}>{fretBuffer}</strong>_</span>
+            : <span style={{ color: 'var(--bt-dim)' }}>{isMobile ? 'toca un traste ↓' : 'type fret · ←→ move · ↑↓ string · Del delete'}</span>
           }
         </div>
       )}
 
       {/* ── Mobile numpad ──────────────────────────────────────────────────── */}
       {isMobile && editCursor && !isPlaying && (
-        <div style={{ flexShrink: 0, background: 'hsl(224 20% 9%)', borderTop: '1px solid hsl(224 15% 16%)' }}>
+        <div style={{ flexShrink: 0, background: 'var(--bt-sunken)', borderTop: '1px solid var(--bt-rule)' }}>
 
           {/* Row 1: string selector · beat nav · backspace · dismiss */}
           <div style={{ display: 'flex', gap: 3, padding: '4px 4px 2px' }}>
@@ -864,18 +864,18 @@ function NpadBtn({
       style={{
         flex: 1, minWidth: 0, height: 42,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: confirm ? 'hsl(262 50% 28%)'
-          : active  ? 'hsl(262 40% 22%)'
-          : 'hsl(224 18% 15%)',
+        background: confirm ? 'var(--bt-accent-wash)'
+          : active  ? 'var(--bt-accent-wash)'
+          : 'var(--bt-card)',
         border: `1px solid ${
-          confirm ? 'hsl(262 60% 45%)'
-          : active  ? 'hsl(262 40% 35%)'
-          : 'hsl(224 15% 22%)'}`,
+          confirm ? 'var(--bt-accent)'
+          : active  ? 'var(--bt-accent-wash)'
+          : 'var(--bt-rule)'}`,
         borderRadius: 7,
-        color: confirm ? 'hsl(262 80% 88%)'
-          : danger  ? 'hsl(0 72% 65%)'
-          : active  ? 'hsl(262 80% 85%)'
-          : 'hsl(220 10% 68%)',
+        color: confirm ? 'var(--bt-accent)'
+          : danger  ? 'var(--bt-danger)'
+          : active  ? 'var(--bt-accent)'
+          : 'var(--bt-ink)',
         fontSize: 15,
         fontFamily: "'Inter', ui-sans-serif, sans-serif",
         fontWeight: active || confirm ? 600 : 400,

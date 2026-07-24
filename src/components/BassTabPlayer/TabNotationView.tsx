@@ -341,14 +341,14 @@ export function TabNotationView({
     for (const n of track.notes) {
       const isActive   = currentBeat >= n.startBeat && currentBeat < n.startBeat + n.durationBeats
       const isSelected = n.id === selectedNoteId
-      m.set(n.id, isActive ? '#4ade80' : isSelected ? 'hsl(262,80%,88%)' : 'hsl(220,8%,88%)')
+      m.set(n.id, isActive ? '#4ade80' : isSelected ? 'var(--bt-accent)' : 'var(--bt-ink)')
     }
     return m
   }, [track.notes, currentBeat, selectedNoteId])
 
-  const noteLineColor = 'hsl(220,14%,42%)'
-  const staffLineColor = 'hsl(220,14%,38%)'
-  const beamColor     = 'hsl(220,8%,78%)'
+  const noteLineColor = 'var(--bt-soft)'
+  const staffLineColor = 'var(--bt-dim)'
+  const beamColor     = 'var(--bt-muted)'
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
@@ -362,7 +362,7 @@ export function TabNotationView({
         ref={scrollRef}
         style={{
           flex: 1, overflowX: fitWidth || barView || visibleBars ? 'hidden' : 'auto', overflowY: 'hidden',
-          position: 'relative', background: 'hsl(224 24% 8%)',
+          position: 'relative', background: 'var(--bt-paper)',
           minHeight: TOTAL_H,
         }}
       >
@@ -455,7 +455,7 @@ export function TabNotationView({
 
           {/* ── Notation notes ── */}
           {notated.notes.map(nn => {
-            const color = noteColorMap.get(nn.noteId) ?? 'hsl(220,8%,88%)'
+            const color = noteColorMap.get(nn.noteId) ?? 'var(--bt-ink)'
             const stemColor = nn.beamGroupId !== null ? beamColor : color
             return (
               <g key={`nn-${nn.noteId}`} style={{ pointerEvents: 'none' }}>
@@ -536,7 +536,7 @@ export function TabNotationView({
           {[0,1,2,3].map(si => {
             const ly = TAB_OVERLAY_Y + STRING_Y[si]
             return <line key={si} x1={LABEL_W} x2={svgW} y1={ly} y2={ly}
-              stroke="hsl(220,14%,62%)" strokeWidth={0.9} style={{ pointerEvents: 'none' }} />
+              stroke="var(--bt-muted)" strokeWidth={0.9} style={{ pointerEvents: 'none' }} />
           })}
           {/* Bar lines handled by system bar lines above */}
           {/* T·A·B label */}
@@ -544,7 +544,7 @@ export function TabNotationView({
             <text key={c} x={LABEL_W / 2} y={TAB_OVERLAY_Y + i * TAB_SPACING * (3/2) + TAB_SPACING / 2}
               textAnchor="middle" dominantBaseline="middle"
               fontSize={8} fontWeight="bold" fontFamily="Arial, sans-serif"
-              fill="hsl(220,14%,60%)" style={{ pointerEvents: 'none' }}>
+              fill="var(--bt-muted)" style={{ pointerEvents: 'none' }}>
               {c}
             </text>
           ))}
@@ -556,12 +556,12 @@ export function TabNotationView({
             const isSelected = note.id === selectedNoteId
             const numColor = isActive
               ? ['#4ade80','#fbbf24','#f87171','#60a5fa'][note.stringIndex]
-              : isSelected ? 'hsl(262,80%,90%)' : 'hsl(220,8%,90%)'
+              : isSelected ? 'var(--bt-accent)' : 'var(--bt-ink)'
             const gapW = note.fret >= 10 ? 16 : 12
             return (
               <g key={`tab-${note.id}`} style={{ pointerEvents: 'none' }}>
                 <line x1={x - gapW} x2={x + gapW} y1={y} y2={y}
-                  stroke="hsl(224,24%,8%)" strokeWidth={2.5} />
+                  stroke="var(--bt-paper)" strokeWidth={2.5} />
                 <text x={x} y={y} textAnchor="middle" dominantBaseline="middle"
                   fontSize={11} fontWeight="bold" fontFamily="Arial, sans-serif"
                   fill={numColor}>
@@ -596,15 +596,15 @@ export function TabNotationView({
               <g>
                 <rect x={cx - rw / 2} y={TAB_OVERLAY_Y - 3} width={rw}
                   height={TAB_OVERLAY_STAFF_H + 6} rx={2}
-                  fill="hsl(262 83% 58% / 0.08)" style={{ pointerEvents: 'none' }} />
+                  fill="var(--bt-accent-wash)" style={{ pointerEvents: 'none' }} />
                 <rect x={cx - rw / 2} y={cy - 9} width={rw} height={18} rx={3}
-                  fill="hsl(262 83% 58% / 0.20)"
-                  stroke="hsl(262 83% 65%)" strokeWidth={1.5}
+                  fill="var(--bt-accent-wash)"
+                  stroke="var(--bt-accent)" strokeWidth={1.5}
                   strokeDasharray={fretBuffer ? undefined : '4,3'}
                   style={{ pointerEvents: 'none' }} />
                 {fretBuffer && (
                   <text x={cx} y={cy + 5} textAnchor="middle" fontSize={10} fontWeight="bold"
-                    fill="hsl(262 80% 92%)" fontFamily="ui-monospace,monospace"
+                    fill="var(--bt-accent)" fontFamily="ui-monospace,monospace"
                     style={{ pointerEvents: 'none' }}>
                     {fretBuffer}
                   </text>
@@ -616,13 +616,13 @@ export function TabNotationView({
           {/* Playback / edit cursor line */}
           <line
             x1={cursorX} x2={cursorX} y1={cursorY1} y2={cursorY2}
-            stroke={isPlaying ? 'hsl(262 83% 68%)' : 'hsl(262 83% 55% / 0.65)'}
+            stroke={isPlaying ? 'var(--bt-accent)' : 'var(--bt-accent)'}
             strokeWidth={isPlaying ? 1.5 : 1}
             style={{ pointerEvents: 'none' }}
           />
           <polygon
             points={`${cursorX - 5},${cursorY1} ${cursorX + 5},${cursorY1} ${cursorX},${cursorY1 + 9}`}
-            fill={isPlaying ? 'hsl(262 83% 68%)' : 'hsl(262 83% 55% / 0.65)'}
+            fill={isPlaying ? 'var(--bt-accent)' : 'var(--bt-accent)'}
             style={{ pointerEvents: 'none' }}
           />
 
@@ -631,7 +631,7 @@ export function TabNotationView({
             const x = barLineX(sec.startBar, track.beatsPerBar, pxPerBeat) + 2
             return (
               <text key={sec.startBar} x={x} y={8}
-                fontSize={10} fontWeight={600} fill="hsl(220 10% 55%)" fontFamily="monospace"
+                fontSize={10} fontWeight={600} fill="var(--bt-muted)" fontFamily="monospace"
                 style={{ cursor: 'pointer', userSelect: 'none' }}
                 onDoubleClick={e => {
                   e.stopPropagation()
@@ -660,7 +660,7 @@ export function TabNotationView({
                 if (e.key === 'Escape') { e.preventDefault(); setPendingSection(null) }
               }}
               onBlur={commitSection}
-              style={{ width: 120, height: 22, padding: '0 6px', borderRadius: 4, border: '2px solid hsl(262 83% 58%)', background: 'hsl(224 20% 13%)', color: '#a0a0c8', fontFamily: 'monospace', fontSize: 10, fontWeight: 600, outline: 'none' }}
+              style={{ width: 120, height: 22, padding: '0 6px', borderRadius: 4, border: '2px solid var(--bt-accent)', background: 'var(--bt-rule)', color: 'var(--bt-soft)', fontFamily: 'monospace', fontSize: 10, fontWeight: 600, outline: 'none' }}
             />
           </div>
         )}
@@ -668,21 +668,21 @@ export function TabNotationView({
 
       {/* Edit cursor status bar */}
       {editCursor && !isPlaying && (
-        <div style={{ flexShrink: 0, height: 28, background: 'hsl(224 20% 10%)', borderTop: '1px solid hsl(262 40% 20%)', display: 'flex', alignItems: 'center', gap: 20, paddingLeft: 16, paddingRight: 16, fontFamily: "ui-monospace,'SF Mono',monospace", fontSize: 11 }}>
-          <span style={{ color: 'hsl(262 60% 75%)', fontWeight: 600 }}>{STRING_LABELS[editCursor.stringIndex]}</span>
-          <span style={{ color: 'hsl(220 10% 50%)' }}>
+        <div style={{ flexShrink: 0, height: 28, background: 'var(--bt-sunken)', borderTop: '1px solid var(--bt-accent-wash)', display: 'flex', alignItems: 'center', gap: 20, paddingLeft: 16, paddingRight: 16, fontFamily: "ui-monospace,'SF Mono',monospace", fontSize: 11 }}>
+          <span style={{ color: 'var(--bt-accent)', fontWeight: 600 }}>{STRING_LABELS[editCursor.stringIndex]}</span>
+          <span style={{ color: 'var(--bt-soft)' }}>
             bar {Math.floor(editCursor.beat / track.beatsPerBar) + 1} · beat {(editCursor.beat % track.beatsPerBar + 1).toFixed(editCursor.beat % 1 === 0 ? 0 : 2)}
           </span>
           {fretBuffer
-            ? <span style={{ color: 'hsl(220 14% 80%)' }}>fret: <strong style={{ color: 'white', fontSize: 13 }}>{fretBuffer}</strong>_</span>
-            : <span style={{ color: 'hsl(224 15% 32%)' }}>{isMobile ? 'toca un traste ↓' : 'type fret · ←→ move · ↑↓ string · Del delete'}</span>
+            ? <span style={{ color: 'var(--bt-ink)' }}>fret: <strong style={{ color: 'white', fontSize: 13 }}>{fretBuffer}</strong>_</span>
+            : <span style={{ color: 'var(--bt-dim)' }}>{isMobile ? 'toca un traste ↓' : 'type fret · ←→ move · ↑↓ string · Del delete'}</span>
           }
         </div>
       )}
 
       {/* Mobile numpad */}
       {isMobile && editCursor && !isPlaying && (
-        <div style={{ flexShrink: 0, background: 'hsl(224 20% 9%)', borderTop: '1px solid hsl(224 15% 16%)' }}>
+        <div style={{ flexShrink: 0, background: 'var(--bt-sunken)', borderTop: '1px solid var(--bt-rule)' }}>
           <div style={{ display: 'flex', gap: 3, padding: '4px 4px 2px' }}>
             {STRING_LABELS.map((label, si) => (
               <NpadBtn key={label} active={editCursor.stringIndex === si} onPress={() => doMoveString(si - editCursor.stringIndex)}>{label}</NpadBtn>
@@ -716,10 +716,10 @@ function NpadBtn({ children, onPress, active, danger, confirm }: {
       onPointerDown={e => { e.preventDefault(); onPress() }}
       style={{
         flex: 1, minWidth: 0, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: confirm ? 'hsl(262 50% 28%)' : active ? 'hsl(262 40% 22%)' : 'hsl(224 18% 15%)',
-        border: `1px solid ${confirm ? 'hsl(262 60% 45%)' : active ? 'hsl(262 40% 35%)' : 'hsl(224 15% 22%)'}`,
+        background: confirm ? 'var(--bt-accent-wash)' : active ? 'var(--bt-accent-wash)' : 'var(--bt-card)',
+        border: `1px solid ${confirm ? 'var(--bt-accent)' : active ? 'var(--bt-accent-wash)' : 'var(--bt-rule)'}`,
         borderRadius: 7,
-        color: confirm ? 'hsl(262 80% 88%)' : danger ? 'hsl(0 72% 65%)' : active ? 'hsl(262 80% 85%)' : 'hsl(220 10% 68%)',
+        color: confirm ? 'var(--bt-accent)' : danger ? 'var(--bt-danger)' : active ? 'var(--bt-accent)' : 'var(--bt-ink)',
         fontSize: 15, fontFamily: "'Inter', ui-sans-serif, sans-serif",
         fontWeight: active || confirm ? 600 : 400,
         cursor: 'pointer', touchAction: 'manipulation', userSelect: 'none',

@@ -17,19 +17,19 @@ interface RecordingOverlayProps {
 }
 
 const R = {
-  bg:        'hsl(224 24% 5%)',
-  surface:   'hsl(224 18% 11%)',
-  surfaceHi: 'hsl(224 18% 17%)',
-  border:    'hsl(224 15% 18%)',
-  text:      'hsl(220 14% 82%)',
-  muted:     'hsl(220 10% 42%)',
-  red:       'hsl(0 72% 55%)',
-  redBg:     'hsl(0 55% 18%)',
-  primary:   'hsl(262 83% 58%)',
-  primaryBg: 'hsl(262 60% 18%)',
-  green:     'hsl(142 71% 45%)',
-  greenBg:   'hsl(142 40% 14%)',
-  amber:     'hsl(38 92% 50%)',
+  bg:        'var(--bt-paper)',
+  surface:   'var(--bt-card)',
+  surfaceHi: 'var(--bt-sunken)',
+  border:    'var(--bt-rule)',
+  text:      'var(--bt-ink)',
+  muted:     'var(--bt-soft)',
+  red:       'var(--bt-danger)',
+  redBg:     'rgba(214,69,69,0.10)',
+  primary:   'var(--bt-accent)',
+  primaryBg: 'var(--bt-accent-wash)',
+  green:     'var(--bt-ok)',
+  greenBg:   'var(--bt-ok-wash)',
+  amber:     'var(--bt-warn)',
   font:      "'Inter', ui-sans-serif, system-ui, sans-serif",
 }
 
@@ -82,20 +82,20 @@ function LiveBarPreview({ notes, currentBeat, beatsPerBar, totalBars }: {
           {SY.map((y, i) => (
             <g key={i}>
               <text x={LABEL_W - 5} y={y + 4} textAnchor="end" fontSize={10}
-                fill="hsl(220 10% 32%)" fontFamily="ui-monospace,monospace">{STRING_NAMES[i]}</text>
+                fill="var(--bt-dim)" fontFamily="ui-monospace,monospace">{STRING_NAMES[i]}</text>
               <line x1={LABEL_W} y1={y} x2={VB_W - RIGHT_PAD} y2={y}
-                stroke="hsl(224 15% 20%)" strokeWidth={1} />
+                stroke="var(--bt-rule)" strokeWidth={1} />
             </g>
           ))}
           {/* Beat sub-divisions */}
           {Array.from({ length: beatsPerBar - 1 }, (_, i) => (
             <line key={i} x1={beatX(i + 1, beatsPerBar)} y1={SY[0] - 10}
               x2={beatX(i + 1, beatsPerBar)} y2={SY[3] + 10}
-              stroke="hsl(224 15% 15%)" strokeWidth={1} />
+              stroke="var(--bt-card)" strokeWidth={1} />
           ))}
           {/* Cursor glow */}
           <rect x={cursorX - 12} y={SY[0] - 12} width={24} height={SY[3] - SY[0] + 24}
-            rx={5} fill="hsl(0 72% 55% / 0.15)" />
+            rx={5} fill="var(--bt-danger-wash)" />
           {/* Notes */}
           {barNotes.map(n => {
             const x = beatX(n.startBeat - barStart, beatsPerBar)
@@ -103,9 +103,9 @@ function LiveBarPreview({ notes, currentBeat, beatsPerBar, totalBars }: {
             return (
               <g key={n.id} transform={`translate(${x},${y})`}>
                 <rect x={-13} y={-10} width={26} height={20} rx={4}
-                  fill="hsl(262 60% 22%)" stroke="hsl(262 83% 58%)" strokeWidth={1.5} />
+                  fill="var(--bt-accent-wash)" stroke="var(--bt-accent)" strokeWidth={1.5} />
                 <text x={0} y={5} textAnchor="middle" fontSize={12} fontWeight={700}
-                  fill="hsl(262 80% 85%)" fontFamily="ui-monospace,monospace">{n.fret}</text>
+                  fill="var(--bt-accent)" fontFamily="ui-monospace,monospace">{n.fret}</text>
               </g>
             )
           })}
@@ -466,7 +466,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
                       background: active ? R.primaryBg : R.surface,
                       border: `1px solid ${active ? R.primary : R.border}`,
                       borderRadius: 10,
-                      color: active ? 'hsl(262 80% 85%)' : R.muted,
+                      color: active ? 'var(--bt-accent)' : R.muted,
                       fontSize: 20, cursor: 'pointer',
                       touchAction: 'manipulation',
                       WebkitTapHighlightColor: 'transparent',
@@ -532,7 +532,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
                       background: active ? R.primaryBg : R.surface,
                       border: `1px solid ${active ? R.primary : R.border}`,
                       borderRadius: 8,
-                      color: active ? 'hsl(262 80% 85%)' : R.muted,
+                      color: active ? 'var(--bt-accent)' : R.muted,
                       fontSize: 18, cursor: 'pointer',
                       touchAction: 'manipulation',
                       WebkitTapHighlightColor: 'transparent',

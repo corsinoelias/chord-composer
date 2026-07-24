@@ -22,22 +22,22 @@ interface MobileBarViewProps {
 
 // ── Colour palette ───────────────────────────────────────────────────────────
 const C = {
-  bg:          'hsl(224 24% 8%)',
-  string:      'hsl(224 15% 26%)',
-  stringLabel: 'hsl(220 10% 38%)',
-  noteBox:     'hsl(224 18% 17%)',
-  noteBorder:  'hsl(224 15% 30%)',
-  noteFret:    'hsl(220 14% 82%)',
-  noteActive:  'hsl(262 83% 58%)',
-  noteActBg:   'hsl(262 60% 22%)',
-  cursor:      'hsl(262 83% 62%)',
-  cursorGlow:  'hsl(262 83% 62% / 0.25)',
-  barLabel:    'hsl(220 14% 70%)',
-  barMuted:    'hsl(220 10% 38%)',
-  navBtn:      'hsl(224 18% 17%)',
-  navBtnBorder:'hsl(224 15% 26%)',
-  navBtnText:  'hsl(220 10% 55%)',
-  navBtnHover: 'hsl(224 18% 24%)',
+  bg:          'var(--bt-paper)',
+  string:      'var(--bt-rule)',
+  stringLabel: 'var(--bt-dim)',
+  noteBox:     'var(--bt-sunken)',
+  noteBorder:  'var(--bt-dim)',
+  noteFret:    'var(--bt-ink)',
+  noteActive:  'var(--bt-accent)',
+  noteActBg:   'var(--bt-accent-wash)',
+  cursor:      'var(--bt-accent)',
+  cursorGlow:  'var(--bt-accent-wash)',
+  barLabel:    'var(--bt-muted)',
+  barMuted:    'var(--bt-dim)',
+  navBtn:      'var(--bt-sunken)',
+  navBtnBorder:'var(--bt-rule)',
+  navBtnText:  'var(--bt-muted)',
+  navBtnHover: 'var(--bt-rule)',
 }
 
 // ── SVG layout (viewBox units) ────────────────────────────────────────────────
@@ -107,7 +107,7 @@ function BarSVG({ track, barIndex, beatInBar, isPlaying }: BarSVGProps) {
         const x = beatX(i + 1, beatsPerBar)
         return (
           <line key={i} x1={x} y1={STRING_Y[0] - 10} x2={x} y2={STRING_Y[3] + 10}
-            stroke="hsl(224 15% 18%)" strokeWidth={1} />
+            stroke="var(--bt-rule)" strokeWidth={1} />
         )
       })}
 
@@ -241,7 +241,7 @@ export function MobileBarView({ track, currentBeat, isPlaying, onSeek, viewMode 
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '6px 12px', flexShrink: 0,
-        borderBottom: '1px solid hsl(224 15% 14%)',
+        borderBottom: '1px solid var(--bt-card)',
       }}>
         <button
           onClick={() => goTo(displayBar - 1)}
@@ -250,7 +250,7 @@ export function MobileBarView({ track, currentBeat, isPlaying, onSeek, viewMode 
             width: 36, height: 36, borderRadius: 8, flexShrink: 0,
             background: canPrev ? C.navBtn : 'transparent',
             border: `1px solid ${canPrev ? C.navBtnBorder : 'transparent'}`,
-            color: canPrev ? C.navBtnText : 'hsl(224 15% 22%)',
+            color: canPrev ? C.navBtnText : 'var(--bt-rule)',
             fontSize: 18, cursor: canPrev ? 'pointer' : 'default',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             touchAction: 'manipulation',
@@ -269,8 +269,8 @@ export function MobileBarView({ track, currentBeat, isPlaying, onSeek, viewMode 
                 height: i === displayBar ? 8 : 5,
                 borderRadius: '50%',
                 background: i === displayBar
-                  ? (isPlaying ? C.noteActive : 'hsl(220 14% 55%)')
-                  : 'hsl(224 15% 22%)',
+                  ? (isPlaying ? C.noteActive : 'var(--bt-muted)')
+                  : 'var(--bt-rule)',
                 transition: 'all 0.15s',
               }} />
             ))}
@@ -284,7 +284,7 @@ export function MobileBarView({ track, currentBeat, isPlaying, onSeek, viewMode 
             width: 36, height: 36, borderRadius: 8, flexShrink: 0,
             background: canNext ? C.navBtn : 'transparent',
             border: `1px solid ${canNext ? C.navBtnBorder : 'transparent'}`,
-            color: canNext ? C.navBtnText : 'hsl(224 15% 22%)',
+            color: canNext ? C.navBtnText : 'var(--bt-rule)',
             fontSize: 18, cursor: canNext ? 'pointer' : 'default',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             touchAction: 'manipulation',
@@ -329,7 +329,7 @@ export function MobileBarView({ track, currentBeat, isPlaying, onSeek, viewMode 
       {/* ── Swipe hint — shown once, fades out ── */}
       <div style={{
         textAlign: 'center', padding: '0 0 6px',
-        fontSize: 10, color: 'hsl(224 15% 28%)', flexShrink: 0,
+        fontSize: 10, color: 'var(--bt-dim)', flexShrink: 0,
       }}>
         desliza para navegar
       </div>

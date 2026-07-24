@@ -93,7 +93,7 @@ export function TabNotationMeasure({
           x1={x} x2={x}
           y1={ABOVE_H + STAFF_H + TICK_OFFSET}
           y2={ABOVE_H + STAFF_H + TICK_OFFSET + TICK_H}
-          stroke="#383858" strokeWidth={1}
+          stroke="var(--bt-rule)" strokeWidth={1}
         />,
       )
     }
@@ -104,7 +104,7 @@ export function TabNotationMeasure({
         <rect
           key={`b1${gi}`}
           x={beamX1} y={ABOVE_H + STAFF_H + TICK_OFFSET + TICK_H - 2}
-          width={beamX2 - beamX1} height={2} fill="#383858"
+          width={beamX2 - beamX1} height={2} fill="var(--bt-rule)"
         />,
       )
       if (level === 2) {
@@ -112,7 +112,7 @@ export function TabNotationMeasure({
           <rect
             key={`b2${gi}`}
             x={beamX1} y={ABOVE_H + STAFF_H + TICK_OFFSET + TICK_H - 6}
-            width={beamX2 - beamX1} height={2} fill="#383858"
+            width={beamX2 - beamX1} height={2} fill="var(--bt-rule)"
           />,
         )
       }
@@ -182,7 +182,7 @@ export function TabNotationMeasure({
   const visibleNotes = track.notes.filter(n => Math.floor(n.startBeat / bpb) === currentBar)
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'hsl(224 24% 8%)', position: 'relative' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bt-paper)', position: 'relative' }}>
       {/* SVG tab */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <svg
@@ -200,7 +200,7 @@ export function TabNotationMeasure({
               x={barX - LABEL_W + 4}
               y={ABOVE_H + STRING_Y[i] + 4}
               fontSize={10}
-              fill="#505070"
+              fill="var(--bt-dim)"
               fontFamily="monospace"
             >
               {label}
@@ -214,7 +214,7 @@ export function TabNotationMeasure({
               x1={barLineX(bar, bpb, pxPerBeat)}
               x2={barLineX(bar, bpb, pxPerBeat)}
               y1={ABOVE_H} y2={ABOVE_H + STAFF_H}
-              stroke="#505078" strokeWidth={2}
+              stroke="var(--bt-dim)" strokeWidth={2}
             />
           ))}
 
@@ -224,7 +224,7 @@ export function TabNotationMeasure({
               key={si}
               d={d}
               transform={`translate(0,${ABOVE_H})`}
-              stroke="#383858"
+              stroke="var(--bt-rule)"
               strokeWidth={1}
               fill="none"
             />
@@ -238,7 +238,7 @@ export function TabNotationMeasure({
             x={barX + 4}
             y={ABOVE_H - 10}
             fontSize={9}
-            fill="#404068"
+            fill="var(--bt-rule)"
             fontFamily="monospace"
           >
             {currentBar + 1}
@@ -266,15 +266,15 @@ export function TabNotationMeasure({
                   x={nx - rw / 2} y={ny - 7}
                   width={rw} height={14}
                   rx={2}
-                  fill={isSelected ? 'hsl(262 83% 40%)' : 'hsl(224 24% 11%)'}
-                  stroke={isSelected ? 'hsl(262 60% 68%)' : '#383858'}
+                  fill={isSelected ? 'var(--bt-accent)' : 'var(--bt-card)'}
+                  stroke={isSelected ? 'var(--bt-accent)' : 'var(--bt-rule)'}
                   strokeWidth={1}
                 />
                 <text
                   x={nx} y={ny + 4.5}
                   textAnchor="middle"
                   fontSize={9} fontWeight="bold"
-                  fill={isSelected ? '#e8deff' : '#b8b0d0'}
+                  fill={isSelected ? 'var(--bt-staff)' : 'var(--bt-muted)'}
                   fontFamily="ui-monospace,'SF Mono',monospace"
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
@@ -314,13 +314,13 @@ export function TabNotationMeasure({
               style={{
                 width: 36, height: 26, textAlign: 'center',
                 borderRadius: 4,
-                border: '2px solid hsl(262 83% 58%)',
-                background: 'hsl(224 20% 13%)',
+                border: '2px solid var(--bt-accent)',
+                background: 'var(--bt-rule)',
                 color: 'white',
                 fontFamily: "ui-monospace,'SF Mono',monospace",
                 fontSize: 12, fontWeight: 'bold',
                 outline: 'none',
-                boxShadow: '0 0 12px hsl(262 83% 58% / 0.4)',
+                boxShadow: '0 0 12px var(--bt-accent-wash)',
               }}
             />
           </div>
@@ -332,7 +332,7 @@ export function TabNotationMeasure({
         style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '5px 16px', flexShrink: 0,
-          borderTop: '1px solid hsl(224 15% 16%)',
+          borderTop: '1px solid var(--bt-rule)',
         }}
       >
         <button
@@ -340,9 +340,9 @@ export function TabNotationMeasure({
           disabled={currentBar === 0}
           style={{
             padding: '3px 12px', borderRadius: 6,
-            border: '1px solid hsl(224 15% 22%)',
+            border: '1px solid var(--bt-rule)',
             background: 'transparent',
-            color: currentBar === 0 ? '#303048' : '#7070a0',
+            color: currentBar === 0 ? 'var(--bt-rule)' : 'var(--bt-soft)',
             cursor: currentBar === 0 ? 'default' : 'pointer',
             fontSize: 11, fontFamily: 'inherit',
           }}
@@ -350,7 +350,7 @@ export function TabNotationMeasure({
           ← Bar {currentBar}
         </button>
 
-        <span style={{ fontSize: 11, color: '#404068' }}>
+        <span style={{ fontSize: 11, color: 'var(--bt-rule)' }}>
           {currentBar + 1} / {totalBars}
         </span>
 
@@ -359,9 +359,9 @@ export function TabNotationMeasure({
           disabled={currentBar === totalBars - 1}
           style={{
             padding: '3px 12px', borderRadius: 6,
-            border: '1px solid hsl(224 15% 22%)',
+            border: '1px solid var(--bt-rule)',
             background: 'transparent',
-            color: currentBar === totalBars - 1 ? '#303048' : '#7070a0',
+            color: currentBar === totalBars - 1 ? 'var(--bt-rule)' : 'var(--bt-soft)',
             cursor: currentBar === totalBars - 1 ? 'default' : 'pointer',
             fontSize: 11, fontFamily: 'inherit',
           }}

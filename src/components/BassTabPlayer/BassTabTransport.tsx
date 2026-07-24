@@ -7,21 +7,21 @@ import {
 import { type BassSound } from '../../lib/bassTab/types'
 
 const T = {
-  bg:          'hsl(224 20% 11%)',
-  surface:     'hsl(224 18% 17%)',
-  surfaceHov:  'hsl(224 18% 23%)',
-  border:      'hsl(224 15% 22%)',
-  text:        'hsl(220 14% 82%)',
-  muted:       'hsl(220 10% 50%)',
-  primary:     'hsl(262 83% 58%)',
-  primaryBg:   'hsl(262 60% 25%)',
-  primaryText: 'hsl(262 80% 85%)',
-  danger:      'hsl(0 72% 51%)',
-  dangerBg:    'hsl(0 60% 20%)',
-  amber:       'hsl(38 92% 50%)',
-  amberBg:     'hsl(38 60% 18%)',
-  green:       'hsl(142 71% 45%)',
-  greenBg:     'hsl(142 40% 16%)',
+  bg:          'var(--bt-sunken)',
+  surface:     'var(--bt-sunken)',
+  surfaceHov:  'var(--bt-rule)',
+  border:      'var(--bt-rule)',
+  text:        'var(--bt-ink)',
+  muted:       'var(--bt-soft)',
+  primary:     'var(--bt-accent)',
+  primaryBg:   'var(--bt-accent-wash)',
+  primaryText: 'var(--bt-accent)',
+  danger:      'var(--bt-danger)',
+  dangerBg:    'var(--bt-danger-wash)',
+  amber:       'var(--bt-warn)',
+  amberBg:     'var(--bt-warn-wash)',
+  green:       'var(--bt-ok)',
+  greenBg:     'var(--bt-ok-wash)',
 }
 
 const FONT = "'Inter', ui-sans-serif, system-ui, sans-serif"
@@ -392,7 +392,7 @@ export function BassTabTransport(props: TransportProps) {
               {midiInputAvailable && onMidiInputToggle && (
                 <MIconBtn onClick={onMidiInputToggle} title={midiInputActive ? 'MIDI connected — tap to disconnect' : 'Connect MIDI keyboard'}
                   active={midiInputActive}
-                  activeBg="hsl(280 60% 18%)" activeColor="hsl(280 80% 70%)" activeBorder="hsl(280 70% 45%)">
+                  activeBg="var(--bt-accent-wash)" activeColor="var(--bt-accent)" activeBorder="var(--bt-accent)">
                   <Piano size={14} />
                 </MIconBtn>
               )}
@@ -603,7 +603,7 @@ export function BassTabTransport(props: TransportProps) {
 // ── Shared label style ─────────────────────────────────────────────────────
 const labelStyle: React.CSSProperties = {
   fontSize: 9, fontWeight: 600, letterSpacing: '0.06em',
-  textTransform: 'uppercase', color: 'hsl(220 10% 50%)', lineHeight: 1,
+  textTransform: 'uppercase', color: 'var(--bt-soft)', lineHeight: 1,
   marginBottom: 3, display: 'block',
 }
 
@@ -941,7 +941,7 @@ function ExportDropdown({ onExportAscii, onExportMidi, onExportWav, onExportImag
       {open && (
         <div ref={panelRef} style={{
           position: 'fixed', top: pos.top, right: pos.right,
-          background: 'hsl(224 20% 13%)',
+          background: 'var(--bt-rule)',
           border: `1px solid ${T.border}`, borderRadius: 8,
           boxShadow: '0 8px 24px rgba(0,0,0,0.55)',
           padding: 4, minWidth: 170, zIndex: 99999,
@@ -1050,7 +1050,7 @@ function OverflowMenu(p: OverflowMenuProps) {
       {open && (
         <div ref={panelRef} style={{
           position: 'fixed', top: pos.top, right: pos.right,
-          background: 'hsl(224 20% 13%)',
+          background: 'var(--bt-rule)',
           border: `1px solid ${T.border}`, borderRadius: 8,
           boxShadow: '0 8px 24px rgba(0,0,0,0.55)',
           padding: 10, minWidth: 230, zIndex: 9999,
@@ -1109,7 +1109,7 @@ function OverflowMenu(p: OverflowMenuProps) {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '6px 4px', borderRadius: 5, border: 'none', background: 'transparent',
-                  color: p.midiInputActive ? 'hsl(280 80% 70%)' : T.muted,
+                  color: p.midiInputActive ? 'var(--bt-accent)' : T.muted,
                   fontSize: 12, fontFamily: FONT, cursor: 'pointer', width: '100%',
                   transition: 'color 0.1s',
                 }}
@@ -1120,7 +1120,7 @@ function OverflowMenu(p: OverflowMenuProps) {
                 </span>
                 <div style={{
                   width: 28, height: 16, borderRadius: 8, flexShrink: 0,
-                  background: p.midiInputActive ? 'hsl(280 70% 45%)' : T.border,
+                  background: p.midiInputActive ? 'var(--bt-accent)' : T.border,
                   position: 'relative', transition: 'background 0.2s',
                 }}>
                   <div style={{
@@ -1227,7 +1227,7 @@ function StepInput({ value, min, max, onChange, options }: { value: number; min:
         <div
           style={{
             position: 'absolute', bottom: '100%', left: 0, marginBottom: 4,
-            background: 'hsl(224 20% 14%)', border: `1px solid ${T.border}`, borderRadius: 7,
+            background: 'var(--bt-rule)', border: `1px solid ${T.border}`, borderRadius: 7,
             boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
             padding: 4, display: 'flex', flexDirection: 'column', gap: 2, zIndex: 9999, minWidth: 80,
           }}

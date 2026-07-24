@@ -26,6 +26,8 @@ import { type Preset, PRESETS } from '../../data/presets'
 import { useIsMobile } from '../../hooks/use-mobile'
 import { useTrackEditor } from '../../hooks/useTrackEditor'
 import { useMidiInput } from '../../hooks/useMidiInput'
+import { BT_VARS, v, alpha } from '../../lib/bassTab/theme'
+import { BassTabToolsPanel } from './BassTabToolsPanel'
 
 const GP_EXTENSIONS = ['gp', 'gp3', 'gp4', 'gp5', 'gpx', 'gp7']
 
@@ -587,12 +589,13 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
   return (
     <div
-      className="flex flex-col text-white"
+      className="flex flex-col"
       style={{
+        ...BT_VARS,
         height: '100dvh', position: 'relative',
         fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
         overflow: 'hidden', overscrollBehavior: 'none',
-        background: 'hsl(224 24% 8%)',
+        background: v('paper'), color: v('ink'),
       }}
       onContextMenu={handleContextMenu}
       onDragEnter={handleDragEnter}
@@ -604,8 +607,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       <div
         style={{
           flexShrink: 0, height: 50,
-          background: 'hsl(224 20% 8%)',
-          borderBottom: '1px solid hsl(224 15% 18%)',
+          background: 'var(--bt-card)',
+          borderBottom: '1px solid var(--bt-rule)',
           display: 'flex', alignItems: 'center', gap: 8,
           paddingLeft: 16, paddingRight: 16,
           fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
@@ -615,48 +618,48 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0 }}>
           <div style={{
             width: 28, height: 28, borderRadius: 7,
-            background: 'hsl(262 83% 58%)',
+            background: 'var(--bt-accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 12px hsl(262 83% 58% / 0.35)',
+            boxShadow: '0 0 12px transparent',
           }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
             </svg>
           </div>
           {!isMobile && (
-            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.025em', color: 'hsl(220 14% 90%)' }}>
+            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.025em', color: 'var(--bt-ink)' }}>
               ChordSequence
             </span>
           )}
         </a>
 
-        <span style={{ color: 'hsl(224 15% 35%)', fontSize: 14, fontWeight: 300, flexShrink: 0 }}>/</span>
+        <span style={{ color: 'var(--bt-dim)', fontSize: 14, fontWeight: 300, flexShrink: 0 }}>/</span>
 
         {!isMobile && (
           <>
             <a href="/tools/" style={{
-              fontSize: 13, color: 'hsl(220 10% 48%)', textDecoration: 'none',
+              fontSize: 13, color: 'var(--bt-soft)', textDecoration: 'none',
               flexShrink: 0, transition: 'color 0.12s',
             }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 68%)'}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 48%)'}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--bt-ink)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--bt-soft)'}
             >
               Tools
             </a>
-            <span style={{ color: 'hsl(224 15% 30%)', fontSize: 14, fontWeight: 300, flexShrink: 0 }}>/</span>
+            <span style={{ color: 'var(--bt-dim)', fontSize: 14, fontWeight: 300, flexShrink: 0 }}>/</span>
           </>
         )}
 
         <span style={{
-          fontSize: 12, fontWeight: 500, color: 'hsl(262 60% 75%)',
-          background: 'hsl(262 40% 15%)', padding: '2px 9px', borderRadius: 20,
-          border: '1px solid hsl(262 40% 22%)',
+          fontSize: 12, fontWeight: 500, color: 'var(--bt-accent)',
+          background: 'var(--bt-accent-wash)', padding: '2px 9px', borderRadius: 20,
+          border: '1px solid var(--bt-accent-wash)',
           flexShrink: 0,
         }}>
           Bass Tab
         </span>
 
-        <span style={{ color: 'hsl(224 15% 28%)', fontSize: 12, flexShrink: 0 }}>—</span>
+        <span style={{ color: 'var(--bt-dim)', fontSize: 12, flexShrink: 0 }}>—</span>
 
         {editingTrackName ? (
           <input
@@ -668,10 +671,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             }}
             autoFocus
             style={{
-              background: 'hsl(224 18% 17%)',
-              border: '1px solid hsl(262 50% 40%)',
+              background: 'var(--bt-sunken)',
+              border: '1px solid var(--bt-accent)',
               borderRadius: 6,
-              color: 'hsl(220 14% 88%)',
+              color: 'var(--bt-ink)',
               fontSize: 13, fontWeight: 500,
               padding: '2px 8px',
               outline: 'none',
@@ -685,7 +688,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             title="Click to rename"
             style={{
               fontSize: 13, fontWeight: 500,
-              color: 'hsl(220 14% 68%)',
+              color: 'var(--bt-muted)',
               cursor: 'text',
               padding: '2px 4px',
               borderRadius: 4,
@@ -695,8 +698,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
               whiteSpace: 'nowrap',
               transition: 'color 0.12s',
             }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 14% 88%)'}
-            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 14% 68%)'}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--bt-ink)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--bt-muted)'}
           >
             {track.name}
           </span>
@@ -712,13 +715,13 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             display: 'flex', alignItems: 'center', gap: 5,
             padding: isMobile ? '4px 10px' : '3px 10px', borderRadius: 20,
             fontSize: isMobile ? 12 : 11, fontWeight: 500, cursor: 'pointer', border: '1px solid',
-            borderColor: 'hsl(224 15% 28%)',
-            background: 'hsl(224 18% 14%)',
-            color: 'hsl(220 10% 62%)',
+            borderColor: 'var(--bt-dim)',
+            background: 'var(--bt-card)',
+            color: 'var(--bt-muted)',
             transition: 'all 0.15s', flexShrink: 0,
           }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(262 60% 45%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(262 80% 80%)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(224 15% 28%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 62%)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--bt-accent)'; (e.currentTarget as HTMLElement).style.color = 'var(--bt-accent)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--bt-dim)'; (e.currentTarget as HTMLElement).style.color = 'var(--bt-muted)' }}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
@@ -730,10 +733,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         {!isMobile && (
           <>
             <span style={{
-              fontSize: 11, color: 'hsl(220 10% 50%)',
-              background: 'hsl(224 18% 14%)',
+              fontSize: 11, color: 'var(--bt-soft)',
+              background: 'var(--bt-card)',
               padding: '2px 8px', borderRadius: 10,
-              border: '1px solid hsl(224 15% 20%)',
+              border: '1px solid var(--bt-rule)',
             }}>
               {track.notes.length} {track.notes.length === 1 ? 'note' : 'notes'}
             </span>
@@ -742,10 +745,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             {isPlaying && (
               <span style={{
                 fontSize: 11, fontFamily: 'ui-monospace, monospace',
-                color: 'hsl(262 60% 75%)',
-                background: 'hsl(262 40% 15%)',
+                color: 'var(--bt-accent)',
+                background: 'var(--bt-accent-wash)',
                 padding: '2px 10px', borderRadius: 10,
-                border: '1px solid hsl(262 40% 22%)',
+                border: '1px solid var(--bt-accent-wash)',
                 minWidth: 52, textAlign: 'center',
               }}>
                 {`${Math.floor(currentBeat / track.beatsPerBar) + 1}:${Math.floor(currentBeat % track.beatsPerBar) + 1}`}
@@ -756,7 +759,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
         {/* Mobile: note count (compact) */}
         {isMobile && (
-          <span style={{ fontSize: 11, color: 'hsl(220 10% 40%)', fontFamily: 'ui-monospace, monospace' }}>
+          <span style={{ fontSize: 11, color: 'var(--bt-dim)', fontFamily: 'ui-monospace, monospace' }}>
             {track.notes.length}n
           </span>
         )}
@@ -818,8 +821,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         <div style={{
           display: 'flex', alignItems: 'center',
           height: 44, flexShrink: 0,
-          background: 'hsl(224 20% 9%)',
-          borderBottom: '1px solid hsl(224 15% 16%)',
+          background: v('sunken'),
+          borderBottom: `1px solid ${v('rule')}`,
           padding: '0 10px', gap: 4,
         }}>
           {([
@@ -827,28 +830,28 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             { id: 'score',  label: 'Score',        icon: <ScoreIcon /> },
             { id: 'grid',   label: 'Grid',         icon: <GridIcon /> },
             { id: 'guitar', label: 'Bass Guitar',  icon: <GuitarIcon /> },
-          ] as const).map(v => {
-            const active = activeView === v.id
+          ] as const).map(view => {
+            const active = activeView === view.id
             return (
-              <button key={v.id} onClick={() => setActiveView(v.id)}
+              <button key={view.id} onClick={() => setActiveView(view.id)}
+                aria-pressed={active}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '0 12px', height: 30,
-                  background: active ? 'hsl(262 50% 18%)' : 'transparent',
-                  border: `1px solid ${active ? 'hsl(262 50% 35%)' : 'transparent'}`,
-                  borderRadius: 20,
-                  color: active ? 'hsl(262 80% 85%)' : 'hsl(220 10% 42%)',
-                  fontSize: 11, fontWeight: active ? 600 : 400,
-                  cursor: 'pointer', transition: 'all 0.12s',
+                  padding: '0 13px', height: 30,
+                  background: active ? v('accent') : 'transparent',
+                  border: 'none', borderRadius: 7,
+                  color: active ? '#fff' : v('soft'),
+                  fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer', transition: 'background .12s, color .12s',
                   fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
-                  letterSpacing: '0.02em',
+                  boxShadow: active ? v('shadow') : 'none',
                   userSelect: 'none',
                 }}
-                onMouseEnter={e => { if (activeView !== v.id) (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 62%)' }}
-                onMouseLeave={e => { if (activeView !== v.id) (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 42%)' }}
+                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = v('ink') }}
+                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = v('soft') }}
               >
-                {v.icon}
-                <span>{v.label}</span>
+                {view.icon}
+                <span>{view.label}</span>
               </button>
             )
           })}
@@ -856,6 +859,19 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       )}
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
+      {/* Fila: panel de herramientas + lienzo. El panel es solo de escritorio —
+          en móvil no cabe, y allí estos mismos controles siguen estando en el
+          transporte, que ya tiene su propia disposición compacta. */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        {!isMobile && (
+          <BassTabToolsPanel
+            noteDuration={noteDuration} onNoteDurationChange={handleNoteDurationChange}
+            sound={sound} onSoundChange={handleSoundChange}
+            beatsPerBar={track.beatsPerBar} onBeatsPerBarChange={handleBeatsPerBarChange}
+            volume={volume} onVolumeChange={handleVolumeChange}
+          />
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
       {activeView === 'guitar' ? (
         <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
           <BassRealisticDisplay activeFrets={activeFrets} attackSignals={attackSignals} />
@@ -866,18 +882,18 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           {!isMobile && (
             <div style={{ flexShrink: 0 }}>
               <button
-                onClick={() => setFretboardVisible(v => !v)}
+                onClick={() => setFretboardVisible(visible => !visible)}
                 style={{
-                  width: '100%', height: 22, background: 'hsl(224 20% 10%)', border: 'none',
-                  borderBottom: fretboardVisible ? 'none' : '1px solid hsl(224 15% 18%)',
+                  width: '100%', height: 22, background: 'var(--bt-sunken)', border: 'none',
+                  borderBottom: fretboardVisible ? 'none' : '1px solid var(--bt-rule)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                  color: 'hsl(220 10% 34%)', fontSize: 10,
+                  color: 'var(--bt-dim)', fontSize: 10,
                   fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
                   cursor: 'pointer', userSelect: 'none', letterSpacing: '0.04em',
                   transition: 'background 0.1s, color 0.1s',
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 13%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 50%)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'hsl(224 20% 10%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 34%)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bt-rule)'; (e.currentTarget as HTMLElement).style.color = 'var(--bt-soft)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bt-sunken)'; (e.currentTarget as HTMLElement).style.color = 'var(--bt-dim)' }}
               >
                 {fretboardVisible ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                 <span>Fretboard</span>
@@ -943,6 +959,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           )}
         </>
       )}
+        </div>
+      </div>
 
       {/* ── Desktop status bar ────────────────────────────────────────────── */}
       {!isMobile && (
@@ -957,8 +975,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       {isMobile && (
         <div style={{
           flexShrink: 0, height: 62,
-          background: 'hsl(224 20% 9%)',
-          borderTop: '1px solid hsl(224 15% 16%)',
+          background: 'var(--bt-sunken)',
+          borderTop: '1px solid var(--bt-rule)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           padding: '0 12px',
         }}>
@@ -975,11 +993,11 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                 style={{
                   flex: 1, height: 44,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
-                  background: isActive ? 'hsl(262 50% 18%)' : 'transparent',
-                  border: `1px solid ${isActive ? 'hsl(262 50% 32%)' : 'transparent'}`,
+                  background: isActive ? 'var(--bt-accent-wash)' : 'transparent',
+                  border: `1px solid ${isActive ? 'var(--bt-accent)' : 'transparent'}`,
                   borderRadius: 12,
                   cursor: 'pointer',
-                  color: isActive ? 'hsl(262 80% 85%)' : 'hsl(220 10% 42%)',
+                  color: isActive ? 'var(--bt-accent)' : 'var(--bt-soft)',
                   transition: 'all 0.15s',
                   touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
                   fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
@@ -1004,10 +1022,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       {ctxMenu && (() => {
         const menuStyle: React.CSSProperties = {
           position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
-          background: 'hsl(224 20% 14%)',
-          border: '1px solid hsl(224 15% 22%)',
+          background: 'var(--bt-rule)',
+          border: '1px solid var(--bt-rule)',
           borderRadius: 8,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px hsl(224 15% 22%)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px var(--bt-rule)',
           minWidth: 180, overflow: 'hidden',
           fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
         }
@@ -1019,10 +1037,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
               display: 'block', width: '100%', textAlign: 'left',
               padding: '8px 14px', fontSize: 12, cursor: disabled ? 'not-allowed' : 'pointer',
               background: 'transparent', border: 'none',
-              color: disabled ? 'hsl(220 10% 38%)' : danger ? 'hsl(0 72% 65%)' : 'hsl(220 14% 80%)',
+              color: disabled ? 'var(--bt-dim)' : danger ? 'var(--bt-danger)' : 'var(--bt-ink)',
               transition: 'background 0.08s', fontFamily: 'inherit',
             }}
-            onMouseEnter={e => { if (!disabled) (e.target as HTMLElement).style.background = 'hsl(224 15% 22%)' }}
+            onMouseEnter={e => { if (!disabled) (e.target as HTMLElement).style.background = 'var(--bt-rule)' }}
             onMouseLeave={e => { (e.target as HTMLElement).style.background = 'transparent' }}
           >
             {label}
@@ -1088,21 +1106,21 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       {dragOver && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 900,
-          background: 'hsl(224 24% 6% / 0.88)', backdropFilter: 'blur(6px)',
+          background: 'rgba(28,27,25,0.55)', backdropFilter: 'blur(6px)',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 14,
-          border: '2px dashed hsl(262 60% 52%)',
+          border: '2px dashed var(--bt-accent)',
           pointerEvents: 'none',
         }}>
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none"
-            stroke="hsl(262 80% 72%)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            stroke="var(--bt-accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 18V5l12-2v13"/>
             <circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
           </svg>
-          <span style={{ color: 'hsl(262 80% 88%)', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>
+          <span style={{ color: 'var(--bt-accent)', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>
             Drop MIDI or Guitar Pro file
           </span>
-          <span style={{ color: 'hsl(220 10% 52%)', fontSize: 13 }}>
+          <span style={{ color: 'var(--bt-muted)', fontSize: 13 }}>
             .mid · .midi · .gp · .gp3 · .gp4 · .gp5 · .gpx · .gp7
           </span>
         </div>
@@ -1116,8 +1134,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
-            background: 'hsl(224 20% 11%)',
-            border: '1px solid hsl(224 15% 22%)',
+            background: 'var(--bt-sunken)',
+            border: '1px solid var(--bt-rule)',
             borderRadius: 14, padding: '24px 26px',
             width: 340, maxWidth: '92vw',
             boxShadow: '0 20px 60px rgba(0,0,0,0.65)',
@@ -1126,30 +1144,30 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 9,
-                background: 'hsl(262 40% 18%)', border: '1px solid hsl(262 40% 26%)',
+                background: 'var(--bt-accent-wash)', border: '1px solid var(--bt-accent-wash)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                  stroke="hsl(262 80% 74%)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  stroke="var(--bt-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
                 </svg>
               </div>
               <div>
-                <div style={{ color: 'hsl(220 14% 90%)', fontWeight: 600, fontSize: 15, lineHeight: 1.2 }}>
+                <div style={{ color: 'var(--bt-ink)', fontWeight: 600, fontSize: 15, lineHeight: 1.2 }}>
                   MIDI ready to import
                 </div>
-                <div style={{ color: 'hsl(220 10% 48%)', fontSize: 12, marginTop: 3 }}>
+                <div style={{ color: 'var(--bt-soft)', fontSize: 12, marginTop: 3 }}>
                   {midiPending.selectedTrackName}
                 </div>
               </div>
             </div>
 
             <div style={{
-              background: 'hsl(224 24% 7%)', borderRadius: 9,
+              background: 'var(--bt-paper)', borderRadius: 9,
               padding: '12px 14px',
               display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr',
               gap: '8px 0', marginBottom: 16,
-              border: '1px solid hsl(224 15% 17%)',
+              border: '1px solid var(--bt-rule)',
             }}>
               {([
                 { label: 'Notes', value: midiPending.track.notes.length },
@@ -1158,10 +1176,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                 { label: 'Time',  value: `${midiPending.track.beatsPerBar}/4` },
               ] as const).map(({ label, value }) => (
                 <div key={label} style={{ textAlign: 'center' }}>
-                  <div style={{ color: 'hsl(220 10% 40%)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <div style={{ color: 'var(--bt-dim)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     {label}
                   </div>
-                  <div style={{ color: 'hsl(262 60% 80%)', fontSize: 16, fontWeight: 700, fontFamily: 'ui-monospace, monospace', marginTop: 2 }}>
+                  <div style={{ color: 'var(--bt-accent)', fontSize: 16, fontWeight: 700, fontFamily: 'ui-monospace, monospace', marginTop: 2 }}>
                     {value}
                   </div>
                 </div>
@@ -1170,11 +1188,11 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
             {midiPending.warnings.length > 0 && (
               <div style={{
-                background: 'hsl(38 50% 10%)', border: '1px solid hsl(38 60% 22%)',
+                background: 'rgba(184,121,31,0.10)', border: '1px solid rgba(184,121,31,0.35)',
                 borderRadius: 7, padding: '9px 12px', marginBottom: 16,
               }}>
                 {midiPending.warnings.map((w, i) => (
-                  <div key={i} style={{ color: 'hsl(38 80% 68%)', fontSize: 12, lineHeight: 1.5 }}>
+                  <div key={i} style={{ color: '#b8791f', fontSize: 12, lineHeight: 1.5 }}>
                     ⚠ {w}
                   </div>
                 ))}
@@ -1186,12 +1204,12 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                 onClick={() => setMidiPending(null)}
                 style={{
                   flex: 1, padding: '9px 0', borderRadius: 8,
-                  background: 'transparent', border: '1px solid hsl(224 15% 24%)',
-                  color: 'hsl(220 10% 52%)', fontSize: 13, fontWeight: 500,
+                  background: 'transparent', border: '1px solid var(--bt-rule)',
+                  color: 'var(--bt-muted)', fontSize: 13, fontWeight: 500,
                   cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.12s, color 0.12s',
                 }}
-                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'hsl(224 15% 36%)'; el.style.color = 'hsl(220 14% 70%)' }}
-                onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = 'hsl(224 15% 24%)'; el.style.color = 'hsl(220 10% 52%)' }}
+                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'var(--bt-dim)'; el.style.color = 'var(--bt-muted)' }}
+                onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = 'var(--bt-rule)'; el.style.color = 'var(--bt-muted)' }}
               >
                 Cancel
               </button>
@@ -1199,10 +1217,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                 onClick={() => handleImportTrack(midiPending.track)}
                 style={{
                   flex: 2, padding: '9px 0', borderRadius: 8,
-                  background: 'hsl(262 83% 58%)', border: 'none',
+                  background: 'var(--bt-accent)', border: 'none',
                   color: 'white', fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', fontFamily: 'inherit',
-                  boxShadow: '0 0 18px hsl(262 83% 58% / 0.32)',
+                  boxShadow: '0 0 18px transparent',
                   transition: 'opacity 0.12s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.opacity = '0.88' }}
@@ -1222,8 +1240,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           style={{
             position: 'absolute', bottom: 72, left: '50%', transform: 'translateX(-50%)',
             zIndex: 1000, cursor: 'pointer',
-            background: 'hsl(0 55% 18%)', border: '1px solid hsl(0 55% 32%)',
-            color: 'hsl(0 80% 80%)', borderRadius: 9,
+            background: 'rgba(214,69,69,0.10)', border: '1px solid rgba(214,69,69,0.35)',
+            color: 'var(--bt-danger)', borderRadius: 9,
             padding: '10px 18px', fontSize: 13, maxWidth: 340, textAlign: 'center',
             boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
             fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
@@ -1238,12 +1256,12 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         <div
           style={{
             position: 'fixed', bottom: 40, left: '50%', transform: 'translateX(-50%)',
-            background: 'hsl(262 83% 50%)',
+            background: 'var(--bt-accent-hi)',
             color: 'white', borderRadius: 10,
             padding: '9px 20px', fontSize: 13, zIndex: 9999,
             fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
             fontWeight: 500,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px hsl(262 60% 60% / 0.3)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px var(--bt-accent-wash)',
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
           }}
@@ -1315,8 +1333,8 @@ function StatusBar({ isPlaying, selectedNote, currentBeat, beatsPerBar, loop, gu
 
   return (
     <div style={{
-      height: 30, background: 'hsl(224 20% 7%)',
-      borderTop: '1px solid hsl(224 15% 16%)',
+      height: 30, background: 'var(--bt-paper)',
+      borderTop: '1px solid var(--bt-rule)',
       display: 'flex', alignItems: 'center', gap: 18,
       paddingLeft: 16, paddingRight: 16,
       fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
@@ -1325,7 +1343,7 @@ function StatusBar({ isPlaying, selectedNote, currentBeat, beatsPerBar, loop, gu
       {hints.map((h, i) => (
         <span key={i} style={{
           fontSize: 10, whiteSpace: 'nowrap',
-          color: h.accent ? 'hsl(262 70% 72%)' : 'hsl(220 10% 38%)',
+          color: h.accent ? 'var(--bt-accent)' : 'var(--bt-dim)',
           fontVariantNumeric: 'tabular-nums',
         }}>
           {h.text}
