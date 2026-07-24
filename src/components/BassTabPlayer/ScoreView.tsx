@@ -27,6 +27,12 @@ const KEY_NAME = 'C'  // TODO: selector de tonalidad → campo `key` en el track
 const OCTAVE_UP = 12  // el bajo se escribe una octava por encima del sonido real
 const SNAP = 0.25
 
+/** Alfa sobre un color hex de 6 dígitos (para relleno/contorno del cursor). */
+function withAlpha(hex: string, a: number): string {
+  const n = parseInt(hex.slice(1), 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+}
+
 // ── beats ↔ duración VexFlow ────────────────────────────────────────────────
 function beatsToVexDur(beats: number, isRest = false): string {
   let base: string
@@ -142,7 +148,7 @@ interface Props {
 interface EditCursor { beat: number; stringIndex: StringIndex }
 
 export function ScoreView({
-  track, zoom, currentBeat, cursorBeat, isPlaying, selectedNoteId, sound, noteDuration,
+  track, zoom, currentBeat, isPlaying, selectedNoteId, sound, noteDuration,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote, onCursorBeatChange, onBeginEdit, onSectionChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -522,8 +528,9 @@ export function ScoreView({
   useEffect(() => { if (isPlaying) followBeat(currentBeat) }, [currentBeat, isPlaying, followBeat])
   useEffect(() => { if (editCursor) followBeat(editCursor.beat) }, [editCursor, followBeat])
 
-  // ── Overlays (cursor, selección, reproducción, secciones) ─────────────────
-  const activeBeat = isPlaying ? currentBeat : cursorBeat
+  // ── Overlays (cursor de edición, selección, insignias, secciones) ─────────
+  // El marcador de reproducción NO va aquí: se anima aparte, imperativo, para
+  // que sea un glide suave del compositor y no un salto por estado de React.
   void geomVersion  // fuerza recálculo de overlays cuando cambia la geometría
 
   const overlays = useMemo(() => {
@@ -531,73 +538,73 @@ export function ScoreView({
     if (!g.length) return null
     const els: React.ReactNode[] = []
 
-    // Cursor de edición
-    if (editCursor && !isPlaying) {
-      const bg = barForBeat(editCursor.beat)
-      const x = beatToX(editCursor.beat)
+    // Cursor de edición / selección — columna de acento + anillo sobre la
+    // cuerda, como el diseño. La posición es el editCursor si lo hay; si no,
+    // la nota seleccionada.
+    const ringAt = !isPlaying
+      ? (editCursor ?? (() => {
+          const sel = track.notes.find(n => n.id === selectedNoteId)
+          return sel ? { beat: sel.startBeat, stringIndex: sel.stringIndex } : null
+        })())
+      : null
+    if (ringAt) {
+      const bg = barForBeat(ringAt.beat)
+      const x = beatToX(ringAt.beat)
       if (bg && x !== null) {
-        const rw = fretBuffer.length > 1 ? 22 : 15
+        const sy = bg.tabStringY[ringAt.stringIndex]
+        const hasFret = !!findNoteAtBeat(track.notes, ringAt.stringIndex, ringAt.beat)
+        // Columna
         els.push(
-          <div key="cur-col" style={{
-            position: 'absolute', left: x - rw / 2, top: bg.tabTopY - 6,
-            width: rw, height: (bg.tabBottomY - bg.tabTopY) + 12, borderRadius: 3,
-            background: BT.accentWash, pointerEvents: 'none',
+          <div key="col" style={{
+            position: 'absolute', left: x - 16, top: bg.staffTopY - 16,
+            width: 32, height: (bg.tabBottomY - bg.staffTopY) + 34, borderRadius: 3,
+            background: BT.accentWash, border: `1.4px solid ${withAlpha(BT.accent, 0.55)}`,
+            boxSizing: 'border-box', pointerEvents: 'none',
           }} />,
-          <div key="cur-cell" style={{
-            position: 'absolute', left: x - rw / 2, top: bg.tabStringY[editCursor.stringIndex] - 8,
-            width: rw, height: 16, borderRadius: 3,
-            background: BT.accentWash, border: `1.5px ${fretBuffer ? 'solid' : 'dashed'} ${BT.accent}`,
-            pointerEvents: 'none', boxSizing: 'border-box',
+        )
+        // Anillo sobre la cuerda
+        const r = hasFret ? 9.5 : 7.5
+        if (!hasFret) els.push(
+          <div key="ring-bg" style={{
+            position: 'absolute', left: x - r, top: sy - r, width: r * 2, height: r * 2,
+            borderRadius: '50%', background: BT.card, pointerEvents: 'none',
+          }} />,
+        )
+        els.push(
+          <div key="ring" style={{
+            position: 'absolute', left: x - r, top: sy - r, width: r * 2, height: r * 2,
+            borderRadius: '50%', border: `2px solid ${BT.accent}`, boxSizing: 'border-box', pointerEvents: 'none',
+          }} />,
+        )
+        if (!hasFret && !fretBuffer) els.push(
+          <div key="ring-dot" style={{
+            position: 'absolute', left: x - 2, top: sy - 2, width: 4, height: 4,
+            borderRadius: '50%', background: withAlpha(BT.accent, 0.45), pointerEvents: 'none',
           }} />,
         )
         if (fretBuffer) els.push(
-          <div key="cur-buf" style={{
-            position: 'absolute', left: x - rw / 2, top: bg.tabStringY[editCursor.stringIndex] - 8,
-            width: rw, height: 16, display: 'grid', placeItems: 'center',
-            color: BT.accent, fontFamily: 'ui-monospace, monospace',
-            fontSize: 10, fontWeight: 700, pointerEvents: 'none',
+          <div key="buf" style={{
+            position: 'absolute', left: x - r, top: sy - r, width: r * 2, height: r * 2,
+            display: 'grid', placeItems: 'center', color: BT.accent,
+            fontFamily: 'ui-monospace, monospace', fontSize: 10, fontWeight: 700, pointerEvents: 'none',
           }}>{fretBuffer}</div>,
         )
       }
     }
 
-    // Nota seleccionada
-    const sel = track.notes.find(n => n.id === selectedNoteId)
-    if (sel) {
-      const bg = barForBeat(sel.startBeat)
-      const x = beatToX(sel.startBeat)
-      if (bg && x !== null) els.push(
-        <div key="sel" style={{
-          position: 'absolute', left: x - 9, top: bg.tabStringY[sel.stringIndex] - 9,
-          width: 18, height: 18, borderRadius: 4,
-          border: `1.5px solid ${BT.accent}`, pointerEvents: 'none', boxSizing: 'border-box',
-        }} />,
-      )
-    }
-
-    // Cursor de reproducción
-    {
-      const bg = barForBeat(activeBeat)
-      const x = beatToX(activeBeat)
-      if (bg && x !== null) els.push(
-        <div key="play" style={{
-          position: 'absolute', left: x, top: bg.staffTopY - 8,
-          width: isPlaying ? 2 : 1, height: (bg.tabBottomY - bg.staffTopY) + 20,
-          background: BT.accent, opacity: isPlaying ? 0.9 : 0.5, pointerEvents: 'none',
-        }} />,
-      )
-    }
-
-    // Etiquetas de cuerda por sistema + secciones + números de compás
+    // Etiquetas de cuerda por sistema + insignia azul de número de compás
     const seenSys = new Set<number>()
     g.forEach(bg => {
       const sysKey = Math.round(bg.staffTopY)
-      // número de compás
+      // Número de compás: insignia azul (referencia, no accionable), como el diseño
       els.push(
         <div key={`bn-${bg.bar}`} style={{
-          position: 'absolute', left: bg.leftX + 3, top: bg.staffTopY - 26,
-          fontSize: 9, color: BT.dim, fontFamily: 'ui-monospace, monospace',
-          cursor: 'context-menu', pointerEvents: 'none',
+          position: 'absolute', left: bg.leftX + 2, top: bg.staffTopY - 30,
+          minWidth: 18, height: 16, padding: '0 4px', borderRadius: 5,
+          background: BT.barWash, color: BT.bar,
+          fontSize: 10, fontWeight: 700, fontFamily: 'ui-monospace, monospace',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
         }} data-bar={bg.bar}>{bg.bar + 1}</div>,
       )
       if (!seenSys.has(sysKey)) {
@@ -635,7 +642,76 @@ export function ScoreView({
 
     return els
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editCursor, fretBuffer, isPlaying, activeBeat, selectedNoteId, track.notes, track.sections, geomVersion, barForBeat, beatToX])
+  }, [editCursor, fretBuffer, isPlaying, selectedNoteId, track.notes, track.sections, geomVersion, barForBeat, beatToX])
+
+  // ── Marcador de reproducción (WAAPI, glide del compositor) ────────────────
+  // Como el diseño: un div dedicado que se anima con keyframes precomputados a
+  // partir del BPM y de la geometría real de cada figura, en vez de saltar por
+  // estado de React. Al llegar a un salto de sistema, la x salta limpia porque
+  // el final de un compás y el inicio del siguiente comparten el mismo beat
+  // (mismo offset → paso duro en WAAPI).
+  const markerRef = useRef<HTMLDivElement>(null)
+  const animRef   = useRef<Animation | null>(null)
+  const lastBeatRef = useRef(0)
+
+  const stopMarker = useCallback(() => {
+    if (animRef.current) { try { animRef.current.cancel() } catch { /* ya cancelada */ } animRef.current = null }
+    if (markerRef.current) markerRef.current.style.display = 'none'
+  }, [])
+
+  const startMarker = useCallback((fromBeat: number) => {
+    const el = markerRef.current
+    const g  = barGeomRef.current
+    if (!el || !g.length) return
+    const bpb      = track.beatsPerBar
+    const endBeat  = track.totalBars * bpb
+    const secBeat  = 60 / track.bpm
+    const span     = endBeat - fromBeat
+    if (span <= 0) { stopMarker(); return }
+
+    const frames: Keyframe[] = []
+    let lastOff = 0
+    const push = (beat: number, x: number, top: number, h: number) => {
+      let off = (beat - fromBeat) / span
+      off = Math.max(lastOff, Math.min(1, off)); lastOff = off
+      frames.push({ offset: off, transform: `translate(${x - 1}px, ${top}px)`, height: `${h}px` })
+    }
+
+    // Frame inicial exacto en fromBeat
+    const bg0 = barForBeat(fromBeat)
+    const x0  = beatToX(fromBeat)
+    if (bg0 && x0 !== null) push(fromBeat, x0, bg0.staffTopY - 8, (bg0.tabBottomY - bg0.staffTopY) + 20)
+
+    for (const bg of g) {
+      const top = bg.staffTopY - 8
+      const h   = (bg.tabBottomY - bg.staffTopY) + 20
+      for (const node of barNodes(bg)) {
+        if (node.beat <= fromBeat) continue
+        push(node.beat, node.x, top, h)
+      }
+    }
+    if (frames.length < 2) { stopMarker(); return }
+
+    if (animRef.current) { try { animRef.current.cancel() } catch { /* noop */ } }
+    el.style.display = 'block'
+    if (bg0 && x0 !== null) {
+      el.style.transform = `translate(${x0 - 1}px, ${bg0.staffTopY - 8}px)`
+      el.style.height = `${(bg0.tabBottomY - bg0.staffTopY) + 20}px`
+    }
+    const anim = el.animate(frames, { duration: span * secBeat * 1000, easing: 'linear', fill: 'both' })
+    anim.onfinish = () => { if (markerRef.current) markerRef.current.style.display = 'none' }
+    animRef.current = anim
+  }, [track.beatsPerBar, track.totalBars, track.bpm, barForBeat, beatToX, barNodes, stopMarker])
+
+  // Arrancar al reproducir; reiniciar en saltos (loop/seek); parar al detener.
+  useEffect(() => {
+    if (!isPlaying) { stopMarker(); lastBeatRef.current = currentBeat; return }
+    // Sólo (re)arrancar en el arranque o ante un salto (|Δ| grande); durante la
+    // reproducción normal la animación ya corre sola y currentBeat sólo avanza.
+    const jumped = Math.abs(currentBeat - lastBeatRef.current) > 0.75 || !animRef.current
+    lastBeatRef.current = currentBeat
+    if (jumped) startMarker(currentBeat)
+  }, [isPlaying, currentBeat, geomVersion, startMarker, stopMarker])
 
   const commitSection = useCallback(() => {
     if (!pendingSection) return
@@ -662,6 +738,16 @@ export function ScoreView({
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
             {overlays}
           </div>
+          {/* Marcador de reproducción — animado imperativamente (WAAPI) */}
+          <div
+            ref={markerRef}
+            style={{
+              position: 'absolute', left: 0, top: 0, width: 2.5, height: 0,
+              background: BT.accent, borderRadius: 2,
+              boxShadow: `0 0 6px ${withAlpha(BT.accent, 0.5)}`,
+              display: 'none', pointerEvents: 'none', zIndex: 5, willChange: 'transform',
+            }}
+          />
 
           {pendingSection && (
             <div style={{ position: 'absolute', left: pendingSection.screenX, top: pendingSection.screenY - 4, zIndex: 200 }}>
