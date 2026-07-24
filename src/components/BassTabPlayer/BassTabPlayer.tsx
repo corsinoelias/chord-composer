@@ -8,7 +8,7 @@ import { MobileTabEditor } from './MobileTabEditor'
 import { type BassNote, type BassTrack, type BassSound, type SnapValue, type StringIndex, type LoopRange, DEFAULT_TRACK } from '../../lib/bassTab/types'
 import { DEFAULT_INTRO_TRACK } from '../../data/defaultBassTab'
 import { TabScore } from './TabScore'
-import { TabNotationView } from './TabNotationView'
+import { ScoreView } from './ScoreView'
 import { snapToGrid, findNoteAtBeat, clampDuration } from '../../lib/bassTab/bassTheory'
 import { startPlayback, stopPlayback, setMasterVolume, previewNote } from '../../lib/bassTab/bassAudio'
 import { RecordingOverlay } from './RecordingOverlay'
@@ -1040,7 +1040,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                     onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
                   />
                 ) : activeView === 'score' ? (
-                  <TabNotationView
+                  <ScoreView
                     track={track} zoom={zoom} currentBeat={currentBeat}
                     cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
                     sound={sound} noteDuration={noteDuration}
