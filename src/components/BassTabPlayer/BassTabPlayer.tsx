@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { ChevronDown, ChevronUp, Plus, Minus, Copy, Trash2 } from 'lucide-react'
+import { Plus, Minus, Copy, Trash2 } from 'lucide-react'
 import { importMidi, type MidiImportResult } from '../../lib/import/midiImport'
 import { parseGpFile } from '../../lib/bassTab/gpImport'
 import { BassTabSeekBar } from './BassTabSeekBar'
@@ -139,6 +139,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   }, [])
 
   const [fretboardVisible, setFretboardVisible]   = useState(true)
+  // Alto del diapasón en el dock. 240 no es arbitrario: por debajo de ~240 el
+  // mástil se encoge tanto que ni con los 24 trastes llena el ancho de un
+  // escritorio de 1440, y sobra fondo a los lados.
+  const fretboardHeight = isShortScreen ? 170 : 240
   const [editingTrackName, setEditingTrackName]   = useState(false)
   const [recordingOpen, setRecordingOpen]         = useState(false)
   const [exportImageOpen, setExportImageOpen]   = useState(false)
@@ -662,6 +666,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       onToggleExpand={() => { setTransportExpanded(e => !e); setFretboardVisible(false) }}
       currentBeat={currentBeat}
       beatsPerBar={track.beatsPerBar}
+      fretboardVisible={fretboardVisible}
+      onFretboardToggle={isMobile || activeView === 'guitar' ? undefined : () => setFretboardVisible(f => !f)}
       midiInputAvailable={midiInput.available}
       midiInputActive={midiInput.active}
       midiDeviceName={midiInput.devices.find(d => d.id === midiInput.selectedDeviceId)?.name ?? null}
@@ -955,40 +961,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         </div>
       ) : (
         <>
-          {/* Fretboard collapsible — desktop only */}
-          {!isMobile && (
-            <div style={{ flexShrink: 0 }}>
-              <button
-                onClick={() => setFretboardVisible(visible => !visible)}
-                style={{
-                  width: '100%', height: 22, background: 'var(--bt-sunken)', border: 'none',
-                  borderBottom: fretboardVisible ? 'none' : '1px solid var(--bt-rule)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                  color: 'var(--bt-dim)', fontSize: 10,
-                  fontFamily: 'var(--bt-ui)',
-                  cursor: 'pointer', userSelect: 'none', letterSpacing: '0.04em',
-                  transition: 'background 0.1s, color 0.1s',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bt-rule)'; (e.currentTarget as HTMLElement).style.color = 'var(--bt-soft)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bt-sunken)'; (e.currentTarget as HTMLElement).style.color = 'var(--bt-dim)' }}
-              >
-                {fretboardVisible ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                <span>Fretboard</span>
-              </button>
-              <div style={{
-                overflow: 'hidden',
-                maxHeight: fretboardVisible ? (isShortScreen ? 150 : 200) : 0,
-                transition: 'max-height 0.2s ease',
-              }}>
-                <BassTabFretboard
-                  activeFrets={activeFrets} attackSignals={attackSignals}
-                  onNoteClick={handleFretboardNote}
-                  maxHeight={isShortScreen ? 150 : 200}
-                />
-              </div>
-            </div>
-          )}
-
           {/* Mobile: Edit (editable notation) or Score (read-only notation) */}
           {isMobile ? (
             activeView === 'tab' ? (
@@ -1070,6 +1042,31 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                 onTransposeDown={() => handleTranspose(-1)}
                 onClearAll={handleClearAll}
               />
+            </div>
+          )}
+
+          {/* ── Dock del diapasón ─────────────────────────────────────────
+              Debajo de la partitura, no encima: la partitura es lo que se
+              lee y va arriba; el diapasón es el instrumento y descansa al
+              pie, sobre su propio chasis oscuro. Se pliega desde el
+              conmutador del transporte. */}
+          {!isMobile && (
+            <div style={{
+              flexShrink: 0, overflow: 'hidden',
+              maxHeight: fretboardVisible ? fretboardHeight + 20 : 0,
+              transition: 'max-height 0.2s ease',
+              background: v('panel'),
+              borderTop: `1px solid ${v('panelRule')}`,
+            }}>
+              <div style={{ padding: '10px 14px' }}>
+                <div style={{ borderRadius: 10, overflow: 'hidden' }}>
+                  <BassTabFretboard
+                    activeFrets={activeFrets} attackSignals={attackSignals}
+                    onNoteClick={handleFretboardNote}
+                    maxHeight={fretboardHeight}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </>

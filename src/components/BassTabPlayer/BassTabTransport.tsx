@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import {
   Play, Square, SkipBack, RotateCcw,
   Undo2, Redo2, Trash2, Download, Share2, Bell, BellOff, Music, Upload,
-  ChevronDown, ChevronUp, Waves, Piano, FileMusic,
+  ChevronDown, ChevronUp, Waves, Piano, FileMusic, Guitar,
 } from 'lucide-react'
 import { type BassSound } from '../../lib/bassTab/types'
 import { v, f } from '../../lib/bassTab/theme'
@@ -58,6 +58,9 @@ interface TransportProps {
   beatsPerBar?: number
   // Recording
   onRecord?: () => void
+  // Dock del diapasón (solo escritorio)
+  fretboardVisible?: boolean
+  onFretboardToggle?: () => void
   // Feature 6: MIDI input
   midiInputAvailable?: boolean
   midiInputActive?: boolean
@@ -82,6 +85,7 @@ export function BassTabTransport(props: TransportProps) {
     onNoteDurationChange,
     isMobile = false, compact = false, onToggleExpand,
     currentBeat = 0, beatsPerBar = 4,
+    fretboardVisible, onFretboardToggle,
     midiInputAvailable, midiInputActive, midiDeviceName, onMidiInputToggle,
     onExportWav, onExportImage, onExportVideo,
     loopRangeActive, onToggleLoopRange,
@@ -499,6 +503,16 @@ export function BassTabTransport(props: TransportProps) {
               <RotateCcw size={13} />
               <span>Loop</span>
             </TBtn>
+            {onFretboardToggle && (
+              <TBtn
+                onClick={onFretboardToggle}
+                pressed={!!fretboardVisible}
+                title="Mostrar u ocultar el diapasón"
+              >
+                <Guitar size={13} />
+                <span>Fretboard</span>
+              </TBtn>
+            )}
             {midiInputAvailable && onMidiInputToggle && (
               <TBtn
                 onClick={onMidiInputToggle}

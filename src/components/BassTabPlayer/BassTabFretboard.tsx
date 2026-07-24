@@ -75,6 +75,7 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
   const containerRef              = useRef<HTMLDivElement>(null)
   const [fretCount, setFretCount] = useState(MIN_FRETS)
   const [scale, setScale]         = useState(1)
+  const [containerW, setContainerW] = useState(0)
 
   useEffect(() => {
     const el = containerRef.current
@@ -82,12 +83,21 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
     const measure = () => {
       const w = el.getBoundingClientRect().width
       if (w <= 0) return
-      const naturalFrets = Math.max(MIN_FRETS, Math.min(MAX_FRETS, Math.floor((w - LABEL_W - OPEN_W) / CELL_W)))
-      const naturalW = LABEL_W + OPEN_W + naturalFrets * CELL_W
-      const scaleW = Math.min(1, w / naturalW)
+
+      // El alto manda: es lo que fija cuánto se encoge el mástil.
       const scaleH = maxHeight ? Math.min(1, maxHeight / NATURAL_H) : 1
-      setFretCount(naturalFrets)
-      setScale(Math.min(scaleW, scaleH))
+
+      // Y por eso los trastes se cuentan sobre el ancho *en coordenadas sin
+      // escalar*, no sobre el ancho en pantalla. Contarlos sobre el ancho real
+      // dejaba un mástil corto —el encogido posterior no se compensaba— y una
+      // banda negra a la derecha de todo lo que sobraba.
+      const availW = w / scaleH
+      const frets  = Math.max(MIN_FRETS, Math.min(MAX_FRETS, Math.floor((availW - LABEL_W - OPEN_W) / CELL_W)))
+
+      const naturalW = LABEL_W + OPEN_W + frets * CELL_W
+      setFretCount(frets)
+      setScale(Math.min(scaleH, w / naturalW))
+      setContainerW(w)
     }
     const ro = new ResizeObserver(measure)
     ro.observe(el)
@@ -164,7 +174,15 @@ export function BassTabFretboard({ activeFrets, attackSignals, onNoteClick, maxH
         WebkitUserSelect: 'none',
       }}
     >
-      <div style={{ width: totalW, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+      {/* Con 24 trastes ya dibujados puede seguir sobrando ancho: ahí el mástil
+          se centra, para que lo que sobre no quede todo en un margen a la
+          derecha. */}
+      <div style={{
+        width: totalW,
+        transform: `scale(${scale})`,
+        transformOrigin: 'top left',
+        marginLeft: Math.max(0, (containerW - totalW * scale) / 2),
+      }}>
 
         {/* ── Fret-number header ─────────────────────────────────────────── */}
         <div style={{ display:'flex', height:26, background:'hsl(224 20% 9%)', borderBottom:'1px solid hsl(224 15% 16%)', userSelect:'none' }}>
