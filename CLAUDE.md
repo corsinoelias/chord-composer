@@ -109,7 +109,9 @@ Provides per-section melodic patterns on top of rhythm styles. Each section can 
 
 ### Supabase
 
-Client in `src/lib/supabase.ts`. Requires `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` in `.env`. Uses real email/password accounts — `ensureAuth()` returns the current user's id or `null` if logged out; it never creates a session. Saving is gated behind login: the editor works fully without an account, but autosave and song persistence only run once the user signs up/in via `AuthModal`. The chord editor uses it for song storage (`progressions` table) and user settings (custom styles/overrides); the bass tab player does not use Supabase.
+Client in `src/lib/supabase.ts`. Requires `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` in `.env`.
+
+**Song sharing** — `progressions.is_public` (default false) opts a song into being readable via its `/chord-player/<id>` link; flipped by the Share button in the editor (`setSongVisibility`). A visitor who isn't the owner loads through `getSongForViewer`, which reports `isOwner`; the editor then deliberately leaves `currentSongId` null so autosave can never target the owner's row. Their first edit forks the session into their own copy (new id on save, URL reset to `/chord-player/`, draft held in `localStorage` via `src/lib/forkDraft.ts` until saved). RLS is the backstop, not this logic — see `supabase/migrations/20260727_share_progressions.sql`. Uses real email/password accounts — `ensureAuth()` returns the current user's id or `null` if logged out; it never creates a session. Saving is gated behind login: the editor works fully without an account, but autosave and song persistence only run once the user signs up/in via `AuthModal`. The chord editor uses it for song storage (`progressions` table) and user settings (custom styles/overrides); the bass tab player does not use Supabase.
 
 ### Content
 

@@ -29,6 +29,54 @@ export async function getSongFromCloud(id: string): Promise<Song | null> {
   return data ? migrateLegacySong(data.data) : null;
 }
 
+export interface SongForViewer {
+  song: Song;
+  /** False when the song was opened from someone else's share link (or logged out). */
+  isOwner: boolean;
+  isPublic: boolean;
+}
+
+/**
+ * Like getSongFromCloud, but also reports whether the current visitor owns the row.
+ * The editor needs that distinction: a non-owner must never end up with the song's id
+ * in `currentSongId`, because autosave is keyed on it and would try to write back to
+ * the owner's row. RLS would reject that write anyway — this keeps it from ever being
+ * attempted, and lets the UI offer a copy instead of failing silently.
+ */
+export async function getSongForViewer(id: string): Promise<SongForViewer | null> {
+  if (!supabase) return null;
+  const userId = await ensureAuth();
+  const { data, error } = await supabase
+    .from('progressions')
+    .select('data, user_id, is_public')
+    .eq('id', id)
+    .single();
+  if (error || !data) return null;
+  return {
+    song: migrateLegacySong(data.data),
+    isOwner: !!userId && data.user_id === userId,
+    isPublic: !!data.is_public,
+  };
+}
+
+/** Opt a song in/out of being readable via its /chord-player/<id> link. Owner only. */
+export async function setSongVisibility(id: string, isPublic: boolean): Promise<boolean> {
+  const userId = await ensureAuth();
+  if (!supabase || !userId) return false;
+  const { data, error } = await supabase
+    .from('progressions')
+    .update({ is_public: isPublic })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select('id')
+    .maybeSingle();
+  if (error) {
+    console.error('Cloud setSongVisibility error:', error.message);
+    return false;
+  }
+  return !!data;
+}
+
 export async function saveSongToCloud(song: Song): Promise<void> {
   const userId = await ensureAuth();
   if (!supabase || !userId) return;
