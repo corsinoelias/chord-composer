@@ -16,6 +16,16 @@ export const analytics = {
   exportNudgeShown: () => track('export_nudge_shown'),
   exportNudgeClicked: () => track('export_nudge_clicked'),
 
+  // Song sharing. A share link is where brand-new people enter the editor, so the
+  // funnel is tracked end to end and separately from the organic one: opened (a
+  // visitor landed on someone's song) → forked (they edited it, making it theirs) →
+  // sign_up with source 'shared_song_fork' (they kept it).
+  songShared: () => track('song_shared'),
+  songUnshared: () => track('song_unshared'),
+  sharedSongOpened: () => track('shared_song_opened'),
+  sharedSongForked: () => track('shared_song_forked'),
+  forkDraftRestored: () => track('fork_draft_restored'),
+
   // Songs — three distinct ways to hear audio on a song page. They're tracked
   // separately because they answer different questions: `play_song` is "play the
   // whole chart", `play_song_section` is "play just the chorus" (what someone

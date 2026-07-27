@@ -32,7 +32,8 @@ import { parseChordString } from '@/lib/chordParser';
 import { decodeEditorSections, editorSectionsToSections } from '@/lib/editorLink';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
-import { getSongById, saveSongWithSync } from '@/lib/songStorage';
+import { getSongForViewer, setSongVisibility, saveSongWithSync } from '@/lib/songStorage';
+import { saveForkDraft, loadForkDraft, clearForkDraft, shouldRestoreForkDraft } from '@/lib/forkDraft';
 import { getAuthState } from '@/lib/supabase';
 import { analytics } from '@/lib/analytics';
 import { SectionCard } from '@/components/SectionCard';
@@ -57,7 +58,7 @@ import { AuthModal } from '@/components/AuthModal';
 import { AccountPromptModal } from '@/components/AccountPromptModal';
 import { AccountMenu } from '@/components/AccountMenu';
 import { Button } from '@/components/ui/button';
-import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders } from 'lucide-react';
+import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -68,6 +69,20 @@ interface IndexProps {
 }
 
 const EXPORT_NUDGE_SESSION_KEY = 'chord-player-export-nudge-shown';
+
+// The fields that constitute "the visitor changed this song", used to spot the first
+// real edit on a copy opened from a share link. Instruments are deliberately left out:
+// loading a song applies its style, and useStyleInstruments then rewrites instrument
+// sounds and volumes by itself — that's the app talking, not the visitor, and counting
+// it would fork the song before anyone touched anything.
+const editorSignature = (s: {
+  title: string;
+  sections: Section[];
+  bpm: number;
+  styleId: string;
+  transposition: number;
+  metronomeEnabled: boolean;
+}) => JSON.stringify([s.title, s.sections, s.bpm, s.styleId, s.transposition, s.metronomeEnabled]);
 
 // Isolated subscriber to the 16th-note playhead: the only thing that re-renders on
 // every step, keeping those ~6.7x/sec updates out of the big editor tree.
@@ -97,6 +112,26 @@ const Index = ({ songId }: IndexProps) => {
   const [authModalSource, setAuthModalSource] = useState('save_cta');
   const [accountPromptOpen, setAccountPromptOpen] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Signing in is a detour, not the goal: every entry point into the auth modal here is
+  // really someone trying to keep their work. Without remembering that, the click that
+  // opened the modal is swallowed and they have to press Save a second time.
+  const pendingSaveRef = useRef(false);
+
+  // Sharing state.
+  // `sharedSong` is set when the loaded song belongs to SOMEONE ELSE. In that case the
+  // song's id is deliberately kept out of `currentSongId` — autosave is gated on it, so
+  // leaving it null is what guarantees a visitor's edits can never reach the owner's row.
+  // The first real edit clears this and turns the session into the visitor's own copy.
+  const [sharedSong, setSharedSong] = useState<{ id: string; title: string } | null>(null);
+  const sharedBaselineRef = useRef<string | null>(null);
+  // Id of the shared song the current work was forked from (null for organic sessions).
+  const [forkedFromId, setForkedFromId] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  // A fork the visitor left behind by refreshing before saving. Read once per mount,
+  // then fed into the state initializers below.
+  const [restoredDraft] = useState(() => (shouldRestoreForkDraft() ? loadForkDraft() : null));
 
   // Default chords for new songs
   const defaultChords: Chord[] = [
@@ -110,6 +145,7 @@ const Index = ({ songId }: IndexProps) => {
   // section/duration/repeat structure; if opening from a blog link (?chords=...),
   // fall back to a single flat section
   const [sections, setSections] = useState<Section[]>(() => {
+    if (restoredDraft) return restoredDraft.sections;
     const params = new URLSearchParams(window.location.search);
     const dataParam = params.get('data');
     if (dataParam) {
@@ -128,6 +164,7 @@ const Index = ({ songId }: IndexProps) => {
 
   // Determine initial style — prefer ?style= URL param, then merengue (only for new songs)
   const getInitialStyleId = () => {
+    if (restoredDraft) return restoredDraft.styleId;
     const styleParam = new URLSearchParams(window.location.search).get('style');
     const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
     if (styleParam && allStyles.some(s => s.id === styleParam)) return styleParam;
@@ -141,6 +178,7 @@ const Index = ({ songId }: IndexProps) => {
 
   const [selectedStyleId, setSelectedStyleId] = useState(getInitialStyleId);
   const [bpm, setBpm] = useState(() => {
+    if (restoredDraft) return restoredDraft.bpm;
     const bpmParam = new URLSearchParams(window.location.search).get('bpm');
     if (bpmParam) {
       const parsed = parseInt(bpmParam, 10);
@@ -151,16 +189,19 @@ const Index = ({ songId }: IndexProps) => {
     const initialId = hasSongInUrl ? 'rock_basic' : (allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic');
     return allStyles.find(s => s.id === initialId)?.bpm ?? 100;
   });
-  const [instruments, setInstruments] = useState<InstrumentState[]>(getDefaultInstrumentStates());
+  const [instruments, setInstruments] = useState<InstrumentState[]>(
+    () => restoredDraft?.instruments ?? getDefaultInstrumentStates(),
+  );
   const [songTitle, setSongTitle] = useState(() => {
+    if (restoredDraft) return restoredDraft.title;
     const titleParam = new URLSearchParams(window.location.search).get('title');
     if (titleParam) return titleParam;
     const now = new Date();
     const date = now.toLocaleString('en', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     return `My Song · ${date}`;
   });
-  const [transposition, setTransposition] = useState(0);
-  const [metronomeEnabled, setMetronomeEnabled] = useState(true);
+  const [transposition, setTransposition] = useState(restoredDraft?.transposition ?? 0);
+  const [metronomeEnabled, setMetronomeEnabled] = useState(restoredDraft?.metronomeEnabled ?? true);
   const [loopingSectionIndex, setLoopingSectionIndex] = useState<number | null>(null);
   
   // Live edited style (for rhythm editor live mode)
@@ -287,9 +328,10 @@ const Index = ({ songId }: IndexProps) => {
   useEffect(() => {
     if (songId && songId !== currentSongId) {
       console.log(`[SONG] Loading song: ${songId}`);
-      getSongById(songId).then(song => {
-        if (song) {
-          console.log(`[SONG] Song loaded — styleId: "${song.styleId}", bpm: ${song.bpm}, sections: ${song.sections.length}`);
+      getSongForViewer(songId).then(result => {
+        if (result) {
+          const { song, isOwner } = result;
+          console.log(`[SONG] Song loaded — styleId: "${song.styleId}", bpm: ${song.bpm}, sections: ${song.sections.length}, owner: ${isOwner}`);
           song.sections.forEach((s, i) => {
             console.log(`[SONG]   section[${i}] "${s.name}" — bassVar: ${s.bassVariationId ?? 'none'}, pianoVar: ${s.pianoVariationId ?? 'none'}, guitarVar: ${s.guitarVariationId ?? 'none'}`);
           });
@@ -305,9 +347,19 @@ const Index = ({ songId }: IndexProps) => {
           if (song.instrumentSettings.length > 0) {
             setInstruments(song.instrumentSettings);
           }
-          setCurrentSongId(song.id);
-          setSongCreatedAt(song.createdAt);
-          setLastSavedAt(new Date(song.updatedAt));
+          if (isOwner) {
+            setCurrentSongId(song.id);
+            setSongCreatedAt(song.createdAt);
+            setLastSavedAt(new Date(song.updatedAt));
+            setIsPublic(result.isPublic);
+          } else {
+            // Opened from a share link. Everything works — play, transpose, tweak the
+            // mix — but the song stays the owner's until the visitor edits it, at which
+            // point the effect below hands them their own copy. Leaving currentSongId
+            // null is what keeps autosave from ever pointing at the owner's row.
+            setSharedSong({ id: song.id, title: song.title });
+            analytics.sharedSongOpened();
+          }
           // Migrate legacy song.melodic → style (one-time, only if style has no melodic yet)
           if (song.melodic) {
             console.log(`[SONG] Migrating legacy song.melodic to style override for "${song.styleId}"`);
@@ -394,7 +446,124 @@ const Index = ({ songId }: IndexProps) => {
     setLastSavedAt(new Date());
     setIsSaving(false);
     window.history.pushState({}, '', `/chord-player/${newSong.id}`);
-  }, [songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, instruments]);
+    // Saving from a shared song (without having edited it) is also a way to take a copy —
+    // createSong minted a fresh id, so this row is the visitor's from the start.
+    if (sharedSong) {
+      setForkedFromId(sharedSong.id);
+      setSharedSong(null);
+      sharedBaselineRef.current = null;
+    }
+    setIsPublic(false);
+  }, [songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, instruments, sharedSong]);
+
+  // Share — flips the song's is_public flag and hands back the link. Opt-in and
+  // reversible; a saved song stays private until this runs.
+  const handleShare = useCallback(async () => {
+    if (!currentSongId) return;
+    const url = `${window.location.origin}/chord-player/${currentSongId}`;
+    if (!isPublic) {
+      setIsSharing(true);
+      const ok = await setSongVisibility(currentSongId, true);
+      setIsSharing(false);
+      if (!ok) {
+        toast.error('Could not create the share link', { description: 'Check your connection and try again.' });
+        return;
+      }
+      setIsPublic(true);
+      analytics.songShared();
+    }
+    const unshare = {
+      label: 'Stop sharing',
+      onClick: async () => {
+        if (await setSongVisibility(currentSongId, false)) {
+          setIsPublic(false);
+          analytics.songUnshared();
+          toast('Sharing turned off', { description: 'The link no longer opens this song.' });
+        }
+      },
+    };
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Share link copied', {
+        description: 'Anyone with the link can play it. Their edits become their own copy.',
+        action: unshare,
+      });
+    } catch {
+      // Clipboard blocked (no permission, or a non-secure origin) — show the link instead.
+      toast('Your share link', { description: url, action: unshare });
+    }
+  }, [currentSongId, isPublic]);
+
+  // Turn a shared song into the visitor's own copy on their first edit.
+  //
+  // Nothing is blocked up front: someone arriving from a share link gets the full
+  // editor and can play, loop and export without being asked for anything. The moment
+  // they change something, this quietly re-labels the session as theirs — the owner's
+  // song is left exactly as it was, and the visitor now has something worth an account.
+  useEffect(() => {
+    if (!sharedSong) return;
+    const signature = editorSignature({
+      title: songTitle, sections, bpm, styleId: selectedStyleId, transposition, metronomeEnabled,
+    });
+    // First run after the song loads: record what "untouched" looks like. Captured from
+    // live state rather than from the fetched song so any normalization the loader does
+    // (empty song → one default section) can't read as an edit.
+    if (sharedBaselineRef.current === null) {
+      sharedBaselineRef.current = signature;
+      return;
+    }
+    if (signature === sharedBaselineRef.current) return;
+
+    setSharedSong(null);
+    sharedBaselineRef.current = null;
+    setForkedFromId(sharedSong.id);
+    // Keep the visitor's own title if renaming it is what triggered the fork.
+    setSongTitle(current => (current === sharedSong.title ? `Copy of ${current}` : current));
+    // Drop the owner's id from the URL — the address bar should stop claiming this is
+    // their song, and a refresh should not reload it over the visitor's work.
+    window.history.replaceState({}, '', '/chord-player/');
+    analytics.sharedSongForked();
+    toast('This is now your own copy', {
+      description: 'The original is untouched. Save it to keep your changes.',
+      action: {
+        label: 'Save',
+        onClick: () => {
+          if (isLoggedIn) {
+            handleSaveNewSong();
+          } else {
+            pendingSaveRef.current = true;
+            setAuthModalSource('shared_song_fork');
+            setAccountPromptOpen(true);
+          }
+        },
+      },
+    });
+  }, [sharedSong, songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, isLoggedIn, handleSaveNewSong]);
+
+  // Keep an unsaved fork alive across a refresh — React state survives the signup modal
+  // (AuthModal calls onSuccess rather than reloading) but not a reload. Once the copy
+  // has a real id, the cloud is the source of truth and the draft is dropped.
+  useEffect(() => {
+    if (!forkedFromId) return;
+    if (currentSongId) {
+      clearForkDraft();
+      return;
+    }
+    saveForkDraft({
+      title: songTitle, sections, bpm, styleId: selectedStyleId,
+      transposition, metronomeEnabled, instruments, forkedFromId,
+    });
+  }, [forkedFromId, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, instruments]);
+
+  // Tell the visitor where a restored draft came from, once, on mount.
+  useEffect(() => {
+    if (!restoredDraft) return;
+    setForkedFromId(restoredDraft.forkedFromId);
+    analytics.forkDraftRestored();
+    toast('Restored your unsaved copy', {
+      description: 'It only lives in this browser until you save it.',
+    });
+  }, [restoredDraft]);
 
   // Handle export from Songs page
   useEffect(() => {
@@ -799,6 +968,9 @@ const Index = ({ songId }: IndexProps) => {
         label: 'Sign up',
         onClick: () => {
           analytics.exportNudgeClicked();
+          // The nudge's whole pitch is "don't lose this" — signing up from it should
+          // leave the song saved, not just leave them logged in.
+          pendingSaveRef.current = true;
           setAuthModalSource('export_nudge');
           setAuthModalOpen(true);
         },
@@ -1045,6 +1217,14 @@ const Index = ({ songId }: IndexProps) => {
                 </h1>
               </div>
 
+              {/* Opened from someone else's link — say so, so the first edit forking the
+                  song into a copy reads as expected rather than as a glitch. */}
+              {sharedSong && (
+                <span className="hidden md:inline-flex items-center gap-1 shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                  Shared song · editing makes your own copy
+                </span>
+              )}
+
               {/* Mobile: back button only */}
               <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="sm:hidden shrink-0 h-8 w-8" aria-label="Back to library">
                 <ArrowLeft className="h-4 w-4" />
@@ -1068,6 +1248,22 @@ const Index = ({ songId }: IndexProps) => {
                 </div>
               )}
               
+              {/* Share button — only for a saved song you own; there's no link to hand
+                  out until the song has a row of its own. */}
+              {currentSongId && isLoggedIn && (
+                <Button
+                  variant={isPublic ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={handleShare}
+                  disabled={isSharing}
+                  className="gap-1 h-8 px-2"
+                  aria-label={isPublic ? 'Copy share link' : 'Share this song'}
+                >
+                  {isSharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+                  <span className="hidden sm:inline text-xs">{isPublic ? 'Shared' : 'Share'}</span>
+                </Button>
+              )}
+
               {/* Mixing Console button */}
               <Button
                 variant="outline"
@@ -1183,6 +1379,7 @@ const Index = ({ songId }: IndexProps) => {
             if (isLoggedIn) {
               handleSaveNewSong();
             } else {
+              pendingSaveRef.current = true;
               setAuthModalSource('save_cta');
               setAccountPromptOpen(true);
             }
@@ -1430,6 +1627,13 @@ const Index = ({ songId }: IndexProps) => {
         onSuccess={() => {
           setIsLoggedIn(true);
           getAuthState().then(({ displayName }) => setDisplayName(displayName));
+          // Finish what they came for. Only reached on a real session — a signup that
+          // still needs email confirmation never calls onSuccess, so this can't fire
+          // while saveSongToCloud would silently no-op on a null user id.
+          if (pendingSaveRef.current) {
+            pendingSaveRef.current = false;
+            handleSaveNewSong();
+          }
         }}
       />
     </div>
