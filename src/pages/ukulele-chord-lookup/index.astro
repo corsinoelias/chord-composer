@@ -7,7 +7,7 @@ const faqs = [
   { q: 'What tuning do the diagrams use?', a: 'Standard ukulele tuning, GCEA (soprano, concert, and tenor with high G). The leftmost string in the diagram is the G string, closest to you when you hold the uke.' },
   { q: 'What is the "re-entrant" high-G string?', a: "On most ukuleles the fourth string (G) is tuned an octave higher than you'd expect, so the strings don't go low-to-high in order. The audio here plays that high G, so what you hear matches a real ukulele." },
   { q: 'What do the numbers on the dots mean?', a: 'Which finger of your fretting hand to use: 1 = index, 2 = middle, 3 = ring, 4 = pinky. A long pill across several strings is a barre — one finger pressing them all at once.' },
-  { q: 'Are guitar chord shapes the same on ukulele?', a: 'No — the ukulele has four strings and a different tuning, so shapes are their own. (Fun fact: a uke shape matches the guitar\'s top four strings capoed at the 5th fret.) Use the <a href="/guitar-chord-lookup/">guitar chord lookup</a> for guitar shapes.' },
+  { q: 'Are guitar chord shapes the same on ukulele?', a: 'No — the ukulele has four strings and a different tuning, so shapes are their own. (Fun fact: a uke shape matches the guitar\'s top four strings capoed at the 5th fret.) Use the <a href="/guitar-chord-lookup/">guitar chord finder</a> for guitar shapes.' },
   { q: 'I play a left-handed ukulele — can I use the diagrams?', a: 'Yes. Turn on "Left-handed" above the diagram and the string order is flipped to match a ukulele strung for a left-handed player.' },
 ]
 
@@ -17,26 +17,26 @@ const breadcrumbSchema = {
   '@id': 'https://chordsequence.com/ukulele-chord-lookup/#breadcrumb',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
-    { '@type': 'ListItem', position: 2, name: 'Chord Lookup', item: 'https://chordsequence.com/chord-lookup/' },
-    { '@type': 'ListItem', position: 3, name: 'Ukulele Chord Lookup', item: 'https://chordsequence.com/ukulele-chord-lookup/' },
+    { '@type': 'ListItem', position: 2, name: 'Chord Finder', item: 'https://chordsequence.com/chord-lookup/' },
+    { '@type': 'ListItem', position: 3, name: 'Ukulele Chord Finder', item: 'https://chordsequence.com/ukulele-chord-lookup/' },
   ],
 }
 
 const webAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'Ukulele Chord Lookup',
+  name: 'Ukulele Chord Finder',
   url: 'https://chordsequence.com/ukulele-chord-lookup/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Ukulele chord lookup: find any ukulele chord in GCEA tuning with finger numbers, barres and alternative positions. Hear each chord string by string.',
+  description: 'Ukulele chord finder: find any ukulele chord in GCEA tuning with finger numbers, barres and alternative positions. Hear each chord string by string.',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 }
 ---
 
 <BaseLayout
-  title="Ukulele Chord Lookup — Find Any Ukulele Chord (GCEA)"
-  description="Ukulele chord lookup: find any ukulele chord in GCEA tuning with finger numbers, barres and alternative positions. Hear each chord string by string."
+  title="Ukulele Chord Finder — Find Any Ukulele Chord (GCEA)"
+  description="Ukulele chord finder: find any ukulele chord in GCEA tuning with finger numbers, barres and alternative positions. Hear each chord string by string."
   canonicalUrl="https://chordsequence.com/ukulele-chord-lookup/"
 >
   <Fragment slot="head">
@@ -51,8 +51,8 @@ const webAppSchema = {
       <div style="max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
         <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
           <div style="display:flex;flex-direction:column;gap:6px">
-            <a href="/chord-lookup/" style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">&larr; Chord Lookup</a>
-            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Ukulele Chord Lookup</h1>
+            <a href="/chord-lookup/" style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">&larr; Chord Finder</a>
+            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Ukulele Chord Finder</h1>
             <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:620px">Look up any ukulele chord in standard GCEA tuning — real finger patterns on a four-string diagram.</p>
           </div>
           <div style="display:inline-flex;background:#ece6f7;border-radius:12px;padding:4px;gap:2px">
@@ -66,7 +66,7 @@ const webAppSchema = {
 
         <section style="background:#ffffff;border:1px solid #e7e0f2;border-radius:18px;padding:26px 28px;display:flex;flex-direction:column;gap:20px;box-shadow:0 1px 4px rgba(40,25,80,0.05)">
           <div style="display:flex;flex-direction:column;gap:8px">
-            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">About the ukulele chord lookup</h2>
+            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">About the ukulele chord finder</h2>
             <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">A visual dictionary of ukulele chords in standard GCEA tuning. Pick any of the 12 root notes and 30 chord types and see the chord on a four-string diagram: numbered dots for each finger, barres drawn as pills, &#9675; for open strings, and the note each string sounds.</p>
             <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">Many chords include alternative positions higher up the neck. Press Play to hear the chord string by string — with the re-entrant high-G string voiced correctly — and then strummed together. A left-handed mode mirrors every diagram.</p>
           </div>
@@ -85,8 +85,8 @@ const webAppSchema = {
 
         <footer style="font-size:13px;color:#8a819e;display:flex;gap:8px;flex-wrap:wrap">
           <span>Also available:</span>
-          <a href="/guitar-chord-lookup/" style="color:#7C3AED">Guitar chord lookup</a> &middot;
-          <a href="/piano-chord-lookup/" style="color:#7C3AED">Piano chord lookup</a> &middot;
+          <a href="/guitar-chord-lookup/" style="color:#7C3AED">Guitar chord finder</a> &middot;
+          <a href="/piano-chord-lookup/" style="color:#7C3AED">Piano chord finder</a> &middot;
           <a href="/chord-lookup/" style="color:#7C3AED">All instruments</a>
         </footer>
       </div>
