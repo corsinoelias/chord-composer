@@ -2,12 +2,12 @@
 export const prerender = true;
 import BaseLayout from '../layouts/BaseLayout.astro';
 
-const effectiveDate = 'May 1, 2026';
+const effectiveDate = 'July 29, 2026';
 ---
 
 <BaseLayout
   title="Privacy Policy | Chord Sequence"
-  description="Chord Sequence privacy policy. We don't collect personal data. Your chord progressions are stored in your browser's local storage — never on our servers."
+  description="Chord Sequence privacy policy — what an account involves, what we store when you save a song, and how sharing works."
   canonicalUrl="https://chordsequence.com/privacy/"
 >
   <main class="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-24">
@@ -27,36 +27,51 @@ const effectiveDate = 'May 1, 2026';
       <section>
         <h2 class="text-xl font-bold text-foreground mb-3">The short version</h2>
         <p>
-          Chord Sequence does not collect personal data. There are no accounts, no sign-ups, and no tracking pixels.
-          Your chord progressions are saved to your browser's local storage and never transmitted to any server.
+          Chord Sequence works without an account. You can build chord progressions, play them, transpose them and
+          export audio without giving us anything at all. Saving is the exception: to keep a song in a library that
+          follows you between devices you create a free account with an email address and a password, and the songs
+          you save are stored on our servers. They stay private to you unless you choose to share one. We also use
+          Google Analytics to see how the site is used.
         </p>
       </section>
 
       <section>
         <h2 class="text-xl font-bold text-foreground mb-3">What data is stored — and where</h2>
-        <p class="mb-3">When you use Chord Sequence, the app stores the following data <strong class="text-foreground">locally in your browser</strong> using the Web Storage API (<code class="text-primary text-sm">localStorage</code>):</p>
+        <p class="mb-3">Some of it never leaves your device. The app keeps the following <strong class="text-foreground">in your browser</strong>, using the Web Storage API (<code class="text-primary text-sm">localStorage</code>):</p>
         <ul class="list-disc list-inside space-y-1 text-sm">
-          <li>Names of your saved songs</li>
-          <li>Chord sequences and BPM settings for each song</li>
-          <li>App preferences (such as selected instrument sound)</li>
+          <li>Your work in the bass and guitar tab editors, saved as you type</li>
+          <li>A draft of the chord progression you are editing, so it survives a reload</li>
+          <li>App preferences — metronome settings, custom rhythm styles, whether you have seen the intro</li>
+          <li>Your login session token, if you are signed in</li>
+        </ul>
+        <p class="mt-3 mb-3">
+          We have no access to any of that, and clearing your browser's site data erases it.
+        </p>
+        <p class="mb-3">The rest is stored <strong class="text-foreground">on our servers</strong>, and only if you create an account:</p>
+        <ul class="list-disc list-inside space-y-1 text-sm">
+          <li>Your email address and a securely hashed password</li>
+          <li>The songs you save — title, chords, tempo, sections and playback settings</li>
+          <li>Custom rhythm styles you have saved to your account</li>
         </ul>
         <p class="mt-3">
-          This data lives entirely on your device. Clearing your browser's site data or storage will erase it.
-          We have no access to this data and it is never sent to our servers.
+          This is held in Supabase, the database service behind the app. Saved songs are private to your account
+          unless you share one.
         </p>
       </section>
 
       <section>
-        <h2 class="text-xl font-bold text-foreground mb-3">No accounts, no registration</h2>
+        <h2 class="text-xl font-bold text-foreground mb-3">Accounts and saved songs</h2>
         <p>
-          Chord Sequence does not offer user accounts. We do not collect names, email addresses, passwords, or any
-          other personally identifying information.
+          Creating an account is optional — every tool on the site works without one. You need one only to save a song
+          to a library that follows you between devices. Saved songs are private to your account by default: the Share
+          button makes a single song readable by anyone holding its link, and you can switch that off again at any
+          time. To have your account and everything in it deleted, contact us at the address below.
         </p>
       </section>
 
       <section>
         <h2 class="text-xl font-bold text-foreground mb-3">External requests</h2>
-        <p class="mb-3">The app makes one external request for web fonts:</p>
+        <p class="mb-3">The app loads the following third-party services:</p>
         <ul class="list-disc list-inside space-y-1 text-sm">
           <li>
             <strong class="text-foreground">Google Fonts</strong> — to load the Inter, Lora, and Space Mono typefaces
@@ -65,8 +80,19 @@ const effectiveDate = 'May 1, 2026';
             This request does not set any tracking cookies and is not used for advertising.
             See <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Google's Privacy Policy</a> for details.
           </li>
+          <li>
+            <strong class="text-foreground">Google Analytics</strong> — to measure how the site is used: pages viewed,
+            which tools get opened, roughly where visitors come from. It sets cookies (see below) and Google processes
+            the data under its own <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Privacy Policy</a>.
+            We use it to decide what to build next, not to identify anyone.
+          </li>
+          <li>
+            <strong class="text-foreground">Supabase</strong> — the database and sign-in service. It is contacted when
+            you create an account, sign in, or save, load or share a song. See
+            <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Supabase's Privacy Policy</a>.
+          </li>
         </ul>
-        <p class="mt-3">No analytics scripts, advertising pixels, or third-party trackers are loaded by this site.</p>
+        <p class="mt-3">No advertising pixels or ad networks are loaded by this site, and we do not sell or share your data with anyone.</p>
       </section>
 
       <section>
@@ -82,16 +108,30 @@ const effectiveDate = 'May 1, 2026';
       <section>
         <h2 class="text-xl font-bold text-foreground mb-3">Cookies</h2>
         <p>
-          Chord Sequence does not set any cookies. The app uses <code class="text-primary text-sm">localStorage</code>
-          (not cookies) to persist your data between sessions.
+          Google Analytics sets cookies (named <code class="text-primary text-sm">_ga</code> and
+          <code class="text-primary text-sm">_ga_*</code>) to tell repeat visits apart from new ones. We set none of
+          our own: everything else the app remembers — your session, your drafts, your preferences — lives in
+          <code class="text-primary text-sm">localStorage</code>, not in cookies.
         </p>
       </section>
 
       <section>
         <h2 class="text-xl font-bold text-foreground mb-3">Children's privacy</h2>
         <p>
-          Chord Sequence is a general-purpose music tool with no age restrictions. Because we collect no personal data,
-          the app is safe for use by people of all ages. We do not knowingly collect information from children.
+          The tools themselves can be used by anyone at any age — without an account we hold nothing about you.
+          Accounts are a different matter: they are not intended for children under 16, since creating one means
+          giving us an email address. We do not knowingly collect personal information from children, and if you
+          believe a child has created an account, write to us and we will delete it.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-foreground mb-3">Your rights over your data</h2>
+        <p>
+          If you have an account, you can ask us at any time for a copy of what we hold about you, for a correction,
+          or for the whole lot to be deleted — account, saved songs and settings. Write to the address below and we
+          will do it. You do not need a reason. If you use Chord Sequence without an account there is nothing to
+          request: we hold nothing that identifies you.
         </p>
       </section>
 
@@ -99,8 +139,8 @@ const effectiveDate = 'May 1, 2026';
         <h2 class="text-xl font-bold text-foreground mb-3">Changes to this policy</h2>
         <p>
           If we make changes to this privacy policy, we will update the effective date at the top of this page.
-          Because we do not have your contact information, we cannot notify you directly — we recommend checking
-          this page periodically if you have concerns.
+          If the change is a material one and you have an account, we will also let you know by email. If you use
+          the site without an account we have no way to reach you, so check back here if you have concerns.
         </p>
       </section>
 
