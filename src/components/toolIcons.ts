@@ -17,7 +17,7 @@ export type ToolIconName =
   | 'chords'
   | 'scales'
   | 'drums'
-  | 'sequence'
+  | 'piano'
   | 'step-grid'
 
 export const TOOL_ICON_PATHS: Record<ToolIconName, string> = {
@@ -32,8 +32,10 @@ export const TOOL_ICON_PATHS: Record<ToolIconName, string> = {
   chords: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><line x1="9" y1="9" x2="21" y2="7"/>',
   scales: '<line x1="2" y1="6" x2="22" y2="6"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="18" x2="22" y2="18"/><circle cx="6" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="10" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="18" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="8" cy="18" r="2" fill="currentColor" stroke="none"/><circle cx="14" cy="18" r="2" fill="currentColor" stroke="none"/>',
   drums: '<rect x="3" y="8" width="18" height="10" rx="5"/><line x1="7" y1="3" x2="5" y2="8"/><line x1="17" y1="3" x2="19" y2="8"/>',
-  // Three bars of different heights — a progression laid out in time.
-  sequence: '<rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="17" y="9" width="4" height="11" rx="1"/>',
+  // Keyboard: three white keys with the black ones sitting over the joins. The dividers
+  // only run the lower half, the way they do on a real keyboard — drawing them full
+  // height turns the whole icon into a grid at 20px.
+  piano: '<rect x="2" y="6" width="20" height="12" rx="2"/><line x1="8.7" y1="12" x2="8.7" y2="18"/><line x1="15.3" y1="12" x2="15.3" y2="18"/><rect x="7.2" y="6" width="3" height="6" rx="0.6" fill="currentColor" stroke="none"/><rect x="13.8" y="6" width="3" height="6" rx="0.6" fill="currentColor" stroke="none"/>',
   // Two rows of steps, some on and some off — what the drum machine actually looks like.
   'step-grid': '<rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="7" cy="10" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="1.4"/><circle cx="17" cy="10" r="1.4" fill="currentColor" stroke="none"/><circle cx="7" cy="15" r="1.4"/><circle cx="12" cy="15" r="1.4" fill="currentColor" stroke="none"/><circle cx="17" cy="15" r="1.4"/>',
 }
