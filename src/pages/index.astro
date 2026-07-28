@@ -2,6 +2,8 @@
 export const prerender = true;
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ChordEmbed from '../components/ChordEmbed';
+import ToolIcon from '../components/ToolIcon.astro';
+import type { ToolIconName } from '../components/toolIcons';
 import { SONGS } from '../data/songs';
 
 // Plain FAQ data for the visible "Frequently asked questions" section below — deliberately
@@ -75,15 +77,15 @@ const popularProgressions = [
 ];
 
 const tools = [
-  { title: 'Chord Progression Generator', desc: 'Build progressions by genre — pop, jazz, blues, worship, and more.', href: '/chord-progression-generator/' },
-  { title: 'Chord Finder', desc: 'Find any chord on guitar, piano, or ukulele — see the fingering and hear it.', href: '/chord-lookup/' },
-  { title: 'Chord Transposer', desc: 'Shift any chord or progression to any key instantly.', href: '/tools/chord-transposer/' },
-  { title: 'Circle of Fifths', desc: 'Interactive chart — click any key to see its diatonic chords.', href: '/tools/circle-of-fifths/' },
-  { title: 'Key Detector', desc: 'Detect the key of any chord progression.', href: '/tools/key-detector/' },
-  { title: 'Guitar Tab Player', desc: 'Draw, play, and export 6-string guitar tabs with a one-click chord helper.', href: '/tools/guitar-tab/' },
-  { title: 'Drum Machine', desc: 'Program a 16-step beat with 3 kits and 12 genre presets.', href: '/tools/drum-machine/' },
-  { title: 'Virtual Drums', desc: 'Play a 15-piece kit with mouse, touch, keyboard, or MIDI.', href: '/drums/' },
-];
+  { title: 'Chord Progression Generator', desc: 'Build progressions by genre — pop, jazz, blues, worship, and more.', href: '/chord-progression-generator/', icon: 'sequence' },
+  { title: 'Chord Finder', desc: 'Find any chord on guitar, piano, or ukulele — see the fingering and hear it.', href: '/chord-lookup/', icon: 'chords' },
+  { title: 'Chord Transposer', desc: 'Shift any chord or progression to any key instantly.', href: '/tools/chord-transposer/', icon: 'transpose' },
+  { title: 'Circle of Fifths', desc: 'Interactive chart — click any key to see its diatonic chords.', href: '/tools/circle-of-fifths/', icon: 'circle' },
+  { title: 'Key Detector', desc: 'Detect the key of any chord progression.', href: '/tools/key-detector/', icon: 'key' },
+  { title: 'Guitar Tab Player', desc: 'Draw, play, and export 6-string guitar tabs with a one-click chord helper.', href: '/tools/guitar-tab/', icon: 'guitar' },
+  { title: 'Drum Machine', desc: 'Program a 16-step beat with 3 kits and 12 genre presets.', href: '/tools/drum-machine/', icon: 'step-grid' },
+  { title: 'Virtual Drums', desc: 'Play a 15-piece kit with mouse, touch, keyboard, or MIDI.', href: '/drums/', icon: 'drums' },
+] satisfies { title: string; desc: string; href: string; icon: ToolIconName }[];
 
 const steps = [
   { n: '1', title: 'Add your chords', desc: 'Click to add chords from a palette of 37 chord types. Drag to reorder, group into sections, and repeat as needed.' },
@@ -405,13 +407,14 @@ const songListSchema = {
             href={t.href}
             class="group flex items-start gap-4 rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
           >
-            <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <svg class="h-4 w-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <ToolIcon name={t.icon} class="h-5 w-5 text-primary" />
             </div>
-            <div>
+            <div class="min-w-0">
               <h3 class="font-semibold text-foreground group-hover:text-primary transition-colors mb-1">{t.title}</h3>
               <p class="text-sm text-muted-foreground">{t.desc}</p>
             </div>
+            <svg class="mt-1 ml-auto h-4 w-4 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </a>
         ))}
       </div>

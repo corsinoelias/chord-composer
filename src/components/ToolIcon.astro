@@ -1,0 +1,23 @@
+---
+import { TOOL_ICON_PATHS, type ToolIconName } from './toolIcons'
+
+interface Props {
+  name: ToolIconName
+  /** Tailwind sizing/colour for the svg — callers use w-4 or w-5 depending on card density. */
+  class?: string
+}
+
+const { name, class: className = 'w-5 h-5 text-primary' } = Astro.props
+---
+
+<svg
+  class={className}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+  set:html={TOOL_ICON_PATHS[name]}
+/>
