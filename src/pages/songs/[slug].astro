@@ -184,21 +184,53 @@ const tempoDesc =
   song.bpm < 130 ? 'upbeat' :
   song.bpm < 160 ? 'fast and driving' : 'intense and high-energy'
 
-const difficultyLabel =
-  uniqueChords.length <= 3 ? 'Beginner' :
-  uniqueChords.length <= 5 ? 'Beginner–Intermediate' :
-  uniqueChords.length <= 8 ? 'Intermediate' : 'Advanced'
+// Chords ranked by how often they're actually played, not by first appearance. A passing
+// chord that shows up twice shouldn't headline a song built on four.
+const chordUseCounts = allChords.reduce<Record<string, number>>((acc, c) => {
+  acc[c] = (acc[c] ?? 0) + 1
+  return acc
+}, {})
+const chordsByUse = Object.entries(chordUseCounts).sort((a, b) => b[1] - a[1])
+const coreChords = chordsByUse.slice(0, 4).map(([c]) => c)
 
-const capoText = song.capo ? ` with a capo on the ${ordinal(song.capo)} fret` : ''
+// Difficulty comes from the chords that carry the song — the fewest that cover 85% of all
+// chord hits — not from the unique count. Counting decorations rated Wonderwall (four
+// chords and two passing ones) "Intermediate", which is the opposite of how it's taught.
+const totalChordHits = allChords.length || 1
+let coveredHits = 0
+let coreChordCount = 0
+for (const [, hits] of chordsByUse) {
+  coveredHits += hits
+  coreChordCount++
+  if (coveredHits / totalChordHits >= 0.85) break
+}
+const difficultyLabel =
+  coreChordCount <= 4 ? 'Beginner' :
+  coreChordCount <= 6 ? 'Beginner–Intermediate' :
+  coreChordCount <= 9 ? 'Intermediate' : 'Advanced'
+
 const yearText = song.year ? ` (${song.year})` : ''
 const genreText = song.genre[0] ?? 'popular'
 
 const KNOWN_BANDS = new Set(['Oasis', 'The Beatles', 'Led Zeppelin', 'Pink Floyd', 'Oasis Ministry', 'Elevation Worship', 'Hillsong', 'Bethel Music', 'Radiohead', 'Coldplay', 'U2', 'Metallica', 'AC/DC']);
 
+// Google ignores our meta description on these pages and lifts a fragment of this
+// paragraph instead — for a "<song> chords" query it picks whichever sentence contains
+// chord names. It used to pick the full enumeration ("15 chords — Gb, Gbsus4, Ebmin7,
+// C#, B, Db/F…"), which advertises the hardest possible reading of the song while the
+// results above us lead with "Difficulty: Beginner · Key: G · Capo: 2nd fret". So the
+// only sentence carrying chord names is now the core four, and the key/BPM/difficulty
+// sit alongside them. The mood and tempo prose stays, but with no chord names in it,
+// it shouldn't get picked for a chords query.
+const capoShort = song.capo ? `, capo ${song.capo}` : ''
+const coreChordList = coreChords.length > 1
+  ? `${coreChords.slice(0, -1).join(', ')} and ${coreChords[coreChords.length - 1]}`
+  : coreChords[0] ?? ''
+
 const analysisText =
-  `${song.title} by ${song.artist}${yearText} is a ${tempoDesc} ${genreText} song written in ${fullKeyName}${capoText}. ` +
-  `${fullKeyName.charAt(0).toUpperCase() + fullKeyName.slice(1)} is ${keyMood}. ` +
-  `The chord chart uses ${uniqueChords.length} chord${uniqueChords.length !== 1 ? 's' : ''} — ${uniqueChords.join(', ')} — at ${song.bpm} BPM.`
+  `${song.title} by ${song.artist}${yearText} — ${fullKeyName}${capoShort}, ${song.bpm} BPM, ${difficultyLabel.toLowerCase()}. ` +
+  `Built around ${coreChordList}. Transpose to any key right on the page. ` +
+  `It's a ${tempoDesc} ${genreText} song, and ${fullKeyName} is ${keyMood}.`
 
 const practiceTools: { href: string; label: string; desc: string; icon: ToolIconName }[] = [
   { href: '/chord-lookup/', label: 'Chord Finder', desc: 'Find the fingering for any chord, not just the ones in this song', icon: 'chords' },
@@ -229,7 +261,7 @@ const songFaq = [
   },
   {
     q: `Is ${song.title} easy to play?`,
-    a: `With ${uniqueChords.length} unique chord${uniqueChords.length !== 1 ? 's' : ''}${song.capo ? ` and a capo on the ${ordinal(song.capo)} fret` : ''}, ${song.title} is rated ${difficultyLabel}. ${uniqueChords.length <= 4 ? 'Most beginners can learn it in one session.' : 'It takes some practice but is very manageable.'}`,
+    a: `${song.title} is built around ${coreChordCount} main chord${coreChordCount !== 1 ? 's' : ''}${song.capo ? ` and a capo on the ${ordinal(song.capo)} fret` : ''} — ${uniqueChords.length} in total once you count the passing chords — so it's rated ${difficultyLabel}. ${coreChordCount <= 4 ? 'Most beginners can learn it in one session.' : 'It takes some practice but is very manageable.'}`,
   },
   ...(song.capo ? [{
     q: `Does ${song.title} use a capo?`,
