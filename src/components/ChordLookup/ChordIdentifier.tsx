@@ -337,7 +337,7 @@ function Results({ matches, count, accent, isPiano }: { matches: ChordMatch[]; c
       <p style={{ margin: 0, fontSize: 14.5, color: MUTED, textAlign: 'center' }}>
         {isPiano
           ? 'Tap the notes you’re playing and the chord name appears here.'
-          : 'Tap a fret on each string you’re playing and the chord name appears here.'}
+          : 'The strings start open — fret or mute them to match what you’re playing.'}
       </p>
     )
   }
@@ -422,21 +422,33 @@ export function ChordIdentifier({
   const [strings, setStrings] = useState<StringState[]>(() => Array(stringCount).fill(0))
   /** 0 = sin capo. Los trastes de `strings` son relativos a el. */
   const [capo, setCapo] = useState(0)
+  /**
+   * Si el usuario ya ha tocado algo. Las cuerdas arrancan al aire porque asi esta una
+   * guitarra de verdad, pero seis cuerdas al aire NO son un acorde: las clases de altura
+   * dan G6/9 y nadie lo llamaria asi. Hasta que no se pisa, se silencia o se pone el capo,
+   * no hay nada que nombrar.
+   */
+  const [touched, setTouched] = useState(false)
 
-  const toggleKey = (semi: number) =>
+  const toggleKey = (semi: number) => {
+    setTouched(true)
     setSelected(prev => {
       const next = new Set(prev)
       if (next.has(semi)) next.delete(semi)
       else next.add(semi)
       return next
     })
+  }
 
-  const toggleString = (s: number, fret: number | null) =>
+  const toggleString = (s: number, fret: number | null) => {
+    setTouched(true)
     setStrings(prev => prev.map((v, i) => (i === s ? fret : v)))
+  }
 
   // Al subir el capo, una nota puede caerse del mastil. Se silencia esa cuerda en vez de
   // dejarla sonando sin punto visible, que se leeria como que la herramienta miente.
   const moveCapo = (f: number) => {
+    setTouched(true)
     setCapo(f)
     setStrings(prev => prev.map(v => (v !== null && f + v > FB_FRETS ? null : v)))
   }
@@ -447,6 +459,7 @@ export function ChordIdentifier({
   const clear = () => {
     setSelected(new Set())
     setStrings(Array(stringCount).fill(0))
+    setTouched(false)
   }
 
   // Nombres de las cuerdas al aire, para rotular el mastil
@@ -474,6 +487,7 @@ export function ChordIdentifier({
   }, [isPiano, selected, strings, midi, capo])
 
   const matches = useMemo(() => {
+    if (!touched) return []
     if (isPiano) {
       if (selected.size === 0) return []
       const semis = [...selected].sort((a, b) => a - b)
@@ -486,7 +500,7 @@ export function ChordIdentifier({
       .filter((m): m is number => m !== null)
     if (notes.length === 0) return []
     return identifyChord(notes.map(m => m % 12), Math.min(...notes) % 12, { notation, limit: 4 })
-  }, [isPiano, selected, strings, midi, capo, notation])
+  }, [touched, isPiano, selected, strings, midi, capo, notation])
 
   return (
     <div style={{
@@ -506,7 +520,7 @@ export function ChordIdentifier({
               : 'Tap the shape you’re holding and we’ll name the chord.'}
           </span>
         </div>
-        {count > 0 && (
+        {touched && count > 0 && (
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="button"
@@ -545,7 +559,7 @@ export function ChordIdentifier({
       )}
 
       <div style={{ minHeight: 58, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Results matches={matches} count={count} accent={accent} isPiano={isPiano} />
+        <Results matches={matches} count={touched ? count : 0} accent={accent} isPiano={isPiano} />
       </div>
 
       <p style={{ margin: 0, fontSize: 12.5, color: FAINT, textAlign: 'center' }}>
