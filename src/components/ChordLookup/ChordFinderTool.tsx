@@ -14,65 +14,13 @@ const CARD_BG = '#ffffff'
 type Instrument = 'guitar' | 'piano' | 'ukulele'
 
 // ── Chord theory ──────────────────────────────────────────────────────────
-// DEG[token] = [letter offset from root, semitone offset from root]
-const DEG: Record<string, [number, number]> = {
-  '1': [0, 0], '2': [1, 2], 'b3': [2, 3], '3': [2, 4], '4': [3, 5], 'b5': [4, 6],
-  '5': [4, 7], '#5': [4, 8], '6': [5, 9], 'bb7': [6, 9], 'b7': [6, 10], '7': [6, 11],
-  'b9': [8, 13], '9': [8, 14], '#9': [8, 15], '11': [10, 17], '13': [12, 21],
-}
-// [letterIndex, accidental] for the 12 chromatic roots starting at C
-const ROOTS: [number, number][] = [
-  [0, 0], [1, -1], [1, 0], [2, -1], [2, 0], [3, 0],
-  [4, -1], [4, 0], [5, -1], [5, 0], [6, -1], [6, 0],
-]
-const LETPC = [0, 2, 4, 5, 7, 9, 11]
-const EN = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
-const LA = ['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Si']
-const TUN = [4, 9, 2, 7, 11, 4] // EADGBE pitch classes, low→high
-const UKT = [7, 0, 4, 9] // GCEA pitch classes
-const GMID = [40, 45, 50, 55, 59, 64] // EADGBE MIDI, low→high
-const UMID = [67, 60, 64, 69] // GCEA MIDI (re-entrant high G)
-
-type ChordType = { id: string; suf: string; degs: string[]; group: string; k: string }
-const T = (id: string, suf: string, degs: string[], group: string, k?: string): ChordType => ({ id, suf, degs, group, k: k ?? suf })
-const G1 = 'Basic', G2 = '6th & 7th', G3 = 'Extended'
-const TYPES: ChordType[] = [
-  T('maj', '', ['1', '3', '5'], G1), T('m', 'm', ['1', 'b3', '5'], G1),
-  T('dim', 'dim', ['1', 'b3', 'b5'], G1), T('aug', 'aug', ['1', '3', '#5'], G1),
-  T('sus2', 'sus2', ['1', '2', '5'], G1), T('sus4', 'sus4', ['1', '4', '5'], G1),
-  T('5', '5', ['1', '5'], G1),
-  T('6', '6', ['1', '3', '5', '6'], G2), T('m6', 'm6', ['1', 'b3', '5', '6'], G2),
-  T('69', '6/9', ['1', '3', '5', '6', '9'], G2, '69'),
-  T('7', '7', ['1', '3', '5', 'b7'], G2), T('maj7', 'maj7', ['1', '3', '5', '7'], G2, 'Maj7'),
-  T('m7', 'm7', ['1', 'b3', '5', 'b7'], G2),
-  T('dim7', 'dim7', ['1', 'b3', 'b5', 'bb7'], G2), T('m7b5', 'm7♭5', ['1', 'b3', 'b5', 'b7'], G2, 'm7b5'),
-  T('7b5', '7♭5', ['1', '3', 'b5', 'b7'], G2, '7b5'),
-  T('7sus4', '7sus4', ['1', '4', '5', 'b7'], G2),
-  T('9', '9', ['1', '3', '5', 'b7', '9'], G3), T('maj9', 'maj9', ['1', '3', '5', '7', '9'], G3, 'Maj9'),
-  T('m9', 'm9', ['1', 'b3', '5', 'b7', '9'], G3),
-  T('add9', 'add9', ['1', '3', '5', '9'], G3),
-  T('7b9', '7♭9', ['1', '3', '5', 'b7', 'b9'], G3, '7b9'), T('7s9', '7♯9', ['1', '3', '5', 'b7', '#9'], G3, '7#9'),
-  T('11', '11', ['1', '3', '5', 'b7', '9', '11'], G3), T('m11', 'm11', ['1', 'b3', '5', 'b7', '9', '11'], G3),
-  T('maj11', 'maj11', ['1', '3', '5', '7', '9', '11'], G3, 'Maj11'),
-  T('13', '13', ['1', '3', '5', 'b7', '9', '13'], G3), T('m13', 'm13', ['1', 'b3', '5', 'b7', '9', '13'], G3),
-  T('maj13', 'maj13', ['1', '3', '5', '7', '9', '13'], G3, 'Maj13'),
-]
-const GROUPS = [G1, G2, G3]
-
-function spell(li: number, acc: number, dtok: string) {
-  const d = DEG[dtok]
-  const rl = (li + d[0]) % 7
-  const pc = (((LETPC[li] + acc + d[1]) % 12) + 12) % 12
-  let a = pc - LETPC[rl]
-  if (a > 6) a -= 12
-  if (a < -6) a += 12
-  return { l: rl, a, pc, semi: d[1] }
-}
-function nn(n: { l: number; a: number }, notation: 'english' | 'latin') {
-  const base = notation === 'latin' ? LA[n.l] : EN[n.l]
-  const acc = n.a === 0 ? '' : n.a === 1 ? '♯' : n.a === -1 ? '♭' : n.a === 2 ? '𝄪' : '𝄫'
-  return base + acc
-}
+// Vive en src/lib/chordTheory.ts porque el identificador inverso
+// (src/lib/chordIdentify.ts) necesita exactamente los mismos datos, y tenerlos duplicados
+// garantizaba que las dos direcciones divergieran en cuanto alguien tocara un tipo.
+import {
+  DEG, ROOTS, LETPC, EN, LA, TUN, UKT, GMID, UMID,
+  TYPES, GROUPS, G1, G2, G3, spell, nn, type ChordType,
+} from '../../lib/chordTheory'
 
 // ── Voicing data (chords.json) ──────────────────────────────────────────────
 type ChordsDB = Record<string, Record<string, { p: string; f: string }[]>>
