@@ -167,9 +167,9 @@ export function BassTabToolsPanel({
         }}>Shortcuts</h2>
         {editingTools ? (
           <>
-            <div><Key>0–9</Key> traste · <Key>↑↓</Key> cuerda · <Key>←→</Key> nota</div>
-            <div><Key>1–5</Key> duración · <Key>Del</Key> borrar</div>
-            <div><Key>Space</Key> play · <Key>Ctrl+Z</Key> deshacer</div>
+            <div><Key>0–9</Key> fret · <Key>↑↓</Key> string · <Key>←→</Key> note</div>
+            <div><Key>1–5</Key> duration · <Key>Del</Key> delete</div>
+            <div><Key>Space</Key> play · <Key>Ctrl+Z</Key> undo</div>
           </>
         ) : (
           <>

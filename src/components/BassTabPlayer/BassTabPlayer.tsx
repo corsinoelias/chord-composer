@@ -470,7 +470,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     if (!track.notes.length) return
     const blocked = track.notes.some(n => n.fret + delta < 0 || n.fret + delta > 24)
     if (blocked) {
-      showToast(delta > 0 ? 'Alguna nota pasaría del traste 24' : 'Alguna nota bajaría del traste 0')
+      showToast(delta > 0 ? 'Some notes would go past fret 24' : 'Some notes would drop below fret 0')
       return
     }
     beginEdit()
@@ -534,6 +534,16 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     analytics.bassTabExport('midi')
     showToast(`${track.name}.mid downloaded`)
   }, [track, showToast])
+
+  // PDF vía el diálogo de impresión del navegador, como en el editor de referencia.
+  // No hace falta librería: la hoja @media print de bass-tab.astro deja visible sólo
+  // .bt-print-area, así que "Guardar como PDF" produce la partitura limpia. Se para la
+  // reproducción antes porque el resaltado de la nota activa se imprimiría también.
+  const handleExportPdf = useCallback(() => {
+    if (isPlaying) { stopPlayback(); setIsPlaying(false) }
+    // Un frame para que React pinte el estado detenido antes de abrir el diálogo.
+    requestAnimationFrame(() => window.print())
+  }, [isPlaying])
 
   const handleExportWav = useCallback(async () => {
     showToast('Rendering audio…')
@@ -679,6 +689,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       onMidiInputToggle={midiInput.toggle}
       onExportWav={handleExportWav}
       onExportImage={() => setExportImageOpen(true)}
+      onExportPdf={handleExportPdf}
       onExportVideo={() => setExportVideoOpen(true)}
       loopRangeActive={!!loopRange}
       onToggleLoopRange={handleToggleLoopRange}
@@ -939,12 +950,12 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                 border: `1px solid ${v('rule')}`, borderRadius: 8, background: v('card'),
               }}>
                 <ZoomBtn
-                  title={isGrid ? 'Alejar' : 'Más compases por línea'}
+                  title={isGrid ? 'Alejar' : 'More bars per line'}
                   onClick={() => handleZoomChange(zoom - 0.25)}
                   disabled={(isGrid && fitWidth) || zoom <= 0.4}
                 >−</ZoomBtn>
                 <ZoomBtn
-                  title={isGrid ? 'Acercar' : 'Menos compases por línea'}
+                  title={isGrid ? 'Acercar' : 'Fewer bars per line'}
                   onClick={() => handleZoomChange(zoom + 0.25)}
                   disabled={(isGrid && fitWidth) || zoom >= 4}
                 >+</ZoomBtn>
@@ -1023,7 +1034,11 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
               display: 'grid', gridTemplateColumns: '1fr 40px', gap: 10,
               padding: 14, background: v('paper'),
             }}>
-              <div style={{
+              <div
+                // Única zona que sobrevive a la impresión — ver la regla @media print
+                // en bass-tab.astro. Exportar a PDF es imprimir esto y nada más.
+                className="bt-print-area"
+                style={{
                 minWidth: 0, display: 'flex',
                 // Todas las vistas crecen hacia abajo y se desplazan solas, así
                 // que necesitan el alto entero de la tarjeta.

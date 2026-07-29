@@ -48,4 +48,32 @@ const breadcrumbSchema = {
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
   <BassTabPlayer client:only="react" />
+
+  <!--
+    Exportar a PDF = imprimir. El editor no tiene una vista de impresión aparte: se
+    oculta todo con `visibility` (no con `display`, que colapsaría la maquetación y
+    desplazaría la partitura) y se deja visible sólo `.bt-print-area`, que envuelve la
+    vista activa — Tab, Score o Grid, la que esté puesta. Se saca del flujo para que
+    empiece arriba del papel en vez de donde cayera en pantalla, y se le quitan altura
+    máxima y scroll para que los compases que quedaban fuera del viewport entren en las
+    páginas siguientes en vez de cortarse.
+  -->
+  <style is:global>
+    @media print {
+      body * { visibility: hidden !important; }
+      .bt-print-area, .bt-print-area * { visibility: visible !important; }
+      .bt-print-area {
+        position: absolute !important;
+        left: 0; top: 0; width: 100%;
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        background: #fff !important;
+        max-height: none !important;
+        overflow: visible !important;
+      }
+      .bt-print-area * { overflow: visible !important; max-height: none !important; }
+      @page { margin: 12mm; }
+    }
+  </style>
 </BaseLayout>

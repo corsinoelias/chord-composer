@@ -177,10 +177,22 @@ export function ScoreView({
   const [containerW, setContainerW] = useState(0)
 
   const [editCursor, setEditCursorState] = useState<EditCursor | null>(null)
+  // Al imprimir (botón PDF o Ctrl+P) la selección no debe salir: es una ayuda de
+  // edición, no parte de la partitura. Se escucha el evento del navegador y no sólo
+  // nuestro botón, para que Ctrl+P se comporte igual.
+  const [printing, setPrinting] = useState(false)
   const [fretBuffer, setFretBufferState] = useState('')
   const editCursorRef = useRef<EditCursor | null>(null)
   const fretBufferRef = useRef('')
   const setEditCursor = useCallback((v: EditCursor | null) => { editCursorRef.current = v; setEditCursorState(v) }, [])
+
+  useEffect(() => {
+    const on = () => setPrinting(true)
+    const off = () => setPrinting(false)
+    window.addEventListener('beforeprint', on)
+    window.addEventListener('afterprint', off)
+    return () => { window.removeEventListener('beforeprint', on); window.removeEventListener('afterprint', off) }
+  }, [])
   const setFretBuffer = useCallback((v: string) => { fretBufferRef.current = v; setFretBufferState(v) }, [])
 
   // Refs para los callbacks/timers
@@ -221,7 +233,7 @@ export function ScoreView({
       const bpb      = track.beatsPerBar
       // Beat seleccionado: el cursor de edición manda; si no, la nota seleccionada.
       const selNote  = selectedNoteId ? track.notes.find(n => n.id === selectedNoteId) : null
-      const selBeat  = isPlaying ? null : (editCursor?.beat ?? selNote?.startBeat ?? null)
+      const selBeat  = (isPlaying || printing) ? null : (editCursor?.beat ?? selNote?.startBeat ?? null)
       const PPB      = 80
       const wantBarW = bpb * PPB * zoom
       const LEFT     = 10
@@ -381,7 +393,7 @@ export function ScoreView({
     // entera exige reestilizar el objeto VexFlow antes de dibujarlo. Redibujar el
     // Score al seleccionar es barato: pasa cuando el usuario hace clic o mueve el
     // cursor, no 60 veces por segundo como la reproducción.
-  }, [track, zoom, containerW, selectedNoteId, editCursor, isPlaying])
+  }, [track, zoom, containerW, selectedNoteId, editCursor, isPlaying, printing])
 
   // ── Geometría: beat ↔ x, y por cuerda, y hit-testing ──────────────────────
   const barForBeat = useCallback((beat: number): BarGeom | null => {
@@ -628,7 +640,11 @@ export function ScoreView({
           <div key="col" style={{
             position: 'absolute', left: x - 16, top: bg.staffTopY - 16,
             width: 32, height: (bg.tabBottomY - bg.staffTopY) + 34, borderRadius: 3,
-            background: BT.accentWash, border: `1.4px solid ${withAlpha(BT.accent, 0.55)}`,
+            // Wash propio, más flojo que el token global (0.08): ahora que la figura va
+            // teñida entera, el relleno sólo tiene que insinuar la columna. Y nuestro
+            // acento es un morado oscuro, que a igual alfa pesa más que el terracota de
+            // la referencia — de ahí 0.05 y no su 0.06.
+            background: withAlpha(BT.accent, 0.05), border: `1.4px solid ${withAlpha(BT.accent, 0.55)}`,
             boxSizing: 'border-box', pointerEvents: 'none',
           }} />,
         )
@@ -754,7 +770,7 @@ export function ScoreView({
       <div ref={scrollRef} style={{ flex: 1, overflowX: 'hidden', overflowY: 'auto', position: 'relative', background: 'transparent' }}>
         <div style={{ position: 'relative', minHeight: svgH }} onPointerDown={handlePointerDown}>
           <div ref={hostRef} />
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <div className="bt-overlay-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
             {overlays}
             {playHeads}
           </div>

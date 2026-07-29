@@ -757,7 +757,7 @@ export function TabNotationView({
           </span>
           {fretBuffer
             ? <span style={{ color: 'var(--bt-ink)' }}>fret: <strong style={{ color: 'white', fontSize: 13 }}>{fretBuffer}</strong>_</span>
-            : <span style={{ color: 'var(--bt-dim)' }}>{isMobile ? 'toca un traste ↓' : 'type fret · ←→ move · ↑↓ string · Del delete'}</span>
+            : <span style={{ color: 'var(--bt-dim)' }}>{isMobile ? 'tap a fret ↓' : 'type fret · ←→ move · ↑↓ string · Del delete'}</span>
           }
         </div>
       )}

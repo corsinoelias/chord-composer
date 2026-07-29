@@ -294,11 +294,11 @@ export function MobileTabEditor({
         <div style={{ flex: 1 }} />
         {selectedNote ? (
           <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: 'var(--bt-ui)' }}>
-            toca de nuevo para borrar
+            tap again to delete
           </span>
         ) : (
           <span style={{ fontSize: 10, color: 'var(--bt-dim)', fontFamily: 'var(--bt-ui)' }}>
-            toca la cuerda para colocar
+            tap the string to place
           </span>
         )}
       </div>

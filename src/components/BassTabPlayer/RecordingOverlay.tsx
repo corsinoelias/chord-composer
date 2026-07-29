@@ -328,10 +328,10 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
             }} />
           )}
           <span style={{ fontSize: 14, fontWeight: 600, color: R.text }}>
-            {phase === 'ready'      ? 'Grabar tablatura'
-            : phase === 'countdown' ? 'Prepárate...'
-            : phase === 'recording' ? `Grabando · ${currentBar + 1}/${track.totalBars}`
-            :                         'Revisión'}
+            {phase === 'ready'      ? 'Record tab'
+            : phase === 'countdown' ? 'Get ready…'
+            : phase === 'recording' ? `Recording · ${currentBar + 1}/${track.totalBars}`
+            :                         'Review'}
           </span>
         </div>
 
@@ -363,7 +363,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
                 color: R.muted, fontSize: 12, cursor: 'pointer',
               }}
             >
-              {phase === 'ready' ? 'Cancelar' : 'Volver a grabar'}
+              {phase === 'ready' ? 'Cancelar' : 'Record again'}
             </button>
           )}
         </div>
@@ -385,7 +385,7 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
               {track.totalBars} compases · {RECORDING_BPM} BPM · {track.beatsPerBar}/4
             </div>
             <div style={{ fontSize: 12, color: R.muted, maxWidth: 280, lineHeight: 1.6 }}>
-              Escucharás un compás de cuenta atrás. Luego toca las cuerdas para grabar la tablatura.
+              You&rsquo;ll hear a one-bar count-in, then play the strings to record your tab.
             </div>
           </div>
           <button
@@ -589,9 +589,9 @@ export function RecordingOverlay({ track, sound, onComplete, onCancel }: Recordi
               color: R.muted,
             }}>
               <div style={{ fontSize: 40 }}>🎸</div>
-              <div style={{ fontSize: 15, fontWeight: 600 }}>Sin notas grabadas</div>
+              <div style={{ fontSize: 15, fontWeight: 600 }}>No notes recorded</div>
               <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 240, lineHeight: 1.5 }}>
-                Toca las cuerdas del bajo durante la grabación.
+                Play the bass strings while recording.
               </div>
             </div>
           ) : (

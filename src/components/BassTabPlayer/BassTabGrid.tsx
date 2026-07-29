@@ -407,14 +407,14 @@ export function BassTabGrid({
           {/* Selection count */}
           {hasMultiSel && (
             <span style={{ fontSize: 11, color: 'var(--bt-accent)', fontWeight: 600 }}>
-              {selIds.size} notas
+              {selIds.size} notes
             </span>
           )}
 
           {/* Copy */}
           {hasMultiSel && (
             <button onClick={doCopy} style={tbBtn('#1d4ed8', '#60a5fa')}>
-              Copiar
+              Copy
             </button>
           )}
 

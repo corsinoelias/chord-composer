@@ -69,6 +69,7 @@ interface TransportProps {
   // Feature 8: export WAV
   onExportWav?: () => void
   onExportImage?: () => void
+  onExportPdf?: () => void
   onExportVideo?: () => void
   // Feature 2: loop range (toggle on/off)
   loopRangeActive?: boolean
@@ -87,7 +88,7 @@ export function BassTabTransport(props: TransportProps) {
     currentBeat = 0, beatsPerBar = 4,
     fretboardVisible, onFretboardToggle,
     midiInputAvailable, midiInputActive, midiDeviceName, onMidiInputToggle,
-    onExportWav, onExportImage, onExportVideo,
+    onExportWav, onExportImage, onExportVideo, onExportPdf,
     loopRangeActive, onToggleLoopRange,
     onRecord,
   } = props
@@ -165,7 +166,7 @@ export function BassTabTransport(props: TransportProps) {
           {onRecord && (
             <button
               onClick={onRecord}
-              title="Grabar tablatura"
+              title="Record tab"
               style={{
                 width: 36, height: 36, borderRadius: 18, flexShrink: 0,
                 background: T.dangerBg,
@@ -423,7 +424,7 @@ export function BassTabTransport(props: TransportProps) {
             {onRecord && (
               <button
                 onClick={onRecord}
-                title="Grabar tablatura"
+                title="Record tab"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   height: 34, padding: '0 12px', flexShrink: 0,
@@ -558,12 +559,13 @@ export function BassTabTransport(props: TransportProps) {
             <TransportMenu
               label="Export"
               items={[
-                { group: 'Partitura', label: 'ASCII tab', hint: '.txt', onClick: onExportAscii },
-                ...(onExportImage ? [{ label: 'Imagen', hint: '.png', onClick: onExportImage }] : []),
-                { group: 'Audio y vídeo', label: 'MIDI', hint: '.mid', onClick: onExportMidi },
+                { group: 'Score', label: 'ASCII tab', hint: '.txt', onClick: onExportAscii },
+                ...(onExportImage ? [{ label: 'Image', hint: '.png', onClick: onExportImage }] : []),
+                ...(onExportPdf ? [{ label: 'PDF', hint: 'print', onClick: onExportPdf }] : []),
+                { group: 'Audio & video', label: 'MIDI', hint: '.mid', onClick: onExportMidi },
                 ...(onExportWav   ? [{ label: 'Audio',  hint: '.wav',  onClick: onExportWav }]   : []),
-                ...(onExportVideo ? [{ label: 'Vídeo',  hint: '.webm', onClick: onExportVideo }] : []),
-                { group: 'Compartir', label: 'Copiar enlace', onClick: onShareUrl },
+                ...(onExportVideo ? [{ label: 'Video',  hint: '.webm', onClick: onExportVideo }] : []),
+                { group: 'Share', label: 'Copy link', onClick: onShareUrl },
               ]}
             />
           </div>
