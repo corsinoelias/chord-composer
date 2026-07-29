@@ -89,6 +89,21 @@
   status = 301
   force = true
 
+# /chord-progression-generator/ removed — the homepage already owns this term
+# (position 9.2 vs 65.7 for the dedicated page in GSC, July 2026). Keeping both
+# only split the signal, so the page was deleted and folded back into "/".
+[[redirects]]
+  from = "/chord-progression-generator/"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/chord-progression-generator"
+  to = "/"
+  status = 301
+  force = true
+
 # /learn/circle-of-fifths/ was renamed to /learn/circle-of-fifths-explained/
 [[redirects]]
   from = "/learn/circle-of-fifths/"

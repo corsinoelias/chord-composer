@@ -80,9 +80,4 @@ export const PAGES_REGISTRY: Record<string, PageMeta> = {
     tagline: 'Explore progressions by genre — pop, rock, jazz, blues, worship and more.',
     tags: ['Pop', 'Rock', 'Jazz', 'Blues'],
   },
-  'chord-progression-generator': {
-    title: 'Chord Progression Generator',
-    tagline: 'Generate chord progressions in any key and style. Listen instantly in your browser.',
-    tags: ['AI Assisted', 'All Keys', 'Free'],
-  },
 }
