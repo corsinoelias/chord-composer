@@ -225,12 +225,18 @@ function InteractiveFretboard({
             const rel = tuning[s]
             const isOpen = rel === 0
             const muted = rel === null
+            const stringSounding = !muted && (activeId === s || activeId === 'all')
+            const openSounding = isOpen && stringSounding
             return (
               <div key={`str${s}`}>
                 <span style={{
                   position: 'absolute', left: 0, top: y + FB_ROW_H / 2 - 8,
                   width: 26, textAlign: 'right', fontSize: 11.5, fontWeight: 700, color: MUTED,
                 }}>{stringNames[s]}</span>
+                {/* El circulo de cuerda al aire tambien se anima al sonar. Sin esto, con
+                    todas las cuerdas al aire -- que es el estado inicial -- pulsar Play no
+                    movia absolutamente nada: solo se animaban las cuerdas pisadas. Misma
+                    escala y color que usa el diagrama del buscador. */}
                 <button
                   type="button"
                   onClick={() => onToggle(s, isOpen ? null : 0)}
@@ -239,13 +245,18 @@ function InteractiveFretboard({
                     position: 'absolute', left: 30, top: y + FB_ROW_H / 2 - 11,
                     width: 22, height: 22, border: 'none', background: 'transparent', padding: 0,
                     cursor: 'pointer', fontSize: 14, fontWeight: 700, lineHeight: '22px',
-                    color: isOpen ? accent : muted ? FAINT : '#d5cee2',
+                    color: openSounding ? accent : isOpen ? accent : muted ? FAINT : '#d5cee2',
+                    transform: openSounding ? 'scale(1.35)' : 'scale(1)',
+                    textShadow: openSounding ? `0 0 10px ${accent}aa` : 'none',
+                    transition: 'transform 0.1s ease, color 0.1s ease, text-shadow 0.1s ease',
                   }}
                 >{muted ? '×' : '○'}</button>
                 <div style={{
                   position: 'absolute', left: FB_LABEL_W, top: y + FB_ROW_H / 2,
                   width: FB_FRETS * FB_FRET_W, height: s < 2 ? 2.5 : 1.5,
-                  background: muted ? '#ded7ea' : '#a99fc0',
+                  background: stringSounding ? accent : muted ? '#ded7ea' : '#a99fc0',
+                  boxShadow: stringSounding ? `0 0 8px ${accent}` : 'none',
+                  transition: 'background 0.12s ease, box-shadow 0.12s ease',
                 }} />
               </div>
             )
@@ -272,10 +283,11 @@ function InteractiveFretboard({
                 >
                   {on && (
                     <span style={{
-                      position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
+                      position: 'absolute', left: '50%', top: '50%',
                       width: 24, height: 24, borderRadius: '50%', background: accent,
                       boxShadow: sounding ? `0 0 0 8px ${accent}44` : `0 0 0 4px ${accent}2a`,
-                      transition: 'box-shadow 0.12s ease',
+                      transform: `translate(-50%,-50%) scale(${sounding ? 1.28 : 1})`,
+                      transition: 'box-shadow 0.12s ease, transform 0.12s ease',
                     }} />
                   )}
                 </button>
@@ -311,7 +323,7 @@ function InteractiveFretboard({
                 touchAction: 'none',
                 zIndex: 4,
               }}
-              title={`Capo on fret ${capo} — drag to move, or click the lane above`}
+              title={`Capo on fret ${capo} — drag to move`}
             >
               <span style={{ fontSize: 9, fontWeight: 700, color: '#fff' }}>{capo}</span>
             </div>
@@ -319,11 +331,26 @@ function InteractiveFretboard({
         </div>
       </div>
 
-      <p style={{ margin: 0, fontSize: 12.5, color: MUTED, textAlign: 'center' }}>
-        {capo > 0
-          ? <>Capo on fret <strong style={{ color: TEXT }}>{capo}</strong> — the shape moves with it, so the chord changes. Drag it, or click the lane, to try another fret.</>
-          : <>Using a capo? Click the dots above the neck to place it — the same shape then sounds in a different key.</>}
-      </p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <p style={{ margin: 0, fontSize: 12.5, color: MUTED, textAlign: 'center' }}>
+          {capo > 0
+            ? <>Capo on fret <strong style={{ color: TEXT }}>{capo}</strong> — the shape moves with it, so the chord changes.</>
+            : <>Using a capo? Click the dots above the neck to place it — the same shape then sounds in a different key.</>}
+        </p>
+        {/* Quitar el capo necesita un boton propio y comodo: la barra tapa la celda del
+            carril de su traste, asi que hacer clic ahi cae en la barra y empieza un
+            arrastre en vez de quitarlo. */}
+        {capo > 0 && (
+          <button
+            type="button" onClick={() => onCapo(0)}
+            style={{
+              border: `1.5px solid ${BORDER}`, background: '#fff', color: TEXT,
+              borderRadius: 8, padding: '6px 12px', fontSize: 12.5, fontWeight: 600,
+              cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >Remove capo</button>
+        )}
+      </div>
     </div>
   )
 }
@@ -447,8 +474,11 @@ export function ChordIdentifier({
 
   // Al subir el capo, una nota puede caerse del mastil. Se silencia esa cuerda en vez de
   // dejarla sonando sin punto visible, que se leeria como que la herramienta miente.
+  // Poner el capo NO cuenta como haber marcado un acorde. Es como esta montada la
+  // guitarra, no lo que se esta tocando: cebillar las cuerdas al aire sigue siendo cuerdas
+  // al aire, solo que transpuestas, y nombrar eso seria tan falso como llamar acorde al
+  // estado inicial.
   const moveCapo = (f: number) => {
-    setTouched(true)
     setCapo(f)
     setStrings(prev => prev.map(v => (v !== null && f + v > FB_FRETS ? null : v)))
   }
