@@ -35,12 +35,10 @@ function InteractiveKeyboard({
 
   const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B']
   const label = (semi: number) => NAMES[semi % 12]
-  const lowest = selected.size ? Math.min(...selected) : null
 
   const keyBtn = (semi: number, isBlack: boolean, x: number) => {
     const on = selected.has(semi)
     const sounding = on && (activeId === semi || activeId === 'all')
-    const isBass = semi === lowest
     return (
       <button
         key={(isBlack ? 'b' : 'w') + semi}
@@ -70,15 +68,6 @@ function InteractiveKeyboard({
             fontSize: isBlack ? 9 : 11, fontWeight: 700, color: '#ffffff',
           }}>
             {label(semi)}
-          </span>
-        )}
-        {/* La nota mas grave decide la inversion, asi que se marca */}
-        {on && isBass && (
-          <span style={{
-            position: 'absolute', top: 5, left: 0, right: 0, textAlign: 'center',
-            fontSize: 8, fontWeight: 700, color: '#ffffff', opacity: 0.75, letterSpacing: 0.5,
-          }}>
-            BASS
           </span>
         )}
       </button>
