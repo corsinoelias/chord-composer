@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react'
 import { identifyChord, type ChordMatch } from '../../lib/chordIdentify'
 import { GMID, UMID } from '../../lib/chordTheory'
+import { useChordAudio } from './useChordAudio'
 import {
   ACCENT, TEXT, MUTED, FAINT, BORDER, BORDER_LIGHT, CARD_BG,
-  KEY_W, WHITE_SEMIS, BLACK_SEMIS, BLACK_OFFSETS, OCTAVES,
+  KEY_W, WHITE_SEMIS, BLACK_SEMIS, BLACK_OFFSETS, OCTAVES, PIANO_BASE_MIDI,
 } from './palette'
 
 type Notation = 'english' | 'latin'
@@ -19,8 +20,8 @@ type StringState = number | null
 // se pulso cada tecla.
 
 function InteractiveKeyboard({
-  selected, onToggle, accent,
-}: { selected: Set<number>; onToggle: (semi: number) => void; accent: string }) {
+  selected, onToggle, accent, activeId,
+}: { selected: Set<number>; onToggle: (semi: number) => void; accent: string; activeId: number | string | null }) {
   const whites: { semi: number; x: number }[] = []
   for (let i = 0; i < OCTAVES * 7; i++) {
     whites.push({ semi: Math.floor(i / 7) * 12 + WHITE_SEMIS[i % 7], x: i * KEY_W + 1 })
@@ -38,6 +39,7 @@ function InteractiveKeyboard({
 
   const keyBtn = (semi: number, isBlack: boolean, x: number) => {
     const on = selected.has(semi)
+    const sounding = on && (activeId === semi || activeId === 'all')
     const isBass = semi === lowest
     return (
       <button
@@ -57,7 +59,8 @@ function InteractiveKeyboard({
           zIndex: isBlack ? 2 : 1,
           padding: 0,
           cursor: 'pointer',
-          boxShadow: on ? `0 5px 15px ${accent}77` : isBlack ? '0 2px 3px rgba(20,10,40,0.35)' : 'none',
+          boxShadow: sounding ? `0 6px 18px ${accent}cc` : on ? `0 5px 15px ${accent}77` : isBlack ? '0 2px 3px rgba(20,10,40,0.35)' : 'none',
+          transform: sounding ? 'translateY(2px)' : 'none',
           transition: 'background 0.12s ease, box-shadow 0.12s ease',
         }}
       >
@@ -104,8 +107,9 @@ const FB_PAD_L = 30
 const FRETS_SHOWN = 5
 
 function InteractiveFretboard({
-  tuning, strings, baseFret, onBaseFret, onToggle, accent,
+  tuning, strings, baseFret, onBaseFret, onToggle, accent, activeId,
 }: {
+  activeId: number | string | null
   tuning: StringState[]
   strings: number
   baseFret: number
@@ -210,7 +214,8 @@ function InteractiveFretboard({
                   <span style={{
                     position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
                     width: 28, height: 28, borderRadius: '50%', background: accent,
-                    boxShadow: `0 0 0 5px ${accent}33`,
+                    boxShadow: (activeId === s || activeId === 'all') ? `0 0 0 9px ${accent}44` : `0 0 0 5px ${accent}33`,
+                    transition: 'box-shadow 0.12s ease',
                   }} />
                 )}
               </button>
@@ -331,6 +336,21 @@ export function ChordIdentifier({
   const sounding = strings.filter((f): f is number => f !== null)
   const count = isPiano ? selected.size : sounding.length
 
+  const { play, playing, activeId } = useChordAudio(instrument)
+
+  // Notas reales que suenan, graves primero, para que el arpegio salga de abajo a arriba
+  // igual que en el buscador. El id es el semitono o el indice de cuerda, que es con lo
+  // que el teclado y el diapason resaltan la nota que esta sonando.
+  const noteEvents = useMemo(() => {
+    if (isPiano) {
+      return [...selected].sort((a, b) => a - b).map(s => ({ midi: PIANO_BASE_MIDI + s, id: s }))
+    }
+    return strings
+      .map((f, s) => (f === null ? null : { midi: midi[s] + f, id: s }))
+      .filter((n): n is { midi: number; id: number } => n !== null)
+      .sort((a, b) => a.midi - b.midi)
+  }, [isPiano, selected, strings, midi])
+
   const matches = useMemo(() => {
     if (isPiano) {
       if (selected.size === 0) return []
@@ -365,25 +385,40 @@ export function ChordIdentifier({
           </span>
         </div>
         {count > 0 && (
-          <button
-            type="button"
-            onClick={clear}
-            style={{
-              border: `1.5px solid ${BORDER}`, background: '#ffffff', color: TEXT,
-              borderRadius: 10, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            Clear
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => play(noteEvents)}
+              style={{
+                border: 'none', borderRadius: 10, padding: '9px 16px', fontSize: 13.5, fontWeight: 700,
+                background: playing ? '#3c3452' : accent, color: '#ffffff', cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                boxShadow: '0 3px 11px rgba(90,50,180,0.28)',
+              }}
+            >
+              <span style={{ fontSize: 11 }}>{playing ? '■' : '▶'}</span>
+              {playing ? 'Stop' : 'Hear it'}
+            </button>
+            <button
+              type="button"
+              onClick={clear}
+              style={{
+                border: `1.5px solid ${BORDER}`, background: '#ffffff', color: TEXT,
+                borderRadius: 10, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Clear
+            </button>
+          </div>
         )}
       </div>
 
       {isPiano ? (
-        <InteractiveKeyboard selected={selected} onToggle={toggleKey} accent={accent} />
+        <InteractiveKeyboard selected={selected} onToggle={toggleKey} accent={accent} activeId={activeId} />
       ) : (
         <InteractiveFretboard
           tuning={strings} strings={stringCount} baseFret={baseFret}
-          onBaseFret={setBaseFret} onToggle={toggleString} accent={accent}
+          onBaseFret={setBaseFret} onToggle={toggleString} accent={accent} activeId={activeId}
         />
       )}
 

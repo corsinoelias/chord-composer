@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { prepareSoundfont, playGuitarToneAtMidi } from '../../lib/guitarTab/guitarAudio'
-import { loadPianoSamples, getPianoSample } from '../../lib/virtualPiano/pianoSamples'
+import { useChordAudio, type NoteEvent } from './useChordAudio'
 
 import { ACCENT, TEXT, MUTED, FAINT, BORDER, BORDER_LIGHT, PILL_BG, CARD_BG } from './palette'
 
@@ -111,20 +110,8 @@ function buildDiagram(vo: ParsedVoicing, g: Geometry, o: DiagramOpts): DiagramDa
   return d
 }
 
-// ── Audio ────────────────────────────────────────────────────────────────
-function buildPianoVoice(ctx: AudioContext, dest: AudioNode, buf: AudioBuffer, t: number) {
-  const src = ctx.createBufferSource()
-  src.buffer = buf
-  const g = ctx.createGain()
-  g.gain.setValueAtTime(0, t)
-  g.gain.linearRampToValueAtTime(0.85, t + 0.006)
-  g.gain.setTargetAtTime(0.0001, t + 0.05, 1.1)
-  src.connect(g); g.connect(dest)
-  src.start(t)
-  src.stop(t + 3.5)
-}
-
-type NoteEvent = { midi: number; id: number | string }
+// El audio vive en useChordAudio.ts, compartido con el identificador: las dos mitades de la
+// pagina tienen que sonar igual, con las mismas muestras y el mismo arpegio.
 
 export function ChordFinderTool({ instrument, accent = ACCENT, showFingerNumbers = true }: { instrument: Instrument; accent?: string; showFingerNumbers?: boolean }) {
   const [rootIdx, setRootIdx] = useState(0)
@@ -133,17 +120,14 @@ export function ChordFinderTool({ instrument, accent = ACCENT, showFingerNumbers
   const [notation, setNotation] = useState<'english' | 'latin'>('english')
   const [lefty, setLefty] = useState(false)
   const [posIdx, setPosIdx] = useState(0)
-  const [activeId, setActiveId] = useState<number | string | null>(null)
-  const [playing, setPlaying] = useState(false)
   const [db, setDb] = useState<ChordsDB | null>(null)
 
   const isPiano = instrument === 'piano'
   const isGuitar = !isPiano
 
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const { play: playNotes, playing, activeId } = useChordAudio(instrument)
   const notesRef = useRef<NoteEvent[]>([])
-  const pianoCtxRef = useRef<AudioContext | null>(null)
-  const pianoGainRef = useRef<GainNode | null>(null)
+  const play = useCallback(() => playNotes(notesRef.current), [playNotes])
 
   // Load voicing data. Split per instrument and dynamically imported — not a
   // top-level import — so each page's JS chunk only carries the tuning data
@@ -160,58 +144,6 @@ export function ChordFinderTool({ instrument, accent = ACCENT, showFingerNumbers
     return () => { cancelled = true }
   }, [isGuitar, instrument])
 
-  // Preload real audio so the first Play press doesn't stall
-  useEffect(() => {
-    if (isPiano) {
-      if (!pianoCtxRef.current) {
-        const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-        const g = ctx.createGain(); g.gain.value = 0.9; g.connect(ctx.destination)
-        pianoCtxRef.current = ctx; pianoGainRef.current = g
-      }
-      loadPianoSamples(pianoCtxRef.current).catch(() => {})
-    } else if (instrument === 'guitar') {
-      prepareSoundfont('sf2').catch(() => {})
-    }
-  }, [isPiano, instrument])
-
-  const stop = useCallback(() => {
-    timersRef.current.forEach(clearTimeout)
-    timersRef.current = []
-    setActiveId(null)
-    setPlaying(false)
-  }, [])
-
-  const playTone = useCallback((midi: number) => {
-    if (isPiano) {
-      const ctx = pianoCtxRef.current
-      if (!ctx || !pianoGainRef.current) return
-      if (ctx.state === 'suspended') ctx.resume()
-      const buf = getPianoSample(midi)
-      if (buf) buildPianoVoice(ctx, pianoGainRef.current, buf, ctx.currentTime + 0.01)
-    } else {
-      playGuitarToneAtMidi(midi, instrument === 'guitar' ? 'sf2' : 'nylon')
-    }
-  }, [isPiano, instrument])
-
-  const play = useCallback(() => {
-    if (playing) { stop(); return }
-    const notes = notesRef.current
-    if (!notes.length) return
-    timersRef.current = []
-    const gap = 0.5
-    notes.forEach((n, i) => {
-      timersRef.current.push(setTimeout(() => { playTone(n.midi); setActiveId(n.id) }, i * gap * 1000))
-    })
-    const tEnd = notes.length * gap + 0.15
-    timersRef.current.push(setTimeout(() => {
-      setActiveId('all')
-      notes.forEach((n, i) => {
-        timersRef.current.push(setTimeout(() => playTone(n.midi), i * 45))
-      })
-    }, tEnd * 1000))
-    timersRef.current.push(setTimeout(() => { setActiveId(null); setPlaying(false) }, (tEnd + 1.5) * 1000))
-    setPlaying(true)
-  }, [playing, playTone, stop])
 
   // Space-bar shortcut — excludes BUTTON too (not just INPUT/SELECT/TEXTAREA)
   // so a focused button's own native Space-activation isn't hijacked.
@@ -224,11 +156,6 @@ export function ChordFinderTool({ instrument, accent = ACCENT, showFingerNumbers
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [play])
-
-  useEffect(() => () => {
-    timersRef.current.forEach(clearTimeout)
-    pianoCtxRef.current?.close().catch(() => {})
-  }, [])
 
   // Reset position when root/type changes
   const setRoot = (i: number) => { setRootIdx(i); setPosIdx(0) }
