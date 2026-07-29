@@ -219,6 +219,9 @@ export function ScoreView({
       host.innerHTML = ''
 
       const bpb      = track.beatsPerBar
+      // Beat seleccionado: el cursor de edición manda; si no, la nota seleccionada.
+      const selNote  = selectedNoteId ? track.notes.find(n => n.id === selectedNoteId) : null
+      const selBeat  = isPlaying ? null : (editCursor?.beat ?? selNote?.startBeat ?? null)
       const PPB      = 80
       const wantBarW = bpb * PPB * zoom
       const LEFT     = 10
@@ -294,8 +297,18 @@ export function ScoreView({
             } else {
               const sn = new StaveNote({ clef: 'bass', keys: item.notes.map(n => n.key), duration: item.noteDur })
               item.notes.forEach((n, i) => { if (n.acc) sn.addModifier(new Accidental(n.acc), i) })
+              const tn = new TabNote({ positions: item.notes.map(n => ({ str: n.str, fret: n.fret })), duration: item.noteDur })
+              // Selección: teñir la figura entera, no sólo la cabeza. setStyle actúa sobre
+              // el objeto antes de dibujarlo, así que arrastra plica, corchete y alteración
+              // en el pentagrama y el número en la tab — un div superpuesto sólo tapaba la
+              // cabeza y dejaba el resto en negro.
+              if (selBeat !== null && Math.abs(bar * bpb + item.beatInBar - selBeat) < 1e-6) {
+                const style = { fillStyle: BT.accent, strokeStyle: BT.accent }
+                sn.setStyle(style)
+                tn.setStyle(style)
+              }
               sNotes.push(sn)
-              tNotes.push(new TabNote({ positions: item.notes.map(n => ({ str: n.str, fret: n.fret })), duration: item.noteDur }))
+              tNotes.push(tn)
               restFlags.push(false)
             }
           }
@@ -364,7 +377,11 @@ export function ScoreView({
     })
 
     return () => { cancelled = true }
-  }, [track, zoom, containerW])
+    // La selección entra aquí (y no como capa superpuesta) porque teñir la figura
+    // entera exige reestilizar el objeto VexFlow antes de dibujarlo. Redibujar el
+    // Score al seleccionar es barato: pasa cuando el usuario hace clic o mueve el
+    // cursor, no 60 veces por segundo como la reproducción.
+  }, [track, zoom, containerW, selectedNoteId, editCursor, isPlaying])
 
   // ── Geometría: beat ↔ x, y por cuerda, y hit-testing ──────────────────────
   const barForBeat = useCallback((beat: number): BarGeom | null => {
@@ -645,15 +662,9 @@ export function ScoreView({
       }
     }
 
-    // Resaltar en el PENTAGRAMA la cabeza de la nota seleccionada. En el diseño,
-    // seleccionar un número de la tab tiñe de acento su nota en el pentagrama.
-    if (!isPlaying) {
-      const sel = track.notes.find(n => n.id === selectedNoteId)
-      if (sel) {
-        const hd = headAt(sel.startBeat, sel.stringIndex)
-        if (hd) els.push(<HeadDot key="sel-head" x={hd.x} y={hd.y} />)
-      }
-    }
+    // La nota seleccionada ya la tiñe VexFlow entera —cabeza, plica, corchete y
+    // alteración, más el número en la tab— al reestilizarla antes de dibujar, así
+    // que aquí no hace falta superponer nada.
 
     // Etiquetas de cuerda por sistema + insignia azul de número de compás
     const seenSys = new Set<number>()
