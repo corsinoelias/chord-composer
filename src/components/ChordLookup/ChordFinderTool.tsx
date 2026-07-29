@@ -2,14 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { prepareSoundfont, playGuitarToneAtMidi } from '../../lib/guitarTab/guitarAudio'
 import { loadPianoSamples, getPianoSample } from '../../lib/virtualPiano/pianoSamples'
 
-const ACCENT = '#7C3AED'
-const TEXT = '#241d33'
-const MUTED = '#6f6788'
-const FAINT = '#8a819e'
-const BORDER = '#ddd5ec'
-const BORDER_LIGHT = '#e7e0f2'
-const PILL_BG = '#ece6f7'
-const CARD_BG = '#ffffff'
+import { ACCENT, TEXT, MUTED, FAINT, BORDER, BORDER_LIGHT, PILL_BG, CARD_BG } from './palette'
 
 type Instrument = 'guitar' | 'piano' | 'ukulele'
 
