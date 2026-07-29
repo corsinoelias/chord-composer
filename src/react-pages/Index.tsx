@@ -1210,15 +1210,18 @@ const Index = ({ songId }: IndexProps) => {
                 <Music2 className="w-4 h-4 text-primary-foreground" />
               </a>
 
-              {/* Breadcrumb — the page's only H1. The SSR skeleton renders the same text as
-                  an h1 in this exact spot; keeping it an h1 here too (not a span) means the
-                  page still has a level-one heading after hydration replaces the skeleton. */}
+              {/* Breadcrumb. Deliberately NOT an h1: this whole row is "hidden sm:flex", so on
+                  mobile it never rendered and the page was left without a heading — bad for the
+                  one page that has to rank for "chord player". The H1 now lives in the "About
+                  the chord player" section of chord-player/index.astro, which sits outside
+                  #editor-skeleton and so is present before and after hydration. Keep this a
+                  span; promoting it back would give the page two competing h1s. */}
               <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground min-w-0">
                 <a href="/app/" className="hover:text-foreground transition-colors shrink-0">My library</a>
                 <span className="opacity-30 mx-0.5">/</span>
-                <h1 className="text-foreground font-medium truncate max-w-[160px] md:max-w-xs m-0 inline text-xs">
+                <span className="text-foreground font-medium truncate max-w-[160px] md:max-w-xs m-0 inline text-xs">
                   {currentSongId || songId ? songTitle || 'New progression' : 'Chord Player'}
-                </h1>
+                </span>
               </div>
 
               {/* Opened from someone else's link — say so, so the first edit forking the

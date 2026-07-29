@@ -105,12 +105,17 @@ const webAppSchema = {
     <div style="display: grid;">
       <div id="editor-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out;" class="min-h-screen bg-background">
         <!--
-          The logo + breadcrumb row below is real, permanent content (not aria-hidden) —
-          it's where the "Chord Player" H1 lives instead of a separate hero band. A crawler
-          never has a saved song in its (nonexistent) localStorage, so it always sees this
-          exact text; a real visitor sees it too until they save something, at which point
-          the hydrated app swaps it for the actual song title (Index.tsx mirrors this same
-          condition). Everything else below is decorative loading shimmer only.
+          The logo + breadcrumb row below is real, permanent content (not aria-hidden). A
+          crawler never has a saved song in its (nonexistent) localStorage, so it always sees
+          this exact text; a real visitor sees it too until they save something, at which
+          point the hydrated app swaps it for the actual song title (Index.tsx mirrors this
+          same condition). Everything else below is decorative loading shimmer only.
+
+          This crumb used to be the page's H1, which was a bad fit for the one page that has
+          to rank for "chord player": 12px, inline, truncated at 160px, and inside
+          "hidden sm:flex" — so on mobile it was display:none and the page had no rendered
+          heading at all. The H1 now lives in the "About the chord player" section below the
+          editor, which is outside #editor-skeleton and therefore survives hydration.
         -->
         <div class="border-b border-border bg-card">
           <div class="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
@@ -120,7 +125,7 @@ const webAppSchema = {
                 <div class="hidden sm:flex items-center gap-1 text-xs text-muted-foreground min-w-0">
                   <span class="shrink-0">My library</span>
                   <span class="opacity-30 mx-0.5">/</span>
-                  <h1 class="text-foreground font-medium truncate max-w-[160px] md:max-w-xs m-0 inline text-xs">Chord Player</h1>
+                  <span class="text-foreground font-medium truncate max-w-[160px] md:max-w-xs m-0 inline text-xs">Chord Player</span>
                 </div>
               </div>
               <div class="flex items-center gap-1.5 sm:gap-2" aria-hidden="true">
@@ -211,8 +216,18 @@ const webAppSchema = {
       own white card (bg-card) rather than the bare page background — that's what separates
       one group from the next, not a colored rail.
     -->
-    <section aria-label="About the chord player" class="mx-auto max-w-6xl mt-4 mb-16 px-4 sm:px-6">
+    <section aria-labelledby="chord-player-heading" class="mx-auto max-w-6xl mt-4 mb-16 px-4 sm:px-6">
       <div class="border-t border-border pt-8 space-y-10 text-sm">
+        <!--
+          The page's only H1. It lives here rather than above the editor on purpose: this page
+          is the tool, and a hero band would push the app down for every returning visitor. Here
+          it is server-rendered, visible at every breakpoint, and outside #editor-skeleton, so
+          it is present both before and after hydration.
+        -->
+        <h1 id="chord-player-heading" class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          Online Chord Player
+        </h1>
+
         <!-- WHAT IS IT — plain-language definition, written for a total beginner -->
         <div class="max-w-2xl rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.07] to-transparent p-5 sm:p-6">
           <h2 class="font-semibold text-foreground text-[1.3em] mb-2">What is a chord player?</h2>
