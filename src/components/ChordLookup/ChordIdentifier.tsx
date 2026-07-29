@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { identifyChord, type ChordMatch } from '../../lib/chordIdentify'
 import { GMID, UMID } from '../../lib/chordTheory'
 import { useChordAudio } from './useChordAudio'
@@ -95,133 +95,208 @@ function InteractiveKeyboard({
   )
 }
 
-// ── Diapason interactivo ───────────────────────────────────────────────────
-// Caja de acorde vertical, como los diagramas del buscador: cuerdas en columnas y trastes
-// en filas. Se muestran 5 trastes con un selector de posicion, que es lo que hace falta
-// para las cebillas: sin el, cualquier forma por encima del traste 5 seria inalcanzable.
+// ── Diapason interactivo (horizontal) ──────────────────────────────────────
+// Mastil completo en horizontal en vez de una caja de acorde de 5 trastes: asi se llega a
+// cualquier traste de un clic, sin ir moviendo una ventana.
+//
+// Los trastes se guardan RELATIVOS AL CAPO, no absolutos. Es lo que hace que arrastrar el
+// capo transponga la forma entera en vez de descolocarla, que es justamente para lo que
+// sirve un capo: la misma posicion de dedos suena en otra tonalidad.
 
-const FB_SW = 42   // separacion entre cuerdas
-const FB_FH = 46   // alto de traste
-const FB_PAD_T = 40
-const FB_PAD_L = 30
-const FRETS_SHOWN = 5
+const FB_ROW_H = 34
+const FB_FRET_W = 46
+const FB_LABEL_W = 62
+const FB_FRETS = 15
+/** Trastes con marca de posicion, como en un mastil real */
+const FB_MARKERS = [3, 5, 7, 9, 12, 15]
 
 function InteractiveFretboard({
-  tuning, strings, baseFret, onBaseFret, onToggle, accent, activeId,
+  tuning, strings, capo, onCapo, onToggle, accent, activeId, stringNames,
 }: {
-  activeId: number | string | null
   tuning: StringState[]
   strings: number
-  baseFret: number
-  onBaseFret: (f: number) => void
-  onToggle: (stringIdx: number, fret: number | null) => void
+  capo: number
+  onCapo: (f: number) => void
+  onToggle: (stringIdx: number, rel: number | null) => void
   accent: string
+  activeId: number | string | null
+  stringNames: string[]
 }) {
-  const gridW = (strings - 1) * FB_SW
-  const w = FB_PAD_L * 2 + gridW
-  const h = FB_PAD_T + FRETS_SHOWN * FB_FH + 30
-  const X = (s: number) => FB_PAD_L + s * FB_SW
-  const atNut = baseFret === 1
+  const [dragging, setDragging] = useState(false)
+  const neckRef = useRef<HTMLDivElement | null>(null)
+
+  const neckW = FB_LABEL_W + FB_FRETS * FB_FRET_W
+  const neckH = strings * FB_ROW_H
+  // Fila de arriba = cuerda mas aguda, como en una tablatura
+  const rowOf = (s: number) => (strings - 1 - s) * FB_ROW_H
+  const fretX = (f: number) => FB_LABEL_W + (f - 1) * FB_FRET_W
+
+  const fretFromX = (clientX: number) => {
+    const el = neckRef.current
+    if (!el) return 0
+    const rect = el.getBoundingClientRect()
+    const x = clientX - rect.left + el.scrollLeft - FB_LABEL_W
+    return Math.max(0, Math.min(FB_FRETS, Math.round(x / FB_FRET_W)))
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button
-          type="button" onClick={() => onBaseFret(Math.max(1, baseFret - 1))}
-          disabled={baseFret === 1} aria-label="Move down the neck"
-          style={{
-            border: `1.5px solid ${BORDER}`, background: '#fff', borderRadius: 8, width: 30, height: 30,
-            fontSize: 15, fontWeight: 700, color: baseFret === 1 ? '#c9c2d8' : TEXT,
-            cursor: baseFret === 1 ? 'default' : 'pointer',
-          }}
-        >&minus;</button>
-        <span style={{ fontSize: 12.5, color: MUTED, minWidth: 92, textAlign: 'center' }}>
-          {atNut ? 'Open position' : `From fret ${baseFret}`}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, color: MUTED }}>
+          {capo > 0
+            ? <>Capo on fret <strong style={{ color: TEXT }}>{capo}</strong> &mdash; drag it and the shape moves with it</>
+            : <>Drag the capo onto the neck to shift the whole shape</>}
         </span>
-        <button
-          type="button" onClick={() => onBaseFret(Math.min(12, baseFret + 1))}
-          disabled={baseFret === 12} aria-label="Move up the neck"
-          style={{
-            border: `1.5px solid ${BORDER}`, background: '#fff', borderRadius: 8, width: 30, height: 30,
-            fontSize: 15, fontWeight: 700, color: baseFret === 12 ? '#c9c2d8' : TEXT,
-            cursor: baseFret === 12 ? 'default' : 'pointer',
-          }}
-        >+</button>
+        {capo > 0 && (
+          <button
+            type="button" onClick={() => onCapo(0)}
+            style={{
+              border: `1.5px solid ${BORDER}`, background: '#fff', color: TEXT,
+              borderRadius: 8, padding: '5px 11px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+            }}
+          >Remove capo</button>
+        )}
       </div>
 
-      <div style={{ position: 'relative', width: w, height: h }}>
-        {/* Cuerdas */}
-        {Array.from({ length: strings }, (_, s) => (
-          <div key={`s${s}`} style={{
-            position: 'absolute', left: X(s) - 1, top: FB_PAD_T,
-            width: 2, height: FRETS_SHOWN * FB_FH, background: '#b9b0cc',
+      <div ref={neckRef} style={{ overflowX: 'auto', paddingBottom: 6 }}>
+        <div
+          style={{ position: 'relative', width: neckW, height: neckH + 26, userSelect: 'none' }}
+          onPointerMove={e => { if (dragging) onCapo(fretFromX(e.clientX)) }}
+          onPointerUp={() => setDragging(false)}
+          onPointerLeave={() => setDragging(false)}
+        >
+          {/* Diapason */}
+          <div style={{
+            position: 'absolute', left: FB_LABEL_W, top: 0,
+            width: FB_FRETS * FB_FRET_W, height: neckH,
+            background: 'linear-gradient(#f6f2fb,#efe9f8)', borderRadius: '0 6px 6px 0',
           }} />
-        ))}
-        {/* Trastes; la cejuela va gruesa solo en posicion abierta */}
-        {Array.from({ length: FRETS_SHOWN + 1 }, (_, i) => {
-          const isNut = i === 0 && atNut
-          const th = isNut ? 5 : 2
-          return (
-            <div key={`f${i}`} style={{
-              position: 'absolute', left: FB_PAD_L - 1, top: FB_PAD_T + i * FB_FH - th / 2,
-              width: gridW + 2, height: th, background: isNut ? '#241d33' : '#b9b0cc',
+          {/* Cejuela */}
+          <div style={{ position: 'absolute', left: FB_LABEL_W - 4, top: 0, width: 5, height: neckH, background: '#241d33', borderRadius: 2 }} />
+          {/* Barras de traste */}
+          {Array.from({ length: FB_FRETS }, (_, i) => (
+            <div key={`fw${i}`} style={{
+              position: 'absolute', left: FB_LABEL_W + (i + 1) * FB_FRET_W - 1, top: 0,
+              width: 2, height: neckH, background: '#c8bfd8',
             }} />
-          )
-        })}
-        {!atNut && (
-          <span style={{
-            position: 'absolute', left: 2, top: FB_PAD_T + 0.5 * FB_FH - 9,
-            fontSize: 11, fontWeight: 700, color: MUTED,
-          }}>{baseFret}fr</span>
-        )}
+          ))}
+          {/* Marcas de posicion */}
+          {FB_MARKERS.filter(f => f <= FB_FRETS).map(f => (
+            <div key={`m${f}`} style={{
+              position: 'absolute', left: fretX(f) + FB_FRET_W / 2 - 4, top: neckH / 2 - 4,
+              width: 8, height: 8, borderRadius: '50%', background: '#d5cee2',
+            }} />
+          ))}
+          {/* Numeros de traste */}
+          {Array.from({ length: FB_FRETS }, (_, i) => (
+            <span key={`fn${i}`} style={{
+              position: 'absolute', left: fretX(i + 1), top: neckH + 6, width: FB_FRET_W,
+              textAlign: 'center', fontSize: 10.5, color: FAINT, fontWeight: 600,
+            }}>{i + 1}</span>
+          ))}
 
-        {/* Al aire / muda, encima de cada cuerda */}
-        {Array.from({ length: strings }, (_, s) => {
-          const open = tuning[s] === 0
-          const muted = tuning[s] === null
-          return (
-            <button
-              key={`t${s}`} type="button"
-              onClick={() => onToggle(s, open ? null : 0)}
-              aria-label={`String ${s + 1}: ${open ? 'open' : muted ? 'muted' : `fret ${tuning[s]}`}`}
-              style={{
-                position: 'absolute', left: X(s) - 13, top: 4, width: 26, height: 26,
-                border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
-                fontSize: 16, fontWeight: 700, lineHeight: '26px',
-                color: open ? accent : muted ? FAINT : '#d5cee2',
-              }}
-            >{open ? '○' : muted ? '×' : '○'}</button>
-          )
-        })}
-
-        {/* Celdas de traste */}
-        {Array.from({ length: strings }, (_, s) =>
-          Array.from({ length: FRETS_SHOWN }, (_, r) => {
-            const fret = baseFret + r
-            const on = tuning[s] === fret
+          {/* Cuerdas: nombre, al aire / muda, y la linea */}
+          {Array.from({ length: strings }, (_, s) => {
+            const y = rowOf(s)
+            const rel = tuning[s]
+            const isOpen = rel === 0
+            const muted = rel === null
             return (
-              <button
-                key={`c${s}-${r}`} type="button"
-                onClick={() => onToggle(s, on ? null : fret)}
-                aria-label={`String ${s + 1}, fret ${fret}`}
-                style={{
-                  position: 'absolute', left: X(s) - FB_SW / 2 + 1, top: FB_PAD_T + r * FB_FH + 1,
-                  width: FB_SW - 2, height: FB_FH - 2,
-                  border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
-                }}
-              >
-                {on && (
-                  <span style={{
-                    position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
-                    width: 28, height: 28, borderRadius: '50%', background: accent,
-                    boxShadow: (activeId === s || activeId === 'all') ? `0 0 0 9px ${accent}44` : `0 0 0 5px ${accent}33`,
-                    transition: 'box-shadow 0.12s ease',
-                  }} />
-                )}
-              </button>
+              <div key={`str${s}`}>
+                <span style={{
+                  position: 'absolute', left: 0, top: y + FB_ROW_H / 2 - 8,
+                  width: 26, textAlign: 'right', fontSize: 11.5, fontWeight: 700, color: MUTED,
+                }}>{stringNames[s]}</span>
+                <button
+                  type="button"
+                  onClick={() => onToggle(s, isOpen ? null : 0)}
+                  aria-label={`String ${stringNames[s]}: ${isOpen ? 'open' : muted ? 'muted' : 'fretted'}`}
+                  style={{
+                    position: 'absolute', left: 30, top: y + FB_ROW_H / 2 - 11,
+                    width: 22, height: 22, border: 'none', background: 'transparent', padding: 0,
+                    cursor: 'pointer', fontSize: 14, fontWeight: 700, lineHeight: '22px',
+                    color: isOpen ? accent : muted ? FAINT : '#d5cee2',
+                  }}
+                >{muted ? '×' : '○'}</button>
+                <div style={{
+                  position: 'absolute', left: FB_LABEL_W, top: y + FB_ROW_H / 2,
+                  width: FB_FRETS * FB_FRET_W, height: s < 2 ? 2.5 : 1.5,
+                  background: muted ? '#ded7ea' : '#a99fc0',
+                }} />
+              </div>
             )
-          }),
-        )}
+          })}
+
+          {/* Celdas pulsables */}
+          {Array.from({ length: strings }, (_, s) =>
+            Array.from({ length: FB_FRETS }, (_, i) => {
+              const abs = i + 1
+              if (abs <= capo) return null // por debajo del capo no se puede pisar
+              const rel = abs - capo
+              const on = tuning[s] === rel
+              const sounding = on && (activeId === s || activeId === 'all')
+              return (
+                <button
+                  key={`c${s}-${i}`} type="button"
+                  onClick={() => onToggle(s, on ? null : rel)}
+                  aria-label={`String ${stringNames[s]}, fret ${abs}`}
+                  style={{
+                    position: 'absolute', left: fretX(abs), top: rowOf(s),
+                    width: FB_FRET_W, height: FB_ROW_H,
+                    border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
+                  }}
+                >
+                  {on && (
+                    <span style={{
+                      position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
+                      width: 24, height: 24, borderRadius: '50%', background: accent,
+                      boxShadow: sounding ? `0 0 0 8px ${accent}44` : `0 0 0 4px ${accent}2a`,
+                      transition: 'box-shadow 0.12s ease',
+                    }} />
+                  )}
+                </button>
+              )
+            }),
+          )}
+
+          {/* Capo. Cuando esta fuera del mastil se muestra como una pastilla a la izquierda
+              de la cejuela, para que se vea que es algo que se arrastra. */}
+          <div
+            onPointerDown={e => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); setDragging(true) }}
+            role="slider"
+            aria-label="Capo position"
+            aria-valuemin={0}
+            aria-valuemax={FB_FRETS}
+            aria-valuenow={capo}
+            tabIndex={0}
+            onKeyDown={e => {
+              if (e.key === 'ArrowRight') onCapo(Math.min(FB_FRETS, capo + 1))
+              if (e.key === 'ArrowLeft') onCapo(Math.max(0, capo - 1))
+            }}
+            style={{
+              position: 'absolute',
+              left: capo === 0 ? 2 : fretX(capo) + FB_FRET_W / 2 - 7,
+              top: capo === 0 ? neckH + 4 : -5,
+              width: capo === 0 ? 46 : 14,
+              height: capo === 0 ? 18 : neckH + 10,
+              borderRadius: capo === 0 ? 9 : 7,
+              background: capo === 0 ? '#cfc6de' : '#3c3452',
+              boxShadow: dragging ? '0 4px 14px rgba(40,25,80,0.45)' : '0 2px 6px rgba(40,25,80,0.3)',
+              cursor: dragging ? 'grabbing' : 'grab',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: dragging ? 'none' : 'left 0.1s ease',
+              touchAction: 'none',
+              zIndex: 3,
+            }}
+            title={capo === 0 ? 'Drag onto the neck to add a capo' : `Capo on fret ${capo}`}
+          >
+            <span style={{
+              fontSize: 8.5, fontWeight: 700, color: capo === 0 ? '#4c4462' : '#fff',
+              letterSpacing: 0.6,
+              writingMode: capo === 0 ? undefined : ('vertical-rl' as const),
+            }}>CAPO</span>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -315,7 +390,8 @@ export function ChordIdentifier({
 
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [strings, setStrings] = useState<StringState[]>(() => Array(stringCount).fill(null))
-  const [baseFret, setBaseFret] = useState(1)
+  /** 0 = sin capo. Los trastes de `strings` son relativos a el. */
+  const [capo, setCapo] = useState(0)
 
   const toggleKey = (semi: number) =>
     setSelected(prev => {
@@ -328,10 +404,23 @@ export function ChordIdentifier({
   const toggleString = (s: number, fret: number | null) =>
     setStrings(prev => prev.map((v, i) => (i === s ? fret : v)))
 
+  // Al subir el capo, una nota puede caerse del mastil. Se silencia esa cuerda en vez de
+  // dejarla sonando sin punto visible, que se leeria como que la herramienta miente.
+  const moveCapo = (f: number) => {
+    setCapo(f)
+    setStrings(prev => prev.map(v => (v !== null && f + v > FB_FRETS ? null : v)))
+  }
+
   const clear = () => {
     setSelected(new Set())
     setStrings(Array(stringCount).fill(null))
   }
+
+  // Nombres de las cuerdas al aire, para rotular el mastil
+  const stringNames = useMemo(
+    () => midi.map(m => ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'][m % 12]),
+    [midi],
+  )
 
   const sounding = strings.filter((f): f is number => f !== null)
   const count = isPiano ? selected.size : sounding.length
@@ -346,10 +435,10 @@ export function ChordIdentifier({
       return [...selected].sort((a, b) => a - b).map(s => ({ midi: PIANO_BASE_MIDI + s, id: s }))
     }
     return strings
-      .map((f, s) => (f === null ? null : { midi: midi[s] + f, id: s }))
+      .map((f, s) => (f === null ? null : { midi: midi[s] + capo + f, id: s }))
       .filter((n): n is { midi: number; id: number } => n !== null)
       .sort((a, b) => a.midi - b.midi)
-  }, [isPiano, selected, strings, midi])
+  }, [isPiano, selected, strings, midi, capo])
 
   const matches = useMemo(() => {
     if (isPiano) {
@@ -360,11 +449,11 @@ export function ChordIdentifier({
     // El ukelele lleva sol reentrante (UMID[0]=67 es mas agudo que UMID[1]=60), asi que el
     // bajo no es la primera cuerda sino el MIDI mas grave que suene de verdad.
     const notes = strings
-      .map((f, s) => (f === null ? null : midi[s] + f))
+      .map((f, s) => (f === null ? null : midi[s] + capo + f))
       .filter((m): m is number => m !== null)
     if (notes.length === 0) return []
     return identifyChord(notes.map(m => m % 12), Math.min(...notes) % 12, { notation, limit: 4 })
-  }, [isPiano, selected, strings, midi, notation])
+  }, [isPiano, selected, strings, midi, capo, notation])
 
   return (
     <div style={{
@@ -417,8 +506,8 @@ export function ChordIdentifier({
         <InteractiveKeyboard selected={selected} onToggle={toggleKey} accent={accent} activeId={activeId} />
       ) : (
         <InteractiveFretboard
-          tuning={strings} strings={stringCount} baseFret={baseFret}
-          onBaseFret={setBaseFret} onToggle={toggleString} accent={accent} activeId={activeId}
+          tuning={strings} strings={stringCount} capo={capo} onCapo={moveCapo}
+          onToggle={toggleString} accent={accent} activeId={activeId} stringNames={stringNames}
         />
       )}
 
