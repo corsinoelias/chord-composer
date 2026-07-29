@@ -142,7 +142,12 @@ const songListSchema = {
 
   <main>
   <!-- ─── HERO ─────────────────────────────────────────────────────────── -->
-  <section class="relative overflow-hidden py-12 sm:py-16 lg:py-20 border-b border-border">
+  <!--
+    Padding vertical asimetrico a proposito: el badge que vivia encima del h1 repetia el strip
+    de social proof de abajo ("Free / No account needed / Works offline"), asi que se elimino.
+    Se recorta el pt en vez de dejar el hueco, para que el titular suba.
+  -->
+  <section class="relative overflow-hidden pt-8 pb-12 sm:pt-10 sm:pb-16 lg:pt-12 lg:pb-20 border-b border-border">
     <!-- Background glow -->
     <div class="pointer-events-none absolute inset-0 -z-10">
       <div class="absolute left-1/2 top-1/2 h-[520px] w-[920px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[130px]"></div>
@@ -152,18 +157,13 @@ const songListSchema = {
       <div class="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
         <!-- Copy -->
         <div class="text-center lg:text-left">
-          <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"></span>
-            Free · No account required · Works in any browser
-          </div>
-
           <h1 class="mb-6 font-serif text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-[3.35rem] xl:text-7xl">
             Build chord progressions.<br />
             <span class="text-primary">Hear them instantly.</span>
           </h1>
 
           <p class="mx-auto mb-8 max-w-xl text-lg text-muted-foreground sm:text-xl lg:mx-0">
-            Chord Sequence is the free chord progression generator for songwriters, producers, and music students.
+            Chord Sequence is a browser-based chord progression generator for songwriters, producers, and music students.
             Drag chords, pick a rhythm style, and play in seconds — no DAW required.
           </p>
 
@@ -173,7 +173,7 @@ const songListSchema = {
               class="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-colors hover:bg-primary/90"
             >
               <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-              Start playing — it's free
+              Start playing
             </a>
             <a
               href="#demo"
@@ -191,7 +191,7 @@ const songListSchema = {
             <span class="font-mono text-xs uppercase tracking-widest text-muted-foreground">Press play — hear it now</span>
           </div>
           <ChordEmbed client:visible chords="C G Am F" bpm={110} style="pop_basic" title="I–V–vi–IV — the most-used progression in pop" />
-          <p class="mt-3 text-center font-mono text-xs text-muted-foreground lg:text-left">C · Am · F · G — no account needed</p>
+          <p class="mt-3 text-center font-mono text-xs text-muted-foreground lg:text-left">C · Am · F · G — press play</p>
         </div>
       </div>
     </div>
@@ -530,7 +530,7 @@ const songListSchema = {
         href="/chord-player/"
         class="inline-flex items-center gap-2 rounded-xl bg-primary px-10 py-5 text-xl font-bold text-primary-foreground shadow-xl shadow-primary/25 transition-colors hover:bg-primary/90"
       >
-        Open Chord Player — It's Free
+        Open Chord Player
         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>
     </div>
