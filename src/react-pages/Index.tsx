@@ -186,7 +186,11 @@ const Index = ({ songId }: IndexProps) => {
     }
     const allStyles = [...getCustomStyles(), ...MUSICAL_STYLES];
     const hasSongInUrl = window.location.pathname.includes('/chord-player/song_');
-    const initialId = hasSongInUrl ? 'rock_basic' : (allStyles.find(s => s.id === 'merengue')?.id || 'rock_basic');
+    // Must match getInitialStyleId above: it returns reggaeton for new songs, so deriving
+    // the BPM from merengue (130) left a new visitor on reggaeton at 130 — outside its own
+    // bpmRange of [85, 105]. The sitewide nav/footer CTA used to hide this by pinning
+    // ?bpm=100; now that it links to the bare URL, the default has to stand on its own.
+    const initialId = hasSongInUrl ? 'rock_basic' : (allStyles.find(s => s.id === 'reggaeton')?.id || 'rock_basic');
     return allStyles.find(s => s.id === initialId)?.bpm ?? 100;
   });
   const [instruments, setInstruments] = useState<InstrumentState[]>(
