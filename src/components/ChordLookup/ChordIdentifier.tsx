@@ -415,7 +415,11 @@ export function ChordIdentifier({
   const stringCount = midi.length
 
   const [selected, setSelected] = useState<Set<number>>(new Set())
-  const [strings, setStrings] = useState<StringState[]>(() => Array(stringCount).fill(null))
+  // Se arranca con todas las cuerdas al aire, que es como esta una guitarra encima de la
+  // mesa. Empezar con todo en "x" dejaba la herramienta muda y sin resultado hasta que el
+  // usuario adivinara que tenia que hacer; al aire ya se lee un acorde de verdad
+  // (G6/9 en guitarra, C6 en ukelele) y se entiende de que va esto sin leer nada.
+  const [strings, setStrings] = useState<StringState[]>(() => Array(stringCount).fill(0))
   /** 0 = sin capo. Los trastes de `strings` son relativos a el. */
   const [capo, setCapo] = useState(0)
 
@@ -437,9 +441,12 @@ export function ChordIdentifier({
     setStrings(prev => prev.map(v => (v !== null && f + v > FB_FRETS ? null : v)))
   }
 
+  // Clear devuelve al estado inicial, no a todo mudo: si no, se llegaria a una pantalla
+  // vacia que el arranque nunca produce. El capo NO se toca, porque representa como esta
+  // montada la guitarra de verdad y no la forma que se esta probando.
   const clear = () => {
     setSelected(new Set())
-    setStrings(Array(stringCount).fill(null))
+    setStrings(Array(stringCount).fill(0))
   }
 
   // Nombres de las cuerdas al aire, para rotular el mastil
