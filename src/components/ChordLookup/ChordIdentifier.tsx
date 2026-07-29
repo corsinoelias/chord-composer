@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react'
 import { identifyChord, type ChordMatch } from '../../lib/chordIdentify'
 import { GMID, UMID } from '../../lib/chordTheory'
 import { useChordAudio } from './useChordAudio'
+import { useMidiInput } from '../../hooks/useMidiInput'
 import {
   ACCENT, TEXT, MUTED, FAINT, BORDER, BORDER_LIGHT, CARD_BG,
   KEY_W, WHITE_SEMIS, BLACK_SEMIS, BLACK_OFFSETS, OCTAVES, PIANO_BASE_MIDI,
@@ -520,6 +521,28 @@ export function ChordIdentifier({
   const sounding = strings.filter((f): f is number => f !== null)
   const count = isPiano ? selected.size : sounding.length
 
+  // MIDI solo en piano, a proposito: un teclado no se corresponde con una forma de mastil,
+  // asi que en guitarra o ukelele el diapason quedaria desincronizado con lo que se toca.
+  const midiIn = useMidiInput(null, {
+    onNotesChange: isPiano ? notes => {
+      if (!notes.length) return // soltar todo no borra: se deja el ultimo acorde en pantalla
+      // El teclado se coloca sobre las 3 octavas del diagrama conservando los intervalos:
+      // se baja el acorde entero por octavas hasta que la nota mas grave entra en rango.
+      const shift = 12 * Math.floor((notes[0] - PIANO_BASE_MIDI) / 12)
+      const span = OCTAVES * 12
+      const semis = [...new Set(notes.map(n => {
+        const x = n - PIANO_BASE_MIDI - shift
+        // Un voicing mas ancho que el diagrama se repliega a la octava alta en vez de
+        // perder la nota: descartarla cambiaba el acorde en silencio, que es peor que
+        // dibujarla una octava mas abajo de donde se toco.
+        return x < span ? x : (x % 12) + span - 12
+      }))].sort((a, b) => a - b)
+      if (!semis.length) return
+      setTouched(true)
+      setSelected(new Set(semis))
+    } : undefined,
+  })
+
   const { play, playing, activeId } = useChordAudio(instrument)
 
   // Notas reales que suenan, graves primero, para que el arpegio salga de abajo a arriba
@@ -569,8 +592,30 @@ export function ChordIdentifier({
               : 'Tap the shape you’re holding and we’ll name the chord.'}
           </span>
         </div>
-        {touched && count > 0 && (
-          <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* El MIDI va siempre visible: es una forma de EMPEZAR, asi que esconderlo hasta
+              que el usuario haya pulsado teclas lo hacia inalcanzable justo cuando sirve. */}
+          {isPiano && midiIn.available && (
+            <button
+              type="button"
+              onClick={midiIn.toggle}
+              title={midiIn.active ? 'Stop listening to your MIDI keyboard' : 'Play chords on a MIDI keyboard'}
+              style={{
+                border: `1.5px solid ${midiIn.active ? accent : BORDER}`,
+                background: midiIn.active ? accent : '#ffffff',
+                color: midiIn.active ? '#ffffff' : TEXT,
+                borderRadius: 10, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: midiIn.active ? '#fff' : '#c9c2d8',
+              }} />
+              {midiIn.active ? 'MIDI on' : 'MIDI'}
+            </button>
+          )}
+          {touched && count > 0 && (<>
             <button
               type="button"
               onClick={() => play(noteEvents)}
@@ -594,8 +639,8 @@ export function ChordIdentifier({
             >
               Clear
             </button>
-          </div>
-        )}
+          </>)}
+        </div>
       </div>
 
       {isPiano ? (
