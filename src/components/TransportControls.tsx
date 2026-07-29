@@ -147,7 +147,14 @@ export const TransportControls = memo(function TransportControls({
             </div>
 
             {/* Group 1 — Playback modifiers: Key + Metronome (balanced pair) */}
-            <div className="flex items-stretch gap-2">
+            {/* flex-wrap: las dos cajas tienen un min-content de ~157px cada una (los botones
+                -/+ de Key son shrink-0, y "Metronome" lleva white-space:nowrap del truncate).
+                Chromium calcula el min-content de un contenedor flex sumando el de sus hijos e
+                ignora min-width, asi que la fila exigia 157+8+157=321px pase lo que pase: eso
+                subia en cascada y dejaba <main> en 363px, desbordando la pagina 43px a 320px de
+                viewport y 3px a 360px. Con wrap, por debajo de ~360px las dos cajas se apilan a
+                ancho completo en vez de forzar el ancho de toda la pagina. */}
+            <div className="flex flex-wrap items-stretch gap-2">
               <div className="flex-1 flex items-center justify-between gap-1 rounded-lg bg-secondary/50 border border-border/50 px-3 py-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Key</Label>
                 <div className="flex items-center gap-1">
@@ -157,10 +164,20 @@ export const TransportControls = memo(function TransportControls({
                 </div>
               </div>
 
-              <label htmlFor="metronome-m" className="flex-1 flex items-center justify-between gap-2 rounded-lg bg-secondary/50 border border-border/50 px-3 py-2 cursor-pointer">
+              {/* min-w-0: sin esto el label es un flex item con min-width:auto, que se resuelve
+                  a su min-content (166px por el "Metronome" con white-space:nowrap del truncate).
+                  Junto a los 147px que la caja Key necesita de verdad -- sus botones -/+ son
+                  shrink-0 -- la fila pedia 321px y desbordaba la pagina 43px por debajo de 363px
+                  de viewport. Con min-w-0 el label si puede encoger y el truncate que ya estaba
+                  puesto finalmente se activa. */}
+              <label htmlFor="metronome-m" className="flex-1 min-w-0 flex items-center justify-between gap-2 rounded-lg bg-secondary/50 border border-border/50 px-3 py-2 cursor-pointer">
                 <span className="flex items-center gap-1.5 min-w-0">
                   <MetronomeIcon size={16} className={metronomeEnabled ? 'text-primary shrink-0' : 'text-muted-foreground shrink-0'} />
-                  <span className="text-xs font-medium truncate">Metronome</span>
+                  {/* Por debajo de ~390px la palabra no entra entera y quedaba en "M...", que no
+                      dice nada. Ahi se muestra solo el icono, que ya se entiende, y el Switch
+                      conserva su aria-label para lectores de pantalla. El umbral es el ancho a
+                      partir del cual "Metronome" cabe sin recorte. */}
+                  <span className="hidden min-[390px]:inline text-xs font-medium truncate">Metronome</span>
                 </span>
                 <Switch id="metronome-m" checked={metronomeEnabled} onCheckedChange={onMetronomeToggle} disabled={isExporting} className="scale-90 shrink-0" aria-label="Toggle metronome" />
               </label>
@@ -214,11 +231,13 @@ export const TransportControls = memo(function TransportControls({
                     <span>Save</span>
                   </Button>
                 )}
-                <div className="flex items-stretch shadow-md rounded-lg overflow-hidden flex-1" data-tour="export-button">
+                <div className="flex items-stretch shadow-md rounded-lg overflow-hidden flex-1 min-w-0" data-tour="export-button">
+                  {/* min-w-0 aqui y en el contenedor por lo mismo que el label del metronomo:
+                      el boton no podia bajar de su min-content y pedia 121px en un hueco de 118. */}
                   <Button
                     onClick={onExport}
                     disabled={!hasChords || isPlaying || isExporting}
-                    className="flex-1 justify-center gap-2 rounded-none rounded-l-lg border-r border-primary-foreground/20"
+                    className="flex-1 min-w-0 justify-center gap-2 rounded-none rounded-l-lg border-r border-primary-foreground/20"
                   >
                     {isExporting ? <><Loader2 size={16} className="animate-spin" /><span>Exporting…</span></> : <><Download size={16} /><span>WAV</span></>}
                   </Button>
@@ -504,9 +523,19 @@ export const TransportControls = memo(function TransportControls({
                 {/* Metronome Toggle — compact, on the left */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg bg-secondary/50 border border-border/50 shrink-0">
+                    {/* w-[212px]: alinea la fila de acciones con la de arriba. El input de
+                        Song Title arranca siempre en el mismo x -- Play (64px) + gap-4 + el
+                        slider de BPM (md:w-32 = 128px) + gap-4 --, asi que dandole a esta caja
+                        ese mismo ancho menos el gap-3 de su fila, Save queda exactamente debajo
+                        del input y los bordes derechos ya coincidian. Verificado en 768, 900 y
+                        1023px, donde ese x es 261 en los tres. */}
+                    <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg bg-secondary/50 border border-border/50 shrink-0 w-[212px]">
                       <MetronomeIcon size={15} className={metronomeEnabled ? 'text-primary' : 'text-muted-foreground'} />
-                      <Label htmlFor="metronome" className="sr-only">Metronome</Label>
+                      {/* Este bloque es solo tablet (768-1023px), donde sobra ancho de rebalse:
+                          el label se muestra en vez de quedar sr-only como estaba. En movil el
+                          equivalente se oculta por debajo de 390px, que es donde de verdad no
+                          entra. El Switch mantiene su aria-label en los dos casos. */}
+                      <Label htmlFor="metronome" className="text-xs font-medium whitespace-nowrap cursor-pointer mr-auto">Metronome</Label>
                       <Switch
                         id="metronome"
                         checked={metronomeEnabled}
