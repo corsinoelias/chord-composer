@@ -88,14 +88,16 @@ function InteractiveKeyboard({
 // Mastil completo en horizontal en vez de una caja de acorde de 5 trastes: asi se llega a
 // cualquier traste de un clic, sin ir moviendo una ventana.
 //
-// Los trastes se guardan RELATIVOS AL CAPO, no absolutos. Es lo que hace que arrastrar el
-// capo transponga la forma entera en vez de descolocarla, que es justamente para lo que
-// sirve un capo: la misma posicion de dedos suena en otra tonalidad.
+// Los trastes se guardan RELATIVOS AL CAPO, no absolutos. Es lo que hace que mover el capo
+// transponga la forma entera en vez de descolocarla, que es justamente para lo que sirve
+// un capo: la misma posicion de dedos suena en otra tonalidad.
 
 const FB_ROW_H = 34
 const FB_FRET_W = 46
 const FB_LABEL_W = 62
 const FB_FRETS = 15
+/** Alto del carril del capo, encima del mastil */
+const FB_LANE_H = 30
 /** Trastes con marca de posicion, como en un mastil real */
 const FB_MARKERS = [3, 5, 7, 9, 12, 15]
 
@@ -112,13 +114,16 @@ function InteractiveFretboard({
   stringNames: string[]
 }) {
   const [dragging, setDragging] = useState(false)
+  const [hoverFret, setHoverFret] = useState<number | null>(null)
   const neckRef = useRef<HTMLDivElement | null>(null)
 
   const neckW = FB_LABEL_W + FB_FRETS * FB_FRET_W
+  const neckTop = FB_LANE_H
   const neckH = strings * FB_ROW_H
   // Fila de arriba = cuerda mas aguda, como en una tablatura
-  const rowOf = (s: number) => (strings - 1 - s) * FB_ROW_H
+  const rowOf = (s: number) => neckTop + (strings - 1 - s) * FB_ROW_H
   const fretX = (f: number) => FB_LABEL_W + (f - 1) * FB_FRET_W
+  const capoX = (f: number) => fretX(f) + FB_FRET_W / 2
 
   const fretFromX = (clientX: number) => {
     const el = neckRef.current
@@ -130,56 +135,86 @@ function InteractiveFretboard({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: MUTED }}>
-          {capo > 0
-            ? <>Capo on fret <strong style={{ color: TEXT }}>{capo}</strong> &mdash; drag it and the shape moves with it</>
-            : <>Drag the capo onto the neck to shift the whole shape</>}
-        </span>
-        {capo > 0 && (
-          <button
-            type="button" onClick={() => onCapo(0)}
-            style={{
-              border: `1.5px solid ${BORDER}`, background: '#fff', color: TEXT,
-              borderRadius: 8, padding: '5px 11px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
-            }}
-          >Remove capo</button>
-        )}
-      </div>
-
       <div ref={neckRef} style={{ overflowX: 'auto', paddingBottom: 6 }}>
         <div
-          style={{ position: 'relative', width: neckW, height: neckH + 26, userSelect: 'none' }}
+          style={{ position: 'relative', width: neckW, height: neckTop + neckH + 26, userSelect: 'none' }}
           onPointerMove={e => { if (dragging) onCapo(fretFromX(e.clientX)) }}
           onPointerUp={() => setDragging(false)}
-          onPointerLeave={() => setDragging(false)}
+          onPointerLeave={() => { setDragging(false); setHoverFret(null) }}
         >
+          {/* ── Carril del capo ────────────────────────────────────────────
+              Existe para que colocar el capo sea un clic y no un descubrimiento.
+              Los puntos fantasma dicen "aqui se puede poner algo" sin necesidad de
+              instrucciones. */}
+          <span style={{
+            position: 'absolute', left: 0, top: 6, width: FB_LABEL_W - 10,
+            textAlign: 'right', fontSize: 10.5, fontWeight: 700, letterSpacing: 0.8,
+            textTransform: 'uppercase', color: capo > 0 ? accent : FAINT,
+          }}>Capo</span>
+
+          {Array.from({ length: FB_FRETS }, (_, i) => {
+            const f = i + 1
+            const here = capo === f
+            const hot = hoverFret === f
+            return (
+              <button
+                key={`lane${f}`} type="button"
+                onClick={() => onCapo(here ? 0 : f)}
+                onPointerEnter={() => setHoverFret(f)}
+                aria-label={here ? `Remove capo from fret ${f}` : `Put capo on fret ${f}`}
+                style={{
+                  position: 'absolute', left: fretX(f), top: 0,
+                  width: FB_FRET_W, height: FB_LANE_H,
+                  border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
+                }}
+              >
+                {!here && (
+                  <span style={{
+                    position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
+                    width: hot ? 13 : 7, height: hot ? 13 : 7, borderRadius: '50%',
+                    background: hot ? `${accent}66` : '#ddd6e9',
+                    transition: 'all 0.1s ease',
+                  }} />
+                )}
+              </button>
+            )
+          })}
+
           {/* Diapason */}
           <div style={{
-            position: 'absolute', left: FB_LABEL_W, top: 0,
+            position: 'absolute', left: FB_LABEL_W, top: neckTop,
             width: FB_FRETS * FB_FRET_W, height: neckH,
             background: 'linear-gradient(#f6f2fb,#efe9f8)', borderRadius: '0 6px 6px 0',
           }} />
+          {/* Zona detras del capo: se apaga, porque ahi ya no se toca */}
+          {capo > 0 && (
+            <div style={{
+              position: 'absolute', left: FB_LABEL_W, top: neckTop,
+              width: capoX(capo) - FB_LABEL_W, height: neckH,
+              background: 'repeating-linear-gradient(45deg,#e6e0f0,#e6e0f0 4px,#ded7ea 4px,#ded7ea 8px)',
+              borderRadius: '0 0 0 0', opacity: 0.9,
+            }} />
+          )}
           {/* Cejuela */}
-          <div style={{ position: 'absolute', left: FB_LABEL_W - 4, top: 0, width: 5, height: neckH, background: '#241d33', borderRadius: 2 }} />
+          <div style={{ position: 'absolute', left: FB_LABEL_W - 4, top: neckTop, width: 5, height: neckH, background: '#241d33', borderRadius: 2 }} />
           {/* Barras de traste */}
           {Array.from({ length: FB_FRETS }, (_, i) => (
             <div key={`fw${i}`} style={{
-              position: 'absolute', left: FB_LABEL_W + (i + 1) * FB_FRET_W - 1, top: 0,
+              position: 'absolute', left: FB_LABEL_W + (i + 1) * FB_FRET_W - 1, top: neckTop,
               width: 2, height: neckH, background: '#c8bfd8',
             }} />
           ))}
           {/* Marcas de posicion */}
           {FB_MARKERS.filter(f => f <= FB_FRETS).map(f => (
             <div key={`m${f}`} style={{
-              position: 'absolute', left: fretX(f) + FB_FRET_W / 2 - 4, top: neckH / 2 - 4,
+              position: 'absolute', left: fretX(f) + FB_FRET_W / 2 - 4, top: neckTop + neckH / 2 - 4,
               width: 8, height: 8, borderRadius: '50%', background: '#d5cee2',
             }} />
           ))}
           {/* Numeros de traste */}
           {Array.from({ length: FB_FRETS }, (_, i) => (
             <span key={`fn${i}`} style={{
-              position: 'absolute', left: fretX(i + 1), top: neckH + 6, width: FB_FRET_W,
+              position: 'absolute', left: fretX(i + 1), top: neckTop + neckH + 6, width: FB_FRET_W,
               textAlign: 'center', fontSize: 10.5, color: FAINT, fontWeight: 600,
             }}>{i + 1}</span>
           ))}
@@ -248,45 +283,47 @@ function InteractiveFretboard({
             }),
           )}
 
-          {/* Capo. Cuando esta fuera del mastil se muestra como una pastilla a la izquierda
-              de la cejuela, para que se vea que es algo que se arrastra. */}
-          <div
-            onPointerDown={e => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); setDragging(true) }}
-            role="slider"
-            aria-label="Capo position"
-            aria-valuemin={0}
-            aria-valuemax={FB_FRETS}
-            aria-valuenow={capo}
-            tabIndex={0}
-            onKeyDown={e => {
-              if (e.key === 'ArrowRight') onCapo(Math.min(FB_FRETS, capo + 1))
-              if (e.key === 'ArrowLeft') onCapo(Math.max(0, capo - 1))
-            }}
-            style={{
-              position: 'absolute',
-              left: capo === 0 ? 2 : fretX(capo) + FB_FRET_W / 2 - 7,
-              top: capo === 0 ? neckH + 4 : -5,
-              width: capo === 0 ? 46 : 14,
-              height: capo === 0 ? 18 : neckH + 10,
-              borderRadius: capo === 0 ? 9 : 7,
-              background: capo === 0 ? '#cfc6de' : '#3c3452',
-              boxShadow: dragging ? '0 4px 14px rgba(40,25,80,0.45)' : '0 2px 6px rgba(40,25,80,0.3)',
-              cursor: dragging ? 'grabbing' : 'grab',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: dragging ? 'none' : 'left 0.1s ease',
-              touchAction: 'none',
-              zIndex: 3,
-            }}
-            title={capo === 0 ? 'Drag onto the neck to add a capo' : `Capo on fret ${capo}`}
-          >
-            <span style={{
-              fontSize: 8.5, fontWeight: 700, color: capo === 0 ? '#4c4462' : '#fff',
-              letterSpacing: 0.6,
-              writingMode: capo === 0 ? undefined : ('vertical-rl' as const),
-            }}>CAPO</span>
-          </div>
+          {/* La barra del capo. Solo existe cuando esta puesto: aparcarla fuera del mastil
+              la hacia parecer un adorno. Se arrastra para ajustar, pero colocarlo ya no
+              depende de descubrir el arrastre. */}
+          {capo > 0 && (
+            <div
+              onPointerDown={e => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); setDragging(true) }}
+              role="slider"
+              aria-label="Capo position"
+              aria-valuemin={1}
+              aria-valuemax={FB_FRETS}
+              aria-valuenow={capo}
+              tabIndex={0}
+              onKeyDown={e => {
+                if (e.key === 'ArrowRight') onCapo(Math.min(FB_FRETS, capo + 1))
+                if (e.key === 'ArrowLeft') onCapo(Math.max(1, capo - 1))
+              }}
+              style={{
+                position: 'absolute', left: capoX(capo) - 8, top: 4,
+                width: 16, height: FB_LANE_H - 8 + neckH + 6,
+                borderRadius: 8, background: '#3c3452',
+                boxShadow: dragging ? '0 4px 16px rgba(40,25,80,0.5)' : '0 2px 7px rgba(40,25,80,0.35)',
+                cursor: dragging ? 'grabbing' : 'grab',
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+                paddingTop: 4,
+                transition: dragging ? 'none' : 'left 0.1s ease',
+                touchAction: 'none',
+                zIndex: 4,
+              }}
+              title={`Capo on fret ${capo} — drag to move, or click the lane above`}
+            >
+              <span style={{ fontSize: 9, fontWeight: 700, color: '#fff' }}>{capo}</span>
+            </div>
+          )}
         </div>
       </div>
+
+      <p style={{ margin: 0, fontSize: 12.5, color: MUTED, textAlign: 'center' }}>
+        {capo > 0
+          ? <>Capo on fret <strong style={{ color: TEXT }}>{capo}</strong> — the shape moves with it, so the chord changes. Drag it, or click the lane, to try another fret.</>
+          : <>Using a capo? Click the dots above the neck to place it — the same shape then sounds in a different key.</>}
+      </p>
     </div>
   )
 }
