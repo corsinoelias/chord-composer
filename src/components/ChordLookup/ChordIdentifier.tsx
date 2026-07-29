@@ -226,7 +226,9 @@ function InteractiveFretboard({
             const isOpen = rel === 0
             const muted = rel === null
             const stringSounding = !muted && (activeId === s || activeId === 'all')
-            const openSounding = isOpen && stringSounding
+            // Con capo puesto, una cuerda "al aire" suena EN EL CAPO, no en la cejuela.
+            // Animar el circulo de la izquierda senalaria un punto que ya no vibra.
+            const openSounding = isOpen && stringSounding && capo === 0
             return (
               <div key={`str${s}`}>
                 <span style={{
@@ -294,6 +296,23 @@ function InteractiveFretboard({
               )
             }),
           )}
+
+          {/* Con capo, la pulsacion de las cuerdas al aire va sobre el, que es donde
+              estan pisadas de verdad. Solo aparece al sonar: dejarlo fijo llenaria la
+              barra de puntos sin aportar nada. */}
+          {capo > 0 && Array.from({ length: strings }, (_, s) => {
+            const rel = tuning[s]
+            if (rel !== 0) return null
+            if (!(activeId === s || activeId === 'all')) return null
+            return (
+              <span key={`cs${s}`} style={{
+                position: 'absolute', left: capoX(capo) - 7, top: rowOf(s) + FB_ROW_H / 2 - 7,
+                width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                boxShadow: `0 0 0 5px ${accent}88`,
+                zIndex: 6, pointerEvents: 'none',
+              }} />
+            )
+          })}
 
           {/* La barra del capo. Solo existe cuando esta puesto: aparcarla fuera del mastil
               la hacia parecer un adorno. Se arrastra para ajustar, pero colocarlo ya no
