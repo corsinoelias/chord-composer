@@ -721,75 +721,6 @@ export function ScoreView({
       })
   }, [isPlaying, currentBeat, track.notes, geomVersion, headAt])
 
-  // ── Marcador de reproducción (WAAPI, glide del compositor) ────────────────
-  // Como el diseño: un div dedicado que se anima con keyframes precomputados a
-  // partir del BPM y de la geometría real de cada figura, en vez de saltar por
-  // estado de React. Al llegar a un salto de sistema, la x salta limpia porque
-  // el final de un compás y el inicio del siguiente comparten el mismo beat
-  // (mismo offset → paso duro en WAAPI).
-  const markerRef = useRef<HTMLDivElement>(null)
-  const animRef   = useRef<Animation | null>(null)
-  const lastBeatRef = useRef(0)
-
-  const stopMarker = useCallback(() => {
-    if (animRef.current) { try { animRef.current.cancel() } catch { /* ya cancelada */ } animRef.current = null }
-    if (markerRef.current) markerRef.current.style.display = 'none'
-  }, [])
-
-  const startMarker = useCallback((fromBeat: number) => {
-    const el = markerRef.current
-    const g  = barGeomRef.current
-    if (!el || !g.length) return
-    const bpb      = track.beatsPerBar
-    const endBeat  = track.totalBars * bpb
-    const secBeat  = 60 / track.bpm
-    const span     = endBeat - fromBeat
-    if (span <= 0) { stopMarker(); return }
-
-    const frames: Keyframe[] = []
-    let lastOff = 0
-    const push = (beat: number, x: number, top: number, h: number) => {
-      let off = (beat - fromBeat) / span
-      off = Math.max(lastOff, Math.min(1, off)); lastOff = off
-      frames.push({ offset: off, transform: `translate(${x - 1}px, ${top}px)`, height: `${h}px` })
-    }
-
-    // Frame inicial exacto en fromBeat
-    const bg0 = barForBeat(fromBeat)
-    const x0  = beatToX(fromBeat)
-    if (bg0 && x0 !== null) push(fromBeat, x0, bg0.staffTopY - 8, (bg0.tabBottomY - bg0.staffTopY) + 20)
-
-    for (const bg of g) {
-      const top = bg.staffTopY - 8
-      const h   = (bg.tabBottomY - bg.staffTopY) + 20
-      for (const node of barNodes(bg)) {
-        if (node.beat <= fromBeat) continue
-        push(node.beat, node.x, top, h)
-      }
-    }
-    if (frames.length < 2) { stopMarker(); return }
-
-    if (animRef.current) { try { animRef.current.cancel() } catch { /* noop */ } }
-    el.style.display = 'block'
-    if (bg0 && x0 !== null) {
-      el.style.transform = `translate(${x0 - 1}px, ${bg0.staffTopY - 8}px)`
-      el.style.height = `${(bg0.tabBottomY - bg0.staffTopY) + 20}px`
-    }
-    const anim = el.animate(frames, { duration: span * secBeat * 1000, easing: 'linear', fill: 'both' })
-    anim.onfinish = () => { if (markerRef.current) markerRef.current.style.display = 'none' }
-    animRef.current = anim
-  }, [track.beatsPerBar, track.totalBars, track.bpm, barForBeat, beatToX, barNodes, stopMarker])
-
-  // Arrancar al reproducir; reiniciar en saltos (loop/seek); parar al detener.
-  useEffect(() => {
-    if (!isPlaying) { stopMarker(); lastBeatRef.current = currentBeat; return }
-    // Sólo (re)arrancar en el arranque o ante un salto (|Δ| grande); durante la
-    // reproducción normal la animación ya corre sola y currentBeat sólo avanza.
-    const jumped = Math.abs(currentBeat - lastBeatRef.current) > 0.75 || !animRef.current
-    lastBeatRef.current = currentBeat
-    if (jumped) startMarker(currentBeat)
-  }, [isPlaying, currentBeat, geomVersion, startMarker, stopMarker])
-
   const commitSection = useCallback(() => {
     if (!pendingSection) return
     const name = sectionNameVal.trim()
@@ -816,16 +747,6 @@ export function ScoreView({
             {overlays}
             {playHeads}
           </div>
-          {/* Marcador de reproducción — animado imperativamente (WAAPI) */}
-          <div
-            ref={markerRef}
-            style={{
-              position: 'absolute', left: 0, top: 0, width: 2.5, height: 0,
-              background: BT.accent, borderRadius: 2,
-              boxShadow: `0 0 6px ${withAlpha(BT.accent, 0.5)}`,
-              display: 'none', pointerEvents: 'none', zIndex: 5, willChange: 'transform',
-            }}
-          />
 
           {pendingSection && (
             <div style={{ position: 'absolute', left: pendingSection.screenX, top: pendingSection.screenY - 4, zIndex: 200 }}>

@@ -339,6 +339,10 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     const loopFrom = loopRange ? loopRange.startBeat : 0
     const from = currentBeat < totalBeats ? currentBeat : loopFrom
     setIsPlaying(true)
+    // Move the playhead to where playback will actually begin. Restarting after the track
+    // ran to the end used to leave currentBeat parked on the last note, so that note stayed
+    // lit until the first audio tick arrived.
+    setCurrentBeat(from)
     analytics.bassTabPlay()
     doPlay(from)
   }, [track, currentBeat, loopRange, doPlay])
