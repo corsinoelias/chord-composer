@@ -7,7 +7,7 @@ import { ChordIdentifier } from '../../components/ChordLookup/ChordIdentifier'
 const faqs = [
   { q: 'How do I find out what chord I&rsquo;m playing?', a: 'Tap the notes on the keyboard at the top of this page — the same ones your fingers are on — and the chord name appears underneath. You don&rsquo;t need to know the root or the type first; that&rsquo;s what the tool works out for you.' },
   { q: 'Why does it sometimes show more than one chord name?', a: 'Because some chords genuinely share the same notes. C–E–G–A is both C6 and Am7 — which one it is depends on the musical context, not on the notes alone. The tool shows the most likely reading first and lists the alternatives underneath, using the lowest note as a tie-breaker.' },
-  { q: 'Can it identify inversions and slash chords?', a: 'Yes. The lowest note you tap is treated as the bass, so C–E–G played with E at the bottom comes out as C/E rather than plain C. Play the same notes with C lowest and it goes back to C.' },
+  { q: 'Does it handle inversions?', a: 'Yes. An inversion is the same chord with a different note at the bottom, so it keeps the same name — C–E–G played with E lowest is still C, and the tool tells you it&rsquo;s the first inversion. The lowest note is also used to decide between readings when a set of notes has more than one name.' },
   { q: 'What if I&rsquo;m not playing every note of the chord?', a: 'That still works for the fifth and for upper extensions — a C7 without its fifth is still identified as C7, and it says &ldquo;no 5&rdquo; so you know what was left out. The third and the seventh are what define a chord, so those are never assumed.' },
   { q: 'How do I read the keyboard diagram?', a: 'Every highlighted key is part of the chord, labelled with its note name. The root note — the note the chord is named after — is shown in a solid, darker color; the other chord tones are lighter.' },
   { q: 'Can I play the chord in a different octave?', a: 'Yes — the pattern of keys is identical in every octave. Play the same shape higher for a brighter sound or lower for a fuller one.' },
@@ -21,7 +21,7 @@ const breadcrumbSchema = {
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
     { '@type': 'ListItem', position: 2, name: 'Chord Finder', item: 'https://chordsequence.com/chord-lookup/' },
-    { '@type': 'ListItem', position: 3, name: 'Piano Chord Finder', item: 'https://chordsequence.com/piano-chord-lookup/' },
+    { '@type': 'ListItem', position: 3, name: 'Piano Chord Identifier & Finder', item: 'https://chordsequence.com/piano-chord-lookup/' },
   ],
 }
 
@@ -32,14 +32,14 @@ const webAppSchema = {
   url: 'https://chordsequence.com/piano-chord-lookup/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Tap the notes you are playing and get the chord name, inversions and slash chords included — or go the other way and see which keys to press for any chord, from triads to 13ths.',
+  description: 'Tap the notes you are playing and get the chord name, inversions included — or go the other way and see which keys to press for any chord, from triads to 13ths.',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 }
 ---
 
 <BaseLayout
   title="Piano Chord Identifier & Finder — Name Any Chord You Play"
-  description="Tap the notes you're playing and get the chord name — inversions and slash chords included. Or go the other way: pick a chord and see which keys to press."
+  description="Tap the notes you're playing and get the chord name — inversions included. Or go the other way: pick a chord and see which keys to press."
   canonicalUrl="https://chordsequence.com/piano-chord-lookup/"
 >
   <Fragment slot="head">
@@ -84,7 +84,7 @@ const webAppSchema = {
           <div style="display:flex;flex-direction:column;gap:8px">
             <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Naming a chord you&rsquo;re already playing</h2>
             <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">If your fingers are on a chord but you don&rsquo;t know what it&rsquo;s called, tap those same notes on the keyboard at the top of the page. The name appears as you go, and it&rsquo;s worked out from the notes themselves — you don&rsquo;t need to know the root or the chord type first.</p>
-            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">The lowest note you pick counts as the bass, so an inversion comes out as a slash chord — C&#8211;E&#8211;G with E at the bottom reads as C/E. And when a set of notes has more than one honest name, you get all of them: C&#8211;E&#8211;G&#8211;A is C6 and Am7 at the same time, so both are shown rather than picking one and hiding the other.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">An inversion is the same chord with a different note at the bottom, so it keeps its name: C&#8211;E&#8211;G played with E lowest is still C, and the tool tells you it&rsquo;s the first inversion. And when a set of notes has more than one honest name, you get all of them: C&#8211;E&#8211;G&#8211;A is C6 and Am7 at the same time, so both are shown rather than picking one and hiding the other.</p>
 
             <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Looking up a chord by name</h2>
             <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">The other direction is a visual dictionary of piano chords. Pick any of the 12 root notes and 30 chord types — from a simple C major triad to a Cmaj13 — and the keys you need to press light up on a three-octave keyboard, each labelled with its note name. The root note is shown in a solid color so you always know where the chord is built from.</p>

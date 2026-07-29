@@ -2,8 +2,13 @@
 export const prerender = true
 import BaseLayout from '../../layouts/BaseLayout.astro'
 import { ChordFinderTool } from '../../components/ChordLookup/ChordFinderTool'
+import { ChordIdentifier } from '../../components/ChordLookup/ChordIdentifier'
 
 const faqs = [
+  { q: 'How do I find out what chord I&rsquo;m playing?', a: 'Tap the shape you&rsquo;re holding on the fretboard at the top of this page &mdash; one fret per string, and leave the strings you&rsquo;re not playing muted. The chord name appears underneath. You don&rsquo;t need to know the root or the type first; that&rsquo;s what the tool works out for you.' },
+  { q: 'Why does it sometimes show more than one chord name?', a: 'Because some chords genuinely share the same notes. C&ndash;E&ndash;G&ndash;A is both C6 and Am7 &mdash; which one it is depends on the musical context, not on the notes alone. The tool shows the most likely reading first and lists the alternatives underneath, using the lowest sounding string as a tie-breaker.' },
+  { q: 'Does it handle inversions?', a: 'Yes. An inversion is the same chord with a different note at the bottom, so it keeps the same name — a C shape with E as its lowest note is still C, and the tool says which inversion it is. The lowest note is also used to decide between readings when a set of notes has more than one name.' },
+  { q: 'What if I&rsquo;m not fretting every note of the chord?', a: 'That still works for the fifth and for upper extensions &mdash; a C7 without its fifth is still identified as C7, and it says &ldquo;no 5&rdquo; so you know what was left out. The third and the seventh are what define a chord, so those are never assumed. This comes up constantly on guitar, where there simply aren&rsquo;t enough fingers for every note.' },
   { q: 'What do the numbers on the dots mean?', a: 'They tell you which finger of your fretting hand to use: 1 = index, 2 = middle, 3 = ring, 4 = pinky. A long pill across several strings is a barre — one finger pressing them all at once.' },
   { q: 'What do the &#215; and &#9675; symbols above the strings mean?', a: 'A cross (&#215;) means that string should not be played. A circle (&#9675;) means the string is played open, without pressing any fret.' },
   { q: 'What does a label like "3fr" next to the diagram mean?', a: 'By default the second horizontal line from the top is the first fret. When you see "3fr", the diagram starts at the third fret instead — the chord is played higher up the neck.' },
@@ -18,25 +23,25 @@ const breadcrumbSchema = {
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
     { '@type': 'ListItem', position: 2, name: 'Chord Finder', item: 'https://chordsequence.com/chord-lookup/' },
-    { '@type': 'ListItem', position: 3, name: 'Guitar Chord Finder', item: 'https://chordsequence.com/guitar-chord-lookup/' },
+    { '@type': 'ListItem', position: 3, name: 'Guitar Chord Identifier & Finder', item: 'https://chordsequence.com/guitar-chord-lookup/' },
   ],
 }
 
 const webAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'Guitar Chord Finder',
+  name: 'Guitar Chord Identifier & Finder',
   url: 'https://chordsequence.com/guitar-chord-lookup/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Guitar chord finder: find any guitar chord in standard tuning with real fingerings, barre chords and alternative positions along the neck. Free and instant.',
+  description: 'Tap the shape you are fretting and get the chord name, inversions included — or look up any guitar chord in standard tuning with real fingerings, barre chords and alternative positions along the neck.',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 }
 ---
 
 <BaseLayout
-  title="Guitar Chord Finder — Find Any Guitar Chord on the Fretboard"
-  description="Guitar chord finder: find any guitar chord in standard tuning with real fingerings, barre chords and alternative positions along the neck. Free and instant."
+  title="Guitar Chord Identifier & Finder — Name Any Chord You Play"
+  description="Tap the shape you're holding and get the chord name — inversions included. Or go the other way: pick a chord and see the fingering."
   canonicalUrl="https://chordsequence.com/guitar-chord-lookup/"
 >
   <Fragment slot="head">
@@ -52,8 +57,8 @@ const webAppSchema = {
         <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
           <div style="display:flex;flex-direction:column;gap:6px">
             <a href="/chord-lookup/" style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">&larr; Chord Finder</a>
-            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Guitar Chord Finder</h1>
-            <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:620px">Find any guitar chord on the fretboard — real fingerings, barre chords, and several positions along the neck.</p>
+            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Guitar Chord Identifier</h1>
+            <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:620px">Tap the shape you&rsquo;re holding and we&rsquo;ll name the chord &mdash; or look up any chord to see its fingering.</p>
           </div>
           <div style="display:inline-flex;background:#ece6f7;border-radius:12px;padding:4px;gap:2px">
             <span style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;background:#ffffff;color:#241d33;box-shadow:0 1px 3px rgba(30,20,60,0.18)">Guitar</span>
@@ -61,6 +66,22 @@ const webAppSchema = {
             <a href="/ukulele-chord-lookup/" style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;color:#6f6788">Ukulele</a>
           </div>
         </header>
+
+        <!--
+          Identificador arriba y buscador debajo, los dos siempre renderizados. No son
+          pestanas a proposito: React no montaria la inactiva y ese contenido desapareceria
+          del HTML servido.
+        -->
+
+        <ChordIdentifier instrument="guitar" client:load />
+
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
+
+          <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Find any guitar chord</h2>
+
+          <p style="margin:0;font-size:14.5px;color:#6f6788;max-width:620px">Know the chord name already? Pick a root and a type to see the fingering, barre chords and positions along the neck.</p>
+
+        </div>
 
         <ChordFinderTool instrument="guitar" client:load />
 
