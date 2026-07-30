@@ -4,23 +4,28 @@ import BaseLayout from '../../layouts/BaseLayout.astro'
 import { ChordFinderTool } from '../../components/ChordLookup/ChordFinderTool'
 
 const cards = [
-  { href: '/guitar-chord-lookup/', title: 'Guitar chord finder', desc: 'Find any guitar chord on the fretboard, with fingerings and positions along the neck.' },
-  { href: '/piano-chord-lookup/', title: 'Piano chord finder', desc: 'Find any piano chord — every note highlighted and named on the keyboard.' },
-  { href: '/ukulele-chord-lookup/', title: 'Ukulele chord finder', desc: 'Look up any ukulele chord in standard GCEA tuning, with real finger patterns.' },
+  { href: '/guitar-chord-lookup/', title: 'Guitar chord lookup', desc: 'Find any guitar chord from the fretboard, with fingerings, capo support and positions along the neck.' },
+  { href: '/piano-chord-lookup/', title: 'Piano chord lookup', desc: 'Identify piano chords from pressed keys — click them, or play them on your MIDI keyboard.' },
+  { href: '/ukulele-chord-lookup/', title: 'Ukulele chord lookup', desc: 'Look up any ukulele chord in GCEA tuning, with real finger patterns and a capo.' },
 ]
 
 const steps = [
   { t: '1 · Pick your instrument', d: 'Each instrument has its own page: <a href="/guitar-chord-lookup/">guitar</a>, <a href="/piano-chord-lookup/">piano</a> or <a href="/ukulele-chord-lookup/">ukulele</a>.' },
-  { t: '2 · Build the chord', d: 'Choose a root note, then a chord type from the Basic, 6th &amp; 7th, or Extended tabs. The chord name and its notes appear instantly.' },
-  { t: '3 · Play &amp; listen', d: 'Press "Play chord" (or the spacebar) to hear each note one by one — each dot or key lights up as it sounds — followed by the full chord.' },
+  { t: '2 · Build the chord', d: 'Type its name (<strong>Cmaj7</strong>, <strong>F#m7b5</strong>, <strong>sol7</strong>) or pick a root note and a chord type. On guitar and ukulele you can add a capo.' },
+  { t: '3 · Or work backwards', d: 'Switch to "Notes &rarr; name" and enter the notes you&rsquo;re playing — by clicking, or straight from a MIDI keyboard on piano — and we name the chord.' },
 ]
 
+// Sin JSON-LD de FAQPage a proposito — ver la nota en guitar-chord-lookup.
 const faqs = [
-  { q: 'Which instruments are supported?', a: 'Guitar (standard EADGBE tuning), piano, and ukulele (standard GCEA tuning). Each has a dedicated finder page with diagrams built for that instrument.' },
-  { q: 'How many chords can I look up?', a: '12 root notes × 30 chord types — around 360 chords per instrument, from basic triads (major, minor, sus, dim, aug) to 6ths, 7ths and extended chords up to 13ths. Guitar and ukulele chords include several positions along the neck.' },
-  { q: 'Can I hear the chord?', a: 'Yes. Press "Play chord" (or the spacebar): each note sounds one at a time — its dot or key lights up as it plays — and then you hear the full chord together.' },
-  { q: 'Can I use Do Re Mi (solfège) note names?', a: 'Yes. A toggle switches every label between English notation (C, D, E…) and Latin solfège (Do, Re, Mi…). Your choice applies to root notes, chord names and every diagram.' },
-  { q: 'Do I need to read music?', a: 'No. Everything is shown visually — highlighted keys on a keyboard, or dots on a fretboard diagram with finger numbers. Note names are shown too, so you learn them as you go.' },
+  { q: 'Which instruments are supported?', a: 'Guitar (standard EADGBE tuning), piano, and ukulele (standard GCEA tuning). Each has a dedicated lookup page with diagrams built for that instrument.' },
+  { q: 'How many chords can I look up?', a: '12 root notes &times; 30 chord types &mdash; around 360 chords per instrument, from basic triads (major, minor, sus, dim, aug) to 6ths, 7ths and extended chords up to 13ths. Guitar and ukulele chords include several positions along the neck.' },
+  { q: 'Can I just type the chord name?', a: 'Yes. The search box takes almost any spelling &mdash; <strong>Cmaj7</strong>, <strong>CM7</strong>, <strong>C-7</strong>, <strong>F#m7b5</strong>, <strong>Bb sus4</strong>, even solf&egrave;ge like <strong>sol7</strong> or <strong>do menor</strong>. Press <strong>/</strong> to jump straight to it, use &uarr;&darr; to pick a suggestion and &crarr; to load it.' },
+  { q: 'Can I go the other way and name a chord I&rsquo;m playing?', a: 'Yes &mdash; that&rsquo;s the &ldquo;Notes &rarr; name&rdquo; mode on every instrument page. Click the keys or the frets you&rsquo;re holding (or play them on a MIDI keyboard on the <a href="/piano-chord-lookup/">piano page</a>) and we name the chord, with alternatives when the same notes have more than one valid name.' },
+  { q: 'Does the order or octave of the notes matter?', a: 'No. The name comes from the set of notes, so Do&ndash;Mi&ndash;Sol, Mi&ndash;Sol&ndash;Do and Sol&ndash;Do&ndash;Mi are all simply C major.' },
+  { q: 'Can I use a capo?', a: 'On guitar and ukulele, yes. Set a capo position and everything is recalculated: the shape you actually play, the fret numbers counted from the capo, and the pitches you hear. Lower and Higher slide capo and shape together.' },
+  { q: 'Can I hear the chord?', a: 'Yes. Press &ldquo;Play chord&rdquo; (or the spacebar): each note sounds one at a time &mdash; its dot or key lights up as it plays &mdash; and then you hear the full chord together.' },
+  { q: 'Can I use Do Re Mi (solf&egrave;ge) note names?', a: 'Yes. A toggle switches every label between English notation (C, D, E&hellip;) and Latin solf&egrave;ge (Do, Re, Mi&hellip;), and your choice is remembered as you move between instruments. Typing a chord in solf&egrave;ge switches it automatically.' },
+  { q: 'Do I need to read music?', a: 'No. Everything is shown visually &mdash; highlighted keys on a keyboard, or dots on a fretboard diagram with finger numbers. Note names are shown too, so you learn them as you go.' },
 ]
 
 const breadcrumbSchema = {
@@ -29,25 +34,25 @@ const breadcrumbSchema = {
   '@id': 'https://chordsequence.com/chord-lookup/#breadcrumb',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
-    { '@type': 'ListItem', position: 2, name: 'Chord Finder', item: 'https://chordsequence.com/chord-lookup/' },
+    { '@type': 'ListItem', position: 2, name: 'Chord Lookup', item: 'https://chordsequence.com/chord-lookup/' },
   ],
 }
 
 const webAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'Chord Finder',
+  name: 'Chord Lookup',
   url: 'https://chordsequence.com/chord-lookup/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Free chord finder: look up any chord on guitar, piano or ukulele. See the fingering, hear every note, and switch between C-D-E and Do-Re-Mi note names.',
+  description: 'Free chord lookup tool, both ways: get the fingering for any chord on guitar, piano or ukulele — or enter the notes you are playing and we name the chord.',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 }
 ---
 
 <BaseLayout
-  title="Chord Finder — Find Any Chord on Guitar, Piano & Ukulele"
-  description="Free chord finder: look up any chord on guitar, piano or ukulele. See the fingering, hear every note, and switch between C-D-E and Do-Re-Mi note names."
+  title="Chord Lookup — Identify Any Chord | Guitar, Piano & Ukulele"
+  description="Free chord lookup tool, both ways: get the fingering for any chord on guitar, piano or ukulele — or enter the notes you are playing and we name the chord."
   canonicalUrl="https://chordsequence.com/chord-lookup/"
 >
   <Fragment slot="head">
@@ -61,8 +66,9 @@ const webAppSchema = {
     <div style="min-height:100vh;padding:24px 20px 64px;box-sizing:border-box">
       <div style="max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
         <header style="display:flex;flex-direction:column;gap:6px">
-          <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Chord Finder</h1>
-          <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:640px">Find any chord on guitar, piano or ukulele — see exactly where your fingers go and hear how the chord sounds, note by note.</p>
+          <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">ChordSequence</div>
+          <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Chord Lookup</h1>
+          <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:640px;text-wrap:pretty">Identify any chord for guitar, piano or ukulele. Look a chord up by name to see where your fingers go &mdash; or enter the notes you&rsquo;re playing and we&rsquo;ll name the chord.</p>
         </header>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
@@ -78,9 +84,11 @@ const webAppSchema = {
 
         <section style="background:#ffffff;border:1px solid #e7e0f2;border-radius:18px;padding:26px 28px;display:flex;flex-direction:column;gap:20px;box-shadow:0 1px 4px rgba(40,25,80,0.05)">
           <div style="display:flex;flex-direction:column;gap:8px">
-            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">What is the chord finder?</h2>
-            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">A visual chord dictionary for three instruments. Choose any of the 12 root notes and 30 chord types — from a simple C major to a Cmaj13 — and it shows you exactly how to play that chord: which keys to press on a piano, or which frets and fingers to use on guitar and ukulele, with real fingerings and several positions along the neck.</p>
-            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">You can also hear every chord: press Play and each note sounds one at a time — lighting up its dot or key so you can follow along — then the full chord together. Made for music teachers and students, but useful to anyone learning songs, writing music, or checking a fingering on the spot.</p>
+            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">What is Chord Lookup?</h2>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">A visual chord dictionary for three instruments, working in both directions. Type a chord name, or choose any of the 12 root notes and 30 chord types &mdash; from a simple C major to a Cmaj13 &mdash; and it shows you exactly how to play that chord: which keys to press on a piano, or which frets and fingers to use on guitar and ukulele, with real fingerings and several positions along the neck.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">On guitar and ukulele you can set a <strong style="font-weight:700">capo</strong> and everything is recalculated &mdash; the shape you actually play, the fret numbers counted from the capo, and the pitches you hear &mdash; while Lower and Higher slide capo and shape up or down the neck together.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">It works in reverse too: enter the notes you&rsquo;re playing and we name the chord &mdash; clicking the frets or keys, or playing them straight from a <strong style="font-weight:700">MIDI keyboard</strong> on the piano page. Order and octave never matter, so Do&ndash;Mi&ndash;Sol, Mi&ndash;Sol&ndash;Do and Sol&ndash;Do&ndash;Mi are all simply C major.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">You can also hear every chord: press Play and each note sounds one at a time &mdash; lighting up its dot or key so you can follow along &mdash; then the full chord together. Made for music teachers and students, but useful to anyone learning songs, writing music, or checking a fingering on the spot.</p>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px">
             {steps.map((s) => (
@@ -95,7 +103,7 @@ const webAppSchema = {
             <div style="display:flex;flex-direction:column;gap:8px;max-width:820px">
               {faqs.map((f) => (
                 <details style="border:1px solid #e7e0f2;border-radius:12px;padding:13px 18px">
-                  <summary style="font-size:14.5px;font-weight:600;cursor:pointer">{f.q}</summary>
+                  <summary style="font-size:14.5px;font-weight:600;cursor:pointer" set:html={f.q} />
                   <p style="margin:10px 0 2px;font-size:14px;line-height:1.6;color:#4c4462" set:html={f.a} />
                 </details>
               ))}
@@ -104,7 +112,7 @@ const webAppSchema = {
         </section>
 
         <footer style="font-size:13px;color:#8a819e;display:flex;gap:8px;flex-wrap:wrap">
-          <span>Chord finder by instrument:</span>
+          <span>Chord lookup by instrument:</span>
           <a href="/guitar-chord-lookup/" style="color:#7C3AED">Guitar</a> &middot;
           <a href="/piano-chord-lookup/" style="color:#7C3AED">Piano</a> &middot;
           <a href="/ukulele-chord-lookup/" style="color:#7C3AED">Ukulele</a>

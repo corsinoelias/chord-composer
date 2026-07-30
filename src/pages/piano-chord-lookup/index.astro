@@ -2,16 +2,20 @@
 export const prerender = true
 import BaseLayout from '../../layouts/BaseLayout.astro'
 import { ChordFinderTool } from '../../components/ChordLookup/ChordFinderTool'
-import { ChordIdentifier } from '../../components/ChordLookup/ChordIdentifier'
 
+// Sin JSON-LD de FAQPage a proposito — ver la nota en guitar-chord-lookup.
 const faqs = [
-  { q: 'How do I find out what chord I&rsquo;m playing?', a: 'Tap the notes on the keyboard at the top of this page — the same ones your fingers are on — and the chord name appears underneath. You don&rsquo;t need to know the root or the type first; that&rsquo;s what the tool works out for you.' },
-  { q: 'Why does it sometimes show more than one chord name?', a: 'Because some chords genuinely share the same notes. C–E–G–A is both C6 and Am7 — which one it is depends on the musical context, not on the notes alone. The tool shows the most likely reading first and lists the alternatives underneath, using the lowest note as a tie-breaker.' },
-  { q: 'Does it handle inversions?', a: 'Yes. An inversion is the same chord with a different note at the bottom, so it keeps the same name — C–E–G played with E lowest is still C, and the tool tells you it&rsquo;s the first inversion. The lowest note is also used to decide between readings when a set of notes has more than one name.' },
-  { q: 'What if I&rsquo;m not playing every note of the chord?', a: 'That still works for the fifth and for upper extensions — a C7 without its fifth is still identified as C7, and it says &ldquo;no 5&rdquo; so you know what was left out. The third and the seventh are what define a chord, so those are never assumed.' },
-  { q: 'How do I read the keyboard diagram?', a: 'Every highlighted key is part of the chord, labelled with its note name. The root note — the note the chord is named after — is shown in a solid, darker color; the other chord tones are lighter.' },
-  { q: 'Can I play the chord in a different octave?', a: 'Yes — the pattern of keys is identical in every octave. Play the same shape higher for a brighter sound or lower for a fuller one.' },
-  { q: 'What&rsquo;s the difference between &quot;C D E&quot; and &quot;Do Re Mi&quot;?', a: 'Two naming systems for the same notes: English notation (C, D, E&#8230;) and Latin solf&#232;ge (Do, Re, Mi&#8230;), common in Spain and Latin America. Use the toggle above the keyboard to switch — every label updates.' },
+  { q: 'How do I find out what chord I&rsquo;m playing on the piano?', a: 'Switch to &ldquo;Notes &rarr; name&rdquo; and click every key you&rsquo;re pressing. As soon as three notes are selected the chord name appears. Click a key again to unselect it, or press Clear to start over.' },
+  { q: 'Can I use my own MIDI keyboard?', a: 'Yes. In &ldquo;Notes &rarr; name&rdquo;, press <strong>Connect MIDI keyboard</strong> and allow access when your browser asks. Play a chord and the keys light up and get named instantly; lift your hands and the answer stays on screen until you play the next one. Web MIDI works in Chrome and Edge on desktop &mdash; in other browsers the on-screen keyboard does the same job.' },
+  { q: 'Does the order of the notes change the chord?', a: 'No. Do&ndash;Mi&ndash;Sol, Mi&ndash;Sol&ndash;Do and Sol&ndash;Do&ndash;Mi are the same three notes, so they&rsquo;re all C major. Order and octave are ignored &mdash; the name comes from the set of notes.' },
+  { q: 'What if two chords have the same notes?', a: 'Some chords share exactly the same notes. C&ndash;E&ndash;G&ndash;A can be read as C6 or as Am7. The most common reading is shown first, and the other valid names appear under &ldquo;Also known as&rdquo; &mdash; click one to make it the main answer.' },
+  { q: 'Can I just type the chord name?', a: 'Yes. The search box takes almost any spelling &mdash; <strong>Cmaj7</strong>, <strong>CM7</strong>, <strong>C-7</strong>, <strong>F#m7b5</strong>, <strong>Bb sus4</strong>, even solf&egrave;ge like <strong>sol7</strong> or <strong>do menor</strong>. Press <strong>/</strong> to jump straight to it, use &uarr;&darr; to pick a suggestion and &crarr; to load it.' },
+  { q: 'Why does it say my notes aren&rsquo;t a standard chord?', a: 'The combination isn&rsquo;t a named chord &mdash; often because of one extra note. Remove a note and see whether the rest forms a chord. With only two notes selected you get the interval instead (a perfect 5th, a major 3rd, and so on).' },
+  { q: 'How do I read the keyboard diagram?', a: 'Every highlighted key is part of the chord, labelled with its note name. Hover a note under &ldquo;Notes in chord&rdquo; and its key lights up on the keyboard &mdash; or hover a key to see which note it is. Click either one to hear it.' },
+  { q: 'Which hand should I play the chord with?', a: 'Either. The diagram shows the notes, not a hand. A common starting point: play the chord with your right hand and the root note an octave lower with your left.' },
+  { q: 'Can I play the chord in a different octave?', a: 'Yes &mdash; the pattern of keys is identical in every octave. Play the same shape higher for a brighter sound or lower for a fuller one.' },
+  { q: 'What about inversions?', a: 'The diagram shows the chord in root position (root at the bottom). To play an inversion, move the lowest highlighted note up an octave &mdash; the chord keeps its name and quality, so we still call it by the same name.' },
+  { q: 'What&rsquo;s the difference between &ldquo;C D E&rdquo; and &ldquo;Do Re Mi&rdquo;?', a: 'Two naming systems for the same notes: English notation (C, D, E&hellip;) and Latin solf&egrave;ge (Do, Re, Mi&hellip;), common in Spain and Latin America. Use the toggle above the keyboard to switch &mdash; your choice is remembered across instruments.' },
 ]
 
 const breadcrumbSchema = {
@@ -20,26 +24,26 @@ const breadcrumbSchema = {
   '@id': 'https://chordsequence.com/piano-chord-lookup/#breadcrumb',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
-    { '@type': 'ListItem', position: 2, name: 'Chord Finder', item: 'https://chordsequence.com/chord-lookup/' },
-    { '@type': 'ListItem', position: 3, name: 'Piano Chord Identifier & Finder', item: 'https://chordsequence.com/piano-chord-lookup/' },
+    { '@type': 'ListItem', position: 2, name: 'Chord Lookup', item: 'https://chordsequence.com/chord-lookup/' },
+    { '@type': 'ListItem', position: 3, name: 'Piano Chord Lookup', item: 'https://chordsequence.com/piano-chord-lookup/' },
   ],
 }
 
 const webAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'Piano Chord Identifier & Finder',
+  name: 'Piano Chord Lookup',
   url: 'https://chordsequence.com/piano-chord-lookup/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Tap the notes you are playing and get the chord name, inversions included — or go the other way and see which keys to press for any chord, from triads to 13ths.',
+  description: 'See which keys to press for any chord, or play the keys — on screen or on a MIDI keyboard — and we name the chord instantly.',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 }
 ---
 
 <BaseLayout
-  title="Piano Chord Identifier & Finder — Name Any Chord You Play"
-  description="Tap the notes you're playing and get the chord name — inversions included. Or go the other way: pick a chord and see which keys to press."
+  title="Piano Chord Lookup — Identify Piano Chords from Pressed Keys"
+  description="Piano chord lookup, both ways: see which keys to press for any chord, or play the keys (on screen or on a MIDI keyboard) and we name the chord instantly."
   canonicalUrl="https://chordsequence.com/piano-chord-lookup/"
 >
   <Fragment slot="head">
@@ -54,9 +58,9 @@ const webAppSchema = {
       <div style="max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
         <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
           <div style="display:flex;flex-direction:column;gap:6px">
-            <a href="/chord-lookup/" style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">&larr; Chord Finder</a>
-            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Piano Chord Identifier</h1>
-            <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:620px">Tap the notes you&rsquo;re playing and we&rsquo;ll name the chord — or look up any chord to see which keys to press.</p>
+            <a href="/chord-lookup/" style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">&larr; Chord Lookup</a>
+            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Piano Chord Lookup</h1>
+            <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:620px;text-wrap:pretty">Identify piano chords from pressed keys &mdash; or go the other way: play the keys, on screen or on your MIDI keyboard, and we name the chord.</p>
           </div>
           <div style="display:inline-flex;background:#ece6f7;border-radius:12px;padding:4px;gap:2px">
             <a href="/guitar-chord-lookup/" style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;color:#6f6788">Guitar</a>
@@ -65,30 +69,14 @@ const webAppSchema = {
           </div>
         </header>
 
-        <!--
-          Identificador arriba y buscador debajo, los dos siempre renderizados. No son
-          pestanas a proposito: React no montaria la inactiva y ese contenido desapareceria
-          del HTML servido. Asi las dos direcciones estan en el HTML y quien busco
-          "what piano chord is this" aterriza directamente en lo que pidio.
-        -->
-        <ChordIdentifier client:load />
-
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
-          <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Find any piano chord</h2>
-          <p style="margin:0;font-size:14.5px;color:#6f6788;max-width:620px">Know the chord name already? Pick a root and a type to see which keys to press.</p>
-        </div>
-
         <ChordFinderTool instrument="piano" client:load />
 
         <section style="background:#ffffff;border:1px solid #e7e0f2;border-radius:18px;padding:26px 28px;display:flex;flex-direction:column;gap:20px;box-shadow:0 1px 4px rgba(40,25,80,0.05)">
           <div style="display:flex;flex-direction:column;gap:8px">
-            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Naming a chord you&rsquo;re already playing</h2>
-            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">If your fingers are on a chord but you don&rsquo;t know what it&rsquo;s called, tap those same notes on the keyboard at the top of the page. The name appears as you go, and it&rsquo;s worked out from the notes themselves — you don&rsquo;t need to know the root or the chord type first.</p>
-            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">An inversion is the same chord with a different note at the bottom, so it keeps its name: C&#8211;E&#8211;G played with E lowest is still C, and the tool tells you it&rsquo;s the first inversion. And when a set of notes has more than one honest name, you get all of them: C&#8211;E&#8211;G&#8211;A is C6 and Am7 at the same time, so both are shown rather than picking one and hiding the other.</p>
-
-            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Looking up a chord by name</h2>
-            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">The other direction is a visual dictionary of piano chords. Pick any of the 12 root notes and 30 chord types — from a simple C major triad to a Cmaj13 — and the keys you need to press light up on a three-octave keyboard, each labelled with its note name. The root note is shown in a solid color so you always know where the chord is built from.</p>
-            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">Press Play to hear the chord note by note — each key lights up as it sounds — and then all notes together. Switch between English note names (C, D, E) and solf&#232;ge (Do, Re, Mi) with one click.</p>
+            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">About the piano chord lookup</h2>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">A visual dictionary of piano chords. Search a chord by name or pick any of the 12 root notes and 30 chord types &mdash; from a simple C major triad to a Cmaj13 &mdash; and the keys you need to press light up on a three-octave keyboard, each labelled with its note name. Hover any note under &ldquo;Notes in chord&rdquo; to see where it falls on the keyboard, and click it to hear that note on its own.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">Press Play to hear the chord note by note &mdash; each key lights up as it sounds &mdash; and then all notes together. Switch between English note names (C, D, E) and solf&egrave;ge (Do, Re, Mi) with one click.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">It also works in reverse. Switch to <strong style="font-weight:700">Notes &rarr; name</strong> and click the keys under your fingers &mdash; or connect a MIDI keyboard and simply play them: with three or more notes we name the chord. Order and octave are irrelevant &mdash; Do&ndash;Mi&ndash;Sol, Mi&ndash;Sol&ndash;Do and Sol&ndash;Do&ndash;Mi are the same three notes, so all three are simply C major. When a set of notes has more than one valid name (C&ndash;E&ndash;G&ndash;A reads as C6 or Am7) the most common reading comes first and the alternatives are listed beside it.</p>
           </div>
           <div style="display:flex;flex-direction:column;gap:10px">
             <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Piano chord FAQs</h2>
@@ -105,8 +93,8 @@ const webAppSchema = {
 
         <footer style="font-size:13px;color:#8a819e;display:flex;gap:8px;flex-wrap:wrap">
           <span>Also available:</span>
-          <a href="/guitar-chord-lookup/" style="color:#7C3AED">Guitar chord finder</a> &middot;
-          <a href="/ukulele-chord-lookup/" style="color:#7C3AED">Ukulele chord finder</a> &middot;
+          <a href="/guitar-chord-lookup/" style="color:#7C3AED">Guitar chord lookup</a> &middot;
+          <a href="/ukulele-chord-lookup/" style="color:#7C3AED">Ukulele chord lookup</a> &middot;
           <a href="/chord-lookup/" style="color:#7C3AED">All instruments</a>
         </footer>
       </div>

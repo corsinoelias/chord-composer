@@ -94,5 +94,7 @@ export function useChordAudio(instrument: Instrument) {
     setPlaying(true)
   }, [playing, playTone, stop])
 
-  return { play, stop, playing, activeId }
+  // playNote suena una sola nota, al margen del arpegio. Es lo que permite picotear notas
+  // sueltas del acorde sin arrancar (ni cortar) la reproduccion completa.
+  return { play, playNote: playTone, stop, playing, activeId }
 }
