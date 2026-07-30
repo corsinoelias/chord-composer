@@ -4,6 +4,19 @@ import { previewNote } from '../lib/bassTab/bassAudio'
 
 export interface MidiInputDevice { id: string; name: string }
 
+export interface UseMidiInputOptions {
+  /**
+   * Si se pasa, el hook lleva la cuenta de que notas estan pulsadas A LA VEZ y avisa en
+   * cada cambio, en vez de disparar el preview de bajo.
+   *
+   * Es la diferencia entre tocar y acompanar: al modo bajo solo le interesa el Note On
+   * para sonar una nota, asi que descartaba el Note Off y nunca sabia que seguia pulsado.
+   * Un identificador de acordes necesita justo lo contrario, porque un acorde ES el
+   * conjunto de notas que suenan simultaneamente.
+   */
+  onNotesChange?: (midiNotes: number[]) => void
+}
+
 interface UseMidiInputReturn {
   available: boolean
   active: boolean
@@ -30,15 +43,19 @@ function midiNoteToStringFret(midiNote: number): { si: StringIndex; fret: number
   return null
 }
 
-export function useMidiInput(sound: BassSound): UseMidiInputReturn {
+export function useMidiInput(sound: BassSound | null, opts: UseMidiInputOptions = {}): UseMidiInputReturn {
   const [available, setAvailable]         = useState(false)
   const [active, setActive]               = useState(false)
   const [devices, setDevices]             = useState<MidiInputDevice[]>([])
   const [selectedDeviceId, setSelectedId] = useState<string | null>(null)
   const midiAccessRef                     = useRef<MIDIAccess | null>(null)
   const soundRef                          = useRef(sound)
+  const optsRef                           = useRef(opts)
+  /** Notas que siguen pulsadas. Se lleva en un ref para no resuscribir el listener. */
+  const heldRef                           = useRef<Set<number>>(new Set())
 
   useEffect(() => { soundRef.current = sound }, [sound])
+  useEffect(() => { optsRef.current = opts })
 
   useEffect(() => {
     if (typeof navigator === 'undefined' || !('requestMIDIAccess' in navigator)) return
@@ -64,12 +81,23 @@ export function useMidiInput(sound: BassSound): UseMidiInputReturn {
     const onMessage = (e: MIDIMessageEvent) => {
       const [status, note, velocity] = e.data as unknown as [number, number, number]
       const type = status & 0xF0
-      if (type === 0x90 && velocity > 0) {
-        // Note On
+      // Muchos teclados no mandan 0x80: sueltan la tecla con un Note On de velocidad 0.
+      const isOn = type === 0x90 && velocity > 0
+      const isOff = type === 0x80 || (type === 0x90 && velocity === 0)
+
+      const notify = optsRef.current.onNotesChange
+      if (notify) {
+        if (isOn) heldRef.current.add(note)
+        else if (isOff) heldRef.current.delete(note)
+        else return
+        notify([...heldRef.current].sort((a, b) => a - b))
+        return
+      }
+
+      if (isOn && soundRef.current) {
         const mapped = midiNoteToStringFret(note)
         if (mapped) previewNote(mapped.si, mapped.fret, soundRef.current)
       }
-      // NoteOff (0x80) or NoteOn with velocity=0: no action needed for preview
     }
 
     access.inputs.forEach(input => {
@@ -88,6 +116,7 @@ export function useMidiInput(sound: BassSound): UseMidiInputReturn {
 
     if (active) {
       midiAccessRef.current?.inputs.forEach(i => { i.onmidimessage = null })
+      heldRef.current.clear()
       setActive(false)
       return
     }

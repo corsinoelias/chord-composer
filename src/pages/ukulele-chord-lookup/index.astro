@@ -2,18 +2,17 @@
 export const prerender = true
 import BaseLayout from '../../layouts/BaseLayout.astro'
 import { ChordFinderTool } from '../../components/ChordLookup/ChordFinderTool'
-import { ChordIdentifier } from '../../components/ChordLookup/ChordIdentifier'
 
+// Sin JSON-LD de FAQPage a proposito — ver la nota en guitar-chord-lookup.
 const faqs = [
-  { q: 'How do I find out what chord I&rsquo;m playing?', a: 'Tap the shape you&rsquo;re holding on the fretboard at the top of this page &mdash; one fret per string, and leave the strings you&rsquo;re not playing muted. The chord name appears underneath. You don&rsquo;t need to know the root or the type first; that&rsquo;s what the tool works out for you.' },
-  { q: 'Why does it sometimes show more than one chord name?', a: 'Because some chords genuinely share the same notes. C&ndash;E&ndash;G&ndash;A is both C6 and Am7 &mdash; which one it is depends on the musical context, not on the notes alone. The tool shows the most likely reading first and lists the alternatives underneath, using the lowest sounding string as a tie-breaker.' },
-  { q: 'Does it handle inversions?', a: 'Yes. An inversion is the same chord with a different note at the bottom, so it keeps the same name — a C shape with E as its lowest note is still C, and the tool says which inversion it is. The lowest note is also used to decide between readings when a set of notes has more than one name.' },
-  { q: 'What if I&rsquo;m not fretting every note of the chord?', a: 'That still works for the fifth and for upper extensions &mdash; a C7 without its fifth is still identified as C7, and it says &ldquo;no 5&rdquo; so you know what was left out. The third and the seventh are what define a chord, so those are never assumed. This comes up constantly on guitar, where there simply aren&rsquo;t enough fingers for every note.' },
+  { q: 'How do I find out what chord I&rsquo;m playing on the ukulele?', a: 'Switch to &ldquo;Notes &rarr; name&rdquo; and click the fret you&rsquo;re holding on each of the four strings; the circle by the nut plays a string open and the &times; clears it. With three notes we name the chord.' },
+  { q: 'Can I just type the chord name?', a: 'Yes. The search box takes almost any spelling &mdash; <strong>Cmaj7</strong>, <strong>CM7</strong>, <strong>C-7</strong>, <strong>F#m7b5</strong>, <strong>Bb sus4</strong>, even solf&egrave;ge like <strong>sol7</strong> or <strong>do menor</strong>. Press <strong>/</strong> to jump straight to it, use &uarr;&darr; to pick a suggestion and &crarr; to load it.' },
   { q: 'What tuning do the diagrams use?', a: 'Standard ukulele tuning, GCEA (soprano, concert, and tenor with high G). The leftmost string in the diagram is the G string, closest to you when you hold the uke.' },
-  { q: 'What is the "re-entrant" high-G string?', a: "On most ukuleles the fourth string (G) is tuned an octave higher than you'd expect, so the strings don't go low-to-high in order. The audio here plays that high G, so what you hear matches a real ukulele." },
-  { q: 'What do the numbers on the dots mean?', a: 'Which finger of your fretting hand to use: 1 = index, 2 = middle, 3 = ring, 4 = pinky. A long pill across several strings is a barre — one finger pressing them all at once.' },
-  { q: 'Are guitar chord shapes the same on ukulele?', a: 'No — the ukulele has four strings and a different tuning, so shapes are their own. (Fun fact: a uke shape matches the guitar\'s top four strings capoed at the 5th fret.) Use the <a href="/guitar-chord-lookup/">guitar chord finder</a> for guitar shapes.' },
-  { q: 'I play a left-handed ukulele — can I use the diagrams?', a: 'Yes. Turn on "Left-handed" above the diagram and the string order is flipped to match a ukulele strung for a left-handed player.' },
+  { q: 'What is the &ldquo;re-entrant&rdquo; high-G string?', a: 'On most ukuleles the fourth string (G) is tuned an octave higher than you&rsquo;d expect, so the strings don&rsquo;t go low-to-high in order. The audio here plays that high G, so what you hear matches a real ukulele.' },
+  { q: 'Can I use a capo on the ukulele?', a: 'Yes. Set a capo position and the chord you ask for is shown as the shape you actually play, with fret numbers counted from the capo. <strong>Lower</strong> and <strong>Higher</strong> move capo and shape together so the shape stays put while the chord transposes.' },
+  { q: 'What do the numbers on the dots mean?', a: 'Which finger of your fretting hand to use: 1 = index, 2 = middle, 3 = ring, 4 = pinky. A long pill across several strings is a barre &mdash; one finger pressing them all at once.' },
+  { q: 'Are guitar chord shapes the same on ukulele?', a: 'No &mdash; the ukulele has four strings and a different tuning, so shapes are their own. (Fun fact: a uke shape matches the guitar&rsquo;s top four strings capoed at the 5th fret.) Use the <a href="/guitar-chord-lookup/">guitar chord lookup</a> for guitar shapes.' },
+  { q: 'I play a left-handed ukulele &mdash; can I use the diagrams?', a: 'Yes. Turn on &ldquo;Left-handed&rdquo; and the string order is flipped to match a ukulele strung for a left-handed player, on both the diagrams and the fretboard.' },
 ]
 
 const breadcrumbSchema = {
@@ -22,26 +21,26 @@ const breadcrumbSchema = {
   '@id': 'https://chordsequence.com/ukulele-chord-lookup/#breadcrumb',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
-    { '@type': 'ListItem', position: 2, name: 'Chord Finder', item: 'https://chordsequence.com/chord-lookup/' },
-    { '@type': 'ListItem', position: 3, name: 'Ukulele Chord Identifier & Finder', item: 'https://chordsequence.com/ukulele-chord-lookup/' },
+    { '@type': 'ListItem', position: 2, name: 'Chord Lookup', item: 'https://chordsequence.com/chord-lookup/' },
+    { '@type': 'ListItem', position: 3, name: 'Ukulele Chord Lookup', item: 'https://chordsequence.com/ukulele-chord-lookup/' },
   ],
 }
 
 const webAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'Ukulele Chord Identifier & Finder',
+  name: 'Ukulele Chord Lookup',
   url: 'https://chordsequence.com/ukulele-chord-lookup/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Tap the shape you are fretting on a GCEA ukulele and get the chord name — or look up any ukulele chord with finger numbers, barres and alternative positions.',
+  description: 'Find any chord in GCEA tuning with finger numbers and positions, or click the frets you are playing and we name the chord.',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 }
 ---
 
 <BaseLayout
-  title="Ukulele Chord Identifier & Finder — Name Any Chord You Play"
-  description="Tap the shape you're holding on a GCEA ukulele and get the chord name. Or go the other way: pick a chord and see the finger pattern."
+  title="Ukulele Chord Lookup — Find Any Ukulele Chord (GCEA)"
+  description="Ukulele chord lookup, both ways: find any chord in GCEA tuning with finger numbers and positions, or click the frets you are playing and we name the chord."
   canonicalUrl="https://chordsequence.com/ukulele-chord-lookup/"
 >
   <Fragment slot="head">
@@ -56,9 +55,9 @@ const webAppSchema = {
       <div style="max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
         <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
           <div style="display:flex;flex-direction:column;gap:6px">
-            <a href="/chord-lookup/" style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">&larr; Chord Finder</a>
-            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Ukulele Chord Identifier</h1>
-            <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:620px">Tap the shape you&rsquo;re holding and we&rsquo;ll name the chord &mdash; or look up any chord in standard GCEA tuning.</p>
+            <a href="/chord-lookup/" style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">&larr; Chord Lookup</a>
+            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Ukulele Chord Lookup</h1>
+            <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:620px;text-wrap:pretty">Look up any ukulele chord in GCEA tuning &mdash; or go the other way: click the frets you&rsquo;re playing and we name the chord.</p>
           </div>
           <div style="display:inline-flex;background:#ece6f7;border-radius:12px;padding:4px;gap:2px">
             <a href="/guitar-chord-lookup/" style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;color:#6f6788">Guitar</a>
@@ -67,29 +66,14 @@ const webAppSchema = {
           </div>
         </header>
 
-        <!--
-          Identificador arriba y buscador debajo, los dos siempre renderizados. No son
-          pestanas a proposito: React no montaria la inactiva y ese contenido desapareceria
-          del HTML servido.
-        -->
-
-        <ChordIdentifier instrument="ukulele" client:load />
-
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
-
-          <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Find any ukulele chord</h2>
-
-          <p style="margin:0;font-size:14.5px;color:#6f6788;max-width:620px">Know the chord name already? Pick a root and a type to see the finger pattern on a four-string diagram.</p>
-
-        </div>
-
         <ChordFinderTool instrument="ukulele" client:load />
 
         <section style="background:#ffffff;border:1px solid #e7e0f2;border-radius:18px;padding:26px 28px;display:flex;flex-direction:column;gap:20px;box-shadow:0 1px 4px rgba(40,25,80,0.05)">
           <div style="display:flex;flex-direction:column;gap:8px">
-            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">About the ukulele chord finder</h2>
-            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">A visual dictionary of ukulele chords in standard GCEA tuning. Pick any of the 12 root notes and 30 chord types and see the chord on a four-string diagram: numbered dots for each finger, barres drawn as pills, &#9675; for open strings, and the note each string sounds.</p>
-            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px">Many chords include alternative positions higher up the neck. Press Play to hear the chord string by string — with the re-entrant high-G string voiced correctly — and then strummed together. A left-handed mode mirrors every diagram.</p>
+            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">About the ukulele chord lookup</h2>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">A visual dictionary of ukulele chords in standard GCEA tuning. Search a chord by name, or pick any of the 12 root notes and 30 chord types and see the chord on a four-string diagram: numbered dots for each finger, barres drawn as pills, &#9675; for open strings, and the note each string sounds.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">Many chords include alternative positions higher up the neck. Press Play to hear the chord string by string &mdash; with the re-entrant high-G string voiced correctly &mdash; and then strummed together. A left-handed mode mirrors every diagram, and a capo setting recalculates the shape you play, the fret numbers and the pitches you hear.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">It also works in reverse. Switch to <strong style="font-weight:700">Notes &rarr; name</strong> and click the fret you&rsquo;re holding on each of the four strings; the &#215; button clears a string you don&rsquo;t play. With three or more notes we name the chord &mdash; order and octave are irrelevant, so any voicing of Do, Mi and Sol is simply C major. When the same notes have more than one valid name (C&ndash;E&ndash;G&ndash;A reads as C6 or Am7) the most common one comes first.</p>
           </div>
           <div style="display:flex;flex-direction:column;gap:10px">
             <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Ukulele chord FAQs</h2>
@@ -106,8 +90,8 @@ const webAppSchema = {
 
         <footer style="font-size:13px;color:#8a819e;display:flex;gap:8px;flex-wrap:wrap">
           <span>Also available:</span>
-          <a href="/guitar-chord-lookup/" style="color:#7C3AED">Guitar chord finder</a> &middot;
-          <a href="/piano-chord-lookup/" style="color:#7C3AED">Piano chord finder</a> &middot;
+          <a href="/guitar-chord-lookup/" style="color:#7C3AED">Guitar chord lookup</a> &middot;
+          <a href="/piano-chord-lookup/" style="color:#7C3AED">Piano chord lookup</a> &middot;
           <a href="/chord-lookup/" style="color:#7C3AED">All instruments</a>
         </footer>
       </div>

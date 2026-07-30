@@ -30,32 +30,39 @@ export const UKT = [7, 0, 4, 9]             // GCEA
 export const GMID = [40, 45, 50, 55, 59, 64] // EADGBE en MIDI, grave -> agudo
 export const UMID = [67, 60, 64, 69]         // GCEA en MIDI (sol reentrante agudo)
 
-export type ChordType = { id: string; suf: string; degs: string[]; group: string; k: string }
-const T = (id: string, suf: string, degs: string[], group: string, k?: string): ChordType =>
-  ({ id, suf, degs, group, k: k ?? suf })
+/**
+ * `opt` son los grados que el acorde puede perder sin dejar de llamarse igual. El
+ * identificador prueba a quitarlos cuando el conjunto de notas no cuadra exacto: en
+ * guitarra la quinta se omite constantemente por falta de dedos, y en los acordes
+ * extendidos tambien se caen la novena o la oncena. La tercera y la septima nunca estan
+ * aqui: quitarlas cambia el acorde, no lo simplifica.
+ */
+export type ChordType = { id: string; suf: string; degs: string[]; opt: string[]; group: string; k: string }
+const T = (id: string, suf: string, degs: string[], opt: string[], group: string, k?: string): ChordType =>
+  ({ id, suf, degs, opt, group, k: k ?? suf })
 
 export const G1 = 'Basic', G2 = '6th & 7th', G3 = 'Extended'
 
 export const TYPES: ChordType[] = [
-  T('maj', '', ['1', '3', '5'], G1), T('m', 'm', ['1', 'b3', '5'], G1),
-  T('dim', 'dim', ['1', 'b3', 'b5'], G1), T('aug', 'aug', ['1', '3', '#5'], G1),
-  T('sus2', 'sus2', ['1', '2', '5'], G1), T('sus4', 'sus4', ['1', '4', '5'], G1),
-  T('5', '5', ['1', '5'], G1),
-  T('6', '6', ['1', '3', '5', '6'], G2), T('m6', 'm6', ['1', 'b3', '5', '6'], G2),
-  T('69', '6/9', ['1', '3', '5', '6', '9'], G2, '69'),
-  T('7', '7', ['1', '3', '5', 'b7'], G2), T('maj7', 'maj7', ['1', '3', '5', '7'], G2, 'Maj7'),
-  T('m7', 'm7', ['1', 'b3', '5', 'b7'], G2),
-  T('dim7', 'dim7', ['1', 'b3', 'b5', 'bb7'], G2), T('m7b5', 'm7♭5', ['1', 'b3', 'b5', 'b7'], G2, 'm7b5'),
-  T('7b5', '7♭5', ['1', '3', 'b5', 'b7'], G2, '7b5'),
-  T('7sus4', '7sus4', ['1', '4', '5', 'b7'], G2),
-  T('9', '9', ['1', '3', '5', 'b7', '9'], G3), T('maj9', 'maj9', ['1', '3', '5', '7', '9'], G3, 'Maj9'),
-  T('m9', 'm9', ['1', 'b3', '5', 'b7', '9'], G3),
-  T('add9', 'add9', ['1', '3', '5', '9'], G3),
-  T('7b9', '7♭9', ['1', '3', '5', 'b7', 'b9'], G3, '7b9'), T('7s9', '7♯9', ['1', '3', '5', 'b7', '#9'], G3, '7#9'),
-  T('11', '11', ['1', '3', '5', 'b7', '9', '11'], G3), T('m11', 'm11', ['1', 'b3', '5', 'b7', '9', '11'], G3),
-  T('maj11', 'maj11', ['1', '3', '5', '7', '9', '11'], G3, 'Maj11'),
-  T('13', '13', ['1', '3', '5', 'b7', '9', '13'], G3), T('m13', 'm13', ['1', 'b3', '5', 'b7', '9', '13'], G3),
-  T('maj13', 'maj13', ['1', '3', '5', '7', '9', '13'], G3, 'Maj13'),
+  T('maj', '', ['1', '3', '5'], [], G1), T('m', 'm', ['1', 'b3', '5'], [], G1),
+  T('dim', 'dim', ['1', 'b3', 'b5'], [], G1), T('aug', 'aug', ['1', '3', '#5'], [], G1),
+  T('sus2', 'sus2', ['1', '2', '5'], [], G1), T('sus4', 'sus4', ['1', '4', '5'], [], G1),
+  T('5', '5', ['1', '5'], [], G1),
+  T('6', '6', ['1', '3', '5', '6'], ['5'], G2), T('m6', 'm6', ['1', 'b3', '5', '6'], ['5'], G2),
+  T('69', '6/9', ['1', '3', '5', '6', '9'], ['5'], G2, '69'),
+  T('7', '7', ['1', '3', '5', 'b7'], ['5'], G2), T('maj7', 'maj7', ['1', '3', '5', '7'], ['5'], G2, 'Maj7'),
+  T('m7', 'm7', ['1', 'b3', '5', 'b7'], ['5'], G2),
+  T('dim7', 'dim7', ['1', 'b3', 'b5', 'bb7'], [], G2), T('m7b5', 'm7♭5', ['1', 'b3', 'b5', 'b7'], [], G2, 'm7b5'),
+  T('7b5', '7♭5', ['1', '3', 'b5', 'b7'], [], G2, '7b5'),
+  T('7sus4', '7sus4', ['1', '4', '5', 'b7'], ['5'], G2),
+  T('9', '9', ['1', '3', '5', 'b7', '9'], ['5'], G3), T('maj9', 'maj9', ['1', '3', '5', '7', '9'], ['5'], G3, 'Maj9'),
+  T('m9', 'm9', ['1', 'b3', '5', 'b7', '9'], ['5'], G3),
+  T('add9', 'add9', ['1', '3', '5', '9'], ['5'], G3),
+  T('7b9', '7♭9', ['1', '3', '5', 'b7', 'b9'], ['5'], G3, '7b9'), T('7s9', '7♯9', ['1', '3', '5', 'b7', '#9'], ['5'], G3, '7#9'),
+  T('11', '11', ['1', '3', '5', 'b7', '9', '11'], ['3', '5', '9'], G3), T('m11', 'm11', ['1', 'b3', '5', 'b7', '9', '11'], ['5', '9'], G3),
+  T('maj11', 'maj11', ['1', '3', '5', '7', '9', '11'], ['5', '9'], G3, 'Maj11'),
+  T('13', '13', ['1', '3', '5', 'b7', '9', '13'], ['5', '9'], G3), T('m13', 'm13', ['1', 'b3', '5', 'b7', '9', '13'], ['5', '9'], G3),
+  T('maj13', 'maj13', ['1', '3', '5', '7', '9', '13'], ['5', '9'], G3, 'Maj13'),
 ]
 
 export const GROUPS = [G1, G2, G3]
