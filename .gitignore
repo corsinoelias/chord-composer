@@ -32,3 +32,6 @@ dist-ssr
 
 # Downloaded soundfont assets (run `npm run fetch-soundfonts` to regenerate)
 public/soundfonts/
+
+# MCP server config (contiene credenciales locales)
+.mcp.json
