@@ -11,7 +11,7 @@ const faqs = [
   { q: 'What if two chords have the same notes?', a: 'Some chords share exactly the same notes. C&ndash;E&ndash;G&ndash;A can be read as C6 or as Am7. The most common reading is shown first, and the other valid names appear under &ldquo;Also known as&rdquo; &mdash; click one to make it the main answer.' },
   { q: 'Can I just type the chord name?', a: 'Yes. The search box takes almost any spelling &mdash; <strong>Cmaj7</strong>, <strong>CM7</strong>, <strong>C-7</strong>, <strong>F#m7b5</strong>, <strong>Bb sus4</strong>, even solf&egrave;ge like <strong>sol7</strong> or <strong>do menor</strong>. Press <strong>/</strong> to jump straight to it, use &uarr;&darr; to pick a suggestion and &crarr; to load it.' },
   { q: 'Why does it say my notes aren&rsquo;t a standard chord?', a: 'The combination isn&rsquo;t a named chord &mdash; often because of one extra note. Remove a note and see whether the rest forms a chord. With only two notes selected you get the interval instead (a perfect 5th, a major 3rd, and so on).' },
-  { q: 'How do I read the keyboard diagram?', a: 'Every highlighted key is part of the chord, labelled with its note name. Hover a note under &ldquo;Notes in chord&rdquo; and its key lights up on the keyboard &mdash; or hover a key to see which note it is. Click either one to hear it.' },
+  { q: 'How do I read the keyboard diagram?', a: 'Every highlighted key is part of the chord, labelled with its note name. On a computer, hover a note under &ldquo;Notes in chord&rdquo; and its key lights up on the keyboard &mdash; or hover a key to see which note it is. On a phone or tablet, tap a note or a key to hear it.' },
   { q: 'Which hand should I play the chord with?', a: 'Either. The diagram shows the notes, not a hand. A common starting point: play the chord with your right hand and the root note an octave lower with your left.' },
   { q: 'Can I play the chord in a different octave?', a: 'Yes &mdash; the pattern of keys is identical in every octave. Play the same shape higher for a brighter sound or lower for a fuller one.' },
   { q: 'What about inversions?', a: 'The diagram shows the chord in root position (root at the bottom). To play an inversion, move the lowest highlighted note up an octave &mdash; the chord keeps its name and quality, so we still call it by the same name.' },
@@ -54,32 +54,32 @@ const webAppSchema = {
   </Fragment>
 
   <main style="background:#f7f5fb;font-family:'Hanken Grotesk',system-ui,sans-serif;color:#241d33">
-    <div style="min-height:100vh;padding:24px 20px 64px;box-sizing:border-box">
+    <div class="cl-page" style="min-height:100vh;box-sizing:border-box">
       <div style="max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
         <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
           <div style="display:flex;flex-direction:column;gap:6px">
             <a href="/chord-lookup/" style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">&larr; Chord Lookup</a>
-            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Piano Chord Lookup</h1>
+            <h1 class="cl-h1" style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-0.6px">Piano Chord Lookup</h1>
             <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:620px;text-wrap:pretty">Identify piano chords from pressed keys &mdash; or go the other way: play the keys, on screen or on your MIDI keyboard, and we name the chord.</p>
           </div>
-          <div style="display:inline-flex;background:#ece6f7;border-radius:12px;padding:4px;gap:2px">
-            <a href="/guitar-chord-lookup/" style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;color:#6f6788">Guitar</a>
-            <span style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;background:#ffffff;color:#241d33;box-shadow:0 1px 3px rgba(30,20,60,0.18)">Piano</span>
-            <a href="/ukulele-chord-lookup/" style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;color:#6f6788">Ukulele</a>
+          <div class="cl-switch" style="background:#ece6f7;border-radius:12px;padding:4px;gap:2px">
+            <a href="/guitar-chord-lookup/" style="border-radius:9px;font-size:14px;font-weight:600;color:#6f6788">Guitar</a>
+            <span style="border-radius:9px;font-size:14px;font-weight:600;background:#ffffff;color:#241d33;box-shadow:0 1px 3px rgba(30,20,60,0.18)">Piano</span>
+            <a href="/ukulele-chord-lookup/" style="border-radius:9px;font-size:14px;font-weight:600;color:#6f6788">Ukulele</a>
           </div>
         </header>
 
         <ChordFinderTool instrument="piano" client:load />
 
-        <section style="background:#ffffff;border:1px solid #e7e0f2;border-radius:18px;padding:26px 28px;display:flex;flex-direction:column;gap:20px;box-shadow:0 1px 4px rgba(40,25,80,0.05)">
+        <section class="cl-card" style="background:#ffffff;border:1px solid #e7e0f2;border-radius:18px;display:flex;flex-direction:column;gap:20px;box-shadow:0 1px 4px rgba(40,25,80,0.05)">
           <div style="display:flex;flex-direction:column;gap:8px">
-            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">About the piano chord lookup</h2>
-            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">A visual dictionary of piano chords. Search a chord by name or pick any of the 12 root notes and 30 chord types &mdash; from a simple C major triad to a Cmaj13 &mdash; and the keys you need to press light up on a three-octave keyboard, each labelled with its note name. Hover any note under &ldquo;Notes in chord&rdquo; to see where it falls on the keyboard, and click it to hear that note on its own.</p>
+            <h2 class="cl-h2" style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-0.3px">About the piano chord lookup</h2>
+            <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">A visual dictionary of piano chords. Search a chord by name or pick any of the 12 root notes and 30 chord types &mdash; from a simple C major triad to a Cmaj13 &mdash; and the keys you need to press light up on a three-octave keyboard, each labelled with its note name. On a narrow screen two octaves are shown at a time, with arrows to reach the third. On a computer, hover any note under &ldquo;Notes in chord&rdquo; to see where it falls on the keyboard; on any device, click or tap it to hear that note on its own.</p>
             <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">Press Play to hear the chord note by note &mdash; each key lights up as it sounds &mdash; and then all notes together. Switch between English note names (C, D, E) and solf&egrave;ge (Do, Re, Mi) with one click.</p>
             <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">It also works in reverse. Switch to <strong style="font-weight:700">Notes &rarr; name</strong> and click the keys under your fingers &mdash; or connect a MIDI keyboard and simply play them: with three or more notes we name the chord. Order and octave are irrelevant &mdash; Do&ndash;Mi&ndash;Sol, Mi&ndash;Sol&ndash;Do and Sol&ndash;Do&ndash;Mi are the same three notes, so all three are simply C major. When a set of notes has more than one valid name (C&ndash;E&ndash;G&ndash;A reads as C6 or Am7) the most common reading comes first and the alternatives are listed beside it.</p>
           </div>
           <div style="display:flex;flex-direction:column;gap:10px">
-            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Piano chord FAQs</h2>
+            <h2 class="cl-h2" style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-0.3px">Piano chord FAQs</h2>
             <div style="display:flex;flex-direction:column;gap:8px;max-width:820px">
               {faqs.map((f) => (
                 <details style="border:1px solid #e7e0f2;border-radius:12px;padding:13px 18px">
@@ -101,3 +101,21 @@ const webAppSchema = {
     </div>
   </main>
 </BaseLayout>
+
+<style>
+  /* El resto de la pagina va con estilos en linea, pero los margenes y la tipografia si
+     necesitan puntos de ruptura, y un atributo `style` no admite media queries. */
+  .cl-page { padding: clamp(14px, 4vw, 24px) clamp(12px, 4vw, 20px) 48px; }
+  .cl-h1 { font-size: clamp(23px, 6.2vw, 32px); }
+  .cl-h2 { font-size: clamp(18px, 4.6vw, 21px); }
+  .cl-card { padding: clamp(18px, 5vw, 28px); }
+
+  .cl-switch { display: inline-flex; }
+  .cl-switch > * { padding: 10px 22px; text-align: center; }
+  /* Los tres instrumentos ocupaban ~300px fijos y empujaban la cabecera a dos filas; en
+     pantalla estrecha pasan a repartirse el ancho entero. */
+  @media (max-width: 560px) {
+    .cl-switch { display: flex; width: 100%; }
+    .cl-switch > * { flex: 1; padding: 11px 8px; }
+  }
+</style>

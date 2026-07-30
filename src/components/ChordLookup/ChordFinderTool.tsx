@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChordAudio, type NoteEvent } from './useChordAudio'
+import { useContainerWidth } from './useContainerWidth'
 import { ACCENT, TEXT, MUTED, FAINT, BORDER, BORDER_LIGHT, PILL_BG, CARD_BG } from './palette'
+import { useIsMobile } from '../../hooks/use-mobile'
 import { ROOTS, GROUPS, TYPES, LETPC, TUN, UKT, GMID, UMID, spell, nn } from '../../lib/chordTheory'
 import {
   buildDiagram, voicingsFor, rootKeyOf, rootIdxForPc, pcOfRoot, defName,
@@ -24,9 +26,86 @@ type Mode = 'build' | 'identify'
 
 const FN = 15
 const SC = (n: number) => 1 - Math.pow(2, -n / 12)
-const FB_K = 820 / SC(FN)
-const OPEN_X = 34, NUT_X = 68, NUT_W = 9, BOARD_X = NUT_X + NUT_W, BOARD_Y = 14
-const fx = (n: number) => BOARD_X + SC(n) * FB_K
+const NUT_W = 9, BOARD_Y = 14
+/** Tablero a tamano de escritorio: los 15 trastes en 820px. */
+const BOARD_MAX = 820
+/** 77 de cuerdas al aire + tablero + 14 de aire a la derecha. */
+const FB_NATURAL_W = 77 + BOARD_MAX + 14
+
+type FbMetrics = {
+  f0: number; visible: number; openX: number; nutX: number; boardX: number
+  boardPx: number; sp: number; compact: boolean
+  fx: (n: number) => number
+}
+
+/**
+ * Medidas del diapason para el ancho disponible.
+ *
+ * El mastil entero mide 911px y no hay movil que lo aguante. Encogerlo dejaria las celdas de
+ * traste en 10px, asi que en su lugar se muestra una VENTANA de trastes que ocupa todo el
+ * ancho: las proporciones logaritmicas se mantienen dentro de la ventana —que es lo que hace
+ * que siga leyendose como un mastil— y el espaciado entre cuerdas se decide aparte, de modo
+ * que estrechar la pantalla nunca aplasta las cuerdas unas contra otras.
+ *
+ * A partir de ~900px la ventana es el mastil completo y las medidas coinciden exactamente con
+ * las de siempre.
+ */
+function fretsVisible(total: number) {
+  const w = Math.max(240, total)
+  return w < 420 ? 5 : w < 620 ? 7 : w < 900 ? 10 : FN
+}
+
+function fretMetrics(total: number, fretWin: number, strings: number): FbMetrics {
+  const w = Math.max(240, total)
+  const compact = w < 420
+  const visible = fretsVisible(w)
+  const f0 = Math.min(Math.max(0, Math.round(fretWin)), FN - visible)
+  const openX = compact ? 20 : 34
+  const nutX = compact ? 44 : 68
+  const boardX = nutX + NUT_W
+  const boardPx = Math.min(w - boardX - (compact ? 8 : 14), BOARD_MAX)
+  const base = SC(f0)
+  const k = boardPx / (SC(f0 + visible) - base)
+  return {
+    f0, visible, openX, nutX, boardX, boardPx, compact,
+    // Con la ventana entera las seis cuerdas caben holgadas; en movil se separan para que
+    // cada celda sea un objetivo de dedo y no de raton.
+    sp: strings === 4 ? 34 : compact ? 34 : 27,
+    fx: (n: number) => boardX + (SC(n) - base) * k,
+  }
+}
+
+// ── Teclado ────────────────────────────────────────────────────────────────
+
+/** Tecla blanca a tamano de escritorio: tres octavas en 714px. */
+const KEY_W_MAX = 34
+const PIANO_OCTAVES = 3
+const PIANO_NATURAL_W = 21 * KEY_W_MAX
+
+type PianoMetrics = {
+  ww: number; bw: number; bwId: number; oct: number; o0: number; w: number
+  label: number; blabel: number
+}
+
+/**
+ * La misma idea que en el mastil: cuando no caben las tres octavas se muestran dos y la tecla
+ * se estrecha hasta llenar el ancho. La ALTURA no se toca, que es lo que hace que una blanca
+ * de 21px siga siendo comoda de pulsar — un piano de movil se ve asi.
+ */
+function pianoMetrics(total: number, octWin: number): PianoMetrics {
+  const w = Math.max(210, total)
+  const oct = w >= 21 * 26 ? PIANO_OCTAVES : 2
+  const ww = Math.min(KEY_W_MAX, w / (7 * oct))
+  return {
+    ww, oct,
+    o0: oct >= PIANO_OCTAVES ? 0 : Math.min(Math.max(0, octWin), PIANO_OCTAVES - oct),
+    bw: Math.max(12, Math.round(ww * 0.588)),
+    bwId: Math.max(13, Math.round(ww * 0.647)),
+    w: ww * 7 * oct,
+    label: Math.max(8, Math.round(ww * 0.324)),
+    blabel: Math.max(7, Math.round(ww * 0.265)),
+  }
+}
 
 const INTERVALS = [
   'unison', 'minor 2nd', 'major 2nd', 'minor 3rd', 'major 3rd', 'perfect 4th',
@@ -39,10 +118,18 @@ const HOVER_CSS = `
    incluso cuando son tres repartidas por el mastil. */
 @keyframes cf-ping{0%,100%{box-shadow:0 0 0 3px var(--cf-glow)}50%{box-shadow:0 0 0 9px var(--cf-glow-soft)}}
 .cf-hit{animation:cf-ping 1.1s ease-in-out infinite}
-.cf-b:hover{border-color:var(--cf-accent)!important}
-.cf-bright:hover{filter:brightness(1.08)}
-.cf-cell:hover{background:rgba(255,255,255,0.14)!important}
-.cf-clear:hover{color:#3c3452!important}
+/* Solo donde hay raton de verdad: en tactil el :hover se queda pegado despues de un toque
+   y deja celdas del mastil iluminadas sin motivo. */
+@media (hover:hover){
+  .cf-b:hover{border-color:var(--cf-accent)!important}
+  .cf-bright:hover{filter:brightness(1.08)}
+  .cf-cell:hover{background:rgba(255,255,255,0.14)!important}
+  .cf-clear:hover{color:#3c3452!important}
+}
+.cf-tap{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+/* Tiras que se desplazan a lo ancho cuando no caben (capo, familias de acordes). */
+.cf-strip{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.cf-strip::-webkit-scrollbar{display:none}
 @media (prefers-reduced-motion:reduce){.cf-hit{animation:none;box-shadow:0 0 0 5px var(--cf-glow)}}
 `
 
@@ -114,11 +201,33 @@ export function ChordFinderTool({
   // las dos direcciones: la marca un circulo de "Notes in chord" o una posicion del
   // diagrama, y la leen las dos.
   const [hoverPc, setHoverPc] = useState<number | null>(null)
+  /** Primer traste de la ventana visible del mastil. Ver `fretMetrics`. */
+  const [fretWin, setFretWin] = useState(0)
+  /** Primera octava visible del teclado cuando no caben las tres. */
+  const [octWin, setOctWin] = useState(0)
 
   const isIdentify = mode === 'identify'
   const isBuild = !isIdentify
   const showBuildPiano = isPiano && isBuild
   const showBuildFret = !isPiano && isBuild
+
+  // El resaltado cruzado (senalar una nota y verla encenderse en el instrumento) va con
+  // hover. En tactil no hay hover: el toque lo enciende y lo deja pegado hasta que tocas
+  // otra cosa. Ahi se apaga entero y el toque se queda solo con lo suyo, sonar la nota.
+  const isMobile = useIsMobile()
+  const canHover = !isMobile
+  const hoverProps = useCallback(
+    (pc: number | null) => (canHover ? { onMouseEnter: () => setHoverPc(pc), onMouseLeave: () => setHoverPc(null) } : null),
+    [canHover],
+  )
+
+  // Con los dos paneles apilados el resultado cae debajo del pliegue: elegir un acorde del
+  // desplegable y no ver lo que sale no es elegir nada.
+  const outPanelRef = useRef<HTMLElement | null>(null)
+  const revealResult = useCallback(() => {
+    if (!isMobile) return
+    requestAnimationFrame(() => outPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+  }, [isMobile])
 
   const { play: playNotes, playNote, stop, playing, activeId } = useChordAudio(instrument)
   const notesRef = useRef<NoteEvent[]>([])
@@ -137,8 +246,19 @@ export function ChordFinderTool({
     if (hits.length) playNote(hits[0].midi)
   }, [playNote])
   const queryElRef = useRef<HTMLInputElement | null>(null)
-  const fbScrollRef = useRef<HTMLDivElement | null>(null)
   const lastIdentRef = useRef<{ cur: Candidate | null; pcs: number[] }>({ cur: null, pcs: [] })
+
+  // Los tres lienzos se dibujan con coordenadas absolutas, asi que cada uno se recalcula a
+  // partir del hueco que tiene: no hay CSS que los adapte solo.
+  const [fbBoxRef, fbBoxW] = useContainerWidth<HTMLDivElement>(FB_NATURAL_W)
+  const [buildPianoRef, buildPianoW] = useContainerWidth<HTMLDivElement>(PIANO_NATURAL_W)
+  const [identPianoRef, identPianoW] = useContainerWidth<HTMLDivElement>(PIANO_NATURAL_W)
+  const [diagBoxRef, diagBoxW] = useContainerWidth<HTMLDivElement>(0)
+
+  const fbVisible = useMemo(() => fretsVisible(fbBoxW), [fbBoxW])
+  const fbM = useMemo(() => fretMetrics(fbBoxW, fretWin, N), [fbBoxW, fretWin, N])
+  const buildPianoM = useMemo(() => pianoMetrics(buildPianoW, 0), [buildPianoW])
+  const identPianoM = useMemo(() => pianoMetrics(identPianoW, octWin), [identPianoW, octWin])
 
   // Las digitaciones se cargan por instrumento y bajo demanda — no como import de nivel
   // superior — para que el chunk de cada pagina lleve solo su afinacion: la guitarra nunca
@@ -438,16 +558,18 @@ export function ChordFinderTool({
     }
   }
 
-  const WW = 34
   type BuildKey = { x: number; w: number; bg: string; fg: string; gl: string; label: string; pc: number | null; hit: boolean; sm: number }
   const buildWhite: BuildKey[] = []
   const buildBlack: BuildKey[] = []
   if (showBuildPiano) {
+    // Aqui la ventana siempre arranca en Do3: el acorde mas amplio del catalogo es una
+    // trecena, 21 semitonos, y con dos octavas a la vista entra entero.
+    const { ww: WW, bw: BW, oct: OCT } = buildPianoM
     const semis = noteObjs.map(n => ({ semi: rootPc + n.semi, name: n.name, root: n.pc === rootPc, pc: n.pc }))
     semis.slice().sort((a, b) => a.semi - b.semi).forEach(x => notes.push({ midi: 48 + x.semi, id: x.semi }))
     const hl = (s: number) => semis.find(x => x.semi === s)
     const WSEM = [0, 2, 4, 5, 7, 9, 11]
-    for (let i = 0; i < 21; i++) {
+    for (let i = 0; i < 7 * OCT; i++) {
       const sm = Math.floor(i / 7) * 12 + WSEM[i % 7], h = hl(sm)
       const on = !!h && (activeId === sm || activeId === 'all')
       // Solo se enciende si la tecla ya es del acorde: el diagrama muestra el acorde en
@@ -465,12 +587,12 @@ export function ChordFinderTool({
       })
     }
     const BOFF = [0, 1, 3, 4, 5], BSEM = [1, 3, 6, 8, 10]
-    for (let o = 0; o < 3; o++) for (let j = 0; j < 5; j++) {
+    for (let o = 0; o < OCT; o++) for (let j = 0; j < 5; j++) {
       const sm = o * 12 + BSEM[j], h = hl(sm)
       const on = !!h && (activeId === sm || activeId === 'all')
       const hit = !!h && hoverPc === h.pc
       buildBlack.push({
-        x: (o * 7 + BOFF[j]) * WW + WW - 10, w: 20,
+        x: (o * 7 + BOFF[j] + 1) * WW - BW / 2, w: BW,
         bg: on || hit ? accent : h ? accent + 'C9' : '#241d33',
         fg: '#ffffff',
         gl: on ? '0 4px 14px ' + accent + 'AA' : '0 2px 3px rgba(20,10,40,0.35)',
@@ -571,12 +693,13 @@ export function ChordFinderTool({
     const iWhite: { x: number; w: number; bg: string; bd: string; fg: string; gl: string; label: string; sm: number }[] = []
     const iBlack: { x: number; bg: string; fg: string; gl: string; label: string; sm: number }[] = []
     if (isPiano) {
+      const { ww, bwId, oct, o0 } = identPianoM
       const WS = [0, 2, 4, 5, 7, 9, 11]
-      for (let i = 0; i < 21; i++) {
+      for (let i = o0 * 7; i < (o0 + oct) * 7; i++) {
         const sm = Math.floor(i / 7) * 12 + WS[i % 7], on = keySel.indexOf(sm) >= 0
         const act = on && (activeId === sm || activeId === 'all')
         iWhite.push({
-          sm, x: i * WW + 1, w: WW - 2,
+          sm, x: (i - o0 * 7) * ww + 1, w: ww - 2,
           bg: act ? '#5B21B6' : on ? accent : '#ffffff',
           bd: on ? accent : '#d8d2e4',
           fg: on ? '#ffffff' : '#b9b0cc',
@@ -585,11 +708,11 @@ export function ChordFinderTool({
         })
       }
       const BOFF = [0, 1, 3, 4, 5], BSEM = [1, 3, 6, 8, 10]
-      for (let o = 0; o < 3; o++) for (let j = 0; j < 5; j++) {
+      for (let o = o0; o < o0 + oct; o++) for (let j = 0; j < 5; j++) {
         const sm = o * 12 + BSEM[j], on = keySel.indexOf(sm) >= 0
         const act = on && (activeId === sm || activeId === 'all')
         iBlack.push({
-          sm, x: (o * 7 + BOFF[j]) * WW + WW - 11,
+          sm, x: ((o - o0) * 7 + BOFF[j] + 1) * ww - bwId / 2,
           bg: act ? '#5B21B6' : on ? accent : '#241d33',
           fg: '#ffffff',
           gl: act ? '0 4px 14px ' + accent + 'AA' : '0 2px 3px rgba(20,10,40,0.35)',
@@ -601,8 +724,13 @@ export function ChordFinderTool({
     // Diapason
     let fb: FretboardData | null = null
     if (!isPiano) {
-      const SP = N === 4 ? 34 : 27
-      const boardW = fx(FN) - BOARD_X, boardH = N * SP
+      // Todo lo que sigue se dibuja SOLO para la ventana de trastes visible: `fx` ya mapea
+      // ese tramo sobre el ancho disponible, asi que fuera de [f0, f0+visible] las
+      // coordenadas no significan nada.
+      const { fx, f0, visible, openX, nutX, boardX, boardPx, sp: SP } = fbM
+      const fLast = f0 + visible
+      const showNut = f0 === 0
+      const boardH = N * SP
       const yOf = (i: number) => BOARD_Y + SP / 2 + i * SP
       const order: number[] = []
       for (let i = N - 1; i >= 0; i--) order.push(i)
@@ -619,7 +747,7 @@ export function ChordFinderTool({
       const nums: { x: number; t: string }[] = []
       let capoActive = false
 
-      for (let n = 1; n <= FN; n++) {
+      for (let n = f0 + 1; n <= fLast; n++) {
         wires.push({ x: fx(n) - 1 })
         const cx = (fx(n - 1) + fx(n)) / 2
         nums.push({ x: cx, t: String(n) })
@@ -637,7 +765,7 @@ export function ChordFinderTool({
         const blank = !isOpen && !fretted && !count
         if (isOpen && cap && act) capoActive = true
         opens.push({
-          s, x: OPEN_X, y,
+          s, x: openX, y,
           t: (isOpen && act) ? label((tun[s] + cap) % 12) : (fretted || blank ? '' : (isOpen ? '○' : '×')),
           bd: fretted ? PILL_BG : (isOpen ? accent : (blank ? PILL_BG : BORDER)),
           bg: (isOpen && act) ? '#5B21B6' : (isOpen ? accent : (fretted || blank ? '#f7f5fb' : '#ffffff')),
@@ -648,10 +776,10 @@ export function ChordFinderTool({
           pe: fretted ? 'none' : 'auto',
           disabled: fretted,
         })
-        for (let n = cap + 1; n <= FN; n++) {
+        for (let n = Math.max(cap, f0) + 1; n <= fLast; n++) {
           cells.push({ s, n, x: fx(n - 1) + 1, y: y - SP / 2, w: fx(n) - fx(n - 1) - 2, h: SP })
         }
-        if (fs[s] > cap) {
+        if (fs[s] > cap && fs[s] > f0 && fs[s] <= fLast) {
           const n = fs[s]
           dots.push({
             x: (fx(n - 1) + fx(n)) / 2, y, t: label((tun[s] + n) % 12),
@@ -661,17 +789,23 @@ export function ChordFinderTool({
         }
       })
 
+      // La cejilla solo existe dentro de la ventana; si el capo queda por detras, el tramo
+      // visible esta entero por encima de el y no hay nada que oscurecer.
+      const capoIn = cap > f0 && cap <= fLast
+      const dimW = Math.min(Math.max(fx(cap) - boardX, 0), boardPx)
       fb = {
-        w: fx(FN) + 14, h: BOARD_Y + boardH + 30, boardW, boardH,
-        stringW: fx(FN) - NUT_X, numY: BOARD_Y + boardH + 8,
+        w: fx(fLast) + (fLast === FN ? 14 : 8), h: BOARD_Y + boardH + 30,
+        boardW: boardPx, boardH, boardX, nutX, openX, showNut,
+        stringW: fx(fLast) - (showNut ? nutX : boardX), stringX: showNut ? nutX : boardX,
+        numY: BOARD_Y + boardH + 8,
         strings, labels, opens, cells, dots, wires, inlays, nums,
-        capo: cap
+        capo: capoIn
           ? {
             x: fx(cap - 1) + 2, y: BOARD_Y - 5, w: Math.max(fx(cap) - fx(cap - 1) - 5, 9), h: boardH + 10,
             gl: capoActive ? '0 0 0 6px ' + accent + '55, 0 3px 10px rgba(0,0,0,0.5)' : '0 2px 7px rgba(0,0,0,0.5)',
           }
           : null,
-        dim: cap ? { x: BOARD_X, w: fx(cap) - BOARD_X, y: BOARD_Y, h: boardH } : null,
+        dim: cap && dimW > 0 ? { x: boardX, w: dimW, y: BOARD_Y, h: boardH } : null,
       }
     }
 
@@ -690,7 +824,7 @@ export function ChordFinderTool({
         : (isPiano ? 'Click the keys you are playing' : 'Click the frets you are holding'),
       hasShifted: !isPiano && count > 0,
     }
-  }, [isIdentify, isPiano, capo, sel, fs, tun, mid, db, tuningKey, notation, pick, activeId, accent, lefty, N])
+  }, [isIdentify, isPiano, capo, sel, fs, tun, mid, db, tuningKey, notation, pick, activeId, accent, lefty, N, fbM, identPianoM])
 
   if (ident) {
     lastIdentRef.current = { cur: ident.cur, pcs: ident.pcs }
@@ -699,17 +833,33 @@ export function ChordFinderTool({
     notesRef.current = notes
   }
 
-  // El diapason es mas ancho que la pantalla: al cambiar de capo, de forma o de modo se
-  // desplaza solo hasta donde esta la accion, para no dejar al usuario mirando un mastil
-  // vacio con sus dedos fuera de cuadro.
+  // Cuando la ventana no da para el mastil entero, se mueve sola hasta donde esta la accion
+  // al cambiar de capo, de forma o de modo: nadie quiere mirar un tramo vacio con sus dedos
+  // fuera de cuadro. Solo se mueve si hace falta — si el traste ya se ve, se queda quieta.
   useEffect(() => {
-    const el = fbScrollRef.current
-    if (!el) return
+    if (fbVisible >= FN) return
     const pressed = fs.filter(f => f > capo)
     const target = pressed.length ? Math.max(...pressed) : capo
-    if (!target) { el.scrollTo({ left: 0, behavior: 'smooth' }); return }
-    el.scrollTo({ left: Math.max(0, fx(Math.max(0, target - 1)) - 90), behavior: 'smooth' })
-  }, [capo, fs, mode])
+    setFretWin(prev => {
+      const cur = Math.min(Math.max(0, prev), FN - fbVisible)
+      if (!target) return 0
+      if (target > cur && target <= cur + fbVisible) return cur
+      return Math.min(Math.max(0, target - Math.ceil(fbVisible / 2)), FN - fbVisible)
+    })
+  }, [capo, fs, mode, fbVisible])
+
+  // Lo mismo con el teclado: por MIDI pueden llegar notas de una octava que no esta a la
+  // vista, y ver el nombre del acorde sin ver ninguna tecla encendida desconcierta.
+  const pianoOct = identPianoM.oct
+  useEffect(() => {
+    if (pianoOct >= PIANO_OCTAVES || !sel.length) return
+    setOctWin(prev => {
+      const cur = Math.min(Math.max(0, prev), PIANO_OCTAVES - pianoOct)
+      const oct = (s: number) => Math.floor(s / 12)
+      if (sel.some(s => oct(s) >= cur && oct(s) < cur + pianoOct)) return cur
+      return Math.min(Math.max(0, oct(Math.min(...sel))), PIANO_OCTAVES - pianoOct)
+    })
+  }, [sel, pianoOct])
 
   // ── Buscador por nombre ──────────────────────────────────────────────────
   const qRaw = query
@@ -812,6 +962,25 @@ export function ChordFinderTool({
   for (let c = 1; c <= 9; c++) capoBuildBtns.push(seg(String(c), capo === c, () => { setCapoState(c); setPosIdx(0) }))
   const capoIdentBtns = [seg('Off', capo === 0, () => setCapo(0))]
   for (let c = 1; c <= 9; c++) capoIdentBtns.push(seg(String(c), capo === c, () => setCapo(c)))
+  const capoBtn: React.CSSProperties = isMobile
+    ? { minWidth: 40, padding: '10px 8px', fontSize: 13, flex: '0 0 auto' }
+    : { minWidth: 32, padding: '7px 8px', fontSize: 12.5, flex: '0 0 auto' }
+
+  // ── Ventana del mastil ───────────────────────────────────────────────────
+  const fbWindowed = !isPiano && isIdentify && fbM.visible < FN
+  // Si hay notas puestas fuera del tramo visible la flecha se tine: sin eso, mover el mastil
+  // parece que no lleva a ningun sitio.
+  const fretsBelow = fbWindowed && fs.some(f => f > capo && f <= fbM.f0)
+  const fretsAbove = fbWindowed && fs.some(f => f > fbM.f0 + fbM.visible)
+  const pianoWindowed = isPiano && isIdentify && identPianoM.oct < PIANO_OCTAVES
+  const octBelow = pianoWindowed && sel.some(s => s < identPianoM.o0 * 12)
+  const octAbove = pianoWindowed && sel.some(s => s >= (identPianoM.o0 + identPianoM.oct) * 12)
+  const winBtn = (off: boolean, hot: boolean): React.CSSProperties => ({
+    border: `1.5px solid ${hot ? accent : BORDER}`, borderRadius: 10, width: 48, height: 40,
+    background: '#ffffff', color: off ? '#c9c1da' : hot ? accent : '#3c3452',
+    fontSize: 13, fontWeight: 700, padding: 0, cursor: off ? 'default' : 'pointer',
+    opacity: off ? 0.45 : 1, flex: '0 0 auto',
+  })
 
   const loading = showBuildFret && !db
   const positionsLabel = capoInfo && capoInfo.label ? 'Positions · ' + capoInfo.label + 's' : 'Positions'
@@ -823,6 +992,13 @@ export function ChordFinderTool({
     : midiState === 'denied' ? 'Permission denied — allow MIDI access to use your keyboard.'
     : midiState === 'none' ? 'No MIDI devices found — connect one and press the button again.' : ''
   const midiStatusColor = (midiState === 'unsupported' || midiState === 'denied' || midiState === 'none') ? '#a4406b' : MUTED
+
+  // El diagrama mide 278px en guitarra y 194 en ukelele; en un movil de 360 quedan unos 270
+  // utiles, asi que hoy se sale por poco. Ajustado al hueco CRECE en movil en vez de
+  // encogerse, y en escritorio —donde cabe al lado de la leyenda— se queda como siempre.
+  const diagScale = !main || diagBoxW <= 0 || diagBoxW >= main.w + 180
+    ? 1
+    : Math.max(0.8, Math.min(1.3, diagBoxW / main.w))
 
   const kicker: React.CSSProperties = { fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: FAINT }
   const card: React.CSSProperties = {
@@ -840,25 +1016,26 @@ export function ChordFinderTool({
     } as React.CSSProperties}>
       <style>{HOVER_CSS}</style>
 
-      {/* Barra de controles */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end' }}>
+      {/* Barra de controles. En movil el conmutador de modo pasa a ocupar su propia fila
+          entera: es el control principal de la herramienta, no un ajuste secundario. */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
         {showModeSwitch && (
-          <div style={{ display: 'inline-flex', background: PILL_BG, borderRadius: 10, padding: 3, marginRight: 'auto' }}>
+          <div style={{ display: 'flex', background: PILL_BG, borderRadius: 10, padding: 3, marginRight: isMobile ? undefined : 'auto', width: isMobile ? '100%' : undefined }}>
             {modeTabs.map((m, i) => (
-              <button key={i} type="button" onClick={m.onClick} style={segStyle(m, { padding: '9px 16px', fontSize: 13.5 })}>{m.label}</button>
+              <button key={i} type="button" className="cf-tap" onClick={m.onClick} style={segStyle(m, { padding: '11px 16px', fontSize: 13.5, flex: isMobile ? 1 : undefined })}>{m.label}</button>
             ))}
           </div>
         )}
         <div style={{ display: 'inline-flex', background: PILL_BG, borderRadius: 10, padding: 3 }}>
           {notations.map((b, i) => (
-            <button key={i} type="button" onClick={b.onClick} style={segStyle(b, { padding: '7px 14px', fontSize: 13 })}>{b.label}</button>
+            <button key={i} type="button" className="cf-tap" onClick={b.onClick} style={segStyle(b, { padding: isMobile ? '10px 16px' : '7px 14px', fontSize: 13 })}>{b.label}</button>
           ))}
         </div>
         {!isPiano && (
           <button
-            type="button" onClick={toggleHand} aria-pressed={lefty}
+            type="button" className="cf-tap" onClick={toggleHand} aria-pressed={lefty}
             style={{
-              border: `1.5px solid ${BORDER}`, borderRadius: 10, padding: '8px 14px', fontSize: 13,
+              border: `1.5px solid ${BORDER}`, borderRadius: 10, padding: isMobile ? '11px 16px' : '8px 14px', fontSize: 13,
               fontWeight: 600, background: lefty ? accent : '#ffffff', color: lefty ? '#ffffff' : '#3c3452',
               whiteSpace: 'nowrap', cursor: 'pointer',
             }}
@@ -869,11 +1046,12 @@ export function ChordFinderTool({
       {isBuild && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
           {/* Panel de entrada: buscar, fundamental, tipo */}
-          <section style={{ ...card, flex: '0 1 330px', minWidth: 290, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <section style={{ ...card, flex: '1 1 330px', minWidth: 0, padding: isMobile ? 16 : 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <span style={kicker}>Search by name</span>
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: '#a79eba', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 5, padding: '1px 5px' }}>/</span>
+                {/* El atajo se anuncia solo donde hay teclado fisico. */}
+                {!isMobile && <span style={{ fontSize: 10.5, fontWeight: 600, color: '#a79eba', border: `1px solid ${BORDER_LIGHT}`, borderRadius: 5, padding: '1px 5px' }}>/</span>}
               </div>
               <div style={{ position: 'relative' }}>
                 <span style={{ position: 'absolute', left: 12, top: '50%', marginTop: -7, width: 14, height: 14, pointerEvents: 'none' }}>
@@ -897,10 +1075,13 @@ export function ChordFinderTool({
                 />
                 {!!qRaw && (
                   <button
-                    type="button" className="cf-clear" aria-label="Clear search"
-                    onMouseDown={e => { e.preventDefault(); setQuery(''); setQuerySel(0); setQueryFocus(true); queryElRef.current?.focus() }}
+                    type="button" className="cf-clear cf-tap" aria-label="Clear search"
+                    // `pointerdown` y no `mousedown`: en tactil el mousedown sintetico llega
+                    // tarde y el preventDefault puede tragarse el toque entero.
+                    onPointerDown={e => { e.preventDefault(); setQuery(''); setQuerySel(0); setQueryFocus(true); queryElRef.current?.focus() }}
                     style={{
-                      position: 'absolute', right: 7, top: '50%', marginTop: -11, width: 22, height: 22,
+                      position: 'absolute', right: isMobile ? 3 : 7, top: '50%',
+                      marginTop: isMobile ? -17 : -11, width: isMobile ? 34 : 22, height: isMobile ? 34 : 22,
                       border: 'none', background: 'transparent', color: '#a79eba', fontSize: 15,
                       lineHeight: 1, borderRadius: '50%', padding: 0, cursor: 'pointer',
                     }}
@@ -915,29 +1096,31 @@ export function ChordFinderTool({
                     {suggestHeader && (
                       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', color: '#a79eba', padding: '9px 12px 4px' }}>{suggestHeader}</div>
                     )}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 5, maxHeight: 250, overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 5, maxHeight: isMobile ? '42vh' : 250, overflowY: 'auto' }}>
                       {sugList.map((s, i) => (
                         <button
                           // La lista de acordes habituales repite tipo con distinta
                           // fundamental (C, Am, G, D…), asi que el id por si solo no es unico.
-                          key={s.rootIdx + '-' + s.id} type="button"
-                          onMouseDown={e => { e.preventDefault(); loadType(s.rootIdx, s.id); setQuerySel(i); setQueryFocus(false); queryElRef.current?.blur() }}
-                          onMouseEnter={() => setQuerySel(i)}
+                          key={s.rootIdx + '-' + s.id} type="button" className="cf-tap"
+                          onPointerDown={e => { e.preventDefault(); loadType(s.rootIdx, s.id); setQuerySel(i); setQueryFocus(false); queryElRef.current?.blur(); revealResult() }}
+                          {...(canHover ? { onMouseEnter: () => setQuerySel(i) } : null)}
                           style={{
                             border: 'none', background: i === qSel ? accent : 'transparent', borderRadius: 8,
-                            padding: '8px 10px', display: 'flex', gap: 10, alignItems: 'center',
+                            padding: isMobile ? '11px 10px' : '8px 10px', display: 'flex', gap: 10, alignItems: 'center',
                             textAlign: 'left', width: '100%', cursor: 'pointer',
                           }}
                         >
-                          <span style={{ fontSize: 14, fontWeight: 700, color: i === qSel ? '#ffffff' : TEXT, minWidth: 70 }}>{s.label}</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: i === qSel ? '#ffffff' : TEXT, minWidth: isMobile ? 56 : 70 }}>{s.label}</span>
                           <span style={{ fontSize: 12, color: FAINT, flex: 1 }}>{s.notes}</span>
                           <span style={{ fontSize: 10, fontWeight: 600, color: '#a79eba', background: '#f4f1fa', borderRadius: 99, padding: '2px 7px', whiteSpace: 'nowrap' }}>{s.group}</span>
                         </button>
                       ))}
                     </div>
-                    <div style={{ display: 'flex', gap: 12, borderTop: '1px solid #f2eefa', padding: '7px 12px', fontSize: 10.5, color: '#a79eba' }}>
-                      <span>↑↓ move</span><span>↵ select</span><span>esc close</span>
-                    </div>
+                    {!isMobile && (
+                      <div style={{ display: 'flex', gap: 12, borderTop: '1px solid #f2eefa', padding: '7px 12px', fontSize: 10.5, color: '#a79eba' }}>
+                        <span>↑↓ move</span><span>↵ select</span><span>esc close</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -949,10 +1132,10 @@ export function ChordFinderTool({
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
                 {roots.map((r, i) => (
                   <button
-                    key={i} type="button" className="cf-b" onClick={r.onClick} aria-pressed={r.active}
+                    key={i} type="button" className="cf-b cf-tap" onClick={r.onClick} aria-pressed={r.active}
                     style={{
                       border: `1.5px solid ${r.active ? accent : BORDER}`, background: r.active ? accent : '#ffffff',
-                      color: r.active ? '#ffffff' : '#3c3452', borderRadius: 10, height: 44,
+                      color: r.active ? '#ffffff' : '#3c3452', borderRadius: 10, height: isMobile ? 48 : 44,
                       fontSize: 15, fontWeight: 600, cursor: 'pointer', transition: 'border-color 0.1s ease',
                     }}
                   >{r.label}</button>
@@ -962,18 +1145,21 @@ export function ChordFinderTool({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={kicker}>2 · Chord type</div>
-              <div style={{ display: 'flex', background: PILL_BG, borderRadius: 10, padding: 3 }}>
+              {/* Cinco familias de acordes con `flex:1` se comprimen hasta ser ilegibles en un
+                  panel estrecho; antes que recortarlas, que se desplacen. */}
+              <div className="cf-strip" style={{ display: 'flex', background: PILL_BG, borderRadius: 10, padding: 3 }}>
                 {typeTabs.map((tb, i) => (
-                  <button key={i} type="button" onClick={tb.onClick} style={segStyle(tb, { flex: 1, padding: '8px 4px', fontSize: 12 })}>{tb.label}</button>
+                  <button key={i} type="button" className="cf-tap" onClick={tb.onClick} style={segStyle(tb, { flex: isMobile ? '0 0 auto' : 1, padding: isMobile ? '10px 12px' : '8px 4px', fontSize: 12 })}>{tb.label}</button>
                 ))}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {typeChips.map((t, i) => (
                   <button
-                    key={i} type="button" className="cf-b" onClick={t.onClick} aria-pressed={t.active}
+                    key={i} type="button" className="cf-b cf-tap" onClick={t.onClick} aria-pressed={t.active}
                     style={{
                       border: `1.5px solid ${t.active ? accent : BORDER}`, background: t.active ? accent : '#ffffff',
                       color: t.active ? '#ffffff' : '#3c3452', borderRadius: 10, padding: '9px 13px',
+                      minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined,
                       fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'border-color 0.1s ease',
                     }}
                   >{t.label}</button>
@@ -983,10 +1169,10 @@ export function ChordFinderTool({
           </section>
 
           {/* Panel de salida: nombre, capo, diagrama, posiciones */}
-          <section style={{ ...card, flex: '1 1 440px', minWidth: 340, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <section ref={outPanelRef} style={{ ...card, flex: '1 1 440px', minWidth: 0, padding: isMobile ? '18px 16px' : '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 42, fontWeight: 700, letterSpacing: '-1px', lineHeight: 1 }}>{chordName}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 'clamp(30px, 9vw, 42px)', fontWeight: 700, letterSpacing: '-1px', lineHeight: 1 }}>{chordName}</div>
                 {/* Los circulos son la bisagra entre la teoria y el instrumento: senalar uno
                     enciende esa nota alli donde caiga, que puede ser en tres cuerdas
                     distintas o en tres octavas del teclado. */}
@@ -997,13 +1183,13 @@ export function ChordFinderTool({
                     const isRoot = n.pc === rootPc
                     return (
                       <button
-                        key={i} type="button"
-                        onMouseEnter={() => setHoverPc(n.pc)} onMouseLeave={() => setHoverPc(null)}
-                        onFocus={() => setHoverPc(n.pc)} onBlur={() => setHoverPc(null)}
+                        key={i} type="button" className="cf-tap"
+                        {...hoverProps(n.pc)}
+                        onFocus={() => canHover && setHoverPc(n.pc)} onBlur={() => canHover && setHoverPc(null)}
                         onClick={() => pluckPc(n.pc)}
                         aria-label={isRoot ? `${n.name}, root note — hear it` : `${n.name} — hear it`}
                         style={{
-                          width: 34, height: 34, borderRadius: '50%', padding: 0, cursor: 'pointer',
+                          width: isMobile ? 40 : 34, height: isMobile ? 40 : 34, borderRadius: '50%', padding: 0, cursor: 'pointer',
                           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
                           // Todas las notas se pintan igual: el morado queda reservado a lo
@@ -1021,59 +1207,60 @@ export function ChordFinderTool({
                 </div>
               </div>
               <button
-                type="button" className="cf-bright" onClick={play}
+                type="button" className="cf-bright cf-tap" onClick={play}
                 style={{
                   border: 'none', borderRadius: 12, padding: '13px 22px', fontSize: 15, fontWeight: 700,
-                  background: playing ? '#3c3452' : accent, color: '#ffffff', display: 'inline-flex',
-                  alignItems: 'center', gap: 9, whiteSpace: 'nowrap', cursor: 'pointer',
+                  background: playing ? '#3c3452' : accent, color: '#ffffff',
+                  display: isMobile ? 'flex' : 'inline-flex', width: isMobile ? '100%' : undefined,
+                  alignItems: 'center', justifyContent: 'center', gap: 9, whiteSpace: 'nowrap', cursor: 'pointer',
                   boxShadow: '0 4px 14px rgba(90,50,180,0.3)', transition: 'background 0.15s ease',
                 }}
               >
                 {playing ? '■ Stop' : '▶ Play chord'}
-                <span style={{ opacity: 0.75, fontWeight: 600, fontSize: 11, border: '1px solid rgba(255,255,255,0.45)', borderRadius: 5, padding: '1px 6px' }}>Space</span>
+                {!isMobile && <span style={{ opacity: 0.75, fontWeight: 600, fontSize: 11, border: '1px solid rgba(255,255,255,0.45)', borderRadius: 5, padding: '1px 6px' }}>Space</span>}
               </button>
             </div>
 
             {showBuildFret && (
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={kicker}>Capo</span>
-                <div style={{ display: 'inline-flex', background: PILL_BG, borderRadius: 10, padding: 3, gap: 2 }}>
+                <div className="cf-strip" style={{ display: 'flex', background: PILL_BG, borderRadius: 10, padding: 3, gap: 2, maxWidth: '100%' }}>
                   {capoBuildBtns.map((cb, i) => (
-                    <button key={i} type="button" onClick={cb.onClick} style={segStyle(cb, { minWidth: 30, padding: '6px 8px', fontSize: 12.5 })}>{cb.label}</button>
+                    <button key={i} type="button" className="cf-tap" onClick={cb.onClick} style={segStyle(cb, capoBtn)}>{cb.label}</button>
                   ))}
                 </div>
                 {capoInfo && (<>
                   <span style={{ fontSize: 13, fontWeight: 600, color: MUTED, background: '#f2edfa', borderRadius: 99, padding: '5px 11px' }}>{capoInfo.label}</span>
                   <span style={{ fontSize: 12.5, color: FAINT }}>{capoInfo.note}</span>
                 </>)}
-                <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-                  <button type="button" className="cf-b" onClick={() => shiftBuild(-1)} style={{ border: `1.5px solid ${BORDER}`, borderRadius: 10, padding: '7px 12px', fontSize: 12.5, fontWeight: 600, background: '#ffffff', color: '#3c3452', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'border-color 0.1s ease' }}>◀ Lower</button>
-                  <button type="button" className="cf-b" onClick={() => shiftBuild(1)} style={{ border: `1.5px solid ${BORDER}`, borderRadius: 10, padding: '7px 12px', fontSize: 12.5, fontWeight: 600, background: '#ffffff', color: '#3c3452', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'border-color 0.1s ease' }}>Higher ▶</button>
+                <div style={{ display: 'flex', gap: 8, marginLeft: isMobile ? undefined : 'auto', width: isMobile ? '100%' : undefined }}>
+                  <button type="button" className="cf-b cf-tap" onClick={() => shiftBuild(-1)} style={{ border: `1.5px solid ${BORDER}`, borderRadius: 10, padding: isMobile ? '11px 12px' : '7px 12px', flex: isMobile ? 1 : undefined, fontSize: 12.5, fontWeight: 600, background: '#ffffff', color: '#3c3452', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'border-color 0.1s ease' }}>◀ Lower</button>
+                  <button type="button" className="cf-b cf-tap" onClick={() => shiftBuild(1)} style={{ border: `1.5px solid ${BORDER}`, borderRadius: 10, padding: isMobile ? '11px 12px' : '7px 12px', flex: isMobile ? 1 : undefined, fontSize: 12.5, fontWeight: 600, background: '#ffffff', color: '#3c3452', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'border-color 0.1s ease' }}>Higher ▶</button>
                 </div>
               </div>
             )}
 
             {showBuildPiano && (
-              <div style={{ overflowX: 'auto', paddingTop: 4 }}>
-                <div style={{ position: 'relative', height: 176, width: 21 * WW }}>
+              <div ref={buildPianoRef} style={{ paddingTop: 4, touchAction: 'manipulation' }}>
+                <div style={{ position: 'relative', height: 176, width: buildPianoM.w }}>
                   {buildWhite.map((k, i) => (
                     <div
                       key={i} className={k.hit ? 'cf-hit' : undefined}
-                      onMouseEnter={() => setHoverPc(k.pc)} onMouseLeave={() => setHoverPc(null)}
+                      {...hoverProps(k.pc)}
                       onClick={() => { if (k.pc != null) playNote(48 + k.sm) }}
                       style={{ position: 'absolute', top: 0, left: k.x, width: k.w, height: 172, background: k.bg, border: '1px solid #d8d2e4', borderRadius: '0 0 6px 6px', boxSizing: 'border-box', zIndex: 1, boxShadow: k.gl, transition: 'background 0.12s ease, box-shadow 0.12s ease', cursor: k.pc != null ? 'pointer' : 'default' }}
                     >
-                      <div style={{ position: 'absolute', bottom: 7, left: 0, right: 0, textAlign: 'center', fontSize: 11, fontWeight: 700, color: k.fg }}>{k.label}</div>
+                      <div style={{ position: 'absolute', bottom: 7, left: 0, right: 0, textAlign: 'center', fontSize: buildPianoM.label, fontWeight: 700, color: k.fg }}>{k.label}</div>
                     </div>
                   ))}
                   {buildBlack.map((k, i) => (
                     <div
                       key={i} className={k.hit ? 'cf-hit' : undefined}
-                      onMouseEnter={() => setHoverPc(k.pc)} onMouseLeave={() => setHoverPc(null)}
+                      {...hoverProps(k.pc)}
                       onClick={() => { if (k.pc != null) playNote(48 + k.sm) }}
                       style={{ position: 'absolute', top: 0, left: k.x, width: k.w, height: 106, background: k.bg, borderRadius: '0 0 4px 4px', zIndex: 2, boxShadow: k.gl, transition: 'background 0.12s ease, box-shadow 0.12s ease', cursor: k.pc != null ? 'pointer' : 'default' }}
                     >
-                      <div style={{ position: 'absolute', bottom: 5, left: 0, right: 0, textAlign: 'center', fontSize: 9, fontWeight: 700, color: k.fg }}>{k.label}</div>
+                      <div style={{ position: 'absolute', bottom: 5, left: 0, right: 0, textAlign: 'center', fontSize: buildPianoM.blabel, fontWeight: 700, color: k.fg }}>{k.label}</div>
                     </div>
                   ))}
                 </div>
@@ -1084,20 +1271,21 @@ export function ChordFinderTool({
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 340 }}>
                 {loading && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <div style={{ display: 'flex', gap: 30, alignItems: 'center' }}>
-                      <div style={{ width: 258, height: 284, borderRadius: 14, background: PILL_BG, animation: 'om-pulse 1.4s ease-in-out infinite' }} />
+                    <div style={{ display: 'flex', gap: 30, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ width: '100%', maxWidth: 258, height: 284, borderRadius: 14, background: PILL_BG, animation: 'om-pulse 1.4s ease-in-out infinite' }} />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {[150, 170, 130].map(w => <div key={w} style={{ width: w, height: 14, borderRadius: 7, background: PILL_BG, animation: 'om-pulse 1.4s ease-in-out infinite' }} />)}
+                        {[150, 170, 130].map(w => <div key={w} style={{ width: w, maxWidth: '100%', height: 14, borderRadius: 7, background: PILL_BG, animation: 'om-pulse 1.4s ease-in-out infinite' }} />)}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                       {[0, 1, 2].map(i => <div key={i} style={{ width: 98, height: 106, borderRadius: 12, background: PILL_BG, animation: 'om-pulse 1.4s ease-in-out infinite' }} />)}
                     </div>
                   </div>
                 )}
                 {main && (
-                  <div style={{ display: 'flex', gap: 30, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <div style={{ position: 'relative', width: main.w, height: main.h }}>
+                  <div ref={diagBoxRef} style={{ display: 'flex', gap: 30, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div style={{ width: main.w * diagScale, height: main.h * diagScale, flex: '0 0 auto' }}>
+                    <div style={{ position: 'relative', width: main.w, height: main.h, transform: diagScale === 1 ? undefined : `scale(${diagScale})`, transformOrigin: 'top left' }}>
                       {main.strings.map((s, i) => <div key={i} style={{ position: 'absolute', left: s.x, top: main!.gridTop, width: 2, height: main!.gridH, background: '#4a415f' }} />)}
                       {main.frets.map((f, i) => <div key={i} style={{ position: 'absolute', left: main!.gridLeft, top: f.y, height: f.h, width: main!.gridW, background: f.bg }} />)}
                       {/* La pildora no intercepta el raton: quien manda son las zonas de
@@ -1109,8 +1297,8 @@ export function ChordFinderTool({
                       {main.dots.map((d, i) => d.ghost ? (
                         // La zona ocupa su trozo de pildora, asi que toda la cejilla responde.
                         <div
-                          key={i}
-                          onMouseEnter={() => setHoverPc(d.pc)} onMouseLeave={() => setHoverPc(null)}
+                          key={i} className="cf-tap"
+                          {...hoverProps(d.pc)}
                           onClick={() => pluckString(d.s)}
                           style={{ position: 'absolute', left: d.hitX, top: d.y, width: d.hitW, height: 30, marginTop: -15, zIndex: 2, cursor: 'pointer' }}
                         >
@@ -1121,31 +1309,32 @@ export function ChordFinderTool({
                         </div>
                       ) : (
                         <div
-                          key={i} className={d.hl ? 'cf-hit' : undefined}
-                          onMouseEnter={() => setHoverPc(d.pc)} onMouseLeave={() => setHoverPc(null)}
+                          key={i} className={d.hl ? 'cf-hit cf-tap' : 'cf-tap'}
+                          {...hoverProps(d.pc)}
                           onClick={() => pluckString(d.s)}
                           style={{ position: 'absolute', left: d.x, top: d.y, transform: `translate(-50%,-50%) scale(${d.sc})`, width: 28, height: 28, borderRadius: '50%', background: d.bg, boxShadow: d.gl, transition: 'transform 0.12s ease, box-shadow 0.12s ease', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, lineHeight: 1, cursor: 'pointer', zIndex: 1 }}
                         >{d.n}</div>
                       ))}
                       {main.tops.map((t, i) => (
                         <div
-                          key={i} className={t.hl ? 'cf-hit' : undefined}
-                          onMouseEnter={() => setHoverPc(t.pc)} onMouseLeave={() => setHoverPc(null)}
+                          key={i} className={t.hl ? 'cf-hit cf-tap' : 'cf-tap'}
+                          {...hoverProps(t.pc)}
                           onClick={() => pluckString(t.s)}
                           style={{ position: 'absolute', left: t.x, top: t.y, transform: `translate(-50%,-50%) scale(${t.sc})`, transition: 'transform 0.12s ease, color 0.12s ease', fontSize: 15, fontWeight: 600, color: t.c, borderRadius: '50%', cursor: t.pc != null ? 'pointer' : 'default' }}
                         >{t.t}</div>
                       ))}
                       {main.notes.map((n, i) => (
                         <div
-                          key={i}
-                          onMouseEnter={() => setHoverPc(n.pc)} onMouseLeave={() => setHoverPc(null)}
+                          key={i} className="cf-tap"
+                          {...hoverProps(n.pc)}
                           onClick={() => pluckPc(n.pc)}
                           style={{ position: 'absolute', left: n.x, top: n.y, transform: `translateX(-50%) scale(${n.hl ? 1.25 : 1})`, transformOrigin: 'top center', fontSize: 12, fontWeight: 700, color: n.c, cursor: 'pointer', transition: 'transform 0.12s ease, color 0.12s ease' }}
                         >{n.t}</div>
                       ))}
                       {main.baseLabel && <div style={{ position: 'absolute', left: 2, top: main.baseY, fontSize: 13, fontWeight: 600, color: MUTED }}>{main.baseLabel}</div>}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 170 }}>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
                       <div style={{ fontSize: 13, color: MUTED }}>Frets: <span style={{ fontWeight: 700, color: '#3c3452', letterSpacing: 2 }}>{voicingText}</span></div>
                       <div style={{ fontSize: 12, color: FAINT, lineHeight: 1.6 }}>Fingers: 1 index · 2 middle<br />3 ring · 4 pinky</div>
                       <div style={{ fontSize: 12, color: FAINT }}>× don&apos;t play · ○ open string</div>
@@ -1157,7 +1346,7 @@ export function ChordFinderTool({
                     <div style={kicker}>{positionsLabel}</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                       {alts.map((a, i) => (
-                        <button key={i} type="button" className="cf-b" onClick={a.onClick} style={{ border: `1.5px solid ${a.bd}`, background: a.bg, borderRadius: 12, padding: '8px 8px 5px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer', transition: 'border-color 0.1s ease' }}>
+                        <button key={i} type="button" className="cf-b cf-tap" onClick={a.onClick} style={{ border: `1.5px solid ${a.bd}`, background: a.bg, borderRadius: 12, padding: '8px 8px 5px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer', transition: 'border-color 0.1s ease' }}>
                           <div style={{ position: 'relative', width: a.d.w, height: a.d.h }}>
                             {a.d.strings.map((s, j) => <div key={j} style={{ position: 'absolute', left: s.x, top: a.d.gridTop, width: 1, height: a.d.gridH, background: '#7d7494' }} />)}
                             {a.d.frets.map((f, j) => <div key={j} style={{ position: 'absolute', left: a.d.gridLeft, top: f.y, height: f.h, width: a.d.gridW, background: f.bg }} />)}
@@ -1179,21 +1368,21 @@ export function ChordFinderTool({
       )}
 
       {ident && (
-        <section style={{ ...card, padding: 22, display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <section style={{ ...card, padding: isMobile ? 16 : 22, display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 220, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
               <div style={kicker}>{ident.resultKicker}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 44, fontWeight: 700, letterSpacing: '-1.2px', lineHeight: 1.05, color: ident.resultColor }}>{ident.resultName}</div>
+                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 'clamp(30px, 9vw, 44px)', fontWeight: 700, letterSpacing: '-1.2px', lineHeight: 1.05, color: ident.resultColor }}>{ident.resultName}</div>
                 {ident.shapeBadge && (
                   <span style={{ fontSize: 13, fontWeight: 600, color: MUTED, background: '#f2edfa', borderRadius: 99, padding: '5px 11px' }}>{ident.shapeBadge}</span>
                 )}
               </div>
               <div style={{ fontSize: 15, color: MUTED, fontWeight: 500 }}>{ident.resultSub}</div>
             </div>
-            <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-              <button type="button" className="cf-bright" onClick={play} style={{ border: 'none', borderRadius: 12, padding: '13px 20px', fontSize: 15, fontWeight: 700, background: playing ? '#3c3452' : accent, color: '#ffffff', display: 'inline-flex', alignItems: 'center', gap: 9, whiteSpace: 'nowrap', cursor: 'pointer', boxShadow: '0 4px 14px rgba(90,50,180,0.28)', transition: 'background 0.15s ease' }}>{playing ? '■ Stop' : '▶ Play chord'}</button>
-              <button type="button" className="cf-b" onClick={clearSel} style={{ border: `1.5px solid ${BORDER}`, borderRadius: 12, padding: '13px 20px', fontSize: 15, fontWeight: 600, background: '#ffffff', color: '#3c3452', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'border-color 0.1s ease' }}>Clear</button>
+            <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', width: isMobile ? '100%' : undefined }}>
+              <button type="button" className="cf-bright cf-tap" onClick={play} style={{ border: 'none', borderRadius: 12, padding: '13px 20px', fontSize: 15, fontWeight: 700, background: playing ? '#3c3452' : accent, color: '#ffffff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: isMobile ? 1 : undefined, gap: 9, whiteSpace: 'nowrap', cursor: 'pointer', boxShadow: '0 4px 14px rgba(90,50,180,0.28)', transition: 'background 0.15s ease' }}>{playing ? '■ Stop' : '▶ Play chord'}</button>
+              <button type="button" className="cf-b cf-tap" onClick={clearSel} style={{ border: `1.5px solid ${BORDER}`, borderRadius: 12, padding: '13px 20px', fontSize: 15, fontWeight: 600, background: '#ffffff', color: '#3c3452', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'border-color 0.1s ease' }}>Clear</button>
             </div>
           </div>
 
@@ -1202,7 +1391,7 @@ export function ChordFinderTool({
               <div style={kicker}>Also known as</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {ident.candAlts.map(c => (
-                  <button key={c.i} type="button" className="cf-b" onClick={() => setPick(c.i)} style={{ border: `1.5px solid ${BORDER}`, background: '#ffffff', color: '#3c3452', borderRadius: 10, padding: '9px 14px', fontSize: 14, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', transition: 'border-color 0.1s ease' }}>
+                  <button key={c.i} type="button" className="cf-b cf-tap" onClick={() => setPick(c.i)} style={{ border: `1.5px solid ${BORDER}`, background: '#ffffff', color: '#3c3452', borderRadius: 10, padding: isMobile ? '11px 14px' : '9px 14px', fontSize: 14, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', transition: 'border-color 0.1s ease' }}>
                     {c.name} <span style={{ fontSize: 11.5, fontWeight: 500, color: FAINT }}>{c.note}</span>
                   </button>
                 ))}
@@ -1217,70 +1406,88 @@ export function ChordFinderTool({
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={kicker}>Capo</span>
-                  <div style={{ display: 'inline-flex', background: PILL_BG, borderRadius: 10, padding: 3, gap: 2 }}>
+                  <div className="cf-strip" style={{ display: 'flex', background: PILL_BG, borderRadius: 10, padding: 3, gap: 2, maxWidth: '100%' }}>
                     {capoIdentBtns.map((cb, i) => (
-                      <button key={i} type="button" onClick={cb.onClick} style={segStyle(cb, { minWidth: 32, padding: '7px 8px', fontSize: 12.5 })}>{cb.label}</button>
+                      <button key={i} type="button" className="cf-tap" onClick={cb.onClick} style={segStyle(cb, capoBtn)}>{cb.label}</button>
                     ))}
                   </div>
                 </div>
 
-                <div ref={fbScrollRef} style={{ overflowX: 'auto', paddingBottom: 6, scrollBehavior: 'smooth' }}>
-                  <div style={{ position: 'relative', width: ident.fb.w, height: ident.fb.h }}>
-                    <div style={{ position: 'absolute', left: BOARD_X, top: BOARD_Y, width: ident.fb.boardW, height: ident.fb.boardH, background: 'linear-gradient(180deg,#57351f,#3a2317 60%,#472c1b)', boxShadow: 'inset 0 2px 7px rgba(0,0,0,0.45)', borderRadius: '0 5px 5px 0' }} />
-                    {ident.fb.inlays.map((il, i) => (
-                      <div key={i} style={{ position: 'absolute', left: il.x, top: il.y, width: 11, height: 11, margin: '-5.5px 0 0 -5.5px', borderRadius: '50%', background: '#efe9dd', opacity: 0.42 }} />
-                    ))}
-                    {ident.fb.wires.map((w, i) => (
-                      <div key={i} style={{ position: 'absolute', left: w.x, top: BOARD_Y, width: 2, height: ident.fb!.boardH, background: 'linear-gradient(90deg,#7c828c,#e8ebf0,#7c828c)' }} />
-                    ))}
-                    <div style={{ position: 'absolute', left: NUT_X, top: BOARD_Y, width: NUT_W, height: ident.fb.boardH, background: 'linear-gradient(90deg,#f3ebda,#c9baa0)', borderRadius: '2px 0 0 2px' }} />
-                    {ident.fb.dim && (
-                      <div style={{ position: 'absolute', left: ident.fb.dim.x, top: ident.fb.dim.y, width: ident.fb.dim.w, height: ident.fb.dim.h, background: 'rgba(12,6,20,0.42)' }} />
-                    )}
-                    {ident.fb.strings.map((s, i) => (
-                      <div key={i} style={{ position: 'absolute', left: NUT_X, top: s.y, width: ident.fb!.stringW, height: s.t, marginTop: s.o, background: 'linear-gradient(180deg,#fbfbfd,#8f8fa0)' }} />
-                    ))}
-                    {ident.fb.capo && (
-                      <div style={{ position: 'absolute', left: ident.fb.capo.x, top: ident.fb.capo.y, width: ident.fb.capo.w, height: ident.fb.capo.h, borderRadius: 5, background: 'linear-gradient(180deg,#33333b,#15151a)', boxShadow: ident.fb.capo.gl, transition: 'box-shadow 0.15s ease' }} />
-                    )}
-                    {ident.fb.cells.map((c, i) => (
-                      <button
-                        key={i} type="button" className="cf-cell"
-                        onClick={() => setFret(c.s, c.n)}
-                        aria-label={`String ${c.s + 1}, fret ${c.n}`}
-                        style={{ position: 'absolute', left: c.x, top: c.y, width: c.w, height: c.h, background: 'transparent', border: 'none', padding: 0, borderRadius: 4, cursor: 'pointer' }}
-                      />
-                    ))}
-                    {ident.fb.dots.map((d, i) => (
-                      <div key={i} style={{ position: 'absolute', left: d.x, top: d.y, width: 25, height: 25, margin: '-12.5px 0 0 -12.5px', borderRadius: '50%', background: d.bg, boxShadow: d.gl, transition: 'box-shadow 0.12s ease, background 0.12s ease', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, pointerEvents: 'none' }}>{d.t}</div>
-                    ))}
-                    {ident.fb.opens.map((o, i) => (
-                      <button
-                        key={i} type="button" className="cf-b"
-                        onClick={() => { if (!o.disabled) setFret(o.s, 0) }}
-                        aria-label={`String ${o.s + 1} open`}
-                        style={{
-                          position: 'absolute', left: o.x, top: o.y, width: 26, height: 26, marginTop: -13,
-                          transform: `scale(${o.sc})`, borderRadius: '50%', border: `1.5px solid ${o.bd}`,
-                          background: o.bg, color: o.fg, fontSize: 12, fontWeight: 700, padding: 0,
-                          boxShadow: o.gl, opacity: o.op, pointerEvents: o.pe, cursor: 'pointer',
-                          transition: 'border-color 0.1s ease, transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease',
-                        }}
-                      >{o.t}</button>
-                    ))}
-                    {ident.fb.labels.map((l, i) => (
-                      <div key={i} style={{ position: 'absolute', left: 0, top: l.y, marginTop: -9, fontSize: 12.5, fontWeight: 700, color: MUTED }}>{l.t}</div>
-                    ))}
-                    {ident.fb.nums.map((n, i) => (
-                      <div key={i} style={{ position: 'absolute', left: n.x, top: ident.fb!.numY, width: 26, marginLeft: -13, textAlign: 'center', fontSize: 10.5, fontWeight: 600, color: '#a79eba' }}>{n.t}</div>
-                    ))}
+                {fbWindowed && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <button
+                      type="button" className="cf-b cf-tap" onClick={() => setFretWin(fbM.f0 - 1)}
+                      disabled={fbM.f0 <= 0} aria-label="Show lower frets"
+                      style={winBtn(fbM.f0 <= 0, fretsBelow)}
+                    >◀</button>
+                    <span style={{ flex: 1, textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: MUTED }}>
+                      {fbM.f0 === 0 ? `Nut – fret ${fbM.f0 + fbM.visible}` : `Frets ${fbM.f0 + 1}–${fbM.f0 + fbM.visible}`}
+                    </span>
+                    <button
+                      type="button" className="cf-b cf-tap" onClick={() => setFretWin(fbM.f0 + 1)}
+                      disabled={fbM.f0 >= FN - fbM.visible} aria-label="Show higher frets"
+                      style={winBtn(fbM.f0 >= FN - fbM.visible, fretsAbove)}
+                    >▶</button>
                   </div>
+                )}
+
+                <div ref={fbBoxRef} style={{ position: 'relative', width: '100%', height: ident.fb.h, touchAction: 'manipulation' }}>
+                  <div style={{ position: 'absolute', left: ident.fb.boardX, top: BOARD_Y, width: ident.fb.boardW, height: ident.fb.boardH, background: 'linear-gradient(180deg,#57351f,#3a2317 60%,#472c1b)', boxShadow: 'inset 0 2px 7px rgba(0,0,0,0.45)', borderRadius: ident.fb.showNut ? '0 5px 5px 0' : 5 }} />
+                  {ident.fb.inlays.map((il, i) => (
+                    <div key={i} style={{ position: 'absolute', left: il.x, top: il.y, width: 11, height: 11, margin: '-5.5px 0 0 -5.5px', borderRadius: '50%', background: '#efe9dd', opacity: 0.42 }} />
+                  ))}
+                  {ident.fb.wires.map((w, i) => (
+                    <div key={i} style={{ position: 'absolute', left: w.x, top: BOARD_Y, width: 2, height: ident.fb!.boardH, background: 'linear-gradient(90deg,#7c828c,#e8ebf0,#7c828c)' }} />
+                  ))}
+                  {ident.fb.showNut && (
+                    <div style={{ position: 'absolute', left: ident.fb.nutX, top: BOARD_Y, width: NUT_W, height: ident.fb.boardH, background: 'linear-gradient(90deg,#f3ebda,#c9baa0)', borderRadius: '2px 0 0 2px' }} />
+                  )}
+                  {ident.fb.dim && (
+                    <div style={{ position: 'absolute', left: ident.fb.dim.x, top: ident.fb.dim.y, width: ident.fb.dim.w, height: ident.fb.dim.h, background: 'rgba(12,6,20,0.42)' }} />
+                  )}
+                  {ident.fb.strings.map((s, i) => (
+                    <div key={i} style={{ position: 'absolute', left: ident.fb!.stringX, top: s.y, width: ident.fb!.stringW, height: s.t, marginTop: s.o, background: 'linear-gradient(180deg,#fbfbfd,#8f8fa0)' }} />
+                  ))}
+                  {ident.fb.capo && (
+                    <div style={{ position: 'absolute', left: ident.fb.capo.x, top: ident.fb.capo.y, width: ident.fb.capo.w, height: ident.fb.capo.h, borderRadius: 5, background: 'linear-gradient(180deg,#33333b,#15151a)', boxShadow: ident.fb.capo.gl, transition: 'box-shadow 0.15s ease' }} />
+                  )}
+                  {ident.fb.cells.map((c, i) => (
+                    <button
+                      key={i} type="button" className="cf-cell cf-tap"
+                      onClick={() => setFret(c.s, c.n)}
+                      aria-label={`String ${c.s + 1}, fret ${c.n}`}
+                      style={{ position: 'absolute', left: c.x, top: c.y, width: c.w, height: c.h, background: 'transparent', border: 'none', padding: 0, borderRadius: 4, cursor: 'pointer' }}
+                    />
+                  ))}
+                  {ident.fb.dots.map((d, i) => (
+                    <div key={i} style={{ position: 'absolute', left: d.x, top: d.y, width: 25, height: 25, margin: '-12.5px 0 0 -12.5px', borderRadius: '50%', background: d.bg, boxShadow: d.gl, transition: 'box-shadow 0.12s ease, background 0.12s ease', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, pointerEvents: 'none' }}>{d.t}</div>
+                  ))}
+                  {ident.fb.opens.map((o, i) => (
+                    <button
+                      key={i} type="button" className="cf-b cf-tap"
+                      onClick={() => { if (!o.disabled) setFret(o.s, 0) }}
+                      aria-label={`String ${o.s + 1} open`}
+                      style={{
+                        position: 'absolute', left: o.x, top: o.y, width: 26, height: 26, marginTop: -13,
+                        transform: `scale(${o.sc})`, borderRadius: '50%', border: `1.5px solid ${o.bd}`,
+                        background: o.bg, color: o.fg, fontSize: 12, fontWeight: 700, padding: 0,
+                        boxShadow: o.gl, opacity: o.op, pointerEvents: o.pe, cursor: 'pointer',
+                        transition: 'border-color 0.1s ease, transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease',
+                      }}
+                    >{o.t}</button>
+                  ))}
+                  {ident.fb.labels.map((l, i) => (
+                    <div key={i} style={{ position: 'absolute', left: 0, top: l.y, marginTop: -9, fontSize: 12.5, fontWeight: 700, color: MUTED }}>{l.t}</div>
+                  ))}
+                  {ident.fb.nums.map((n, i) => (
+                    <div key={i} style={{ position: 'absolute', left: n.x, top: ident.fb!.numY, width: 26, marginLeft: -13, textAlign: 'center', fontSize: 10.5, fontWeight: 600, color: '#a79eba' }}>{n.t}</div>
+                  ))}
                 </div>
 
                 {ident.hasShifted && (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button type="button" className="cf-b" onClick={() => shiftShape(-1)} style={{ border: `1.5px solid ${BORDER}`, borderRadius: 10, padding: '8px 14px', fontSize: 13, fontWeight: 600, background: '#ffffff', color: '#3c3452', cursor: 'pointer', transition: 'border-color 0.1s ease' }}>◀ Lower</button>
-                    <button type="button" className="cf-b" onClick={() => shiftShape(1)} style={{ border: `1.5px solid ${BORDER}`, borderRadius: 10, padding: '8px 14px', fontSize: 13, fontWeight: 600, background: '#ffffff', color: '#3c3452', cursor: 'pointer', transition: 'border-color 0.1s ease' }}>Higher ▶</button>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button type="button" className="cf-b cf-tap" onClick={() => shiftShape(-1)} style={{ border: `1.5px solid ${BORDER}`, borderRadius: 10, padding: isMobile ? '11px 14px' : '8px 14px', flex: isMobile ? 1 : undefined, fontSize: 13, fontWeight: 600, background: '#ffffff', color: '#3c3452', cursor: 'pointer', transition: 'border-color 0.1s ease' }}>◀ Lower</button>
+                    <button type="button" className="cf-b cf-tap" onClick={() => shiftShape(1)} style={{ border: `1.5px solid ${BORDER}`, borderRadius: 10, padding: isMobile ? '11px 14px' : '8px 14px', flex: isMobile ? 1 : undefined, fontSize: 13, fontWeight: 600, background: '#ffffff', color: '#3c3452', cursor: 'pointer', transition: 'border-color 0.1s ease' }}>Higher ▶</button>
                     <span style={{ fontSize: 12.5, color: FAINT, alignSelf: 'center' }}>slide this shape up or down the neck</span>
                   </div>
                 )}
@@ -1290,10 +1497,10 @@ export function ChordFinderTool({
             {isPiano && (<>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                 <button
-                  type="button" className="cf-b" onClick={connectMidi}
+                  type="button" className="cf-b cf-tap" onClick={connectMidi}
                   style={{
                     border: `1.5px solid ${midiState === 'on' ? accent : BORDER}`, borderRadius: 10,
-                    padding: '8px 14px', fontSize: 13, fontWeight: 600,
+                    padding: isMobile ? '11px 14px' : '8px 14px', fontSize: 13, fontWeight: 600,
                     background: midiState === 'on' ? accent : '#ffffff',
                     color: midiState === 'on' ? '#ffffff' : '#3c3452',
                     whiteSpace: 'nowrap', cursor: 'pointer', transition: 'border-color 0.1s ease',
@@ -1301,16 +1508,33 @@ export function ChordFinderTool({
                 >{midiLabel}</button>
                 {midiStatus && <span style={{ fontSize: 12.5, color: midiStatusColor }}>{midiStatus}</span>}
               </div>
-              <div style={{ overflowX: 'auto', paddingTop: 2 }}>
-                <div style={{ position: 'relative', height: 186, width: 21 * WW }}>
+              {pianoWindowed && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    type="button" className="cf-b cf-tap" onClick={() => setOctWin(identPianoM.o0 - 1)}
+                    disabled={identPianoM.o0 <= 0} aria-label="Show lower octave"
+                    style={winBtn(identPianoM.o0 <= 0, octBelow)}
+                  >◀</button>
+                  <span style={{ flex: 1, textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: MUTED }}>
+                    {`Octaves ${identPianoM.o0 + 3}–${identPianoM.o0 + identPianoM.oct + 2}`}
+                  </span>
+                  <button
+                    type="button" className="cf-b cf-tap" onClick={() => setOctWin(identPianoM.o0 + 1)}
+                    disabled={identPianoM.o0 >= PIANO_OCTAVES - identPianoM.oct} aria-label="Show higher octave"
+                    style={winBtn(identPianoM.o0 >= PIANO_OCTAVES - identPianoM.oct, octAbove)}
+                  >▶</button>
+                </div>
+              )}
+              <div ref={identPianoRef} style={{ paddingTop: 2, touchAction: 'manipulation' }}>
+                <div style={{ position: 'relative', height: 186, width: identPianoM.w }}>
                   {ident.iWhite.map(k => (
-                    <button key={`w${k.sm}`} type="button" onClick={() => toggleKey(k.sm)} aria-label={`Note ${k.label}`} style={{ position: 'absolute', top: 0, left: k.x, width: k.w, height: 172, background: k.bg, border: `1px solid ${k.bd}`, borderRadius: '0 0 6px 6px', boxSizing: 'border-box', zIndex: 1, boxShadow: k.gl, transition: 'background 0.1s ease, box-shadow 0.1s ease', padding: 0, cursor: 'pointer' }}>
-                      <span style={{ position: 'absolute', bottom: 7, left: 0, right: 0, textAlign: 'center', fontSize: 11, fontWeight: 700, color: k.fg }}>{k.label}</span>
+                    <button key={`w${k.sm}`} type="button" className="cf-tap" onClick={() => toggleKey(k.sm)} aria-label={`Note ${k.label}`} style={{ position: 'absolute', top: 0, left: k.x, width: k.w, height: 172, background: k.bg, border: `1px solid ${k.bd}`, borderRadius: '0 0 6px 6px', boxSizing: 'border-box', zIndex: 1, boxShadow: k.gl, transition: 'background 0.1s ease, box-shadow 0.1s ease', padding: 0, cursor: 'pointer' }}>
+                      <span style={{ position: 'absolute', bottom: 7, left: 0, right: 0, textAlign: 'center', fontSize: identPianoM.label, fontWeight: 700, color: k.fg }}>{k.label}</span>
                     </button>
                   ))}
                   {ident.iBlack.map(k => (
-                    <button key={`b${k.sm}`} type="button" onClick={() => toggleKey(k.sm)} aria-label={`Note ${k.label || 'black key'}`} style={{ position: 'absolute', top: 0, left: k.x, width: 22, height: 106, background: k.bg, border: 'none', borderRadius: '0 0 4px 4px', zIndex: 2, boxShadow: k.gl, transition: 'background 0.1s ease, box-shadow 0.1s ease', padding: 0, cursor: 'pointer' }}>
-                      <span style={{ position: 'absolute', bottom: 5, left: 0, right: 0, textAlign: 'center', fontSize: 9, fontWeight: 700, color: k.fg }}>{k.label}</span>
+                    <button key={`b${k.sm}`} type="button" className="cf-tap" onClick={() => toggleKey(k.sm)} aria-label={`Note ${k.label || 'black key'}`} style={{ position: 'absolute', top: 0, left: k.x, width: identPianoM.bwId, height: 106, background: k.bg, border: 'none', borderRadius: '0 0 4px 4px', zIndex: 2, boxShadow: k.gl, transition: 'background 0.1s ease, box-shadow 0.1s ease', padding: 0, cursor: 'pointer' }}>
+                      <span style={{ position: 'absolute', bottom: 5, left: 0, right: 0, textAlign: 'center', fontSize: identPianoM.blabel, fontWeight: 700, color: k.fg }}>{k.label}</span>
                     </button>
                   ))}
                 </div>
@@ -1327,6 +1551,8 @@ export function ChordFinderTool({
 
 type FretboardData = {
   w: number; h: number; boardW: number; boardH: number; stringW: number; numY: number
+  /** Medidas de la ventana visible; ver `fretMetrics`. */
+  boardX: number; nutX: number; openX: number; showNut: boolean; stringX: number
   strings: { y: number; t: number; o: number }[]
   labels: { y: number; t: string }[]
   opens: { s: number; x: number; y: number; t: string; bd: string; bg: string; fg: string; gl: string; sc: number; op: number; pe: 'none' | 'auto'; disabled: boolean }[]

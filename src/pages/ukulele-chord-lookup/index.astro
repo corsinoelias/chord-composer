@@ -51,32 +51,32 @@ const webAppSchema = {
   </Fragment>
 
   <main style="background:#f7f5fb;font-family:'Hanken Grotesk',system-ui,sans-serif;color:#241d33">
-    <div style="min-height:100vh;padding:24px 20px 64px;box-sizing:border-box">
+    <div class="cl-page" style="min-height:100vh;box-sizing:border-box">
       <div style="max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
         <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
           <div style="display:flex;flex-direction:column;gap:6px">
             <a href="/chord-lookup/" style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7C3AED">&larr; Chord Lookup</a>
-            <h1 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.6px">Ukulele Chord Lookup</h1>
+            <h1 class="cl-h1" style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-0.6px">Ukulele Chord Lookup</h1>
             <p style="margin:0;font-size:15.5px;color:#6f6788;max-width:620px;text-wrap:pretty">Look up any ukulele chord in GCEA tuning &mdash; or go the other way: click the frets you&rsquo;re playing and we name the chord.</p>
           </div>
-          <div style="display:inline-flex;background:#ece6f7;border-radius:12px;padding:4px;gap:2px">
-            <a href="/guitar-chord-lookup/" style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;color:#6f6788">Guitar</a>
-            <a href="/piano-chord-lookup/" style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;color:#6f6788">Piano</a>
-            <span style="border-radius:9px;padding:10px 22px;font-size:14px;font-weight:600;background:#ffffff;color:#241d33;box-shadow:0 1px 3px rgba(30,20,60,0.18)">Ukulele</span>
+          <div class="cl-switch" style="background:#ece6f7;border-radius:12px;padding:4px;gap:2px">
+            <a href="/guitar-chord-lookup/" style="border-radius:9px;font-size:14px;font-weight:600;color:#6f6788">Guitar</a>
+            <a href="/piano-chord-lookup/" style="border-radius:9px;font-size:14px;font-weight:600;color:#6f6788">Piano</a>
+            <span style="border-radius:9px;font-size:14px;font-weight:600;background:#ffffff;color:#241d33;box-shadow:0 1px 3px rgba(30,20,60,0.18)">Ukulele</span>
           </div>
         </header>
 
         <ChordFinderTool instrument="ukulele" client:load />
 
-        <section style="background:#ffffff;border:1px solid #e7e0f2;border-radius:18px;padding:26px 28px;display:flex;flex-direction:column;gap:20px;box-shadow:0 1px 4px rgba(40,25,80,0.05)">
+        <section class="cl-card" style="background:#ffffff;border:1px solid #e7e0f2;border-radius:18px;display:flex;flex-direction:column;gap:20px;box-shadow:0 1px 4px rgba(40,25,80,0.05)">
           <div style="display:flex;flex-direction:column;gap:8px">
-            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">About the ukulele chord lookup</h2>
+            <h2 class="cl-h2" style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-0.3px">About the ukulele chord lookup</h2>
             <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">A visual dictionary of ukulele chords in standard GCEA tuning. Search a chord by name, or pick any of the 12 root notes and 30 chord types and see the chord on a four-string diagram: numbered dots for each finger, barres drawn as pills, &#9675; for open strings, and the note each string sounds.</p>
             <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">Many chords include alternative positions higher up the neck. Press Play to hear the chord string by string &mdash; with the re-entrant high-G string voiced correctly &mdash; and then strummed together. A left-handed mode mirrors every diagram, and a capo setting recalculates the shape you play, the fret numbers and the pitches you hear.</p>
             <p style="margin:0;font-size:14.5px;line-height:1.65;color:#4c4462;max-width:760px;text-wrap:pretty">It also works in reverse. Switch to <strong style="font-weight:700">Notes &rarr; name</strong> and click the fret you&rsquo;re holding on each of the four strings; the &#215; button clears a string you don&rsquo;t play. With three or more notes we name the chord &mdash; order and octave are irrelevant, so any voicing of Do, Mi and Sol is simply C major. When the same notes have more than one valid name (C&ndash;E&ndash;G&ndash;A reads as C6 or Am7) the most common one comes first.</p>
           </div>
           <div style="display:flex;flex-direction:column;gap:10px">
-            <h2 style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:700;letter-spacing:-0.3px">Ukulele chord FAQs</h2>
+            <h2 class="cl-h2" style="margin:0;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-0.3px">Ukulele chord FAQs</h2>
             <div style="display:flex;flex-direction:column;gap:8px;max-width:820px">
               {faqs.map((f) => (
                 <details style="border:1px solid #e7e0f2;border-radius:12px;padding:13px 18px">
@@ -98,3 +98,21 @@ const webAppSchema = {
     </div>
   </main>
 </BaseLayout>
+
+<style>
+  /* El resto de la pagina va con estilos en linea, pero los margenes y la tipografia si
+     necesitan puntos de ruptura, y un atributo `style` no admite media queries. */
+  .cl-page { padding: clamp(14px, 4vw, 24px) clamp(12px, 4vw, 20px) 48px; }
+  .cl-h1 { font-size: clamp(23px, 6.2vw, 32px); }
+  .cl-h2 { font-size: clamp(18px, 4.6vw, 21px); }
+  .cl-card { padding: clamp(18px, 5vw, 28px); }
+
+  .cl-switch { display: inline-flex; }
+  .cl-switch > * { padding: 10px 22px; text-align: center; }
+  /* Los tres instrumentos ocupaban ~300px fijos y empujaban la cabecera a dos filas; en
+     pantalla estrecha pasan a repartirse el ancho entero. */
+  @media (max-width: 560px) {
+    .cl-switch { display: flex; width: 100%; }
+    .cl-switch > * { flex: 1; padding: 11px 8px; }
+  }
+</style>
