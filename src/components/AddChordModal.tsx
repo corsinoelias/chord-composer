@@ -7,6 +7,7 @@ import { getGuitarVoicing } from '@/data/guitarChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { playChordPreview as playPreviewFromEngine } from '@/lib/audioEngine';
+import { Slider } from '@/components/ui/slider';
 
 
 interface AddChordModalProps {
@@ -259,6 +260,14 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
                       );
                     })}
                   </div>
+                  <Slider
+                    className="mt-3"
+                    value={[duration]}
+                    min={0.5}
+                    max={8}
+                    step={0.5}
+                    onValueChange={([val]) => setDuration(val)}
+                  />
                 </div>
               </div>
             );
