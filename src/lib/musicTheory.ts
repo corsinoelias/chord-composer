@@ -13,6 +13,28 @@ export type RootNote = typeof ROOT_NOTES[number];
 export const ACCIDENTALS = ['', '#', 'b'] as const;
 export type Accidental = typeof ACCIDENTALS[number];
 
+// The 12 chromatic pitch classes, each with its sharp spelling and (for
+// black keys) an enharmonic flat spelling — used internally by transposeNote()
+// to shift a note by N semitones and pick a spelling for the result.
+interface ChromaticSlot {
+  sharp: { root: RootNote; accidental: Accidental };
+  flat?: { root: RootNote; accidental: Accidental };
+}
+const CHROMATIC_PITCH_CLASSES: ChromaticSlot[] = [
+  { sharp: { root: 'C', accidental: '' } },
+  { sharp: { root: 'C', accidental: '#' }, flat: { root: 'D', accidental: 'b' } },
+  { sharp: { root: 'D', accidental: '' } },
+  { sharp: { root: 'D', accidental: '#' }, flat: { root: 'E', accidental: 'b' } },
+  { sharp: { root: 'E', accidental: '' } },
+  { sharp: { root: 'F', accidental: '' } },
+  { sharp: { root: 'F', accidental: '#' }, flat: { root: 'G', accidental: 'b' } },
+  { sharp: { root: 'G', accidental: '' } },
+  { sharp: { root: 'G', accidental: '#' }, flat: { root: 'A', accidental: 'b' } },
+  { sharp: { root: 'A', accidental: '' } },
+  { sharp: { root: 'A', accidental: '#' }, flat: { root: 'B', accidental: 'b' } },
+  { sharp: { root: 'B', accidental: '' } },
+];
+
 // Extended chord qualities - ordered to match the app's chord-type picker
 export const CHORD_QUALITIES = [
   'maj', 'min', '5', '6', '7', 'maj7', '9', 'maj9', '11', '13', 'maj13',
@@ -44,6 +66,18 @@ const NOTE_TO_MIDI: Record<RootNote, number> = {
   'A': 69,
   'B': 71,
 };
+
+// Shifts a root+accidental by N semitones and re-spells the result — used so
+// UI that edits an existing chord can show/interact with its *transposed*
+// pitch while still storing the untransposed root/accidental the rest of the
+// app expects.
+export function transposeNote(root: RootNote, accidental: Accidental, semitones: number, preferFlats = false): { root: RootNote; accidental: Accidental } {
+  if (semitones === 0) return { root, accidental };
+  const offset = accidental === '#' ? 1 : accidental === 'b' ? -1 : 0;
+  const pitchClass = ((NOTE_TO_MIDI[root] + offset + semitones) % 12 + 12) % 12;
+  const slot = CHROMATIC_PITCH_CLASSES[pitchClass];
+  return preferFlats && slot.flat ? slot.flat : slot.sharp;
+}
 
 // Intervals (in semitones) for each chord quality
 const QUALITY_INTERVALS: Record<ChordQuality, number[]> = {

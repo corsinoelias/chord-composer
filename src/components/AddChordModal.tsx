@@ -24,6 +24,7 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
   const [duration, setDuration] = useState(2);
   const [bassRoot, setBassRoot] = useState<RootNote | null>(null);
   const [bassAccidental, setBassAccidental] = useState<Accidental>('');
+  const [bassExpanded, setBassExpanded] = useState(false);
   const [hoverValue, setHoverValue] = useState<number | null>(null);
 
   // Play a preview sound when chord changes - uses the same engine as ChordEditModal
@@ -74,7 +75,7 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
       <DialogContent className="sm:max-w-lg bg-card border-border p-0 gap-0 flex flex-col max-h-[92dvh] overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
           <DialogTitle className="text-foreground pr-6">
-            Add Chord to {sectionName}
+            Add <span className="text-primary">{chordDisplayName}</span> to {sectionName}
           </DialogTitle>
         </DialogHeader>
 
@@ -90,8 +91,8 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
                   className={`
                     w-9 h-9 rounded-md font-mono font-medium text-sm
                     transition-all duration-150
-                    ${root === note 
-                      ? 'bg-primary text-primary-foreground shadow-sm' 
+                    ${root === note
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-secondary text-secondary-foreground hover:bg-accent'
                     }
                   `}
@@ -113,8 +114,8 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
                   className={`
                     w-12 h-9 rounded-md font-mono font-medium text-sm
                     transition-all duration-150
-                    ${accidental === acc 
-                      ? 'bg-primary text-primary-foreground shadow-sm' 
+                    ${accidental === acc
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-secondary text-secondary-foreground hover:bg-accent'
                     }
                   `}
@@ -150,51 +151,74 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
 
           {/* Bass Note (slash chord) */}
           <div>
-            <label className="block text-xs text-muted-foreground mb-2">Bass Note</label>
-            <div className="flex flex-wrap gap-1">
+            {!bassExpanded ? (
               <button
                 type="button"
-                onClick={() => { setBassRoot(null); setBassAccidental(''); playChordPreview(root, accidental, quality, undefined); }}
-                className={`px-2.5 h-9 rounded-md font-mono text-xs transition-all duration-150 ${
-                  bassRoot === null
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-secondary text-secondary-foreground hover:bg-accent'
-                }`}
+                onClick={() => setBassExpanded(true)}
+                className="w-full text-left text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md px-3 py-2 transition-colors"
               >
-                Default
+                + Add bass note (slash chord)
               </button>
-              {ROOT_NOTES.map(note => (
-                <button
-                  key={note}
-                  type="button"
-                  onClick={() => { setBassRoot(note); playChordPreview(root, accidental, quality, `${note}${bassAccidental}`); }}
-                  className={`w-9 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
-                    bassRoot === note
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'bg-secondary text-secondary-foreground hover:bg-accent'
-                  }`}
-                >
-                  {note}
-                </button>
-              ))}
-            </div>
-            {bassRoot !== null && (
-              <div className="flex gap-1 mt-1.5">
-                {ACCIDENTALS.map(acc => (
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-muted-foreground">Bass Note</label>
+                  {bassRoot === null && (
+                    <button
+                      type="button"
+                      onClick={() => setBassExpanded(false)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Hide
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1">
                   <button
-                    key={acc || 'natural'}
                     type="button"
-                    onClick={() => { setBassAccidental(acc); playChordPreview(root, accidental, quality, bassRoot ? `${bassRoot}${acc}` : undefined); }}
-                    className={`w-12 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
-                      bassAccidental === acc
+                    onClick={() => { setBassRoot(null); setBassAccidental(''); playChordPreview(root, accidental, quality, undefined); }}
+                    className={`px-2.5 h-9 rounded-md font-mono text-xs transition-all duration-150 ${
+                      bassRoot === null
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'bg-secondary text-secondary-foreground hover:bg-accent'
                     }`}
                   >
-                    {accidentalLabels[acc]}
+                    Default
                   </button>
-                ))}
-              </div>
+                  {ROOT_NOTES.map(note => (
+                    <button
+                      key={note}
+                      type="button"
+                      onClick={() => { setBassRoot(note); playChordPreview(root, accidental, quality, `${note}${bassAccidental}`); }}
+                      className={`w-9 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
+                        bassRoot === note
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                      }`}
+                    >
+                      {note}
+                    </button>
+                  ))}
+                </div>
+                {bassRoot !== null && (
+                  <div className="flex gap-1 mt-1.5">
+                    {ACCIDENTALS.map(acc => (
+                      <button
+                        key={acc || 'natural'}
+                        type="button"
+                        onClick={() => { setBassAccidental(acc); playChordPreview(root, accidental, quality, bassRoot ? `${bassRoot}${acc}` : undefined); }}
+                        className={`w-12 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
+                          bassAccidental === acc
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                        }`}
+                      >
+                        {accidentalLabels[acc]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -215,14 +239,9 @@ export function AddChordModal({ open, sectionName, onClose, onAdd }: AddChordMod
             return (
               <div>
                 <label className="block text-xs text-muted-foreground mb-2">
-                  Duration — <span className="text-foreground font-medium">{formatDur(duration)}</span>
+                  Duration — <span className={`font-medium ${hoverValue !== null ? 'text-primary' : 'text-foreground'}`}>{formatDur(displayVal)}</span>
                 </label>
                 <div className="relative">
-                  {hoverValue !== null && (
-                    <div className="absolute -top-7 right-0 z-10 text-xs font-semibold text-foreground bg-card border border-border rounded-lg px-2.5 py-1 shadow-md pointer-events-none">
-                      {formatDur(hoverValue)}
-                    </div>
-                  )}
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {Array.from({ length: 8 }, (_, i) => {
                       const n = i + 1;

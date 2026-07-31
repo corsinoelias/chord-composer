@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { type Chord, ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, type RootNote, type Accidental, type ChordQuality } from '@/lib/musicTheory';
+import { type Chord, ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, transposeNote, type RootNote, type Accidental, type ChordQuality } from '@/lib/musicTheory';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
@@ -45,6 +45,7 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
   const [duration, setDuration] = useState(2);
   const [bassRoot, setBassRoot] = useState<RootNote | null>(null);
   const [bassAccidental, setBassAccidental] = useState<Accidental>('');
+  const [bassExpanded, setBassExpanded] = useState(false);
   const [hoverValue, setHoverValue] = useState<number | null>(null);
 
   const diatonicChords = useMemo(
@@ -56,26 +57,39 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
     onPreview?.({ root: newRoot, accidental: newAccidental, quality: newQuality, bassNote: newBassNote ?? bassNote });
   };
 
+  // root/accidental/bassRoot/bassAccidental below hold the *transposed* (perceived)
+  // pitch, not the raw stored value — see the sync effect and handleSave.
   const previewChord = useMemo<Chord>(() => ({
     id: 'modal-preview', root, accidental, quality, duration,
     bassNote: bassRoot ? `${bassRoot}${bassAccidental}` : undefined,
   }), [root, accidental, quality, duration, bassRoot, bassAccidental]);
 
-  const activeNotes = useMemo(() => getChordNotes(previewChord, transposition), [previewChord, transposition]);
-  const guitarVoicing = useMemo(() => getGuitarVoicing(previewChord, transposition), [previewChord, transposition]);
-  const chordDisplayName = useMemo(() => getTransposedChordName(previewChord, transposition), [previewChord, transposition]);
+  const activeNotes = useMemo(() => getChordNotes(previewChord), [previewChord]);
+  const guitarVoicing = useMemo(() => getGuitarVoicing(previewChord), [previewChord]);
+  const chordDisplayName = useMemo(() => getTransposedChordName(previewChord), [previewChord]);
 
-  // Sync state when chord changes or modal opens
+  // Sync state when chord changes or modal opens. The stored chord is always
+  // untransposed, but a transposed song should show/preview/edit the note the
+  // user actually hears — so we transpose into "display space" here and
+  // transpose back out in handleSave.
   useEffect(() => {
     if (!open) return;
     if (chord) {
-      setRoot(chord.root);
-      setAccidental(chord.accidental);
+      const displayNote = transposeNote(chord.root, chord.accidental, transposition, chord.accidental === 'b');
+      setRoot(displayNote.root);
+      setAccidental(displayNote.accidental);
       setQuality(chord.quality);
       setDuration(chord.duration);
       const { root: br, acc: ba } = parseBassNote(chord.bassNote);
-      setBassRoot(br);
-      setBassAccidental(ba);
+      if (br) {
+        const displayBass = transposeNote(br, ba, transposition, ba === 'b');
+        setBassRoot(displayBass.root);
+        setBassAccidental(displayBass.accidental);
+      } else {
+        setBassRoot(null);
+        setBassAccidental('');
+      }
+      setBassExpanded(br !== null);
     } else {
       setRoot('C');
       setAccidental('');
@@ -83,19 +97,26 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
       setDuration(4);
       setBassRoot(null);
       setBassAccidental('');
+      setBassExpanded(false);
     }
-  }, [chord, open]);
+  }, [chord, open, transposition]);
 
   const bassNote = bassRoot ? `${bassRoot}${bassAccidental}` : undefined;
 
   const handleSave = () => {
+    const rawNote = transposeNote(root, accidental, -transposition, accidental === 'b');
+    let rawBassNote: string | undefined;
+    if (bassRoot) {
+      const rawBass = transposeNote(bassRoot, bassAccidental, -transposition, bassAccidental === 'b');
+      rawBassNote = `${rawBass.root}${rawBass.accidental}`;
+    }
     onSave({
       id: chord?.id ?? 'new',
-      root,
-      accidental,
+      root: rawNote.root,
+      accidental: rawNote.accidental,
       quality,
       duration,
-      bassNote,
+      bassNote: rawBassNote,
     });
     onClose();
   };
@@ -164,8 +185,8 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
                   className={`
                     w-9 h-9 rounded-md font-mono font-medium text-sm
                     transition-all duration-150
-                    ${root === note 
-                      ? 'bg-primary text-primary-foreground shadow-sm' 
+                    ${root === note
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-secondary text-secondary-foreground hover:bg-accent'
                     }
                   `}
@@ -191,8 +212,8 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
                   className={`
                     w-12 h-9 rounded-md font-mono font-medium text-sm
                     transition-all duration-150
-                    ${accidental === acc 
-                      ? 'bg-primary text-primary-foreground shadow-sm' 
+                    ${accidental === acc
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-secondary text-secondary-foreground hover:bg-accent'
                     }
                   `}
@@ -232,51 +253,74 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
 
           {/* Bass Note (slash chord) */}
           <div>
-            <label className="block text-xs text-muted-foreground mb-2">Bass Note</label>
-            <div className="flex flex-wrap gap-1">
+            {!bassExpanded ? (
               <button
                 type="button"
-                onClick={() => { setBassRoot(null); setBassAccidental(''); onPreview?.({ root, accidental, quality, bassNote: undefined }); }}
-                className={`px-2.5 h-9 rounded-md font-mono text-xs transition-all duration-150 ${
-                  bassRoot === null
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-secondary text-secondary-foreground hover:bg-accent'
-                }`}
+                onClick={() => setBassExpanded(true)}
+                className="w-full text-left text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md px-3 py-2 transition-colors"
               >
-                Default
+                + Add bass note (slash chord)
               </button>
-              {ROOT_NOTES.map(note => (
-                <button
-                  key={note}
-                  type="button"
-                  onClick={() => { setBassRoot(note); onPreview?.({ root, accidental, quality, bassNote: `${note}${bassAccidental}` }); }}
-                  className={`w-9 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
-                    bassRoot === note
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'bg-secondary text-secondary-foreground hover:bg-accent'
-                  }`}
-                >
-                  {note}
-                </button>
-              ))}
-            </div>
-            {bassRoot !== null && (
-              <div className="flex gap-1 mt-1.5">
-                {ACCIDENTALS.map(acc => (
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-muted-foreground">Bass Note</label>
+                  {bassRoot === null && (
+                    <button
+                      type="button"
+                      onClick={() => setBassExpanded(false)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Hide
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1">
                   <button
-                    key={acc || 'natural'}
                     type="button"
-                    onClick={() => { setBassAccidental(acc); onPreview?.({ root, accidental, quality, bassNote: bassRoot ? `${bassRoot}${acc}` : undefined }); }}
-                    className={`w-12 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
-                      bassAccidental === acc
+                    onClick={() => { setBassRoot(null); setBassAccidental(''); onPreview?.({ root, accidental, quality, bassNote: undefined }); }}
+                    className={`px-2.5 h-9 rounded-md font-mono text-xs transition-all duration-150 ${
+                      bassRoot === null
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'bg-secondary text-secondary-foreground hover:bg-accent'
                     }`}
                   >
-                    {accidentalLabels[acc]}
+                    Default
                   </button>
-                ))}
-              </div>
+                  {ROOT_NOTES.map(note => (
+                    <button
+                      key={note}
+                      type="button"
+                      onClick={() => { setBassRoot(note); onPreview?.({ root, accidental, quality, bassNote: `${note}${bassAccidental}` }); }}
+                      className={`w-9 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
+                        bassRoot === note
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                      }`}
+                    >
+                      {note}
+                    </button>
+                  ))}
+                </div>
+                {bassRoot !== null && (
+                  <div className="flex gap-1 mt-1.5">
+                    {ACCIDENTALS.map(acc => (
+                      <button
+                        key={acc || 'natural'}
+                        type="button"
+                        onClick={() => { setBassAccidental(acc); onPreview?.({ root, accidental, quality, bassNote: bassRoot ? `${bassRoot}${acc}` : undefined }); }}
+                        className={`w-12 h-9 rounded-md font-mono font-medium text-sm transition-all duration-150 ${
+                          bassAccidental === acc
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'bg-secondary text-secondary-foreground hover:bg-accent'
+                        }`}
+                      >
+                        {accidentalLabels[acc]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -297,14 +341,9 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
             return (
               <div>
                 <label className="block text-xs text-muted-foreground mb-2">
-                  Duration — <span className="text-foreground font-medium">{formatDur(duration)}</span>
+                  Duration — <span className={`font-medium ${hoverValue !== null ? 'text-primary' : 'text-foreground'}`}>{formatDur(displayVal)}</span>
                 </label>
                 <div className="relative">
-                  {hoverValue !== null && (
-                    <div className="absolute -top-7 right-0 z-10 text-xs font-semibold text-foreground bg-card border border-border rounded-lg px-2.5 py-1 shadow-md pointer-events-none">
-                      {formatDur(hoverValue)}
-                    </div>
-                  )}
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {Array.from({ length: 8 }, (_, i) => {
                       const n = i + 1;
