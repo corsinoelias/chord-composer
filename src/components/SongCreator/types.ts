@@ -49,6 +49,9 @@ export interface SectionData {
 export interface SongMeta {
   title: string;
   artist: string;
+  // Songwriter/composer, when different from the performing artist (covers). Empty
+  // string = same as artist. See supabase/migrations/20260731_add_composer_and_moderation.sql.
+  composerName: string;
   album: string;
   key: string;
   capo: number;

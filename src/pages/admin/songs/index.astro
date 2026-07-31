@@ -1,0 +1,27 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import AdminReportedSongs from '../../../components/AdminReportedSongs';
+
+const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(Astro.url.hostname);
+if (!isLocalhost) return Astro.redirect('/songs/');
+---
+
+<BaseLayout
+  title="Reported songs — Chord Sequence"
+  description="Localhost-only review queue for reported songs."
+  canonicalUrl="https://chordsequence.com/admin/songs/"
+  noIndex={true}
+>
+  <main class="min-h-screen bg-background">
+    <header class="border-b border-border bg-card">
+      <div class="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
+        <a href="/songs/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">← Songs</a>
+        <span class="text-muted-foreground/40">|</span>
+        <span class="text-sm font-medium text-foreground">Reported songs</span>
+      </div>
+    </header>
+    <div class="max-w-3xl mx-auto px-4 py-10">
+      <AdminReportedSongs client:load />
+    </div>
+  </main>
+</BaseLayout>

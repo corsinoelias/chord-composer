@@ -38,6 +38,17 @@ export default function MetaStep({ meta, onChange, onNext }: Props) {
             />
           </div>
           <div className="col-span-2">
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Composer / songwriter (optional — only if different from the artist)
+            </label>
+            <input
+              value={meta.composerName}
+              onChange={e => set({ composerName: e.target.value })}
+              placeholder="Leave blank if the artist wrote it — e.g. covers only"
+              className="w-full border border-border rounded-xl px-4 py-2.5 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          <div className="col-span-2">
             <label className="block text-sm font-medium text-foreground mb-1.5">Album (optional)</label>
             <input
               value={meta.album}

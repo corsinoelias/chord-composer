@@ -7,6 +7,10 @@ export interface PublicSong {
   slug: string;
   title: string;
   artist: string;
+  // Songwriter/composer, when different from the performing artist (covers). Falls back
+  // to `artist` wherever composer is displayed or serialized — see supabase/migrations/
+  // 20260731_add_composer_and_moderation.sql.
+  composerName?: string;
   album?: string;
   year?: number;
   genre: string[];
@@ -26,6 +30,11 @@ export interface PublicSong {
   audioWholeRange?: AudioRange;
   created_by?: string;
   is_published: boolean;
+  // Post-publish moderation (see 20260731_add_composer_and_moderation.sql) — set only via
+  // src/pages/api/report-song, read only by the localhost-only admin review list.
+  reportCount?: number;
+  reportedAt?: string;
+  reportReason?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -35,7 +44,10 @@ const TABLE = 'public_songs';
 // The DB column is related_progressions (snake_case); the app uses relatedProgressions (camelCase).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function fromDb(row: any): PublicSong {
-  const { related_progressions, audio_url, audio_path, audio_whole_start_sec, audio_whole_end_sec, ...rest } = row;
+  const {
+    related_progressions, audio_url, audio_path, audio_whole_start_sec, audio_whole_end_sec,
+    composer_name, report_count, reported_at, report_reason, ...rest
+  } = row;
   return {
     ...rest,
     relatedProgressions: related_progressions ?? [],
@@ -43,12 +55,16 @@ function fromDb(row: any): PublicSong {
     audioWholeRange: audio_whole_start_sec != null && audio_whole_end_sec != null
       ? { startSec: audio_whole_start_sec, endSec: audio_whole_end_sec }
       : undefined,
+    composerName: composer_name ?? undefined,
+    reportCount: report_count ?? 0,
+    reportedAt: reported_at ?? undefined,
+    reportReason: report_reason ?? undefined,
   } as PublicSong;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toDb(song: Record<string, any>): Record<string, any> {
-  const { relatedProgressions, audioTrack, audioWholeRange, ...rest } = song;
+  const { relatedProgressions, audioTrack, audioWholeRange, composerName, ...rest } = song;
   const out = { ...rest };
   if (relatedProgressions !== undefined) out.related_progressions = relatedProgressions;
   // `null` (not just an omitted key) explicitly clears the columns — callers that mean
@@ -61,6 +77,7 @@ function toDb(song: Record<string, any>): Record<string, any> {
     out.audio_whole_start_sec = audioWholeRange?.startSec ?? null;
     out.audio_whole_end_sec = audioWholeRange?.endSec ?? null;
   }
+  if (composerName !== undefined) out.composer_name = composerName || null;
   return out;
 }
 

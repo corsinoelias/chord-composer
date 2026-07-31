@@ -3,6 +3,8 @@ export const prerender = true;
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import BassTabPreviewIsland from '../../../components/BassTabPreviewIsland.astro';
 import RelatedTools from '../../../components/RelatedTools.astro';
+import JsonLd from '../../../components/schema/JsonLd.astro';
+import { buildBreadcrumbSchema, buildWebApplicationSchema } from '../../../components/schema/builders';
 
 const features = [
   {
@@ -110,24 +112,15 @@ const faqs = [
   },
 ];
 
-const breadcrumbSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  '@id': 'https://chordsequence.com/tools/bass-guitar-tab/#breadcrumb',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
-    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://chordsequence.com/tools/' },
-    { '@type': 'ListItem', position: 3, name: 'Bass Guitar Tab Player', item: 'https://chordsequence.com/tools/bass-guitar-tab/' },
-  ],
-};
+const breadcrumbSchema = buildBreadcrumbSchema('https://chordsequence.com/tools/bass-guitar-tab/', [
+  { name: 'Home', item: 'https://chordsequence.com/' },
+  { name: 'Tools', item: 'https://chordsequence.com/tools/' },
+  { name: 'Bass Guitar Tab Player', item: 'https://chordsequence.com/tools/bass-guitar-tab/' },
+]);
 
-const bassTabAppSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'WebApplication',
-  name: 'Bass Guitar Tab Player',
+const bassTabAppSchema = buildWebApplicationSchema({
   url: 'https://chordsequence.com/tools/bass-guitar-tab/',
-  applicationCategory: 'MusicApplication',
-  operatingSystem: 'Any',
+  name: 'Bass Guitar Tab Player',
   description: 'Free online bass guitar tab player and editor. Real-time playback, 4-string notation, drag & resize notes, MIDI import, 10+ preset songs. Includes a complete guide to reading bass tabs.',
   featureList: [
     'Real-time bass playback',
@@ -142,36 +135,10 @@ const bassTabAppSchema = {
     'MIDI export',
     'Share via URL',
   ],
-  browserRequirements: 'Requires a modern browser with Web Audio API support',
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-};
+});
 
-const howToSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'HowTo',
-  name: 'How to read a bass guitar tab',
-  description: 'Learn to read bass tablature: strings, fret numbers, rhythm, and technique symbols.',
-  step: [
-    {
-      '@type': 'HowToStep',
-      position: 1,
-      name: 'Identify the strings',
-      text: 'The four horizontal lines represent the four bass strings. Bottom line = E string (thickest), top line = G string (thinnest).',
-    },
-    {
-      '@type': 'HowToStep',
-      position: 2,
-      name: 'Read the fret numbers',
-      text: 'Numbers on each line tell you which fret to press. 0 means open string (no fret pressed). Read from left to right.',
-    },
-    {
-      '@type': 'HowToStep',
-      position: 3,
-      name: 'Follow the rhythm',
-      text: 'Notes spaced further apart last longer. Use the player\'s real-time playback to hear how each note sounds in context.',
-    },
-  ],
-};
+// HowTo schema intentionally removed — deprecated by Google since Sept 2023. The
+// "how to read a tab" guide content stays on-page for users, it just isn't JSON-LD.
 ---
 
 <BaseLayout
@@ -180,9 +147,8 @@ const howToSchema = {
   canonicalUrl="https://chordsequence.com/tools/bass-guitar-tab/"
 >
   <Fragment slot="head">
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(bassTabAppSchema)} />
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(howToSchema)} />
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    <JsonLd schema={bassTabAppSchema} />
+    <JsonLd schema={breadcrumbSchema} />
   </Fragment>
 
   <main>

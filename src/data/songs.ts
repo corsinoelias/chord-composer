@@ -22,6 +22,9 @@ export interface Song {
   lastModified?: string; // ISO date (YYYY-MM-DD) this entry was last actually edited
   title: string;
   artist: string;
+  // Songwriter/composer, when different from the performing artist (covers). Falls back
+  // to `artist` wherever composer is displayed or serialized as JSON-LD.
+  composerName?: string;
   album?: string;
   year?: number;
   genre: string[];

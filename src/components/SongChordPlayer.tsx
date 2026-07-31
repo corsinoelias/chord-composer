@@ -511,17 +511,25 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                                   onOpenChange={(open) => { if (!open) setOpenTooltipIdx(null); }}
                                 >
                                   <PopoverTrigger asChild>
-                                    <span
+                                    {/* Real min-h-[44px] box (not a ::before hit-area hack — that
+                                        enlarges the clickable region but automated touch-target
+                                        audits measure the element's own bounding box, which the
+                                        pseudo-element isn't part of). The -mt/-mb negative margins
+                                        pull the extra height back out of the visual layout so the
+                                        chord chart doesn't visibly grow — the real box overlaps
+                                        into the row above/below instead of pushing them apart. */}
+                                    <button
+                                      type="button"
                                       className={`
-                                        relative text-xs font-bold leading-none mb-0.5 whitespace-pre px-0.5
-                                        transition-all duration-100 cursor-pointer select-none
-                                        before:content-[''] before:absolute before:-inset-y-1.5 before:-inset-x-1.5
+                                        relative inline-flex items-center justify-center
+                                        min-h-[44px] min-w-[1ch] -mt-[14px] -mb-[12px] px-0.5
+                                        text-xs font-bold whitespace-pre transition-all duration-100
+                                        cursor-pointer select-none
                                         ${isActive
-                                          ? 'text-primary bg-primary/15 rounded px-1 py-0.5 scale-105 inline-block'
+                                          ? 'text-primary bg-primary/15 rounded scale-105'
                                           : 'text-primary/70 hover:text-primary'
                                         }
                                       `}
-                                      style={{ minWidth: '1ch' }}
                                       onMouseEnter={() => setOpenTooltipIdx(token.globalIndex)}
                                       onClick={() => {
                                         const parsed = parseChordString(token.chord);
@@ -532,7 +540,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                                       }}
                                     >
                                       {token.chord}
-                                    </span>
+                                    </button>
                                   </PopoverTrigger>
                                   <PopoverContent
                                     side="top"
@@ -544,7 +552,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                                   </PopoverContent>
                                 </Popover>
                               ) : (
-                                <span className="invisible select-none text-xs font-bold leading-none mb-0.5 whitespace-pre px-0.5" style={{ minWidth: '0' }}>.</span>
+                                <span className="invisible select-none inline-flex items-center h-[18px] text-xs font-bold whitespace-pre px-0.5" style={{ minWidth: '0' }}>.</span>
                               )}
 
                               {/* Duration dots — only while playing */}

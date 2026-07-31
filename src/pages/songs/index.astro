@@ -7,6 +7,27 @@ import RelatedTools from '../../components/RelatedTools.astro';
 const songs = await getPublishedSongs();
 const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(Astro.url.hostname);
 
+// Real pagination — see src/middleware.ts for why this used to just redirect ?page=
+// away entirely (no pagination existed then). Invalid or out-of-range page numbers
+// redirect to the clean /songs/ URL (no query string), so this can't loop the way the
+// old netlify.toml-level "clear the query" trick did.
+const PAGE_SIZE = 24;
+const totalPages = Math.max(1, Math.ceil(songs.length / PAGE_SIZE));
+const rawPage = Astro.url.searchParams.get('page');
+if (rawPage !== null) {
+  const requestedPage = Number(rawPage);
+  const isValid = Number.isInteger(requestedPage) && requestedPage >= 1 && requestedPage <= totalPages;
+  // ?page=1 is folded into the canonical /songs/ URL too — same content, one URL.
+  if (!isValid || requestedPage === 1) {
+    return Astro.redirect('/songs/', 301);
+  }
+}
+const currentPage = rawPage ? Number(rawPage) : 1;
+const pageSongs = songs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+const pageCanonicalUrl = currentPage === 1
+  ? 'https://chordsequence.com/songs/'
+  : `https://chordsequence.com/songs/?page=${currentPage}`;
+
 const KNOWN_BANDS = new Set(['Oasis', 'The Beatles', 'Led Zeppelin', 'Pink Floyd', 'Oasis Ministry', 'Elevation Worship', 'Hillsong', 'Bethel Music', 'Radiohead', 'Coldplay', 'U2', 'Metallica', 'AC/DC']);
 
 function getComposer(artist: string) {
@@ -31,9 +52,9 @@ const itemListSchema = {
   description: 'Chords and lyrics for popular songs with interactive play-along player.',
   url: 'https://chordsequence.com/songs/',
   numberOfItems: songs.length,
-  itemListElement: songs.map((s, i) => ({
+  itemListElement: pageSongs.map((s, i) => ({
     '@type': 'ListItem',
-    position: i + 1,
+    position: (currentPage - 1) * PAGE_SIZE + i + 1,
     item: {
       '@type': 'MusicComposition',
       '@id': `https://chordsequence.com/songs/${s.slug}/`,
@@ -48,9 +69,11 @@ const itemListSchema = {
 ---
 
 <BaseLayout
-  title="Song Chords — Play Along with Interactive Chord Sheets | Chord Sequence"
+  title={currentPage === 1
+    ? "Song Chords — Play Along with Interactive Chord Sheets | Chord Sequence"
+    : `Song Chords — Page ${currentPage} | Chord Sequence`}
   description="Chords and lyrics for popular songs. Press Play and watch each chord highlight above the lyrics in real time. Learn any song by playing along."
-  canonicalUrl="https://chordsequence.com/songs/"
+  canonicalUrl={pageCanonicalUrl}
   ogImage="/og/page/songs/"
   ogImageAlt="Chord Charts & Songs | Chord Sequence"
 >
@@ -112,7 +135,7 @@ const itemListSchema = {
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {songs.map((song) => (
+      {pageSongs.map((song) => (
         <a
           href={`/songs/${song.slug}/`}
           class="group flex flex-col rounded-xl border border-border bg-card p-5 hover:border-primary/50 hover:bg-primary/5 transition-colors"
@@ -144,6 +167,28 @@ const itemListSchema = {
         </a>
       ))}
     </div>
+
+    {totalPages > 1 && (
+      <nav class="mt-10 flex items-center justify-center gap-4" aria-label="Song list pages">
+        {currentPage > 1 ? (
+          <a
+            href={currentPage === 2 ? '/songs/' : `/songs/?page=${currentPage - 1}`}
+            class="px-4 py-2 text-sm font-semibold rounded-lg border border-border text-foreground hover:bg-accent/50 transition-colors"
+          >
+            ← Previous
+          </a>
+        ) : <span />}
+        <span class="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>
+        {currentPage < totalPages ? (
+          <a
+            href={`/songs/?page=${currentPage + 1}`}
+            class="px-4 py-2 text-sm font-semibold rounded-lg border border-border text-foreground hover:bg-accent/50 transition-colors"
+          >
+            Next →
+          </a>
+        ) : <span />}
+      </nav>
+    )}
 
     <AppCta
       class="mt-12"

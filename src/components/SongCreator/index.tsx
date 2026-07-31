@@ -27,7 +27,7 @@ const STEPS: { key: Step; label: string }[] = [
 const DEFAULT_META: SongMeta = {
   // 'pop_1' — a real MUSICAL_STYLES id, so the style picker shows an actual
   // selection for a brand-new song instead of the empty "Seleccionar estilo" placeholder.
-  title: '', artist: '', album: '', key: 'C', capo: 0, bpm: 100, genre: [], style: 'pop_1',
+  title: '', artist: '', composerName: '', album: '', key: 'C', capo: 0, bpm: 100, genre: [], style: 'pop_1',
 };
 
 function getParam(name: string): string | null {
@@ -66,7 +66,7 @@ export default function SongCreator() {
         if (!song) { toast.error('Song not found'); setLoadingEdit(false); return; }
         setEditId(song.id);
         setEditSlug(editSlugParam);
-        setMeta({ title: song.title, artist: song.artist, album: song.album ?? '', key: song.key, capo: song.capo ?? 0, bpm: song.bpm, genre: song.genre, style: song.style });
+        setMeta({ title: song.title, artist: song.artist, composerName: song.composerName ?? '', album: song.album ?? '', key: song.key, capo: song.capo ?? 0, bpm: song.bpm, genre: song.genre, style: song.style });
         setSections(songSectionsToEditorSections(song.sections));
         setLoadingEdit(false);
         setStep('chords');
@@ -85,12 +85,13 @@ export default function SongCreator() {
         if (existing) {
           setEditId(existing.id);
           setEditSlug(communitySlug);
-          setMeta({ title: existing.title, artist: existing.artist, album: existing.album ?? '', key: existing.key, capo: existing.capo ?? 0, bpm: existing.bpm, genre: existing.genre, style: existing.style });
+          setMeta({ title: existing.title, artist: existing.artist, composerName: existing.composerName ?? '', album: existing.album ?? '', key: existing.key, capo: existing.capo ?? 0, bpm: existing.bpm, genre: existing.genre, style: existing.style });
           setSections(songSectionsToEditorSections(existing.sections));
         } else {
           setMeta({
             title: staticSong.title,
             artist: staticSong.artist,
+            composerName: staticSong.composerName ?? '',
             album: staticSong.album ?? '',
             key: staticSong.key,
             capo: staticSong.capo ?? 0,
@@ -132,6 +133,7 @@ export default function SongCreator() {
     setMeta({
       title:  parsedMeta.title  ?? meta.title,
       artist: parsedMeta.artist ?? meta.artist,
+      composerName: parsedMeta.composerName ?? meta.composerName,
       album:  parsedMeta.album  ?? meta.album,
       key:    parsedMeta.key    ?? meta.key,
       capo:   parsedMeta.capo   ?? meta.capo,
@@ -158,6 +160,10 @@ export default function SongCreator() {
         const ok = await updatePublicSong(editId, {
           title: meta.title,
           artist: meta.artist,
+          // Passed as-is (not `|| undefined`) — toDb only clears composer_name for a
+          // key it actually receives, so this is what lets removing a wrong composer
+          // credit in the editor actually take effect on next publish.
+          composerName: meta.composerName,
           album: meta.album || undefined,
           key: meta.key,
           capo: meta.capo || undefined,
@@ -182,6 +188,7 @@ export default function SongCreator() {
           slug,
           title: meta.title,
           artist: meta.artist,
+          composerName: meta.composerName,
           album: meta.album || undefined,
           key: meta.key,
           capo: meta.capo || undefined,

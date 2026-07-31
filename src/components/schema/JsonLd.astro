@@ -1,0 +1,14 @@
+---
+// Shared output point for JSON-LD: one place that emits the <script> tag instead of
+// every page hand-rolling `<script is:inline type="application/ld+json" set:html={...} />`.
+// Pages still build their own schema objects (or use builders.ts for the few types that
+// repeat across many pages) — this only standardizes how the object gets serialized onto
+// the page, which is where copy-paste drift (missing @id, wrong @type) has crept in.
+interface Props {
+  schema: Record<string, unknown> | Record<string, unknown>[];
+}
+
+const { schema } = Astro.props;
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />

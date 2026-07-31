@@ -2,6 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import SongChordPlayerIsland from '../../components/SongChordPlayerIsland.astro';
 import CommunityEditButton from '../../components/CommunityEditButton';
+import ReportSongButton from '../../components/ReportSongButton';
 import SongHeaderActions from '../../components/SongHeaderActions';
 import ChordAside from '../../components/ChordAside';
 import ToolIcon from '../../components/ToolIcon.astro';
@@ -10,6 +11,8 @@ import { SONGS, extractChordsFromSong } from '../../data/songs';
 import type { Song } from '../../data/songs';
 import { getPublicSongBySlug, getRelatedPublicSongs } from '@/lib/publicSongs';
 import { fetchCoverImage } from '@/lib/coverImage';
+import JsonLd from '../../components/schema/JsonLd.astro';
+import { buildBreadcrumbSchema } from '../../components/schema/builders';
 
 const { slug } = Astro.params;
 
@@ -28,6 +31,7 @@ if (pub) {
     slug: pub.slug,
     title: pub.title,
     artist: pub.artist,
+    composerName: pub.composerName,
     album: pub.album,
     year: pub.year,
     genre: pub.genre,
@@ -242,10 +246,15 @@ const practiceTools: { href: string; label: string; desc: string; icon: ToolIcon
   { href: '/tools/chord-transposer/', label: 'Chord Transposer', desc: 'Move the chords to a friendlier key for your voice', icon: 'transpose' },
 ]
 
+const composerName = song.composerName || song.artist;
+const isCover = !!song.composerName && song.composerName !== song.artist;
+
 const songFaq = [
   {
     q: `Who wrote ${song.title}?`,
-    a: `${song.title} was written and recorded by ${song.artist}${song.year ? ` and released in ${song.year}` : ''}.${song.album ? ` It appears on the album "${song.album}".` : ''}`,
+    a: isCover
+      ? `${song.title} was written by ${composerName}, performed here by ${song.artist}${song.year ? ` (this recording released ${song.year})` : ''}.${song.album ? ` It appears on the album "${song.album}".` : ''}`
+      : `${song.title} was written and recorded by ${song.artist}${song.year ? ` and released in ${song.year}` : ''}.${song.album ? ` It appears on the album "${song.album}".` : ''}`,
   },
   {
     q: `What key is ${song.title} in?`,
@@ -274,7 +283,7 @@ const songFaq = [
 ]
 // ────────────────────────────────────────────────────────────────────────────
 
-const composerType = KNOWN_BANDS.has(song.artist) ? 'MusicGroup' : 'Person';
+const composerType = KNOWN_BANDS.has(composerName) ? 'MusicGroup' : 'Person';
 
 const musicSchema = {
   '@context': 'https://schema.org',
@@ -282,10 +291,10 @@ const musicSchema = {
   '@id': canonicalUrl,
   name: song.title,
   description: song.description,
-  composer: { '@type': composerType, name: song.artist },
+  composer: { '@type': composerType, name: composerName },
   // schema.org requires lyricist to be a Person — omit it for bands (MusicGroup),
   // since we don't track a distinct lyricist and can't validly attribute lyrics to a group here.
-  ...(composerType === 'Person' ? { lyricist: { '@type': 'Person', name: song.artist } } : {}),
+  ...(composerType === 'Person' ? { lyricist: { '@type': 'Person', name: composerName } } : {}),
   musicalKey: song.key,
   datePublished: song.year?.toString(),
   genre: song.genre.join(', '),
@@ -298,16 +307,11 @@ const musicSchema = {
   },
 };
 
-const breadcrumbSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  '@id': `${canonicalUrl}#breadcrumb`,
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
-    { '@type': 'ListItem', position: 2, name: 'Songs', item: 'https://chordsequence.com/songs/' },
-    { '@type': 'ListItem', position: 3, name: `${song.title} Chords`, item: canonicalUrl },
-  ],
-};
+const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
+  { name: 'Home', item: 'https://chordsequence.com/' },
+  { name: 'Songs', item: 'https://chordsequence.com/songs/' },
+  { name: `${song.title} Chords`, item: canonicalUrl },
+]);
 
 // FAQPage schema intentionally removed — Google restricted FAQPage rich results
 // to government/healthcare sites (Aug 2023). The FAQ content stays on-page for users.
@@ -324,8 +328,8 @@ const breadcrumbSchema = {
   author="Elías Corsino Saldaña"
 >
   <Fragment slot="head">
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(musicSchema)} />
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+    <JsonLd schema={musicSchema} />
+    <JsonLd schema={breadcrumbSchema} />
   </Fragment>
 
   <main class="mx-auto max-w-5xl px-4 sm:px-6 pt-4 pb-10 sm:pt-8 sm:pb-16">
@@ -498,6 +502,11 @@ const breadcrumbSchema = {
                 </div>
               ))}
             </div>
+            {pub && (
+              <div class="mt-4">
+                <ReportSongButton client:visible songSlug={song.slug} />
+              </div>
+            )}
           </section>
 
           <!-- Practice tools -->

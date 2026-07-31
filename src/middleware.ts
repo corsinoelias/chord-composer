@@ -1,20 +1,32 @@
 import { defineMiddleware } from 'astro:middleware';
 
+// Keep in sync with the [[headers]] blocks in netlify.toml (`/*`, `/songs/`, `/songs/*`) —
+// those don't reach SSR functions (see comment below), so this object is the only thing
+// that actually governs headers on SSR routes like /songs/*. Two sources of truth; check
+// both when changing either.
 const SECURITY_HEADERS: Record<string, string> = {
   'X-Frame-Options': 'DENY',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
   'Content-Security-Policy':
     // media-src includes blob: (leftover from an earlier local-only prototype, harmless
     // to keep) plus https://*.supabase.co for the real vocal-reference audio files now
     // served from Supabase Storage (the <audio> scrub element in the editor, and the
     // public song page's playback both load directly from that origin).
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' blob: https://*.supabase.co; connect-src 'self' blob: https://*.supabase.co https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; frame-ancestors 'none';",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' blob: https://*.supabase.co; connect-src 'self' blob: https://*.supabase.co https://cdn.jsdelivr.net https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; frame-ancestors 'none';",
 };
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  const { pathname } = new URL(context.request.url);
+  const url = new URL(context.request.url);
+  const { pathname } = url;
+
+  // Real pagination now lives in src/pages/songs/index.astro (?page=N), which validates
+  // page numbers itself (invalid/out-of-range → Astro.redirect('/songs/', 301), a clean
+  // URL with no query string, so it can't loop). This used to unconditionally strip any
+  // ?page= here before pagination existed — do not reintroduce that, it would break
+  // legitimate ?page=2+ URLs.
 
   // Rewrite /chord-player/<songId> → /chord-player/ so the SPA island handles the ID.
   // X-Robots-Tag at HTTP level speeds up deindexing of any shared chord-player URLs Google crawled.

@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build && npm run indexnow"
+  command = "npm run check:schema && npm run build && npm run indexnow"
   publish = "dist"
 
 [build.environment]
@@ -22,7 +22,11 @@
 # The rebuild regenerates sitemap-index.xml and warms all SSR routes.
 # ---------------------------------------------------------------------------
 
-# Security headers — applied globally
+# Security headers — applied globally.
+# NOTE: these [[headers]] blocks don't reach SSR functions (song pages, etc.) — Netlify's
+# static header rules only apply to prerendered/static responses. SSR routes get their
+# headers from SECURITY_HEADERS in src/middleware.ts instead, which must be kept in sync
+# with the values below by hand.
 [[headers]]
   for = "/*"
   [headers.values]
@@ -314,17 +318,11 @@
   status = 301
   force = true
 
-# Redirect /songs/?page=* to /songs/ — no pagination exists, avoids soft-404 indexing (HIGH)
-# NOTE: trailing "?" on `to` clears the incoming query string. Without it, Netlify
-# re-appends the unmatched query onto the target, causing /songs/?page=2 to redirect
-# back to /songs/?page=2 — an infinite loop (this was a live CRITICAL bug).
-[[redirects]]
-  from = "/songs/"
-  to = "/songs/?"
-  status = 301
-  force = true
-  [redirects.query]
-    page = ":page"
+# /songs/?page=* → /songs/ (no pagination exists, avoids soft-404 indexing) is handled
+# in src/middleware.ts, not here. A netlify.toml `to = "/songs/?"` rule was tried twice
+# and both times the query string re-appended at Netlify's edge instead of clearing,
+# causing an infinite redirect loop. An explicit Response.redirect in middleware.ts
+# builds a clean URL with no query string by construction — no edge-config trick to fail.
 
 # Old editor URL → renamed to /chord-player/ (permanent, preserves song IDs in the path)
 [[redirects]]
