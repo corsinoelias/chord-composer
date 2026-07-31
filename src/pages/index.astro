@@ -197,7 +197,7 @@ const songListSchema = {
             <span class="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></span>
             <span class="font-mono text-xs uppercase tracking-widest text-muted-foreground">Press play — hear it now</span>
           </div>
-          <ChordEmbed client:visible chords="C G Am F" bpm={110} style="pop_1" title="I–V–vi–IV — the most-used progression in pop" />
+          <ChordEmbed client:idle chords="C G Am F" bpm={110} style="pop_1" title="I–V–vi–IV — the most-used progression in pop" />
           <p class="mt-3 text-center font-mono text-xs text-muted-foreground lg:text-left">C · G · Am · F — press play</p>
         </div>
       </div>
@@ -321,9 +321,9 @@ const songListSchema = {
       </div>
 
       <div class="space-y-4">
-        <ChordEmbed client:visible chords="C G Am F" bpm={110} style="pop_basic" title="I–V–vi–IV — The Pop Axis (C major)" />
-        <ChordEmbed client:visible chords="Dm7 G7 Cmaj7" bpm={120} style="pop_basic" title="ii–V–I — Jazz Standard Cornerstone" />
-        <ChordEmbed client:visible chords="Cmaj7 Am7 Fmaj7 G7" bpm={75} style="pop_basic" title="Lo-fi Jazz Loop — Chill study vibes" />
+        <ChordEmbed client:idle chords="C G Am F" bpm={110} style="pop_basic" title="I–V–vi–IV — The Pop Axis (C major)" />
+        <ChordEmbed client:idle chords="Dm7 G7 Cmaj7" bpm={120} style="pop_basic" title="ii–V–I — Jazz Standard Cornerstone" />
+        <ChordEmbed client:idle chords="Cmaj7 Am7 Fmaj7 G7" bpm={75} style="pop_basic" title="Lo-fi Jazz Loop — Chill study vibes" />
       </div>
 
       <div class="mt-10 text-center">
@@ -380,7 +380,7 @@ const songListSchema = {
         {popularProgressions.map((p) => (
           <div class="rounded-xl border border-border bg-card p-5">
             <p class="mb-3 text-xs text-muted-foreground leading-relaxed">{p.label}</p>
-            <ChordEmbed client:visible chords={p.chords} bpm={p.bpm} style={p.style} title={p.title} />
+            <ChordEmbed client:idle chords={p.chords} bpm={p.bpm} style={p.style} title={p.title} />
           </div>
         ))}
       </div>

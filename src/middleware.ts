@@ -37,6 +37,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return response;
   }
 
+  // Trailing-slash normalization for SSR routes lives in netlify.toml, not here — a
+  // request with no matching route (which includes any SSR route hit without its
+  // required trailing slash, since trailingSlash: 'always' means the route pattern
+  // itself requires it) never reaches this middleware at all. Netlify's [[redirects]]
+  // run before the request is even routed to the SSR function or a 404 fallback; this
+  // file only ever sees requests for routes that already matched something. Confirmed
+  // empirically: a middleware-level redirect here silently never fired (verified via
+  // astro dev — no route match means no middleware invocation, not even for the
+  // built-in 404). See netlify.toml for the actual fix.
+
   const response = await next();
 
   // Security headers on every response (netlify.toml [[headers]] doesn't reach SSR functions)

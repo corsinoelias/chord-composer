@@ -133,6 +133,14 @@ const Index = ({ songId }: IndexProps) => {
   // then fed into the state initializers below.
   const [restoredDraft] = useState(() => (shouldRestoreForkDraft() ? loadForkDraft() : null));
 
+  // A shared-link visitor (?chords= or ?data=, see the sections initializer below) came
+  // here to see a specific progression, not to be walked through a 4-step tour before
+  // they can look at it — skip the guided tour for that first visit.
+  const [hasDeepLinkedProgression] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.has('chords') || params.has('data');
+  });
+
   // Default chords for new songs
   const defaultChords: Chord[] = [
     { id: generateChordId(), root: 'E', accidental: '', quality: 'min', duration: 4 },
@@ -1483,8 +1491,8 @@ const Index = ({ songId }: IndexProps) => {
 
       </main>
 
-      {/* Guided tour for first-time users */}
-      {showOnboarding && <GuidedTour onDismiss={dismissOnboarding} />}
+      {/* Guided tour for first-time users — skipped for shared-link visitors, see above */}
+      {showOnboarding && !hasDeepLinkedProgression && <GuidedTour onDismiss={dismissOnboarding} />}
 
       {/* Multi-select floating toolbar */}
       {selectedChordIds.size > 0 && (

@@ -143,9 +143,55 @@
 # Redirect old community song URLs to clean URLs
 [[redirects]]
   from = "/songs/c/:slug"
-  to = "/songs/:slug"
+  to = "/songs/:slug/"
   status = 301
   force = true
+
+# Trailing-slash backstop for SSR routes (song pages, PDF export, /songs/new/, the
+# reported-songs admin page). astro.config.mjs sets trailingSlash: 'always', but that only
+# auto-redirects prerendered/static routes at build time — non-prerendered routes have no
+# such redirect, so a request missing the trailing slash (a hand-typed link, a backlink
+# copied without the final /) never matches any route at all and falls straight to the
+# static 404 page. That happens at Netlify's edge before the SSR function is ever invoked,
+# so this can't be fixed in src/middleware.ts (confirmed: middleware never runs for an
+# unmatched route, not even to serve the 404) — it has to be a redirect rule here, upstream
+# of routing. More specific rules first so they don't get shadowed by the generic one below.
+[[redirects]]
+  from = "/songs/pdf/:slug"
+  to = "/songs/pdf/:slug/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/songs/new"
+  to = "/songs/new/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/admin/songs"
+  to = "/admin/songs/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/bass-tab"
+  to = "/bass-tab/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/guitar-tab"
+  to = "/guitar-tab/"
+  status = 301
+  force = true
+
+# The generic /songs/:slug trailing-slash rule (added below, after the specific old-slug
+# renames) must come AFTER all of the literal /songs/<old-slug>-chords/ rules further down
+# this file — otherwise it would shadow them: a request to e.g. /songs/hallelujah-chords
+# (no trailing slash) would match this single-segment wildcard before ever reaching the
+# specific rename rule, and get redirected to the dead old slug (just slash-appended)
+# instead of the correct current one.
 
 # Beginner pages moved under /learn/
 [[redirects]]
@@ -242,6 +288,14 @@
 [[redirects]]
   from = "/songs/great-are-you-lord-chords/"
   to = "/songs/great-are-you-lord-all-sons-daughters/"
+  status = 301
+  force = true
+
+# Generic trailing-slash catch-all for any current song slug — must stay after all the
+# specific old-slug renames above (see the comment near the other trailing-slash rules).
+[[redirects]]
+  from = "/songs/:slug"
+  to = "/songs/:slug/"
   status = 301
   force = true
 

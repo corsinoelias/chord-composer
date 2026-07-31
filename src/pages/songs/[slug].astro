@@ -231,10 +231,24 @@ const coreChordList = coreChords.length > 1
   ? `${coreChords.slice(0, -1).join(', ')} and ${coreChords[coreChords.length - 1]}`
   : coreChords[0] ?? ''
 
+// The closing sentence used to be built entirely from small fixed vocab buckets
+// (tempoDesc: 6 options, keyMood: ~20 keyed by key name, genreText: first genre tag) —
+// two songs sharing a key/tempo/genre combo (common across the worship-heavy catalog)
+// could end up with a near-identical sentence, which is exactly the templated-paragraph
+// pattern the 2026-07-31 audit flagged across 4+ songs. Section structure and total
+// chord count are real per-song facts that vary far more, so they anchor the sentence
+// instead — the mood/tempo prose stays (it reads better than raw numbers) but isn't
+// carrying the whole sentence's uniqueness anymore.
+const uniqueSectionNames = [...new Set(song.sections.map(s => s.name.replace(/\s*\d+$/, '')))]
+const structureText = uniqueSectionNames.length > 1
+  ? `${uniqueSectionNames.slice(0, -1).join(', ')} and ${uniqueSectionNames[uniqueSectionNames.length - 1]}`
+  : uniqueSectionNames[0] ?? 'a single section'
+
 const analysisText =
   `${song.title} by ${song.artist}${yearText} — ${fullKeyName}${capoShort}, ${song.bpm} BPM, ${difficultyLabel.toLowerCase()}. ` +
   `Built around ${coreChordList}. Transpose to any key right on the page. ` +
-  `It's a ${tempoDesc} ${genreText} song, and ${fullKeyName} is ${keyMood}.`
+  `The chart moves through ${structureText}, using ${uniqueChords.length} chord${uniqueChords.length !== 1 ? 's' : ''} in total — ` +
+  `a ${tempoDesc} ${genreText} song, and ${fullKeyName} is ${keyMood}.`
 
 const practiceTools: { href: string; label: string; desc: string; icon: ToolIconName }[] = [
   { href: '/chord-lookup/', label: 'Chord Finder', desc: 'Find the fingering for any chord, not just the ones in this song', icon: 'chords' },
