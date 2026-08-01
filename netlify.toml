@@ -147,51 +147,25 @@
   status = 301
   force = true
 
-# Trailing-slash backstop for SSR routes (song pages, PDF export, /songs/new/, the
-# reported-songs admin page). astro.config.mjs sets trailingSlash: 'always', but that only
-# auto-redirects prerendered/static routes at build time — non-prerendered routes have no
-# such redirect, so a request missing the trailing slash (a hand-typed link, a backlink
-# copied without the final /) never matches any route at all and falls straight to the
-# static 404 page. That happens at Netlify's edge before the SSR function is ever invoked,
-# so this can't be fixed in src/middleware.ts (confirmed: middleware never runs for an
-# unmatched route, not even to serve the 404) — it has to be a redirect rule here, upstream
-# of routing. More specific rules first so they don't get shadowed by the generic one below.
-[[redirects]]
-  from = "/songs/pdf/:slug"
-  to = "/songs/pdf/:slug/"
-  status = 301
-  force = true
-
-[[redirects]]
-  from = "/songs/new"
-  to = "/songs/new/"
-  status = 301
-  force = true
-
-[[redirects]]
-  from = "/admin/songs"
-  to = "/admin/songs/"
-  status = 301
-  force = true
-
-[[redirects]]
-  from = "/bass-tab"
-  to = "/bass-tab/"
-  status = 301
-  force = true
-
-[[redirects]]
-  from = "/guitar-tab"
-  to = "/guitar-tab/"
-  status = 301
-  force = true
-
-# The generic /songs/:slug trailing-slash rule (added below, after the specific old-slug
-# renames) must come AFTER all of the literal /songs/<old-slug>-chords/ rules further down
-# this file — otherwise it would shadow them: a request to e.g. /songs/hallelujah-chords
-# (no trailing slash) would match this single-segment wildcard before ever reaching the
-# specific rename rule, and get redirected to the dead old slug (just slash-appended)
-# instead of the correct current one.
+# REVERTED 2026-08-02: a "trailing-slash backstop for SSR routes" block used to live here
+# (added by c1613f6, one rule each for /songs/pdf/:slug, /songs/new, /admin/songs,
+# /bass-tab, /guitar-tab, plus a generic /songs/:slug catch-all further below). Intent was
+# to fix a 404 when a link is missing its trailing slash. Instead it caused a live infinite
+# 301 loop on the CANONICAL already-slashed URL (e.g. /songs/wonderwall-oasis/ redirecting
+# to itself), confirmed in production. Root cause: Netlify's `:param`/literal `from`
+# matching strips the trailing slash before comparing, so `from = "/songs/:slug"` matches
+# `/songs/foo/` just as much as `/songs/foo`. `force = true` doesn't gate this — per
+# @netlify/redirects' own handler, force only decides precedence against an existing
+# STATIC file in the publish dir; these are SSR routes (Netlify Functions), not static
+# files, so the redirect fires unconditionally either way, self-looping the slashed URL.
+# There's no declarative from/to rule that can match "no trailing slash" without also
+# matching "has trailing slash" here — fixing the 404-without-slash case properly needs
+# either `trailingSlash: 'ignore'` in astro.config.mjs (blast radius: every prerendered
+# route site-wide, not just these) or a Netlify Edge Function that inspects the raw path.
+# Neither is worth the risk mid-incident, so this reverts to the pre-c1613f6 state:
+# a slash-less request 404s (same as before, low severity — no real link omits the slash)
+# instead of the canonical URL looping (severe — breaks every song/bass-tab/guitar-tab page
+# for every real visitor and every indexed Google link).
 
 # Beginner pages moved under /learn/
 [[redirects]]
@@ -291,13 +265,8 @@
   status = 301
   force = true
 
-# Generic trailing-slash catch-all for any current song slug — must stay after all the
-# specific old-slug renames above (see the comment near the other trailing-slash rules).
-[[redirects]]
-  from = "/songs/:slug"
-  to = "/songs/:slug/"
-  status = 301
-  force = true
+# (Generic /songs/:slug trailing-slash catch-all removed — see the revert note near the
+# other trailing-slash rules above. It self-looped on already-slashed canonical song URLs.)
 
 # Old /progressions/{genre}-chord-progressions/ → /progressions/{genre}/ (CRIT-5)
 [[redirects]]
