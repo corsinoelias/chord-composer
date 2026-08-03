@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Play, Square, Download, ExternalLink, Loader2, SkipBack, SkipForward, Repeat } from 'lucide-react';
 import type { Song } from '@/data/songs';
 import { analytics } from '@/lib/analytics';
@@ -52,13 +53,44 @@ function markersWithWidth(markers: SectionMarker[]) {
   }));
 }
 
-// Rough width of one uppercase, tracked-out 9px character as a % of the timeline — used to
-// decide whether a section's own slot can fit its FULL name. Below that, the label is left
-// blank (just the tick + tint band show) rather than truncated to an illegible "P…" fragment.
-const PERCENT_PER_CHAR = 1.15;
-const LABEL_PADDING_PERCENT = 2;
-function fitsLabel(name: string, widthPercent: number) {
-  return widthPercent >= name.length * PERCENT_PER_CHAR + LABEL_PADDING_PERCENT;
+// Whether a section's own slot can fit its FULL name, measured in real pixels rather than a
+// fixed %-of-timeline guess. A %-based threshold conflates two different container widths —
+// tuned generously enough to hide labels on a narrow phone screen, it also hides them on a
+// wide desktop bar where the SAME percent is a much bigger, plenty-wide slot (e.g. a real bug:
+// "Intro" invisible on a 1100px-wide desktop bar because its slot was only ~4% of the total,
+// even though 4% of 1100px is ~42px — comfortably enough for 5 characters at 9px). Below the
+// real fit, the label is left blank (tick + tint band still show) rather than truncated to an
+// illegible "P…" fragment.
+const LABEL_FONT = '600 9px system-ui, sans-serif'; // matches font-semibold text-[9px]
+const LABEL_HORIZONTAL_PADDING_PX = 8; // px-1 on each side ≈ 4px + 4px
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+function measureLabelWidthPx(text: string): number {
+  if (measureCtx === undefined) {
+    measureCtx = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+  }
+  if (!measureCtx) return text.length * 8; // SSR/no-canvas fallback — conservative estimate
+  measureCtx.font = LABEL_FONT;
+  // canvas measureText doesn't apply CSS letter-spacing — `tracking-wide` is 0.025em, added here.
+  return measureCtx.measureText(text).width + text.length * 9 * 0.025;
+}
+function fitsLabel(name: string, slotWidthPx: number) {
+  return slotWidthPx >= measureLabelWidthPx(name) + LABEL_HORIZONTAL_PADDING_PX;
+}
+
+// Real pixel width of the timeline row — needed because label-fit is judged in px (see
+// fitsLabel above), not just the %-of-total-song value each marker already carries.
+function useElementWidth<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setWidth(el.getBoundingClientRect().width);
+    const ro = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, width] as const;
 }
 
 // Isolated so only this tiny div re-renders on every animation frame (usePlaybackPosition
@@ -117,12 +149,13 @@ export function SongPlayerBar({
 }: SongPlayerBarProps) {
   const markers = markersWithWidth(sectionMarkers);
   const activeSectionName = sectionMarkers.find(m => m.sectionIndex === activeSectionIndex)?.name;
+  const [timelineRef, timelineWidth] = useElementWidth<HTMLDivElement>();
 
   return (
     <div className={`${inline ? 'border-b mb-2' : 'fixed bottom-0 left-0 right-0 z-50 border-t shadow-[0_-4px_20px_rgba(0,0,0,0.08)]'} border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80`}>
       {/* Song structure timeline — section bands/labels + progress track */}
       {sectionMarkers.length > 1 && (
-        <div className="relative h-4 select-none">
+        <div ref={timelineRef} className="relative h-4 select-none">
           {markers.map(m => (
             <div
               key={m.sectionIndex}
@@ -130,12 +163,16 @@ export function SongPlayerBar({
               style={{ left: `${m.startPercent}%`, width: `${m.widthPercent}%` }}
             />
           ))}
-          {/* The button itself always renders (tap-to-seek works on mobile too) — only its
-              TEXT is `sm:`-and-up. On a real phone width a section's slot is rarely wide
-              enough to fit a whole name, and the truncated "VERS…"/"CHORU…" fragments it
-              leaves behind read worse than no text at all. The tick + tint band still show
-              the structure, and the "now playing" line next to the song title (always
-              full-width, never slot-constrained) carries the name on mobile instead. */}
+          {/* h-4 (not just leading-[16px]) so the button keeps a real, tappable hit box even
+              with no text inside — an empty button otherwise collapses to 0 height and can't
+              be clicked at all. The button itself always renders (tap-to-seek always works);
+              only its TEXT is conditional on actually fitting the slot's real pixel width (see
+              fitsLabel) — measured, not guessed, so a wide desktop bar shows a short section's
+              name even when its %-of-song share is small, while a narrow phone screen still
+              correctly leaves a truly-too-narrow slot blank (tick + tint band still show the
+              structure) instead of a truncated, illegible "P…" fragment. The "now playing" line
+              next to the song title (always full-width, never slot-constrained) is the
+              fallback name source whenever a slot doesn't fit one. */}
           {markers.map(m => (
             <button
               key={m.sectionIndex}
@@ -143,11 +180,11 @@ export function SongPlayerBar({
               onClick={() => onSeekSection?.(m.sectionIndex)}
               title={m.name}
               style={{ left: `${m.startPercent}%`, width: `${m.widthPercent}%` }}
-              className={`absolute top-0 overflow-hidden truncate px-1 text-left text-[9px] font-semibold uppercase tracking-wide leading-[16px] transition-colors
+              className={`absolute top-0 h-4 overflow-hidden truncate px-1 text-left text-[9px] font-semibold uppercase tracking-wide leading-[16px] transition-colors
                 ${activeSectionIndex === m.sectionIndex ? 'text-primary' : 'text-muted-foreground/70 hover:text-muted-foreground'}
               `}
             >
-              <span className="hidden sm:inline">{fitsLabel(m.name, m.widthPercent) ? m.name : ''}</span>
+              {fitsLabel(m.name, (m.widthPercent / 100) * timelineWidth) ? m.name : ''}
             </button>
           ))}
         </div>
