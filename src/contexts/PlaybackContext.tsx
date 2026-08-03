@@ -57,6 +57,17 @@ interface PlaybackContextValue {
   // High-frequency 16th-note playhead — separate channel (see PlaybackState note).
   subscribeStep: (cb: () => void) => () => void;
   getStep: () => number;
+
+  // Continuous playback position — chordIndex + (0-1 progress through that chord) as one
+  // float, updated every animation frame from the real audio clock. Deliberately a SINGLE
+  // combined number rather than separate index/fraction values: splitting them across
+  // `state.currentChordIndex` (React state) and a fraction-only fast channel let the two
+  // update in different commits, so a UI combining them could render one already-advanced
+  // and the other not yet — a visible backward-then-forward flicker at every chord boundary.
+  // Same separate-channel reasoning as subscribeStep otherwise: only a UI that actually
+  // renders a continuous scrub position (see usePlaybackPosition) should re-render this often.
+  subscribePlaybackPosition: (cb: () => void) => () => void;
+  getPlaybackPosition: () => number;
 }
 
 interface PlayOptions {
@@ -67,6 +78,17 @@ interface PlayOptions {
   transposition: number;
   liveEditedStyle?: StylePattern | null;
   customStyles?: StylePattern[];
+  // Whether the WHOLE `sections` array restarts from the top once it reaches the end.
+  // Defaults to true (existing behavior for every caller that predates this field — a full
+  // progression looping forever). Callers that want a single deliberate pass (e.g. "play just
+  // this section once") pass false and get notified via the natural-stop path (see `stop()`
+  // wiring in `play` below) instead of the engine silently going quiet mid-UI-"playing" state.
+  loop?: boolean;
+  // Called when a `loop: false` pass reaches its natural end. Defaults to `stop()` — a
+  // caller that wants to chain into something else (e.g. the song page playing the next
+  // section instead of just going quiet) passes its own and is responsible for stopping
+  // itself eventually (there's nothing left to chain to at the end of a song).
+  onEnded?: () => void;
   loopingSectionIndex?: number | null;
   melodic?: MelodicData;
   sections?: Section[];
@@ -101,6 +123,17 @@ export function useCurrentStep(): number {
   return useSyncExternalStore(context.subscribeStep, context.getStep, context.getStep);
 }
 
+// Continuous chordIndex+fraction position, for continuously-animated scrub UIs (e.g. a
+// song's progress bar). Isolate any consumer to the smallest component possible — see the
+// subscribePlaybackPosition note on PlaybackContextValue.
+export function usePlaybackPosition(): number {
+  const context = useContext(PlaybackContext);
+  if (!context) {
+    throw new Error('usePlaybackPosition must be used within a PlaybackProvider');
+  }
+  return useSyncExternalStore(context.subscribePlaybackPosition, context.getPlaybackPosition, context.getPlaybackPosition);
+}
+
 export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<PlaybackState>({
     isPlaying: false,
@@ -124,6 +157,22 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     return () => { stepListenersRef.current.delete(cb); };
   }, []);
   const getStep = useCallback(() => stepRef.current, []);
+
+  // Continuous chordIndex+fraction position — see PlaybackContextValue note.
+  const playbackPositionRef = useRef(-1);
+  const playbackPositionListenersRef = useRef<Set<() => void>>(new Set());
+  const setPlaybackPosition = useCallback((position: number) => {
+    // 1/1000 granularity is well past what's visible on a scrub bar — skipping smaller
+    // deltas avoids notifying listeners (and re-rendering them) on every single rAF tick.
+    if (Math.abs(playbackPositionRef.current - position) < 0.001) return;
+    playbackPositionRef.current = position;
+    playbackPositionListenersRef.current.forEach(l => l());
+  }, []);
+  const subscribePlaybackPosition = useCallback((cb: () => void) => {
+    playbackPositionListenersRef.current.add(cb);
+    return () => { playbackPositionListenersRef.current.delete(cb); };
+  }, []);
+  const getPlaybackPosition = useCallback(() => playbackPositionRef.current, []);
 
   const cancelRef = useRef<(() => void) | null>(null);
   const rafRef = useRef<number>();
@@ -270,7 +319,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       cancelRef.current = null;
     }
     clearChordSchedule();
-    
+
     sectionsRef.current = sections;
     optionsRef.current = options;
 
@@ -328,11 +377,26 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     // root cause the offline WAV export already avoids via this same preload (see
     // renderProgressionOffline in audioEngine.ts). Awaiting it here, before the isPlaying
     // flip, mirrors the guitar soundfont wait above: nothing sounds until it's ready.
+    //
+    // Timeout-guarded (unlike a bare await) because decodeAudioData against a FRESHLY
+    // re-created AudioContext can hang indefinitely — every stop() closes the previous
+    // context (see stopPlayback), so switching sections quickly (Prev/Next, or a section
+    // naturally ending and chaining into the next one) recreates it right away, and decoding
+    // the same already-cached raw bytes against that brand-new context is what got stuck in
+    // testing. A stuck decode here used to mean play() never reached setState(isPlaying:true)
+    // — the whole player looked like it had silently stopped for good.
     const bassState = options.instruments.find(i => i.id === 'bass');
     const bassSoundId = bassState?.soundTypeId ?? style.instrumentSounds?.bass ?? 'fender';
     const bassSoundDef = getSoundType('bass', bassSoundId);
     if (bassSoundDef?.useSamples && bassSoundDef.samplePath) {
-      await preloadSampleDir(getAudioContext(), bassSoundDef.samplePath);
+      try {
+        await Promise.race([
+          preloadSampleDir(getAudioContext(), bassSoundDef.samplePath),
+          new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2500)),
+        ]);
+      } catch {
+        console.warn(`[AUDIO] Bass sample preload for "${bassSoundDef.samplePath}" timed out — proceeding without it`);
+      }
     }
 
     // Vocal reference audio: decode once per URL (cached across replays within the
@@ -368,7 +432,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     setupMediaSession('Chord Progression');
 
     const { cancel } = scheduleProgression(sections, options.bpm, {
-      loop: true,
+      loop: options.loop ?? true,
       metronome: options.metronome,
       audioTrack: decodedAudioTrackBuffer ? {
         buffer: decodedAudioTrackBuffer,
@@ -380,6 +444,10 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       transposition: options.transposition,
       onChordChange: undefined,
       onLoopEnd: undefined,
+      // Deliberate single pass (loop: false) reached its natural end. Callers that don't
+      // care just get stop() (UI doesn't stay stuck "playing" forever); one that wants to
+      // chain into something else (see SongChordPlayer's solo-section play) supplies its own.
+      onEnded: () => (options.onEnded ?? stop)(),
       onStepChange: (step) => setStep(step),
       getStyle,
       // Dynamic getters for real-time updates without restart
@@ -489,6 +557,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!state.isPlaying) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      setPlaybackPosition(-1);
       return;
     }
     const loop = () => {
@@ -496,15 +565,27 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
         const schedule = getChordSchedule();
-        let found = -1;
+        let foundIdx = -1;
         for (let i = schedule.length - 1; i >= 0; i--) {
           if (schedule[i].audioTime <= now) {
-            found = schedule[i].chordIndex;
+            foundIdx = i;
             break;
           }
         }
-        if (found >= 0) {
-          setState(prev => prev.currentChordIndex === found ? prev : { ...prev, currentChordIndex: found });
+        if (foundIdx >= 0) {
+          const entry = schedule[foundIdx];
+          setState(prev => prev.currentChordIndex === entry.chordIndex ? prev : { ...prev, currentChordIndex: entry.chordIndex });
+
+          // Fraction of the way through this chord, using its own known duration (not the
+          // gap to the next schedule entry — that only appears once the bar-by-bar scheduler
+          // gets around to the next chord, which lags well behind the chord's actual start
+          // and would leave this stuck near 0 for most of its length).
+          const fraction = entry.durationSec > 0
+            ? Math.min(1, Math.max(0, (now - entry.audioTime) / entry.durationSec))
+            : 0;
+          // Combined into one number (not separate index/fraction channels) so a consumer
+          // never reads one half updated and the other stale — see PlaybackContextValue note.
+          setPlaybackPosition(entry.chordIndex + fraction);
         }
       } catch {
         // Audio context not yet initialized
@@ -513,7 +594,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [state.isPlaying]);
+  }, [state.isPlaying, setPlaybackPosition]);
 
   const value: PlaybackContextValue = {
     state,
@@ -525,6 +606,8 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     updatePlaybackOptions,
     subscribeStep,
     getStep,
+    subscribePlaybackPosition,
+    getPlaybackPosition,
   };
 
   return (

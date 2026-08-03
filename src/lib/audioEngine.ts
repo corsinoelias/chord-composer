@@ -38,7 +38,12 @@ export function ensureGuitarSoundfont(soundTypeId: string, instrument: string): 
 // Kicks off (or reuses) the soundfont load and waits for it to fully finish before returning.
 // Callers should await this BEFORE flipping any "now playing" state — nothing (audio or the
 // chord-duration dots) should start until the real sample is ready; there's no early bailout
-// here on purpose. The timeout only guards against a truly stuck network request.
+// here on purpose. The timeout only guards against a truly stuck network request — every
+// stop() closes the AudioContext (see stopPlayback), so switching sections re-decodes this
+// soundfont from scratch on EVERY section change, not just once per page load. 8s made that
+// silent gap read as "it just stopped" long before the fallback ever kicked in; 2.5s still
+// covers a normal decode (it's re-fetched from browser cache, not the network, on a repeat
+// load) while keeping the worst case short enough to not feel broken.
 export async function ensureGuitarSoundfontLoaded(soundTypeId: string, instrument: string): Promise<void> {
   if (sfGuitarPlayers.has(soundTypeId)) return
   ensureGuitarSoundfont(soundTypeId, instrument)
@@ -47,7 +52,7 @@ export async function ensureGuitarSoundfontLoaded(soundTypeId: string, instrumen
   try {
     await Promise.race([
       loading,
-      new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000)),
+      new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2500)),
     ])
   } catch {
     // Only reached if the network request is genuinely stuck — proceed rather than hang
@@ -72,10 +77,12 @@ let playbackMutex = false; // Prevent multiple simultaneous playback instances
 let sampleLoadingComplete = false; // Track if initial load completed
 let drumSamplePromise: Promise<void> | null = null; // Critical — no synthesis fallback
 
-// Chord schedule for rAF-based visual sync
-let _chordSchedule: { audioTime: number; chordIndex: number }[] = [];
+// Chord schedule for rAF-based visual sync. durationSec is the chord's own known length —
+// NOT the gap to the next schedule entry, which lags behind the bar-by-bar scheduler's
+// lookahead and would make a continuous progress readout stall for most of the chord.
+let _chordSchedule: { audioTime: number; chordIndex: number; durationSec: number }[] = [];
 
-export function getChordSchedule(): { audioTime: number; chordIndex: number }[] {
+export function getChordSchedule(): { audioTime: number; chordIndex: number; durationSec: number }[] {
   return _chordSchedule;
 }
 
@@ -1329,6 +1336,10 @@ export interface PlaybackOptions {
   onBeat?: (beat: number) => void;
   onChordChange?: (index: number) => void;
   onLoopEnd?: () => void;
+  // Called once when a NON-looping schedule (loop: false) reaches its natural end, so a
+  // caller that deliberately opted out of looping (e.g. "play this section once") can react
+  // — the engine itself just stops scheduling further segments and otherwise goes silent.
+  onEnded?: () => void;
   onStep?: (step: number) => void;
   onStepChange?: (step: number) => void; // Called continuously for playhead sync
   getStyle?: () => StylePattern;
@@ -1370,8 +1381,9 @@ export function scheduleProgression(
     style, 
     transposition: initialTransposition = 0, 
     onBeat, 
-    onChordChange, 
+    onChordChange,
     onLoopEnd,
+    onEnded,
     onStep,
     onStepChange,
     getStyle,
@@ -1606,6 +1618,8 @@ export function scheduleProgression(
         nextBarTimeout = window.setTimeout(() => {
           if (!cancelled) scheduleSegment(ctx.currentTime + 0.05);
         }, delayMs);
+      } else {
+        onEnded?.();
       }
       return;
     }
@@ -1677,10 +1691,12 @@ export function scheduleProgression(
     
     const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
     
-    // Schedule chord change — track in schedule array for rAF-based visual sync
+    // Schedule chord change — track in schedule array for rAF-based visual sync. slotCount/
+    // slotDuration are already resolved above (one chord === one segment, see
+    // buildChordSegments), so this is the chord's real total duration, not an estimate.
     if (globalChordIndex !== lastChordIndex) {
       lastChordIndex = globalChordIndex;
-      _chordSchedule.push({ audioTime: segmentStartTime, chordIndex: globalChordIndex });
+      _chordSchedule.push({ audioTime: segmentStartTime, chordIndex: globalChordIndex, durationSec: slotCount * slotDuration });
       if (_chordSchedule.length > 500) _chordSchedule = _chordSchedule.slice(-250);
     }
     
