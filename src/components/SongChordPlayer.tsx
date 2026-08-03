@@ -6,7 +6,6 @@ import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { createSection } from '@/lib/sections';
 import { Play, Square, ChevronDown, ChevronUp, SkipBack, SkipForward, Repeat } from 'lucide-react';
 import { SongPlayerBar } from '@/components/SongPlayerBar';
-import { SongPerformanceConsole } from '@/components/SongPerformanceConsole';
 import { DurationDots } from '@/components/DurationDots';
 import { parseLyricLine, extractChordsWithDuration, type Song } from '@/data/songs';
 import ChordTooltip from '@/components/ChordTooltip';
@@ -93,6 +92,13 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // Index into whichever Section[] array is currently scheduled (0 for solo-section play,
   // the song-section index for full-song play) — null means "not looping a section"
   const [loopingSectionIndex, setLoopingSectionIndex] = useState<number | null>(null);
+  // song.sections index the user tapped in the mobile Sections panel WHILE something else was
+  // already sounding — instead of interrupting immediately, it waits its turn and takes over
+  // as soon as the current section (or its loop) reaches a natural end. See
+  // handleSectionCardTap/queuedSectionIndexRef below.
+  const [queuedSectionIndex, setQueuedSectionIndex] = useState<number | null>(null);
+  const queuedSectionIndexRef = useRef<number | null>(null);
+  queuedSectionIndexRef.current = queuedSectionIndex;
   // which chord tooltip is open (by globalIndex); hover opens, click-outside closes
   const [openTooltipIdx, setOpenTooltipIdx] = useState<number | null>(null);
   const chordRefs = useRef<Map<number, HTMLElement>>(new Map());
@@ -228,7 +234,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // the isLoading guard this effect would fire on that transient false and wipe out the
   // playingSection the new play() call had just set, e.g. breaking prev/next-section jumps) ──
   useEffect(() => {
-    if (!isPlaying && !isLoading) { setPlayingSection(null); setLoopingSectionIndex(null); }
+    if (!isPlaying && !isLoading) { setPlayingSection(null); setLoopingSectionIndex(null); setQueuedSectionIndex(null); }
   }, [isPlaying, isLoading]);
 
   // ── Map the flat playback position (which advances across repeats) back to the
@@ -373,23 +379,35 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // a ref sidesteps both. Assigned during render (not an effect) so it's never one render
   // behind — the safe "always-up-to-date ref" pattern.
   const handlePlaySectionRef = useRef<(si: number, opts?: { keepContext?: boolean }) => void>(() => {});
+  // Synchronous reentrancy guard — `isLoading` (React state) already disables the section-card
+  // buttons while a play() call is in flight, but that disabling only takes effect once React
+  // re-renders with the new value. Tapping a card several times in the same tick/microtask
+  // (e.g. a fast double-tap, or several cards in quick succession) can fire multiple overlapping
+  // handlePlaySection calls before that re-render ever happens — each one stops+restarts
+  // independently, audible as several sections' worth of instruments all playing at once. A
+  // ref has no such delay: it's read/written synchronously, so the second call in the same tick
+  // sees it as already true and bails out immediately, no race window at all.
+  const playSectionInFlightRef = useRef(false);
   const handlePlaySection = useCallback(async (si: number, opts?: { keepContext?: boolean }) => {
     if (isPlaying && playingSection === si) { stop(); return; }
-    // keepContext (only ever passed by the onEnded chain below) skips the expensive
-    // AudioContext close+reopen — safe here specifically because the previous section ended
-    // on its own with nothing left scheduled, unlike a user cutting playback off mid-flight.
-    // It's also what makes the transition instant: closing the context would invalidate the
-    // guitar-soundfont/bass-sample caches (both keyed by AudioContext identity), forcing a
-    // multi-second re-decode right as the next section is supposed to start (see
-    // stopPlaybackKeepContext in audioEngine.ts).
-    if (isPlaying) stop(opts?.keepContext ? { keepContext: true } : undefined);
-    if (sectionChordCounts[si] === 0) return;
-    analytics.playSongSection(song.slug, song.sections[si].name);
-    setPlayingSection(si);
-    setLoopingSectionIndex(null);
-    setAutoFollow(true);
-    setIsLoading(true);
+    if (playSectionInFlightRef.current) return;
+    playSectionInFlightRef.current = true;
     try {
+      // keepContext (only ever passed by the onEnded chain below) skips the expensive
+      // AudioContext close+reopen — safe here specifically because the previous section ended
+      // on its own with nothing left scheduled, unlike a user cutting playback off mid-flight.
+      // It's also what makes the transition instant: closing the context would invalidate the
+      // guitar-soundfont/bass-sample caches (both keyed by AudioContext identity), forcing a
+      // multi-second re-decode right as the next section is supposed to start (see
+      // stopPlaybackKeepContext in audioEngine.ts).
+      if (isPlaying) stop(opts?.keepContext ? { keepContext: true } : undefined);
+      if (sectionChordCounts[si] === 0) return;
+      analytics.playSongSection(song.slug, song.sections[si].name);
+      setPlayingSection(si);
+      setLoopingSectionIndex(null);
+      setAutoFollow(true);
+      setIsLoading(true);
+      try {
       const sectionAudioRange = song.sections[si]?.audioRange;
       await play([buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name, song.sections[si].repeatCount ?? 1)], {
         // Soloing one section plays it once, then — like reaching that point during full-song
@@ -401,6 +419,17 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
         melodic: resolvedStyle.melodic,
         onEnded: () => {
+          // A section queued via the mobile Sections panel (see handleSectionCardTap) takes
+          // priority over the natural next-neighbor chain — that's the whole point of queueing
+          // instead of jumping immediately. Read via ref (not the `queuedSectionIndex` state
+          // closed over at play()-call time) since this callback can fire long after this
+          // specific handlePlaySection call was made, with the queue having changed since.
+          const queued = queuedSectionIndexRef.current;
+          if (queued !== null) {
+            setQueuedSectionIndex(null);
+            handlePlaySectionRef.current(queued, { keepContext: true });
+            return;
+          }
           const next = findPlayableNeighbor(si, 1);
           if (next !== null) handlePlaySectionRef.current(next, { keepContext: true });
           else stop();
@@ -413,8 +442,53 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
           : undefined,
       });
     } finally { setIsLoading(false); }
+    } finally { playSectionInFlightRef.current = false; }
   }, [isPlaying, playingSection, play, stop, bpm, song.slug, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments, resolvedStyle, song.audioTrack, findPlayableNeighbor]);
   handlePlaySectionRef.current = handlePlaySection;
+
+  // ── Deliver a queued section during FULL-SONG playback ──────────────────────────────────
+  // Solo-section play has an explicit onEnded hook (above) that can check the queue directly
+  // at the exact right moment — clean, no extra machinery. Full-song play has no such hook at
+  // all (it's one continuous `loop: true` schedule; onEnded never fires), so the only external
+  // signal available is activeSectionIndex changing on its own once the engine crosses into
+  // the next section. When that happens with a queue pending, immediately redirect into solo
+  // play of the queued section instead — `keepContext` makes this gapless, and the natural
+  // next section will have been audible for at most a few ms (well inside the ~100ms scheduling
+  // lookahead in audioEngine.ts), not long enough to be a perceptible glitch. Guarded to
+  // solo-mode-off specifically so this never double-fires alongside the onEnded path above.
+  const prevActiveSectionIndexRef = useRef<number | null>(activeSectionIndex);
+  useEffect(() => {
+    const prev = prevActiveSectionIndexRef.current;
+    prevActiveSectionIndexRef.current = activeSectionIndex;
+    if (playingSection !== null) return; // solo mode already handled via onEnded above
+    if (queuedSectionIndex === null) return;
+    if (prev === activeSectionIndex) return; // no natural transition happened yet
+    if (activeSectionIndex === queuedSectionIndex) { setQueuedSectionIndex(null); return; }
+    if (activeSectionIndex !== null) {
+      const target = queuedSectionIndex;
+      setQueuedSectionIndex(null);
+      handlePlaySection(target, { keepContext: true });
+    }
+  }, [activeSectionIndex, playingSection, queuedSectionIndex, handlePlaySection]);
+
+  // ── Section card tap from the mobile Sections panel — queues instead of interrupting ────
+  // Tapping the section that's ALREADY sounding is a no-op (not a stop/restart — the panel is
+  // for navigation, not an alternate stop button; Play/Stop already owns that). Tapping a
+  // DIFFERENT section while something is playing queues it to take over as soon as the current
+  // one reaches a natural end, rather than cutting it off immediately; tapping the already-
+  // queued card again cancels the queue. A loop on the current section would otherwise repeat
+  // it forever and the queue would never get its turn, so engaging a queue cancels any active
+  // loop (handleToggleLoop does the symmetric thing: engaging a loop cancels any pending queue).
+  const handleSectionCardTap = useCallback((si: number) => {
+    if (!isPlaying) { handlePlaySection(si); return; }
+    if (si === activeSectionIndex) return;
+    if (si === queuedSectionIndex) { setQueuedSectionIndex(null); return; }
+    if (loopingSectionIndex !== null) {
+      setLoopingSectionIndex(null);
+      updatePlaybackOptions({ loopingSectionIndex: null });
+    }
+    setQueuedSectionIndex(si);
+  }, [isPlaying, activeSectionIndex, queuedSectionIndex, loopingSectionIndex, handlePlaySection, updatePlaybackOptions]);
 
   // ── Prev / next section — jumps to the neighboring playable section, solo ──────────────
   const handlePrevSection = useCallback(() => {
@@ -441,6 +515,9 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     const idx = playingSection !== null ? 0 : activeSectionIndex;
     setLoopingSectionIndex(idx);
     updatePlaybackOptions({ loopingSectionIndex: idx });
+    // Engaging a loop means "stay here indefinitely" — that's incompatible with an already-
+    // queued section (see handleSectionCardTap), which would otherwise sit waiting forever.
+    setQueuedSectionIndex(null);
   }, [loopingSectionIndex, playingSection, activeSectionIndex, updatePlaybackOptions]);
 
   // ── Export WAV ─────────────────────────────────────────────────────────────
@@ -481,6 +558,16 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   const canGoPrevSection = activeSectionIndex != null && findPlayableNeighbor(activeSectionIndex, -1) !== null;
   const canGoNextSection = activeSectionIndex != null && findPlayableNeighbor(activeSectionIndex, 1) !== null;
 
+  // ── For the mobile Sections panel's per-card progress ring — the active section's own span
+  // (repeat-aware), and whether the current playback is a solo-section play (playbackPosition
+  // already 0-based within it) vs full-song play (playbackPosition is global, needs localizing
+  // by spanStart) — see SongSectionsTab.tsx's ActiveRing.
+  const activeSectionSpanStart = activeSectionIndex != null ? sectionSpanOffsets[activeSectionIndex] : 0;
+  const activeSectionSpanLength = activeSectionIndex != null
+    ? sectionChordCounts[activeSectionIndex] * (song.sections[activeSectionIndex].repeatCount ?? 1)
+    : 0;
+  const isSoloSection = playingSection !== null;
+
   const editorUrl = `/chord-player/?data=${encodeEditorSections(editorSectionsData)}&bpm=${bpm}&style=${song.style}&title=${encodeURIComponent(`${song.title} - ${song.artist}`)}`;
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -501,6 +588,8 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         sectionMarkers={sectionMarkers}
         activeSectionIndex={activeSectionIndex}
         onSeekSection={handlePlaySection}
+        onPanelSectionTap={handleSectionCardTap}
+        queuedSectionIndex={queuedSectionIndex}
         canGoPrevSection={canGoPrevSection}
         canGoNextSection={canGoNextSection}
         onPrevSection={handlePrevSection}
@@ -515,37 +604,21 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         editorUrl={editorUrl}
         inline={inline}
         showWavExport={song.slug !== 'hay-poder-yeshua-averly-morillo'}
-        onOpenConsole={inline ? undefined : () => setConsoleOpen(true)}
+        consoleOpen={consoleOpen}
+        onToggleConsole={() => setConsoleOpen(v => !v)}
+        isSoloSection={isSoloSection}
+        activeSectionSpanStart={activeSectionSpanStart}
+        activeSectionSpanLength={activeSectionSpanLength}
+        instruments={instrumentStates}
+        onInstrumentsChange={setInstrumentStates}
+        hasVocalTrack={!!song.audioTrack}
+        vocalMuted={vocalMuted}
+        vocalVolume={vocalVolume}
+        onVocalMutedChange={setVocalMuted}
+        onVocalVolumeChange={setVocalVolume}
+        vocalForcedMuted={vocalForcedMuted}
+        originalBpm={song.bpm}
       />
-
-      {/* ─ Mobile performance console (Sections / Mixer / Tempo & Tono) — not rendered for
-          the `inline` embed variant (e.g. SongCreator's preview), which has no room or need
-          for it. */}
-      {!inline && (
-        <SongPerformanceConsole
-          open={consoleOpen}
-          onOpenChange={setConsoleOpen}
-          sectionMarkers={sectionMarkers}
-          activeSectionIndex={activeSectionIndex}
-          onSeekSection={handlePlaySection}
-          isPlaying={isPlaying}
-          isLoopingSection={loopingSectionIndex !== null}
-          onToggleLoop={handleToggleLoop}
-          instruments={instrumentStates}
-          onInstrumentsChange={setInstrumentStates}
-          hasVocalTrack={!!song.audioTrack}
-          vocalMuted={vocalMuted}
-          vocalVolume={vocalVolume}
-          onVocalMutedChange={setVocalMuted}
-          onVocalVolumeChange={setVocalVolume}
-          vocalForcedMuted={vocalForcedMuted}
-          bpm={bpm}
-          onBpmChange={setBpm}
-          transpose={transpose}
-          onTransposeChange={setTranspose}
-          displayKey={displayKey}
-        />
-      )}
 
       {/* ─ Vocal reference muted while transposed — can't follow the pitch shift yet ─ */}
       {song.audioTrack && transpose !== 0 && (

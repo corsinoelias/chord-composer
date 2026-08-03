@@ -46,8 +46,8 @@ function MuteSoloButton({ active, activeClass, onClick, title, children }: {
       type="button"
       onClick={onClick}
       title={title}
-      className={`w-9 h-8 rounded-md text-xs font-bold transition-colors border
-        ${active ? activeClass : 'border-border text-muted-foreground hover:bg-accent/50'}
+      className={`w-8 h-8 rounded-full text-[11px] font-bold transition-colors border shadow-sm
+        ${active ? activeClass : 'border-border bg-card text-muted-foreground hover:bg-accent/50'}
       `}
     >
       {children}
@@ -55,6 +55,9 @@ function MuteSoloButton({ active, activeClass, onClick, title, children }: {
   );
 }
 
+// All 5 channels (Bass/Drums/Gtr/Keys/Vocals) fit in one row without horizontal scroll — sized
+// to the panel's real content width (justify-between spreads them evenly) rather than relying
+// on overflow-x as a crutch.
 export function SongMixerTab({
   instruments,
   onInstrumentsChange,
@@ -69,31 +72,29 @@ export function SongMixerTab({
     onInstrumentsChange(instruments.map(inst => (inst.id === id ? { ...inst, ...updates } : inst)));
 
   return (
-    <div className="flex justify-center gap-4 overflow-x-auto pb-1 px-1 -mx-1">
+    <div className="flex justify-between gap-2">
       {CHANNEL_ORDER.map(id => {
         const inst = instruments.find(i => i.id === id);
         if (!inst) return null;
         const Icon = CHANNEL_ICON[id];
         return (
-          <div key={id} className="flex flex-col items-center gap-3 w-16 shrink-0">
+          <div key={id} className="flex flex-col items-center gap-2.5 w-[54px] shrink-0">
             <div className="flex items-center gap-1 text-muted-foreground">
-              <Icon className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-bold uppercase tracking-wide">{CHANNEL_LABEL[id]}</span>
+              <Icon className="w-3 h-3" />
+              <span className="text-[10px] font-bold uppercase tracking-wide">{CHANNEL_LABEL[id]}</span>
             </div>
-            <div data-vaul-no-drag>
-              <VerticalFader
-                value={inst.volume}
-                onChange={(v) => updateInstrument(id, { volume: v })}
-                disabled={inst.muted}
-                label={`${CHANNEL_LABEL[id]} volume`}
-              />
-            </div>
-            <div data-vaul-no-drag className="flex flex-col gap-1.5">
+            <VerticalFader
+              value={inst.volume}
+              onChange={(v) => updateInstrument(id, { volume: v })}
+              disabled={inst.muted}
+              label={`${CHANNEL_LABEL[id]} volume`}
+            />
+            <div className="flex flex-col gap-1.5">
               <MuteSoloButton
                 active={inst.muted}
                 activeClass="border-destructive bg-destructive/15 text-destructive"
                 onClick={() => updateInstrument(id, { muted: !inst.muted })}
-                title={inst.muted ? `Quitar mute a ${CHANNEL_LABEL[id]}` : `Mute ${CHANNEL_LABEL[id]}`}
+                title={inst.muted ? `Unmute ${CHANNEL_LABEL[id]}` : `Mute ${CHANNEL_LABEL[id]}`}
               >
                 M
               </MuteSoloButton>
@@ -101,7 +102,7 @@ export function SongMixerTab({
                 active={inst.solo}
                 activeClass="border-primary bg-primary/15 text-primary"
                 onClick={() => updateInstrument(id, { solo: !inst.solo })}
-                title={inst.solo ? `Quitar solo a ${CHANNEL_LABEL[id]}` : `Solo ${CHANNEL_LABEL[id]}`}
+                title={inst.solo ? `Unsolo ${CHANNEL_LABEL[id]}` : `Solo ${CHANNEL_LABEL[id]}`}
               >
                 S
               </MuteSoloButton>
@@ -111,31 +112,29 @@ export function SongMixerTab({
       })}
 
       {hasVocalTrack && (
-        <div className="flex flex-col items-center gap-3 w-16 shrink-0">
+        <div className="flex flex-col items-center gap-2.5 w-[54px] shrink-0">
           <div className="flex items-center gap-1 text-muted-foreground">
-            <Mic className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-bold uppercase tracking-wide">Voz</span>
+            <Mic className="w-3 h-3" />
+            <span className="text-[10px] font-bold uppercase tracking-wide">Vocals</span>
           </div>
-          <div data-vaul-no-drag>
-            <VerticalFader
-              value={vocalVolume}
-              onChange={onVocalVolumeChange}
-              disabled={vocalMuted || vocalForcedMuted}
-              label="Voz volume"
-            />
-          </div>
-          <div data-vaul-no-drag className="flex flex-col items-center gap-1.5">
+          <VerticalFader
+            value={vocalVolume}
+            onChange={onVocalVolumeChange}
+            disabled={vocalMuted || vocalForcedMuted}
+            label="Vocals volume"
+          />
+          <div className="flex flex-col items-center gap-1.5">
             <MuteSoloButton
               active={vocalMuted || vocalForcedMuted}
               activeClass="border-destructive bg-destructive/15 text-destructive"
               onClick={() => onVocalMutedChange(!vocalMuted)}
-              title={vocalMuted ? 'Quitar mute a Voz' : 'Mute Voz'}
+              title={vocalMuted ? 'Unmute vocals' : 'Mute vocals'}
             >
               M
             </MuteSoloButton>
             {vocalForcedMuted && (
-              <span className="text-[9px] text-muted-foreground text-center leading-tight">
-                Tono transpuesto
+              <span className="text-[8.5px] text-muted-foreground text-center leading-tight">
+                Key<br />transposed
               </span>
             )}
           </div>
