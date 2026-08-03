@@ -105,6 +105,11 @@ interface PlayOptions {
     wholeRange?: { startSec: number; endSec: number };
     sectionRanges?: Record<string, { startSec: number; endSec: number }>;
   };
+  // Manual mute/volume for the vocal reference track (mobile performance console's "Voz"
+  // channel). Independent of — and combined with (OR'd for mute) — the automatic mute while
+  // transposition !== 0 above; the engine is the one that reconciles both.
+  vocalMuted?: boolean;
+  vocalVolume?: number;
 }
 
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
@@ -464,6 +469,8 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       getInstruments: () => optionsRef.current?.instruments ?? options.instruments,
       getTransposition: () => optionsRef.current?.transposition ?? 0,
       getBpm: () => optionsRef.current?.bpm ?? options.bpm,
+      getVocalMuted: () => optionsRef.current?.vocalMuted ?? options.vocalMuted ?? false,
+      getVocalVolume: () => optionsRef.current?.vocalVolume ?? options.vocalVolume ?? 1,
       getBassScale: (sectionId: string) => {
         const mel = optionsRef.current?.melodic;
         if (!mel) return null;

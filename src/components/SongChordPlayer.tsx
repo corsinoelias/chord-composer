@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
 import { parseChordString } from '@/lib/chordParser';
-import { getDefaultInstrumentStates } from '@/lib/instruments';
+import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { createSection } from '@/lib/sections';
 import { Play, Square, ChevronDown, ChevronUp, SkipBack, SkipForward, Repeat } from 'lucide-react';
 import { SongPlayerBar } from '@/components/SongPlayerBar';
+import { SongPerformanceConsole } from '@/components/SongPerformanceConsole';
 import { DurationDots } from '@/components/DurationDots';
 import { parseLyricLine, extractChordsWithDuration, type Song } from '@/data/songs';
 import ChordTooltip from '@/components/ChordTooltip';
@@ -65,6 +66,12 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   const [isExportingWav, setIsExportingWav] = useState(false);
   const [bpm, setBpm] = useState(song.bpm);
   const [transpose, setTranspose] = useState(0);
+  // Mobile performance console: Drawer open state + the "Voz" mixer channel's manual
+  // mute/volume (independent of, and OR'd with, the transpose-forced mute below).
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [vocalMuted, setVocalMuted] = useState(false);
+  const [vocalVolume, setVocalVolume] = useState(1);
+  const vocalForcedMuted = transpose !== 0;
 
   // Keep context BPM in sync for live tempo changes during playback
   useEffect(() => { setContextBpm(bpm); }, [bpm, setContextBpm]);
@@ -74,6 +81,12 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     updatePlaybackOptions({ transposition: transpose });
     window.dispatchEvent(new CustomEvent('song-transpose', { detail: { semitones: transpose } }));
   }, [transpose, updatePlaybackOptions]);
+
+  // Keep the Voz channel's manual mute/volume live during playback — engine OR's this with
+  // the transpose-forced mute above (see isVocalEffectivelyMuted in audioEngine.ts).
+  useEffect(() => {
+    updatePlaybackOptions({ vocalMuted, vocalVolume });
+  }, [vocalMuted, vocalVolume, updatePlaybackOptions]);
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
   // null = full song, number = which section index is playing solo
   const [playingSection, setPlayingSection] = useState<number | null>(null);
@@ -129,13 +142,22 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     [song.style],
   );
 
+  // User-editable mute/solo/volume per instrument (mobile performance console's Mixer tab).
+  // Style-specific sound types are layered on top via getEffectiveInstruments below, not
+  // stored here, so switching styles never clobbers a user's manual mixer adjustments.
+  const [instrumentStates, setInstrumentStates] = useState<InstrumentState[]>(getDefaultInstrumentStates());
+
   // Apply the song's style's own instrument sound types (e.g. 'electric' guitar) — without
   // this, every instrument falls back to its generic default sound (guitar defaults to a
   // soundfont patch that loads over the network and can miss the first playback entirely).
   const instruments = useMemo(
-    () => getEffectiveInstruments(getDefaultInstrumentStates(), resolvedStyle),
-    [resolvedStyle],
+    () => getEffectiveInstruments(instrumentStates, resolvedStyle),
+    [instrumentStates, resolvedStyle],
   );
+
+  // Live-patch mute/solo/volume into the running scheduler without restarting playback — same
+  // pattern as the bpm/transposition sync effects above.
+  useEffect(() => { updatePlaybackOptions({ instruments }); }, [instruments, updatePlaybackOptions]);
 
   const displayKey = useMemo(() => transpose === 0 ? song.key : transposeKey(song.key, transpose), [song.key, transpose]);
 
@@ -493,7 +515,37 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         editorUrl={editorUrl}
         inline={inline}
         showWavExport={song.slug !== 'hay-poder-yeshua-averly-morillo'}
+        onOpenConsole={inline ? undefined : () => setConsoleOpen(true)}
       />
+
+      {/* ─ Mobile performance console (Sections / Mixer / Tempo & Tono) — not rendered for
+          the `inline` embed variant (e.g. SongCreator's preview), which has no room or need
+          for it. */}
+      {!inline && (
+        <SongPerformanceConsole
+          open={consoleOpen}
+          onOpenChange={setConsoleOpen}
+          sectionMarkers={sectionMarkers}
+          activeSectionIndex={activeSectionIndex}
+          onSeekSection={handlePlaySection}
+          isPlaying={isPlaying}
+          isLoopingSection={loopingSectionIndex !== null}
+          onToggleLoop={handleToggleLoop}
+          instruments={instrumentStates}
+          onInstrumentsChange={setInstrumentStates}
+          hasVocalTrack={!!song.audioTrack}
+          vocalMuted={vocalMuted}
+          vocalVolume={vocalVolume}
+          onVocalMutedChange={setVocalMuted}
+          onVocalVolumeChange={setVocalVolume}
+          vocalForcedMuted={vocalForcedMuted}
+          bpm={bpm}
+          onBpmChange={setBpm}
+          transpose={transpose}
+          onTransposeChange={setTranspose}
+          displayKey={displayKey}
+        />
+      )}
 
       {/* ─ Vocal reference muted while transposed — can't follow the pitch shift yet ─ */}
       {song.audioTrack && transpose !== 0 && (

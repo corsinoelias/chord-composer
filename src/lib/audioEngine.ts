@@ -1363,6 +1363,10 @@ export interface PlaybackOptions {
     wholeRange?: { startSec: number; endSec: number };
     sectionRanges?: Record<string, { startSec: number; endSec: number }>;
   };
+  // Manual mute/volume for the vocal track (mixer's "Voz" channel), OR'd with/independent of
+  // the automatic transpose-based mute above — see isVocalEffectivelyMuted below.
+  getVocalMuted?: () => boolean;
+  getVocalVolume?: () => number;
 }
 
 /**
@@ -1398,6 +1402,8 @@ export function scheduleProgression(
     getSections,
     getLoopingSectionId,
     audioTrack,
+    getVocalMuted,
+    getVocalVolume,
   } = options;
 
   const ctx = getAudioContext();
@@ -1495,7 +1501,14 @@ export function scheduleProgression(
   // ── Vocal/reference audio track (local-only prototype) ─────────────────────
   let vocalSource: AudioBufferSourceNode | null = null;
   let vocalGain: GainNode | null = null;
-  let vocalMuted = getCurrentTransposition() !== 0;
+  // Effective mute = forced (transposed, can't follow the pitch shift) OR the mixer's manual
+  // "Voz" mute — either one alone is enough to silence it, so this is always an OR, never a
+  // replacement of the other.
+  const isVocalForcedMuted = () => getCurrentTransposition() !== 0;
+  const getUserVocalMuted = () => getVocalMuted ? getVocalMuted() : false;
+  const getUserVocalVolume = () => getVocalVolume ? getVocalVolume() : 1;
+  const isVocalEffectivelyMuted = () => isVocalForcedMuted() || getUserVocalMuted();
+  let vocalMuted = isVocalEffectivelyMuted();
 
   const stopVocalClip = () => {
     if (vocalSource) {
@@ -1519,7 +1532,7 @@ export function scheduleProgression(
     const source = ctx.createBufferSource();
     source.buffer = audioTrack.buffer;
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(vocalMuted ? 0 : 1, when);
+    gain.gain.setValueAtTime(vocalMuted ? 0 : getUserVocalVolume(), when);
     source.connect(gain).connect(ctx.destination);
     source.start(when, range.startSec, clipDuration);
     if (hardStopTime !== undefined && hardStopTime < when + clipDuration - 0.001) {
@@ -1529,15 +1542,25 @@ export function scheduleProgression(
     vocalGain = gain;
   };
 
-  // Ramps (not hard-cuts) the currently playing clip's gain when the live transposition
-  // flips between 0/non-zero, so toggling the key mid-clip doesn't click/pop.
+  // Ramps (not hard-cuts) the currently playing clip's gain when the effective mute (forced-
+  // by-transposition OR user's manual Voz mute) flips, so toggling either doesn't click/pop.
   const applyVocalMute = (muted: boolean, when: number) => {
     if (muted === vocalMuted) return;
     vocalMuted = muted;
     if (!vocalGain) return;
     vocalGain.gain.cancelScheduledValues(when);
     vocalGain.gain.setValueAtTime(vocalGain.gain.value, when);
-    vocalGain.gain.linearRampToValueAtTime(muted ? 0 : 1, when + 0.05);
+    vocalGain.gain.linearRampToValueAtTime(muted ? 0 : getUserVocalVolume(), when + 0.05);
+  };
+
+  // Ramps the currently playing clip's gain toward a new fader level while unmuted — a
+  // separate function from applyVocalMute because a volume drag shouldn't flip vocalMuted or
+  // fight the mute ramp; muted always wins (volume applies once unmuted again).
+  const applyVocalVolume = (volume: number, when: number) => {
+    if (!vocalGain || vocalMuted) return;
+    vocalGain.gain.cancelScheduledValues(when);
+    vocalGain.gain.setValueAtTime(vocalGain.gain.value, when);
+    vocalGain.gain.linearRampToValueAtTime(volume, when + 0.05);
   };
 
   // Reference used to detect section changes between chord boundaries
@@ -1666,7 +1689,8 @@ export function scheduleProgression(
           startVocalClip(range, segmentStartTime, hardStopTime);
         }
       }
-      applyVocalMute(transposition !== 0, segmentStartTime);
+      applyVocalMute(isVocalEffectivelyMuted(), segmentStartTime);
+      applyVocalVolume(getUserVocalVolume(), segmentStartTime);
     }
 
     // Get sound types - prefer style's instrumentSounds, fallback to global instrument settings

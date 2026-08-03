@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { Play, Square, Download, ExternalLink, Loader2, SkipBack, SkipForward, Repeat } from 'lucide-react';
+import { Play, Square, Download, ExternalLink, Loader2, SkipBack, SkipForward, Repeat, SlidersHorizontal } from 'lucide-react';
 import type { Song } from '@/data/songs';
 import { analytics } from '@/lib/analytics';
 import { usePlayback, usePlaybackPosition } from '@/contexts/PlaybackContext';
@@ -42,6 +42,7 @@ interface SongPlayerBarProps {
   editorUrl: string;
   inline?: boolean;
   showWavExport?: boolean;
+  onOpenConsole?: () => void;
 }
 
 // Give each label a CSS box spanning exactly its section's slot (start → next section's
@@ -146,6 +147,7 @@ export function SongPlayerBar({
   editorUrl,
   inline = false,
   showWavExport = true,
+  onOpenConsole,
 }: SongPlayerBarProps) {
   const markers = markersWithWidth(sectionMarkers);
   const activeSectionName = sectionMarkers.find(m => m.sectionIndex === activeSectionIndex)?.name;
@@ -297,6 +299,19 @@ export function SongPlayerBar({
             <Repeat className="w-3.5 h-3.5" />
           </button>
         </div>
+
+        {/* Mobile-only trigger for the performance console — desktop already shows BPM/
+            Transpose/Exports inline via the hidden sm:flex groups below, so this button only
+            needs to exist below the sm breakpoint, in the same visual slot they occupy. */}
+        {onOpenConsole && (
+          <button
+            onClick={onOpenConsole}
+            title="Mixer, tempo y secciones"
+            className="sm:hidden shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/70 transition-colors"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+        )}
 
         {/* Transpose — hidden on mobile */}
         <div className="hidden sm:flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-background shrink-0">
