@@ -153,51 +153,56 @@ export function SongPlayerBar({
 
   return (
     <div className={`${inline ? 'border-b mb-2' : 'fixed bottom-0 left-0 right-0 z-50 border-t shadow-[0_-4px_20px_rgba(0,0,0,0.08)]'} border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80`}>
-      {/* Song structure timeline — section bands/labels + progress track */}
-      {sectionMarkers.length > 1 && (
-        <div ref={timelineRef} className="relative h-4 select-none">
-          {markers.map(m => (
+      {/* Song structure timeline — section bands/labels + progress track. Same max-w-5xl/px-4
+          container as the controls row below, so "Intro" and "Center"/"Editor" line up at the
+          same left/right edges instead of the timeline running flush to the viewport edge while
+          everything under it is inset — that mismatch is what read as disjointed on desktop. */}
+      <div className="max-w-5xl mx-auto px-4 pt-1.5 pb-1">
+        {sectionMarkers.length > 1 && (
+          <div ref={timelineRef} className="relative h-4 select-none">
+            {markers.map(m => (
+              <div
+                key={m.sectionIndex}
+                className={`absolute top-0 bottom-0 transition-colors ${activeSectionIndex === m.sectionIndex ? 'bg-primary/[0.06]' : ''}`}
+                style={{ left: `${m.startPercent}%`, width: `${m.widthPercent}%` }}
+              />
+            ))}
+            {/* h-4 (not just leading-[16px]) so the button keeps a real, tappable hit box even
+                with no text inside — an empty button otherwise collapses to 0 height and can't
+                be clicked at all. The button itself always renders (tap-to-seek always works);
+                only its TEXT is conditional on actually fitting the slot's real pixel width (see
+                fitsLabel) — measured, not guessed, so a wide desktop bar shows a short section's
+                name even when its %-of-song share is small, while a narrow phone screen still
+                correctly leaves a truly-too-narrow slot blank (tick + tint band still show the
+                structure) instead of a truncated, illegible "P…" fragment. The "now playing" line
+                next to the song title (always full-width, never slot-constrained) is the
+                fallback name source whenever a slot doesn't fit one. */}
+            {markers.map(m => (
+              <button
+                key={m.sectionIndex}
+                type="button"
+                onClick={() => onSeekSection?.(m.sectionIndex)}
+                title={m.name}
+                style={{ left: `${m.startPercent}%`, width: `${m.widthPercent}%` }}
+                className={`absolute top-0 h-4 overflow-hidden truncate px-1 text-left text-[9px] font-semibold uppercase tracking-wide leading-[16px] transition-colors
+                  ${activeSectionIndex === m.sectionIndex ? 'text-primary' : 'text-muted-foreground/70 hover:text-muted-foreground'}
+                `}
+              >
+                {fitsLabel(m.name, (m.widthPercent / 100) * timelineWidth) ? m.name : ''}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="relative h-1 rounded-full bg-muted">
+          <ProgressFill baseChordOffset={baseChordOffset} totalChordSpan={totalChordSpan} />
+          {sectionMarkers.slice(1).map(m => (
             <div
               key={m.sectionIndex}
-              className={`absolute top-0 bottom-0 transition-colors ${activeSectionIndex === m.sectionIndex ? 'bg-primary/[0.06]' : ''}`}
-              style={{ left: `${m.startPercent}%`, width: `${m.widthPercent}%` }}
+              className="absolute top-0 bottom-0 w-px bg-background/70"
+              style={{ left: `${m.startPercent}%` }}
             />
           ))}
-          {/* h-4 (not just leading-[16px]) so the button keeps a real, tappable hit box even
-              with no text inside — an empty button otherwise collapses to 0 height and can't
-              be clicked at all. The button itself always renders (tap-to-seek always works);
-              only its TEXT is conditional on actually fitting the slot's real pixel width (see
-              fitsLabel) — measured, not guessed, so a wide desktop bar shows a short section's
-              name even when its %-of-song share is small, while a narrow phone screen still
-              correctly leaves a truly-too-narrow slot blank (tick + tint band still show the
-              structure) instead of a truncated, illegible "P…" fragment. The "now playing" line
-              next to the song title (always full-width, never slot-constrained) is the
-              fallback name source whenever a slot doesn't fit one. */}
-          {markers.map(m => (
-            <button
-              key={m.sectionIndex}
-              type="button"
-              onClick={() => onSeekSection?.(m.sectionIndex)}
-              title={m.name}
-              style={{ left: `${m.startPercent}%`, width: `${m.widthPercent}%` }}
-              className={`absolute top-0 h-4 overflow-hidden truncate px-1 text-left text-[9px] font-semibold uppercase tracking-wide leading-[16px] transition-colors
-                ${activeSectionIndex === m.sectionIndex ? 'text-primary' : 'text-muted-foreground/70 hover:text-muted-foreground'}
-              `}
-            >
-              {fitsLabel(m.name, (m.widthPercent / 100) * timelineWidth) ? m.name : ''}
-            </button>
-          ))}
         </div>
-      )}
-      <div className="relative h-1 rounded-full bg-muted">
-        <ProgressFill baseChordOffset={baseChordOffset} totalChordSpan={totalChordSpan} />
-        {sectionMarkers.slice(1).map(m => (
-          <div
-            key={m.sectionIndex}
-            className="absolute top-0 bottom-0 w-px bg-background/70"
-            style={{ left: `${m.startPercent}%` }}
-          />
-        ))}
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3 sm:gap-4">
