@@ -14,6 +14,20 @@ type SfPlayer = {
 }
 const SF2_NOTE_NAMES = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B']
 const SF2_GAIN = 4.0 // soundfont MP3s are recorded at ~-18dBFS; boost to match local sample levels
+
+// How far ahead of `ctx.currentTime` the bar-by-bar scheduler (scheduleProgression, below)
+// wakes itself up via setTimeout to queue the next segment's Web Audio nodes. This used to be
+// 0.1s (100ms) — far too thin a margin: a real-device Chrome trace under 4x CPU throttling
+// (mobile-class hardware) measured setTimeout callbacks arriving up to 2.85s late during React
+// re-renders triggered by ordinary UI interaction (BPM/transpose taps, panel toggles), which is
+// the "Tale of Two Clocks" audio-scheduling failure mode: by the time a badly-delayed callback
+// runs, the segment's intended start time has already passed, and Web Audio either plays it
+// glitchy/late or silently drops it — audible as the stutter/stop this constant exists to fix.
+// 300ms gives ~3x the worst delay margin the old value had, at the cost of parameter changes
+// (BPM, mute, transpose) taking up to ~300ms longer to become audible instead of ~100ms —
+// an acceptable trade for not losing audio outright. See also the segmentStartTime clamp
+// inside scheduleSegment, which self-heals even if a delay exceeds this margin.
+const SCHEDULE_LOOKAHEAD_SEC = 0.3;
 function sf2NoteName(midi: number) { return SF2_NOTE_NAMES[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1) }
 const sfGuitarPlayers = new Map<string, SfPlayer>()
 const sfGuitarLoadings = new Map<string, Promise<void>>()
@@ -1407,7 +1421,7 @@ export function scheduleProgression(
   } = options;
 
   const ctx = getAudioContext();
-  const startTime = ctx.currentTime + 0.1;
+  const startTime = ctx.currentTime + SCHEDULE_LOOKAHEAD_SEC;
   const beatDuration = 60 / bpm;
   const barDuration = beatDuration * 4; // 4 beats per bar
   const slotDuration = beatDuration / 4; // 16th note duration — used only for totalDuration estimate
@@ -1569,6 +1583,16 @@ export function scheduleProgression(
   // Schedule a batch of slots (one chord segment at a time for efficiency)
   const scheduleSegment = (segmentStartTime: number) => {
     if (cancelled) return;
+    // Self-heal from scheduler starvation: this setTimeout callback was supposed to fire
+    // SCHEDULE_LOOKAHEAD_SEC before segmentStartTime, but on a jank-prone main thread (real
+    // measured delays up to 2.85s under mobile-class CPU throttling — see SCHEDULE_LOOKAHEAD_SEC
+    // above) it can run late enough that segmentStartTime has already passed. Scheduling Web
+    // Audio nodes at a past timestamp plays them glitchy/immediately or drops them silently —
+    // clamp forward to "now" so a badly-delayed callback still produces audible sound (out of
+    // exact tempo-sync for that one segment) instead of a dead gap.
+    if (segmentStartTime < ctx.currentTime) {
+      segmentStartTime = ctx.currentTime + 0.01;
+    }
     // Context-consistency guard: stopPlayback() closes the AudioContext and nulls
     // masterGain, and the next play() builds a fresh context. A segment already queued
     // via setTimeout from this (now-stale) scheduler would otherwise create nodes on the
@@ -1993,7 +2017,7 @@ export function scheduleProgression(
     // Schedule next segment
     currentSegmentIndex++;
     const nextSegmentTime = segmentStartTime + segmentDuration;
-    const delayMs = Math.max(0, (nextSegmentTime - ctx.currentTime - 0.1) * 1000);
+    const delayMs = Math.max(0, (nextSegmentTime - ctx.currentTime - SCHEDULE_LOOKAHEAD_SEC) * 1000);
     
     nextBarTimeout = window.setTimeout(() => {
       if (!cancelled) {
