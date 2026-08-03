@@ -16,6 +16,7 @@ import {
   ensureGuitarSoundfontLoaded,
   scheduleProgression,
   stopPlayback as stopAudioPlayback,
+  stopPlaybackKeepContext,
   preloadAudio,
   acquirePlaybackMutex,
   releasePlaybackMutex,
@@ -47,7 +48,11 @@ interface PlaybackContextValue {
   // WITHOUT starting playback — call this when a pre-roll/countdown begins so the load
   // overlaps that window and play() then starts instantly. Idempotent & fire-and-forget.
   warmup: (options: PlayOptions) => Promise<void>;
-  stop: () => void;
+  // keepContext: true skips closing the AudioContext — only safe when the caller is about to
+  // immediately start a new play() as a continuation (see stopPlaybackKeepContext in
+  // audioEngine.ts for why). Omit/false for a real stop (Stop button, switching to something
+  // the user picked mid-flight) where closing the context is what kills already-scheduled audio.
+  stop: (opts?: { keepContext?: boolean }) => void;
   setBpm: (bpm: number) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
 
@@ -254,12 +259,16 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [state.isPlaying]);
 
-  const stop = useCallback(() => {
+  const stop = useCallback((opts?: { keepContext?: boolean }) => {
     if (cancelRef.current) {
       cancelRef.current();
       cancelRef.current = null;
     }
-    stopAudioPlayback();
+    if (opts?.keepContext) {
+      stopPlaybackKeepContext();
+    } else {
+      stopAudioPlayback();
+    }
     setState(prev => ({
       ...prev,
       isPlaying: false,

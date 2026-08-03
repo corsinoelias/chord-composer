@@ -2597,3 +2597,28 @@ export function stopPlayback(): void {
     playbackStoppedCallback();
   }
 }
+
+/**
+ * Lightweight variant of stopPlayback() for a caller that's about to immediately start a
+ * NEW play() as a continuation of the same listening session — e.g. a song section finishing
+ * on its own (loop: false) and the UI chaining into the next one. Releases the mutex and
+ * clears the schedule (so the new play() isn't blocked/confused by the old one) WITHOUT
+ * closing the AudioContext.
+ *
+ * Why this is safe here but not for a real stop: stopPlayback() closes the context specifically
+ * to kill any already-scheduled-ahead WebAudio events that could otherwise "come back" and
+ * overlap the next play — a real risk when a Stop/Next/section-switch cuts off playback
+ * mid-flight, since the bar-by-bar scheduler may have already queued audio slightly ahead of
+ * the cut point. A natural end-of-array completion has no such risk: nothing was scheduled
+ * beyond it in the first place (that's what "finished all segments, not looping" means).
+ *
+ * Why this is worth having: closing+reopening the context invalidates sfGuitarPlayers/abCache
+ * (both keyed by AudioContext identity), forcing every guitar soundfont and bass sample to
+ * decode from scratch on the very next play() — that's what turned a same-song section change
+ * into a multi-second stall (see the timeouts on ensureGuitarSoundfontLoaded/preloadSampleDir).
+ * Keeping the context alive keeps those caches valid, so the chained section starts instantly.
+ */
+export function stopPlaybackKeepContext(): void {
+  clearChordSchedule();
+  releasePlaybackMutex();
+}

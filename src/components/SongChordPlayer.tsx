@@ -350,10 +350,17 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // own useCallback body would be a stale closure (and an unlistable circular dependency);
   // a ref sidesteps both. Assigned during render (not an effect) so it's never one render
   // behind — the safe "always-up-to-date ref" pattern.
-  const handlePlaySectionRef = useRef<(si: number) => void>(() => {});
-  const handlePlaySection = useCallback(async (si: number) => {
+  const handlePlaySectionRef = useRef<(si: number, opts?: { keepContext?: boolean }) => void>(() => {});
+  const handlePlaySection = useCallback(async (si: number, opts?: { keepContext?: boolean }) => {
     if (isPlaying && playingSection === si) { stop(); return; }
-    if (isPlaying) stop();
+    // keepContext (only ever passed by the onEnded chain below) skips the expensive
+    // AudioContext close+reopen — safe here specifically because the previous section ended
+    // on its own with nothing left scheduled, unlike a user cutting playback off mid-flight.
+    // It's also what makes the transition instant: closing the context would invalidate the
+    // guitar-soundfont/bass-sample caches (both keyed by AudioContext identity), forcing a
+    // multi-second re-decode right as the next section is supposed to start (see
+    // stopPlaybackKeepContext in audioEngine.ts).
+    if (isPlaying) stop(opts?.keepContext ? { keepContext: true } : undefined);
     if (sectionChordCounts[si] === 0) return;
     analytics.playSongSection(song.slug, song.sections[si].name);
     setPlayingSection(si);
@@ -373,7 +380,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         melodic: resolvedStyle.melodic,
         onEnded: () => {
           const next = findPlayableNeighbor(si, 1);
-          if (next !== null) handlePlaySectionRef.current(next);
+          if (next !== null) handlePlaySectionRef.current(next, { keepContext: true });
           else stop();
         },
         // Only one section is ever scheduled here, so its own audioRange (if set) can be
