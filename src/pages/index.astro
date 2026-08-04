@@ -76,15 +76,19 @@ const popularProgressions = [
   { title: 'Minor Ballad', chords: 'Am F C G', bpm: 70, style: 'pop_basic', label: 'Melancholic minor key pop. Emotional and versatile.' },
 ];
 
+// Chord Player leads this list on purpose — it's the flagship tool and the internal link/anchor
+// text here ("Chord Player", not "editor"/"Chord Sequence") is a deliberate signal to search
+// engines about which URL is the canonical answer for that phrase (see the cannibalization fix
+// this section is part of: /chord-player/ was losing rankings to this homepage for its own name).
 const tools = [
-  { title: 'Progressions by Genre', desc: 'Build progressions by genre — pop, jazz, blues, worship, and more.', href: '/progressions/', icon: 'piano' },
+  { title: 'Chord Player', desc: 'Play, listen, and practice chord progressions with real instrument sounds — piano, guitar, bass & drums.', href: '/chord-player/', icon: 'piano' },
   { title: 'Chord Finder', desc: 'Find any chord on guitar, piano, or ukulele — see the fingering and hear it.', href: '/chord-lookup/', icon: 'chords' },
+  { title: 'Key Detector', desc: 'Detect the key of any chord progression.', href: '/tools/key-detector/', icon: 'key' },
   { title: 'Chord Transposer', desc: 'Shift any chord or progression to any key instantly.', href: '/tools/chord-transposer/', icon: 'transpose' },
   { title: 'Circle of Fifths', desc: 'Interactive chart — click any key to see its diatonic chords.', href: '/tools/circle-of-fifths/', icon: 'circle' },
-  { title: 'Key Detector', desc: 'Detect the key of any chord progression.', href: '/tools/key-detector/', icon: 'key' },
-  { title: 'Guitar Tab Player', desc: 'Draw, play, and export 6-string guitar tabs with a one-click chord helper.', href: '/tools/guitar-tab/', icon: 'guitar' },
   { title: 'Drum Machine', desc: 'Program a 16-step beat with 3 kits and 12 genre presets.', href: '/tools/drum-machine/', icon: 'step-grid' },
-  { title: 'Virtual Drums', desc: 'Play a 15-piece kit with mouse, touch, keyboard, or MIDI.', href: '/drums/', icon: 'drums' },
+  { title: 'Metronome', desc: 'Tap tempo, beats per measure, and keyboard shortcuts — Web Audio precision.', href: '/metronome/', icon: 'metronome' },
+  { title: 'Tuner', desc: 'Tune by ear or with your microphone — guitar, bass, ukulele, and more.', href: '/tuner/', icon: 'tuner' },
 ] satisfies { title: string; desc: string; href: string; icon: ToolIconName }[];
 
 const steps = [
@@ -163,8 +167,9 @@ const songListSchema = {
           </h1>
 
           <p class="mx-auto mb-8 max-w-xl text-lg text-muted-foreground sm:text-xl lg:mx-0">
-            Chord Sequence is a browser-based chord progression generator for songwriters, producers, and music students.
-            Drag chords, pick a rhythm style, and play in seconds — no DAW required.
+            Create chord progressions in seconds — pick a rhythm style and hear them play instantly.
+            Need advanced playback, looping, and exports?
+            <a href="/chord-player/" class="font-semibold text-primary hover:text-primary/80 transition-colors">Open the Full Chord Player →</a>
           </p>
 
           <div class="flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
@@ -275,6 +280,44 @@ const songListSchema = {
     </div>
   </section>
 
+  <!-- ─── TOOLS ────────────────────────────────────────────────────────── -->
+  <section class="py-14 sm:py-20" id="tools">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6">
+      <div class="mb-10 text-center">
+        <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Popular Music Tools
+        </h2>
+        <p class="text-lg text-muted-foreground">
+          Chord Sequence is more than a generator — explore the full toolkit for songwriters, producers, and students.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {tools.map((t) => (
+          <a
+            href={t.href}
+            class="group flex items-start gap-4 rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
+          >
+            <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <ToolIcon name={t.icon} class="h-5 w-5 text-primary" />
+            </div>
+            <div class="min-w-0">
+              <h3 class="font-semibold text-foreground group-hover:text-primary transition-colors mb-1">{t.title}</h3>
+              <p class="text-sm text-muted-foreground">{t.desc}</p>
+            </div>
+            <svg class="mt-1 ml-auto h-4 w-4 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        ))}
+      </div>
+
+      <div class="mt-10 text-center">
+        <a href="/tools/" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+          View all music tools →
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- ─── FEATURES ─────────────────────────────────────────────────────── -->
   <section id="features" class="py-14 sm:py-20">
     <div class="mx-auto max-w-6xl px-4 sm:px-6">
@@ -327,11 +370,12 @@ const songListSchema = {
       </div>
 
       <div class="mt-10 text-center">
+        <p class="mb-4 text-sm text-muted-foreground">Need advanced playback, looping, instruments and exports?</p>
         <a
           href="/chord-player/"
           class="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-colors hover:bg-primary/90"
         >
-          Open Full Editor — Build Your Own
+          Open the Full Chord Player
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
@@ -390,45 +434,7 @@ const songListSchema = {
           Browse all chord progressions by genre →
         </a>
         <a href="/chord-player/" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
-          Open the full editor →
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─── TOOLS ────────────────────────────────────────────────────────── -->
-  <section class="py-14 sm:py-20" id="tools">
-    <div class="mx-auto max-w-6xl px-4 sm:px-6">
-      <div class="mb-10 text-center">
-        <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Music theory tools
-        </h2>
-        <p class="text-lg text-muted-foreground">
-          Free tools for every stage of the songwriting process.
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {tools.map((t) => (
-          <a
-            href={t.href}
-            class="group flex items-start gap-4 rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
-          >
-            <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <ToolIcon name={t.icon} class="h-5 w-5 text-primary" />
-            </div>
-            <div class="min-w-0">
-              <h3 class="font-semibold text-foreground group-hover:text-primary transition-colors mb-1">{t.title}</h3>
-              <p class="text-sm text-muted-foreground">{t.desc}</p>
-            </div>
-            <svg class="mt-1 ml-auto h-4 w-4 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        ))}
-      </div>
-
-      <div class="mt-10 text-center">
-        <a href="/tools/" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
-          View all music tools →
+          Open Chord Player →
         </a>
       </div>
     </div>
