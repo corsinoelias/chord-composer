@@ -1,13 +1,14 @@
 {
   "extends": "astro/tsconfigs/base",
-  // `dist` must stay excluded: with `allowJs: true` the type checker would otherwise
-  // pull in the whole generated bundle, which exhausts the Node heap (`npm run check`
-  // dies with an OOM) and reports errors against minified output.
-  "exclude": ["public", "dist"],
+  "exclude": [
+    "public",
+    "dist"
+  ],
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     },
     "noImplicitAny": false,
     "noUnusedParameters": false,
