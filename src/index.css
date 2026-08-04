@@ -165,6 +165,11 @@ All colors MUST be HSL.
 @layer base {
   html {
     font-size: 16px;
+    /* `<html>` is the actual scrolling element for the document (not `body`), so this is
+       where Chrome checks before triggering pull-to-refresh — see the matching note on
+       `body` below for why this exists. Setting it only on `body` (as a first attempt)
+       had no effect on the gesture, confirmed live on a real device. */
+    overscroll-behavior-y: contain;
   }
 
   * {
@@ -177,5 +182,13 @@ All colors MUST be HSL.
        flex-wrap) shouldn't be able to force whole-page horizontal scroll/zoom
        on mobile. Clips instead of degrading the entire page. */
     overflow-x: hidden;
+    /* Mobile Chrome's pull-to-refresh gesture (swipe down at the top of the page)
+       triggers a full page reload by default — confirmed via the Navigation Timing API
+       (entry.type === 'reload') as the cause of audio cutting out mid-playback on the
+       song player: a reload tears down the AudioContext instantly, which reads as a
+       "stutter"/dropout with no scheduling-timing explanation. `contain` stops the
+       gesture from reaching the browser at the document level while still allowing
+       scroll chaining inside nested scrollable panels (e.g. the chord chart list). */
+    overscroll-behavior-y: contain;
   }
 }
