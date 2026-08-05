@@ -124,6 +124,7 @@ import { buildEffectsChain } from './audioEffects';
 import { createMixer, getBus, setBusLevel } from './engine/mixer';
 import { buildSlotEvents } from './engine/eventBuilder';
 import { collectMidiNotes } from './engine/preloadPlan';
+import { loadSample } from './engine/sampleLibrary';
 import { setLiveContext, trackVoice, stopAllVoices, activeVoiceCount } from './engine/voiceManager';
 import { startClock } from './engine/clock';
 import { type MusicalEvent } from './engine/types';
@@ -327,26 +328,18 @@ async function loadAcousticSamples(ctx: AudioContext): Promise<void> {
     { key: 'crash', path: '/audio/crash.mp3' },
   ];
 
+  // La descarga, el decode y la política de fallo son las de engine/sampleLibrary. Aquí solo
+  // queda lo propio de la batería: qué URL corresponde a cada pieza del kit.
   await Promise.all(
     samplePaths.map(async ({ key, path }) => {
-      try {
-        const response = await fetch(path);
-        const arrayBuffer = await response.arrayBuffer();
-        acousticKit[key] = await ctx.decodeAudioData(arrayBuffer);
-      } catch (error) {
-        console.warn(`Failed to load ${key} sample:`, error);
-      }
+      acousticKit[key] = await loadSample(ctx, path, 'drums');
     })
   );
 }
 
 /**
- * Loads all piano samples (1.mp3 to 88.mp3 = MIDI notes 21-108).
- * Uses a concurrency pool of 8 to avoid spiking CPU with 88 simultaneous
- * decodeAudioData calls. Middle octaves (C3-C7, keys 28-76) load first.
+ * Carga las notas del nucleo del piano — ver PIANO_CORE_MIDI.
  */
-// Notas de piano cuya descarga esta en curso, para no pedir la misma dos veces.
-const pianoLoading = new Map<number, Promise<void>>();
 
 /**
  * Descarga y decodifica SOLO las notas de piano indicadas.
@@ -362,25 +355,16 @@ const pianoLoading = new Map<number, Promise<void>>();
 export async function ensurePianoNotes(midiNotes: number[]): Promise<void> {
   const ctx = audioContext;
   if (!ctx) return;
-  const pending: Promise<void>[] = [];
-  for (const midi of midiNotes) {
-    if (pianoSamples[midi]) continue;
-    let load = pianoLoading.get(midi);
-    if (!load) {
-      // Los ficheros van numerados 1..88 y el 1 es el MIDI 21 (A0).
-      const index = midi - 20;
-      if (index < 1 || index > 88) continue;
-      load = (async () => {
-        const response = await fetch(`/audio/piano/${index}.mp3`);
-        if (!response.ok) throw new Error(String(response.status));
-        pianoSamples[midi] = await ctx.decodeAudioData(await response.arrayBuffer());
-      })().catch(() => { /* se reintenta la proxima vez: no se marca como fallida */ })
-        .finally(() => pianoLoading.delete(midi));
-      pianoLoading.set(midi, load);
-    }
-    pending.push(load);
-  }
-  await Promise.all(pending);
+  // Lo propio del piano es solo esto: los ficheros van numerados 1..88 y el 1 es el MIDI 21
+  // (A0). La descarga, el decode, la deduplicación de peticiones en vuelo y el reintento tras
+  // un fallo los pone engine/sampleLibrary.
+  await Promise.all(midiNotes.map(async (midi) => {
+    if (pianoSamples[midi]) return;
+    const index = midi - 20;
+    if (index < 1 || index > 88) return;
+    const buffer = await loadSample(ctx, `/audio/piano/${index}.mp3`, 'piano');
+    if (buffer) pianoSamples[midi] = buffer;
+  }));
 }
 
 /**
@@ -412,25 +396,23 @@ const guitarTypeLoading: Record<string, Promise<void> | null> = {
 async function loadGuitarSampleType(ctx: AudioContext, path: string): Promise<void> {
   const notes = GUITAR_TYPE_NOTES[path];
   if (!notes) return;
-  await Promise.all(
-    notes.map(async noteKey => {
-      try {
-        const response = await fetch(`/audio/${path}/${noteKey}.mp3`);
-        guitarSamples[path][noteKey] = response.ok
-          ? await ctx.decodeAudioData(await response.arrayBuffer())
-          : null;
-      } catch {
-        guitarSamples[path][noteKey] = null;
-      }
-    })
-  );
+  // Lo propio de la guitarra: cada set tiene su lista de notas muestreadas y el fichero se
+  // llama como la nota. Lo demas lo pone engine/sampleLibrary.
+  await Promise.all(notes.map(async noteKey => {
+    const buffer = await loadSample(ctx, `/audio/${path}/${noteKey}.mp3`, path);
+    guitarSamples[path][noteKey] = buffer;
+  }));
 }
 
 export function ensureGuitarSampleType(samplePath: string): void {
   if (!audioContext) return;
   if (guitarTypeLoading[samplePath]) return;
+  // Se borra la entrada al terminar: si fallo, el siguiente intento vuelve a probar. Antes
+  // una carga fallida se quedaba aqui para siempre y ese set de guitarra caia al
+  // sintetizador el resto de la sesion — el mismo bug que ya se arreglo en bajo y piano.
   guitarTypeLoading[samplePath] = loadGuitarSampleType(audioContext, samplePath)
-    .catch(() => {});
+    .catch(() => {})
+    .finally(() => { guitarTypeLoading[samplePath] = null; });
 }
 
 /**
@@ -2220,20 +2202,6 @@ export async function renderProgressionOffline(
     { key: 'crash', path: '/audio/crash.mp3' },
   ];
   
-  const tempCtx = new OfflineAudioContext(2, 1, sampleRate);
-  await Promise.all(
-    samplePaths.map(async ({ key, path }) => {
-      if (acousticKit[key]) {
-        try {
-          const response = await fetch(path);
-          const arrayBuffer = await response.arrayBuffer();
-          offlineKit[key] = await tempCtx.decodeAudioData(arrayBuffer);
-        } catch (error) {
-          console.warn(`Failed to load ${key} for offline:`, error);
-        }
-      }
-    })
-  );
   
   // Calculate total duration
   let totalBeats = 0;
@@ -2254,6 +2222,18 @@ export async function renderProgressionOffline(
   // modulo y registrar esta cadena dejaria los mandos del usuario apuntando a nodos de un
   // contexto offline ya terminado.
   buildEffectsChain(offlineCtx, offlineMasterGain, offlineCtx.destination, false);
+
+  // Antes esto abría un OfflineAudioContext desechable solo para decodificar, y volvía a
+  // descargar cada fichero de la red aunque la reproducción ya los tuviera. Ahora pasa por
+  // engine/sampleLibrary: los bytes ya están en su caché, así que esto es solo el decode
+  // contra el contexto de este render — que sí hace falta, porque un AudioBuffer se decodifica
+  // por contexto.
+  await Promise.all(
+    samplePaths.map(async ({ key, path }) => {
+      if (!acousticKit[key]) return;
+      offlineKit[key] = await loadSample(offlineCtx, path, 'drums');
+    })
+  );
 
   const beatDuration = 60 / bpm;
   let currentTime = 0;

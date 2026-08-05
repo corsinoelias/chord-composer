@@ -1,4 +1,5 @@
 import { type BassSound } from './types'
+import { loadSample, isBankUnavailable } from '../engine/sampleLibrary'
 
 interface SampleEntry { file: string; freq: number; name: string }
 interface SampleManifest {
@@ -19,24 +20,17 @@ export function isSampledSound(sound: BassSound): boolean {
   return sound in SAMPLE_DIR
 }
 
-const rawCache      = new Map<string, ArrayBuffer>()
 const manifestCache = new Map<string, Promise<SampleManifest | null>>()
 
-/**
- * Directorios cuyo manifest no se pudo cargar. Sirve para que quien programa una nota pueda
- * decidir SÍNCRONAMENTE usar síntesis en vez de quedarse mudo: la carga es asíncrona, así
- * que para cuando falla ya es tarde para sonar a tiempo.
- *
- * Se limpia solo en cuanto un manifest vuelve a cargar. `preloadSampleDir` se llama en cada
- * play(), así que ese es el punto natural de reintento.
- */
-const unavailableDirs = new Set<string>()
 
-/** ¿Sabemos ya que este banco de samples no está disponible? */
+/**
+ * Reexportado desde engine/sampleLibrary: quien programa una nota necesita saber
+ * SINCRONAMENTE si el banco responde, porque la carga es asincrona y para cuando falla ya es
+ * tarde para sonar a tiempo.
+ */
 export function isSampleDirUnavailable(dir: string): boolean {
-  return unavailableDirs.has(dir)
+  return isBankUnavailable(dir)
 }
-const abCache       = new WeakMap<BaseAudioContext, Map<string, AudioBuffer>>()
 const activeSources = new Set<AudioBufferSourceNode>()
 
 /**
@@ -65,31 +59,26 @@ async function getManifest(dir: string): Promise<SampleManifest | null> {
   if (cached) return cached
   const pending = fetch(`/samples/${dir}/manifest.json`)
     .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
-    .then((m: SampleManifest) => { unavailableDirs.delete(dir); return m as SampleManifest })
+    .then((m: SampleManifest) => m)
     .catch(() => {
       manifestCache.delete(dir)
-      unavailableDirs.add(dir)
       return null
     })
   manifestCache.set(dir, pending)
   return pending
 }
 
+/**
+ * Delega en engine/sampleLibrary, que es donde viven ahora la caché de bytes, la de buffers
+ * por contexto, la deduplicación de peticiones en vuelo y la política de reintento. Este
+ * módulo se queda solo con lo propio del bajo: manifests y elegir la muestra más cercana.
+ *
+ * Antes esta función tenía su propia copia de todo eso, y era la más completa de las tres
+ * implementaciones que había — de ahí que los arreglos de robustez llegaran aquí primero y
+ * tardaran en llegar al piano y a la guitarra.
+ */
 async function getAudioBuffer(ctx: BaseAudioContext, dir: string, entry: SampleEntry): Promise<AudioBuffer | null> {
-  let ctxMap = abCache.get(ctx)
-  if (!ctxMap) { ctxMap = new Map(); abCache.set(ctx, ctxMap) }
-  const cacheKey = `${dir}/${entry.file}`
-  if (ctxMap.has(cacheKey)) return ctxMap.get(cacheKey)!
-
-  if (!rawCache.has(cacheKey)) {
-    const resp = await fetch(`/samples/${dir}/${entry.file}`)
-    if (!resp.ok) return null
-    rawCache.set(cacheKey, await resp.arrayBuffer())
-  }
-
-  const ab = await ctx.decodeAudioData(rawCache.get(cacheKey)!.slice(0))
-  ctxMap.set(cacheKey, ab)
-  return ab
+  return loadSample(ctx, `/samples/${dir}/${entry.file}`, dir)
 }
 
 function findNearest(midi: number, notes: Record<string, SampleEntry>): SampleEntry | null {
