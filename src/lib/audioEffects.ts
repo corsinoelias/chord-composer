@@ -37,7 +37,7 @@ export const DEFAULT_EFFECTS_STATE: EffectsState = {
 };
 
 interface EffectNodes {
-  ctx: AudioContext;
+  ctx: BaseAudioContext;
   eqLow: BiquadFilterNode;
   eqMid: BiquadFilterNode;
   eqHigh: BiquadFilterNode;
@@ -55,7 +55,7 @@ interface EffectNodes {
 const currentState: EffectsState = JSON.parse(JSON.stringify(DEFAULT_EFFECTS_STATE));
 let active: EffectNodes | null = null;
 
-function createImpulseResponse(ctx: AudioContext, duration: number, decay: number): AudioBuffer {
+function createImpulseResponse(ctx: BaseAudioContext, duration: number, decay: number): AudioBuffer {
   const sr = ctx.sampleRate;
   const len = Math.max(1, Math.floor(sr * duration));
   const impulse = ctx.createBuffer(2, len, sr);
@@ -77,9 +77,17 @@ function createImpulseResponse(ctx: AudioContext, duration: number, decay: numbe
  *   preReverb -> convolver -> wetGain -> output
  */
 export function buildEffectsChain(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   input: AudioNode,
   output: AudioNode,
+  /**
+   * Si es false, la cadena se construye pero NO se registra como la activa. Obligatorio para
+   * un render offline:  es estado de modulo y updateEQ/updateReverb/updateCompressor
+   * escriben sobre el. Registrar una cadena offline dejaria los mandos del MixingConsole
+   * apuntando a nodos de un contexto ya terminado, y la reproduccion en vivo dejaria de
+   * responder a ellos.
+   */
+  register = true,
 ): AudioNode {
   const eqLow = ctx.createBiquadFilter();
   eqLow.type = 'lowshelf';
@@ -123,13 +131,18 @@ export function buildEffectsChain(
   dryGain.connect(output);
   wetGain.connect(output);
 
-  active = {
+  const nodes = {
     ctx, eqLow, eqMid, eqHigh,
     compressor, compGain, bypassGain, preReverb,
     dryGain, wetGain, convolver,
   };
 
+  // Se aplican los valores actuales pase lo que pase; solo cambia si esta cadena queda
+  // como la que responde a cambios posteriores del usuario.
+  const previous = active;
+  active = nodes;
   applyAll();
+  if (!register) active = previous;
   return eqLow;
 }
 

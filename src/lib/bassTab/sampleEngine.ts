@@ -21,26 +21,58 @@ export function isSampledSound(sound: BassSound): boolean {
 
 const rawCache      = new Map<string, ArrayBuffer>()
 const manifestCache = new Map<string, Promise<SampleManifest | null>>()
+
+/**
+ * Directorios cuyo manifest no se pudo cargar. Sirve para que quien programa una nota pueda
+ * decidir SÍNCRONAMENTE usar síntesis en vez de quedarse mudo: la carga es asíncrona, así
+ * que para cuando falla ya es tarde para sonar a tiempo.
+ *
+ * Se limpia solo en cuanto un manifest vuelve a cargar. `preloadSampleDir` se llama en cada
+ * play(), así que ese es el punto natural de reintento.
+ */
+const unavailableDirs = new Set<string>()
+
+/** ¿Sabemos ya que este banco de samples no está disponible? */
+export function isSampleDirUnavailable(dir: string): boolean {
+  return unavailableDirs.has(dir)
+}
 const abCache       = new WeakMap<BaseAudioContext, Map<string, AudioBuffer>>()
 const activeSources = new Set<AudioBufferSourceNode>()
 
+/**
+ * Se incrementa en cada parada. Programar una nota sampleada es asíncrono (hay que esperar
+ * al fetch y al decode), así que una nota puede estar a medio programar cuando llega el
+ * Stop: sin esta guarda, su fuente se crea DESPUÉS de haber parado todo y suena igual.
+ * Quien programa captura la generación antes de esperar y se rinde si cambió.
+ */
+let stopGeneration = 0
+
 export function stopAllSampledNodes(): void {
+  stopGeneration++
   for (const src of activeSources) {
     try { src.stop() } catch { /* already stopped */ }
   }
   activeSources.clear()
 }
 
+// Caching the fetch promise dedupes concurrent callers, which is the point. But caching a
+// FAILED one poisons the directory for the rest of the session: a single bad moment — a
+// dropped connection, a dev server restarting, a phone switching networks — and the bass is
+// silent until the page is reloaded, with no way back. So a rejection is dropped from the
+// cache and the next note retries.
 async function getManifest(dir: string): Promise<SampleManifest | null> {
-  if (!manifestCache.has(dir)) {
-    manifestCache.set(dir,
-      fetch(`/samples/${dir}/manifest.json`)
-        .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
-        .then((m: SampleManifest) => m)
-        .catch(() => null)
-    )
-  }
-  return manifestCache.get(dir)!
+  const cached = manifestCache.get(dir)
+  if (cached) return cached
+  const pending = fetch(`/samples/${dir}/manifest.json`)
+    .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
+    .then((m: SampleManifest) => { unavailableDirs.delete(dir); return m as SampleManifest })
+    .catch(() => {
+      manifestCache.delete(dir)
+      unavailableDirs.add(dir)
+      return null
+    })
+  manifestCache.set(dir, pending)
+  return pending
 }
 
 async function getAudioBuffer(ctx: BaseAudioContext, dir: string, entry: SampleEntry): Promise<AudioBuffer | null> {
@@ -151,12 +183,18 @@ async function doScheduleByDir(
   ctx: BaseAudioContext, dest: AudioNode,
   dir: string, targetMidi: number, startTime: number, durationSec: number, velocity: number,
 ): Promise<void> {
+  // Cada await de aquí abajo es una ventana en la que puede llegar un Stop. Si llega, esta
+  // nota ya no debe sonar: crear su fuente ahora sería crearla después de haberlo parado
+  // todo. Solo aplica al contexto en vivo — un render offline no se para nunca.
+  const generation = stopGeneration
+  const aborted = () => stopGeneration !== generation
+
   const m = await getManifest(dir)
-  if (!m) return
+  if (!m || aborted()) return
   const entry = findNearest(targetMidi, m.notes)
   if (!entry) return
   const buf = await getAudioBuffer(ctx, dir, entry)
-  if (!buf) return
+  if (!buf || aborted()) return
 
   const source = ctx.createBufferSource()
   source.buffer = buf

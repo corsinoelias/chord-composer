@@ -10,10 +10,15 @@
     "check": "astro check",
     "check:schema": "node scripts/check-schema.mjs",
     "lint": "eslint .",
+    "test:audio": "node tests/audio/run-golden.mjs",
+    "test:audio:update": "node tests/audio/run-golden.mjs --update",
     "seed": "tsx --env-file=.env scripts/seed-songs.ts",
     "fetch-soundfonts": "node scripts/fetch-soundfonts.mjs",
     "prebuild": "npm run fetch-soundfonts",
-    "indexnow": "node scripts/indexnow.mjs"
+    "indexnow": "node scripts/indexnow.mjs",
+    "test:transport": "node tests/audio/run-transport.mjs",
+    "test:jank": "node tests/audio/run-jank.mjs",
+    "test:timing": "node tests/audio/run-timing.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",

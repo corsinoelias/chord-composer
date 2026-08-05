@@ -542,9 +542,7 @@ export function RhythmEditor({
       metronome: false,
       instruments,
       style: editedStyleRef.current,
-      transposition: 0,
-      onChordChange: () => {},
-      onLoopEnd: () => {
+      transposition: 0,      onLoopEnd: () => {
         loopStartTimeRef.current = ctx.currentTime;
       },
       getStyle: () => editedStyleRef.current,
