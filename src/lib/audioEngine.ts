@@ -118,15 +118,16 @@ export async function ensureGuitarSoundfontLoaded(soundTypeId: string, instrumen
 // ─────────────────────────────────────────────────────────────────────────────
 import { type InstrumentState, type InstrumentType, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
 import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir, stopAllSampledNodes, isSampleDirUnavailable } from './bassTab/sampleEngine';
-import { type StylePattern, generateBarPattern, getSlotsPerBar, getMetronomeClickInterval, getSwingOffset, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
+import { type StylePattern, generateBarPattern, getSlotsPerBar, getMetronomeClickInterval, getSwingOffset } from './styles';
 import { type Section } from './sections';
 import { buildEffectsChain } from './audioEffects';
-import { createMixer, disposeMixer, getBus, setBusLevel } from './engine/mixer';
-import { buildSlotEvents, applyArpeggioOrder, getArpeggioNotesPerSlot, type SlotContext } from './engine/eventBuilder';
+import { createMixer, getBus, setBusLevel } from './engine/mixer';
+import { buildSlotEvents } from './engine/eventBuilder';
 import { setLiveContext, trackVoice, stopAllVoices, activeVoiceCount } from './engine/voiceManager';
 import { startClock } from './engine/clock';
-import { type MusicalEvent, type DrumPiece } from './engine/types';
-import { getScale as getBassScale_getScale, resolveVariation } from './bassScale';
+import { createLimiter } from './engine/limiter';
+import { type MusicalEvent } from './engine/types';
+import { resolveVariation } from './bassScale';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
@@ -425,8 +426,11 @@ export function getAudioContext(): AudioContext {
     analyserNode.fftSize = 256;
     analyserNode.smoothingTimeConstant = 0.8;
 
-    // Insert master effects chain: masterGain -> [EQ -> Comp -> Reverb] -> analyser -> destination
-    buildEffectsChain(audioContext, masterGain, analyserNode);
+    // masterGain -> [EQ -> Comp -> Reverb] -> limitador -> analyser -> destination.
+    // El limitador va ANTES del analyser a propósito: así lo que miden las pruebas y lo que
+    // dibuja el visualizador es la señal que realmente sale, no una que iba a recortar.
+    const limiter = createLimiter(audioContext, analyserNode);
+    buildEffectsChain(audioContext, masterGain, limiter);
     analyserNode.connect(audioContext.destination);
 
     // Per-instrument buses feed masterGain, so instrument level is an AudioParam on the
@@ -1555,7 +1559,6 @@ export interface PlaybackOptions {
   instruments: InstrumentState[];
   style: StylePattern;
   transposition?: number;
-  onChordChange?: (index: number) => void;
   onLoopEnd?: () => void;
   // Called once when a NON-looping schedule (loop: false) reaches its natural end, so a
   // caller that deliberately opted out of looping (e.g. "play this section once") can react
@@ -1605,7 +1608,6 @@ export function scheduleProgression(
     instruments: initialInstruments, 
     style, 
     transposition: initialTransposition = 0, 
-    onChordChange,
     onLoopEnd,
     onEnded,
     getStyle,
@@ -1627,7 +1629,6 @@ export function scheduleProgression(
   const ctx = getAudioContext();
   const startTime = ctx.currentTime + SCHEDULE_LOOKAHEAD_SEC;
   const beatDuration = 60 / bpm;
-  const barDuration = beatDuration * 4; // 4 beats per bar
   const slotDuration = beatDuration / 4; // 16th note duration — used only for totalDuration estimate
   const getCurrentBpm = () => getBpmGetter ? getBpmGetter() : bpm;
   
@@ -1892,7 +1893,7 @@ export function scheduleProgression(
     }
     
     const segment = chordSegments[currentSegmentIndex];
-    const { chord, slotCount, globalChordIndex, beatOffset, sectionId } = segment;
+    const { chord, slotCount, globalChordIndex, sectionId } = segment;
     
     // Get current style and dynamic parameters
     const currentStyle = getStyle ? getStyle() : style;
@@ -1995,7 +1996,6 @@ export function scheduleProgression(
     }
     
     // Calculate segment duration for scheduling
-    const segmentDuration = slotCount * slotDuration;
     
     // Cached for the lifetime of THIS segment only, so live edits are still picked up on
     // the next chord — same freshness the rest of the loop has (style, BPM and instruments
@@ -2029,7 +2029,7 @@ export function scheduleProgression(
   /** Programa un único slot del acorde en curso. El reloj decide cuántos caben por tick. */
   const scheduleSlot = (i: number) => {
     const {
-      segmentStartTime, slotDuration, slotsPerBar, currentStyle, instruments, transposition,
+      segmentStartTime, slotDuration, slotsPerBar, currentStyle,
       metronomeOn, midiNotes, sectionId, chord, getPatternForBar,
       pianoSound, bassSound, drumsSound, guitarSound,
       pianoAudible, bassAudible, drumsAudible, guitarAudible,
@@ -2215,7 +2215,13 @@ export async function renderProgressionOffline(
   const offlineCtx = new OfflineAudioContext(2, totalSamples, sampleRate);
   const offlineMasterGain = offlineCtx.createGain();
   offlineMasterGain.gain.value = 1.0;
-  offlineMasterGain.connect(offlineCtx.destination);
+  // Misma cadena que la reproducción: EQ, reverb, compresor y limitador. Antes el export
+  // iba directo a destination, asi que ni llevaba los efectos del MixingConsole ni tenia
+  // nada que impidiera recortar.  es obligatorio —  es estado de
+  // modulo y registrar esta cadena dejaria los mandos del usuario apuntando a nodos de un
+  // contexto offline ya terminado.
+  const offlineLimiter = createLimiter(offlineCtx, offlineCtx.destination);
+  buildEffectsChain(offlineCtx, offlineMasterGain, offlineLimiter, false);
 
   const beatDuration = 60 / bpm;
   let currentTime = 0;

@@ -85,15 +85,3 @@ export function setBusLevel(ctx: AudioContext, id: BusId, level: number): void {
   bus.gain.linearRampToValueAtTime(target, now + RAMP_SEC);
 }
 
-/** Drops the buses. Call when the AudioContext they belong to is closed. */
-export function disposeMixer(): void {
-  if (!mixer) return;
-  for (const id of BUS_IDS) {
-    try {
-      mixer.buses[id].disconnect();
-    } catch {
-      /* already disconnected with the context */
-    }
-  }
-  mixer = null;
-}

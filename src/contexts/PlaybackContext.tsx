@@ -461,9 +461,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       } : undefined,
       instruments: options.instruments,
       style,
-      transposition: options.transposition,
-      onChordChange: undefined,
-      onLoopEnd: undefined,
+      transposition: options.transposition,      onLoopEnd: undefined,
       // Deliberate single pass (loop: false) reached its natural end. Callers that don't
       // care just get stop() (UI doesn't stay stuck "playing" forever); one that wants to
       // chain into something else (see SongChordPlayer's solo-section play) supplies its own.

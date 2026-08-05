@@ -42,7 +42,7 @@ síntesis de batería usa buffers de ruido y el hi-hat abierto elige sample al a
 
 ## Qué cubre
 
-Los 16 fixtures de `fixtures.mjs` recorren compás 4/4 y 6/8, swing, arpegios, variaciones
+Los 17 fixtures de `fixtures.mjs` recorren compás 4/4 y 6/8, swing, arpegios, variaciones
 melódicas (incluida una con id inexistente, para el fallback de `resolveVariation`), frases
 de 4 y 8 barras con sus fills, `repeatCount` > 1 con varias secciones, transposición,
 duraciones fraccionarias, cualidades de acorde extendidas, mute/solo, y las rutas de
@@ -56,7 +56,6 @@ samples y de síntesis de los cuatro instrumentos.
 - **Guitarra sintetizada** (`playGuitarSynth`) — no se puede fijar por configuración: los 11
   sonidos de guitarra son o MP3 o SF2, y esa ruta solo se alcanza si la carga falla.
 - **Pista vocal de referencia** (`audioTrack`).
-- **Cadena de efectos** (`buildEffectsChain`: EQ, reverb, compresor) — solo online.
 - **Todo lo relativo al tiempo real**: scheduler, lookahead, getters dinámicos (BPM, estilo
   o secciones cambiando durante la reproducción), loop de sección, transporte.
 
@@ -69,13 +68,14 @@ verificación manual en dispositivo. Está indicada fase por fase en el plan.
    por `!state.muted` en vez de `isInstrumentAudible(state, instruments)`: ponías el bajo en
    solo, exportabas, y en el WAV sonaba todo. Lo capturó `muted-and-solo`, cuyo pico cayó de
    1,447 a 0,704 al unificar.
-2. **El export satura.** Sin limitador y con `masterGain` a 1.0. Empeoró con la Fase 3
-   (pico 1,42 → 1,56 en el fixture base) porque el export ya no es más silencioso que la
-   reproducción. Sigue pendiente.
-3. **El export no lleva los efectos.** EQ, reverb y compresor solo existen online. Con los
-   valores por defecto la cadena es unitaria (comprobado en `audioEffects.ts`: `compGain=0`,
-   `bypassGain=1`, `dryGain=1`, `wetGain=0`), así que solo se nota cuando el usuario los
-   toca en `MixingConsole`. Sigue pendiente.
+2. ~~**El export satura.**~~ **Arreglado.** Sin limitador y con `masterGain` a 1.0, los picos
+   llegaban a 1,4-1,7. Ahora hay un limitador en la ruta COMPARTIDA — la reproducción
+   saturaba igual, y ponerlo solo en el export habría roto la paridad de la Fase 3. Picos
+   máximos: 1,743 → 0,815.
+3. ~~**El export no lleva los efectos.**~~ **Arreglado.** EQ, reverb y compresor solo
+   existían online. `buildEffectsChain` acepta ahora `register: false`, obligatorio para el
+   render offline: `active` es estado de módulo y registrar una cadena offline dejaría los
+   mandos del MixingConsole apuntando a nodos de un contexto ya terminado.
 4. ~~**El export sustituía las guitarras SF2 por un tono sintético.**~~ **Arreglado en la
    Fase 5.** Los 8 sonidos `sf2-*` sonaban distinto en el WAV que en la reproducción.
    Ningún fixture lo detectaba: el que decía cubrirlo usaba el estilo `disco`, que **no
