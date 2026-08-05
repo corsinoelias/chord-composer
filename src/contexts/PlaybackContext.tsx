@@ -10,7 +10,8 @@ import { type InstrumentState, getDefaultInstrumentStates, getSoundType } from '
 import { type StylePattern, MUSICAL_STYLES, resolveActiveStyle } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
 import { type MelodicData, resolveVariation } from '@/lib/bassScale';
-import { preloadSampleDir } from '@/lib/bassTab/sampleEngine';
+import { preloadSampleDirForMidis } from '@/lib/bassTab/sampleEngine';
+import { collectMidiNotes } from '@/lib/engine/preloadPlan';
 import {
   ensureSamplesLoaded,
   ensureGuitarSoundfontLoaded,
@@ -410,8 +411,19 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     const bassSoundDef = getSoundType('bass', bassSoundId);
     if (bassSoundDef?.useSamples && bassSoundDef.samplePath) {
       try {
+        // Solo las notas que esta canción va a tocar de verdad, no el banco entero. El
+        // conjunto sale de simular la canción con el builder puro — ver engine/preloadPlan.ts.
+        // Un banco completo son 30 muestras WAV de 692 KB: ~20 MB antes de la primera nota,
+        // que en 4G medido eran 25 segundos de espera.
+        const bassMidis = collectMidiNotes('bass', {
+          sections,
+          style,
+          melodic: options.melodic,
+          transposition: options.transposition,
+          octaveOffset: bassSoundDef.octaveOffset,
+        });
         await Promise.race([
-          preloadSampleDir(getAudioContext(), bassSoundDef.samplePath),
+          preloadSampleDirForMidis(getAudioContext(), bassSoundDef.samplePath, bassMidis),
           new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2500)),
         ]);
       } catch {
@@ -461,7 +473,8 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       } : undefined,
       instruments: options.instruments,
       style,
-      transposition: options.transposition,      onLoopEnd: undefined,
+      transposition: options.transposition,
+      onLoopEnd: undefined,
       // Deliberate single pass (loop: false) reached its natural end. Callers that don't
       // care just get stop() (UI doesn't stay stuck "playing" forever); one that wants to
       // chain into something else (see SongChordPlayer's solo-section play) supplies its own.
@@ -537,8 +550,20 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     const bassState = options.instruments.find(i => i.id === 'bass');
     const bassSoundId = bassState?.soundTypeId ?? style.instrumentSounds?.bass ?? 'fender';
     const bassSoundDef = getSoundType('bass', bassSoundId);
-    if (bassSoundDef?.useSamples && bassSoundDef.samplePath) {
-      try { await preloadSampleDir(getAudioContext(), bassSoundDef.samplePath); } catch { /* play() awaits it too */ }
+    if (bassSoundDef?.useSamples && bassSoundDef.samplePath && options.sections?.length) {
+      // Igual que en play(): solo las notas de esta canción. Si el llamante no pasó las
+      // secciones no hay forma de saber cuáles son, y bajarse el banco entero por si acaso
+      // es justo lo que se está eliminando — se deja para play(), que sí las tiene.
+      const bassMidis = collectMidiNotes('bass', {
+        sections: options.sections,
+        style,
+        melodic: options.melodic,
+        transposition: options.transposition,
+          octaveOffset: bassSoundDef.octaveOffset,
+      });
+      try {
+        await preloadSampleDirForMidis(getAudioContext(), bassSoundDef.samplePath, bassMidis);
+      } catch { /* play() awaits it too */ }
     }
   }, []);
 

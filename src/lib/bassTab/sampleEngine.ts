@@ -173,6 +173,29 @@ export async function scheduleSampledNoteByDirAsync(
   await doScheduleByDir(ctx, dest, dir, midi, startTime, durationSec, velocity)
 }
 
+/**
+ * Precarga SOLO las muestras necesarias para unas notas MIDI concretas.
+ *
+ * Es el equivalente por directorio de preloadSamplesForMidis, que ya usaba el bass tab
+ * player. El motor de acordes usaba preloadSampleDir, que se traga el banco entero: 30 notas
+ * y unos 20 MB antes de la primera nota. Ver engine/preloadPlan.ts.
+ *
+ * Se mapea cada nota a su muestra más cercana con la misma funcion que usa la reproduccion,
+ * asi que el conjunto descargado es exactamente el que se va a tocar.
+ */
+export async function preloadSampleDirForMidis(
+  ctx: BaseAudioContext, dir: string, midiNotes: number[],
+): Promise<void> {
+  const m = await getManifest(dir)
+  if (!m) return
+  const wanted = new Map<string, SampleEntry>()
+  for (const midi of midiNotes) {
+    const entry = findNearest(midi, m.notes)
+    if (entry) wanted.set(entry.file, entry)
+  }
+  await Promise.all([...wanted.values()].map(e => getAudioBuffer(ctx, dir, e).catch(() => {})))
+}
+
 export async function preloadSampleDir(ctx: BaseAudioContext, dir: string): Promise<void> {
   const m = await getManifest(dir)
   if (!m) return
