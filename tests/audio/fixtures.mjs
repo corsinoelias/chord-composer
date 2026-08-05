@@ -226,18 +226,40 @@ export const fixtures = [
   {
     name: 'synth-fallbacks',
     description:
-      'Sonidos sin samples en los cuatro instrumentos — ejercita las rutas de síntesis ' +
-      '(playPianoNoteSynth, playBassNote, playGuitarSynth).',
-    styleId: 'disco',
+      'Sonidos sintetizados de piano, bajo y batería (playPianoNoteSynth, playBassNote, ' +
+      'síntesis de kit). El estilo es folk_indie y no disco: disco NO tiene fila de ritmo ' +
+      'de guitarra ni variación melódica, así que su guitarra no suena nunca y el fixture ' +
+      'no cubría lo que decía cubrir. ' +
+      'La guitarra sintetizada no se puede fijar por configuración: los 11 sonidos son o ' +
+      'MP3 o SF2, y playGuitarSynth solo se alcanza si la carga falla. Queda sin cubrir.',
+    styleId: 'folk_indie',
     bpm: 120,
     transposition: 0,
     instruments: [
       { id: 'piano', muted: false, solo: false, volume: 0.8, soundTypeId: 'bright' },
       { id: 'bass', muted: false, solo: false, volume: 0.8, soundTypeId: 'synth' },
       { id: 'drums', muted: false, solo: false, volume: 0.8, soundTypeId: 'electronic' },
-      { id: 'guitar', muted: false, solo: false, volume: 0.7, soundTypeId: 'sf2-steel' },
+      { id: 'guitar', muted: true, solo: false, volume: 0.7, soundTypeId: 'acoustic' },
     ],
     sections: [section('A', popProgression)],
+  },
+  {
+    name: 'sf2-guitar-export',
+    description:
+      'Guitarra SF2 (soundfont) en el export. Solo la guitarra suena, y metal tiene 8 ' +
+      'golpes de guitarra por compás, para que cualquier cambio en esa ruta sea evidente. ' +
+      'Hasta la Fase 5 el render offline sustituía en silencio los 8 sonidos sf2-* por un ' +
+      'tono sintetizado: lo exportado no era lo que se oía.',
+    styleId: 'metal',
+    bpm: 120,
+    transposition: 0,
+    instruments: [
+      { id: 'piano', muted: true, solo: false, volume: 0.8, soundTypeId: 'sampled' },
+      { id: 'bass', muted: true, solo: false, volume: 0.8, soundTypeId: 'fender' },
+      { id: 'drums', muted: true, solo: false, volume: 0.8, soundTypeId: 'standard' },
+      { id: 'guitar', muted: false, solo: false, volume: 0.9, soundTypeId: 'sf2-distortion' },
+    ],
+    sections: [section('A', [chord('E', '5', 4), chord('C', '5', 4), chord('G', '5', 4), chord('D', '5', 4)])],
   },
   {
     name: 'muted-and-solo',

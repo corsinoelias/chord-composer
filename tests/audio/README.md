@@ -53,7 +53,8 @@ samples y de síntesis de los cuatro instrumentos.
 `renderProgressionOffline` no ejecuta parte del motor, así que el arnés tampoco:
 
 - **Metrónomo** (`playClick`) — no existe en la ruta offline.
-- **Guitarras SF2** — los 8 sonidos `sf2-*` caen a guitarra sintetizada en el offline.
+- **Guitarra sintetizada** (`playGuitarSynth`) — no se puede fijar por configuración: los 11
+  sonidos de guitarra son o MP3 o SF2, y esa ruta solo se alcanza si la carga falla.
 - **Pista vocal de referencia** (`audioTrack`).
 - **Cadena de efectos** (`buildEffectsChain`: EQ, reverb, compresor) — solo online.
 - **Todo lo relativo al tiempo real**: scheduler, lookahead, getters dinámicos (BPM, estilo
@@ -75,6 +76,11 @@ verificación manual en dispositivo. Está indicada fase por fase en el plan.
    valores por defecto la cadena es unitaria (comprobado en `audioEffects.ts`: `compGain=0`,
    `bypassGain=1`, `dryGain=1`, `wetGain=0`), así que solo se nota cuando el usuario los
    toca en `MixingConsole`. Sigue pendiente.
+4. ~~**El export sustituía las guitarras SF2 por un tono sintético.**~~ **Arreglado en la
+   Fase 5.** Los 8 sonidos `sf2-*` sonaban distinto en el WAV que en la reproducción.
+   Ningún fixture lo detectaba: el que decía cubrirlo usaba el estilo `disco`, que **no
+   tiene fila de ritmo de guitarra**, así que su guitarra no sonaba nunca. Ahora lo cubre
+   `sf2-guitar-export`, con un estilo de 8 golpes de guitarra por compás.
 
 ## Por qué se ha regenerado la línea base
 

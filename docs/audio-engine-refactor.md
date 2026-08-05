@@ -343,6 +343,40 @@ Hacerla en un commit propio y fácil de revertir.
 
 ## Fase 5 — Carga y peso *(driver: carga inicial / peso)*
 
+### Decisión sobre la guitarra: se quedan los SF2, se arregla el export ✅
+
+Datos que llevaron a la decisión:
+
+| Sonido | Tipo | Estilos que lo traen por defecto |
+|---|---|---|
+| `electric` / `acoustic` / `nylon` | MP3, 8,9 MB | 10 / 7 / 2 |
+| `sf2-muted` | SF2 | 1 (rock_basic) |
+| los otros 7 `sf2-*` | SF2, ≈17 MB | **0** |
+
+Los 19 MB no se descargan al cargar la página: cada soundfont se pide bajo demanda
+(`nameToUrl`), así que el coste por usuario es un archivo de ~2 MB. Pesan en repo, deploy y
+ancho de banda, no en el arranque — el argumento de "peso" era más flojo de lo planteado.
+
+Se optó por **conservarlos y arreglar la incoherencia**, que era el problema real: el render
+offline sustituía en silencio los 8 sonidos `sf2-*` por un tono sintetizado. Lo exportado no
+era lo que se oía.
+
+El arreglo resultó pequeño: `playGuitarSampleSF2` nunca llama al player, solo lee
+`player.buffers`, y un `AudioBuffer` es dato decodificado utilizable desde cualquier contexto
+(el navegador remuestrea si las tasas difieren). El guard `ctx === audioContext` que puse en
+la 3a era excesivamente conservador. Solo hacía falta quitarlo y que
+`renderProgressionOffline` esperase a que el soundfont estuviera cargado.
+
+Verificado comparando el mismo fixture con y sin el arreglo: **325 de 360 ventanas cambian
+en energía y en tono** (delta de cruces por cero hasta 108), o sea un timbre completamente
+distinto.
+
+Y un hueco propio al descubierto: el fixture que decía cubrir esto usaba el estilo `disco`,
+que **no tiene fila de ritmo de guitarra ni variación melódica**, así que su guitarra no
+sonaba nunca. Sustituido por `sf2-guitar-export`, con un estilo de 8 golpes por compás.
+
+### Lo que queda de la Fase 5
+
 **Cambios**
 - **Decidir una sola ruta de guitarra.** Los MP3 sueltos ya funcionan y son 8,9 MB frente
   a 19 MB de SF2. Si la calidad de los sets MP3 cubre los sonidos que ofreces, borrar

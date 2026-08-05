@@ -1029,16 +1029,18 @@ function playGuitarNote(
   midiNote?: number
 ): void {
   if (soundType.sf2Instrument && midiNote !== undefined) {
-    // soundfont-player builds its node graph against the context it was created with, so
-    // an SF2 player is only usable from the live context it was bound to. Offline renders
-    // fall through to the synth — which is what the export has always done for these
-    // sounds, and is a known gap: an sf2-* guitar sounds different in the WAV than it does
-    // in playback. Fixing that means loading the soundfont into the offline context too;
-    // see docs/audio-engine-refactor.md (fase 5, consolidar guitarra).
-    const sfPlayer = ctx === audioContext ? sfGuitarPlayers.get(soundType.id) : undefined
-    if (sfPlayer) {
+    // Works offline too. The SF2 *player* is bound to the context it was built with, but
+    // playGuitarSampleSF2 never calls into it — it reads player.buffers and builds its own
+    // nodes. AudioBuffers are plain decoded data, usable from any context (the browser
+    // resamples if the rates differ), so an offline render can borrow the live player's
+    // buffers. Until this, the export silently substituted a synth tone for all eight
+    // sf2-* guitars: what you exported was not what you heard.
+    const sfPlayer = sfGuitarPlayers.get(soundType.id)
+    if (sfPlayer?.buffers) {
       playGuitarSampleSF2(ctx, destination, sfPlayer, midiNote, startTime, duration, volume)
     } else {
+      // Only the live context can kick off a load; an offline render is synchronous from
+      // here on, so it must have been preloaded (renderProgressionOffline awaits it).
       if (ctx === audioContext) ensureGuitarSoundfont(soundType.id, soundType.sf2Instrument)
       playGuitarSynth(ctx, destination, frequency, startTime, duration, volume)
     }
@@ -2167,6 +2169,18 @@ export async function renderProgressionOffline(
   // Preload bass samples into offline context if needed
   if (bassSound?.useSamples && bassSound.samplePath) {
     await preloadSampleDir(offlineCtx, bassSound.samplePath)
+  }
+
+  // The SF2 guitars are the one bank that is not loaded eagerly anywhere, so an export
+  // started without ever having played that sound would find no buffers and silently fall
+  // back to a synth tone. Awaiting it here is what makes the WAV match what you hear.
+  // Decoded into the live context and borrowed from here — see playGuitarNote.
+  if (guitarSound?.sf2Instrument) {
+    await ensureGuitarSoundfontLoaded(guitarState!.soundTypeId, guitarSound.sf2Instrument)
+  }
+  // The MP3 guitar sets load on demand too, and only the default one is fetched at startup.
+  if (guitarSound?.useSamples && guitarSound.samplePath) {
+    ensureGuitarSampleType(guitarSound.samplePath)
   }
 
   const offlineBassPromises: Promise<void>[] = [];
