@@ -134,8 +134,19 @@ export function getChordSchedule(): { audioTime: number; chordIndex: number; dur
   return _chordSchedule;
 }
 
+// 16th-note playhead schedule, same rAF-read contract as _chordSchedule above: the
+// scheduler publishes when each slot lands, the UI derives "which step is lit" from
+// ctx.currentTime. Capped because it grows one entry per 16th note for as long as
+// playback runs — only the entries around `now` are ever read.
+let _stepSchedule: { audioTime: number; patternSlot: number }[] = [];
+
+export function getStepSchedule(): { audioTime: number; patternSlot: number }[] {
+  return _stepSchedule;
+}
+
 export function clearChordSchedule(): void {
   _chordSchedule = [];
+  _stepSchedule = [];
 }
 
 /**
@@ -1435,15 +1446,14 @@ export interface PlaybackOptions {
   instruments: InstrumentState[];
   style: StylePattern;
   transposition?: number;
-  onBeat?: (beat: number) => void;
   onChordChange?: (index: number) => void;
   onLoopEnd?: () => void;
   // Called once when a NON-looping schedule (loop: false) reaches its natural end, so a
   // caller that deliberately opted out of looping (e.g. "play this section once") can react
   // — the engine itself just stops scheduling further segments and otherwise goes silent.
   onEnded?: () => void;
-  onStep?: (step: number) => void;
-  onStepChange?: (step: number) => void; // Called continuously for playhead sync
+  // The playhead is NOT a callback: read getStepSchedule() from a rAF loop instead. A
+  // per-slot callback means a per-slot timer, which is what starved the scheduler.
   getStyle?: () => StylePattern;
   forceFill?: boolean;
   // Dynamic getters for real-time parameter changes without restart
@@ -1486,12 +1496,9 @@ export function scheduleProgression(
     instruments: initialInstruments, 
     style, 
     transposition: initialTransposition = 0, 
-    onBeat, 
     onChordChange,
     onLoopEnd,
     onEnded,
-    onStep,
-    onStepChange,
     getStyle,
     forceFill = false,
     getMetronome,
@@ -1515,7 +1522,6 @@ export function scheduleProgression(
   const slotDuration = beatDuration / 4; // 16th note duration — used only for totalDuration estimate
   const getCurrentBpm = () => getBpmGetter ? getBpmGetter() : bpm;
   
-  const timeouts: number[] = [];
   let cancelled = false;
   let nextBarTimeout: number | null = null;
   
@@ -1839,9 +1845,20 @@ export function scheduleProgression(
     // Calculate segment duration for scheduling
     const segmentDuration = slotCount * slotDuration;
     
-    // NO cache - always regenerate pattern to pick up live edits immediately
+    // Cached for the lifetime of THIS segment only, so live edits are still picked up on
+    // the next chord — same freshness the rest of the loop has (style, BPM and instruments
+    // are all re-read once per segment too). Without the cache this ran once per 16th-note
+    // slot, and generateBarPattern builds 14 fresh arrays per call: 224 allocations per bar
+    // instead of 14, on the main thread, while audio is playing. The offline renderer has
+    // always cached this (see renderProgressionOffline) — only the live path did not.
+    const patternCache = new Map<number, ReturnType<typeof generateBarPattern>>();
     const getPatternForBar = (barNum: number) => {
-      return generateBarPattern(currentStyle, barNum, phraseLength, false, forceFill);
+      let pattern = patternCache.get(barNum);
+      if (!pattern) {
+        pattern = generateBarPattern(currentStyle, barNum, phraseLength, false, forceFill);
+        patternCache.set(barNum, pattern);
+      }
+      return pattern;
     };
 
     // Schedule each slot in this chord segment
@@ -1861,40 +1878,29 @@ export function scheduleProgression(
       // Get cached pattern for this bar
       const pattern = getPatternForBar(effectiveBarNumber);
 
-      // Schedule step change callback for playhead sync
-      if (onStepChange) {
-        const stepDelayMs = Math.max(0, (slotTime - ctx.currentTime) * 1000);
-        const stepTimeout = window.setTimeout(() => {
-          if (!cancelled) onStepChange(patternSlot);
-        }, stepDelayMs);
-        timeouts.push(stepTimeout);
-      }
-      
-      if (onStep) {
-        const stepDelayMs = Math.max(0, (slotTime - ctx.currentTime) * 1000);
-        const stepTimeout = window.setTimeout(() => {
-          if (!cancelled) onStep(patternSlot);
-        }, stepDelayMs);
-        timeouts.push(stepTimeout);
-      }
-      
+      // Playhead sync: publish when this slot lands and let the UI read it from a rAF
+      // loop (getStepSchedule / PlaybackContext), same as _chordSchedule above.
+      //
+      // This used to be a window.setTimeout PER SLOT, pushed into an array that was only
+      // cleared by cancel() — so the timers accumulated for as long as playback ran.
+      // Measured over 10s of real playback (120 BPM, 4/4, one bar per chord): 86 timers
+      // registered vs 6 now, i.e. 8.6/sec vs 0.6/sec, ~2.6k accumulated over a 5-minute
+      // session. That main-thread pressure feeds the scheduler starvation
+      // SCHEDULE_LOOKAHEAD_SEC exists to absorb: the engine was competing with its own
+      // playhead timers for the event loop it needs to schedule the next bar. Deriving the
+      // playhead from ctx.currentTime costs zero timers, and is what RhythmEditor's
+      // updatePlayhead has always done.
+      _stepSchedule.push({ audioTime: slotTime, patternSlot });
+      if (_stepSchedule.length > 500) _stepSchedule = _stepSchedule.slice(-250);
+
       // Schedule metronome on beat boundaries — one click per denominator unit
       // (every 4 slots/quarter in 4/4, every 2 slots/eighth in 6/8, etc.)
       const clickInterval = getMetronomeClickInterval(currentStyle);
       if (metronomeOn && masterGain && patternSlot % clickInterval === 0) {
-        const beatInBar = Math.floor(patternSlot / clickInterval);
         const isDownbeat = patternSlot === 0;
         playClick(ctx, masterGain, slotTime, isDownbeat);
-        
-        if (onBeat) {
-          const beatDelayMs = Math.max(0, (slotTime - ctx.currentTime) * 1000);
-          const beatTimeout = window.setTimeout(() => {
-            if (!cancelled) onBeat(beatInBar);
-          }, beatDelayMs);
-          timeouts.push(beatTimeout);
-        }
       }
-      
+
       // Piano - scale pattern (custom) or style pattern (fallback)
       const pianoScaleData = getPianoScale?.(sectionId);
       if (pianoScaleData && pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound) {
@@ -2124,7 +2130,8 @@ export function scheduleProgression(
     duration: totalDuration,
     cancel: () => {
       cancelled = true;
-      timeouts.forEach(t => clearTimeout(t));
+      // nextBarTimeout is now the ONLY timer this scheduler owns — one at a time, not one
+      // per 16th note. The playhead moved to getStepSchedule() + rAF.
       if (nextBarTimeout) clearTimeout(nextBarTimeout);
       stopVocalClip();
     }

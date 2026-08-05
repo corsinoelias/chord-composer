@@ -22,6 +22,7 @@ import {
   releasePlaybackMutex,
   getAudioContext,
   getChordSchedule,
+  getStepSchedule,
   clearChordSchedule,
 } from '@/lib/audioEngine';
 
@@ -462,7 +463,6 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       // care just get stop() (UI doesn't stay stuck "playing" forever); one that wants to
       // chain into something else (see SongChordPlayer's solo-section play) supplies its own.
       onEnded: () => (options.onEnded ?? stop)(),
-      onStepChange: (step) => setStep(step),
       getStyle,
       // Dynamic getters for real-time updates without restart
       getMetronome: () => optionsRef.current?.metronome ?? true,
@@ -506,7 +506,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     });
 
     cancelRef.current = cancel;
-  }, [stop, setupMediaSession, setStep]);
+  }, [stop, setupMediaSession]);
 
   // Preloads everything play() awaits, without starting playback — used to overlap
   // loading with the countdown so the first play doesn't freeze after the count hits 0.
@@ -569,17 +569,32 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // rAF-based chord index sync — reads directly from the Web Audio clock, no setTimeout drift
+  // rAF-based chord index + 16th-note playhead sync — reads directly from the Web Audio
+  // clock, no setTimeout drift. Both channels share this one frame: the engine publishes
+  // schedules (getChordSchedule / getStepSchedule) and never fires a per-slot timer.
   useEffect(() => {
     if (!state.isPlaying) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       setPlaybackPosition(-1);
+      setStep(-1);
       return;
     }
+    // Both schedules are append-ordered by audioTime, so the newest entry at or before
+    // `now` is the current one — scan backwards and stop at the first hit.
+    const latestAtOrBefore = <T extends { audioTime: number }>(schedule: T[], now: number): T | null => {
+      for (let i = schedule.length - 1; i >= 0; i--) {
+        if (schedule[i].audioTime <= now) return schedule[i];
+      }
+      return null;
+    };
     const loop = () => {
       try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
+
+        const step = latestAtOrBefore(getStepSchedule(), now);
+        if (step) setStep(step.patternSlot);
+
         const schedule = getChordSchedule();
         let foundIdx = -1;
         for (let i = schedule.length - 1; i >= 0; i--) {
@@ -610,7 +625,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [state.isPlaying, setPlaybackPosition]);
+  }, [state.isPlaying, setPlaybackPosition, setStep]);
 
   const value: PlaybackContextValue = {
     state,
