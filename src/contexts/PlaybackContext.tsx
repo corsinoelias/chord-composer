@@ -23,6 +23,7 @@ import {
   getAudioContext,
   getChordSchedule,
   getStepSchedule,
+  applyMixerLevels,
   clearChordSchedule,
 } from '@/lib/audioEngine';
 
@@ -189,6 +190,19 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const rafRef = useRef<number>();
   const optionsRef = useRef<PlayOptions | null>(null);
   const sectionsRef = useRef<Section[]>([]);
+
+  // The style currently in effect, resolved from the live options. Shared by the scheduler's
+  // per-bar getStyle and by updatePlaybackOptions, which needs it to compute mixer levels.
+  const resolveCurrentStyle = useCallback((): StylePattern => {
+    const opts = optionsRef.current;
+    if (!opts) return MUSICAL_STYLES[0];
+    return resolveActiveStyle(
+      opts.styleId,
+      opts.liveEditedStyle,
+      opts.customStyles ?? getCustomStyles(),
+      getStyleOverride,
+    );
+  }, []);
   // Caches the decoded vocal-reference buffer by URL so replaying/looping the same
   // song doesn't re-fetch+decode on every play() call within the session.
   const audioTrackBufferRef = useRef<{ url: string; buffer: AudioBuffer } | null>(null);
@@ -357,16 +371,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       console.warn('Sample loading issue, proceeding anyway:', err);
     }
 
-    const getStyle = () => {
-      const opts = optionsRef.current;
-      if (!opts) return MUSICAL_STYLES[0];
-      return resolveActiveStyle(
-        opts.styleId,
-        opts.liveEditedStyle,
-        opts.customStyles ?? getCustomStyles(),
-        getStyleOverride,
-      );
-    };
+    const getStyle = resolveCurrentStyle;
 
     const style = getStyle();
 
@@ -506,7 +511,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     });
 
     cancelRef.current = cancel;
-  }, [stop, setupMediaSession]);
+  }, [stop, setupMediaSession, resolveCurrentStyle]);
 
   // Preloads everything play() awaits, without starting playback — used to overlap
   // loading with the countdown so the first play doesn't freeze after the count hits 0.
@@ -556,8 +561,14 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const updatePlaybackOptions = useCallback((updates: Partial<PlayOptions>) => {
     if (optionsRef.current) {
       optionsRef.current = { ...optionsRef.current, ...updates };
+      // Faders, mute and solo live on the mixer buses now, so push them straight through
+      // instead of waiting for the scheduler to re-read them at the next chord. Everything
+      // else in `updates` is still picked up per segment by the dynamic getters.
+      if (updates.instruments || updates.styleId || updates.liveEditedStyle) {
+        applyMixerLevels(optionsRef.current.instruments, resolveCurrentStyle());
+      }
     }
-  }, []);
+  }, [resolveCurrentStyle]);
 
   // Cleanup on unmount
   useEffect(() => {

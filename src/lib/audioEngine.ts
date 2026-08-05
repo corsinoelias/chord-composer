@@ -77,7 +77,11 @@ export function ensureGuitarSoundfont(soundTypeId: string, instrument: string): 
       soundfont: 'MusyngKite',
       nameToUrl: () => `/soundfonts/${instrument}-mp3.js`,
     })
-    if (masterGain) player.connect(masterGain)
+    // Onto the guitar bus, so the mixer's guitar fader applies to SF2 sounds too. The
+    // player is bound to whichever node it connects to here, and both it and the bus are
+    // dropped together when the context closes.
+    const dest = getBus(audioContext!, 'guitar') ?? masterGain
+    if (dest) player.connect(dest)
     sfGuitarPlayers.set(soundTypeId, player)
   })()
   sfGuitarLoadings.set(soundTypeId, loading)
@@ -109,11 +113,12 @@ export async function ensureGuitarSoundfontLoaded(soundTypeId: string, instrumen
   }
 }
 // ─────────────────────────────────────────────────────────────────────────────
-import { type InstrumentState, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
+import { type InstrumentState, type InstrumentType, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
 import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir } from './bassTab/sampleEngine';
 import { type StylePattern, generateBarPattern, getSlotsPerBar, getMetronomeClickInterval, getSwingOffset, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
 import { type Section } from './sections';
 import { buildEffectsChain } from './audioEffects';
+import { createMixer, disposeMixer, getBus, setBusLevel } from './engine/mixer';
 import { getScale as getBassScale_getScale, resolveVariation } from './bassScale';
 
 let audioContext: AudioContext | null = null;
@@ -142,6 +147,34 @@ let _stepSchedule: { audioTime: number; patternSlot: number }[] = [];
 
 export function getStepSchedule(): { audioTime: number; patternSlot: number }[] {
   return _stepSchedule;
+}
+
+/**
+ * Pushes each instrument's level onto its mixer bus. Notes carry only velocity, so this is
+ * what a fader, a mute or a solo actually changes.
+ *
+ * The scheduler calls this once per segment so it stays correct on its own, but that alone
+ * would leave a fader move waiting up to a whole chord to be heard — which is the delay
+ * this phase exists to remove. So the UI calls it too, the moment the user changes
+ * something (see updatePlaybackOptions in PlaybackContext). Cheap and idempotent: it is a
+ * short AudioParam ramp per bus, and re-applying the same value is inaudible.
+ *
+ * A muted instrument gets level 0 here AND stops being scheduled by the scheduler, so
+ * muting is instant while unmuting still waits for the next segment. See the note at the
+ * mixer block in scheduleProgression.
+ */
+export function applyMixerLevels(instruments: InstrumentState[], style: StylePattern): void {
+  if (!audioContext) return;
+  const levelFor = (id: InstrumentType, styleVolume: number): number => {
+    const state = instruments.find(i => i.id === id);
+    if (!state || !isInstrumentAudible(state, instruments)) return 0;
+    return state.volume * styleVolume;
+  };
+  setBusLevel(audioContext, 'piano', levelFor('piano', style.volumes.piano));
+  setBusLevel(audioContext, 'bass', levelFor('bass', style.volumes.bass));
+  setBusLevel(audioContext, 'drums', levelFor('drums', style.volumes.drums));
+  // Guitar has no style volume of its own in older styles — it borrows piano's.
+  setBusLevel(audioContext, 'guitar', levelFor('guitar', style.volumes.guitar ?? style.volumes.piano));
 }
 
 export function clearChordSchedule(): void {
@@ -388,6 +421,10 @@ export function getAudioContext(): AudioContext {
     // Insert master effects chain: masterGain -> [EQ -> Comp -> Reverb] -> analyser -> destination
     buildEffectsChain(audioContext, masterGain, analyserNode);
     analyserNode.connect(audioContext.destination);
+
+    // Per-instrument buses feed masterGain, so instrument level is an AudioParam on the
+    // graph rather than a number baked into each note. See engine/mixer.ts.
+    createMixer(audioContext, masterGain);
 
     // Only load samples once per app lifecycle; buffers can be reused across contexts.
     if (!sampleLoadingComplete) {
@@ -1830,7 +1867,33 @@ export function scheduleProgression(
     const guitarSound = getSoundType('guitar', guitarSoundId);
 
     if (guitarSound?.sf2Instrument) ensureGuitarSoundfont(guitarSoundId, guitarSound.sf2Instrument)
-    
+
+    // ── Mixer ────────────────────────────────────────────────────────────────
+    // Push each instrument's level onto its bus, so notes below carry only their velocity.
+    // Re-applied every segment because volume/mute/solo are read from live getters; the
+    // ramp inside setBusLevel makes a repeated identical value a no-op in practice.
+    //
+    // Mute/solo lands in two places on purpose. The bus gain going to 0 silences whatever
+    // is ALREADY scheduled, so muting is audible immediately instead of at the next chord.
+    // The `audible` flag below still gates scheduling, so a muted instrument doesn't build
+    // Web Audio nodes nobody will hear. The cost of that pairing is that UNmuting still
+    // waits for the next segment — same as before this change, since the notes were never
+    // scheduled. Phase 4's voice manager is what makes instant unmute cheap.
+    const pianoAudible = !!pianoState && isInstrumentAudible(pianoState, instruments);
+    const bassAudible = !!bassState && isInstrumentAudible(bassState, instruments);
+    const drumsAudible = !!drumsState && isInstrumentAudible(drumsState, instruments);
+    const guitarAudible = !!guitarState && isInstrumentAudible(guitarState, instruments);
+
+    applyMixerLevels(instruments, currentStyle);
+
+    // A null bus means the mixer belongs to a different (stale) context — same failure the
+    // masterGain guard above catches, so bail rather than connect across contexts.
+    const pianoBus = getBus(ctx, 'piano');
+    const bassBus = getBus(ctx, 'bass');
+    const drumsBus = getBus(ctx, 'drums');
+    const guitarBus = getBus(ctx, 'guitar');
+    if (!pianoBus || !bassBus || !drumsBus || !guitarBus) return;
+
     const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
     
     // Schedule chord change — track in schedule array for rAF-based visual sync. slotCount/
@@ -1903,7 +1966,7 @@ export function scheduleProgression(
 
       // Piano - scale pattern (custom) or style pattern (fallback)
       const pianoScaleData = getPianoScale?.(sectionId);
-      if (pianoScaleData && pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound) {
+      if (pianoScaleData && pianoAudible && pianoSound) {
         const { pattern: scalePattern, chordHit: pChordHit, loopBars: pLoopBars, octaveOffsets: pOctaveOffsets } = pianoScaleData;
         const slotInLoop = currentGlobalSlot % (pLoopBars * slotsPerBar);
         const scale = getBassScale_getScale(chord.quality);
@@ -1912,8 +1975,8 @@ export function scheduleProgression(
         const chordHitVelocity = pChordHit?.[slotInLoop] ?? 0;
         if (chordHitVelocity > 0) {
           midiNotes.forEach(noteMidi => {
-            playPianoNote(ctx, masterGain!, midiToFrequency(noteMidi), slotTime, noteDuration,
-              pianoSound, pianoState.volume * currentStyle.volumes.piano * chordHitVelocity, noteMidi);
+            playPianoNote(ctx, pianoBus, midiToFrequency(noteMidi), slotTime, noteDuration,
+              pianoSound, chordHitVelocity, noteMidi);
           });
         }
         for (const degStr of Object.keys(scalePattern)) {
@@ -1921,12 +1984,12 @@ export function scheduleProgression(
           const velocity = (scalePattern[deg]?.[slotInLoop] ?? 0);
           if (velocity <= 0) continue;
           const noteMidi = midiNotes[0] + scale[deg - 1] + (pOctaveOffsets?.[deg] ?? 0) * 12;
-          playPianoNote(ctx, masterGain!, midiToFrequency(noteMidi), slotTime, noteDuration,
-            pianoSound, pianoState.volume * currentStyle.volumes.piano * velocity, noteMidi);
+          playPianoNote(ctx, pianoBus, midiToFrequency(noteMidi), slotTime, noteDuration,
+            pianoSound, velocity, noteMidi);
         }
       } else {
       const pianoVelocity = pattern.piano[patternSlot];
-      if (pianoState && isInstrumentAudible(pianoState, instruments) && pianoSound && pianoVelocity > 0) {
+      if (pianoAudible && pianoSound && pianoVelocity > 0) {
         // Check if this slot is an arpeggio
         const pianoArpeggio = currentStyle.arpeggios?.piano?.[patternSlot] ?? null;
         
@@ -1943,9 +2006,9 @@ export function scheduleProgression(
             const frequency = midiToFrequency(midiNote);
             const noteTime = slotTime + (i * arpeggioNoteDuration);
             playPianoNote(
-              ctx, masterGain!, frequency, noteTime, 
-              arpeggioNoteDuration * 1.5, pianoSound, 
-              pianoState.volume * currentStyle.volumes.piano * pianoVelocity,
+              ctx, pianoBus, frequency, noteTime,
+              arpeggioNoteDuration * 1.5, pianoSound,
+              pianoVelocity,
               midiNote
             );
           }
@@ -1954,9 +2017,9 @@ export function scheduleProgression(
           midiNotes.forEach(midiNote => {
             const frequency = midiToFrequency(midiNote);
             playPianoNote(
-              ctx, masterGain!, frequency, slotTime, 
-              slotDuration * 3, pianoSound, 
-              pianoState.volume * currentStyle.volumes.piano * pianoVelocity,
+              ctx, pianoBus, frequency, slotTime,
+              slotDuration * 3, pianoSound,
+              pianoVelocity,
               midiNote
             );
           });
@@ -1966,7 +2029,7 @@ export function scheduleProgression(
 
       // Bass - scale pattern (custom) or style pattern (fallback)
       const bassScaleData = getBassScale?.(sectionId);
-      if (bassScaleData && bassState && isInstrumentAudible(bassState, instruments) && bassSound) {
+      if (bassScaleData && bassAudible && bassSound) {
         const { pattern: scalePattern, loopBars, octaveOffsets: bOctaveOffsets } = bassScaleData;
         const loopSlots = loopBars * slotsPerBar;
         const slotInLoop = currentGlobalSlot % loopSlots;
@@ -1979,71 +2042,70 @@ export function scheduleProgression(
           const velocity = degSlots[slotInLoop] ?? 0;
           if (velocity <= 0) continue;
           const noteMidi = midiNotes[0] + scale[deg - 1] + (bOctaveOffsets?.[deg] ?? 0) * 12;
-          const bassVol = bassState.volume * currentStyle.volumes.bass * velocity;
           if (bassSound.useSamples && bassSound.samplePath) {
-            scheduleSampledNoteByDir(ctx, masterGain!, bassSound.samplePath, noteMidi + (bassSound.octaveOffset ?? 0) * 12, slotTime, noteDuration, bassVol);
+            scheduleSampledNoteByDir(ctx, bassBus, bassSound.samplePath, noteMidi + (bassSound.octaveOffset ?? 0) * 12, slotTime, noteDuration, velocity);
           } else {
-            playBassNote(ctx, masterGain!, midiToFrequency(noteMidi), slotTime, noteDuration, bassSound, bassVol);
+            playBassNote(ctx, bassBus, midiToFrequency(noteMidi), slotTime, noteDuration, bassSound, velocity);
           }
         }
       } else {
         const bassVelocity = pattern.bass[patternSlot];
-        if (bassState && isInstrumentAudible(bassState, instruments) && bassSound && bassVelocity > 0) {
+        if (bassAudible && bassSound && bassVelocity > 0) {
           const bassNote = midiNotes[0];
           const noteDuration = slotDuration * 2;
-          const bassVol = bassState.volume * currentStyle.volumes.bass * bassVelocity;
           if (bassSound.useSamples && bassSound.samplePath) {
             const adjustedMidi = bassNote + bassSound.octaveOffset * 12;
-            scheduleSampledNoteByDir(ctx, masterGain!, bassSound.samplePath, adjustedMidi, slotTime, noteDuration, bassVol);
+            scheduleSampledNoteByDir(ctx, bassBus, bassSound.samplePath, adjustedMidi, slotTime, noteDuration, bassVelocity);
           } else {
             const frequency = midiToFrequency(bassNote);
-            playBassNote(ctx, masterGain!, frequency, slotTime, noteDuration, bassSound, bassVol);
+            playBassNote(ctx, bassBus, frequency, slotTime, noteDuration, bassSound, bassVelocity);
           }
         }
       }
 
       // Drums - all drum types with velocities
-      if (drumsState && isInstrumentAudible(drumsState, instruments) && drumsSound) {
-        const baseVolume = drumsState.volume * currentStyle.volumes.drums;
-        
+      if (drumsAudible && drumsSound) {
+        // The drums fader now lives on the bus. The per-piece trims below (0.7 hihat,
+        // 0.8 hihatOpen, 0.6 hihatFoot, 0.7 ride) stay on the note: they are the kit's
+        // internal balance, not a mixer level.
         if (pattern.kick[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.kick[patternSlot], 'kick');
+          playDrumHit(ctx, drumsBus, slotTime, drumsSound,pattern.kick[patternSlot], 'kick');
         }
         if (pattern.snare[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.snare[patternSlot], 'snare');
+          playDrumHit(ctx, drumsBus, slotTime, drumsSound,pattern.snare[patternSlot], 'snare');
         }
         if (pattern.snareStick[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.snareStick[patternSlot], 'snareStick');
+          playDrumHit(ctx, drumsBus, slotTime, drumsSound,pattern.snareStick[patternSlot], 'snareStick');
         }
         if (pattern.hihat[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihat[patternSlot] * 0.7, 'hihat');
+          playDrumHit(ctx, drumsBus, slotTime, drumsSound,pattern.hihat[patternSlot] * 0.7, 'hihat');
         }
         if (pattern.hihatOpen[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihatOpen[patternSlot] * 0.8, 'hihatOpen');
+          playDrumHit(ctx, drumsBus, slotTime, drumsSound,pattern.hihatOpen[patternSlot] * 0.8, 'hihatOpen');
         }
         if (pattern.hihatFoot[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.hihatFoot[patternSlot] * 0.6, 'hihatFoot');
+          playDrumHit(ctx, drumsBus, slotTime, drumsSound,pattern.hihatFoot[patternSlot] * 0.6, 'hihatFoot');
         }
         if (pattern.tom1[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.tom1[patternSlot], 'tom1');
+          playDrumHit(ctx, drumsBus, slotTime, drumsSound,pattern.tom1[patternSlot], 'tom1');
         }
         if (pattern.tom2[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.tom2[patternSlot], 'tom2');
+          playDrumHit(ctx, drumsBus, slotTime, drumsSound,pattern.tom2[patternSlot], 'tom2');
         }
         if (pattern.floorTom[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.floorTom[patternSlot], 'floorTom');
+          playDrumHit(ctx, drumsBus, slotTime, drumsSound,pattern.floorTom[patternSlot], 'floorTom');
         }
         if (pattern.ride[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.ride[patternSlot] * 0.7, 'ride');
+          playDrumHit(ctx, drumsBus, slotTime, drumsSound,pattern.ride[patternSlot] * 0.7, 'ride');
         }
         if (pattern.crash[patternSlot] > 0) {
-          playDrumHit(ctx, masterGain!, slotTime, drumsSound, baseVolume * pattern.crash[patternSlot], 'crash');
+          playDrumHit(ctx, drumsBus, slotTime, drumsSound,pattern.crash[patternSlot], 'crash');
         }
       }
 
       // Guitar - scale pattern (custom) or style pattern (fallback)
       const guitarScaleData = getGuitarScale?.(sectionId);
-      if (guitarScaleData && guitarState && isInstrumentAudible(guitarState, instruments) && guitarSound) {
+      if (guitarScaleData && guitarAudible && guitarSound) {
         const { pattern: scalePattern, chordHit: gChordHit, loopBars: gLoopBars, octaveOffsets: gOctaveOffsets } = guitarScaleData;
         const slotInLoop = currentGlobalSlot % (gLoopBars * slotsPerBar);
         const scale = getBassScale_getScale(chord.quality);
@@ -2052,8 +2114,7 @@ export function scheduleProgression(
         const chordHitVelocity = gChordHit?.[slotInLoop] ?? 0;
         if (chordHitVelocity > 0) {
           midiNotes.forEach(noteMidi => {
-            const vol = guitarState.volume * (currentStyle.volumes.guitar ?? currentStyle.volumes.piano) * chordHitVelocity;
-            playGuitarNote(ctx, masterGain!, midiToFrequency(noteMidi), slotTime, noteDuration, guitarSound, vol, noteMidi);
+            playGuitarNote(ctx, guitarBus, midiToFrequency(noteMidi), slotTime, noteDuration, guitarSound, chordHitVelocity, noteMidi);
           });
         }
         for (const degStr of Object.keys(scalePattern)) {
@@ -2061,12 +2122,11 @@ export function scheduleProgression(
           const velocity = (scalePattern[deg]?.[slotInLoop] ?? 0);
           if (velocity <= 0) continue;
           const noteMidi = midiNotes[0] + scale[deg - 1] + (gOctaveOffsets?.[deg] ?? 0) * 12;
-          const vol = guitarState.volume * (currentStyle.volumes.guitar ?? currentStyle.volumes.piano) * velocity;
-          playGuitarNote(ctx, masterGain!, midiToFrequency(noteMidi), slotTime, noteDuration, guitarSound, vol, noteMidi);
+          playGuitarNote(ctx, guitarBus, midiToFrequency(noteMidi), slotTime, noteDuration, guitarSound, velocity, noteMidi);
         }
       } else {
       const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? 0;
-      if (guitarState && isInstrumentAudible(guitarState, instruments) && guitarSound && guitarVelocity > 0) {
+      if (guitarAudible && guitarSound && guitarVelocity > 0) {
         // Check if this slot is an arpeggio
         const guitarArpeggio = currentStyle.arpeggios?.guitar?.[patternSlot] ?? null;
         
@@ -2083,9 +2143,9 @@ export function scheduleProgression(
             const frequency = midiToFrequency(midiNote);
             const noteTime = slotTime + (i * arpeggioNoteDuration);
             playGuitarNote(
-              ctx, masterGain!, frequency, noteTime,
+              ctx, guitarBus, frequency, noteTime,
               arpeggioNoteDuration * 1.5, guitarSound,
-              guitarState.volume * (currentStyle.volumes.guitar ?? currentStyle.volumes.piano) * guitarVelocity,
+              guitarVelocity,
               midiNote
             );
           }
@@ -2094,9 +2154,9 @@ export function scheduleProgression(
           midiNotes.forEach(midiNote => {
             const frequency = midiToFrequency(midiNote);
             playGuitarNote(
-              ctx, masterGain!, frequency, slotTime,
+              ctx, guitarBus, frequency, slotTime,
               slotDuration * 3, guitarSound,
-              guitarState.volume * (currentStyle.volumes.guitar ?? currentStyle.volumes.piano) * guitarVelocity,
+              guitarVelocity,
               midiNote
             );
           });
@@ -2721,6 +2781,8 @@ export function stopPlayback(): void {
     }
     audioContext = null;
     masterGain = null;
+    // The buses belong to the context we just closed; the next play() rebuilds them.
+    disposeMixer();
     // Soundfont players/loading promises are bound to the AudioContext we just closed —
     // reusing them on the next play() would silently produce no sound. Drop the cache so
     // ensureGuitarSoundfont() re-creates fresh players against the next context.

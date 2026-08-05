@@ -143,7 +143,29 @@ scheduler) baja de prioridad drásticamente. Mídelo antes de decidir.
 
 ---
 
-## Fase 2 — Mixer con buses por instrumento
+## Fase 2 — Mixer con buses por instrumento ✅ HECHA
+
+`src/lib/engine/mixer.ts`. Medido sobre la ruta online: bajar los faders a 0 durante la
+reproducción tardaba **1,429 s** en oírse (esperaba al siguiente acorde) y ahora tarda
+**0,029 s** — la rampa de 20 ms del propio fader. Las 9 fórmulas de volumen de la ruta
+online desaparecen; las 9 de la offline siguen ahí hasta la Fase 3.
+
+Dos desviaciones del diseño de abajo, ambas deliberadas:
+
+- **Mute/solo va en dos sitios, no solo en el bus.** El bus a 0 silencia al instante lo ya
+  programado; el gate de scheduling se mantiene para no construir nodos que nadie va a oír.
+  El precio es que *des*mutear sigue esperando al siguiente segmento — igual que antes, así
+  que no es una regresión. La Fase 4 lo arregla del todo.
+- **Aplicar niveles una vez por segmento no bastaba.** Con eso, un fader seguía esperando
+  al siguiente acorde y la fase no habría servido de nada. `applyMixerLevels()` se exporta
+  y `updatePlaybackOptions` lo llama en cuanto el usuario mueve algo.
+
+Fuera del mixer a propósito: el clic del metrónomo (no es un canal), los previews de acorde
+y batería (hoy ignoran el volumen del instrumento; enrutarlos los dejaría mudos con ese
+instrumento muteado) y la pista vocal de referencia (va directa a destination para quedar
+fuera de la cadena de efectos y ya tiene su propia ganancia con rampa).
+
+### Diseño original de la Fase 2
 
 **Problema que resuelve:** hoy `volume * style.volumes.X * velocity` está escrito en
 **18 sitios** (líneas 1910–2093 online, 2263–2612 offline), y como el volumen se aplica
