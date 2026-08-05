@@ -33,7 +33,12 @@ import { fixtures } from './fixtures.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BASELINE_PATH = join(HERE, 'baseline.json');
-const DEV_PORT = Number(process.env.AUDIO_TEST_PORT ?? 4321);
+// Deliberately NOT 4321: that is `npm run dev`'s default, and this script spawns and then
+// force-kills whatever holds the port. Sharing it means a test run silently takes down the
+// dev server someone is using — which looks exactly like an audio bug, because the samples
+// that load lazily at play time (bass, guitar soundfonts) go quiet while the preloaded ones
+// (piano, drums) keep working.
+const DEV_PORT = Number(process.env.AUDIO_TEST_PORT ?? 4327);
 
 /**
  * Deliberately a static page, not /editor/. The engine modules are pulled in by dynamic

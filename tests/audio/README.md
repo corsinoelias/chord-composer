@@ -88,3 +88,14 @@ dirección correcta: el desajuste de nivel entre export y reproducción pasó de
 Regla: la línea base solo se regenera cuando el cambio de sonido es deliberado y está
 justificado en el mensaje del commit. Si `npm run test:audio` falla y no sabes por qué,
 **no** es un caso de `--update`.
+
+## Puerto
+
+El arnés levanta su propio `astro dev` en el **4327**, no en el 4321. Es a propósito: este
+script mata por la fuerza lo que ocupe su puerto, así que compartirlo con `npm run dev`
+significa tumbar el servidor que alguien está usando. Y el fallo resultante engaña: los
+instrumentos precargados (piano, batería) siguen sonando, mientras que los que cargan bajo
+demanda al tocar (bajo vía `/samples/`, guitarra vía `/soundfonts/`) se quedan mudos. Parece
+un bug de audio y no lo es.
+
+Se puede cambiar con `AUDIO_TEST_PORT`, o reutilizar un servidor ya abierto con `--url`.
