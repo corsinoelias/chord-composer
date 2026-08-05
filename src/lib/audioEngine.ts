@@ -77,13 +77,15 @@ export function ensureGuitarSoundfont(soundTypeId: string, instrument: string): 
       soundfont: 'MusyngKite',
       nameToUrl: () => `/soundfonts/${instrument}-mp3.js`,
     })
-    // Onto the guitar bus, so the mixer's guitar fader applies to SF2 sounds too. The
-    // player is bound to whichever node it connects to here, and both it and the bus are
-    // dropped together when the context closes.
+    // Onto the guitar bus, so the mixer's guitar fader applies to SF2 sounds too.
     const dest = getBus(audioContext!, 'guitar') ?? masterGain
     if (dest) player.connect(dest)
     sfGuitarPlayers.set(soundTypeId, player)
   })()
+  // A failed load must not stay in the map: the guard at the top treats any entry as "already
+  // loading", so one bad network moment would leave this sound on the synth fallback for the
+  // rest of the session with no way back. Dropping it lets the next play() try again.
+  loading.catch(() => sfGuitarLoadings.delete(soundTypeId))
   sfGuitarLoadings.set(soundTypeId, loading)
 }
 
@@ -115,7 +117,7 @@ export async function ensureGuitarSoundfontLoaded(soundTypeId: string, instrumen
 }
 // ─────────────────────────────────────────────────────────────────────────────
 import { type InstrumentState, type InstrumentType, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
-import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir, stopAllSampledNodes } from './bassTab/sampleEngine';
+import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir, stopAllSampledNodes, isSampleDirUnavailable } from './bassTab/sampleEngine';
 import { type StylePattern, generateBarPattern, getSlotsPerBar, getMetronomeClickInterval, getSwingOffset, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
 import { type Section } from './sections';
 import { buildEffectsChain } from './audioEffects';
@@ -1519,7 +1521,11 @@ function dispatchEvents(ctx: BaseAudioContext, events: MusicalEvent[], t: Dispat
       case 'bass': {
         const sound = t.sounds.bass;
         if (!sound) break;
-        if (sound.useSamples && sound.samplePath) {
+        // Si ya sabemos que el banco no está disponible (red caída, servidor reiniciando),
+        // se usa el sintetizador. Antes el bajo simplemente enmudecía: es el único
+        // instrumento sin fallback, porque su ruta sampleada vive en sampleEngine y no sabe
+        // nada de síntesis. El piano y la guitarra sí caen a síntesis por su cuenta.
+        if (sound.useSamples && sound.samplePath && !isSampleDirUnavailable(sound.samplePath)) {
           // Octave offset is a property of the sound, not of the note, so it is applied
           // here rather than in the builder. The synth path below does the same thing
           // inside playBassNote, via soundType.octaveOffset.
