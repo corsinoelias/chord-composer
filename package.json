@@ -17,7 +17,8 @@
     "prebuild": "npm run fetch-soundfonts",
     "indexnow": "node scripts/indexnow.mjs",
     "test:transport": "node tests/audio/run-transport.mjs",
-    "test:jank": "node tests/audio/run-jank.mjs"
+    "test:jank": "node tests/audio/run-jank.mjs",
+    "test:timing": "node tests/audio/run-timing.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",
