@@ -10,10 +10,10 @@ interface SampleManifest {
 }
 
 const SAMPLE_DIR: Partial<Record<BassSound, string>> = {
-  fender: 'modo',
-  slap:   'slap',
-  finger: 'finger',
-  muted:  'muted',
+  fender: 'bass/modo',
+  slap:   'bass/slap',
+  finger: 'bass/finger',
+  muted:  'bass/muted',
 }
 
 export function isSampledSound(sound: BassSound): boolean {
@@ -57,7 +57,7 @@ export function stopAllSampledNodes(): void {
 async function getManifest(dir: string): Promise<SampleManifest | null> {
   const cached = manifestCache.get(dir)
   if (cached) return cached
-  const pending = fetch(`/samples/${dir}/manifest.json`)
+  const pending = fetch(`/audio/${dir}/manifest.json`)
     .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
     .then((m: SampleManifest) => m)
     .catch(() => {
@@ -78,7 +78,7 @@ async function getManifest(dir: string): Promise<SampleManifest | null> {
  * tardaran en llegar al piano y a la guitarra.
  */
 async function getAudioBuffer(ctx: BaseAudioContext, dir: string, entry: SampleEntry): Promise<AudioBuffer | null> {
-  return loadSample(ctx, `/samples/${dir}/${entry.file}`, dir)
+  return loadSample(ctx, `/audio/${dir}/${entry.file}`, dir)
 }
 
 function findNearest(midi: number, notes: Record<string, SampleEntry>): SampleEntry | null {

@@ -15,7 +15,7 @@ const INSTRUMENTS = [
 
 const SOUNDFONTS = INSTRUMENTS.map(name => ({
   url: `https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/MusyngKite/${name}-mp3.js`,
-  dest: `public/soundfonts/${name}-mp3.js`,
+  dest: `public/audio/soundfonts/${name}-mp3.js`,
 }))
 
 const root = new URL('..', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')

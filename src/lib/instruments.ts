@@ -133,7 +133,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
         sustainLevel: 0.6,
         releaseTime: 0.15,
         useSamples: true,
-        samplePath: 'modo',
+        samplePath: 'bass/modo',
       },
       {
         id: 'finger',
@@ -145,7 +145,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
         sustainLevel: 0.6,
         releaseTime: 0.3,
         useSamples: true,
-        samplePath: 'finger',
+        samplePath: 'bass/finger',
       },
       {
         id: 'slap',
@@ -157,7 +157,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
         sustainLevel: 0.4,
         releaseTime: 0.1,
         useSamples: true,
-        samplePath: 'slap',
+        samplePath: 'bass/slap',
       },
       {
         id: 'muted',
@@ -169,7 +169,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
         sustainLevel: 0.3,
         releaseTime: 0.08,
         useSamples: true,
-        samplePath: 'muted',
+        samplePath: 'bass/muted',
       },
       {
         id: 'synth',
@@ -265,7 +265,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
         sustainLevel: 0.6,
         releaseTime: 0.3,
         useSamples: true,
-        samplePath: 'guitar-acoustic',
+        samplePath: 'guitar/acoustic',
       },
       {
         id: 'electric',
@@ -277,7 +277,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
         sustainLevel: 0.7,
         releaseTime: 0.2,
         useSamples: true,
-        samplePath: 'guitar-electric',
+        samplePath: 'guitar/electric',
       },
       {
         id: 'nylon',
@@ -289,7 +289,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
         sustainLevel: 0.5,
         releaseTime: 0.4,
         useSamples: true,
-        samplePath: 'guitar-nylon',
+        samplePath: 'guitar/nylon',
       },
       {
         id: 'sf2-steel',

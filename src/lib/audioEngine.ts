@@ -75,7 +75,7 @@ export function ensureGuitarSoundfont(soundTypeId: string, instrument: string): 
     }
     const player = await sf.instrument(audioContext!, instrument, {
       soundfont: 'MusyngKite',
-      nameToUrl: () => `/soundfonts/${instrument}-mp3.js`,
+      nameToUrl: () => `/audio/soundfonts/${instrument}-mp3.js`,
     })
     // Onto the guitar bus, so the mixer's guitar fader applies to SF2 sounds too.
     const dest = getBus(audioContext!, 'guitar') ?? masterGain
@@ -273,9 +273,9 @@ interface GuitarSamples {
 }
 
 let guitarSamples: GuitarSamples = {
-  'guitar-acoustic': {},
-  'guitar-electric': {},
-  'guitar-nylon': {},
+  'guitar/acoustic': {},
+  'guitar/electric': {},
+  'guitar/nylon': {},
 };
 let guitarSamplesLoaded = false;
 
@@ -310,23 +310,34 @@ export function releasePlaybackMutex(): void {
 /**
  * Loads all acoustic kit samples
  */
+/**
+ * Qué fichero corresponde a cada pieza del kit acústico. Estaba duplicada entre la carga en
+ * vivo y la del render offline — dos listas que había que mantener a mano en paralelo, y que
+ * de hecho ya diferían: la offline no incluía las variantes de charles abierto.
+ */
+const DRUM_KIT_FILES: Record<keyof AcousticKitSamples, string> = {
+  kick: 'kick.mp3',
+  snare: 'snare-drum.mp3',
+  snareStick: 'snare-stick.mp3',
+  hihat: 'hihat.mp3',
+  hihatOpen: 'hihat-open.mp3',
+  hihatOpen2: 'hihat-open-2.mp3',
+  hihatOpen3: 'hihat-open-3.mp3',
+  hihatFoot: 'hihat-foot.mp3',
+  hihatFoot2: 'hihat-foot-2.mp3',
+  tom1: 'tom1.mp3',
+  tom2: 'tom2.mp3',
+  floorTom: 'floor-tom.mp3',
+  ride: 'ride.mp3',
+  crash: 'crash.mp3',
+};
+
+const drumUrl = (key: keyof AcousticKitSamples) => `/audio/drums/${DRUM_KIT_FILES[key]}`;
+
+/** Las piezas que el render offline decodifica en su propio contexto. */
+const DRUM_KEYS = Object.keys(DRUM_KIT_FILES) as (keyof AcousticKitSamples)[];
 async function loadAcousticSamples(ctx: AudioContext): Promise<void> {
-  const samplePaths: { key: keyof AcousticKitSamples; path: string }[] = [
-    { key: 'kick', path: '/audio/kick.mp3' },
-    { key: 'snare', path: '/audio/snare-drum.mp3' },
-    { key: 'snareStick', path: '/audio/snare-stick.mp3' },
-    { key: 'hihat', path: '/audio/hihat.mp3' },
-    { key: 'hihatOpen', path: '/audio/hihat-open.mp3' },
-    { key: 'hihatOpen2', path: '/audio/hihat-open-2.mp3' },
-    { key: 'hihatOpen3', path: '/audio/hihat-open-3.mp3' },
-    { key: 'hihatFoot', path: '/audio/hihat-foot.mp3' },
-    { key: 'hihatFoot2', path: '/audio/hihat-foot-2.mp3' },
-    { key: 'tom1', path: '/audio/tom1.mp3' },
-    { key: 'tom2', path: '/audio/tom2.mp3' },
-    { key: 'floorTom', path: '/audio/floor-tom.mp3' },
-    { key: 'ride', path: '/audio/ride.mp3' },
-    { key: 'crash', path: '/audio/crash.mp3' },
-  ];
+  const samplePaths = DRUM_KEYS.map(key => ({ key, path: drumUrl(key) }));
 
   // La descarga, el decode y la política de fallo son las de engine/sampleLibrary. Aquí solo
   // queda lo propio de la batería: qué URL corresponde a cada pieza del kit.
@@ -382,15 +393,15 @@ async function loadPianoCore(): Promise<void> {
 }
 
 const GUITAR_TYPE_NOTES: Record<string, string[]> = {
-  'guitar-acoustic': ['A2', 'A3', 'A4', 'As2', 'As3', 'As4', 'B2', 'B3', 'B4', 'C3', 'C4', 'C5', 'Cs3', 'Cs4', 'D3', 'D4', 'Ds3', 'Ds4', 'E2', 'E3', 'E4', 'F3', 'F4', 'Fs3', 'Fs4', 'G3', 'G4', 'Gs3', 'Gs4'],
-  'guitar-electric': ['A2', 'A3', 'A4', 'A5', 'C3', 'C4', 'C5', 'C6', 'Cs2', 'Ds3', 'Ds4', 'Ds5', 'E2', 'Fs2', 'Fs3', 'Fs4', 'Fs5'],
-  'guitar-nylon':    ['A2', 'A3', 'A4', 'A5', 'As5', 'B1', 'B2', 'B3', 'B4', 'Cs3', 'Cs4', 'Cs5', 'D2', 'D3', 'E2', 'E3', 'E4', 'E5', 'Fs2', 'Fs3', 'Fs4', 'Fs5', 'G3', 'G5', 'Gs2', 'Gs4', 'Gs5'],
+  'guitar/acoustic': ['A2', 'A3', 'A4', 'As2', 'As3', 'As4', 'B2', 'B3', 'B4', 'C3', 'C4', 'C5', 'Cs3', 'Cs4', 'D3', 'D4', 'Ds3', 'Ds4', 'E2', 'E3', 'E4', 'F3', 'F4', 'Fs3', 'Fs4', 'G3', 'G4', 'Gs3', 'Gs4'],
+  'guitar/electric': ['A2', 'A3', 'A4', 'A5', 'C3', 'C4', 'C5', 'C6', 'Cs2', 'Ds3', 'Ds4', 'Ds5', 'E2', 'Fs2', 'Fs3', 'Fs4', 'Fs5'],
+  'guitar/nylon':    ['A2', 'A3', 'A4', 'A5', 'As5', 'B1', 'B2', 'B3', 'B4', 'Cs3', 'Cs4', 'Cs5', 'D2', 'D3', 'E2', 'E3', 'E4', 'E5', 'Fs2', 'Fs3', 'Fs4', 'Fs5', 'G3', 'G5', 'Gs2', 'Gs4', 'Gs5'],
 };
 
 const guitarTypeLoading: Record<string, Promise<void> | null> = {
-  'guitar-acoustic': null,
-  'guitar-electric': null,
-  'guitar-nylon':    null,
+  'guitar/acoustic': null,
+  'guitar/electric': null,
+  'guitar/nylon':    null,
 };
 
 async function loadGuitarSampleType(ctx: AudioContext, path: string): Promise<void> {
@@ -467,10 +478,10 @@ export function getAudioContext(): AudioContext {
       // Bass sounds are not preloaded here at all — scheduleSampledNoteByDir/Async already
       // load samples lazily on demand per sound, so an eager preload would just be redundant.
       const backgroundLoad = drumSamplePromise.then(() => {
-        guitarTypeLoading['guitar-electric'] = loadGuitarSampleType(audioContext!, 'guitar-electric');
+        guitarTypeLoading['guitar/electric'] = loadGuitarSampleType(audioContext!, 'guitar/electric');
         return Promise.all([
           loadPianoCore(),
-          guitarTypeLoading['guitar-electric'],
+          guitarTypeLoading['guitar/electric'],
         ]);
       });
 
@@ -2188,19 +2199,7 @@ export async function renderProgressionOffline(
   
   // Load samples into offline context if available
   const offlineKit: Partial<AcousticKitSamples> = {};
-  const samplePaths: { key: keyof AcousticKitSamples; path: string }[] = [
-    { key: 'kick', path: '/audio/kick.mp3' },
-    { key: 'snare', path: '/audio/snare-drum.mp3' },
-    { key: 'snareStick', path: '/audio/snare-stick.mp3' },
-    { key: 'hihat', path: '/audio/hihat.mp3' },
-    { key: 'hihatFoot', path: '/audio/hihat-foot.mp3' },
-    { key: 'hihatFoot2', path: '/audio/hihat-foot-2.mp3' },
-    { key: 'tom1', path: '/audio/tom1.mp3' },
-    { key: 'tom2', path: '/audio/tom2.mp3' },
-    { key: 'floorTom', path: '/audio/floor-tom.mp3' },
-    { key: 'ride', path: '/audio/ride.mp3' },
-    { key: 'crash', path: '/audio/crash.mp3' },
-  ];
+  const samplePaths = DRUM_KEYS.map(key => ({ key, path: drumUrl(key) }));
   
   
   // Calculate total duration
@@ -2230,7 +2229,10 @@ export async function renderProgressionOffline(
   // por contexto.
   await Promise.all(
     samplePaths.map(async ({ key, path }) => {
-      if (!acousticKit[key]) return;
+      // Sin condicionarlo al kit en vivo: hacerlo dependia de si esa pieza habia terminado
+      // de cargar en el otro contexto, lo que volvia el render NO DETERMINISTA — el arnes lo
+      // detecto alternando entre 12/17 y 17/17 segun la carrera. Los bytes ya estan en la
+      // cache comun, asi que esto no vuelve a la red.
       offlineKit[key] = await loadSample(offlineCtx, path, 'drums');
     })
   );

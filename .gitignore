@@ -31,7 +31,7 @@ dist-ssr
 .netlify/
 
 # Downloaded soundfont assets (run `npm run fetch-soundfonts` to regenerate)
-public/soundfonts/
+public/audio/soundfonts/
 
 # MCP server config (contiene credenciales locales)
 .mcp.json
