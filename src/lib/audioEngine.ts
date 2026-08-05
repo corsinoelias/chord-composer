@@ -459,6 +459,21 @@ export function getAudioContext(): AudioContext {
     // them individually instead of destroying the context they live in.
     setLiveContext(audioContext);
 
+    // El navegador suspende el contexto por su cuenta: al pasar la pestaña a segundo plano,
+    // al bloquear el móvil, o por política de ahorro de energía. Sin esto la UI se queda
+    // diciendo "reproduciendo" mientras no sale sonido, que es de los fallos más confusos
+    // que puede ver un usuario. Reanudar solo tiene sentido si creíamos estar sonando;
+    // si el navegador no lo permite todavía (hace falta gesto del usuario), falla sin ruido
+    // y el siguiente Play lo arregla.
+    audioContext.addEventListener('statechange', () => {
+      if (!audioContext || !currentlyPlaying) return;
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {
+          console.warn('[AUDIO] El contexto quedó suspendido y el navegador no deja reanudarlo todavía');
+        });
+      }
+    });
+
     // Only load samples once per app lifecycle; buffers can be reused across contexts.
     if (!sampleLoadingComplete) {
       // CRITICAL: drums have no synthesis fallback — must be ready before first beat

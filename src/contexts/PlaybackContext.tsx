@@ -331,19 +331,12 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     });
   }, [stop]);
 
-  const play = useCallback(async (sections: Section[], options: PlayOptions) => {
-    // Acquire mutex to prevent multiple instances
-    if (!acquirePlaybackMutex()) {
-      console.log('Playback already in progress, stopping first...');
-      stop();
-      // Small delay to allow cleanup
-      await new Promise(resolve => setTimeout(resolve, 100));
-      if (!acquirePlaybackMutex()) {
-        console.error('Could not acquire playback mutex');
-        return;
-      }
-    }
-
+  /**
+   * El cuerpo real de play(). Separado para que play() pueda envolverlo en un try y liberar
+   * el mutex si algo lanza — antes cualquier excepción aquí dejaba la reproducción bloqueada
+   * de forma permanente.
+   */
+  const startPlayback = useCallback(async (sections: Section[], options: PlayOptions) => {
     // Stop any existing playback first
     if (cancelRef.current) {
       cancelRef.current();
@@ -543,6 +536,35 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
 
     cancelRef.current = cancel;
   }, [stop, setupMediaSession, resolveCurrentStyle]);
+
+  const play = useCallback(async (sections: Section[], options: PlayOptions) => {
+    // Acquire mutex to prevent multiple instances
+    if (!acquirePlaybackMutex()) {
+      console.log('Playback already in progress, stopping first...');
+      stop();
+      // Small delay to allow cleanup
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (!acquirePlaybackMutex()) {
+        console.error('Could not acquire playback mutex');
+        return;
+      }
+    }
+
+    // A partir de aquí el mutex está TOMADO, y todo lo que sigue es asíncrono: cargar
+    // samples, decodificar el soundfont, resolver el estilo. Si cualquiera de esos pasos
+    // lanza, sin este try el mutex se quedaría tomado para siempre y la app no volvería a
+    // reproducir hasta un stop() explícito — que nadie llama si el fallo fue silencioso.
+    //
+    // Solo se libera en el camino de ERROR: cuando play() termina bien, el mutex debe seguir
+    // tomado, y es stopPlayback() quien lo suelta.
+    try {
+      await startPlayback(sections, options);
+    } catch (err) {
+      releasePlaybackMutex();
+      setState(prev => ({ ...prev, isPlaying: false }));
+      console.error('[AUDIO] play() falló; se libera el mutex para no dejar la reproducción bloqueada', err);
+    }
+  }, [stop, startPlayback]);
 
   // Preloads everything play() awaits, without starting playback — used to overlap
   // loading with the countdown so the first play doesn't freeze after the count hits 0.
