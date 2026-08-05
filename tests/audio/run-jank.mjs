@@ -76,14 +76,23 @@ const result = await page.evaluate(async ([seconds, CONTROL]) => {
 
   // 2) Duración de cada callback que el motor programa vía setTimeout.
   const callbackMs = [];
+  // Hay que envolver setTimeout Y setInterval: el scheduler antiguo se re-agendaba con
+  // setTimeout por acorde y el nuevo late con un setInterval de 25 ms. Instrumentar solo uno
+  // da "0 callbacks" en la otra versión, que parece trabajo cero y es medir de menos.
+  const wrap = (fn) => function (...a) {
+    const t0 = performance.now();
+    try { return fn.apply(this, a); }
+    finally { callbackMs.push(performance.now() - t0); }
+  };
   const realSetTimeout = window.setTimeout;
+  const realSetInterval = window.setInterval;
   window.setTimeout = function (fn, delay, ...rest) {
     if (typeof fn !== 'function') return realSetTimeout.apply(this, [fn, delay, ...rest]);
-    return realSetTimeout.call(this, function (...a) {
-      const t0 = performance.now();
-      try { return fn.apply(this, a); }
-      finally { callbackMs.push(performance.now() - t0); }
-    }, delay, ...rest);
+    return realSetTimeout.call(this, wrap(fn), delay, ...rest);
+  };
+  window.setInterval = function (fn, delay, ...rest) {
+    if (typeof fn !== 'function') return realSetInterval.apply(this, [fn, delay, ...rest]);
+    return realSetInterval.call(this, wrap(fn), delay, ...rest);
   };
 
   const ctx = engine.getAudioContext();
@@ -102,6 +111,7 @@ const result = await page.evaluate(async ([seconds, CONTROL]) => {
   cancel();
   engine.stopPlayback();
   window.setTimeout = realSetTimeout;
+  window.setInterval = realSetInterval;
 
   const sorted = callbackMs.slice().sort((a, b) => a - b);
   const pct = (p) => (sorted.length ? +sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))].toFixed(1) : 0);

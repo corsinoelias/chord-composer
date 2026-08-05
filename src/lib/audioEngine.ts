@@ -50,18 +50,18 @@ function patchAudioContextVoltageBufferCaching(): void {
 }
 patchAudioContextVoltageBufferCaching();
 
-// How far ahead of `ctx.currentTime` the bar-by-bar scheduler (scheduleProgression, below)
-// wakes itself up via setTimeout to queue the next segment's Web Audio nodes. This used to be
-// 0.1s (100ms) — far too thin a margin: a real-device Chrome trace under 4x CPU throttling
-// (mobile-class hardware) measured setTimeout callbacks arriving up to 2.85s late during React
-// re-renders triggered by ordinary UI interaction (BPM/transpose taps, panel toggles), which is
-// the "Tale of Two Clocks" audio-scheduling failure mode: by the time a badly-delayed callback
-// runs, the segment's intended start time has already passed, and Web Audio either plays it
-// glitchy/late or silently drops it — audible as the stutter/stop this constant exists to fix.
-// 300ms gives ~3x the worst delay margin the old value had, at the cost of parameter changes
-// (BPM, mute, transpose) taking up to ~300ms longer to become audible instead of ~100ms —
-// an acceptable trade for not losing audio outright. See also the segmentStartTime clamp
-// inside scheduleSegment, which self-heals even if a delay exceeds this margin.
+/**
+ * Cuánto antes del primer sonido arranca la reproducción. El scheduler ya no se re-agenda
+ * con setTimeout: lo mueve un reloj de ticks de 25 ms (engine/clock.ts), que es donde vive
+ * ahora la ventana de lookahead. Esta constante solo fija el desfase inicial, para que el
+ * primer acorde tenga margen de programarse antes de sonar.
+ *
+ * Vale lo mismo (300 ms) y por la misma razón histórica: una traza real bajo throttling de
+ * CPU ×4 midió callbacks de setTimeout llegando hasta 2,85 s tarde durante re-renders de
+ * React provocados por interacción normal. El modo de fallo es el de "A Tale of Two Clocks":
+ * si el callback llega después del instante previsto, Web Audio reproduce mal la nota o la
+ * descarta. Ver el clamp en enterSegment, que se auto-recupera si aun así pasa.
+ */
 const SCHEDULE_LOOKAHEAD_SEC = 0.3;
 const sfGuitarPlayers = new Map<string, SfPlayer>()
 const sfGuitarLoadings = new Map<string, Promise<void>>()
@@ -124,6 +124,7 @@ import { buildEffectsChain } from './audioEffects';
 import { createMixer, disposeMixer, getBus, setBusLevel } from './engine/mixer';
 import { buildSlotEvents, applyArpeggioOrder, getArpeggioNotesPerSlot, type SlotContext } from './engine/eventBuilder';
 import { setLiveContext, trackVoice, stopAllVoices, activeVoiceCount } from './engine/voiceManager';
+import { startClock } from './engine/clock';
 import { type MusicalEvent, type DrumPiece } from './engine/types';
 import { getScale as getBassScale_getScale, resolveVariation } from './bassScale';
 
@@ -1631,9 +1632,8 @@ export function scheduleProgression(
   const getCurrentBpm = () => getBpmGetter ? getBpmGetter() : bpm;
   
   let cancelled = false;
-  let nextBarTimeout: number | null = null;
   
-  // Get sound types for each instrument (initial values, will be read dynamically in scheduleSegment)
+  // Get sound types for each instrument (initial values, will be read dynamically in enterSegment)
   const getInstrumentStates = () => getInstruments ? getInstruments() : initialInstruments;
   const getCurrentTransposition = () => getTransposition ? getTransposition() : initialTransposition;
   const isMetronomeEnabled = () => getMetronome ? getMetronome() : metronome;
@@ -1783,15 +1783,34 @@ export function scheduleProgression(
   let lastKnownSections: Section[] | null = getSections ? getSections() : null;
 
   // Schedule a batch of slots (one chord segment at a time for efficiency)
-  const scheduleSegment = (segmentStartTime: number) => {
-    if (cancelled) return;
-    // Self-heal from scheduler starvation: this setTimeout callback was supposed to fire
-    // SCHEDULE_LOOKAHEAD_SEC before segmentStartTime, but on a jank-prone main thread (real
-    // measured delays up to 2.85s under mobile-class CPU throttling — see SCHEDULE_LOOKAHEAD_SEC
-    // above) it can run late enough that segmentStartTime has already passed. Scheduling Web
-    // Audio nodes at a past timestamp plays them glitchy/immediately or drops them silently —
-    // clamp forward to "now" so a badly-delayed callback still produces audible sound (out of
-    // exact tempo-sync for that one segment) instead of a dead gap.
+  /**
+   * Estado del acorde en curso. `null` significa "hay que entrar en el siguiente".
+   * Es el puntero del loop: avanzar es mover índices, no reconstruir nada.
+   */
+  let active: {
+    segmentStartTime: number; slotCount: number; slotDuration: number; slotsPerBar: number;
+    currentStyle: StylePattern; instruments: InstrumentState[]; transposition: number;
+    metronomeOn: boolean; midiNotes: number[]; sectionId: string; chord: Chord;
+    getPatternForBar: (barNum: number) => ReturnType<typeof generateBarPattern>;
+    pianoSound: SoundType | null; bassSound: SoundType | null;
+    drumsSound: SoundType | null; guitarSound: SoundType | null;
+    pianoAudible: boolean; bassAudible: boolean; drumsAudible: boolean; guitarAudible: boolean;
+    pianoBus: AudioNode; bassBus: AudioNode; drumsBus: AudioNode; guitarBus: AudioNode;
+  } | null = null;
+  let slotInSegment = 0;
+  let nextSegmentTime = 0;
+
+  /**
+   * Prepara el siguiente acorde: relee estilo/BPM/instrumentos, recoge cambios de sección,
+   * resuelve buses y sonidos. Devuelve false si no hay nada que programar.
+   */
+  const enterSegment = (segmentStartTime: number): boolean => {
+    if (cancelled) return false;
+    // Auto-recuperación: si el tick llegó tan tarde que el acorde ya debería haber empezado,
+    // programarlo en el pasado lo reproduce mal o lo descarta en silencio. Se adelanta a
+    // "ahora". Con ticks de 25 ms esto salta mucho menos que con un setTimeout por acorde,
+    // porque el margen que hay que perder para llegar tarde es el mismo pero las
+    // oportunidades de recuperarse son 12 veces más frecuentes.
     if (segmentStartTime < ctx.currentTime) {
       segmentStartTime = ctx.currentTime + 0.01;
     }
@@ -1801,7 +1820,7 @@ export function scheduleProgression(
     // old `ctx` and connect them to the new module-level `masterGain` — an
     // InvalidAccessError ("connect to a node belonging to a different audio context").
     // If the live context is no longer the one we captured, this scheduler is dead: bail.
-    if (ctx !== audioContext || !masterGain) return;
+    if (ctx !== audioContext || !masterGain) return false;
 
     // Rebuild chord segments immediately when sections change so the very next
     // chord played matches what the user sees — no need to wait for loop end.
@@ -1863,14 +1882,13 @@ export function scheduleProgression(
         currentSegmentIndex = 0;
         globalSlotIndex = 0;
         lastChordIndex = -1;
-        const delayMs = Math.max(0, (segmentStartTime - ctx.currentTime) * 1000);
-        nextBarTimeout = window.setTimeout(() => {
-          if (!cancelled) scheduleSegment(ctx.currentTime + 0.05);
-        }, delayMs);
+        // Antes esto reprogramaba un setTimeout para reanudar tras el hueco. Ahora el reloj
+        // sigue latiendo, así que basta con caer al setup normal de abajo: el propio
+        // `segmentStartTime` ya es el instante correcto de reinicio, sin salto ni pausa.
       } else {
         onEnded?.();
+        return false;
       }
-      return;
     }
     
     const segment = chordSegments[currentSegmentIndex];
@@ -1882,7 +1900,7 @@ export function scheduleProgression(
     // Re-read BPM each segment so live changes take effect on the next chord
     const slotDuration = (60 / getCurrentBpm()) / 4;
     if (currentSegmentIndex === 0) {
-      console.log(`[AUDIO] scheduleSegment bar#0 — currentStyle.id: "${currentStyle.id}", bpm: ${getCurrentBpm()}`);
+      console.log(`[AUDIO] enterSegment bar#0 — currentStyle.id: "${currentStyle.id}", bpm: ${getCurrentBpm()}`);
     }
     const instruments = getInstrumentStates();
     const transposition = getCurrentTransposition();
@@ -1963,7 +1981,7 @@ export function scheduleProgression(
     const bassBus = getBus(ctx, 'bass');
     const drumsBus = getBus(ctx, 'drums');
     const guitarBus = getBus(ctx, 'guitar');
-    if (!pianoBus || !bassBus || !drumsBus || !guitarBus) return;
+    if (!pianoBus || !bassBus || !drumsBus || !guitarBus) return false;
 
     const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
     
@@ -1995,8 +2013,29 @@ export function scheduleProgression(
       return pattern;
     };
 
-    // Schedule each slot in this chord segment
-    for (let i = 0; i < slotCount; i++) {
+    // Everything above is per-chord setup and stays a single burst — measured at ~6ms, well
+    // under the 50ms long-task threshold. The per-slot work below is what used to run as one
+    // 44ms block per chord and is now spread across clock ticks.
+    active = {
+      segmentStartTime, slotCount, slotDuration, slotsPerBar, currentStyle, instruments,
+      transposition, metronomeOn, midiNotes, sectionId, chord, getPatternForBar,
+      pianoSound, bassSound, drumsSound, guitarSound,
+      pianoAudible, bassAudible, drumsAudible, guitarAudible,
+      pianoBus, bassBus, drumsBus, guitarBus,
+    };
+    return true;
+  };
+
+  /** Programa un único slot del acorde en curso. El reloj decide cuántos caben por tick. */
+  const scheduleSlot = (i: number) => {
+    const {
+      segmentStartTime, slotDuration, slotsPerBar, currentStyle, instruments, transposition,
+      metronomeOn, midiNotes, sectionId, chord, getPatternForBar,
+      pianoSound, bassSound, drumsSound, guitarSound,
+      pianoAudible, bassAudible, drumsAudible, guitarAudible,
+      pianoBus, bassBus, drumsBus, guitarBus,
+    } = active!;
+    {
       // CRITICAL: patternSlot is based on GLOBAL position, not chord position
       // The rhythm pattern runs continuously regardless of chord changes
       const currentGlobalSlot = globalSlotIndex + i;
@@ -2059,35 +2098,60 @@ export function scheduleProgression(
         sounds: { piano: pianoSound, bass: bassSound, drums: drumsSound, guitar: guitarSound },
       });
     }
-
-    // Update global slot index
-    globalSlotIndex += slotCount;
-    
-    // Schedule next segment
-    currentSegmentIndex++;
-    const nextSegmentTime = segmentStartTime + segmentDuration;
-    const delayMs = Math.max(0, (nextSegmentTime - ctx.currentTime - SCHEDULE_LOOKAHEAD_SEC) * 1000);
-    
-    nextBarTimeout = window.setTimeout(() => {
-      if (!cancelled) {
-        scheduleSegment(nextSegmentTime);
-      }
-    }, delayMs);
   };
-  
+
+  // Cuántos slots como máximo se programan en un mismo tick. Sin tope, salir de un parón
+  // largo volvería a producir exactamente la ráfaga que este diseño elimina: el clamp de
+  // scheduleSlot ya reparte el desfase, así que es preferible ir recuperando por tandas.
+  const MAX_SLOTS_PER_TICK = 8;
+
+  /**
+   * Un tick del reloj: programar todo lo que caiga antes del horizonte y devolver el control.
+   * Sustituye a la cadena de setTimeout por acorde — ver engine/clock.ts para los números.
+   */
+  const onTick = (horizon: number) => {
+    if (cancelled) return;
+    // Guard de consistencia de contexto: si el contexto vivo ya no es el que capturó este
+    // scheduler, está muerto y no debe crear nodos.
+    if (ctx !== audioContext || !masterGain) return;
+
+    let scheduled = 0;
+    while (scheduled < MAX_SLOTS_PER_TICK) {
+      if (!active) {
+        // Entre acordes: entrar en el siguiente. Devuelve false cuando la progresión acabó
+        // sin loop, o cuando no hay nada que programar todavía.
+        if (!enterSegment(nextSegmentTime)) return;
+        slotInSegment = 0;
+      }
+      const { slotCount, slotDuration, segmentStartTime } = active!;
+      // El tiempo del slot se compara con el horizonte, no con "ahora": así siempre hay
+      // ~300 ms programados por delante.
+      if (segmentStartTime + slotInSegment * slotDuration >= horizon) return;
+
+      scheduleSlot(slotInSegment);
+      slotInSegment++;
+      scheduled++;
+
+      if (slotInSegment >= slotCount) {
+        globalSlotIndex += slotCount;
+        currentSegmentIndex++;
+        nextSegmentTime = segmentStartTime + slotCount * slotDuration;
+        active = null;
+      }
+    }
+  };
+
   // Calculate total duration for return value
   const totalDuration = totalSlots * slotDuration;
-  
-  // Start scheduling
-  scheduleSegment(startTime);
-  
+
+  nextSegmentTime = startTime;
+  const clock = startClock(ctx, onTick);
+
   return {
     duration: totalDuration,
     cancel: () => {
       cancelled = true;
-      // nextBarTimeout is now the ONLY timer this scheduler owns — one at a time, not one
-      // per 16th note. The playhead moved to getStepSchedule() + rAF.
-      if (nextBarTimeout) clearTimeout(nextBarTimeout);
+      clock.stop();
       stopVocalClip();
     }
   };
