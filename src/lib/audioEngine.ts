@@ -125,7 +125,6 @@ import { createMixer, getBus, setBusLevel } from './engine/mixer';
 import { buildSlotEvents } from './engine/eventBuilder';
 import { setLiveContext, trackVoice, stopAllVoices, activeVoiceCount } from './engine/voiceManager';
 import { startClock } from './engine/clock';
-import { createLimiter } from './engine/limiter';
 import { type MusicalEvent } from './engine/types';
 import { resolveVariation } from './bassScale';
 
@@ -426,11 +425,8 @@ export function getAudioContext(): AudioContext {
     analyserNode.fftSize = 256;
     analyserNode.smoothingTimeConstant = 0.8;
 
-    // masterGain -> [EQ -> Comp -> Reverb] -> limitador -> analyser -> destination.
-    // El limitador va ANTES del analyser a propósito: así lo que miden las pruebas y lo que
-    // dibuja el visualizador es la señal que realmente sale, no una que iba a recortar.
-    const limiter = createLimiter(audioContext, analyserNode);
-    buildEffectsChain(audioContext, masterGain, limiter);
+    // Insert master effects chain: masterGain -> [EQ -> Comp -> Reverb] -> analyser -> destination
+    buildEffectsChain(audioContext, masterGain, analyserNode);
     analyserNode.connect(audioContext.destination);
 
     // Per-instrument buses feed masterGain, so instrument level is an AudioParam on the
@@ -2220,8 +2216,7 @@ export async function renderProgressionOffline(
   // nada que impidiera recortar.  es obligatorio —  es estado de
   // modulo y registrar esta cadena dejaria los mandos del usuario apuntando a nodos de un
   // contexto offline ya terminado.
-  const offlineLimiter = createLimiter(offlineCtx, offlineCtx.destination);
-  buildEffectsChain(offlineCtx, offlineMasterGain, offlineLimiter, false);
+  buildEffectsChain(offlineCtx, offlineMasterGain, offlineCtx.destination, false);
 
   const beatDuration = 60 / bpm;
   let currentTime = 0;

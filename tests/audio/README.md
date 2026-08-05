@@ -68,10 +68,10 @@ verificación manual en dispositivo. Está indicada fase por fase en el plan.
    por `!state.muted` en vez de `isInstrumentAudible(state, instruments)`: ponías el bajo en
    solo, exportabas, y en el WAV sonaba todo. Lo capturó `muted-and-solo`, cuyo pico cayó de
    1,447 a 0,704 al unificar.
-2. ~~**El export satura.**~~ **Arreglado.** Sin limitador y con `masterGain` a 1.0, los picos
-   llegaban a 1,4-1,7. Ahora hay un limitador en la ruta COMPARTIDA — la reproducción
-   saturaba igual, y ponerlo solo en el export habría roto la paridad de la Fase 3. Picos
-   máximos: 1,743 → 0,815.
+2. **El export satura.** Sin limitador y con `masterGain` a 1.0, los picos llegan a 1,4-1,7.
+   Se probó un limitador en la ruta compartida y **se revirtió**: cambiaba bastante el sonido
+   de la reproducción y no gustó. La saturación es parte del carácter actual del producto,
+   así que esto no se toca sin una decisión explícita. Ver el commit del revert.
 3. ~~**El export no lleva los efectos.**~~ **Arreglado.** EQ, reverb y compresor solo
    existían online. `buildEffectsChain` acepta ahora `register: false`, obligatorio para el
    render offline: `active` es estado de módulo y registrar una cadena offline dejaría los
