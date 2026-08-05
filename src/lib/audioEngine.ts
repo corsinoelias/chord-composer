@@ -123,6 +123,7 @@ import { type Section } from './sections';
 import { buildEffectsChain } from './audioEffects';
 import { createMixer, getBus, setBusLevel } from './engine/mixer';
 import { buildSlotEvents } from './engine/eventBuilder';
+import { collectMidiNotes } from './engine/preloadPlan';
 import { setLiveContext, trackVoice, stopAllVoices, activeVoiceCount } from './engine/voiceManager';
 import { startClock } from './engine/clock';
 import { type MusicalEvent } from './engine/types';
@@ -344,34 +345,55 @@ async function loadAcousticSamples(ctx: AudioContext): Promise<void> {
  * Uses a concurrency pool of 8 to avoid spiking CPU with 88 simultaneous
  * decodeAudioData calls. Middle octaves (C3-C7, keys 28-76) load first.
  */
-async function loadPianoSamples(ctx: AudioContext): Promise<void> {
-  // Sort keys so middle octaves (most used) load first
-  const keys = Array.from({ length: 88 }, (_, i) => i + 1).sort((a, b) => {
-    const inRange = (k: number) => { const m = k + 20; return m >= 48 && m <= 96; };
-    if (inRange(a) && !inRange(b)) return -1;
-    if (!inRange(a) && inRange(b)) return 1;
-    return 0;
-  });
+// Notas de piano cuya descarga esta en curso, para no pedir la misma dos veces.
+const pianoLoading = new Map<number, Promise<void>>();
 
-  const queue = [...keys];
-  const CONCURRENCY = 8;
-
-  const worker = async () => {
-    while (queue.length > 0) {
-      const i = queue.shift()!;
-      const midiNote = i + 20;
-      try {
-        const response = await fetch(`/audio/piano/${i}.mp3`);
-        pianoSamples[midiNote] = response.ok
-          ? await ctx.decodeAudioData(await response.arrayBuffer())
-          : null;
-      } catch {
-        pianoSamples[midiNote] = null;
-      }
+/**
+ * Descarga y decodifica SOLO las notas de piano indicadas.
+ *
+ * Antes se cargaban las 88 al crear el AudioContext: 2,5 MB que competian por el ancho de
+ * banda con todo lo demas. Una cancion usa un punnado de notas. Medido en una song page con
+ * 4G emulado, el piano era 2,5 MB de los 2,84 MB que quedaban por descargar antes de sonar.
+ *
+ * Un fallo NO se cachea: antes una nota que fallara quedaba en null para siempre y caia al
+ * sintetizador el resto de la sesion. Mismo bug que tenia el bajo, arreglado ahora tambien
+ * aqui — un mal momento de red ya no degrada el sonido de forma permanente.
+ */
+export async function ensurePianoNotes(midiNotes: number[]): Promise<void> {
+  const ctx = audioContext;
+  if (!ctx) return;
+  const pending: Promise<void>[] = [];
+  for (const midi of midiNotes) {
+    if (pianoSamples[midi]) continue;
+    let load = pianoLoading.get(midi);
+    if (!load) {
+      // Los ficheros van numerados 1..88 y el 1 es el MIDI 21 (A0).
+      const index = midi - 20;
+      if (index < 1 || index > 88) continue;
+      load = (async () => {
+        const response = await fetch(`/audio/piano/${index}.mp3`);
+        if (!response.ok) throw new Error(String(response.status));
+        pianoSamples[midi] = await ctx.decodeAudioData(await response.arrayBuffer());
+      })().catch(() => { /* se reintenta la proxima vez: no se marca como fallida */ })
+        .finally(() => pianoLoading.delete(midi));
+      pianoLoading.set(midi, load);
     }
-  };
+    pending.push(load);
+  }
+  await Promise.all(pending);
+}
 
-  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+/**
+ * Las notas que se cargan sin que nadie las pida: dos octavas alrededor del do central.
+ *
+ * Existe por los previews — pulsar un acorde en la paleta suena al instante y no pasa por
+ * play(), asi que no hay ocasion de precargar nada. Sin este nucleo, el primer acorde que
+ * tocara el usuario sonaria sintetizado. Son 25 notas (~700 KB) en vez de 88 (2,5 MB).
+ */
+const PIANO_CORE_MIDI = Array.from({ length: 25 }, (_, i) => 48 + i);
+
+async function loadPianoCore(): Promise<void> {
+  await ensurePianoNotes(PIANO_CORE_MIDI);
   pianoSamplesLoaded = true;
 }
 
@@ -442,7 +464,7 @@ export function getAudioContext(): AudioContext {
       // CRITICAL: drums have no synthesis fallback — must be ready before first beat
       drumSamplePromise = loadAcousticSamples(audioContext);
 
-      // BACKGROUND: piano and guitar both have synthesis fallbacks, load after drums
+      // BACKGROUND: piano (solo su nucleo — ver PIANO_CORE_MIDI) y guitarra tienen fallback
       // so they don't compete for bandwidth on the critical path
       // Guitar: only load the default type (electric) — others load on demand via ensureGuitarSampleType
       // Bass sounds are not preloaded here at all — scheduleSampledNoteByDir/Async already
@@ -450,7 +472,7 @@ export function getAudioContext(): AudioContext {
       const backgroundLoad = drumSamplePromise.then(() => {
         guitarTypeLoading['guitar-electric'] = loadGuitarSampleType(audioContext!, 'guitar-electric');
         return Promise.all([
-          loadPianoSamples(audioContext!),
+          loadPianoCore(),
           guitarTypeLoading['guitar-electric'],
         ]);
       });
@@ -2234,6 +2256,13 @@ export async function renderProgressionOffline(
   // Preload bass samples into offline context if needed
   if (bassSound?.useSamples && bassSound.samplePath) {
     await preloadSampleDir(offlineCtx, bassSound.samplePath)
+  }
+
+  // El piano ya no se carga entero al arrancar (solo PIANO_CORE_MIDI, para los previews),
+  // así que un export con notas fuera de ese núcleo las sustituiría por el sintetizador sin
+  // avisar. Se piden aquí las que esta progresión va a tocar de verdad.
+  if (pianoSound?.useSamples) {
+    await ensurePianoNotes(collectMidiNotes('piano', { sections, style, transposition }));
   }
 
   // The SF2 guitars are the one bank that is not loaded eagerly anywhere, so an export

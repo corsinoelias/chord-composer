@@ -25,6 +25,7 @@ import {
   getChordSchedule,
   getStepSchedule,
   applyMixerLevels,
+  ensurePianoNotes,
   clearChordSchedule,
 } from '@/lib/audioEngine';
 
@@ -429,6 +430,25 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       } catch {
         console.warn(`[AUDIO] Bass sample preload for "${bassSoundDef.samplePath}" timed out — proceeding without it`);
       }
+    }
+
+    // Lo mismo para el piano. Solo se cargan de antemano las 25 notas del núcleo (para que
+    // los previews de acorde no suenen sintetizados); el resto de la canción se pide aquí.
+    // El piano SÍ tiene fallback a síntesis, así que un timeout degrada el timbre pero no
+    // enmudece — por eso el margen es más corto que el del bajo.
+    try {
+      const pianoMidis = collectMidiNotes('piano', {
+        sections,
+        style,
+        melodic: options.melodic,
+        transposition: options.transposition,
+      });
+      await Promise.race([
+        ensurePianoNotes(pianoMidis),
+        new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1500)),
+      ]);
+    } catch {
+      console.warn('[AUDIO] Piano note preload timed out — proceeding with synth fallback');
     }
 
     // Vocal reference audio: decode once per URL (cached across replays within the
