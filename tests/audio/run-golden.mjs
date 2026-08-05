@@ -289,13 +289,19 @@ async function main() {
 
   if (!EXTERNAL_URL) {
     // A dev server left over from an earlier run would silently win the port and serve
-    // stale modules, so refuse rather than test the wrong code.
+    // stale modules, so refuse rather than test the wrong code. Both hostnames are probed
+    // on purpose: astro dev left to itself binds ::1, which a 127.0.0.1 probe misses
+    // entirely — the check then reports "free", the spawn fails to bind, and the run dies
+    // 90s later on a timeout that looks like a slow build.
     let portBusy = false;
-    try {
-      await fetch(baseUrl, { signal: AbortSignal.timeout(1500) });
-      portBusy = true;
-    } catch {
-      /* free, as expected */
+    for (const host of ['127.0.0.1', '[::1]']) {
+      try {
+        await fetch(`http://${host}:${DEV_PORT}`, { signal: AbortSignal.timeout(1500) });
+        portBusy = true;
+        break;
+      } catch {
+        /* free on this address */
+      }
     }
     if (portBusy) {
       console.error(

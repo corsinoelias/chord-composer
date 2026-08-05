@@ -221,9 +221,33 @@ Dos parámetros nuevos donde las dos rutas sí difieren de verdad:
 - La saturación empeora (pico 1,42 → 1,56): el export ya no es más silencioso que la
   reproducción, así que el bug del limitador se nota más. Sigue pendiente.
 
-**3b — `eventBuilder` puro. PENDIENTE.** Los renderizadores ya se comparten, pero los dos
-bucles que deciden *qué* nota suena y *cuándo* siguen duplicados. Eso es lo que queda del
-diseño original de abajo.
+**3b — `eventBuilder` puro ✅ HECHA.** `src/lib/engine/types.ts` define `MusicalEvent`
+(`NoteEvent | DrumEvent`) y `eventBuilder.ts` expone `buildSlotEvents(cx)`: función pura,
+sin Web Audio, sin estado de módulo, sin reloj. Concentra todo lo musical — patrones de
+ritmo, variaciones melódicas, arpegios, chord hits, el balance interno del kit — y deja
+fuera todo lo de *sonido*: nada de sound types, offsets de octava, envolventes ni
+frecuencias. `dispatchEvents()` en `audioEngine.ts` es el único sitio que convierte un
+evento en nodos.
+
+Los dos bucles quedan reducidos a las mismas dos llamadas: construir y despachar. Difieren
+solo en lo que de verdad es distinto, y va en `DispatchTargets`: qué buses, qué kit de
+batería, y si el bajo sampleado se programa de forma síncrona (live) o asíncrona
+recogiendo promesas (offline, que debe esperarlas antes de `startRendering()`).
+
+**El arnés pasa 16/16 sin tocar la línea base**, que es el resultado que importa:
+reestructurar ambas rutas por completo no cambió ni un sonido. Y como ahora las dos
+comparten builder y dispatcher, la cobertura del arnés se extiende de hecho a la lógica
+musical de la ruta online, no solo a la del export. Lo que sigue sin cubrir es lo
+exclusivamente online: scheduler y lookahead, metrónomo y guitarras SF2.
+
+Al mover `applyArpeggioOrder` y `getArpeggioNotesPerSlot` al builder los reescribí de
+memoria y me equivoqué en los dos (`updown` invertía el extremo equivocado; las velocidades
+eran 1/2/4/8 en vez de 2/4/8/16). Se copiaron verbatim del original. Como ningún estilo
+built-in usa arpegios, el único fixture que lo habría detectado es el sintético.
+
+Balance: `audioEngine.ts` pasa de 2.760 a 2.305 líneas, más 382 en tres módulos con una
+responsabilidad cada uno. El total apenas baja — la ganancia no es de líneas, es que ahora
+hay **una** implementación de la lógica musical en vez de dos que derivaban.
 
 ### Diseño original de la Fase 3
 
