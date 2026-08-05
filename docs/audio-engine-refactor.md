@@ -277,7 +277,47 @@ evento. No se toca el scheduler y no hay que arreglarlo dos veces.
 
 ---
 
-## Fase 4 — Renderers, VoiceManager y fin del cierre de contexto
+## Fase 4 — VoiceManager y fin del cierre de contexto ✅ HECHA
+
+Alcance recortado respecto al diseño de abajo, por dos razones:
+
+- **Los "renderers como módulos" ya no aportaban nada.** Tras la 3a las funciones de nota
+  son compartidas y tras la 3b `dispatchEvents()` es el único sitio que crea nodos. Moverlas
+  a `renderers/*.ts` sería mover archivos de sitio.
+- **El pool de 64 voces se aplaza** hasta que haya una medición que lo justifique. Lo puse
+  en el plan por higiene, no por dato. `activeVoiceCount()` queda expuesto justamente para
+  poder medirlo antes de decidir.
+
+Lo que sí entró: `engine/voiceManager.ts` registra cada fuente sonora (`newSource` /
+`newOscillator` en `audioEngine.ts`, 27 puntos de creación) y las ignora si no son del
+contexto en vivo, así que los renders offline quedan fuera. `stopPlayback()` baja el master
+en 15 ms, corta todas las voces y **ya no cierra el `AudioContext`**.
+
+**Medido con `npm run test:transport`:**
+
+| | Antes | Después |
+|---|---|---|
+| Preparar el Play que sigue a un Stop | 172 ms | **0 ms** |
+| Audio residual tras Stop | no medible* | **0** |
+| Voces vivas tras Stop | — | **0** |
+| Nivel del Play tras Stop | — | +0,02 dB (sin solape) |
+
+\* Con el contexto cerrado no se podía medir: `audioEngine` no anula `analyserNode`, así que
+`getAnalyserNode()` devolvía el analyser muerto con su último frame congelado. Parecía audio
+sonando y no lo era. Ahora el contexto vive y la medición es real.
+
+Ojo con la cifra del stall: **172 ms**, no los "multi-second" que afirmaban los comentarios
+del código. Eso era antes de que existiera `stopPlaybackKeepContext`, o en redes reales. La
+fase sigue mereciendo la pena por lo demás, pero conviene no vender el argumento equivocado.
+
+Parches retirados o desactivados:
+- El timeout de 2,5 s de `ensureGuitarSoundfontLoaded` deja de ser estructural.
+- `stopPlaybackKeepContext()` se queda, pero por una razón mucho más pequeña (no cortar las
+  voces al encadenar secciones), no por dos semánticas incompatibles de Stop.
+- Los samples de bajo del editor de acordes **no los paraba nadie** antes salvo el cierre del
+  contexto: `stopAllSampledNodes()` solo lo llamaba el bass tab. Ahora sí.
+
+### Diseño original de la Fase 4
 
 **Cambios**
 - `src/lib/engine/renderers/{piano,bass,drums,guitar}.ts`, una API:

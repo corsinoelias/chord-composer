@@ -90,12 +90,13 @@ export function ensureGuitarSoundfont(soundTypeId: string, instrument: string): 
 // Kicks off (or reuses) the soundfont load and waits for it to fully finish before returning.
 // Callers should await this BEFORE flipping any "now playing" state — nothing (audio or the
 // chord-duration dots) should start until the real sample is ready; there's no early bailout
-// here on purpose. The timeout only guards against a truly stuck network request — every
-// stop() closes the AudioContext (see stopPlayback), so switching sections re-decodes this
-// soundfont from scratch on EVERY section change, not just once per page load. 8s made that
-// silent gap read as "it just stopped" long before the fallback ever kicked in; 2.5s still
-// covers a normal decode (it's re-fetched from browser cache, not the network, on a repeat
-// load) while keeping the worst case short enough to not feel broken.
+// here on purpose.
+//
+// The 2.5s timeout used to be load-bearing: stop() closed the AudioContext, so every section
+// change re-decoded this soundfont from scratch and a long timeout read as "it just
+// stopped". Stop no longer closes the context (see stopPlayback), so a loaded soundfont now
+// survives for the session and this is back to being what it says on the tin — a guard
+// against a genuinely stuck network request, on the first load only.
 export async function ensureGuitarSoundfontLoaded(soundTypeId: string, instrument: string): Promise<void> {
   if (sfGuitarPlayers.has(soundTypeId)) return
   ensureGuitarSoundfont(soundTypeId, instrument)
@@ -114,12 +115,13 @@ export async function ensureGuitarSoundfontLoaded(soundTypeId: string, instrumen
 }
 // ─────────────────────────────────────────────────────────────────────────────
 import { type InstrumentState, type InstrumentType, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
-import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir } from './bassTab/sampleEngine';
+import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir, stopAllSampledNodes } from './bassTab/sampleEngine';
 import { type StylePattern, generateBarPattern, getSlotsPerBar, getMetronomeClickInterval, getSwingOffset, type ArpeggioCell, type ArpeggioType, type ArpeggioSpeed } from './styles';
 import { type Section } from './sections';
 import { buildEffectsChain } from './audioEffects';
 import { createMixer, disposeMixer, getBus, setBusLevel } from './engine/mixer';
 import { buildSlotEvents, applyArpeggioOrder, getArpeggioNotesPerSlot, type SlotContext } from './engine/eventBuilder';
+import { setLiveContext, trackVoice, stopAllVoices, activeVoiceCount } from './engine/voiceManager';
 import { type MusicalEvent, type DrumPiece } from './engine/types';
 import { getScale as getBassScale_getScale, resolveVariation } from './bassScale';
 
@@ -428,6 +430,10 @@ export function getAudioContext(): AudioContext {
     // graph rather than a number baked into each note. See engine/mixer.ts.
     createMixer(audioContext, masterGain);
 
+    // From here on every source this engine creates gets registered, so Stop can silence
+    // them individually instead of destroying the context they live in.
+    setLiveContext(audioContext);
+
     // Only load samples once per app lifecycle; buffers can be reused across contexts.
     if (!sampleLoadingComplete) {
       // CRITICAL: drums have no synthesis fallback — must be ready before first beat
@@ -584,7 +590,7 @@ export function playChordHold(chord: Chord, volume: number = 0.5): () => void {
     // synthesis for notes outside the sampled range.
     const sample = pianoSamples[midiNote];
     if (sample) {
-      const source = ctx.createBufferSource();
+      const source = newSource(ctx);
       source.buffer = sample;
       source.connect(gainNode);
       source.start(now);
@@ -603,7 +609,7 @@ export function playChordHold(chord: Chord, volume: number = 0.5): () => void {
     ];
 
     harmonics.forEach(({ freq, amp }) => {
-      const osc = ctx.createOscillator();
+      const osc = newOscillator(ctx);
       const oscGain = ctx.createGain();
 
       osc.type = freq === 1 ? 'triangle' : 'sine';
@@ -678,6 +684,23 @@ export function playChordPreview(chord: Chord, volume: number = 0.5): void {
 }
 
 /**
+ * Fuentes sonoras registradas en el voiceManager al crearse, para que stopPlayback() pueda
+ * pararlas sin cerrar el AudioContext. trackVoice ignora las de contextos que no sean el
+ * vivo, asi que los renders offline pasan por aqui sin quedar registrados.
+ */
+function newSource(ctx: BaseAudioContext): AudioBufferSourceNode {
+  const node = ctx.createBufferSource();
+  trackVoice(ctx, node);
+  return node;
+}
+
+function newOscillator(ctx: BaseAudioContext): OscillatorNode {
+  const node = ctx.createOscillator();
+  trackVoice(ctx, node);
+  return node;
+}
+
+/**
  * Plays a piano sample with envelope
  */
 function playPianoSample(
@@ -700,7 +723,7 @@ function playPianoSample(
     return;
   }
   
-  const source = ctx.createBufferSource();
+  const source = newSource(ctx);
   const gainNode = ctx.createGain();
   
   source.buffer = sample;
@@ -746,7 +769,7 @@ function playPianoNoteSynth(
   const baseFreq = frequency * Math.pow(2, soundType.octaveOffset);
   
   harmonics.forEach(({ freq, amp }) => {
-    const osc = ctx.createOscillator();
+    const osc = newOscillator(ctx);
     const oscGain = ctx.createGain();
     
     osc.type = freq === 1 ? soundType.oscillatorType : 'sine';
@@ -867,7 +890,7 @@ function playGuitarSample(
   const sample = guitarSamples[samplePath][match.noteKey];
   if (!sample) return;
   
-  const source = ctx.createBufferSource();
+  const source = newSource(ctx);
   const gainNode = ctx.createGain();
   
   source.buffer = sample;
@@ -914,7 +937,7 @@ function playGuitarSynth(
   ];
   
   harmonics.forEach(({ freq, amp }) => {
-    const osc = ctx.createOscillator();
+    const osc = newOscillator(ctx);
     const oscGain = ctx.createGain();
     
     osc.type = freq === 1 ? 'triangle' : 'sine';
@@ -971,7 +994,7 @@ function playGuitarSampleSF2(
   }
   if (!sample) return
 
-  const source = ctx.createBufferSource()
+  const source = newSource(ctx)
   source.buffer = sample
   if (semitoneShift !== 0) source.playbackRate.value = Math.pow(2, semitoneShift / 12)
 
@@ -1051,12 +1074,12 @@ function playBassNote(
   const baseFreq = frequency * Math.pow(2, soundType.octaveOffset);
   
   // Main oscillator
-  const mainOsc = ctx.createOscillator();
+  const mainOsc = newOscillator(ctx);
   mainOsc.type = soundType.oscillatorType;
   mainOsc.frequency.value = baseFreq;
   
   // Sub oscillator (one octave down)
-  const subOsc = ctx.createOscillator();
+  const subOsc = newOscillator(ctx);
   subOsc.type = 'sine';
   subOsc.frequency.value = baseFreq / 2;
   
@@ -1096,7 +1119,7 @@ function playSample(
   startTime: number,
   volume: number
 ): void {
-  const source = ctx.createBufferSource();
+  const source = newSource(ctx);
   source.buffer = buffer;
   const gain = ctx.createGain();
   gain.gain.value = volume;
@@ -1128,7 +1151,7 @@ function playDrumHit(
       playSample(ctx, gainNode, kit.kick, startTime, volume * 1.1);
     } else {
       // Synthesized kick
-      const osc = ctx.createOscillator();
+      const osc = newOscillator(ctx);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(150, startTime);
       osc.frequency.exponentialRampToValueAtTime(40, startTime + 0.1);
@@ -1140,7 +1163,7 @@ function playDrumHit(
       osc.start(startTime);
       osc.stop(startTime + 0.35);
       
-      const click = ctx.createOscillator();
+      const click = newOscillator(ctx);
       click.type = 'triangle';
       click.frequency.value = 800;
       const clickGain = ctx.createGain();
@@ -1163,7 +1186,7 @@ function playDrumHit(
       for (let i = 0; i < bufferSize; i++) {
         data[i] = Math.random() * 2 - 1;
       }
-      const noise = ctx.createBufferSource();
+      const noise = newSource(ctx);
       noise.buffer = noiseBuffer;
       const noiseFilter = ctx.createBiquadFilter();
       noiseFilter.type = 'highpass';
@@ -1177,7 +1200,7 @@ function playDrumHit(
       noise.start(startTime);
       noise.stop(startTime + 0.2);
       
-      const osc = ctx.createOscillator();
+      const osc = newOscillator(ctx);
       osc.type = 'triangle';
       osc.frequency.value = 180;
       const oscGain = ctx.createGain();
@@ -1195,7 +1218,7 @@ function playDrumHit(
       playSample(ctx, gainNode, kit.snareStick, startTime, volume * 0.7);
     } else {
       // Synthesized rim click
-      const osc = ctx.createOscillator();
+      const osc = newOscillator(ctx);
       osc.type = 'triangle';
       osc.frequency.value = 1200;
       const oscGain = ctx.createGain();
@@ -1219,7 +1242,7 @@ function playDrumHit(
       for (let i = 0; i < bufferSize; i++) {
         data[i] = Math.random() * 2 - 1;
       }
-      const noise = ctx.createBufferSource();
+      const noise = newSource(ctx);
       noise.buffer = noiseBuffer;
       const hiFilter = ctx.createBiquadFilter();
       hiFilter.type = 'highpass';
@@ -1254,7 +1277,7 @@ function playDrumHit(
       for (let i = 0; i < bufferSize; i++) {
         data[i] = Math.random() * 2 - 1;
       }
-      const noise = ctx.createBufferSource();
+      const noise = newSource(ctx);
       noise.buffer = noiseBuffer;
       const hiFilter = ctx.createBiquadFilter();
       hiFilter.type = 'highpass';
@@ -1287,7 +1310,7 @@ function playDrumHit(
       for (let i = 0; i < bufferSize; i++) {
         data[i] = Math.random() * 2 - 1;
       }
-      const noise = ctx.createBufferSource();
+      const noise = newSource(ctx);
       noise.buffer = noiseBuffer;
       const filter = ctx.createBiquadFilter();
       filter.type = 'bandpass';
@@ -1309,7 +1332,7 @@ function playDrumHit(
       playSample(ctx, gainNode, kit.tom1, startTime, volume * 1.0);
     } else {
       // Synthesized high tom
-      const osc = ctx.createOscillator();
+      const osc = newOscillator(ctx);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(200, startTime);
       osc.frequency.exponentialRampToValueAtTime(120, startTime + 0.15);
@@ -1328,7 +1351,7 @@ function playDrumHit(
       playSample(ctx, gainNode, kit.tom2, startTime, volume * 1.0);
     } else {
       // Synthesized mid tom
-      const osc = ctx.createOscillator();
+      const osc = newOscillator(ctx);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(150, startTime);
       osc.frequency.exponentialRampToValueAtTime(90, startTime + 0.18);
@@ -1347,7 +1370,7 @@ function playDrumHit(
       playSample(ctx, gainNode, kit.floorTom, startTime, volume * 1.0);
     } else {
       // Synthesized floor tom
-      const osc = ctx.createOscillator();
+      const osc = newOscillator(ctx);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(100, startTime);
       osc.frequency.exponentialRampToValueAtTime(60, startTime + 0.2);
@@ -1372,7 +1395,7 @@ function playDrumHit(
       for (let i = 0; i < bufferSize; i++) {
         data[i] = Math.random() * 2 - 1;
       }
-      const noise = ctx.createBufferSource();
+      const noise = newSource(ctx);
       noise.buffer = noiseBuffer;
       const filter = ctx.createBiquadFilter();
       filter.type = 'bandpass';
@@ -1400,7 +1423,7 @@ function playDrumHit(
       for (let i = 0; i < bufferSize; i++) {
         data[i] = Math.random() * 2 - 1;
       }
-      const noise = ctx.createBufferSource();
+      const noise = newSource(ctx);
       noise.buffer = noiseBuffer;
       const hiFilter = ctx.createBiquadFilter();
       hiFilter.type = 'highpass';
@@ -1427,7 +1450,7 @@ function playClick(
   startTime: number,
   isDownbeat: boolean = false
 ): void {
-  const osc = ctx.createOscillator();
+  const osc = newOscillator(ctx);
   const gainNode = ctx.createGain();
   
   osc.type = 'sine';
@@ -1714,7 +1737,7 @@ export function scheduleProgression(
     if (!audioTrack) return;
     const clipDuration = range.endSec - range.startSec;
     if (clipDuration <= 0) return;
-    const source = ctx.createBufferSource();
+    const source = newSource(ctx);
     source.buffer = audioTrack.buffer;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(vocalMuted ? 0 : getUserVocalVolume(), when);
@@ -2247,23 +2270,29 @@ export function stopPlayback(): void {
   // Release mutex first
   releasePlaybackMutex();
 
-  // Closing the context is the most reliable way to prevent previously-scheduled
-  // WebAudio events from "coming back" and overlapping on the next Play.
-  if (audioContext) {
-    try {
-      audioContext.close().catch(() => {});
-    } catch (e) {
-      // Ignore close errors
-    }
-    audioContext = null;
-    masterGain = null;
-    // The buses belong to the context we just closed; the next play() rebuilds them.
-    disposeMixer();
-    // Soundfont players/loading promises are bound to the AudioContext we just closed —
-    // reusing them on the next play() would silently produce no sound. Drop the cache so
-    // ensureGuitarSoundfont() re-creates fresh players against the next context.
-    sfGuitarPlayers.clear();
-    sfGuitarLoadings.clear();
+  // This used to close the AudioContext. Closing it was the most reliable way to kill
+  // already-queued WebAudio events — the scheduler runs ~300ms ahead, so at Stop there are
+  // notes whose start() is still in the future and cancel() does not undo those. But it
+  // also destroyed every cache keyed to that context (guitar soundfont, bass samples, mixer
+  // buses, effects chain), which is what made a Stop cost a full redecode on the next Play
+  // and forced stopPlaybackKeepContext() into existence.
+  //
+  // Now the voice manager knows every source that is playing, so they can be stopped
+  // individually and the context survives. The gain ramp is not optional: cutting a source
+  // mid-waveform is a discontinuity, and a discontinuity is an audible click.
+  if (audioContext && masterGain) {
+    const now = audioContext.currentTime;
+    const FADE_SEC = 0.015;
+    masterGain.gain.cancelScheduledValues(now);
+    masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+    masterGain.gain.linearRampToValueAtTime(0, now + FADE_SEC);
+    stopAllVoices(now + FADE_SEC + 0.005);
+    // Bass samples are scheduled by sampleEngine, which keeps its own node set — the chord
+    // editor never stopped those before, only the context close did.
+    stopAllSampledNodes();
+    // Restore the master for the next Play, after everything has been cut.
+    masterGain.gain.setValueAtTime(0, now + FADE_SEC + 0.005);
+    masterGain.gain.setValueAtTime(1, now + FADE_SEC + 0.01);
   }
 
   currentlyPlaying = false;
@@ -2280,26 +2309,25 @@ export function stopPlayback(): void {
 }
 
 /**
- * Lightweight variant of stopPlayback() for a caller that's about to immediately start a
- * NEW play() as a continuation of the same listening session — e.g. a song section finishing
- * on its own (loop: false) and the UI chaining into the next one. Releases the mutex and
- * clears the schedule (so the new play() isn't blocked/confused by the old one) WITHOUT
- * closing the AudioContext.
+ * Lightweight variant of stopPlayback() for a caller about to immediately start a NEW play()
+ * as a continuation of the same listening session — a song section finishing on its own
+ * (loop: false) and the UI chaining into the next one. Releases the mutex and clears the
+ * schedule, without silencing anything.
  *
- * Why this is safe here but not for a real stop: stopPlayback() closes the context specifically
- * to kill any already-scheduled-ahead WebAudio events that could otherwise "come back" and
- * overlap the next play — a real risk when a Stop/Next/section-switch cuts off playback
- * mid-flight, since the bar-by-bar scheduler may have already queued audio slightly ahead of
- * the cut point. A natural end-of-array completion has no such risk: nothing was scheduled
- * beyond it in the first place (that's what "finished all segments, not looping" means).
+ * This existed because stopPlayback() closed the AudioContext, which invalidated every cache
+ * keyed to it and turned a section change into a redecode. That reason is gone: Stop keeps
+ * the context now. What remains is a narrower and still real distinction — stopPlayback()
+ * fades the master out and cuts every live voice, which is right when the user asks for
+ * silence but wrong when the next section should follow seamlessly. A natural end-of-array
+ * completion has nothing queued past it, so there is nothing to cut.
  *
- * Why this is worth having: closing+reopening the context invalidates sfGuitarPlayers/abCache
- * (both keyed by AudioContext identity), forcing every guitar soundfont and bass sample to
- * decode from scratch on the very next play() — that's what turned a same-song section change
- * into a multi-second stall (see the timeouts on ensureGuitarSoundfontLoaded/preloadSampleDir).
- * Keeping the context alive keeps those caches valid, so the chained section starts instantly.
+ * Kept rather than removed for that reason, but it is now a small difference rather than two
+ * incompatible stop semantics.
  */
 export function stopPlaybackKeepContext(): void {
   clearChordSchedule();
   releasePlaybackMutex();
 }
+
+/** Live voices being tracked. Diagnostic — see tests/audio/run-transport.mjs. */
+export { activeVoiceCount };
