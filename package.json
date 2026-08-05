@@ -15,7 +15,8 @@
     "seed": "tsx --env-file=.env scripts/seed-songs.ts",
     "fetch-soundfonts": "node scripts/fetch-soundfonts.mjs",
     "prebuild": "npm run fetch-soundfonts",
-    "indexnow": "node scripts/indexnow.mjs"
+    "indexnow": "node scripts/indexnow.mjs",
+    "test:transport": "node tests/audio/run-transport.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",
