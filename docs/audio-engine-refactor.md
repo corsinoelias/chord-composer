@@ -192,7 +192,40 @@ al crear cada nota, mover un fader no se oye hasta la siguiente barra.
 
 ---
 
-## Fase 3 — `eventBuilder` puro *(driver: añadir features cuesta)*
+## Fase 3 — unificar online y offline *(driver: añadir features cuesta)*
+
+Partida en dos pasos verificables por separado, porque hacerlo de una era demasiada
+superficie para un solo commit.
+
+**3a — Renderizadores compartidos ✅ HECHA.** Las funciones de nota (`playPianoNote`,
+`playBassNote`, `playDrumHit`, `playGuitarNote`, `playSample`, `playClick`, …) pasan de
+`AudioContext` a `BaseAudioContext`, así que sirven igual en un `OfflineAudioContext`. El
+render offline deja de tener su propia copia de cada instrumento y llama a las mismas.
+`audioEngine.ts` baja de 2.836 a 2.571 líneas.
+
+Dos parámetros nuevos donde las dos rutas sí difieren de verdad:
+- `playDrumHit` recibe el kit (la live usa `acousticKit`; la offline el suyo, decodificado
+  en su propio contexto).
+- `playGuitarNote` comprueba `ctx === audioContext` antes de usar un player SF2, porque
+  soundfont-player ata su grafo al contexto con el que se creó.
+
+**Consecuencias medidas**, todas esperadas al elegir "unificar del todo":
+- El bug del `solo` en el export desaparece solo, por compartir el gate
+  `isInstrumentAudible`.
+- Los 16 fixtures cambian. El export era una implementación paralela que había derivado:
+  batería más silenciosa (`*0.8` en caja y `*0.5` en charles que la live no tiene), piano
+  sintetizado con 4 armónicos en vez de 6, ganancia 0,12 en vez de 0,15 y sin detune.
+- Desajuste de nivel entre export y reproducción: **−0,41 dB → +0,06 dB**. Medido con 5
+  repeticiones por lado; el ruido del analyser es de ~1 dB, así que una sola medición no
+  vale — la primera que hice cayó en el extremo bajo y parecía una regresión.
+- La saturación empeora (pico 1,42 → 1,56): el export ya no es más silencioso que la
+  reproducción, así que el bug del limitador se nota más. Sigue pendiente.
+
+**3b — `eventBuilder` puro. PENDIENTE.** Los renderizadores ya se comparten, pero los dos
+bucles que deciden *qué* nota suena y *cuándo* siguen duplicados. Eso es lo que queda del
+diseño original de abajo.
+
+### Diseño original de la Fase 3
 
 Aquí muere la duplicación de **564 líneas** (2137–2700).
 

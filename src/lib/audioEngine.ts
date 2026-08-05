@@ -679,7 +679,7 @@ export function playChordPreview(chord: Chord, volume: number = 0.5): void {
  * Plays a piano sample with envelope
  */
 function playPianoSample(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   midiNote: number,
   startTime: number,
@@ -720,7 +720,7 @@ function playPianoSample(
  * Creates and plays piano notes with harmonic synthesis for realistic sound
  */
 function playPianoNoteSynth(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   frequency: number,
   startTime: number,
@@ -779,7 +779,7 @@ function playPianoNoteSynth(
  * Main piano note function - uses samples or synthesis based on sound type
  */
 function playPianoNote(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   frequency: number,
   startTime: number,
@@ -842,7 +842,7 @@ function findClosestGuitarSample(
  * Plays a guitar sample with pitch adjustment and envelope
  */
 function playGuitarSample(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   midiNote: number,
   startTime: number,
@@ -893,7 +893,7 @@ function playGuitarSample(
  * Synthesized guitar fallback
  */
 function playGuitarSynth(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   frequency: number,
   startTime: number,
@@ -947,7 +947,7 @@ function playGuitarSynth(
  * sound equivalent, not just by the timing numbers.
  */
 function playGuitarSampleSF2(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   sfPlayer: SfPlayer,
   midiNote: number,
@@ -992,7 +992,7 @@ function playGuitarSampleSF2(
  * Main guitar note function - uses samples or synthesis based on sound type
  */
 function playGuitarNote(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   frequency: number,
   startTime: number,
@@ -1002,11 +1002,17 @@ function playGuitarNote(
   midiNote?: number
 ): void {
   if (soundType.sf2Instrument && midiNote !== undefined) {
-    const sfPlayer = sfGuitarPlayers.get(soundType.id)
+    // soundfont-player builds its node graph against the context it was created with, so
+    // an SF2 player is only usable from the live context it was bound to. Offline renders
+    // fall through to the synth — which is what the export has always done for these
+    // sounds, and is a known gap: an sf2-* guitar sounds different in the WAV than it does
+    // in playback. Fixing that means loading the soundfont into the offline context too;
+    // see docs/audio-engine-refactor.md (fase 5, consolidar guitarra).
+    const sfPlayer = ctx === audioContext ? sfGuitarPlayers.get(soundType.id) : undefined
     if (sfPlayer) {
       playGuitarSampleSF2(ctx, destination, sfPlayer, midiNote, startTime, duration, volume)
     } else {
-      ensureGuitarSoundfont(soundType.id, soundType.sf2Instrument)
+      if (ctx === audioContext) ensureGuitarSoundfont(soundType.id, soundType.sf2Instrument)
       playGuitarSynth(ctx, destination, frequency, startTime, duration, volume)
     }
     return
@@ -1022,7 +1028,7 @@ function playGuitarNote(
  * Creates and plays bass notes with sub oscillator for full low end
  */
 function playBassNote(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   frequency: number,
   startTime: number,
@@ -1082,7 +1088,7 @@ function playBassNote(
  * Plays a sample buffer
  */
 function playSample(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   buffer: AudioBuffer,
   startTime: number,
@@ -1101,20 +1107,23 @@ function playSample(
  * Plays a drum hit with samples for Acoustic Kit or synthesis for others
  */
 function playDrumHit(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   startTime: number,
   soundType: SoundType,
   volume: number,
-  drumType: 'kick' | 'snare' | 'snareStick' | 'hihat' | 'hihatOpen' | 'hihatFoot' | 'tom1' | 'tom2' | 'floorTom' | 'ride' | 'crash'
+  drumType: 'kick' | 'snare' | 'snareStick' | 'hihat' | 'hihatOpen' | 'hihatFoot' | 'tom1' | 'tom2' | 'floorTom' | 'ride' | 'crash',
+  // Which decoded kit to pull samples from. The live path uses the module-level
+  // kit; an offline render passes its own, decoded into the offline context.
+  kit: Partial<AcousticKitSamples> = acousticKit
 ): void {
   const gainNode = ctx.createGain();
   gainNode.connect(destination);
   const useAcousticSamples = soundType.id === 'standard';
   
   if (drumType === 'kick') {
-    if (useAcousticSamples && acousticKit.kick) {
-      playSample(ctx, gainNode, acousticKit.kick, startTime, volume * 1.1);
+    if (useAcousticSamples && kit.kick) {
+      playSample(ctx, gainNode, kit.kick, startTime, volume * 1.1);
     } else {
       // Synthesized kick
       const osc = ctx.createOscillator();
@@ -1142,8 +1151,8 @@ function playDrumHit(
     }
     
   } else if (drumType === 'snare') {
-    if (useAcousticSamples && acousticKit.snare) {
-      playSample(ctx, gainNode, acousticKit.snare, startTime, volume * 1.0);
+    if (useAcousticSamples && kit.snare) {
+      playSample(ctx, gainNode, kit.snare, startTime, volume * 1.0);
     } else {
       // Synthesized snare
       const bufferSize = ctx.sampleRate * 0.2;
@@ -1180,8 +1189,8 @@ function playDrumHit(
     
   } else if (drumType === 'snareStick') {
     // Snare rim/edge hit
-    if (useAcousticSamples && acousticKit.snareStick) {
-      playSample(ctx, gainNode, acousticKit.snareStick, startTime, volume * 0.7);
+    if (useAcousticSamples && kit.snareStick) {
+      playSample(ctx, gainNode, kit.snareStick, startTime, volume * 0.7);
     } else {
       // Synthesized rim click
       const osc = ctx.createOscillator();
@@ -1198,8 +1207,8 @@ function playDrumHit(
     
   } else if (drumType === 'hihat') {
     // Hi-hat closed (hand)
-    if (useAcousticSamples && acousticKit.hihat) {
-      playSample(ctx, gainNode, acousticKit.hihat, startTime, volume * 0.7);
+    if (useAcousticSamples && kit.hihat) {
+      playSample(ctx, gainNode, kit.hihat, startTime, volume * 0.7);
     } else {
       // Synthesized hi-hat
       const bufferSize = ctx.sampleRate * 0.1;
@@ -1230,7 +1239,7 @@ function playDrumHit(
   } else if (drumType === 'hihatOpen') {
     // Hi-hat open - use one of the open samples with random variation
     if (useAcousticSamples) {
-      const openSamples = [acousticKit.hihatOpen, acousticKit.hihatOpen2, acousticKit.hihatOpen3].filter(s => s !== null);
+      const openSamples = [kit.hihatOpen, kit.hihatOpen2, kit.hihatOpen3].filter(s => s !== null);
       if (openSamples.length > 0) {
         const sample = openSamples[Math.floor(Math.random() * openSamples.length)];
         playSample(ctx, gainNode, sample!, startTime, volume * 0.75);
@@ -1264,10 +1273,10 @@ function playDrumHit(
     
   } else if (drumType === 'hihatFoot') {
     // Hi-hat foot pedal
-    if (useAcousticSamples && acousticKit.hihatFoot2) {
-      playSample(ctx, gainNode, acousticKit.hihatFoot2, startTime, volume * 0.6);
-    } else if (useAcousticSamples && acousticKit.hihatFoot) {
-      playSample(ctx, gainNode, acousticKit.hihatFoot, startTime, volume * 0.6);
+    if (useAcousticSamples && kit.hihatFoot2) {
+      playSample(ctx, gainNode, kit.hihatFoot2, startTime, volume * 0.6);
+    } else if (useAcousticSamples && kit.hihatFoot) {
+      playSample(ctx, gainNode, kit.hihatFoot, startTime, volume * 0.6);
     } else {
       // Synthesized foot hi-hat (shorter, more muffled)
       const bufferSize = ctx.sampleRate * 0.08;
@@ -1294,8 +1303,8 @@ function playDrumHit(
     
   } else if (drumType === 'tom1') {
     // High tom
-    if (useAcousticSamples && acousticKit.tom1) {
-      playSample(ctx, gainNode, acousticKit.tom1, startTime, volume * 1.0);
+    if (useAcousticSamples && kit.tom1) {
+      playSample(ctx, gainNode, kit.tom1, startTime, volume * 1.0);
     } else {
       // Synthesized high tom
       const osc = ctx.createOscillator();
@@ -1313,8 +1322,8 @@ function playDrumHit(
     
   } else if (drumType === 'tom2') {
     // Mid tom
-    if (useAcousticSamples && acousticKit.tom2) {
-      playSample(ctx, gainNode, acousticKit.tom2, startTime, volume * 1.0);
+    if (useAcousticSamples && kit.tom2) {
+      playSample(ctx, gainNode, kit.tom2, startTime, volume * 1.0);
     } else {
       // Synthesized mid tom
       const osc = ctx.createOscillator();
@@ -1332,8 +1341,8 @@ function playDrumHit(
     
   } else if (drumType === 'floorTom') {
     // Floor tom
-    if (useAcousticSamples && acousticKit.floorTom) {
-      playSample(ctx, gainNode, acousticKit.floorTom, startTime, volume * 1.0);
+    if (useAcousticSamples && kit.floorTom) {
+      playSample(ctx, gainNode, kit.floorTom, startTime, volume * 1.0);
     } else {
       // Synthesized floor tom
       const osc = ctx.createOscillator();
@@ -1351,8 +1360,8 @@ function playDrumHit(
     
   } else if (drumType === 'ride') {
     // Ride cymbal
-    if (useAcousticSamples && acousticKit.ride) {
-      playSample(ctx, gainNode, acousticKit.ride, startTime, volume * 0.75);
+    if (useAcousticSamples && kit.ride) {
+      playSample(ctx, gainNode, kit.ride, startTime, volume * 0.75);
     } else {
       // Synthesized ride
       const bufferSize = ctx.sampleRate * 0.3;
@@ -1379,8 +1388,8 @@ function playDrumHit(
     
   } else if (drumType === 'crash') {
     // Crash cymbal
-    if (useAcousticSamples && acousticKit.crash) {
-      playSample(ctx, gainNode, acousticKit.crash, startTime, volume * 0.9);
+    if (useAcousticSamples && kit.crash) {
+      playSample(ctx, gainNode, kit.crash, startTime, volume * 0.9);
     } else {
       // Synthesized crash
       const bufferSize = ctx.sampleRate * 0.8;
@@ -1411,7 +1420,7 @@ function playDrumHit(
  * Uses a separate gain node connected directly to destination for priority over instruments
  */
 function playClick(
-  ctx: AudioContext,
+  ctx: BaseAudioContext,
   destination: AudioNode,
   startTime: number,
   isDownbeat: boolean = false
@@ -2295,6 +2304,33 @@ export async function renderProgressionOffline(
     return patternCache.get(barNum)!;
   };
   
+  // Mixer buses, mirroring the live path so instrument level is a graph parameter rather
+  // than a number baked into every note. Offline levels are static (nothing can move a
+  // fader mid-render), so they are set once here instead of per segment.
+  const offlineBuses = {
+    piano: offlineCtx.createGain(),
+    bass: offlineCtx.createGain(),
+    drums: offlineCtx.createGain(),
+    guitar: offlineCtx.createGain(),
+  };
+  for (const bus of Object.values(offlineBuses)) bus.connect(offlineMasterGain);
+
+  // isInstrumentAudible, not `!muted` — the offline path used to ignore solo entirely, so
+  // soloing an instrument and exporting gave you a WAV with everything still in it.
+  const audible = {
+    piano: !!pianoState && isInstrumentAudible(pianoState, instruments),
+    bass: !!bassState && isInstrumentAudible(bassState, instruments),
+    drums: !!drumsState && isInstrumentAudible(drumsState, instruments),
+    guitar: !!guitarState && isInstrumentAudible(guitarState, instruments),
+  };
+  offlineBuses.piano.gain.value = audible.piano ? pianoState!.volume * style.volumes.piano : 0;
+  offlineBuses.bass.gain.value = audible.bass ? bassState!.volume * style.volumes.bass : 0;
+  offlineBuses.drums.gain.value = audible.drums ? drumsState!.volume * style.volumes.drums : 0;
+  // Guitar has no style volume of its own in older styles — it borrows piano's.
+  offlineBuses.guitar.gain.value = audible.guitar
+    ? guitarState!.volume * (style.volumes.guitar ?? style.volumes.piano)
+    : 0;
+
   sections.forEach(section => {
     const melodicBass   = style.melodic ? resolveVariation(style.melodic.bass,   section.bassVariationId)   : null;
     const melodicPiano  = style.melodic ? resolveVariation(style.melodic.piano,  section.pianoVariationId)  : null;
@@ -2304,113 +2340,63 @@ export async function renderProgressionOffline(
       section.chords.forEach(chord => {
         const midiNotes = chordToMidiNotes(chord).map(note => note + transposition);
         const chordStartTime = currentTime;
-        
-        // Calculate exact slot count based on chord duration
         const slotCount = chord.duration * 4; // 4 slots per beat
-        
-        // Process each slot in this chord
+
         for (let i = 0; i < slotCount; i++) {
-          // CRITICAL: patternSlot and barNumber are based on GLOBAL position
-          // The rhythm pattern runs continuously regardless of chord changes
+          // CRITICAL: patternSlot and barNumber are based on GLOBAL position — the rhythm
+          // pattern runs continuously regardless of chord changes.
           const currentGlobalSlot = globalSlotIndex + i;
           const patternSlot = currentGlobalSlot % slotsPerBar;
           const slotTime = chordStartTime + (i * slotDuration) + getSwingOffset(style, patternSlot, slotDuration);
-
-          // Bar changes every slotsPerBar slots (16 for 4/4, 12 for 6/8, etc.)
           const barNumber = Math.floor(currentGlobalSlot / slotsPerBar) + 1;
-          
-          // Get cached pattern for this bar
           const pattern = getPatternForBar(barNumber);
-          
-          // Piano - melodic scale or style pattern (fallback)
-          const pianoVelocity = pattern.piano[patternSlot];
-          const playOfflinePianoNote = (midiNote: number, noteTime: number, noteDuration: number, noteVolume?: number) => {
-            if (!pianoState || !pianoSound) return;
-            const frequency = midiToFrequency(midiNote);
-            const volume = noteVolume ?? pianoState.volume * style.volumes.piano * pianoVelocity;
-              
-              // Check if we should use samples
-              if (pianoSound.useSamples && pianoSamples[midiNote]) {
-                // Use sampled piano
-                const sample = pianoSamples[midiNote]!;
-                const source = offlineCtx.createBufferSource();
-                const gainNode = offlineCtx.createGain();
-                
-                source.buffer = sample;
-                source.connect(gainNode);
-                gainNode.connect(offlineMasterGain);
-                
-                // Envelope with gradual release
-                gainNode.gain.setValueAtTime(volume * 0.8, noteTime);
-                const releaseStart = noteTime + Math.max(0, noteDuration - 0.1);
-                gainNode.gain.setValueAtTime(volume * 0.8, releaseStart);
-                gainNode.gain.linearRampToValueAtTime(0, noteTime + noteDuration + 0.3);
-                
-                source.start(noteTime);
-                source.stop(noteTime + Math.max(noteDuration + 0.4, sample.duration));
-              } else {
-                // Use synthesized piano
-                const baseFreq = frequency * Math.pow(2, pianoSound.octaveOffset);
-                
-                const harmonics = [
-                  { freq: 1, amp: 1.0 },
-                  { freq: 2, amp: 0.5 },
-                  { freq: 3, amp: 0.25 },
-                  { freq: 4, amp: 0.15 },
-                ];
-                
-                const pianoGain = offlineCtx.createGain();
-                pianoGain.connect(offlineMasterGain);
-                
-                harmonics.forEach(({ freq, amp }) => {
-                  const osc = offlineCtx.createOscillator();
-                  const oscGain = offlineCtx.createGain();
-                  osc.type = freq === 1 ? pianoSound.oscillatorType : 'sine';
-                  osc.frequency.value = baseFreq * freq;
-                  oscGain.gain.value = amp * 0.12 * volume;
-                  osc.connect(oscGain);
-                  oscGain.connect(pianoGain);
-                  osc.start(noteTime);
-                  osc.stop(noteTime + noteDuration);
-                });
-                
-                pianoGain.gain.setValueAtTime(0, noteTime);
-                pianoGain.gain.linearRampToValueAtTime(1, noteTime + pianoSound.attackTime);
-                pianoGain.gain.linearRampToValueAtTime(pianoSound.sustainLevel, noteTime + pianoSound.attackTime + pianoSound.decayTime);
-                pianoGain.gain.linearRampToValueAtTime(0, noteTime + noteDuration);
-              }
-          };
 
-          if (melodicPiano && pianoState && !pianoState.muted && pianoSound) {
-            const { pattern: scalePattern, loopBars: pLoopBars, octaveOffsets: pOctaveOffsets } = melodicPiano;
+          // ── Piano ──────────────────────────────────────────────────────────
+          const pianoVelocity = pattern.piano[patternSlot];
+          if (melodicPiano && audible.piano && pianoSound) {
+            const { pattern: scalePattern, chordHit: pChordHit, loopBars: pLoopBars, octaveOffsets: pOctaveOffsets } = melodicPiano;
             const slotInLoop = currentGlobalSlot % (pLoopBars * slotsPerBar);
             const scale = getBassScale_getScale(chord.quality);
             const noteDuration = slotDuration * 3;
+            const chordHitVelocity = pChordHit?.[slotInLoop] ?? 0;
+            if (chordHitVelocity > 0) {
+              midiNotes.forEach(noteMidi => {
+                playPianoNote(offlineCtx, offlineBuses.piano, midiToFrequency(noteMidi), slotTime, noteDuration,
+                  pianoSound, chordHitVelocity, noteMidi);
+              });
+            }
             for (const degStr of Object.keys(scalePattern)) {
               const deg = Number(degStr) as 1|2|3|4|5|6|7;
               const velocity = scalePattern[deg]?.[slotInLoop] ?? 0;
               if (velocity <= 0) continue;
               const noteMidi = midiNotes[0] + scale[deg - 1] + (pOctaveOffsets?.[deg] ?? 0) * 12;
-              playOfflinePianoNote(noteMidi, slotTime, noteDuration, pianoState.volume * style.volumes.piano * velocity);
+              playPianoNote(offlineCtx, offlineBuses.piano, midiToFrequency(noteMidi), slotTime, noteDuration,
+                pianoSound, velocity, noteMidi);
             }
-          } else if (pianoState && !pianoState.muted && pianoSound && pianoVelocity > 0) {
+          } else if (audible.piano && pianoSound && pianoVelocity > 0) {
             const pianoArpeggio = style.arpeggios?.piano?.[patternSlot] ?? null;
             if (pianoArpeggio && midiNotes.length > 1) {
               const orderedNotes = applyArpeggioOrder(midiNotes, pianoArpeggio.type);
               const notesPerSlot = getArpeggioNotesPerSlot(pianoArpeggio.speed);
               const arpeggioNoteDuration = slotDuration / notesPerSlot;
               for (let j = 0; j < notesPerSlot; j++) {
+                const midiNote = orderedNotes[j % orderedNotes.length];
                 const noteTime = slotTime + (j * arpeggioNoteDuration);
-                playOfflinePianoNote(orderedNotes[j % orderedNotes.length], noteTime, arpeggioNoteDuration * 1.5);
+                playPianoNote(offlineCtx, offlineBuses.piano, midiToFrequency(midiNote), noteTime,
+                  arpeggioNoteDuration * 1.5, pianoSound, pianoVelocity, midiNote);
               }
             } else {
-              midiNotes.forEach(midiNote => playOfflinePianoNote(midiNote, slotTime, slotDuration * 3));
+              midiNotes.forEach(midiNote => {
+                playPianoNote(offlineCtx, offlineBuses.piano, midiToFrequency(midiNote), slotTime,
+                  slotDuration * 3, pianoSound, pianoVelocity, midiNote);
+              });
             }
           }
 
-          // Bass - melodic scale or style pattern (fallback)
-          const bassVelocity = pattern.bass[patternSlot];
-          if (melodicBass && bassState && !bassState.muted && bassSound) {
+          // ── Bass ───────────────────────────────────────────────────────────
+          // Sampled bass decodes lazily, so the offline path uses the async scheduler and
+          // collects the promises — startRendering() must not run until they resolve.
+          if (melodicBass && audible.bass && bassSound) {
             const { pattern: scalePattern, loopBars: bLoopBars, octaveOffsets: bOctaveOffsets } = melodicBass;
             const slotInLoop = currentGlobalSlot % (bLoopBars * slotsPerBar);
             const scale = getBassScale_getScale(chord.quality);
@@ -2420,338 +2406,94 @@ export async function renderProgressionOffline(
               const velocity = scalePattern[deg]?.[slotInLoop] ?? 0;
               if (velocity <= 0) continue;
               const noteMidi = midiNotes[0] + scale[deg - 1] + (bOctaveOffsets?.[deg] ?? 0) * 12;
-              const vol = bassState.volume * style.volumes.bass * velocity;
               if (bassSound.useSamples && bassSound.samplePath) {
                 offlineBassPromises.push(
-                  scheduleSampledNoteByDirAsync(offlineCtx, offlineMasterGain, bassSound.samplePath, noteMidi + (bassSound.octaveOffset ?? 0) * 12, slotTime, noteDuration, vol)
+                  scheduleSampledNoteByDirAsync(offlineCtx, offlineBuses.bass, bassSound.samplePath,
+                    noteMidi + (bassSound.octaveOffset ?? 0) * 12, slotTime, noteDuration, velocity)
                 );
               } else {
-                const baseFreq = midiToFrequency(noteMidi) * Math.pow(2, bassSound.octaveOffset);
-                const bassGain = offlineCtx.createGain();
-                const filter = offlineCtx.createBiquadFilter();
-                filter.type = 'lowpass'; filter.frequency.value = 800;
-                filter.connect(bassGain); bassGain.connect(offlineMasterGain);
-                const mainOsc = offlineCtx.createOscillator();
-                mainOsc.type = bassSound.oscillatorType; mainOsc.frequency.value = baseFreq;
-                const mainOscGain = offlineCtx.createGain(); mainOscGain.gain.value = 0.2 * vol;
-                mainOsc.connect(mainOscGain); mainOscGain.connect(filter);
-                const subOsc = offlineCtx.createOscillator();
-                subOsc.type = 'sine'; subOsc.frequency.value = baseFreq / 2;
-                const subOscGain = offlineCtx.createGain(); subOscGain.gain.value = 0.15 * vol;
-                subOsc.connect(subOscGain); subOscGain.connect(filter);
-                bassGain.gain.setValueAtTime(0, slotTime);
-                bassGain.gain.linearRampToValueAtTime(1, slotTime + bassSound.attackTime);
-                bassGain.gain.linearRampToValueAtTime(bassSound.sustainLevel, slotTime + bassSound.attackTime + bassSound.decayTime);
-                bassGain.gain.linearRampToValueAtTime(0, slotTime + noteDuration);
-                mainOsc.start(slotTime); subOsc.start(slotTime);
-                mainOsc.stop(slotTime + noteDuration + 0.1); subOsc.stop(slotTime + noteDuration + 0.1);
+                playBassNote(offlineCtx, offlineBuses.bass, midiToFrequency(noteMidi), slotTime, noteDuration, bassSound, velocity);
               }
             }
-          } else if (bassState && !bassState.muted && bassSound && bassVelocity > 0) {
-            const bassNote = midiNotes[0];
-            const volume = bassState.volume * style.volumes.bass * bassVelocity;
-            const noteDuration = slotDuration * 2;
-            if (bassSound.useSamples && bassSound.samplePath) {
-              offlineBassPromises.push(
-                scheduleSampledNoteByDirAsync(offlineCtx, offlineMasterGain, bassSound.samplePath, bassNote + bassSound.octaveOffset * 12, slotTime, noteDuration, volume)
-              );
-            } else {
-              const baseFreq = midiToFrequency(bassNote) * Math.pow(2, bassSound.octaveOffset);
-              const bassGain = offlineCtx.createGain();
-              const filter = offlineCtx.createBiquadFilter();
-              filter.type = 'lowpass'; filter.frequency.value = 800;
-              filter.connect(bassGain); bassGain.connect(offlineMasterGain);
-              const mainOsc = offlineCtx.createOscillator();
-              mainOsc.type = bassSound.oscillatorType; mainOsc.frequency.value = baseFreq;
-              const mainOscGain = offlineCtx.createGain(); mainOscGain.gain.value = 0.2 * volume;
-              mainOsc.connect(mainOscGain); mainOscGain.connect(filter);
-              const subOsc = offlineCtx.createOscillator();
-              subOsc.type = 'sine'; subOsc.frequency.value = baseFreq / 2;
-              const subOscGain = offlineCtx.createGain(); subOscGain.gain.value = 0.15 * volume;
-              subOsc.connect(subOscGain); subOscGain.connect(filter);
-              bassGain.gain.setValueAtTime(0, slotTime);
-              bassGain.gain.linearRampToValueAtTime(1, slotTime + bassSound.attackTime);
-              bassGain.gain.linearRampToValueAtTime(bassSound.sustainLevel, slotTime + bassSound.attackTime + bassSound.decayTime);
-              bassGain.gain.linearRampToValueAtTime(0, slotTime + noteDuration);
-              mainOsc.start(slotTime); subOsc.start(slotTime);
-              mainOsc.stop(slotTime + noteDuration + 0.1); subOsc.stop(slotTime + noteDuration + 0.1);
+          } else {
+            const bassVelocity = pattern.bass[patternSlot];
+            if (audible.bass && bassSound && bassVelocity > 0) {
+              const bassNote = midiNotes[0];
+              const noteDuration = slotDuration * 2;
+              if (bassSound.useSamples && bassSound.samplePath) {
+                offlineBassPromises.push(
+                  scheduleSampledNoteByDirAsync(offlineCtx, offlineBuses.bass, bassSound.samplePath,
+                    bassNote + bassSound.octaveOffset * 12, slotTime, noteDuration, bassVelocity)
+                );
+              } else {
+                playBassNote(offlineCtx, offlineBuses.bass, midiToFrequency(bassNote), slotTime, noteDuration, bassSound, bassVelocity);
+              }
             }
           }
-          
-          // Drums
-          if (drumsState && !drumsState.muted && drumsSound) {
-            const baseVolume = drumsState.volume * style.volumes.drums;
-            
-            // Kick
-            if (pattern.kick[patternSlot] > 0) {
-              const vol = baseVolume * pattern.kick[patternSlot];
-              if (drumsSound.id === 'standard' && offlineKit.kick) {
-                const source = offlineCtx.createBufferSource();
-                source.buffer = offlineKit.kick;
-                const gain = offlineCtx.createGain();
-                gain.gain.value = vol * 0.9;
-                source.connect(gain);
-                gain.connect(offlineMasterGain);
-                source.start(slotTime);
-              } else {
-                const osc = offlineCtx.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(150, slotTime);
-                osc.frequency.exponentialRampToValueAtTime(40, slotTime + 0.1);
-                const gain = offlineCtx.createGain();
-                gain.gain.setValueAtTime(0.4 * vol, slotTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.3);
-                osc.connect(gain);
-                gain.connect(offlineMasterGain);
-                osc.start(slotTime);
-                osc.stop(slotTime + 0.35);
-              }
-            }
-            
-            // Snare
-            if (pattern.snare[patternSlot] > 0) {
-              const vol = baseVolume * pattern.snare[patternSlot];
-              if (drumsSound.id === 'standard' && offlineKit.snare) {
-                const source = offlineCtx.createBufferSource();
-                source.buffer = offlineKit.snare;
-                const gain = offlineCtx.createGain();
-                gain.gain.value = vol * 0.8;
-                source.connect(gain);
-                gain.connect(offlineMasterGain);
-                source.start(slotTime);
-              } else {
-                const osc = offlineCtx.createOscillator();
-                osc.type = 'triangle';
-                osc.frequency.value = 180;
-                const gain = offlineCtx.createGain();
-                gain.gain.setValueAtTime(0.2 * vol, slotTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, slotTime + 0.12);
-                osc.connect(gain);
-                gain.connect(offlineMasterGain);
-                osc.start(slotTime);
-                osc.stop(slotTime + 0.15);
-              }
-            }
-            
-            // Hi-hat
-            if (pattern.hihat[patternSlot] > 0) {
-              const vol = baseVolume * pattern.hihat[patternSlot] * 0.7;
-              if (drumsSound.id === 'standard' && offlineKit.hihat) {
-                const source = offlineCtx.createBufferSource();
-                source.buffer = offlineKit.hihat;
-                const gain = offlineCtx.createGain();
-                gain.gain.value = vol * 0.5;
-                source.connect(gain);
-                gain.connect(offlineMasterGain);
-                source.start(slotTime);
-              }
-            }
-            
-            // Snare stick (rim)
-            if (pattern.snareStick[patternSlot] > 0) {
-              const vol = baseVolume * pattern.snareStick[patternSlot];
-              if (drumsSound.id === 'standard' && offlineKit.snareStick) {
-                const source = offlineCtx.createBufferSource();
-                source.buffer = offlineKit.snareStick;
-                const gain = offlineCtx.createGain();
-                gain.gain.value = vol * 0.7;
-                source.connect(gain);
-                gain.connect(offlineMasterGain);
-                source.start(slotTime);
-              }
-            }
-            
-            // Hi-hat foot
-            if (pattern.hihatFoot[patternSlot] > 0) {
-              const vol = baseVolume * pattern.hihatFoot[patternSlot] * 0.6;
-              const buffer = offlineKit.hihatFoot2 || offlineKit.hihatFoot;
-              if (drumsSound.id === 'standard' && buffer) {
-                const source = offlineCtx.createBufferSource();
-                source.buffer = buffer;
-                const gain = offlineCtx.createGain();
-                gain.gain.value = vol * 0.45;
-                source.connect(gain);
-                gain.connect(offlineMasterGain);
-                source.start(slotTime);
-              }
-            }
-            
-            // Toms
-            if (pattern.tom1[patternSlot] > 0 && drumsSound.id === 'standard' && offlineKit.tom1) {
-              const source = offlineCtx.createBufferSource();
-              source.buffer = offlineKit.tom1;
-              const gain = offlineCtx.createGain();
-              gain.gain.value = baseVolume * pattern.tom1[patternSlot] * 0.8;
-              source.connect(gain);
-              gain.connect(offlineMasterGain);
-              source.start(slotTime);
-            }
-            if (pattern.tom2[patternSlot] > 0 && drumsSound.id === 'standard' && offlineKit.tom2) {
-              const source = offlineCtx.createBufferSource();
-              source.buffer = offlineKit.tom2;
-              const gain = offlineCtx.createGain();
-              gain.gain.value = baseVolume * pattern.tom2[patternSlot] * 0.8;
-              source.connect(gain);
-              gain.connect(offlineMasterGain);
-              source.start(slotTime);
-            }
-            if (pattern.floorTom[patternSlot] > 0 && drumsSound.id === 'standard' && offlineKit.floorTom) {
-              const source = offlineCtx.createBufferSource();
-              source.buffer = offlineKit.floorTom;
-              const gain = offlineCtx.createGain();
-              gain.gain.value = baseVolume * pattern.floorTom[patternSlot] * 0.85;
-              source.connect(gain);
-              gain.connect(offlineMasterGain);
-              source.start(slotTime);
-            }
-            
-            // Ride & Crash
-            if (pattern.ride[patternSlot] > 0 && drumsSound.id === 'standard' && offlineKit.ride) {
-              const source = offlineCtx.createBufferSource();
-              source.buffer = offlineKit.ride;
-              const gain = offlineCtx.createGain();
-              gain.gain.value = baseVolume * pattern.ride[patternSlot] * 0.55;
-              source.connect(gain);
-              gain.connect(offlineMasterGain);
-              source.start(slotTime);
-            }
-            if (pattern.crash[patternSlot] > 0 && drumsSound.id === 'standard' && offlineKit.crash) {
-              const source = offlineCtx.createBufferSource();
-              source.buffer = offlineKit.crash;
-              const gain = offlineCtx.createGain();
-              gain.gain.value = baseVolume * pattern.crash[patternSlot] * 0.7;
-              source.connect(gain);
-              gain.connect(offlineMasterGain);
-              source.start(slotTime);
-            }
+
+          // ── Drums ──────────────────────────────────────────────────────────
+          // Per-piece trims (0.7 hihat, 0.8 hihatOpen, …) are the kit's internal balance
+          // and stay on the note; the drums fader is on the bus.
+          if (audible.drums && drumsSound) {
+            const hit = (velocity: number, type: Parameters<typeof playDrumHit>[5]) => {
+              if (velocity > 0) playDrumHit(offlineCtx, offlineBuses.drums, slotTime, drumsSound, velocity, type, offlineKit);
+            };
+            hit(pattern.kick[patternSlot], 'kick');
+            hit(pattern.snare[patternSlot], 'snare');
+            hit(pattern.snareStick[patternSlot], 'snareStick');
+            hit(pattern.hihat[patternSlot] * 0.7, 'hihat');
+            hit(pattern.hihatOpen[patternSlot] * 0.8, 'hihatOpen');
+            hit(pattern.hihatFoot[patternSlot] * 0.6, 'hihatFoot');
+            hit(pattern.tom1[patternSlot], 'tom1');
+            hit(pattern.tom2[patternSlot], 'tom2');
+            hit(pattern.floorTom[patternSlot], 'floorTom');
+            hit(pattern.ride[patternSlot] * 0.7, 'ride');
+            hit(pattern.crash[patternSlot], 'crash');
           }
-          
-          // Guitar - melodic scale or style pattern (fallback)
-          const guitarVelocity = (pattern as any).guitar?.[patternSlot] ?? 0;
-          if (melodicGuitar && guitarState && !guitarState.muted && guitarSound) {
-            const { pattern: scalePattern, loopBars: gLoopBars, octaveOffsets: gOctaveOffsets } = melodicGuitar;
+
+          // ── Guitar ─────────────────────────────────────────────────────────
+          const guitarVelocity = pattern.guitar?.[patternSlot] ?? 0;
+          if (melodicGuitar && audible.guitar && guitarSound) {
+            const { pattern: scalePattern, chordHit: gChordHit, loopBars: gLoopBars, octaveOffsets: gOctaveOffsets } = melodicGuitar;
             const slotInLoop = currentGlobalSlot % (gLoopBars * slotsPerBar);
             const scale = getBassScale_getScale(chord.quality);
             const noteDuration = slotDuration * 3;
+            const chordHitVelocity = gChordHit?.[slotInLoop] ?? 0;
+            if (chordHitVelocity > 0) {
+              midiNotes.forEach(noteMidi => {
+                playGuitarNote(offlineCtx, offlineBuses.guitar, midiToFrequency(noteMidi), slotTime, noteDuration,
+                  guitarSound, chordHitVelocity, noteMidi);
+              });
+            }
             for (const degStr of Object.keys(scalePattern)) {
               const deg = Number(degStr) as 1|2|3|4|5|6|7;
               const velocity = scalePattern[deg]?.[slotInLoop] ?? 0;
               if (velocity <= 0) continue;
               const noteMidi = midiNotes[0] + scale[deg - 1] + (gOctaveOffsets?.[deg] ?? 0) * 12;
-              const guitarVolume = guitarState.volume * (style.volumes.guitar ?? style.volumes.piano) * velocity;
-              const samplePath = guitarSound.samplePath;
-              if (guitarSound.useSamples && samplePath && guitarSamples[samplePath]) {
-                const match = findClosestGuitarSample(samplePath, noteMidi);
-                if (match && guitarSamples[samplePath][match.noteKey]) {
-                  const sample = guitarSamples[samplePath][match.noteKey]!;
-                  const source = offlineCtx.createBufferSource();
-                  const gainNode = offlineCtx.createGain();
-                  source.buffer = sample;
-                  if (match.pitchAdjust !== 0) source.playbackRate.value = Math.pow(2, match.pitchAdjust / 12);
-                  source.connect(gainNode); gainNode.connect(offlineMasterGain);
-                  gainNode.gain.setValueAtTime(guitarVolume * 0.8, slotTime);
-                  const releaseStart = slotTime + Math.max(0, noteDuration - 0.15);
-                  gainNode.gain.setValueAtTime(guitarVolume * 0.8, releaseStart);
-                  gainNode.gain.linearRampToValueAtTime(0, slotTime + noteDuration + 0.2);
-                  source.start(slotTime);
-                  source.stop(slotTime + Math.max(noteDuration + 0.3, sample.duration / (source.playbackRate.value || 1)));
-                }
-              } else {
-                const gainNode = offlineCtx.createGain();
-                gainNode.connect(offlineMasterGain);
-                [{ freq: 1, amp: 1.0 }, { freq: 2, amp: 0.5 }, { freq: 3, amp: 0.3 }].forEach(({ freq, amp }) => {
-                  const osc = offlineCtx.createOscillator();
-                  const oscGain = offlineCtx.createGain();
-                  osc.type = freq === 1 ? 'triangle' : 'sine';
-                  osc.frequency.value = midiToFrequency(noteMidi) * freq;
-                  oscGain.gain.value = amp * 0.12 * guitarVolume;
-                  osc.connect(oscGain); oscGain.connect(gainNode);
-                  osc.start(slotTime); osc.stop(slotTime + noteDuration + 0.1);
-                });
-                gainNode.gain.setValueAtTime(0, slotTime);
-                gainNode.gain.linearRampToValueAtTime(1, slotTime + 0.01);
-                gainNode.gain.linearRampToValueAtTime(0.6, slotTime + 0.1);
-                gainNode.gain.setValueAtTime(0.6, slotTime + noteDuration - 0.1);
-                gainNode.gain.linearRampToValueAtTime(0, slotTime + noteDuration);
-              }
+              playGuitarNote(offlineCtx, offlineBuses.guitar, midiToFrequency(noteMidi), slotTime, noteDuration,
+                guitarSound, velocity, noteMidi);
             }
-          } else if (guitarState && !guitarState.muted && guitarSound && guitarVelocity > 0) {
-            const guitarVolume = guitarState.volume * (style.volumes.guitar ?? style.volumes.piano) * guitarVelocity;
-            
-            midiNotes.forEach(midiNote => {
-              const samplePath = guitarSound.samplePath;
-              
-              if (guitarSound.useSamples && samplePath && guitarSamples[samplePath]) {
-                // Find closest sample
-                const match = findClosestGuitarSample(samplePath, midiNote);
-                
-                if (match && guitarSamples[samplePath][match.noteKey]) {
-                  const sample = guitarSamples[samplePath][match.noteKey]!;
-                  const source = offlineCtx.createBufferSource();
-                  const gainNode = offlineCtx.createGain();
-                  
-                  source.buffer = sample;
-                  
-                  // Adjust playback rate for pitch shifting
-                  if (match.pitchAdjust !== 0) {
-                    source.playbackRate.value = Math.pow(2, match.pitchAdjust / 12);
-                  }
-                  
-                  source.connect(gainNode);
-                  gainNode.connect(offlineMasterGain);
-                  
-                  // Natural guitar envelope
-                  const noteDuration = slotDuration * 3;
-                  gainNode.gain.setValueAtTime(guitarVolume * 0.8, slotTime);
-                  
-                  const releaseStart = slotTime + Math.max(0, noteDuration - 0.15);
-                  gainNode.gain.setValueAtTime(guitarVolume * 0.8, releaseStart);
-                  gainNode.gain.linearRampToValueAtTime(0, slotTime + noteDuration + 0.2);
-                  
-                  source.start(slotTime);
-                  source.stop(slotTime + Math.max(noteDuration + 0.3, sample.duration / (source.playbackRate.value || 1)));
-                }
-              } else {
-                // Use synthesized guitar
-                const frequency = midiToFrequency(midiNote);
-                const baseFreq = frequency;
-                
-                const gainNode = offlineCtx.createGain();
-                gainNode.connect(offlineMasterGain);
-                
-                const harmonics = [
-                  { freq: 1, amp: 1.0 },
-                  { freq: 2, amp: 0.5 },
-                  { freq: 3, amp: 0.3 },
-                ];
-                
-                harmonics.forEach(({ freq, amp }) => {
-                  const osc = offlineCtx.createOscillator();
-                  const oscGain = offlineCtx.createGain();
-                  
-                  osc.type = freq === 1 ? 'triangle' : 'sine';
-                  osc.frequency.value = baseFreq * freq;
-                  oscGain.gain.value = amp * 0.12 * guitarVolume;
-                  
-                  osc.connect(oscGain);
-                  oscGain.connect(gainNode);
-                  
-                  const noteDuration = slotDuration * 3;
-                  osc.start(slotTime);
-                  osc.stop(slotTime + noteDuration + 0.1);
-                });
-                
-                const noteDuration = slotDuration * 3;
-                gainNode.gain.setValueAtTime(0, slotTime);
-                gainNode.gain.linearRampToValueAtTime(1, slotTime + 0.01);
-                gainNode.gain.linearRampToValueAtTime(0.6, slotTime + 0.1);
-                gainNode.gain.setValueAtTime(0.6, slotTime + noteDuration - 0.1);
-                gainNode.gain.linearRampToValueAtTime(0, slotTime + noteDuration);
+          } else if (audible.guitar && guitarSound && guitarVelocity > 0) {
+            const guitarArpeggio = style.arpeggios?.guitar?.[patternSlot] ?? null;
+            if (guitarArpeggio && midiNotes.length > 1) {
+              const orderedNotes = applyArpeggioOrder(midiNotes, guitarArpeggio.type);
+              const notesPerSlot = getArpeggioNotesPerSlot(guitarArpeggio.speed);
+              const arpeggioNoteDuration = slotDuration / notesPerSlot;
+              for (let j = 0; j < notesPerSlot; j++) {
+                const midiNote = orderedNotes[j % orderedNotes.length];
+                const noteTime = slotTime + (j * arpeggioNoteDuration);
+                playGuitarNote(offlineCtx, offlineBuses.guitar, midiToFrequency(midiNote), noteTime,
+                  arpeggioNoteDuration * 1.5, guitarSound, guitarVelocity, midiNote);
               }
-            });
+            } else {
+              midiNotes.forEach(midiNote => {
+                playGuitarNote(offlineCtx, offlineBuses.guitar, midiToFrequency(midiNote), slotTime,
+                  slotDuration * 3, guitarSound, guitarVelocity, midiNote);
+              });
+            }
           }
         }
-        
+
         // Update counters
         globalSlotIndex += slotCount;
         currentTime += chord.duration * beatDuration;

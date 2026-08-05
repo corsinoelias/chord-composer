@@ -64,17 +64,27 @@ verificación manual en dispositivo. Está indicada fase por fase en el plan.
 
 ## Bugs que el arnés destapó
 
-Ninguno está arreglado — el fixture congela el comportamiento **actual**, incluido el
-incorrecto. Al corregirlos, el test fallará: eso es lo que tiene que pasar, y se
-regenera la línea base a propósito en el mismo commit.
+1. ~~**El export ignora el `solo`.**~~ **Arreglado en la Fase 3.** La ruta offline filtraba
+   por `!state.muted` en vez de `isInstrumentAudible(state, instruments)`: ponías el bajo en
+   solo, exportabas, y en el WAV sonaba todo. Lo capturó `muted-and-solo`, cuyo pico cayó de
+   1,447 a 0,704 al unificar.
+2. **El export satura.** Sin limitador y con `masterGain` a 1.0. Empeoró con la Fase 3
+   (pico 1,42 → 1,56 en el fixture base) porque el export ya no es más silencioso que la
+   reproducción. Sigue pendiente.
+3. **El export no lleva los efectos.** EQ, reverb y compresor solo existen online. Con los
+   valores por defecto la cadena es unitaria (comprobado en `audioEffects.ts`: `compGain=0`,
+   `bypassGain=1`, `dryGain=1`, `wetGain=0`), así que solo se nota cuando el usuario los
+   toca en `MixingConsole`. Sigue pendiente.
 
-1. **El export ignora el `solo`.** La ruta offline filtra por `!state.muted` en vez de
-   `isInstrumentAudible(state, instruments)`, que es lo que usa la online. Pones el bajo en
-   solo, exportas, y en el WAV suena todo. Lo captura `muted-and-solo`.
-2. **El export satura.** Pico de 1,44 en la mayoría de fixtures, sin limitador y con
-   `masterGain` a 1.0. Los WAV recortan.
-3. **El export no lleva los efectos.** EQ, reverb y compresor solo existen online. Por
-   defecto son neutros, así que solo se nota cuando el usuario los toca en `MixingConsole`.
+## Por qué se ha regenerado la línea base
 
-Los tres son de la misma familia: 564 líneas duplicadas entre la ruta online y la offline
-que hay que arreglar dos veces. Es exactamente lo que elimina la Fase 3 del plan.
+Una vez, en la Fase 3, a propósito: los 16 fixtures cambiaron al pasar reproducción y export
+a compartir renderizadores. El export era una implementación paralela que había derivado
+(batería más silenciosa, piano sintetizado con 4 armónicos en vez de 6 y sin detune), así
+que unificar cambia el WAV. Verificado con una medición aparte de que el cambio va en la
+dirección correcta: el desajuste de nivel entre export y reproducción pasó de **−0,41 dB**
+(fuera del ruido de medición, 0,28 dB) a **+0,06 dB**.
+
+Regla: la línea base solo se regenera cuando el cambio de sonido es deliberado y está
+justificado en el mensaje del commit. Si `npm run test:audio` falla y no sabes por qué,
+**no** es un caso de `--update`.
