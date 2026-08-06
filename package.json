@@ -13,6 +13,7 @@
     "test:audio": "node tests/audio/run-golden.mjs",
     "test:audio:update": "node tests/audio/run-golden.mjs --update",
     "seed": "tsx --env-file=.env scripts/seed-songs.ts",
+    "import:chart": "tsx scripts/import-chart.ts",
     "fetch-soundfonts": "node scripts/fetch-soundfonts.mjs",
     "prebuild": "npm run fetch-soundfonts",
     "indexnow": "node scripts/indexnow.mjs",
