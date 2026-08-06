@@ -47,6 +47,11 @@ export default function SongCreator() {
   const [editSlug, setEditSlug] = useState<string>('');
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  // Whether the user actually touched the vocal reference in this session. Without it,
+  // "never loaded" and "deliberately removed" both look like `audioTrack === undefined`,
+  // and publishing would clear the DB columns for a track the editor merely failed to
+  // read — see the audioTrack/audioWholeRange handling in doPublish below.
+  const [audioTouched, setAudioTouched] = useState(false);
   // Generic "run this once logged in" gate — reused by both Publish and the audio
   // upload flow (both need a real session before writing to Supabase).
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
@@ -66,7 +71,7 @@ export default function SongCreator() {
         if (!song) { toast.error('Song not found'); setLoadingEdit(false); return; }
         setEditId(song.id);
         setEditSlug(editSlugParam);
-        setMeta({ title: song.title, artist: song.artist, composerName: song.composerName ?? '', album: song.album ?? '', key: song.key, capo: song.capo ?? 0, bpm: song.bpm, genre: song.genre, style: song.style });
+        setMeta({ title: song.title, artist: song.artist, composerName: song.composerName ?? '', album: song.album ?? '', key: song.key, capo: song.capo ?? 0, bpm: song.bpm, genre: song.genre, style: song.style, audioTrack: song.audioTrack, audioWholeRange: song.audioWholeRange });
         setSections(songSectionsToEditorSections(song.sections));
         setLoadingEdit(false);
         setStep('chords');
@@ -85,7 +90,7 @@ export default function SongCreator() {
         if (existing) {
           setEditId(existing.id);
           setEditSlug(communitySlug);
-          setMeta({ title: existing.title, artist: existing.artist, composerName: existing.composerName ?? '', album: existing.album ?? '', key: existing.key, capo: existing.capo ?? 0, bpm: existing.bpm, genre: existing.genre, style: existing.style });
+          setMeta({ title: existing.title, artist: existing.artist, composerName: existing.composerName ?? '', album: existing.album ?? '', key: existing.key, capo: existing.capo ?? 0, bpm: existing.bpm, genre: existing.genre, style: existing.style, audioTrack: existing.audioTrack, audioWholeRange: existing.audioWholeRange });
           setSections(songSectionsToEditorSections(existing.sections));
         } else {
           setMeta({
@@ -98,6 +103,8 @@ export default function SongCreator() {
             bpm: staticSong.bpm,
             genre: staticSong.genre,
             style: staticSong.style,
+            audioTrack: staticSong.audioTrack,
+            audioWholeRange: staticSong.audioWholeRange,
           });
           setSections(songSectionsToEditorSections(staticSong.sections));
         }
@@ -127,6 +134,15 @@ export default function SongCreator() {
     if (userId) { action(); return; }
     setPendingAction(() => action);
     setAuthModalOpen(true);
+  }
+
+  // Every meta edit from the chords step flows through here so changes to the vocal
+  // reference can be distinguished from it never having been loaded.
+  function handleMetaChange(next: SongMeta) {
+    if (next.audioTrack !== meta.audioTrack || next.audioWholeRange !== meta.audioWholeRange) {
+      setAudioTouched(true);
+    }
+    setMeta(next);
   }
 
   function handleTextImport(parsedMeta: Partial<SongMeta>, parsedSections: EditorSection[]) {
@@ -173,11 +189,12 @@ export default function SongCreator() {
           tags: [...meta.genre],
           description: `${meta.title} by ${meta.artist} — interactive chord chart with lyrics. Key of ${meta.key}.`,
           sections: songSections,
-          // Explicit null (not undefined) when absent — toDb only clears the DB
-          // columns for a key it actually receives, so this is what lets removing
-          // the audio track in the editor actually clear it on next publish.
-          audioTrack: meta.audioTrack ?? null,
-          audioWholeRange: meta.audioWholeRange ?? null,
+          // Explicit null clears the DB columns; `undefined` leaves them alone (toDb only
+          // writes keys it actually receives). Only send null once the user has really
+          // touched the vocal reference — otherwise an edit session that never opened the
+          // audio modal would wipe a track it never even displayed.
+          audioTrack: meta.audioTrack ?? (audioTouched ? null : undefined),
+          audioWholeRange: meta.audioWholeRange ?? (audioTouched ? null : undefined),
         });
         if (!ok) { toast.error('Failed to update song.'); return; }
         setPublishedSlug(editSlug || getParam('edit') || '');
@@ -325,7 +342,7 @@ export default function SongCreator() {
               <ChordStep
                 sections={sections}
                 meta={meta}
-                onMetaChange={setMeta}
+                onMetaChange={handleMetaChange}
                 onBack={() => setStep('lyrics')}
                 onPublish={handlePublish}
                 isPublishing={isPublishing}
