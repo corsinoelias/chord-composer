@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { UploadCloud, FileJson, Check, X, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { UploadCloud, FileJson, Check, X, AlertTriangle, ArrowLeft, ChevronDown, ChevronRight, Link2, Loader2 } from 'lucide-react';
 import {
   buildCharts,
   renderChordAbove,
@@ -72,6 +72,8 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
   const [loaded, setLoaded] = useState<Loaded>({});
   const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [url, setUrl] = useState('');
+  const [fetching, setFetching] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>('medio');
   const [view, setView] = useState<'chart' | 'text'>('chart');
 
@@ -79,6 +81,18 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
   const [artist, setArtist] = useState('');
   const [bpmOverride, setBpmOverride] = useState<string>('');
   const [keyOverride, setKeyOverride] = useState<string>('');
+
+  // Algorithm knobs — the same ones the CLI takes as flags.
+  const [showTuning, setShowTuning] = useState(false);
+  const [slash, setSlash] = useState(false);
+  const [minBeats, setMinBeats] = useState(1);
+  const [gapBeats, setGapBeats] = useState(2);
+  const [sectionGap, setSectionGap] = useState(6);
+
+  // Section renames, keyed by the generated name rather than by position: changing
+  // sectionGap regroups the song, and an index-keyed rename would then land on a
+  // different block.
+  const [renames, setRenames] = useState<Record<string, string>>({});
 
   const ready = !!(loaded.beats && loaded.chords && loaded.lyrics);
 
@@ -105,6 +119,35 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
     setFileErrors(errors);
   }, []);
 
+  // Goes through our own endpoint: fetching these straight from the browser fails on any
+  // host that doesn't send CORS headers, which is most of them.
+  const fetchFromUrl = useCallback(async () => {
+    const target = url.trim();
+    if (!target) return;
+    setFetching(true);
+    setFileErrors([]);
+    try {
+      // Trailing slash matters: the site is configured with trailingSlash: 'always'.
+      const res = await fetch(`/api/import-chart/fetch/?url=${encodeURIComponent(target)}`);
+      const body = await res.json();
+      if (!res.ok) {
+        setFileErrors([`${target}: ${body?.error ?? 'no se pudo descargar'}`]);
+        return;
+      }
+      const kind = detectKind(body);
+      if (!kind) {
+        setFileErrors([`${target}: es JSON válido pero no reconozco el formato.`]);
+        return;
+      }
+      setLoaded(prev => ({ ...prev, [kind]: body }));
+      setUrl('');
+    } catch {
+      setFileErrors([`${target}: no se pudo descargar.`]);
+    } finally {
+      setFetching(false);
+    }
+  }, [url]);
+
   // Recomputed whenever the inputs or the overrides change. All three difficulties come
   // out of a single pass, so switching between them costs nothing.
   const built = useMemo(() => {
@@ -114,13 +157,36 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
       return buildCharts(loaded.beats!, loaded.chords!, loaded.lyrics!, {
         bpm: Number.isFinite(bpm) && bpm! > 0 ? bpm : undefined,
         key: keyOverride.trim() || undefined,
+        includeBass: slash,
+        minBeats,
+        gapBeats,
+        sectionGapBeats: sectionGap,
       });
     } catch {
       return null;
     }
-  }, [ready, loaded, bpmOverride, keyOverride]);
+  }, [ready, loaded, bpmOverride, keyOverride, slash, minBeats, gapBeats, sectionGap]);
 
-  const chart = built?.charts[difficulty] ?? null;
+  const generated = built?.charts[difficulty] ?? null;
+
+  // Renames are applied to the chart before anything is serialized, so the preview, the
+  // text and the import all agree.
+  const chart = useMemo(() => {
+    if (!generated) return null;
+    return {
+      ...generated,
+      sections: generated.sections.map(s => ({ ...s, name: renames[s.name]?.trim() || s.name })),
+    };
+  }, [generated, renames]);
+
+  // A section header that looks like a chord name is read back as a chord, not a header
+  // (see isSectionLine in textParser.ts), which would silently swallow the section.
+  const badNames = useMemo(
+    () => (chart?.sections ?? [])
+      .map(s => s.name)
+      .filter(n => /^[A-G][#b]?(m|maj|min|dim|aug|sus[24]?|add|M|b)?[0-9]*$/.test(n) && n.length <= 8),
+    [chart],
+  );
 
   const metaForText = useMemo(() => ({
     title: title.trim() || undefined,
@@ -164,7 +230,7 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
     };
   }, [built, chart, loaded.chords, text]);
 
-  const canImport = !!(checks?.roundTripOk && chart && title.trim() && artist.trim());
+  const canImport = !!(checks?.roundTripOk && chart && title.trim() && artist.trim() && badNames.length === 0);
 
   const handleImport = () => {
     if (!canImport || !chart || !checks || !built) return;
@@ -229,6 +295,27 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
             onChange={e => e.target.files && acceptFiles(e.target.files)}
           />
         </label>
+      </div>
+
+      {/* Carga desde URL — uno por vez, se clasifica igual que un archivo */}
+      <div className="flex items-center gap-2">
+        <Link2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        <input
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && fetchFromUrl()}
+          placeholder="…o pegá la URL pública de uno de los JSON"
+          aria-label="URL de un archivo del análisis"
+          className="flex-1 min-w-0 border border-border rounded-lg px-2 py-1.5 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+        />
+        <button
+          onClick={fetchFromUrl}
+          disabled={!url.trim() || fetching}
+          className="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+        >
+          {fetching && <Loader2 className="w-3 h-3 animate-spin" />}
+          Traer
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -344,6 +431,119 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
               {chart.spans.length} acordes · {new Set(chart.spans.map(s => s.label)).size} distintos ·{' '}
               {chart.sections.length} secciones
             </p>
+          </div>
+
+          {/* ── Ajustes del algoritmo ───────────────────────────────────── */}
+          <div className="rounded-xl border border-border">
+            <button
+              onClick={() => setShowTuning(v => !v)}
+              aria-expanded={showTuning}
+              className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
+            >
+              {showTuning ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              Ajustes del algoritmo
+              <span className="font-normal opacity-70">
+                · bajos {slash ? 'sí' : 'no'} · mínimo {minBeats} · hueco {gapBeats} · sección {sectionGap}
+              </span>
+            </button>
+
+            {showTuning && (
+              <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={slash}
+                    onChange={e => setSlash(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-xs font-medium text-foreground">Conservar acordes con bajo propio</span>
+                    <span className="block text-xs text-muted-foreground">
+                      D/A, F#m/A… Solo en avanzado. El análisis los trae y el motor los
+                      toca, pero los charts de referencia los descartan.
+                    </span>
+                  </span>
+                </label>
+
+                {[
+                  {
+                    label: 'Duración mínima de un acorde', value: minBeats, set: setMinBeats, min: 1, max: 8,
+                    help: 'Los acordes más cortos que esto se absorben en el vecino. En 1 se conservan todos, que suele ser lo correcto: un acorde de un beat puede ser real.',
+                  },
+                  {
+                    label: 'Hueco para línea instrumental', value: gapBeats, set: setGapBeats, min: 1, max: 8,
+                    help: 'Cuánto silencio tiene que haber alrededor de un acorde para que salga en su propia línea en vez de pegarse a la letra vecina.',
+                  },
+                  {
+                    label: 'Silencio que abre una sección', value: sectionGap, set: setSectionGap, min: 2, max: 32,
+                    help: 'Cuánto silencio separa dos bloques de letra para considerarlos secciones distintas. Bajarlo parte más la canción.',
+                  },
+                ].map(k => (
+                  <div key={k.label}>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium text-foreground">{k.label}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <input
+                          type="range"
+                          min={k.min}
+                          max={k.max}
+                          value={k.value}
+                          onChange={e => k.set(Number(e.target.value))}
+                          className="w-32"
+                          aria-label={k.label}
+                        />
+                        <span className="text-xs font-mono tabular-nums w-10 text-right text-muted-foreground">
+                          {k.value} {k.value === 1 ? 'beat' : 'beats'}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{k.help}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Nombres de sección ──────────────────────────────────────── */}
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="text-xs font-medium text-foreground">
+                Nombres de sección
+                <span className="font-normal text-muted-foreground"> · nada en el análisis dice cuál es verso y cuál coro</span>
+              </p>
+              {Object.keys(renames).length > 0 && (
+                <button
+                  onClick={() => setRenames({})}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                >
+                  Restablecer
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {generated?.sections.map(s => {
+                const firstLyric = s.lines.find(l => l.lyric)?.lyric?.text;
+                return (
+                  <div key={s.name}>
+                    <input
+                      value={renames[s.name] ?? s.name}
+                      onChange={e => setRenames(p => ({ ...p, [s.name]: e.target.value }))}
+                      aria-label={`Nombre de la sección ${s.name}`}
+                      className="w-full border border-border rounded-lg px-2 py-1.5 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate" title={firstLyric}>
+                      {firstLyric ?? 'Instrumental'}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            {badNames.length > 0 && (
+              <p className="text-xs text-destructive mt-2">
+                «{badNames.join('», «')}» se lee como nombre de acorde, no como
+                encabezado de sección, y la sección se perdería. Usá otro nombre.
+              </p>
+            )}
           </div>
 
           {/* ── Verificación ────────────────────────────────────────────── */}
