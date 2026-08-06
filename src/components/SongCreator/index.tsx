@@ -4,6 +4,7 @@ import MetaStep from './MetaStep';
 import LyricsStep from './LyricsStep';
 import ChordStep from './ChordStep';
 import TextModeStep from './TextModeStep';
+import AnalysisImportStep from './AnalysisImportStep';
 import type { SongMeta, EditorSection } from './types';
 import { sectionsToSongFormat, songSectionsToEditorSections } from './lyricsParser';
 import { serializeToTextMode } from './textParser';
@@ -13,10 +14,10 @@ import { generateSlug } from '@/lib/musicKeys';
 import { ensureAuth } from '@/lib/supabase';
 import { AuthModal } from '@/components/AuthModal';
 import { toast } from 'sonner';
-import { CheckCircle2, Loader2, AlignLeft, LayoutList } from 'lucide-react';
+import { CheckCircle2, Loader2, AlignLeft, LayoutList, FileJson } from 'lucide-react';
 
 type Step = 'meta' | 'lyrics' | 'chords' | 'done';
-type Mode = 'steps' | 'text';
+type Mode = 'steps' | 'text' | 'analysis';
 
 const STEPS: { key: Step; label: string }[] = [
   { key: 'meta', label: 'Details' },
@@ -146,6 +147,11 @@ export default function SongCreator() {
   }
 
   function handleTextImport(parsedMeta: Partial<SongMeta>, parsedSections: EditorSection[]) {
+    const audioTrack = parsedMeta.audioTrack ?? meta.audioTrack;
+    const audioWholeRange = parsedMeta.audioWholeRange ?? meta.audioWholeRange;
+    if (audioTrack !== meta.audioTrack || audioWholeRange !== meta.audioWholeRange) {
+      setAudioTouched(true);
+    }
     setMeta({
       title:  parsedMeta.title  ?? meta.title,
       artist: parsedMeta.artist ?? meta.artist,
@@ -156,6 +162,10 @@ export default function SongCreator() {
       bpm:    parsedMeta.bpm    ?? meta.bpm,
       genre:  parsedMeta.genre  ?? meta.genre,
       style:  parsedMeta.style  ?? meta.style,
+      // Carried explicitly: the text-mode round trip never produces these, and dropping
+      // them here would silently detach the vocal reference from a song being re-imported.
+      audioTrack,
+      audioWholeRange,
     });
     setSections(parsedSections);
     setMode('steps');
@@ -281,14 +291,16 @@ export default function SongCreator() {
       {/* Mode toggle — hidden once in chords step */}
       {step !== 'chords' && (
         <div className="flex items-center gap-1 mb-8 p-1 bg-muted/50 rounded-xl w-fit border border-border">
-          {(['steps', 'text'] as const).map(m => (
+          {(['steps', 'text', 'analysis'] as const).map(m => (
             <button
               key={m}
               onClick={() => setMode(m)}
               className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors
                 ${mode === m ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              {m === 'steps' ? <><LayoutList className="w-3.5 h-3.5" /> Step by step</> : <><AlignLeft className="w-3.5 h-3.5" /> From text</>}
+              {m === 'steps' && <><LayoutList className="w-3.5 h-3.5" /> Step by step</>}
+              {m === 'text' && <><AlignLeft className="w-3.5 h-3.5" /> From text</>}
+              {m === 'analysis' && <><FileJson className="w-3.5 h-3.5" /> From analysis</>}
             </button>
           ))}
         </div>
@@ -298,6 +310,14 @@ export default function SongCreator() {
       {mode === 'text' && (
         <TextModeStep
           initialText={serializeToTextMode(meta, sections)}
+          onImport={handleTextImport}
+          onBack={() => setMode('steps')}
+        />
+      )}
+
+      {/* Analysis import — three JSON files straight from a chord-detection export */}
+      {mode === 'analysis' && (
+        <AnalysisImportStep
           onImport={handleTextImport}
           onBack={() => setMode('steps')}
         />
