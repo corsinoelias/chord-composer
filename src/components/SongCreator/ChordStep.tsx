@@ -780,7 +780,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
             {meta.artist && <span className="text-sm text-muted-foreground truncate">— {meta.artist}</span>}
           </div>
           <PlaybackProvider>
-            <SongChordPlayer song={previewSong} inline />
+            <SongChordPlayer song={previewSong} inline showWavExport />
           </PlaybackProvider>
         </DialogContent>
       </Dialog>

@@ -10,6 +10,7 @@ import type { ToolIconName } from '../../components/toolIcons';
 import { SONGS, extractChordsFromSong } from '../../data/songs';
 import type { Song } from '../../data/songs';
 import { getPublicSongBySlug, getRelatedPublicSongs } from '@/lib/publicSongs';
+import { buildSongEditorUrl } from '@/lib/editorLink';
 import { fetchCoverImage } from '@/lib/coverImage';
 import JsonLd from '../../components/schema/JsonLd.astro';
 import { buildBreadcrumbSchema } from '../../components/schema/builders';
@@ -250,7 +251,23 @@ const analysisText =
   `The chart moves through ${structureText}, using ${uniqueChords.length} chord${uniqueChords.length !== 1 ? 's' : ''} in total — ` +
   `a ${tempoDesc} ${genreText} song, and ${fullKeyName} is ${keyMood}.`
 
+// Server-rendered deep link into the editor, carrying this song's full section
+// structure. The player bar builds its own (with the listener's live transposition
+// and BPM); this one is for the plain <a>s below, which is what search engines read
+// and what mobile visitors actually get — the player bar's link is desktop-only.
+const songEditorUrl = buildSongEditorUrl(song);
+
+// Chord Player leads this list deliberately: it's the flagship tool, and this is the
+// one contextual in-content link to the bare /chord-player/ (the nav/footer ones are
+// sitewide boilerplate, which carries far less weight).
+//
+// It points at the bare URL on purpose, NOT at songEditorUrl: robots.txt allows only
+// `/chord-player/$` and disallows the rest of `/chord-player/`, so every `?data=` deep
+// link is crawl-blocked and can pass nothing on to the canonical page. The CTA above
+// keeps the deep link because its whole value is opening *this* song; this card is the
+// one that has to be followable.
 const practiceTools: { href: string; label: string; desc: string; icon: ToolIconName }[] = [
+  { href: '/chord-player/', label: 'Chord Player', desc: 'Build and play chord progressions with real piano, guitar, bass & drums', icon: 'piano' },
   { href: '/chord-lookup/', label: 'Chord Finder', desc: 'Find the fingering for any chord, not just the ones in this song', icon: 'chords' },
   { href: `/metronome/?bpm=${song.bpm}`, label: 'Metronome', desc: `Practice at ${song.bpm} BPM`, icon: 'metronome' },
   { href: '/tools/drum-machine/', label: 'Drum Machine', desc: `Program a beat at ${song.bpm} BPM to play along to`, icon: 'step-grid' },
@@ -453,6 +470,39 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
         <div class="min-w-0">
           <SongChordPlayerIsland song={song} />
 
+          <!--
+            Song → editor conversion point. Sits right under the chart, where someone has
+            just heard the song and the natural next thought is "what if I change it".
+            Deliberately a plain <a> with no client directive: it has to be in the served
+            HTML (for the anchor text signal to /chord-player/) and it has to work on
+            mobile, where the player bar's own Editor link is hidden.
+          -->
+          <section class="mt-8 rounded-xl border border-border bg-card p-5 sm:p-6">
+            <div class="flex items-start gap-4">
+              <div class="hidden sm:flex w-11 h-11 rounded-lg bg-primary/10 items-center justify-center shrink-0">
+                <ToolIcon name="piano" class="w-6 h-6 text-primary" />
+              </div>
+              <div class="min-w-0 flex-1">
+                <h2 class="text-base font-semibold text-foreground">
+                  Open {song.title} in the Chord Player
+                </h2>
+                <p class="mt-1.5 text-sm text-muted-foreground">
+                  Change the chords, try a different rhythm style, transpose to your key, and export to WAV.
+                </p>
+                <a
+                  href={songEditorUrl}
+                  data-editor-cta
+                  data-source="cta_block"
+                  data-song-slug={song.slug}
+                  class="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                >
+                  Open in the Chord Player
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </a>
+              </div>
+            </div>
+          </section>
+
           <!-- Related progressions -->
           {song.relatedProgressions.length > 0 && (
             <div class="mt-8 pt-8 border-t border-border">
@@ -530,6 +580,9 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
               {practiceTools.map((tool) => (
                 <a
                   href={tool.href}
+                  data-editor-cta={tool.href === '/chord-player/' ? '' : undefined}
+                  data-source={tool.href === '/chord-player/' ? 'practice_tools' : undefined}
+                  data-song-slug={tool.href === '/chord-player/' ? song.slug : undefined}
                   class="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
                 >
                   <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -634,6 +687,19 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
 
     allTriggers.forEach(el => {
       el.addEventListener('click', () => switchTab(el.dataset.tab!));
+    });
+
+    // Song → editor conversion, from the two server-rendered links on this page. The
+    // player bar's own link reports itself from React (source 'player_bar'); these two
+    // are plain <a>s, so they report here. gtag only exists in PROD (see BaseLayout),
+    // hence the guard. The event fires on a link that navigates away — gtag uses
+    // sendBeacon, which survives unload.
+    document.querySelectorAll<HTMLAnchorElement>('[data-editor-cta]').forEach(el => {
+      el.addEventListener('click', () => {
+        const g = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
+        if (typeof g !== 'function') return;
+        g('event', 'song_editor_opened', { song_slug: el.dataset.songSlug, source: el.dataset.source });
+      });
     });
   </script>
 </BaseLayout>

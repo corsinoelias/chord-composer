@@ -7,6 +7,8 @@
 import { type Chord } from './musicTheory';
 import { parseChordString } from './chordParser';
 import { createSection, type Section } from './sections';
+import { MUSICAL_STYLES } from './styles';
+import { parseLyricLine, type Song } from '../data/songs';
 
 export interface EditorLinkChord {
   c: string; // chord string, e.g. "Gb", "Abm", "C/E"
@@ -47,6 +49,53 @@ export function decodeEditorSections(param: string): EditorLinkSection[] | null 
   } catch {
     return null;
   }
+}
+
+/**
+ * A song's sections in the shape the `?data=` param expects, at the pitch the chart
+ * is written in. SongChordPlayer builds its own version from `displayedSections` so
+ * the link carries the user's live transposition; this one is for the server-rendered
+ * links on the song page, which have no transposition state to read.
+ */
+export function songToEditorSections(song: Song): EditorLinkSection[] {
+  return song.sections
+    .map(section => ({
+      name: section.name,
+      repeatCount: section.repeatCount ?? 1,
+      chords: section.lines.flatMap(line =>
+        parseLyricLine(line)
+          .filter(t => t.chord)
+          .map(t => ({ c: t.chord, d: t.duration })),
+      ),
+    }))
+    .filter(s => s.chords.length > 0);
+}
+
+/**
+ * The editor validates `?style=` against the real style ids and silently falls back to
+ * reggaeton when it doesn't match (Index.tsx's getInitialStyleId) — so an unknown id
+ * opens a worship song with a reggaeton feel. Songs coming from Supabase can still
+ * carry ids that no longer exist, so the id is checked here rather than trusted.
+ * `pop_1` is what playback already falls back to (MUSICAL_STYLES[0]).
+ */
+function resolveStyleId(styleId: string): string {
+  return MUSICAL_STYLES.some(s => s.id === styleId) ? styleId : 'pop_1';
+}
+
+/**
+ * Deep link into the chord player carrying the song's full structure. Used by the
+ * song page's server-rendered CTAs and by the player bar (which passes its own
+ * transposed `sections` and the BPM the listener has dialled in).
+ */
+export function buildSongEditorUrl(
+  song: Song,
+  opts: { bpm?: number; sections?: EditorLinkSection[] } = {},
+): string {
+  const sections = opts.sections ?? songToEditorSections(song);
+  const data = encodeEditorSections(sections);
+  const bpm = opts.bpm ?? song.bpm;
+  const title = encodeURIComponent(`${song.title} - ${song.artist}`);
+  return `/chord-player/?data=${data}&bpm=${bpm}&style=${resolveStyleId(song.style)}&title=${title}`;
 }
 
 export function editorSectionsToSections(data: EditorLinkSection[]): Section[] {

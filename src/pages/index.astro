@@ -70,10 +70,10 @@ const useCases = [
 ];
 
 const popularProgressions = [
-  { title: 'I–V–vi–IV (Pop)', chords: 'C G Am F', bpm: 110, style: 'pop_basic', label: 'The most-used progression in pop music. Found in thousands of hits.' },
-  { title: 'ii–V–I (Jazz)', chords: 'Dm7 G7 Cmaj7', bpm: 120, style: 'pop_basic', label: 'The cornerstone of jazz harmony.' },
-  { title: 'Lo-fi Jazz Loop', chords: 'Cmaj7 Am7 Fmaj7 G7', bpm: 75, style: 'pop_basic', label: 'Warm extended chords for study beats and chill music.' },
-  { title: 'Minor Ballad', chords: 'Am F C G', bpm: 70, style: 'pop_basic', label: 'Melancholic minor key pop. Emotional and versatile.' },
+  { title: 'I–V–vi–IV (Pop)', chords: 'C G Am F', bpm: 110, style: 'pop_1', label: 'The most-used progression in pop music. Found in thousands of hits.' },
+  { title: 'ii–V–I (Jazz)', chords: 'Dm7 G7 Cmaj7', bpm: 120, style: 'pop_1', label: 'The cornerstone of jazz harmony.' },
+  { title: 'Lo-fi Jazz Loop', chords: 'Cmaj7 Am7 Fmaj7 G7', bpm: 75, style: 'pop_1', label: 'Warm extended chords for study beats and chill music.' },
+  { title: 'Minor Ballad', chords: 'Am F C G', bpm: 70, style: 'pop_1', label: 'Melancholic minor key pop. Emotional and versatile.' },
 ];
 
 // Chord Player leads this list on purpose — it's the flagship tool and the internal link/anchor
@@ -364,9 +364,9 @@ const songListSchema = {
       </div>
 
       <div class="space-y-4">
-        <ChordEmbed client:idle chords="C G Am F" bpm={110} style="pop_basic" title="I–V–vi–IV — The Pop Axis (C major)" />
-        <ChordEmbed client:idle chords="Dm7 G7 Cmaj7" bpm={120} style="pop_basic" title="ii–V–I — Jazz Standard Cornerstone" />
-        <ChordEmbed client:idle chords="Cmaj7 Am7 Fmaj7 G7" bpm={75} style="pop_basic" title="Lo-fi Jazz Loop — Chill study vibes" />
+        <ChordEmbed client:idle chords="C G Am F" bpm={110} style="pop_1" title="I–V–vi–IV — The Pop Axis (C major)" />
+        <ChordEmbed client:idle chords="Dm7 G7 Cmaj7" bpm={120} style="pop_1" title="ii–V–I — Jazz Standard Cornerstone" />
+        <ChordEmbed client:idle chords="Cmaj7 Am7 Fmaj7 G7" bpm={75} style="pop_1" title="Lo-fi Jazz Loop — Chill study vibes" />
       </div>
 
       <div class="mt-10 text-center">

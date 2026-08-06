@@ -444,7 +444,9 @@ export function SongPlayerBar({
             >+</button>
           </div>
 
-          {/* Exports + editor — hidden on mobile */}
+          {/* Exports — hidden on mobile (the editor link below is not: 65% of song page
+              traffic is mobile, and it used to be the one audience with no way into the
+              chord player at all) */}
           <div className="hidden sm:flex items-center gap-1.5 shrink-0">
             {showWavExport && (
               <button
@@ -469,15 +471,20 @@ export function SongPlayerBar({
               <Download className="w-3 h-3" />
               MIDI
             </button>
-            <a
-              href={editorUrl}
-              onClick={() => analytics.songEditorOpened(song.slug)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary hover:text-primary/80 hover:bg-primary/5 transition-colors"
-            >
-              Editor
-              <ExternalLink className="w-3 h-3" />
-            </a>
           </div>
+
+          {/* Anchor text says "Chord Player", matching the Navbar/Footer CTAs — the
+              destination is the same URL, so saying "Editor" here only diluted the signal. */}
+          <a
+            href={editorUrl}
+            onClick={() => analytics.songEditorOpened(song.slug, 'player_bar')}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary hover:text-primary/80 hover:bg-primary/5 transition-colors shrink-0"
+          >
+            {/* On narrow screens the transport and transpose controls already compete for
+                width, so only the distinctive half of the label is shown there. */}
+            <span className="hidden xs:inline">Chord&nbsp;</span>Player
+            <ExternalLink className="w-3 h-3" />
+          </a>
 
         </div>
       </div>

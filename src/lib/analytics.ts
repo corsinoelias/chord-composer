@@ -38,7 +38,12 @@ export const analytics = {
   // Song page → editor. This is the SEO-traffic-to-product conversion: the visitor
   // arrived to read a chart and leaves with it loaded in the editor. Fires on an <a>
   // that navigates away — gtag sends via navigator.sendBeacon, which survives unload.
-  songEditorOpened: (songSlug: string) => track('song_editor_opened', { song_slug: songSlug }),
+  // `source` separates the three entry points, which are not comparable: 'player_bar'
+  // is a small link in the transport row, 'cta_block' is the panel under the chart,
+  // 'practice_tools' is a card two thirds down the page. The two Astro-rendered ones
+  // fire the same event from an inline script in songs/[slug].astro, not from here.
+  songEditorOpened: (songSlug: string, source: 'player_bar' | 'cta_block' | 'practice_tools') =>
+    track('song_editor_opened', { song_slug: songSlug, source }),
 
   // Editor
   playProgression: (styleId: string) => track('play_progression', { style_id: styleId }),

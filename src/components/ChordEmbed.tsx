@@ -20,7 +20,7 @@ interface ChordEmbedProps {
   toolContext?: string;
 }
 
-function ChordEmbedInner({ chords, bpm = 100, style = 'pop_basic', title, toolContext }: ChordEmbedProps) {
+function ChordEmbedInner({ chords, bpm = 100, style = 'pop_1', title, toolContext }: ChordEmbedProps) {
   const { state: playbackState, play, stop } = usePlayback();
   const { isPlaying, currentChordIndex } = playbackState;
   const parsedChords = useMemo(() => parseChordString(chords), [chords]);

@@ -15,7 +15,7 @@ import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { exportMidi } from '@/lib/midiExporter';
 import { MUSICAL_STYLES } from '@/lib/styles';
 import { analytics } from '@/lib/analytics';
-import { encodeEditorSections, type EditorLinkSection } from '@/lib/editorLink';
+import { buildSongEditorUrl, type EditorLinkSection } from '@/lib/editorLink';
 
 // ─── Transpose helpers ────────────────────────────────────────────────────────
 const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -58,7 +58,7 @@ interface ResolvedSection {
 }
 
 // ─── Inner component (needs PlaybackContext) ──────────────────────────────────
-function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: boolean }) {
+function SongChordPlayerInner({ song, inline = false, showWavExport = false }: { song: Song; inline?: boolean; showWavExport?: boolean }) {
   const { state, play, stop, setBpm: setContextBpm, updatePlaybackOptions } = usePlayback();
   const { isPlaying, currentChordIndex } = state;
   const [isLoading, setIsLoading] = useState(false);
@@ -568,7 +568,9 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     : 0;
   const isSoloSection = playingSection !== null;
 
-  const editorUrl = `/chord-player/?data=${encodeEditorSections(editorSectionsData)}&bpm=${bpm}&style=${song.style}&title=${encodeURIComponent(`${song.title} - ${song.artist}`)}`;
+  // Passes the transposed sections and the listener's current BPM, so the editor opens
+  // with exactly what they were hearing rather than the song's written pitch/tempo.
+  const editorUrl = buildSongEditorUrl(song, { bpm, sections: editorSectionsData });
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -603,7 +605,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         onExportMidi={handleExportMidi}
         editorUrl={editorUrl}
         inline={inline}
-        showWavExport={song.slug !== 'hay-poder-yeshua-averly-morillo'}
+        showWavExport={showWavExport}
         consoleOpen={consoleOpen}
         onToggleConsole={() => setConsoleOpen(v => !v)}
         isSoloSection={isSoloSection}
@@ -823,10 +825,15 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
 }
 
 // ─── Public export (wraps with PlaybackProvider) ──────────────────────────────
-export default function SongChordPlayer({ song, inline }: { song: Song; inline?: boolean }) {
+// `showWavExport` defaults off: rendering a full song offline is slow enough that it
+// was hurting the song pages, which are read-and-play surfaces, not export surfaces
+// (MIDI export stays — it's instant). The SongCreator preview opts back in.
+export default function SongChordPlayer(
+  { song, inline, showWavExport }: { song: Song; inline?: boolean; showWavExport?: boolean },
+) {
   return (
     <PlaybackProvider>
-      <SongChordPlayerInner song={song} inline={inline} />
+      <SongChordPlayerInner song={song} inline={inline} showWavExport={showWavExport} />
     </PlaybackProvider>
   );
 }

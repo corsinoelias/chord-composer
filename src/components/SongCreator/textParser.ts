@@ -17,13 +17,13 @@ const META_KEYS: Record<string, keyof SongMeta> = {
 };
 
 const STYLE_MAP: Record<string, string> = {
-  'pop': 'pop_basic', 'rock': 'rock_basic', 'jazz': 'jazz_swing',
+  'pop': 'pop_1', 'rock': 'rock_basic', 'jazz': 'jazz_swing',
   'folk': 'folk_strum', 'blues': 'blues_shuffle',
   'lofi': 'lofi_chill', 'lo-fi': 'lofi_chill', 'chill': 'lofi_chill',
 };
 
 const STYLE_LABELS: Record<string, string> = {
-  'pop_basic': 'Pop', 'rock_basic': 'Rock', 'jazz_swing': 'Jazz',
+  'pop_1': 'Pop', 'rock_basic': 'Rock', 'jazz_swing': 'Jazz',
   'folk_strum': 'Folk', 'blues_shuffle': 'Blues', 'lofi_chill': 'Lo-fi',
 };
 

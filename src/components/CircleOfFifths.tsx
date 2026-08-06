@@ -159,7 +159,7 @@ function CircleOfFifthsInner({ initialKey }: { initialKey?: string }) {
     const chords = diatonic.map(toChord).filter(Boolean) as Chord[];
     if (chords.length === 0) return;
     const section = { ...createSection('Scale'), chords };
-    const style = MUSICAL_STYLES.find(s => s.id === 'pop_basic') ?? MUSICAL_STYLES[0];
+    const style = MUSICAL_STYLES.find(s => s.id === 'pop_1') ?? MUSICAL_STYLES[0];
     try {
       await play([section], {
         bpm: 80,

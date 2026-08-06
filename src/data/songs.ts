@@ -120,7 +120,7 @@ export const SONGS: Song[] = [
     key: 'C',
     capo: 1,
     bpm: 72,
-    style: 'pop_basic',
+    style: 'pop_1',
     description:
       'Holy Forever by Chris Tomlin — chord chart with lyrics. Key of C (capo 1st fret sounds in Db). Play every section with interactive audio.',
     tags: ['worship', 'chris tomlin', 'contemporary christian', 'capo 1'],
@@ -206,7 +206,7 @@ export const SONGS: Song[] = [
     genre: ['jazz', 'standard'],
     key: 'G',
     bpm: 100,
-    style: 'pop_basic',
+    style: 'pop_1',
     description:
       'Autumn Leaves — classic jazz standard chord chart with lyrics. Key of G minor. Play the full ii–V–I progression through the entire song.',
     tags: ['jazz', 'jazz standard', 'autumn leaves', 'ii V I', 'public domain'],
@@ -245,7 +245,7 @@ export const SONGS: Song[] = [
     genre: ['folk', 'pop'],
     key: 'C',
     bpm: 68,
-    style: 'pop_basic',
+    style: 'pop_1',
     description:
       'Hallelujah by Leonard Cohen — full chord chart with lyrics. One of the most covered songs of all time. Key of C major.',
     tags: ['hallelujah', 'leonard cohen', 'folk', 'pop', 'fingerpicking'],
@@ -304,7 +304,7 @@ export const SONGS: Song[] = [
     key: 'F#m',
     capo: 2,
     bpm: 87,
-    style: 'pop_basic',
+    style: 'pop_1',
     description:
       'Wonderwall by Oasis — chord chart with lyrics. Key of F#m with capo on 2nd fret. One of the most searched guitar chord charts online.',
     tags: ['wonderwall', 'oasis', 'britpop', 'rock', 'capo 2', 'guitar'],
@@ -368,7 +368,7 @@ export const SONGS: Song[] = [
     genre: ['worship', 'contemporary christian'],
     key: 'D',
     bpm: 72,
-    style: 'folk_strum',
+    style: 'pop_1',
     description:
       'Oceans (Where Feet May Fail) by Hillsong United — chord chart with lyrics. Key of D. Play the iconic worship anthem section by section with interactive audio.',
     tags: ['worship', 'hillsong united', 'contemporary christian', 'oceans'],
@@ -428,7 +428,7 @@ export const SONGS: Song[] = [
     genre: ['worship', 'contemporary christian'],
     key: 'A',
     bpm: 96,
-    style: 'pop_basic',
+    style: 'pop_1',
     description:
       'Way Maker by Leeland — chord chart with lyrics. Key of A (I–V–vi–IV). Play every section with interactive audio. Originally written by Sinach.',
     tags: ['worship', 'leeland', 'sinach', 'contemporary christian', 'way maker'],
@@ -486,7 +486,7 @@ export const SONGS: Song[] = [
     genre: ['worship', 'contemporary christian'],
     key: 'C',
     bpm: 68,
-    style: 'folk_strum',
+    style: 'pop_1',
     description:
       'Goodness of God by Bethel Music — chord chart with lyrics. Key of C. Play this beloved worship anthem with interactive audio and full chord-over-lyrics.',
     tags: ['worship', 'bethel music', 'jenn johnson', 'contemporary christian', 'goodness of god'],
@@ -548,7 +548,7 @@ export const SONGS: Song[] = [
     genre: ['worship', 'contemporary christian'],
     key: 'C',
     bpm: 68,
-    style: 'folk_strum',
+    style: 'pop_1',
     description:
       'Reckless Love by Cory Asbury — chord chart with lyrics. Key of C. Play the full worship song with interactive chord audio and complete lyrics.',
     tags: ['worship', 'cory asbury', 'contemporary christian', 'reckless love'],
@@ -607,7 +607,7 @@ export const SONGS: Song[] = [
     genre: ['worship', 'contemporary christian'],
     key: 'G',
     bpm: 73,
-    style: 'folk_strum',
+    style: 'pop_1',
     description:
       '10,000 Reasons (Bless the Lord) by Matt Redman — chord chart with lyrics. Key of G. Grammy-winning worship anthem with full interactive chord audio.',
     tags: ['worship', 'matt redman', 'contemporary christian', '10000 reasons', 'bless the lord'],
@@ -666,7 +666,7 @@ export const SONGS: Song[] = [
     key: 'D',
     capo: 1,
     bpm: 68,
-    style: 'folk_strum',
+    style: 'pop_1',
     description:
       'What A Beautiful Name by Hillsong Worship — chord chart with lyrics. Key of D (capo 1st fret sounds in Eb). Play the Grammy-winning anthem with interactive audio.',
     tags: ['worship', 'hillsong worship', 'contemporary christian', 'what a beautiful name'],
@@ -733,7 +733,7 @@ export const SONGS: Song[] = [
     genre: ['worship', 'contemporary christian'],
     key: 'G',
     bpm: 74,
-    style: 'folk_strum',
+    style: 'pop_1',
     description:
       'Build My Life by Pat Barrett — chord chart with lyrics. Key of G. Play this modern worship anthem with interactive audio and full chord-over-lyrics.',
     tags: ['worship', 'pat barrett', 'housefires', 'contemporary christian', 'build my life'],
@@ -792,7 +792,7 @@ export const SONGS: Song[] = [
     genre: ['worship', 'contemporary christian'],
     key: 'G',
     bpm: 76,
-    style: 'folk_strum',
+    style: 'pop_1',
     description:
       'Great Are You Lord by All Sons & Daughters — chord chart with lyrics. Key of G. Play this anthemic worship song with interactive audio and full lyrics.',
     tags: ['worship', 'all sons and daughters', 'contemporary christian', 'great are you lord'],
