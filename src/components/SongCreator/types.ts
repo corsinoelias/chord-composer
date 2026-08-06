@@ -15,6 +15,9 @@ export interface EditorLine {
 export interface AudioRange {
   startSec: number;
   endSec: number;
+  // True while these bounds were derived from a whole-song range instead of marked by
+  // hand — see audioSeeding.ts. Any manual edit drops the flag.
+  estimated?: boolean;
 }
 
 export interface EditorSection {

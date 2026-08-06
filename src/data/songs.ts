@@ -7,6 +7,10 @@ export interface SongToken {
 export interface AudioRange {
   startSec: number;
   endSec: number;
+  // True while these bounds were derived by splitting a whole-song range across the
+  // sections rather than marked against the recording by hand. Cleared the moment the
+  // user edits the range — see seedSectionRanges in SongCreator/audioSeeding.ts.
+  estimated?: boolean;
 }
 
 export interface SongSection {

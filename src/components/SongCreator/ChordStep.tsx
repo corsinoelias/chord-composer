@@ -27,6 +27,7 @@ import { parseChordString, serializeChords } from '@/lib/chordParser';
 import type { Chord } from '@/lib/musicTheory';
 import { uploadSongAudio, deleteSongAudio, type SongAudioUploadResult, type SongAudioUploadError } from '@/lib/songAudio';
 import AudioRangeEditor from './AudioRangeEditor';
+import { seedSectionRanges, estimatesAreStale, tempoDrift, type SeedReport } from './audioSeeding';
 
 import {
   Music2, Plus, Trash2, Pencil, Check, X,
@@ -171,6 +172,10 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
 
   // ── Vocal reference audio ───────────────────────────────────────────────────────
   const anySectionHasAudioRange = sections.some(s => s.audioRange);
+  const estimatedSectionCount = sections.filter(s => s.audioRange?.estimated).length;
+  // Recomputed from the current chart rather than remembered from the last run, so it
+  // survives a reload and catches edits made in another session.
+  const estimatesStale = !!meta.audioWholeRange && estimatesAreStale(sections, meta.audioWholeRange);
 
   const handleAttachAudioFile = (file: File) => {
     onRequireAuth(async () => {
@@ -198,8 +203,22 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
       onMetaChange({ ...meta, audioWholeRange: range });
     } else if (audioModalTarget) {
       const targetId = audioModalTarget;
+      // A range that arrives from the editor was placed by hand, so it is no longer an
+      // estimate — the flag is simply absent on what AudioRangeEditor emits.
       setSections(p => p.map(s => s.id === targetId ? { ...s, audioRange: range } : s));
     }
+  };
+
+  // Splits the whole-song reference across the sections so soloing one plays its own
+  // slice. Estimates, by construction — see audioSeeding.ts.
+  const [seedReport, setSeedReport] = useState<SeedReport | null>(null);
+
+  const handleSeedSectionRanges = () => {
+    if (!meta.audioWholeRange) return;
+    const { sections: next, report } = seedSectionRanges(sections, meta.audioWholeRange);
+    if (!report) return;
+    setSections(next);
+    setSeedReport(report);
   };
 
   const handleDragStart = ({ active }: DragStartEvent) => {
@@ -550,14 +569,30 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
           <div><label className="block text-xs font-medium text-muted-foreground mb-2">Referencia vocal (toda la canción)</label>
             <button
               onClick={() => setAudioModalTarget('whole')}
-              disabled={anySectionHasAudioRange}
-              title={anySectionHasAudioRange ? 'Hay una referencia vocal adjuntada por sección — quitala para usar una de toda la canción' : undefined}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5
-                ${meta.audioWholeRange ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/40'}`}
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5
+                ${meta.audioTrack ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/40'}`}
             >
               <AudioLines className="w-3.5 h-3.5" />
-              {meta.audioWholeRange ? 'Editar referencia vocal' : 'Adjuntar referencia vocal'}
+              {/* Keyed off the attached file, not the range: a song can arrive with a track
+                  whose slices are all per-section, and calling that "Adjuntar" would offer
+                  to attach a file that is already there. */}
+              {meta.audioTrack ? 'Editar referencia vocal' : 'Adjuntar referencia vocal'}
             </button>
+            {meta.audioWholeRange && !anySectionHasAudioRange && (
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Al reproducir una sección suelta todavía no suena la voz. Abrí la
+                referencia y usá «Calcular tramos» para repartir la grabación entre las
+                secciones.
+              </p>
+            )}
+            {estimatedSectionCount > 0 && (
+              <p className="text-xs text-muted-foreground mt-1.5">
+                {estimatedSectionCount === 1
+                  ? '1 sección tiene un tramo estimado sin revisar.'
+                  : `${estimatedSectionCount} secciones tienen tramos estimados sin revisar.`}
+                {estimatesStale && ' Ya no coinciden con el chart actual — conviene recalcular.'}
+              </p>
+            )}
           </div>
           <div><label className="block text-xs font-medium text-muted-foreground mb-2">Genre</label>
             <div className="flex flex-wrap gap-1.5">
@@ -791,6 +826,9 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
         isAttaching={isAttachingAudio}
         isChordsPreviewPlaying={isAudioModalChordsPreviewPlaying}
         onToggleChordsPreview={handleToggleAudioModalChordsPreview}
+        songBpm={meta.bpm}
+        seedReport={seedReport}
+        onSeedSectionRanges={handleSeedSectionRanges}
       />
     </div>
   );
@@ -1233,12 +1271,18 @@ interface AudioClipModalProps {
   // AudioRangeEditor, which stays isolated for precise trimming.
   isChordsPreviewPlaying: boolean;
   onToggleChordsPreview: () => void;
+  // Splitting the whole-song range into per-section slices, plus the report of the last
+  // split so the modal can show how well the chart matches the recording.
+  songBpm: number;
+  seedReport: SeedReport | null;
+  onSeedSectionRanges: () => void;
 }
 
 function AudioClipModal({
   target, onTargetChange, onClose, sections, audioTrack, audioWholeRange,
   onAttachFile, onReplaceFile, onRangeChange, attachError, isAttaching,
   isChordsPreviewPlaying, onToggleChordsPreview,
+  songBpm, seedReport, onSeedSectionRanges,
 }: AudioClipModalProps) {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -1251,8 +1295,16 @@ function AudioClipModal({
 
   const currentSection = target && target !== 'whole' ? sections.find(s => s.id === target) : null;
   const currentRange = target === 'whole' ? audioWholeRange : currentSection?.audioRange;
+  // A whole-song range and per-section slices used to be mutually exclusive. They are
+  // not anymore: the whole range is what plays for the full song (one continuous clip,
+  // no restart at every section boundary), and the slices are what play when a section
+  // is soloed. Splitting the former into the latter is the whole point of the button
+  // below, so locking each out of the other would deadlock the picker.
   const anySectionHasRange = sections.some(s => s.audioRange);
   const wholeActive = !!audioWholeRange;
+  const estimatedCount = sections.filter(s => s.audioRange?.estimated).length;
+  const drift = seedReport ? tempoDrift(seedReport.impliedBpm, songBpm) : 0;
+  const estimatesStale = !!audioWholeRange && estimatesAreStale(sections, audioWholeRange);
   // Other sections' clips on the same shared file, shown as reference bands while
   // editing this one — irrelevant (and always empty) in whole-song scope.
   const otherRanges = target && target !== 'whole'
@@ -1280,24 +1332,77 @@ function AudioClipModal({
             <div className="flex flex-wrap gap-1.5">
               <button
                 onClick={() => onTargetChange('whole')}
-                disabled={anySectionHasRange && target !== 'whole'}
-                title={anySectionHasRange ? 'Hay recortes por sección — quitalos para usar uno de toda la canción' : undefined}
-                className={chipClass(target === 'whole', anySectionHasRange && target !== 'whole')}
+                className={chipClass(target === 'whole', false)}
               >
-                Toda la canción
+                Toda la canción{wholeActive ? ' •' : ''}
               </button>
               {sections.map(s => (
                 <button
                   key={s.id}
                   onClick={() => onTargetChange(s.id)}
-                  disabled={wholeActive && target !== s.id}
-                  title={wholeActive ? 'Hay una referencia para toda la canción — quitala para usar recortes por sección' : undefined}
-                  className={chipClass(target === s.id, wholeActive && target !== s.id)}
+                  title={s.audioRange?.estimated ? 'Tramo estimado — revisalo y ajustalo' : undefined}
+                  className={chipClass(target === s.id, false)}
                 >
-                  {s.name}{s.audioRange ? ' •' : ''}
+                  {/* "~" marks an estimate, "•" a range placed by hand. */}
+                  {s.name}{s.audioRange ? (s.audioRange.estimated ? ' ~' : ' •') : ''}
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Splitting the whole-song reference into per-section slices. Only offered in
+            whole-song scope, which is the only place the source range exists. */}
+        {audioTrack && target === 'whole' && wholeActive && (
+          <div className="px-5 py-3 border-b border-border">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">Repartir entre las secciones</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Calcula en qué segundo empieza cada sección para que al reproducir una
+                  sola suene su parte de la grabación.
+                </p>
+              </div>
+              <button
+                onClick={onSeedSectionRanges}
+                className="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {estimatedCount > 0 ? 'Recalcular tramos' : 'Calcular tramos'}
+              </button>
+            </div>
+
+            {estimatesStale && (
+              <p className="text-xs text-destructive mt-2">
+                Los tramos estimados ya no coinciden con el reparto actual — cambió el
+                chart, o confirmaste alguna sección a mano. Recalculá para acomodar los
+                que siguen estimados.
+              </p>
+            )}
+
+            {seedReport && (
+              <div className="mt-2.5 space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  {seedReport.seeded} {seedReport.seeded === 1 ? 'sección repartida' : 'secciones repartidas'} sobre{' '}
+                  {seedReport.totalBeats} beats.
+                  {seedReport.pinned > 0 && ` Respetadas por estar confirmadas a mano: ${seedReport.pinned}.`}
+                  {seedReport.skipped.length > 0 && ` Sin acordes, así que quedaron fuera: ${seedReport.skipped.join(', ')}.`}
+                </p>
+                <p className={`text-xs ${Math.abs(drift) >= 10 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  La grabación va a {seedReport.impliedBpm} BPM para esta cantidad de beats
+                  {songBpm ? `, y la canción dice ${songBpm}` : ''}
+                  {Math.abs(drift) >= 10
+                    ? ` — ${Math.abs(drift)}% de diferencia. Probablemente al chart le falte o le sobre una parte: revisá eso antes que los tramos.`
+                    : '.'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Son estimaciones: reparten el tiempo de forma pareja y no siguen los
+                  cambios de tempo de la grabación. Revisá cada sección con el chip de
+                  arriba y ajustá la que haga falta — al moverla deja de estar marcada
+                  como estimada y pasa a ser un punto fijo, así que recalcular no la
+                  pisa y las vecinas quedan más precisas.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -1322,6 +1427,13 @@ function AudioClipModal({
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
               <div className="space-y-4 min-w-0">
+                {currentRange?.estimated && (
+                  <p className="text-xs rounded-lg border border-primary/20 bg-primary/5 text-muted-foreground px-3 py-2">
+                    Este tramo es estimado: sale de repartir la grabación entre las
+                    secciones, no de escucharla. Escuchalo y corregí el inicio y el fin si
+                    hace falta — con eso deja de estar marcado como estimado.
+                  </p>
+                )}
                 <AudioRangeEditor
                   audioUrl={audioTrack.url}
                   range={currentRange}
