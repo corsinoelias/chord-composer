@@ -110,6 +110,41 @@ export function seedSectionRanges(sections: EditorSection[], whole: AudioRange):
   };
 }
 
+// ── Whole-song range vs per-section ranges ───────────────────────────────────
+// Both can be set at once, on purpose: the whole range is what plays for the full song
+// (one continuous clip) and the section ranges are what play when a section is soloed.
+// Nothing kept the two agreeing about where the song starts, though, and when they
+// disagree the full-song playback is wrong from the very first bar — the engine starts
+// the vocal at the whole range's start on the same beat the chart's first chord plays,
+// so a whole range beginning 10s before the first section's puts the voice 10s ahead of
+// the chords. Soloing that same section sounds perfect, which makes it look like a
+// playback bug rather than two numbers that don't match.
+
+export interface RangeMismatch {
+  // Signed seconds: negative means the whole range starts before the sections do.
+  startDelta: number;
+  endDelta: number;
+  sectionsStart: number;
+  sectionsEnd: number;
+}
+
+export function wholeRangeMismatch(
+  sections: EditorSection[],
+  whole: AudioRange,
+  toleranceSec: number,
+): RangeMismatch | null {
+  const ranges = sections.map(s => s.audioRange).filter(Boolean) as AudioRange[];
+  if (ranges.length === 0) return null;
+
+  const sectionsStart = Math.min(...ranges.map(r => r.startSec));
+  const sectionsEnd = Math.max(...ranges.map(r => r.endSec));
+  const startDelta = whole.startSec - sectionsStart;
+  const endDelta = whole.endSec - sectionsEnd;
+
+  if (Math.abs(startDelta) <= toleranceSec && Math.abs(endDelta) <= toleranceSec) return null;
+  return { startDelta, endDelta, sectionsStart, sectionsEnd };
+}
+
 // How far apart two ranges can sit before the estimate counts as out of date.
 const STALE_TOLERANCE_SEC = 0.5;
 

@@ -27,12 +27,19 @@ import { parseChordString, serializeChords } from '@/lib/chordParser';
 import type { Chord } from '@/lib/musicTheory';
 import { uploadSongAudio, deleteSongAudio, type SongAudioUploadResult, type SongAudioUploadError } from '@/lib/songAudio';
 import AudioRangeEditor from './AudioRangeEditor';
-import { seedSectionRanges, estimatesAreStale, tempoDrift, type SeedReport } from './audioSeeding';
+import { seedSectionRanges, estimatesAreStale, wholeRangeMismatch, tempoDrift, type SeedReport } from './audioSeeding';
 
 import {
   Music2, Plus, Trash2, Pencil, Check, X,
   GripVertical, ChevronDown, ChevronUp, Copy, Play, Square, ClipboardPaste, AudioLines,
 } from 'lucide-react';
+
+// mm:ss.ss — same shape the audio editor's own readouts use, so a warning quoting a
+// timestamp can be matched against the field you have to change.
+function formatSec(sec: number): string {
+  const v = Math.max(0, sec);
+  return `${Math.floor(v / 60)}:${(v % 60).toFixed(2).padStart(5, '0')}`;
+}
 
 // ── Transpose helpers ─────────────────────────────────────────────────────────
 const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -179,6 +186,11 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
   // ── Vocal reference audio ───────────────────────────────────────────────────────
   const anySectionHasAudioRange = sections.some(s => s.audioRange);
   const estimatedSectionCount = sections.filter(s => s.audioRange?.estimated).length;
+  // Two beats of slack: anything larger is audible as the voice running ahead of (or
+  // behind) the chords for the whole song.
+  const rangeMismatch = meta.audioWholeRange
+    ? wholeRangeMismatch(sections, meta.audioWholeRange, 2 * (60 / (meta.bpm || 120)))
+    : null;
   // Recomputed from the current chart rather than remembered from the last run, so it
   // survives a reload and catches edits made in another session.
   const estimatesStale = !!meta.audioWholeRange && estimatesAreStale(sections, meta.audioWholeRange);
@@ -589,6 +601,15 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
                 Al reproducir una sección suelta todavía no suena la voz. Abrí la
                 referencia y usá «Calcular tramos» para repartir la grabación entre las
                 secciones.
+              </p>
+            )}
+            {rangeMismatch && (
+              <p className="text-xs text-destructive mt-1.5">
+                El recorte de toda la canción empieza en {formatSec(meta.audioWholeRange!.startSec)} pero
+                la primera sección empieza en {formatSec(rangeMismatch.sectionsStart)}. Al reproducir la
+                canción entera la voz va {formatSec(Math.abs(rangeMismatch.startDelta))} por
+                {rangeMismatch.startDelta < 0 ? ' delante de' : ' detrás de'} los acordes desde el
+                primer compás; reproducir una sección suelta suena bien porque usa su propio tramo.
               </p>
             )}
             {estimatedSectionCount > 0 && (
@@ -1314,6 +1335,9 @@ function AudioClipModal({
   const estimatedCount = sections.filter(s => s.audioRange?.estimated).length;
   const drift = seedReport ? tempoDrift(seedReport.impliedBpm, songBpm) : 0;
   const estimatesStale = !!audioWholeRange && estimatesAreStale(sections, audioWholeRange);
+  const mismatch = audioWholeRange
+    ? wholeRangeMismatch(sections, audioWholeRange, 2 * (60 / (songBpm || 120)))
+    : null;
   // Other sections' clips on the same shared file, shown as reference bands while
   // editing this one — irrelevant (and always empty) in whole-song scope.
   const otherRanges = target && target !== 'whole'
@@ -1379,6 +1403,23 @@ function AudioClipModal({
                 {estimatedCount > 0 ? 'Recalcular tramos' : 'Calcular tramos'}
               </button>
             </div>
+
+            {mismatch && (
+              <div className="mt-2 rounded-lg border border-destructive/30 bg-destructive/5 p-2.5">
+                <p className="text-xs text-destructive">
+                  Este recorte empieza en {formatSec(audioWholeRange!.startSec)} y la primera sección
+                  en {formatSec(mismatch.sectionsStart)}. La canción entera arranca la voz al principio
+                  de este recorte a la vez que el primer acorde, así que quedaría
+                  {' '}{formatSec(Math.abs(mismatch.startDelta))} desplazada.
+                </p>
+                <button
+                  onClick={() => onRangeChange({ startSec: mismatch.sectionsStart, endSec: mismatch.sectionsEnd })}
+                  className="mt-1.5 text-xs px-2.5 py-1 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Ajustarlo a las secciones ({formatSec(mismatch.sectionsStart)} – {formatSec(mismatch.sectionsEnd)})
+                </button>
+              </div>
+            )}
 
             {estimatesStale && (
               <p className="text-xs text-destructive mt-2">
