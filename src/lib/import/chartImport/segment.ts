@@ -1,7 +1,9 @@
-import { reduceLabel } from './difficulty';
+import { isNoChord, reduceLabel, respellForKey } from './difficulty';
 import type { Beat, ChordSpan, Difficulty, RawChordBeat } from './types';
 
 export interface SegmentOptions {
+  // Key signature the chart reads in, so roots can be respelled to match it.
+  key?: string;
   // Keep slash-chord bass notes (D/A). The reference charts drop them at every level;
   // our engine can play them, so this is opt-in.
   includeBass?: boolean;
@@ -18,15 +20,22 @@ export function segmentChords(
   level: Difficulty,
   options: SegmentOptions = {},
 ): ChordSpan[] {
-  const { includeBass = false, minBeats = 1 } = options;
+  const { includeBass = false, minBeats = 1, key } = options;
   const spans: ChordSpan[] = [];
 
   rows.forEach((row, i) => {
     const beat = beats[i];
-    const label = reduceLabel(row.chord_complex_pop, level);
+    // Silence is not a chord. Emitting it would put a bogus "N" in the chart — one that
+    // the audio engine can't play, and that reads as a section header when it lands
+    // alone on a line.
+    if (isNoChord(row.chord_complex_pop)) return;
+
+    const label = key
+      ? respellForKey(reduceLabel(row.chord_complex_pop, level), key)
+      : reduceLabel(row.chord_complex_pop, level);
     // Bass movement under a held chord is colour, so it only survives at avanzado.
     const bass = includeBass && level === 'avanzado' && row.bass && row.bass !== label
-      ? row.bass
+      ? (key ? respellForKey(row.bass, key) : row.bass)
       : null;
 
     const prev = spans[spans.length - 1];

@@ -165,17 +165,20 @@ console.log(`Key      ${result.key || '—'}${result.detectedKey && result.detec
 console.log('\nLevels');
 for (const level of levels) console.log(`  ${level.padEnd(9)} ${summarize(result.charts[level])}`);
 
-console.log('\nReducer vs. source columns');
+// Informative, not pass/fail — the reference charts and the provider disagree at the
+// easy level over half-diminished chords, and we follow the reference charts.
+console.log('\nAgreement with the provider\'s own columns');
 for (const check of validateAgainstSource(rawChords)) {
   const ok = check.mismatches.length === 0;
-  console.log(`  ${check.level.padEnd(9)} ${ok ? 'match' : `${check.mismatches.length}/${check.total} differ`} vs ${check.column}`);
-  for (const m of check.mismatches.slice(0, 5)) {
-    console.log(`    beat ${m.beat}: expected ${m.expected}, got ${m.got}`);
+  console.log(`  ${check.level.padEnd(9)} ${ok ? 'identical' : `${check.mismatches.length}/${check.total} differ`} vs ${check.column}`);
+  for (const m of check.mismatches.slice(0, 3)) {
+    console.log(`    beat ${m.beat}: provider ${m.expected}, ours ${m.got}`);
   }
 }
 
 const totalBeats = result.charts.avanzado.spans.reduce((n, s) => n + s.beats, 0);
-console.log(`\nDuration check  ${totalBeats} beats across chords vs ${result.beatCount} beats in source ${totalBeats === result.beatCount ? '✓' : '✗'}`);
+const accounted = totalBeats + result.noChordBeats;
+console.log(`\nDuration check  ${totalBeats} beats of chords + ${result.noChordBeats} of silence = ${accounted} vs ${result.beatCount} in source ${accounted === result.beatCount ? '✓' : '✗'}`);
 
 console.log('\nRound-trip through the /songs/new/ parser');
 for (const level of levels) {

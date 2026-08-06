@@ -42,14 +42,45 @@ export function estimateBpm(beats: Beat[]): number {
   return m > 0 ? Math.round(60 / m) : 0;
 }
 
-// The nashville columns are degrees relative to the detected key, so whichever pop
-// chord is labelled "1" names the tonic.
+// The nashville columns are degrees relative to the detected key, so whichever pop chord
+// is labelled a "1" names the tonic — "1-" for a minor one. Both spellings can appear in
+// the same song (a borrowed major tonic over a minor key, say), so the mode is decided by
+// which one actually holds the song, counted in beats, rather than by which comes first.
 export function inferKey(rawChords: RawChordBeat[]): string | null {
+  let major = 0;
+  let minor = 0;
+  let majorRoot: string | null = null;
+  let minorRoot: string | null = null;
+
   for (const row of rawChords) {
-    if (row.chord_complex_nashville === '1') return row.chord_complex_pop;
-    if (row.chord_complex_nashville === '1-') return row.chord_complex_pop;
+    const degree = row.chord_complex_nashville;
+    const root = row.chord_complex_pop?.match(/^([A-G][#b]?)/)?.[1];
+    if (!degree || !root) continue;
+    if (/^1-/.test(degree)) {
+      minor += 1;
+      minorRoot ??= root;
+    } else if (/^1(?!\d)/.test(degree) || degree === '1') {
+      major += 1;
+      majorRoot ??= root;
+    }
   }
-  return null;
+
+  if (minor > major && minorRoot) return canonicalKey(minorRoot, true);
+  if (majorRoot) return canonicalKey(majorRoot, false);
+  return minorRoot ? canonicalKey(minorRoot, true) : null;
+}
+
+// The analysis names every tonic with sharps, but half of those keys are never written
+// that way — nobody charts in A# major, they chart in Bb. Snapping to the name the app
+// actually offers (ALL_KEYS in musicKeys.ts) is also what lets the flat-key lookup in
+// respellForKey recognise the key at all.
+const MAJOR_CANON: Record<string, string> = { 'A#': 'Bb', 'C#': 'Db', 'D#': 'Eb', 'G#': 'Ab' };
+const MINOR_CANON: Record<string, string> = { 'A#': 'Bb', 'D#': 'Eb' };
+
+function canonicalKey(root: string, minor: boolean): string {
+  return minor
+    ? `${MINOR_CANON[root] ?? root}m`
+    : (MAJOR_CANON[root] ?? root);
 }
 
 export function buildLyricLines(raw: RawLyricWord[]): LyricLine[] {

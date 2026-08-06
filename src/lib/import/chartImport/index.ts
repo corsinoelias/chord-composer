@@ -1,4 +1,5 @@
 import { alignChart, groupSections } from './align';
+import { isNoChord } from './difficulty';
 import { segmentChords, type SegmentOptions } from './segment';
 import { buildBeats, buildLyricLines, estimateBpm, inferKey } from './source';
 import type {
@@ -10,7 +11,7 @@ import type {
 } from './types';
 
 export * from './types';
-export { parseLabel, reduceLabel, validateAgainstSource } from './difficulty';
+export { parseLabel, reduceLabel, respellForKey, isNoChord, validateAgainstSource } from './difficulty';
 export { segmentChords, spanChordName } from './segment';
 export { serializeChart, renderChordAbove } from './serialize';
 export { buildBeats, buildLyricLines, estimateBpm, inferKey } from './source';
@@ -29,6 +30,9 @@ export interface BuildResult {
   detectedBpm: number;
   detectedKey: string | null;
   beatCount: number;
+  // Beats the analysis marked as silence ("N"). They carry no chord, so they are absent
+  // from every span — the duration check has to add them back to reach beatCount.
+  noChordBeats: number;
   lineCount: number;
 }
 
@@ -62,6 +66,7 @@ export function buildCharts(
     const spans = segmentChords(rawChords, beats, level, {
       includeBass: options.includeBass,
       minBeats: options.minBeats,
+      key,
     });
     const chartLines = alignChart(spans, lines, alignOptions);
     charts[level] = {
@@ -80,6 +85,7 @@ export function buildCharts(
     detectedBpm,
     detectedKey,
     beatCount: beats.length,
+    noChordBeats: rawChords.filter(r => isNoChord(r.chord_complex_pop)).length,
     lineCount: lines.length,
   };
 }
