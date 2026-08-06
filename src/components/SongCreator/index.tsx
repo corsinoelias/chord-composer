@@ -53,6 +53,10 @@ export default function SongCreator() {
   // and publishing would clear the DB columns for a track the editor merely failed to
   // read — see the audioTrack/audioWholeRange handling in doPublish below.
   const [audioTouched, setAudioTouched] = useState(false);
+  // Surfaced inside the editor rather than through toast(): no <Toaster /> is mounted on
+  // /songs/new/, so every toast.error here used to vanish silently — a failed save was
+  // indistinguishable from a successful one.
+  const [saveError, setSaveError] = useState<string | null>(null);
   // Generic "run this once logged in" gate — reused by both Publish and the audio
   // upload flow (both need a real session before writing to Supabase).
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
@@ -178,6 +182,7 @@ export default function SongCreator() {
 
   async function doPublish(finalSections: EditorSection[]) {
     setIsPublishing(true);
+    setSaveError(null);
     try {
       const songSections = sectionsToSongFormat(finalSections);
 
@@ -206,7 +211,10 @@ export default function SongCreator() {
           audioTrack: meta.audioTrack ?? (audioTouched ? null : undefined),
           audioWholeRange: meta.audioWholeRange ?? (audioTouched ? null : undefined),
         });
-        if (!ok) { toast.error('Failed to update song.'); return; }
+        if (!ok) {
+          setSaveError('No se pudo guardar. Revisá la consola del navegador: los cambios siguen acá, no se perdieron.');
+          return;
+        }
         setPublishedSlug(editSlug || getParam('edit') || '');
       } else {
         const slug = generateSlug(meta.title, meta.artist);
@@ -237,7 +245,10 @@ export default function SongCreator() {
           ? await upsertPublicSongBySlug(slug, songPayload)
           : await savePublicSong(songPayload);
 
-        if (!saved) { toast.error('Failed to publish.'); return; }
+        if (!saved) {
+          setSaveError('No se pudo publicar. Revisá la consola del navegador: los cambios siguen acá, no se perdieron.');
+          return;
+        }
         setPublishedSlug(slug);
       }
 
@@ -366,6 +377,7 @@ export default function SongCreator() {
                 onBack={() => setStep('lyrics')}
                 onPublish={handlePublish}
                 isPublishing={isPublishing}
+                saveError={saveError}
                 isEditMode={!!editId}
                 songId={songIdForAudio}
                 onRequireAuth={requireAuthThen}

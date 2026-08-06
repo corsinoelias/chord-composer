@@ -105,6 +105,9 @@ interface Props {
   onBack: () => void;
   onPublish: (sections: EditorSection[]) => void;
   isPublishing: boolean;
+  // Why the last save failed, if it did. Rendered next to the button: a failed save used
+  // to be silent, and the button called itself saved anyway.
+  saveError?: string | null;
   isEditMode?: boolean;
   // Song id to key the shared audio file's Storage path off of — stable across
   // renders even before the song has a real DB row (see SongCreator/index.tsx).
@@ -114,10 +117,13 @@ interface Props {
   onRequireAuth: (action: () => void) => void;
 }
 
-export default function ChordStep({ sections: init, meta, onMetaChange, onBack, onPublish, isPublishing, isEditMode, songId, onRequireAuth }: Props) {
+export default function ChordStep({ sections: init, meta, onMetaChange, onBack, onPublish, isPublishing, saveError, isEditMode, songId, onRequireAuth }: Props) {
   const [sections, setSections] = useState(init);
-  const [savedSectionsJson, setSavedSectionsJson] = useState(() => JSON.stringify(init));
-  const [savedMetaJson, setSavedMetaJson] = useState(() => JSON.stringify(meta));
+  // Snapshot of what is on the server, taken when the editor opened. Never updated in
+  // place: a successful save navigates away from this screen, so the only thing rewriting
+  // it would achieve is telling the user a failed save had worked.
+  const [savedSectionsJson] = useState(() => JSON.stringify(init));
+  const [savedMetaJson] = useState(() => JSON.stringify(meta));
   const [editingChord, setEditingChord] = useState<EditingChord | null>(null);
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editingLineText, setEditingLineText] = useState('');
@@ -683,8 +689,11 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
             <button onClick={onBack} className="text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0">
               ← Back
             </button>
-            {/* Unsaved changes indicator */}
-            {hasChanges && !isPublishing && (
+            {/* Save status. The error takes precedence: if the last attempt failed,
+                saying "unsaved changes" alone would understate what happened. */}
+            {saveError ? (
+              <span className="text-xs text-destructive font-medium min-w-0">{saveError}</span>
+            ) : hasChanges && !isPublishing && (
               <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                 Unsaved changes
@@ -702,11 +711,11 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
             </span>
 
             <button
-              onClick={() => {
-                onPublish(sections);
-                setSavedSectionsJson(JSON.stringify(sections));
-                setSavedMetaJson(JSON.stringify(meta));
-              }}
+              // Deliberately does NOT mark the song as saved here. A successful save
+              // leaves the editor for the confirmation screen; marking it optimistically
+              // only ever mattered when the save failed, and then it lied — the button
+              // read "Saved" over changes that never reached the database.
+              onClick={() => onPublish(sections)}
               disabled={isPublishing || (!hasChanges && isEditMode)}
               className={`px-6 py-2.5 font-semibold rounded-xl transition-all disabled:cursor-not-allowed
                 ${hasChanges || !isEditMode
