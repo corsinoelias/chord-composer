@@ -51,16 +51,12 @@ interface Loaded {
 
 // The real seconds each section occupies in the recording. This is what the estimated
 // per-section split in audioSeeding.ts is trying to approximate — here it is measured,
-// so an imported song needs no estimating at all.
+// so an imported song needs no estimating at all. Taken from the section's own range,
+// which is derived from the lyric timings and is therefore identical at every
+// difficulty; deriving it from the chords would tie the audio slices to the level.
 function sectionTimeSpans(chart: SongChart): (AudioRange | null)[] {
-  return chart.sections.map(section => {
-    const spans = section.lines.flatMap(l => l.anchors.map(a => a.span));
-    if (spans.length === 0) return null;
-    return {
-      startSec: Math.min(...spans.map(s => s.startTime)),
-      endSec: Math.max(...spans.map(s => s.endTime)),
-    };
-  });
+  return chart.sections.map(section =>
+    section.range.endSec > section.range.startSec ? { ...section.range } : null);
 }
 
 interface Props {
@@ -87,10 +83,10 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
   const [slash, setSlash] = useState(false);
   const [minBeats, setMinBeats] = useState(1);
   const [gapBeats, setGapBeats] = useState(2);
-  const [sectionGap, setSectionGap] = useState(6);
+  const [linesPerSection, setLinesPerSection] = useState(8);
 
   // Section renames, keyed by the generated name rather than by position: changing
-  // sectionGap regroups the song, and an index-keyed rename would then land on a
+  // the target section size regroups the song, and an index-keyed rename would land on a
   // different block.
   const [renames, setRenames] = useState<Record<string, string>>({});
 
@@ -160,12 +156,12 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
         includeBass: slash,
         minBeats,
         gapBeats,
-        sectionGapBeats: sectionGap,
+        linesPerSection,
       });
     } catch {
       return null;
     }
-  }, [ready, loaded, bpmOverride, keyOverride, slash, minBeats, gapBeats, sectionGap]);
+  }, [ready, loaded, bpmOverride, keyOverride, slash, minBeats, gapBeats, linesPerSection]);
 
   const generated = built?.charts[difficulty] ?? null;
 
@@ -443,7 +439,7 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
               {showTuning ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
               Ajustes del algoritmo
               <span className="font-normal opacity-70">
-                · bajos {slash ? 'sí' : 'no'} · mínimo {minBeats} · hueco {gapBeats} · sección {sectionGap}
+                · bajos {slash ? 'sí' : 'no'} · mínimo {minBeats} · hueco {gapBeats} · sección ~{linesPerSection} líneas
               </span>
             </button>
 
@@ -475,8 +471,8 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
                     help: 'Cuánto silencio tiene que haber alrededor de un acorde para que salga en su propia línea en vez de pegarse a la letra vecina.',
                   },
                   {
-                    label: 'Silencio que abre una sección', value: sectionGap, set: setSectionGap, min: 2, max: 32,
-                    help: 'Cuánto silencio separa dos bloques de letra para considerarlos secciones distintas. Bajarlo parte más la canción.',
+                    label: 'Líneas por sección (aprox.)', value: linesPerSection, set: setLinesPerSection, min: 2, max: 24, unit: 'líneas',
+                    help: 'No hay una cantidad de silencio que sirva para todas las canciones: entre dos reales la mediana de los huecos fue 0,5 y 0,9 beats. Así que se apunta a este tamaño y se corta en las pausas más largas que lo consigan.',
                   },
                 ].map(k => (
                   <div key={k.label}>
@@ -493,7 +489,7 @@ export default function AnalysisImportStep({ onImport, onBack }: Props) {
                           aria-label={k.label}
                         />
                         <span className="text-xs font-mono tabular-nums w-10 text-right text-muted-foreground">
-                          {k.value} {k.value === 1 ? 'beat' : 'beats'}
+                          {k.value} {k.unit ?? (k.value === 1 ? 'beat' : 'beats')}
                         </span>
                       </div>
                     </div>
