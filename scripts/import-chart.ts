@@ -15,9 +15,8 @@
  *   --name X         basename for the output files (default: the title, slugified)
  *   --slash          keep slash-chord bass notes at the avanzado level
  *   --min-beats N    absorb chord changes shorter than N beats (default 1 = keep all)
- *   --gap-beats N          silence needed to break chords out onto their own line (default 2)
- *   --lines-per-section N  roughly how many lyric lines a section should hold (default 8)
- *   --instrumental-gap N   pause, in beats, that becomes an instrumental section (default 6)
+ *   --gap-beats N    silence needed to break chords out onto their own line (default 2)
+ *   --section-gap N  silence that starts a new section, in beats (default 6)
  *   --above          also write <name>.<level>.chart.txt in chord-above-lyric layout
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -96,8 +95,7 @@ const result = buildCharts(rawBeats, rawChords, rawLyrics, {
   includeBass: args.slash === true,
   minBeats: num(args['min-beats']),
   gapBeats: num(args['gap-beats']),
-  linesPerSection: num(args['lines-per-section']),
-  instrumentalGapBeats: num(args['instrumental-gap']),
+  sectionGapBeats: num(args['section-gap']),
 });
 
 const meta = {

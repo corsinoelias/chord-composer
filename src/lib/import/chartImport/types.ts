@@ -91,10 +91,6 @@ export interface ChartLine {
 export interface ChartSection {
   name: string;
   lines: ChartLine[];
-  // Where this section sits in the recording. Derived from the lyric timings and the
-  // section plan, never from the chords — the chords differ per difficulty, and these
-  // seconds become the per-section audio slices, which must not.
-  range: { startSec: number; endSec: number };
 }
 
 export interface SongChart {

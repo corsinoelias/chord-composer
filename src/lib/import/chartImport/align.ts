@@ -6,6 +6,8 @@ export interface AlignOptions {
   // A chord landing more than this many beats outside every lyric line becomes its own
   // instrumental line instead of being glued to the nearest word.
   gapBeats?: number;
+  // Silence of at least this many beats between lines starts a new section.
+  sectionGapBeats?: number;
 }
 
 interface Placement {
@@ -109,229 +111,62 @@ export function alignChart(spans: ChordSpan[], lines: LyricLine[], options: Alig
 }
 
 // ── Sections ─────────────────────────────────────────────────────────────────
-// Nothing in the source marks verses and choruses, so structure is inferred. Two things
-// matter here:
-//
-// 1. The plan is computed from the lyric timings alone, never from the chords. Chord
-//    spans differ per difficulty — a run that is one chord at the easy level can be two
-//    at the advanced one — and grouping off them made a song come out with a different
-//    number of sections depending on which level you happened to be looking at. Since
-//    the measured per-section audio ranges are derived from these boundaries, that also
-//    made the audio slices depend on the difficulty. They must not.
-//
-// 2. There is no absolute amount of silence that means "new section". Across two real
-//    songs the median gap between lyric lines was 0.5 and 0.9 beats, with maxima of 6.7
-//    and 19.9 — a fixed threshold that suits one leaves the other as two giant blocks.
-//    So the target is a section *size*, and the boundaries are the longest pauses that
-//    deliver roughly that size.
+// Nothing in the source marks verses and choruses, so structure is inferred from
+// silence and from lyric lines repeating verbatim. Names are a starting point for the
+// editor, not a claim about the arrangement.
 
-export interface SectionPlanOptions {
-  beatSeconds: number;
-  songStart: number;
-  songEnd: number;
-  // Roughly how many lyric lines a section should hold. The real driver of granularity.
-  linesPerSection?: number;
-  // A pause at least this long is a piece of the arrangement in its own right (intro,
-  // turnaround, break) and gets a section to itself.
-  instrumentalGapBeats?: number;
+function lineStart(line: ChartLine): number {
+  if (line.lyric) return line.lyric.start;
+  return line.anchors[0]?.span.startTime ?? 0;
 }
 
-type Slot =
-  | { kind: 'lyrics'; lines: number[] }
-  | { kind: 'instrumental'; gap: number };
-
-export interface SectionPlan {
-  slots: Slot[];
-  // Slot index for lyric line k, and for the gap that precedes lyric line k (gap
-  // `lines.length` is the run after the last line). Null where a gap has no slot.
-  lineSlot: number[];
-  gapSlot: (number | null)[];
+function lineEnd(line: ChartLine): number {
+  if (line.lyric) return line.lyric.end;
+  return line.anchors[line.anchors.length - 1]?.span.endTime ?? 0;
 }
 
-// Gap k sits before lyric line k; gap `lines.length` is everything after the last line.
-function gapDurations(lines: LyricLine[], songStart: number, songEnd: number): number[] {
-  const gaps: number[] = [];
-  for (let i = 0; i <= lines.length; i++) {
-    const from = i === 0 ? songStart : lines[i - 1].end;
-    const to = i === lines.length ? songEnd : lines[i].start;
-    gaps.push(Math.max(0, to - from));
-  }
-  return gaps;
-}
+export function groupSections(lines: ChartLine[], options: AlignOptions): ChartSection[] {
+  const { beatSeconds, sectionGapBeats = 6 } = options;
+  const gap = sectionGapBeats * beatSeconds;
 
-export function planSections(lines: LyricLine[], options: SectionPlanOptions): SectionPlan {
-  const { beatSeconds, songStart, songEnd, linesPerSection = 8, instrumentalGapBeats = 6 } = options;
+  // An instrumental run this long is a part of the arrangement in its own right (intro,
+  // turnaround, break), not a stray chord ahead of the next line.
+  const isStandalone = (line: ChartLine) =>
+    !line.lyric && line.anchors.reduce((n, a) => n + a.span.beats, 0) >= sectionGapBeats;
 
-  if (lines.length === 0) {
-    return { slots: [{ kind: 'instrumental', gap: 0 }], lineSlot: [], gapSlot: [0] };
-  }
-
-  const gaps = gapDurations(lines, songStart, songEnd);
-  const standalone = gaps.map(g => g >= instrumentalGapBeats * beatSeconds);
-
-  // Candidate boundaries: interior gaps only (a split before the first line or after the
-  // last one isn't a split), long enough to read as a pause rather than a breath.
-  const interior = gaps.slice(1, lines.length);
-  const sortedInterior = [...interior].filter(g => g > 0).sort((a, b) => a - b);
-  const median = sortedInterior.length ? sortedInterior[Math.floor(sortedInterior.length / 2)] : 0;
-  const floor = Math.max(1.5 * beatSeconds, 1.5 * median);
-
-  const targetBlocks = Math.max(1, Math.ceil(lines.length / Math.max(1, linesPerSection)));
-  const forced = new Set<number>();
-  for (let k = 1; k < lines.length; k++) if (standalone[k]) forced.add(k);
-
-  const ranked = interior
-    .map((g, i) => ({ gap: g, k: i + 1 }))
-    .filter(c => !forced.has(c.k) && c.gap >= floor)
-    .sort((a, b) => b.gap - a.gap);
-
-  const wanted = Math.max(0, targetBlocks - 1 - forced.size);
-  const boundaries = new Set<number>(forced);
-  ranked.slice(0, wanted).forEach(c => boundaries.add(c.k));
-
-  // Build the slots in playing order.
-  const slots: Slot[] = [];
-  const lineSlot: number[] = new Array(lines.length).fill(-1);
-  const gapSlot: (number | null)[] = new Array(lines.length + 1).fill(null);
-
-  let current: Extract<Slot, { kind: 'lyrics' }> | null = null;
-  for (let k = 0; k < lines.length; k++) {
-    if (standalone[k]) {
-      current = null;
-      gapSlot[k] = slots.length;
-      slots.push({ kind: 'instrumental', gap: k });
-    } else if (k > 0) {
-      gapSlot[k] = null;
-    }
-    if (!current || boundaries.has(k)) {
-      current = { kind: 'lyrics', lines: [] };
-      slots.push(current);
-    }
-    current.lines.push(k);
-    lineSlot[k] = slots.length - 1;
-  }
-
-  const last = lines.length;
-  if (standalone[last]) {
-    gapSlot[last] = slots.length;
-    slots.push({ kind: 'instrumental', gap: last });
-  }
-
-  return { slots, lineSlot, gapSlot };
-}
-
-// Which gaps actually ended up with chords of their own, read off the emitted lines.
-function populatedGaps(chartLines: ChartLine[]): Set<number> {
-  const out = new Set<number>();
-  let next = 0;
-  for (const line of chartLines) {
-    if (line.lyric) { next += 1; continue; }
-    out.add(next);
-  }
-  return out;
-}
-
-// Drops instrumental slots that no chord landed in, folding them back into the section
-// that follows. A slot planned from the lyric timings can still come out empty once the
-// chords are placed — every chord around it belonged to a neighbouring line — and an
-// empty section would be dropped at one difficulty and kept at another.
-//
-// `reference` must be the coarsest level's lines. Reducing a chord label can only merge
-// neighbouring spans, never split one, so the easy level's chord boundaries are a subset
-// of every other level's: a gap it populates is populated at every level. The extra
-// chords the richer levels have can only ever land in gaps that were pruned here, and
-// those join the following section instead of forming one — so the section count comes
-// out the same at all three levels.
-export function prunePlan(plan: SectionPlan, reference: ChartLine[]): SectionPlan {
-  const populated = populatedGaps(reference);
-  const keep = plan.slots.map(s => s.kind !== 'instrumental' || populated.has(s.gap));
-  if (keep.every(Boolean)) return plan;
-
-  const remap = new Map<number, number>();
-  const slots: SectionPlan['slots'] = [];
-  plan.slots.forEach((slot, i) => {
-    if (!keep[i]) return;
-    remap.set(i, slots.length);
-    slots.push(slot);
-  });
-
-  return {
-    slots,
-    lineSlot: plan.lineSlot.map(i => remap.get(i) ?? 0),
-    gapSlot: plan.gapSlot.map(i => (i === null ? null : remap.get(i) ?? null)),
-  };
-}
-
-// Applies a plan to one difficulty's chart lines. alignChart emits strictly in order —
-// gap 0, line 0, gap 1, line 1, … — so the position in that stream is enough to tell
-// which lyric line or gap each chart line belongs to.
-export interface GroupContext {
-  lyricLines: LyricLine[];
-  songStart: number;
-  songEnd: number;
-}
-
-// A contiguous partition of the recording, one slice per section. A section begins the
-// moment the previous one stops singing, so a pickup chord ahead of the first word falls
-// inside its own section rather than the one before.
-function slotRanges(plan: SectionPlan, ctx: GroupContext): { startSec: number; endSec: number }[] {
-  const { lyricLines, songStart, songEnd } = ctx;
-  const starts = plan.slots.map(slot => {
-    const k = slot.kind === 'instrumental' ? slot.gap : slot.lines[0];
-    return k === 0 ? songStart : (lyricLines[k - 1]?.end ?? songStart);
-  });
-  return starts.map((startSec, i) => ({ startSec, endSec: starts[i + 1] ?? songEnd }));
-}
-
-export function groupSections(lines: ChartLine[], plan: SectionPlan, ctx: GroupContext): ChartSection[] {
-  const buckets: ChartLine[][] = plan.slots.map(() => []);
-  const ranges = slotRanges(plan, ctx);
-  let next = 0;
-
+  const blocks: ChartLine[][] = [];
   for (const line of lines) {
-    if (line.lyric) {
-      const slot = plan.lineSlot[next] ?? 0;
-      buckets[slot]?.push(line);
-      next += 1;
+    const current = blocks[blocks.length - 1];
+    const previous = current?.[current.length - 1];
+    const silence = previous ? lineStart(line) - lineEnd(previous) >= gap : false;
+    if (!current || silence || isStandalone(line) || (previous && isStandalone(previous))) {
+      blocks.push([line]);
       continue;
     }
-    // An instrumental run belongs to its own slot when the gap earned one; otherwise it
-    // rides along with the section it introduces.
-    const own = plan.gapSlot[next];
-    const slot = own ?? plan.lineSlot[Math.min(next, plan.lineSlot.length - 1)] ?? 0;
-    buckets[slot]?.push(line);
+    current.push(line);
   }
 
   const seen = new Map<string, string>();
   let lyricCount = 0;
   let instrumentalCount = 0;
-  const named: ChartSection[] = [];
 
-  plan.slots.forEach((slot, i) => {
-    const block = buckets[i];
-    if (block.length === 0) return;
+  return blocks.map((block, i) => {
+    const hasLyric = block.some(l => l.lyric);
 
-    const range = ranges[i];
-
-    if (slot.kind === 'instrumental') {
-      if (i === 0) { named.push({ name: 'Intro', lines: block, range }); return; }
-      if (i === plan.slots.length - 1) { named.push({ name: 'Outro', lines: block, range }); return; }
+    if (!hasLyric) {
+      if (i === 0) return { name: 'Intro', lines: block };
+      if (i === blocks.length - 1) return { name: 'Outro', lines: block };
       instrumentalCount += 1;
-      named.push({ name: `Instrumental ${instrumentalCount}`, lines: block, range });
-      return;
+      return { name: `Instrumental ${instrumentalCount}`, lines: block };
     }
 
-    // Blocks with the same words are the same part of the song, so they share a name —
-    // that's what makes a repeating chorus visible at a glance.
     const signature = block.map(l => l.lyric?.text ?? '').join(' | ').toLowerCase();
     const known = seen.get(signature);
-    if (known) { named.push({ name: known, lines: block, range }); return; }
+    if (known) return { name: known, lines: block };
 
     lyricCount += 1;
     const name = `Section ${lyricCount}`;
     seen.set(signature, name);
-    named.push({ name, lines: block, range });
+    return { name, lines: block };
   });
-
-  return named;
 }

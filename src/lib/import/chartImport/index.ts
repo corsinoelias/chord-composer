@@ -1,4 +1,4 @@
-import { alignChart, groupSections, planSections, prunePlan } from './align';
+import { alignChart, groupSections } from './align';
 import { isNoChord } from './difficulty';
 import { segmentChords, type SegmentOptions } from './segment';
 import { buildBeats, buildLyricLines, estimateBpm, inferKey } from './source';
@@ -20,10 +20,7 @@ export interface BuildOptions extends SegmentOptions {
   bpm?: number;
   key?: string;
   gapBeats?: number;
-  // Roughly how many lyric lines a section should hold. Replaces the old absolute
-  // "silence that opens a section": no single amount of silence works across songs.
-  linesPerSection?: number;
-  instrumentalGapBeats?: number;
+  sectionGapBeats?: number;
 }
 
 export interface BuildResult {
@@ -56,45 +53,28 @@ export function buildCharts(
   // Tolerances scale with the tempo the user is actually charting at, not with the
   // detector's median — a hand-corrected BPM should move the section splits too.
   const beatSeconds = bpm > 0 ? 60 / bpm : 0.5;
-  const songStart = beats[0]?.time ?? 0;
-  const songEnd = beats[beats.length - 1]?.endTime ?? 0;
-
-  const alignOptions = { beatSeconds, gapBeats: options.gapBeats };
-
-  // Planned once, off the lyric timings only, and shared by all three levels — see the
-  // note above planSections for why this must not depend on the chords.
-  const planned = planSections(lines, {
+  const alignOptions = {
     beatSeconds,
-    songStart,
-    songEnd,
-    linesPerSection: options.linesPerSection,
-    instrumentalGapBeats: options.instrumentalGapBeats,
-  });
+    gapBeats: options.gapBeats,
+    sectionGapBeats: options.sectionGapBeats,
+  };
 
   const levels: Difficulty[] = ['facil', 'medio', 'avanzado'];
-  const linesByLevel = {} as Record<Difficulty, ReturnType<typeof alignChart>>;
-  const spansByLevel = {} as Record<Difficulty, ReturnType<typeof segmentChords>>;
+  const charts = {} as Record<Difficulty, SongChart>;
 
   for (const level of levels) {
-    spansByLevel[level] = segmentChords(rawChords, beats, level, {
+    const spans = segmentChords(rawChords, beats, level, {
       includeBass: options.includeBass,
       minBeats: options.minBeats,
       key,
     });
-    linesByLevel[level] = alignChart(spansByLevel[level], lines, alignOptions);
-  }
-
-  // 'facil' is the coarsest level; pruning against it is what keeps the three in step.
-  const plan = prunePlan(planned, linesByLevel.facil);
-
-  const charts = {} as Record<Difficulty, SongChart>;
-  for (const level of levels) {
+    const chartLines = alignChart(spans, lines, alignOptions);
     charts[level] = {
       difficulty: level,
       key,
       bpm,
-      sections: groupSections(linesByLevel[level], plan, { lyricLines: lines, songStart, songEnd }),
-      spans: spansByLevel[level],
+      sections: groupSections(chartLines, alignOptions),
+      spans,
     };
   }
 
