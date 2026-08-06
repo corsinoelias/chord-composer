@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Play, Pause, Scissors, ZoomIn, ZoomOut, Square, SkipBack, Rewind, FastForward, Repeat, Maximize2 } from 'lucide-react';
+import { Play, Pause, Scissors, ZoomIn, ZoomOut, Square, SkipBack, Rewind, FastForward, Repeat, Maximize2, Lock, Unlock } from 'lucide-react';
 import type { AudioRange } from './types';
 
 interface OtherRange {
@@ -69,7 +69,7 @@ function parsePrecise(text: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
-type DragTarget = 'start' | 'end' | 'playhead' | null;
+type DragTarget = 'start' | 'end' | 'playhead' | 'selection' | null;
 
 export default function AudioRangeEditor({
   audioUrl, range, onRangeChange, otherRanges = [], targetLabel = 'esta sección',
@@ -95,6 +95,14 @@ export default function AudioRangeEditor({
   // A pointer gesture that actually moved is a drag, not a click — without this the
   // click that ends a drag would bubble to the track and seek to wherever it landed.
   const didDragRef = useRef(false);
+  // Where inside the selection the drag started, so the band follows the pointer instead
+  // of snapping its start under it.
+  const grabOffsetRef = useRef(0);
+  // With the duration locked, every edit relocates the clip instead of resizing it —
+  // dragging either edge, typing either field, the arrow keys. Once a section's clip is
+  // the right length, what's left is putting it in the right place.
+  const [lockDuration, setLockDuration] = useState(false);
+  const playButtonRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // Measured, not derived: the ruler needs real pixels to decide how far apart its
   // labels can sit without colliding.
@@ -205,6 +213,17 @@ export default function AudioRangeEditor({
   // and listeners keyed to it.
   const hasRange = !!range;
 
+  // Radix focuses the dialog's first button on open, and the Space handler below
+  // deliberately steps aside for focused buttons so it can't double-activate them — so
+  // Space did whatever that button did instead of playing. Putting focus on the transport
+  // makes Space and Enter play natively, no special case needed. rAF so this lands after
+  // the dialog's own autofocus rather than fighting it.
+  useEffect(() => {
+    if (!hasRange) return;
+    const id = requestAnimationFrame(() => playButtonRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [hasRange]);
+
   // ── Time ruler ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const track = trackRef.current;
@@ -274,6 +293,21 @@ export default function AudioRangeEditor({
     onRangeChange({ startSec: s, endSec: e });
   }, [duration, onRangeChange, isChordsPreviewPlaying, onToggleChordsPreview]);
 
+  // Relocates the clip without resizing it. The span is read first and re-applied after
+  // clamping, so hitting either end of the track slides the clip up against it instead of
+  // squashing it — the duration is the one thing this must never change.
+  const moveRange = useCallback((startSec: number) => {
+    if (!range) return;
+    const span = range.endSec - range.startSec;
+    const limit = Math.max(0, (duration || range.endSec) - span);
+    const s = Math.min(Math.max(0, startSec), limit);
+    if (isChordsPreviewPlaying) {
+      onToggleChordsPreview();
+      setPreviewInterrupted(true);
+    }
+    onRangeChange({ startSec: s, endSec: s + span });
+  }, [range, duration, onRangeChange, isChordsPreviewPlaying, onToggleChordsPreview]);
+
   // Moves the play position without touching the clip boundaries. Everything that
   // repositions playback — transport buttons, keyboard, clicking, dragging the
   // playhead — funnels through here so they can't drift apart.
@@ -297,6 +331,8 @@ export default function AudioRangeEditor({
       const rect = track.getBoundingClientRect();
       const t = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) * duration;
       if (dragging === 'playhead') seekPlayhead(t);
+      else if (dragging === 'selection') moveRange(t - grabOffsetRef.current);
+      else if (lockDuration) moveRange(dragging === 'start' ? t : t - (range.endSec - range.startSec));
       else if (dragging === 'start') commitRange(Math.min(t, range.endSec - MIN_CLIP_SEC), range.endSec);
       else commitRange(range.startSec, Math.max(t, range.startSec + MIN_CLIP_SEC));
     };
@@ -307,10 +343,11 @@ export default function AudioRangeEditor({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [dragging, range, duration, commitRange, seekPlayhead]);
+  }, [dragging, range, duration, commitRange, seekPlayhead, moveRange, lockDuration]);
 
   const nudge = (which: 'start' | 'end', delta: number) => {
     if (!range) return;
+    if (lockDuration) { moveRange(range.startSec + delta); return; }
     if (which === 'start') commitRange(range.startSec + delta, range.endSec);
     else commitRange(range.startSec, range.endSec + delta);
   };
@@ -324,12 +361,12 @@ export default function AudioRangeEditor({
       ArrowRight: () => nudge(which, e.shiftKey ? 1 : 0.05),
       PageDown: () => nudge(which, -1),
       PageUp: () => nudge(which, 1),
-      Home: () => which === 'start'
+      Home: () => lockDuration ? moveRange(0) : (which === 'start'
         ? commitRange(0, range.endSec)
-        : commitRange(range.startSec, range.startSec + MIN_CLIP_SEC),
-      End: () => which === 'start'
+        : commitRange(range.startSec, range.startSec + MIN_CLIP_SEC)),
+      End: () => lockDuration ? moveRange(duration) : (which === 'start'
         ? commitRange(range.endSec - MIN_CLIP_SEC, range.endSec)
-        : commitRange(range.startSec, duration),
+        : commitRange(range.startSec, duration)),
     };
     const action = keys[e.key];
     if (!action) return;
@@ -416,6 +453,26 @@ export default function AudioRangeEditor({
     const next = !loop;
     setLoop(next);
     announce(next ? 'Bucle activado' : 'Bucle desactivado');
+  };
+
+  // Keyboard contract for the selection band. Same shape as the handles, except every
+  // key relocates the clip: 0.05s a press is finer than the waveform can be aimed at.
+  const selectionKeyDown = (e: React.KeyboardEvent) => {
+    if (!range) return;
+    const span = range.endSec - range.startSec;
+    const keys: Record<string, () => void> = {
+      ArrowLeft: () => moveRange(range.startSec - (e.shiftKey ? 1 : 0.05)),
+      ArrowRight: () => moveRange(range.startSec + (e.shiftKey ? 1 : 0.05)),
+      PageDown: () => moveRange(range.startSec - SKIP_SEC),
+      PageUp: () => moveRange(range.startSec + SKIP_SEC),
+      Home: () => moveRange(0),
+      End: () => moveRange((duration || range.endSec) - span),
+      ' ': togglePreview,
+    };
+    const action = keys[e.key];
+    if (!action) return;
+    e.preventDefault();
+    action();
   };
 
   // Keyboard contract for the playhead. Space is handled here rather than by the global
@@ -612,9 +669,30 @@ export default function AudioRangeEditor({
                 <div className="absolute inset-y-0 left-0 bg-background/70" style={{ width: `${pct(range.startSec)}%` }} />
                 <div className="absolute inset-y-0 right-0 bg-background/70" style={{ width: `${100 - pct(range.endSec)}%` }} />
 
-                {/* Selected span highlight */}
+                {/* The selection itself: drag it to relocate the clip without resizing
+                    it. A press that never moves falls through to the track's seek, so
+                    clicking inside the selection still auditions that point. */}
                 <div
-                  className="absolute inset-y-0 bg-primary/10 border-y-2 border-primary/50"
+                  role="slider"
+                  tabIndex={0}
+                  aria-label="Mover el recorte"
+                  aria-valuemin={0}
+                  aria-valuemax={Math.max(0, duration - (range.endSec - range.startSec))}
+                  aria-valuenow={range.startSec}
+                  aria-valuetext={`de ${formatSpoken(range.startSec)} a ${formatSpoken(range.endSec)}`}
+                  onPointerDown={e => {
+                    const track = trackRef.current;
+                    if (!track || duration === 0) return;
+                    const rect = track.getBoundingClientRect();
+                    grabOffsetRef.current =
+                      ((e.clientX - rect.left) / rect.width) * duration - range.startSec;
+                    didDragRef.current = false;
+                    setDragging('selection');
+                  }}
+                  onKeyDown={selectionKeyDown}
+                  className={`absolute inset-y-0 bg-primary/10 border-y-2 border-primary/50 rounded-sm
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                    ${dragging === 'selection' ? 'cursor-grabbing bg-primary/20' : 'cursor-grab'}`}
                   style={{ left: `${pct(range.startSec)}%`, width: `${pct(range.endSec) - pct(range.startSec)}%` }}
                 />
 
@@ -704,6 +782,7 @@ export default function AudioRangeEditor({
             </button>
 
             <button
+              ref={playButtonRef}
               onClick={togglePreview}
               aria-label={isPlaying ? 'Pausar la voz' : 'Reproducir solo la voz'}
               title={isPlaying ? 'Pausar (Espacio)' : 'Probar recorte (Espacio)'}
@@ -735,7 +814,13 @@ export default function AudioRangeEditor({
               <input
                 value={startText}
                 onChange={e => setStartText(e.target.value)}
-                onBlur={() => { const s = parsePrecise(startText); if (s != null) commitRange(s, range.endSec); }}
+                onBlur={() => {
+                  const s = parsePrecise(startText);
+                  if (s == null) return;
+                  // Typing an exact timestamp is the precise way to relocate a clip, so
+                  // with the duration locked this places the whole thing there.
+                  if (lockDuration) moveRange(s); else commitRange(s, range.endSec);
+                }}
                 onKeyDown={e => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
                 className="w-full border border-border rounded-lg px-2 py-1.5 bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
@@ -746,7 +831,12 @@ export default function AudioRangeEditor({
               <input
                 value={endText}
                 onChange={e => setEndText(e.target.value)}
-                onBlur={() => { const eVal = parsePrecise(endText); if (eVal != null) commitRange(range.startSec, eVal); }}
+                onBlur={() => {
+                  const eVal = parsePrecise(endText);
+                  if (eVal == null) return;
+                  if (lockDuration) moveRange(eVal - (range.endSec - range.startSec));
+                  else commitRange(range.startSec, eVal);
+                }}
                 onKeyDown={e => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
                 className="w-full border border-border rounded-lg px-2 py-1.5 bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
@@ -754,9 +844,28 @@ export default function AudioRangeEditor({
           </div>
 
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              Duración del recorte: <span className="font-mono">{formatPrecise(range.endSec - range.startSec)}</span>
-            </p>
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="text-xs text-muted-foreground">
+                Duración del recorte: <span className="font-mono">{formatPrecise(range.endSec - range.startSec)}</span>
+              </p>
+              <button
+                onClick={() => {
+                  setLockDuration(v => !v);
+                  announce(lockDuration ? 'Duración libre' : 'Duración fija: los cambios mueven el recorte');
+                }}
+                aria-pressed={lockDuration}
+                title={lockDuration
+                  ? 'La duración está fija: arrastrar un borde o editar un campo mueve el recorte entero'
+                  : 'Fijar la duración para mover el recorte sin cambiar su largo'}
+                className={`shrink-0 flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                  ${lockDuration
+                    ? 'bg-primary/10 border-primary/30 text-primary font-medium'
+                    : 'border-border text-muted-foreground hover:text-foreground hover:border-primary/40'}`}
+              >
+                {lockDuration ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                {lockDuration ? 'Duración fija' : 'Fijar duración'}
+              </button>
+            </div>
             <button
               onClick={() => onRangeChange(undefined)}
               className="text-xs text-muted-foreground hover:text-destructive transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
