@@ -29,7 +29,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // legitimate ?page=2+ URLs.
 
   // Rewrite /chord-player/<songId> → /chord-player/ so the SPA island handles the ID.
-  // X-Robots-Tag at HTTP level speeds up deindexing of any shared chord-player URLs Google crawled.
+  //
+  // DEV ONLY — this is what makes deep links work under `astro dev` (slashed form only:
+  // /chord-player/<id>/ hits this, /chord-player/<id> 404s before it). In production it never
+  // runs: /chord-player/ is prerendered, so no SSR route exists under that path and the Netlify
+  // adapter's catch-all function answers with its own 404 before Astro middleware is invoked —
+  // confirmed 2026-08-11, when every deep link 404'd in production and the response carried
+  // none of the SECURITY_HEADERS below. Production is handled by
+  // netlify/edge-functions/chord-player-deeplink.ts, which also sets the X-Robots-Tag; change
+  // that file, not this one.
   // (Old /editor/* links 301 to here via netlify.toml before ever reaching this middleware.)
   if (/^\/chord-player\/.+/.test(pathname)) {
     const response = await context.rewrite('/chord-player/');

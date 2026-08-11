@@ -369,8 +369,10 @@
   status = 301
   force = true
 
-# NOTE: no explicit SPA-fallback redirect for /chord-player/* here (unlike the old /editor/*
-# rule) — src/middleware.ts already does this rewrite at the Astro SSR layer, and testing
-# showed the Netlify dev redirect emulation's 200-status rewrites can 404 deep-link paths
-# before they ever reach that middleware. The adapter's own catch-all already routes
-# unmatched paths to the SSR function in production, so middleware.ts alone is sufficient.
+# Deep-linked songs (/chord-player/<songId>) are handled by the edge function in
+# netlify/edge-functions/chord-player-deeplink.ts, NOT from here. A [[redirects]] rule was
+# tried first and does not work: the Astro adapter's catch-all SSR function is matched ahead
+# of netlify.toml's redirect engine and answers with its own 404 first, with `force = true`
+# making no difference (verified 2026-08-11 against the real built output via
+# `netlify dev --dir dist`). Do not re-add a rule here expecting it to win — see the long
+# comment in that edge function for the full routing order.
