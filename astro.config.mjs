@@ -27,6 +27,19 @@ const learnLastmodBySlug = new Map(
 );
 
 
+// Routes kept out of the sitemap. Matched against the pathname, not the raw URL string,
+// and split by shape on purpose: a naive `page.includes('/guitar-tab/')` would also drop
+// the real landing page at /tools/guitar-tab/, so alias shells are matched exactly.
+//
+// - /app, /songs/new, /admin: app/auth shells. /admin/songs/ 302s to login and was
+//   shipping to Google as a 302 with an empty <title> and no H1.
+// - /bass-tab/, /guitar-tab/: `client:only` editor shells that render zero server HTML
+//   (no H1, no headings, no internal links). They're the CTA target of the /tools/*
+//   landing pages and canonicalize to them — see the canonicalUrl in each .astro file.
+//   The routes stay live and linked; they're just not search destinations.
+const SITEMAP_EXCLUDED_PREFIXES = ['/app', '/songs/new', '/admin'];
+const SITEMAP_EXCLUDED_PATHS = new Set(['/bass-tab/', '/guitar-tab/']);
+
 export default defineConfig({
   site: 'https://chordsequence.com',
   trailingSlash: 'always',
@@ -35,7 +48,13 @@ export default defineConfig({
     react(),
     mdx(),
     sitemap({
-      filter: (page) => !page.includes('/app') && !page.includes('/songs/new'),
+      filter: (page) => {
+        const { pathname } = new URL(page);
+        return (
+          !SITEMAP_EXCLUDED_PATHS.has(pathname) &&
+          !SITEMAP_EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+        );
+      },
       customPages: [
         'https://chordsequence.com/songs/',
       ],

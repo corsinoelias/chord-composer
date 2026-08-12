@@ -2,11 +2,22 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { BassTabPlayer } from '../components/BassTabPlayer/BassTabPlayer';
 
+// Canonicalizes to the /tools/ landing page, which is the indexable half of this pair.
+// This route is `client:only`, so the HTML Google receives has no H1, no headings, no
+// body copy and no internal links — it was being crawled as a thin, link-less duplicate
+// of the very page that links TO it (every "open the editor" CTA on
+// /tools/bass-guitar-tab/ points here). The route stays live and every CTA keeps working;
+// it just isn't the URL that should rank. Also dropped from the sitemap — see
+// SITEMAP_EXCLUDED_PATHS in astro.config.mjs; change both together or they disagree.
+// Deliberately a canonical, not a 301: see the REVERTED block in netlify.toml for why
+// declarative redirects on these paths self-loop.
+const CANONICAL_URL = 'https://chordsequence.com/tools/bass-guitar-tab/';
+
 const webAppSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
   name: 'Bass Guitar Tab Player',
-  url: 'https://chordsequence.com/bass-tab/',
+  url: CANONICAL_URL,
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
   description: 'Free online 4-string bass tablature editor. Draw notes on any string, drag to move, resize to change duration, and hear playback in real time.',
@@ -30,7 +41,7 @@ const breadcrumbSchema = {
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://chordsequence.com/' },
     { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://chordsequence.com/tools/' },
-    { '@type': 'ListItem', position: 3, name: 'Bass Tab Player', item: 'https://chordsequence.com/bass-tab/' },
+    { '@type': 'ListItem', position: 3, name: 'Bass Tab Player', item: CANONICAL_URL },
   ],
 };
 ---
@@ -38,7 +49,7 @@ const breadcrumbSchema = {
 <BaseLayout
   title="Bass Tab Player — 4-String Bass Tablature Editor"
   description="Free online 4-string bass tablature editor. Draw notes on any string, drag to move, resize to change duration, and hear playback in real time."
-  canonicalUrl="https://chordsequence.com/bass-tab/"
+  canonicalUrl={CANONICAL_URL}
   ogImage="/og/page/bass-tab/"
   ogImageAlt="Bass Tab Player — 4-String Bass Tablature Editor | Chord Sequence"
   showNav={false}
