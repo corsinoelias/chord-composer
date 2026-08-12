@@ -109,7 +109,7 @@ const Index = ({ songId }: IndexProps) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalSource, setAuthModalSource] = useState('save_cta');
+  const [authModalEntryPoint, setAuthModalEntryPoint] = useState('save_cta');
   const [accountPromptOpen, setAccountPromptOpen] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Signing in is a detour, not the goal: every entry point into the auth modal here is
@@ -544,7 +544,7 @@ const Index = ({ songId }: IndexProps) => {
             handleSaveNewSong();
           } else {
             pendingSaveRef.current = true;
-            setAuthModalSource('shared_song_fork');
+            setAuthModalEntryPoint('shared_song_fork');
             setAccountPromptOpen(true);
           }
         },
@@ -983,7 +983,7 @@ const Index = ({ songId }: IndexProps) => {
           // The nudge's whole pitch is "don't lose this" — signing up from it should
           // leave the song saved, not just leave them logged in.
           pendingSaveRef.current = true;
-          setAuthModalSource('export_nudge');
+          setAuthModalEntryPoint('export_nudge');
           setAuthModalOpen(true);
         },
       },
@@ -1395,7 +1395,7 @@ const Index = ({ songId }: IndexProps) => {
               handleSaveNewSong();
             } else {
               pendingSaveRef.current = true;
-              setAuthModalSource('save_cta');
+              setAuthModalEntryPoint('save_cta');
               setAccountPromptOpen(true);
             }
           }}
@@ -1638,7 +1638,7 @@ const Index = ({ songId }: IndexProps) => {
       <AuthModal
         open={authModalOpen}
         onOpenChange={setAuthModalOpen}
-        source={authModalSource}
+        entryPoint={authModalEntryPoint}
         onSuccess={() => {
           setIsLoggedIn(true);
           getAuthState().then(({ displayName }) => setDisplayName(displayName));

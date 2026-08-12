@@ -492,7 +492,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
                 <a
                   href={songEditorUrl}
                   data-editor-cta
-                  data-source="cta_block"
+                  data-entry-point="cta_block"
                   data-song-slug={song.slug}
                   class="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
                 >
@@ -581,7 +581,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
                 <a
                   href={tool.href}
                   data-editor-cta={tool.href === '/chord-player/' ? '' : undefined}
-                  data-source={tool.href === '/chord-player/' ? 'practice_tools' : undefined}
+                  data-entry-point={tool.href === '/chord-player/' ? 'practice_tools' : undefined}
                   data-song-slug={tool.href === '/chord-player/' ? song.slug : undefined}
                   class="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
                 >
@@ -690,15 +690,17 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
     });
 
     // Song → editor conversion, from the two server-rendered links on this page. The
-    // player bar's own link reports itself from React (source 'player_bar'); these two
-    // are plain <a>s, so they report here. gtag only exists in PROD (see BaseLayout),
+    // player bar's own link reports itself from React (entry_point 'player_bar'); these
+    // two are plain <a>s, so they report here. gtag only exists in PROD (see BaseLayout),
     // hence the guard. The event fires on a link that navigates away — gtag uses
     // sendBeacon, which survives unload.
+    // The parameter must stay `entry_point`, never `source` — GA4 reads `source` as the
+    // session's traffic source and overwrites the real one (see src/lib/analytics.ts).
     document.querySelectorAll<HTMLAnchorElement>('[data-editor-cta]').forEach(el => {
       el.addEventListener('click', () => {
         const g = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
         if (typeof g !== 'function') return;
-        g('event', 'song_editor_opened', { song_slug: el.dataset.songSlug, source: el.dataset.source });
+        g('event', 'song_editor_opened', { song_slug: el.dataset.songSlug, entry_point: el.dataset.entryPoint });
       });
     });
   </script>

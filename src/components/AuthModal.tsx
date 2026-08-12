@@ -13,8 +13,8 @@ interface AuthModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  /** Which entry point opened this modal (e.g. 'save_cta', 'export_nudge') — tags the resulting analytics events so conversion can be compared per entry point. */
-  source?: string;
+  /** Which entry point opened this modal (e.g. 'save_cta', 'export_nudge') — tags the resulting analytics events so conversion can be compared per entry point. Not named `source`: that is a reserved GA4 param, see src/lib/analytics.ts. */
+  entryPoint?: string;
 }
 
 // Every field in this form is required — the native `required` attribute
@@ -26,7 +26,7 @@ function RequiredMark() {
   return <span aria-hidden="true" className="text-muted-foreground"> *</span>;
 }
 
-export function AuthModal({ open, onOpenChange, onSuccess, source }: AuthModalProps) {
+export function AuthModal({ open, onOpenChange, onSuccess, entryPoint }: AuthModalProps) {
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-up');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -55,7 +55,7 @@ export function AuthModal({ open, onOpenChange, onSuccess, source }: AuthModalPr
     // Dismissing the post-signup "check your email" notice isn't a cancel —
     // they already completed the form — so it's excluded here.
     if (!next && !checkEmail) {
-      analytics.authModalCancelled(source);
+      analytics.authModalCancelled(entryPoint);
     }
     if (!next) reset();
     onOpenChange(next);
@@ -78,7 +78,7 @@ export function AuthModal({ open, onOpenChange, onSuccess, source }: AuthModalPr
         toast.error(error);
         return;
       }
-      analytics.signUp(source);
+      analytics.signUp(entryPoint);
       if (needsEmailConfirmation) {
         setCheckEmail(true);
         return;
@@ -93,7 +93,7 @@ export function AuthModal({ open, onOpenChange, onSuccess, source }: AuthModalPr
         toast.error(error);
         return;
       }
-      analytics.login(source);
+      analytics.login(entryPoint);
       reset();
       onOpenChange(false);
       onSuccess();
