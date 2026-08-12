@@ -2,6 +2,7 @@
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
+import { withBrand } from '../../lib/seoTitle';
 import { GENRES, getGenre } from '../../data/progressions';
 import AppCta from '../../components/AppCta.astro';
 
@@ -88,7 +89,7 @@ const articleSchema = {
 ---
 
 <BaseLayout
-  title={`${displayTitle} — Play Free | Chord Sequence`}
+  title={withBrand(`${displayTitle} — Play Free`)}
   description={generatorMetaDescription}
   canonicalUrl={genreCanonicalUrl}
 >

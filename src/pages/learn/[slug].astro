@@ -2,6 +2,7 @@
 export const prerender = true;
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { withBrand } from '../../lib/seoTitle';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
 import CircleOfFifthsIsland from '../../components/CircleOfFifthsIsland.astro';
 import InversionDemoIsland from '../../components/InversionDemoIsland.astro';
@@ -324,7 +325,7 @@ const extraSchemas = ARTICLE_EXTRA_SCHEMAS[post.slug] ?? [];
 ---
 
 <BaseLayout
-  title={`${post.data.seoTitle ?? post.data.title} | Chord Sequence`}
+  title={withBrand(post.data.seoTitle ?? post.data.title)}
   description={post.data.description}
   canonicalUrl={canonicalLearnUrl}
   ogImage={`https://chordsequence.com/og/learn/${post.slug}/`}
