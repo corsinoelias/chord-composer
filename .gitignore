@@ -38,3 +38,4 @@ public/audio/soundfonts/
 
 # Written by `netlify dev` when it bundles the edge functions locally (Deno) — not used by the Netlify build
 deno.lock
+graphify-out/
