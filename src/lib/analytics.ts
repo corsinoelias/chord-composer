@@ -9,6 +9,17 @@ declare function gtag(...args: unknown[]): void;
 // data collected before the rename stays wrong (GA4 does not reprocess).
 const RESERVED_GA4_PARAMS = ['source', 'medium', 'campaign', 'term', 'content'];
 
+// Search terms are the only free-text user input this file ever sends, so they're the only
+// place GA4's ban on PII can realistically be violated (someone pastes an email into the
+// song search). Truncated because GA4 silently drops event params over 100 bytes, which
+// would lose the whole term rather than the tail.
+function cleanSearchTerm(term: string): string | undefined {
+  const normalized = term.trim().replace(/\s+/g, ' ').toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized.includes('@')) return '[redacted]';
+  return normalized.slice(0, 80);
+}
+
 function track(eventName: string, params?: Record<string, unknown>) {
   if (typeof window === 'undefined' || typeof gtag === 'undefined') return;
   if (params) {
@@ -85,6 +96,23 @@ export const analytics = {
   variationChanged: (instrument: string) => track('variation_changed', { instrument }),
   effectChanged: (effect: 'eq' | 'reverb' | 'compressor') => track('effect_changed', { effect }),
   customStyleSaved: (mode: string) => track('custom_style_saved', { mode }),
+
+  // Song library search (/songs/). `view_search_results` is GA4's own recommended event
+  // name and `search_term` is the param its built-in Site search reporting reads — a
+  // custom event name here would be invisible until someone registered a dimension for it.
+  //
+  // Both events fire only on a *settled* query (see the debounce in songs/index.astro),
+  // never per keystroke: typing "wonderwall" one letter at a time would otherwise report
+  // nine searches, eight of them for prefixes nobody searched for, and the top-terms
+  // report would rank single letters.
+  songSearch: (term: string, resultCount: number) =>
+    track('view_search_results', { search_term: cleanSearchTerm(term), result_count: resultCount }),
+  // The reason the search is worth building: a term that matched nothing is a song someone
+  // came here for and the library doesn't have. Kept as its own event, not a result_count=0
+  // filter on the one above, so the content-gap list is a report and not an exploration.
+  // Needs a `search_term` custom dimension registered in GA4 to be queryable.
+  songSearchNoResults: (term: string) =>
+    track('search_no_results', { search_term: cleanSearchTerm(term) }),
 
   // Standalone tool pages
   toolWidgetUsed: (tool: string) => track('tool_widget_used', { tool }),
