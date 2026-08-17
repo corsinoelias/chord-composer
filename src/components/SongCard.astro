@@ -20,6 +20,7 @@ const { song, searchText, pageVisible = true } = Astro.props;
 <a
   href={`/songs/${song.slug}/`}
   data-search-text={searchText}
+  data-song-key={song.key}
   data-page-visible={pageVisible ? '' : undefined}
   style={pageVisible ? undefined : 'display:none'}
   class="group flex flex-col rounded-xl border border-border bg-card p-5 hover:border-primary/50 hover:bg-primary/5 transition-colors"

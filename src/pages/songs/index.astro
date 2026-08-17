@@ -4,6 +4,7 @@ import { getPublishedSongs } from '@/lib/publicSongs';
 import AppCta from '../../components/AppCta.astro';
 import RelatedTools from '../../components/RelatedTools.astro';
 import SongCard from '../../components/SongCard.astro';
+import SuggestSongForm from '../../components/SuggestSongForm.tsx';
 import { normalizeForSearch } from '@/lib/searchText';
 
 const songs = await getPublishedSongs();
@@ -30,13 +31,31 @@ const pageCanonicalUrl = currentPage === 1
   ? 'https://chordsequence.com/songs/'
   : `https://chordsequence.com/songs/?page=${currentPage}`;
 
-// The search grid holds every published song, not just this page's slice — the whole point
-// is to reach a song without paginating to it. Key and genre join the haystack so "worship"
-// or "key of g" narrow the list too, which is the cheap version of real facet filters.
+// The grid holds every published song, not just this page's slice — the whole point is to
+// reach a song without paginating to it.
+//
+// Genre stays in the free-text haystack because "worship" and "rock" are words people
+// actually type. Key deliberately does not: it's a structured value from a small closed
+// set, nobody free-texts "F#m" reliably, and mixing it in made one-letter tokens match
+// half the catalogue. It gets its own dropdown below instead.
 const searchableSongs = songs.map((song) => ({
   song,
-  searchText: normalizeForSearch(`${song.title} ${song.artist} ${song.key} ${song.genre.join(' ')}`),
+  searchText: normalizeForSearch(`${song.title} ${song.artist} ${song.genre.join(' ')}`),
 }));
+
+// Keys listed chromatically, majors before minors, so the dropdown reads like a musician
+// expects rather than alphabetically (which would put Ab before A and scatter the minors).
+const PITCH_ORDER: Record<string, number> = {
+  c: 0, 'c#': 1, db: 1, d: 2, 'd#': 3, eb: 3, e: 4, f: 5,
+  'f#': 6, gb: 6, g: 7, 'g#': 8, ab: 8, a: 9, 'a#': 10, bb: 10, b: 11,
+};
+function keySortValue(key: string): number {
+  const isMinor = /m$/.test(key) && !/maj/i.test(key);
+  const root = key.replace(/m$/, '').toLowerCase();
+  return (isMinor ? 100 : 0) + (PITCH_ORDER[root] ?? 99);
+}
+const availableKeys = [...new Set(songs.map((s) => s.key).filter(Boolean))]
+  .sort((a, b) => keySortValue(a) - keySortValue(b) || a.localeCompare(b));
 
 const KNOWN_BANDS = new Set(['Oasis', 'The Beatles', 'Led Zeppelin', 'Pink Floyd', 'Oasis Ministry', 'Elevation Worship', 'Hillsong', 'Bethel Music', 'Radiohead', 'Coldplay', 'U2', 'Metallica', 'AC/DC']);
 
@@ -129,9 +148,9 @@ const itemListSchema = {
       </p>
     </div>
 
-    <div class="mb-6">
-      <label for="song-search" class="sr-only">Search songs by title or artist</label>
-      <div class="relative">
+    <div class="mb-6 flex flex-col sm:flex-row gap-3">
+      <div class="relative flex-1">
+        <label for="song-search" class="sr-only">Search songs by title, artist or genre</label>
         <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
         </svg>
@@ -140,9 +159,20 @@ const itemListSchema = {
           data-song-search
           type="search"
           autocomplete="off"
-          placeholder="Search by title, artist, key or genre…"
+          placeholder="Search by title, artist or genre…"
           class="w-full rounded-xl border border-border bg-card pl-10 pr-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors"
         />
+      </div>
+      <div class="sm:w-44">
+        <label for="song-key-filter" class="sr-only">Filter by key</label>
+        <select
+          id="song-key-filter"
+          data-key-filter
+          class="w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors"
+        >
+          <option value="">All keys</option>
+          {availableKeys.map((k) => <option value={k}>Key {k}</option>)}
+        </select>
       </div>
     </div>
 
@@ -180,19 +210,29 @@ const itemListSchema = {
 
     <div data-search-empty role="status" style="display:none" class="rounded-xl border border-border bg-card p-8 text-center">
       <p class="text-base font-semibold text-foreground mb-2">
-        No songs match “<span data-search-empty-term></span>”
+        No songs match <span data-search-empty-term></span>
       </p>
       <p class="text-sm text-muted-foreground max-w-md mx-auto">
-        The library is still growing. You can build this progression yourself in the free
-        editor and submit it to the public library.
+        The library is still growing. Tell us what to chart next, or build it yourself in the
+        free editor and submit it to the public library.
       </p>
-      <a
-        href="/chord-player/"
-        class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
-      >
-        Open the editor
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </a>
+      <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+        <button
+          type="button"
+          data-suggest-song
+          class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Request this song
+        </button>
+        <a
+          href="/chord-player/"
+          class="inline-flex items-center gap-1.5 px-4 py-2 border border-border text-foreground text-sm font-semibold rounded-lg hover:bg-accent/50 transition-colors"
+        >
+          Open the editor
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
     </div>
 
     {totalPages > 1 && (
@@ -217,6 +257,15 @@ const itemListSchema = {
       </nav>
     )}
 
+    {/* One island, two entry points: the button in the empty state above dispatches
+        OPEN_EVENT to open it pre-filled, and it also stands on its own as a plain link for
+        anyone browsing who just doesn't see their song.
+        client:idle, not client:visible — this form sits below the empty state that opens it,
+        so waiting for it to scroll into view would mean the button fires OPEN_EVENT at an
+        island that has not hydrated and nothing happens. Not client:load either: this page
+        otherwise ships no React at all, and it lives on organic search traffic. */}
+    <SuggestSongForm client:idle />
+
     <AppCta
       class="mt-12"
       heading="Build your own progression"
@@ -230,6 +279,7 @@ const itemListSchema = {
     import { matchesSearch, MIN_SEARCH_LENGTH } from '@/lib/searchText';
 
     const input = document.querySelector<HTMLInputElement>('[data-song-search]');
+    const keyFilter = document.querySelector<HTMLSelectElement>('[data-key-filter]');
     const grid = document.querySelector<HTMLElement>('[data-song-grid]');
     const emptyState = document.querySelector<HTMLElement>('[data-search-empty]');
     const emptyTerm = document.querySelector<HTMLElement>('[data-search-empty-term]');
@@ -254,11 +304,21 @@ const itemListSchema = {
       let trackTimer: ReturnType<typeof setTimeout>;
       let lastTracked = '';
 
-      function applyFilter(query: string): number {
-        // Short query: back to the plain paginated view — only the cards the server marked
-        // as belonging to this ?page= slice come back, so clearing the box restores the
-        // page the visitor was actually on rather than dumping the whole catalogue.
-        if (query.length < MIN_SEARCH_LENGTH) {
+      const currentQuery = () => input!.value.trim();
+      const currentKey = () => keyFilter?.value ?? '';
+
+      // Both filters intersect, and either one alone is enough to leave the paginated view:
+      // a key filter spans the whole catalogue, so it can't be applied to one page's slice
+      // and still mean "songs in this key".
+      function applyFilter(): number {
+        const query = currentQuery();
+        const key = currentKey();
+        const searching = query.length >= MIN_SEARCH_LENGTH;
+
+        // Neither filter active: back to the plain paginated view — only the cards the
+        // server marked as belonging to this ?page= slice come back, so clearing the box
+        // restores the page the visitor was actually on, not the whole catalogue.
+        if (!searching && !key) {
           for (const card of cards) {
             if (card.dataset.pageVisible === undefined) hide(card); else show(card);
           }
@@ -271,44 +331,66 @@ const itemListSchema = {
 
         let hits = 0;
         for (const card of cards) {
-          const isHit = matchesSearch(card.dataset.searchText ?? '', query);
+          const isHit =
+            (!searching || matchesSearch(card.dataset.searchText ?? '', query)) &&
+            (!key || card.dataset.songKey === key);
           if (isHit) { show(card); hits++; } else { hide(card); }
         }
 
         if (pagination) hide(pagination);
         if (hits > 0) { show(grid!); hide(emptyState!); }
         else { hide(grid!); show(emptyState!); }
-        if (emptyTerm) emptyTerm.textContent = query;
+        if (emptyTerm) {
+          emptyTerm.textContent = searching && key ? `“${query}” in Key ${key}`
+            : searching ? `“${query}”`
+            : `Key ${key}`;
+        }
         countLabel!.textContent = `${hits} ${hits === 1 ? 'result' : 'results'}`;
         return hits;
       }
 
       input.addEventListener('input', () => {
-        const query = input.value.trim();
-
         clearTimeout(renderTimer);
-        renderTimer = setTimeout(() => applyFilter(query), 180);
+        renderTimer = setTimeout(applyFilter, 180);
 
         clearTimeout(trackTimer);
+        const query = currentQuery();
         if (query.length < MIN_SEARCH_LENGTH) return;
         trackTimer = setTimeout(() => {
           // Guard against reporting the same settled term twice (blur/refocus, a trailing
           // space, retyping the same thing) — GA4 would count each as a fresh search.
           if (query === lastTracked) return;
           lastTracked = query;
-          const hits = applyFilter(query);
+          const hits = applyFilter();
           analytics.songSearch(query, hits);
           if (hits === 0) analytics.songSearchNoResults(query);
         }, 800);
       });
 
-      // A native type="search" clear button fires `input`, but Escape does not.
+      // No debounce on the select: `change` already fires once per settled choice.
+      keyFilter?.addEventListener('change', () => {
+        const hits = applyFilter();
+        const key = currentKey();
+        if (key) analytics.songFilterUsed('key', key, hits);
+      });
+
+      // A native type="search" clear button fires `input`, but Escape does not. Clears the
+      // text only — the key filter is a separate control and stays where the visitor put it.
       input.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') return;
         input.value = '';
         clearTimeout(renderTimer);
         clearTimeout(trackTimer);
-        applyFilter('');
+        applyFilter();
+      });
+
+      // Hands the failed query to the SuggestSongForm island so the visitor doesn't retype
+      // what they just typed. Parking it on window as well covers the island still being
+      // mid-hydration (it's client:idle) — see the comment in SuggestSongForm.tsx.
+      document.querySelector<HTMLButtonElement>('[data-suggest-song]')?.addEventListener('click', () => {
+        const detail = { title: currentQuery(), searchTerm: currentQuery() };
+        window.__pendingSongSuggestion = detail;
+        window.dispatchEvent(new CustomEvent('suggest-song:open', { detail }));
       });
     }
   </script>

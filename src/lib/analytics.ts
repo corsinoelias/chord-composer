@@ -113,6 +113,23 @@ export const analytics = {
   // Needs a `search_term` custom dimension registered in GA4 to be queryable.
   songSearchNoResults: (term: string) =>
     track('search_no_results', { search_term: cleanSearchTerm(term) }),
+  // Facet filters on the same page, kept separate from the search events because they
+  // answer a different question: search says which songs people want, a filter says which
+  // *axis* they browse by. If key turns out to be the axis people reach for, that's the
+  // argument for a /songs/key/<k>/ landing page — and if it isn't, that's the argument
+  // against building 12 of them. Only fires when a filter is applied, not when cleared.
+  songFilterUsed: (filterType: 'key', filterValue: string, resultCount: number) =>
+    track('song_filter_used', { filter_type: filterType, filter_value: filterValue, result_count: resultCount }),
+  // Song requests. Opened and submitted are tracked separately because the gap between
+  // them is the only way to tell "nobody wants this" from "the form is too much work" —
+  // and `entry_point` separates the two that are not comparable: 'search_empty' is a
+  // pre-filled form shown to someone whose search just failed, 'library' is a cold link at
+  // the bottom of the page. The request itself lands in Supabase, not here; these events
+  // only measure the funnel.
+  songRequestOpened: (entryPoint: 'search_empty' | 'library') =>
+    track('song_request_opened', { entry_point: entryPoint }),
+  songRequested: (entryPoint: 'search_empty' | 'library') =>
+    track('song_requested', { entry_point: entryPoint }),
 
   // Standalone tool pages
   toolWidgetUsed: (tool: string) => track('tool_widget_used', { tool }),

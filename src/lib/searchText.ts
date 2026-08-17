@@ -15,10 +15,11 @@ export function normalizeForSearch(input: string): string {
     .normalize('NFD')
     .replace(COMBINING_MARKS, '')
     .toLowerCase()
-    // Sharps survive as 's' rather than being swallowed by the punctuation strip below.
-    // Dropping the '#' turns the key "F#" into the single letter "f", and a one-letter
-    // token substring-matches most of the catalogue: "f#m" would then score a hit on
-    // "...morillo f worship" via 'f' and 'm'. "fsm" collides with nothing real.
+    // Sharps survive as 's' instead of being swallowed by the punctuation strip below.
+    // Keys have their own dropdown and are not in the haystack, but people still type them
+    // into the box: without this, "f#m" collapses to the tokens 'f' and 'm', which
+    // substring-match most of the catalogue ("...averly morillo" alone satisfies both) and
+    // return confident nonsense. "fsm" matches nothing, which is the honest answer.
     .replace(/#/g, 's')
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
