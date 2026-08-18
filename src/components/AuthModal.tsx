@@ -118,8 +118,8 @@ export function AuthModal({ open, onOpenChange, onSuccess, entryPoint }: AuthMod
               return;
             }
             const { entryPoint: ep, onSuccess: onOk, onOpenChange: close } = latestRef.current;
-            if (isNewUser) analytics.signUp(ep);
-            else analytics.login(ep);
+            if (isNewUser) analytics.signUp('google', ep);
+            else analytics.login('google', ep);
             reset();
             close(false);
             onOk();
@@ -160,7 +160,7 @@ export function AuthModal({ open, onOpenChange, onSuccess, entryPoint }: AuthMod
         toast.error(error);
         return;
       }
-      analytics.signUp(entryPoint);
+      analytics.signUp('email', entryPoint);
       if (needsEmailConfirmation) {
         setCheckEmail(true);
         return;
@@ -175,7 +175,7 @@ export function AuthModal({ open, onOpenChange, onSuccess, entryPoint }: AuthMod
         toast.error(error);
         return;
       }
-      analytics.login(entryPoint);
+      analytics.login('email', entryPoint);
       reset();
       onOpenChange(false);
       onSuccess();

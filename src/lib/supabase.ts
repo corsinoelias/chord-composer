@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getCachedAuth, setCachedAuth } from './authCache';
+import { setCachedAuth } from './authCache';
 
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string | undefined;
@@ -37,15 +37,6 @@ export async function getAuthState(): Promise<{ userId: string | null; displayNa
   };
   setCachedAuth(result);
   return result;
-}
-
-/**
- * Synchronous, best-effort read of the last confirmed auth state — for painting the
- * logged-in look on first render, before getAuthState()'s network round trip resolves.
- * Always treat this as provisional; a real getAuthState() call must follow and wins.
- */
-export function getCachedAuthState(): { userId: string; displayName: string | null } | null {
-  return getCachedAuth();
 }
 
 /** Returns the current real (non-anonymous) user id, or null if logged out. */

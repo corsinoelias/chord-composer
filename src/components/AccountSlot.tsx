@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Play, Library } from 'lucide-react';
 import { AccountMenu, AccountAvatarButton } from '@/components/AccountMenu';
-import { AuthModal } from '@/components/AuthModal';
 import { useAccountState } from '@/hooks/useAccountState';
+
+// Lazy: AuthModal pulls in Radix Dialog/Tabs plus supabase.ts (~230KB combined) for a
+// form the vast majority of pageviews never open. Not imported until "Sign in" is
+// clicked for the first time — see `modalLoaded` below, which keeps it mounted after
+// that so Radix's close animation still works on subsequent opens.
+const AuthModal = lazy(() => import('@/components/AuthModal').then((m) => ({ default: m.AuthModal })));
 
 interface AccountSlotProps {
   variant: 'desktop' | 'mobile';
@@ -19,6 +24,13 @@ interface AccountSlotProps {
 export function AccountSlot({ variant }: AccountSlotProps) {
   const { isLoggedIn, displayName, refresh } = useAccountState();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  // Tracks whether AuthModal has ever been requested, so it (and its lazy chunk) only
+  // mounts once — separate from `authModalOpen` because closing it shouldn't unmount it.
+  const [modalLoaded, setModalLoaded] = useState(false);
+  const openAuthModal = () => {
+    setModalLoaded(true);
+    setAuthModalOpen(true);
+  };
 
   const ctaHref = isLoggedIn ? '/app/' : '/chord-player/';
   const ctaLabel = isLoggedIn ? 'My library' : 'Try Chord Player';
@@ -53,21 +65,25 @@ export function AccountSlot({ variant }: AccountSlotProps) {
         ) : (
           <button
             type="button"
-            onClick={() => setAuthModalOpen(true)}
+            onClick={openAuthModal}
             className="flex items-center justify-center w-full px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
           >
             Sign in
           </button>
         )}
-        <AuthModal
-          open={authModalOpen}
-          onOpenChange={setAuthModalOpen}
-          entryPoint="navbar"
-          onSuccess={() => {
-            setAuthModalOpen(false);
-            refresh();
-          }}
-        />
+        {modalLoaded && (
+          <Suspense fallback={null}>
+            <AuthModal
+              open={authModalOpen}
+              onOpenChange={setAuthModalOpen}
+              entryPoint="navbar"
+              onSuccess={() => {
+                setAuthModalOpen(false);
+                refresh();
+              }}
+            />
+          </Suspense>
+        )}
       </div>
     );
   }
@@ -86,21 +102,25 @@ export function AccountSlot({ variant }: AccountSlotProps) {
       ) : (
         <button
           type="button"
-          onClick={() => setAuthModalOpen(true)}
+          onClick={openAuthModal}
           className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           Sign in
         </button>
       )}
-      <AuthModal
-        open={authModalOpen}
-        onOpenChange={setAuthModalOpen}
-        entryPoint="navbar"
-        onSuccess={() => {
-          setAuthModalOpen(false);
-          refresh();
-        }}
-      />
+      {modalLoaded && (
+        <Suspense fallback={null}>
+          <AuthModal
+            open={authModalOpen}
+            onOpenChange={setAuthModalOpen}
+            entryPoint="navbar"
+            onSuccess={() => {
+              setAuthModalOpen(false);
+              refresh();
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

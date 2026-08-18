@@ -36,8 +36,11 @@ function track(eventName: string, params?: Record<string, unknown>) {
 export const analytics = {
   // Auth — `entry_point` identifies which entry point opened the modal (e.g.
   // 'save_cta', 'export_nudge') so conversion can be compared per entry point.
-  signUp: (entryPoint?: string) => track('sign_up', { method: 'email', entry_point: entryPoint }),
-  login: (entryPoint?: string) => track('login', { method: 'email', entry_point: entryPoint }),
+  // `method` distinguishes Google (ID-token, no email confirmation) from
+  // email/password signups — without it every Google sign-in reports as 'email'
+  // and the two flows are impossible to tell apart in GA4.
+  signUp: (method: 'email' | 'google', entryPoint?: string) => track('sign_up', { method, entry_point: entryPoint }),
+  login: (method: 'email' | 'google', entryPoint?: string) => track('login', { method, entry_point: entryPoint }),
   logout: () => track('logout'),
   saveCtaClicked: () => track('save_cta_clicked'),
   authModalCancelled: (entryPoint?: string) => track('auth_modal_cancelled', { entry_point: entryPoint }),
