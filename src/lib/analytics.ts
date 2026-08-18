@@ -41,6 +41,8 @@ export const analytics = {
   logout: () => track('logout'),
   saveCtaClicked: () => track('save_cta_clicked'),
   authModalCancelled: (entryPoint?: string) => track('auth_modal_cancelled', { entry_point: entryPoint }),
+  passwordResetRequested: () => track('password_reset_requested'),
+  passwordResetCompleted: () => track('password_reset_completed'),
   exportNudgeShown: () => track('export_nudge_shown'),
   exportNudgeClicked: () => track('export_nudge_clicked'),
 

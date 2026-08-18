@@ -34,7 +34,6 @@ import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
 import { getSongForViewer, setSongVisibility, saveSongWithSync } from '@/lib/songStorage';
 import { saveForkDraft, loadForkDraft, clearForkDraft, shouldRestoreForkDraft } from '@/lib/forkDraft';
-import { getAuthState } from '@/lib/supabase';
 import { analytics } from '@/lib/analytics';
 import { SectionCard } from '@/components/SectionCard';
 import { TransportControls } from '@/components/TransportControls';
@@ -56,13 +55,14 @@ import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { MixingConsole } from '@/components/MixingConsole';
 import { AuthModal } from '@/components/AuthModal';
 import { AccountPromptModal } from '@/components/AccountPromptModal';
-import { AccountMenu } from '@/components/AccountMenu';
+import { AccountMenu, AccountAvatarButton } from '@/components/AccountMenu';
 import { Button } from '@/components/ui/button';
 import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { useAccountState } from '@/hooks/useAccountState';
 
 interface IndexProps {
   songId?: string;
@@ -105,9 +105,7 @@ const Index = ({ songId }: IndexProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [songCreatedAt, setSongCreatedAt] = useState<string | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [displayName, setDisplayName] = useState<string | null>(null);
+  const { isLoggedIn, displayName, refresh: refreshAuth } = useAccountState();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalEntryPoint, setAuthModalEntryPoint] = useState('save_cta');
   const [accountPromptOpen, setAccountPromptOpen] = useState(false);
@@ -327,15 +325,6 @@ const Index = ({ songId }: IndexProps) => {
     loopingSectionIndex, updatePlaybackOptions, sections,
   ]);
 
-  // Resolve login state once — saving/autosave is gated on this, the editor itself isn't
-  useEffect(() => {
-    getAuthState().then(({ userId, displayName }) => {
-      setIsLoggedIn(!!userId);
-      setDisplayName(displayName);
-      setAuthChecked(true);
-    });
-  }, []);
-
   // Load song from URL param
   useEffect(() => {
     if (songId && songId !== currentSongId) {
@@ -391,7 +380,7 @@ const Index = ({ songId }: IndexProps) => {
         } else {
           console.warn(`[SONG] Song not found: ${songId}`);
           toast.error('Song not found');
-          window.location.href = '/app';
+          window.location.href = '/app/';
         }
       });
     }
@@ -591,7 +580,7 @@ const Index = ({ songId }: IndexProps) => {
 
   const handleBackToSongs = useCallback(() => {
     stopPlayback();
-    window.location.href = '/app';
+    window.location.href = '/app/';
   }, [stopPlayback]);
 
 
@@ -1308,29 +1297,23 @@ const Index = ({ songId }: IndexProps) => {
                 <ShortcutsHelp />
               </div>
 
-              {/* Account status — the actual Save call-to-action now lives next to
-                  Play in TransportControls; this only shows once there's something
-                  to confirm (saving in progress, or already saved). */}
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              {/* Save status — purely informational now; the account menu below is
+                  always visible once logged in, independent of save state. The
+                  actual Save call-to-action lives next to Play in TransportControls. */}
+              <div className="flex items-center gap-2">
                 {isSaving ? (
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Loader2 className="h-3 w-3 animate-spin" />
                   </span>
                 ) : lastSavedAt ? (
-                  <AccountMenu
-                    displayName={displayName}
-                    trigger={
-                      <button
-                        type="button"
-                        className="flex items-center gap-1 text-[hsl(var(--success))] rounded-md px-1.5 h-8 hover:bg-accent transition-colors"
-                        aria-label="Account"
-                      >
-                        <Check className="h-3 w-3" />
-                        <span className="hidden xs:inline">Saved</span>
-                      </button>
-                    }
-                  />
+                  <span className="hidden xs:flex items-center gap-1 text-xs text-[hsl(var(--success))]">
+                    <Check className="h-3 w-3" />
+                    Saved
+                  </span>
                 ) : null}
+                {isLoggedIn && (
+                  <AccountMenu displayName={displayName} trigger={<AccountAvatarButton displayName={displayName} />} />
+                )}
               </div>
             </div>
           </div>
@@ -1640,8 +1623,7 @@ const Index = ({ songId }: IndexProps) => {
         onOpenChange={setAuthModalOpen}
         entryPoint={authModalEntryPoint}
         onSuccess={() => {
-          setIsLoggedIn(true);
-          getAuthState().then(({ displayName }) => setDisplayName(displayName));
+          refreshAuth();
           // Finish what they came for. Only reached on a real session — a signup that
           // still needs email confirmation never calls onSuccess, so this can't fire
           // while saveSongToCloud would silently no-op on a null user id.

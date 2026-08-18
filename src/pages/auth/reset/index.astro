@@ -1,0 +1,15 @@
+---
+export const prerender = true;
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { AuthReset } from '../../../components/AuthReset';
+---
+
+<BaseLayout
+  title="Reset your password | Chord Sequence"
+  description="Set a new password for your Chord Sequence account."
+  canonicalUrl="https://chordsequence.com/auth/reset/"
+  noIndex={true}
+  showNav={true}
+>
+  <AuthReset client:only="react" />
+</BaseLayout>

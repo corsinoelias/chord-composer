@@ -152,6 +152,11 @@ const orgSchema = {
 
     <slot name="head" />
 
+    <!-- Google Identity Services — the inline "Sign in with Google" button rendered by
+         AuthModal (see src/lib/googleIdentity.ts). Loaded on every page, not just where
+         the modal can open, since it's small and async so it doesn't block anything. -->
+    <script async defer src="https://accounts.google.com/gsi/client"></script>
+
     <!-- Google Analytics 4 -->
     {import.meta.env.PROD && (
       <>

@@ -103,5 +103,11 @@ export default defineConfig({
     },
   },
 
-  adapter: netlify(),
+  // edgeFunctions disabled in the dev emulator only — netlify/edge-functions/chord-player-deeplink.ts
+  // still deploys and runs for real on Netlify. Emulating it locally needs Deno, which
+  // isn't installed here, so every dev request was failing a `fetch` to the (never
+  // started) Deno subprocess and logging an unhandled rejection — see the "DEV ONLY"
+  // comment in src/middleware.ts: the deep-link rewrite it exists for is already
+  // handled there for `astro dev`, so dev never needed the edge function anyway.
+  adapter: netlify({ edgeFunctions: { enabled: false } }),
 });

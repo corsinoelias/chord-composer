@@ -4,7 +4,6 @@ import { getSongs, deleteSongWithSync, duplicateSong } from '@/lib/songStorage';
 import { SongCard } from '@/components/SongCard';
 import { MiniPlayer } from '@/components/MiniPlayer';
 import { AuthModal } from '@/components/AuthModal';
-import { AccountMenu } from '@/components/AccountMenu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -20,48 +19,45 @@ import {
 import { Plus, Search, Loader2, LogIn, Music2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
-import { getAuthState } from '@/lib/supabase';
+import { useAccountState } from '@/hooks/useAccountState';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 
 const Songs = () => {
   const { markAsReturningUser } = useFirstTimeUser();
+  const { isLoggedIn, isLoading: authLoading, refresh: refreshAuth } = useAccountState();
   const [songs, setSongs] = useState<Song[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [songsLoading, setSongsLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<Song | null>(null);
   const [activeSong, setActiveSong] = useState<Song | null>(null);
 
   const { state: playbackState, play, stop } = usePlayback();
+  const isLoading = authLoading || songsLoading;
 
   useEffect(() => {
-    getAuthState().then(async ({ userId, displayName }) => {
-      setIsLoggedIn(!!userId);
-      setDisplayName(displayName);
-      if (!userId) {
-        setIsLoading(false);
-        return;
-      }
-      const cloudSongs = await getSongs();
+    if (authLoading) return;
+    if (!isLoggedIn) {
+      setSongsLoading(false);
+      return;
+    }
+    getSongs().then(cloudSongs => {
       setSongs(cloudSongs);
       if (cloudSongs.length > 0) markAsReturningUser();
-      setIsLoading(false);
+      setSongsLoading(false);
     });
-  }, [markAsReturningUser]);
+  }, [authLoading, isLoggedIn, markAsReturningUser]);
 
   const refreshSongs = useCallback(async () => {
     setSongs(await getSongs());
   }, []);
 
   const handleAuthSuccess = useCallback(() => {
-    setIsLoggedIn(true);
-    setIsLoading(true);
-    getAuthState().then(({ displayName }) => setDisplayName(displayName));
-    refreshSongs().finally(() => setIsLoading(false));
-  }, [refreshSongs]);
+    setSongsLoading(true);
+    refreshAuth();
+    refreshSongs().finally(() => setSongsLoading(false));
+  }, [refreshAuth, refreshSongs]);
 
   const filteredSongs = useMemo(() => {
     if (!searchQuery.trim()) return songs;
@@ -117,26 +113,12 @@ const Songs = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">My library</h1>
           <p className="text-muted-foreground mt-1 text-sm">Your saved chord progressions</p>
         </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          <Button onClick={handleCreateNew} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New progression
-          </Button>
-          {isLoggedIn && displayName && (
-            <AccountMenu
-              displayName={displayName}
-              trigger={
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground truncate max-w-[160px] rounded-md px-1.5 py-0.5 hover:bg-accent hover:text-foreground transition-colors"
-                  aria-label="Account"
-                >
-                  Hi, {displayName}
-                </button>
-              }
-            />
-          )}
-        </div>
+        {/* Account identity lives in the global navbar now (AccountSlot) — this page
+            doesn't need to repeat it, it's already the destination that links to. */}
+        <Button onClick={handleCreateNew} className="gap-2 shrink-0">
+          <Plus className="h-4 w-4" />
+          New progression
+        </Button>
       </div>
 
       {/* Content */}

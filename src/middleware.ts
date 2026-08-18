@@ -15,7 +15,13 @@ const SECURITY_HEADERS: Record<string, string> = {
     // to keep) plus https://*.supabase.co for the real vocal-reference audio files now
     // served from Supabase Storage (the <audio> scrub element in the editor, and the
     // public song page's playback both load directly from that origin).
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' blob: https://*.supabase.co; connect-src 'self' blob: https://*.supabase.co https://cdn.jsdelivr.net https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; frame-ancestors 'none';",
+    // accounts.google.com (script/style/connect/frame) is Google Identity Services —
+    // the inline "Sign in with Google" button in AuthModal, which renders its button
+    // and consent UI in an iframe from that origin rather than redirecting the page
+    // away. style-src needs it too: GIS loads its own stylesheet
+    // (accounts.google.com/gsi/style) for the button — without it the button renders
+    // unstyled/broken, a CSP violation easy to miss since it doesn't block the script.
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' blob: https://*.supabase.co; connect-src 'self' blob: https://*.supabase.co https://cdn.jsdelivr.net https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com https://accounts.google.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://accounts.google.com; frame-ancestors 'none';",
 };
 
 export const onRequest = defineMiddleware(async (context, next) => {

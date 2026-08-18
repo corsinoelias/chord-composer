@@ -1,0 +1,15 @@
+---
+export const prerender = true;
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { AccountPage } from '../../components/AccountPage';
+---
+
+<BaseLayout
+  title="Account settings | Chord Sequence"
+  description="Manage your Chord Sequence account — email, display name, password, and account deletion."
+  canonicalUrl="https://chordsequence.com/account/"
+  noIndex={true}
+  showNav={true}
+>
+  <AccountPage client:only="react" />
+</BaseLayout>
