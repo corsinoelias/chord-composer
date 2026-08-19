@@ -1,21 +1,27 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
 import { parseChordString } from '@/lib/chordParser';
 import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { createSection } from '@/lib/sections';
-import { Play, Square, ChevronDown, ChevronUp, SkipBack, SkipForward, Repeat } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { SongPlayerBar } from '@/components/SongPlayerBar';
-import { DurationDots } from '@/components/DurationDots';
+import { SongHeaderTransport } from '@/components/SongHeaderTransport';
+import { SongPracticePanel } from '@/components/SongPracticePanel';
+import { SongStructureMap } from '@/components/SongStructureMap';
+import { SongPlayingPill } from '@/components/SongPlayingPill';
+import { SongSectionChart } from '@/components/SongSectionChart';
+import { SongChordsOnlyChart, type ChordOnlyRow } from '@/components/SongChordsOnlyChart';
 import { parseLyricLine, extractChordsWithDuration, type Song } from '@/data/songs';
-import ChordTooltip from '@/components/ChordTooltip';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { playChordPreview, renderProgressionOffline } from '@/lib/audioEngine';
+import { renderProgressionOffline } from '@/lib/audioEngine';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { exportMidi } from '@/lib/midiExporter';
 import { MUSICAL_STYLES } from '@/lib/styles';
 import { analytics } from '@/lib/analytics';
 import { buildSongEditorUrl, type EditorLinkSection } from '@/lib/editorLink';
+
+type Density = 'full' | 'compact' | 'chords';
 
 // ─── Transpose helpers ────────────────────────────────────────────────────────
 const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -71,6 +77,28 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   const [vocalMuted, setVocalMuted] = useState(false);
   const [vocalVolume, setVocalVolume] = useState(1);
   const vocalForcedMuted = transpose !== 0;
+  // Click track. Off by default — a song page is a listening surface first — but it is the
+  // one control that makes looping a section for practice actually useful, so it lives next
+  // to tempo/key rather than behind the mixer.
+  const [metronome, setMetronome] = useState(false);
+  // Practice panel (Sections/Mixer/Tempo/Export) — collapsed by default, opened from the
+  // header's Practice button. Density — which of the three ways to render the chart itself.
+  const [practiceOpen, setPracticeOpen] = useState(false);
+  const [density, setDensity] = useState<Density>('full');
+
+  // The header transport and Practice panel are Astro-rendered markup outside this island, but
+  // both need PlaybackContext and this component's own state, so they can't be their own
+  // islands — a portal is the seam, same pattern the old desktop rail used. Resolved after
+  // mount (there is no DOM during SSR). No matchMedia gating needed here: unlike the rail this
+  // replaces (a different control set below vs above `lg`), there is exactly one panel now at
+  // every width, so a single lookup on mount is enough.
+  const [headerTransportTarget, setHeaderTransportTarget] = useState<HTMLElement | null>(null);
+  const [practicePanelTarget, setPracticePanelTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (inline) return;
+    setHeaderTransportTarget(document.getElementById('song-header-transport'));
+    setPracticePanelTarget(document.getElementById('song-practice-panel'));
+  }, [inline]);
 
   // Keep context BPM in sync for live tempo changes during playback
   useEffect(() => { setContextBpm(bpm); }, [bpm, setContextBpm]);
@@ -86,12 +114,26 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   useEffect(() => {
     updatePlaybackOptions({ vocalMuted, vocalVolume });
   }, [vocalMuted, vocalVolume, updatePlaybackOptions]);
+
+  // Metronome is re-read from optionsRef by the scheduler each bar (getMetronome), so this
+  // toggles the click on and off mid-playback without a restart, exactly like bpm.
+  useEffect(() => { updatePlaybackOptions({ metronome }); }, [metronome, updatePlaybackOptions]);
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
   // null = full song, number = which section index is playing solo
   const [playingSection, setPlayingSection] = useState<number | null>(null);
-  // Index into whichever Section[] array is currently scheduled (0 for solo-section play,
-  // the song-section index for full-song play) — null means "not looping a section"
-  const [loopingSectionIndex, setLoopingSectionIndex] = useState<number | null>(null);
+  // Which SONG section is armed to loop — a song.sections index, deliberately NOT an index
+  // into whatever Section[] happens to be scheduled right now. That distinction is what lets
+  // the loop be armed while stopped (tap ⟳ on the chorus, then press Play): there is no
+  // scheduled array to index into yet. It survives stop/start; handlePlaySection and
+  // handleToggleLoop translate it into the engine's frame of reference at each play() call
+  // and live update (0 when a single section is scheduled, the song index otherwise).
+  const [loopTarget, setLoopTarget] = useState<number | null>(null);
+  // Read synchronously by handlePlaySection, which can be invoked in the SAME tick that arms
+  // a loop (arming one on a section that isn't the one sounding re-schedules straight away).
+  // The `loopTarget` state closed over at that moment is still the old value; the ref isn't.
+  // Same always-up-to-date-ref pattern as queuedSectionIndexRef below.
+  const loopTargetRef = useRef<number | null>(null);
+  loopTargetRef.current = loopTarget;
   // song.sections index the user tapped in the mobile Sections panel WHILE something else was
   // already sounding — instead of interrupting immediately, it waits its turn and takes over
   // as soon as the current section (or its loop) reaches a natural end. See
@@ -233,8 +275,11 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   // which commits isPlaying:false for one render before play() sets it back to true; without
   // the isLoading guard this effect would fire on that transient false and wipe out the
   // playingSection the new play() call had just set, e.g. breaking prev/next-section jumps) ──
+  // `loopTarget` is deliberately NOT reset here: an armed loop is a user intention about the
+  // song, not about the current playback run, so it has to survive Stop and be there on the
+  // next Play. Only the two genuinely run-scoped values are cleared.
   useEffect(() => {
-    if (!isPlaying && !isLoading) { setPlayingSection(null); setLoopingSectionIndex(null); setQueuedSectionIndex(null); }
+    if (!isPlaying && !isLoading) { setPlayingSection(null); setQueuedSectionIndex(null); }
   }, [isPlaying, isLoading]);
 
   // ── Map the flat playback position (which advances across repeats) back to the
@@ -284,6 +329,67 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
       }))
       .filter((_, si) => sectionChordCounts[si] > 0);
   }, [song.sections, sectionSpanOffsets, sectionChordCounts, totalSpan]);
+
+  // ── Structure map data — sectionMarkers plus each entry's own repeatCount, one chip per
+  // song.sections entry (a repeated section further down the array is its own chip) ─────────
+  const structureItems = useMemo(() => sectionMarkers.map(m => ({
+    sectionIndex: m.sectionIndex,
+    name: m.name,
+    repeatCount: song.sections[m.sectionIndex]?.repeatCount ?? 1,
+  })), [sectionMarkers, song.sections]);
+
+  // ── Beat-weighted cumulative position, for the floating pill's real elapsed/total time ────
+  // sectionSpanOffsets/totalSpan above are chord-COUNT based (one unit per chord token,
+  // regardless of how many beats it lasts) — that's fine for a progress bar's fill %, but wrong
+  // for a clock. This mirrors that same section/repeat loop, summing each chord's own
+  // `duration` (in beats) instead of counting 1 per chord, so index i here lines up with the
+  // exact same flat position `baseChordOffset + playbackPosition` already used everywhere else.
+  const { cumulativeBeatsAtChordIndex, totalBeats } = useMemo(() => {
+    const cum: number[] = [0];
+    let acc = 0;
+    song.sections.forEach((section, si) => {
+      const count = sectionChordCounts[si];
+      const repeats = section.repeatCount ?? 1;
+      const durations = allChordsWithDuration
+        .slice(sectionStartIndices[si], sectionStartIndices[si] + count)
+        .map(c => c.duration);
+      for (let r = 0; r < repeats; r++) {
+        for (let i = 0; i < count; i++) {
+          acc += durations[i] ?? 0;
+          cum.push(acc);
+        }
+      }
+    });
+    return { cumulativeBeatsAtChordIndex: cum, totalBeats: acc };
+  }, [song.sections, sectionChordCounts, sectionStartIndices, allChordsWithDuration]);
+
+  // ── Verbatim-repeat detection — a section is a "repeat" of an earlier one only when its name
+  // AND its raw lines (lyrics+chord tags, pre-parse) match exactly, not just the name (two
+  // different bridges both called "Bridge" must never collapse into one). Drives the dashed
+  // reference card in SongSectionChart for the "Lyrics + chords"/"Compact" densities. ─────────
+  const sectionIsRepeatOf = useMemo(() => {
+    const seen = new Map<string, number>();
+    return song.sections.map((section, si) => {
+      const key = `${section.name} ${JSON.stringify(section.lines)}`;
+      const firstIdx = seen.get(key);
+      if (firstIdx === undefined) { seen.set(key, si); return null; }
+      return firstIdx;
+    });
+  }, [song.sections]);
+
+  // ── "Chords only" density data — the transposed chords per section, no lyrics ──────────────
+  const chordOnlyRows = useMemo<ChordOnlyRow[]>(() => {
+    return displayedSections
+      .map((section, si) => ({
+        sectionIndex: si,
+        name: section.name,
+        repeatCount: song.sections[si]?.repeatCount ?? 1,
+        chords: section.lines.flatMap(line =>
+          line.filter(t => t.chord).map(t => ({ chord: t.chord, globalIndex: t.globalIndex }))
+        ),
+      }))
+      .filter(row => row.chords.length > 0);
+  }, [displayedSections, song.sections]);
 
   // ── Prev/next section — skips sections with no chords (nothing to play) ─────────────────
   const findPlayableNeighbor = useCallback((from: number, dir: 1 | -1) => {
@@ -352,33 +458,43 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
     }));
   }, [activeChordName, isPlaying, activeDuration, bpm, currentChordIndex]);
 
+  // handlePlaySectionRef always holds the LATEST handlePlaySection — onEnded below needs to
+  // call back into it to chain forward, but referencing the function by name from inside its
+  // own useCallback body would be a stale closure (and an unlistable circular dependency);
+  // a ref sidesteps both. Assigned during render (not an effect) so it's never one render
+  // behind — the safe "always-up-to-date ref" pattern. Declared up here (rather than next to
+  // handlePlaySection below) because handlePlay also routes through it, see the armed-loop
+  // branch immediately below.
+  const handlePlaySectionRef = useRef<(si: number, opts?: { keepContext?: boolean }) => void>(() => {});
+
   // ── Play full song ─────────────────────────────────────────────────────────
   const handlePlay = useCallback(async () => {
     if (isPlaying) { stop(); return; }
     if (allChordsFlat.length === 0) return;
+    // An armed loop is a statement about what the user wants to hear NEXT, so pressing Play
+    // with one armed starts on that section rather than from the top of the song — otherwise
+    // arming the chorus and hitting Play would make you sit through the intro and both verses
+    // before the loop you asked for ever engages.
+    if (loopTarget !== null && sectionChordCounts[loopTarget] > 0) {
+      handlePlaySectionRef.current(loopTarget);
+      return;
+    }
     analytics.playSong(song.slug, song.title);
     setPlayingSection(null);
-    setLoopingSectionIndex(null);
     setAutoFollow(true);
     setIsLoading(true);
     try {
       const fullSections = buildFullSongSections();
       await play(fullSections, {
-        bpm, metronome: false, instruments, loop: true,
+        bpm, metronome, instruments, loop: true,
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
         melodic: resolvedStyle.melodic,
         audioTrack: buildAudioTrack(fullSections),
       });
     } finally { setIsLoading(false); }
-  }, [isPlaying, play, stop, allChordsFlat.length, bpm, song, transpose, buildFullSongSections, instruments, resolvedStyle, buildAudioTrack]);
+  }, [isPlaying, play, stop, allChordsFlat.length, bpm, metronome, song, transpose, buildFullSongSections, instruments, resolvedStyle, buildAudioTrack, loopTarget, sectionChordCounts]);
 
   // ── Play single section ────────────────────────────────────────────────────
-  // handlePlaySectionRef always holds the LATEST handlePlaySection — onEnded below needs to
-  // call back into it to chain forward, but referencing the function by name from inside its
-  // own useCallback body would be a stale closure (and an unlistable circular dependency);
-  // a ref sidesteps both. Assigned during render (not an effect) so it's never one render
-  // behind — the safe "always-up-to-date ref" pattern.
-  const handlePlaySectionRef = useRef<(si: number, opts?: { keepContext?: boolean }) => void>(() => {});
   // Synchronous reentrancy guard — `isLoading` (React state) already disables the section-card
   // buttons while a play() call is in flight, but that disabling only takes effect once React
   // re-renders with the new value. Tapping a card several times in the same tick/microtask
@@ -404,7 +520,6 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
       if (sectionChordCounts[si] === 0) return;
       analytics.playSongSection(song.slug, song.sections[si].name);
       setPlayingSection(si);
-      setLoopingSectionIndex(null);
       setAutoFollow(true);
       setIsLoading(true);
       try {
@@ -415,8 +530,12 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
         // quiet. The Loop button is what makes it stick on one section instead; handled live via
         // loopingSectionIndex (see handleToggleLoop) rather than this static flag, so toggling
         // it mid-playback works without restarting.
-        bpm, metronome: false, instruments, loop: false,
-        styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
+        // Exactly ONE section is scheduled here, so the engine's loop index for it is 0 —
+        // that is the whole reason loopTarget is kept as a song.sections index and translated
+        // at the boundary instead of being stored in the engine's frame of reference.
+        bpm, metronome, instruments, loop: false,
+        styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [],
+        loopingSectionIndex: loopTargetRef.current === si ? 0 : null,
         melodic: resolvedStyle.melodic,
         onEnded: () => {
           // A section queued via the mobile Sections panel (see handleSectionCardTap) takes
@@ -443,7 +562,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
       });
     } finally { setIsLoading(false); }
     } finally { playSectionInFlightRef.current = false; }
-  }, [isPlaying, playingSection, play, stop, bpm, song.slug, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments, resolvedStyle, song.audioTrack, findPlayableNeighbor]);
+  }, [isPlaying, playingSection, play, stop, bpm, metronome, song.slug, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments, resolvedStyle, song.audioTrack, findPlayableNeighbor]);
   handlePlaySectionRef.current = handlePlaySection;
 
   // ── Deliver a queued section during FULL-SONG playback ──────────────────────────────────
@@ -483,42 +602,49 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
     if (!isPlaying) { handlePlaySection(si); return; }
     if (si === activeSectionIndex) return;
     if (si === queuedSectionIndex) { setQueuedSectionIndex(null); return; }
-    if (loopingSectionIndex !== null) {
-      setLoopingSectionIndex(null);
+    if (loopTarget !== null) {
+      loopTargetRef.current = null;
+      setLoopTarget(null);
       updatePlaybackOptions({ loopingSectionIndex: null });
     }
     setQueuedSectionIndex(si);
-  }, [isPlaying, activeSectionIndex, queuedSectionIndex, loopingSectionIndex, handlePlaySection, updatePlaybackOptions]);
+  }, [isPlaying, activeSectionIndex, queuedSectionIndex, loopTarget, handlePlaySection, updatePlaybackOptions]);
 
-  // ── Prev / next section — jumps to the neighboring playable section, solo ──────────────
-  const handlePrevSection = useCallback(() => {
-    if (activeSectionIndex == null) return;
-    const prev = findPlayableNeighbor(activeSectionIndex, -1);
-    if (prev !== null) handlePlaySection(prev);
-  }, [activeSectionIndex, findPlayableNeighbor, handlePlaySection]);
+  // ── Arm / disarm the loop on a section ─────────────────────────────────────────────────
+  // `si` is a song.sections index; omitting it targets whatever is sounding (the transport's
+  // own loop button). Crucially this does NOT require playback to be running — arming while
+  // stopped is the point, and handlePlay picks the armed section up as its starting point.
+  const handleToggleLoop = useCallback((si?: number) => {
+    const target = si ?? activeSectionIndex;
+    if (target == null || sectionChordCounts[target] === 0) return;
 
-  const handleNextSection = useCallback(() => {
-    if (activeSectionIndex == null) return;
-    const next = findPlayableNeighbor(activeSectionIndex, 1);
-    if (next !== null) handlePlaySection(next);
-  }, [activeSectionIndex, findPlayableNeighbor, handlePlaySection]);
-
-  // ── Loop the currently sounding section — index is relative to whichever Section[] array
-  // is scheduled right now (0 for solo play, activeSectionIndex for full-song play) ─────────
-  const handleToggleLoop = useCallback(() => {
-    if (loopingSectionIndex !== null) {
-      setLoopingSectionIndex(null);
-      updatePlaybackOptions({ loopingSectionIndex: null });
-      return;
-    }
-    if (activeSectionIndex == null) return;
-    const idx = playingSection !== null ? 0 : activeSectionIndex;
-    setLoopingSectionIndex(idx);
-    updatePlaybackOptions({ loopingSectionIndex: idx });
+    const next = loopTargetRef.current === target ? null : target;
+    loopTargetRef.current = next;
+    setLoopTarget(next);
+    analytics.songLoopToggled(song.slug, song.sections[target]?.name ?? '', next !== null);
     // Engaging a loop means "stay here indefinitely" — that's incompatible with an already-
     // queued section (see handleSectionCardTap), which would otherwise sit waiting forever.
-    setQueuedSectionIndex(null);
-  }, [loopingSectionIndex, playingSection, activeSectionIndex, updatePlaybackOptions]);
+    if (next !== null) setQueuedSectionIndex(null);
+
+    if (!isPlaying) return;
+
+    // Full-song playback: the scheduled Section[] IS song.sections, so the index maps 1:1 and
+    // the loop can be engaged live — it simply takes effect when playback reaches that section.
+    if (playingSection === null) {
+      updatePlaybackOptions({ loopingSectionIndex: next });
+      return;
+    }
+    // Solo-section playback: only that one section is scheduled, so it is index 0 and nothing
+    // else is loopable in place. Disarming, or arming the section already sounding, is a live
+    // update; arming a DIFFERENT one can only mean "take me there", which needs a real
+    // re-schedule (no keepContext — the user is cutting the current section off mid-flight,
+    // and the already-scheduled audio has to be killed with the context).
+    if (next === null || next === playingSection) {
+      updatePlaybackOptions({ loopingSectionIndex: next === null ? null : 0 });
+      return;
+    }
+    handlePlaySectionRef.current(next);
+  }, [activeSectionIndex, sectionChordCounts, isPlaying, playingSection, updatePlaybackOptions, song.slug, song.sections]);
 
   // ── Export WAV ─────────────────────────────────────────────────────────────
   const handleExportWav = useCallback(async () => {
@@ -555,9 +681,6 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   // instead of snapping once per chord.
   const baseChordOffset = playingSection !== null ? sectionSpanOffsets[playingSection] : 0;
 
-  const canGoPrevSection = activeSectionIndex != null && findPlayableNeighbor(activeSectionIndex, -1) !== null;
-  const canGoNextSection = activeSectionIndex != null && findPlayableNeighbor(activeSectionIndex, 1) !== null;
-
   // ── For the mobile Sections panel's per-card progress ring — the active section's own span
   // (repeat-aware), and whether the current playback is a solo-section play (playbackPosition
   // already 0-based within it) vs full-song play (playbackPosition is global, needs localizing
@@ -572,55 +695,141 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   // with exactly what they were hearing rather than the song's written pitch/tempo.
   const editorUrl = buildSongEditorUrl(song, { bpm, sections: editorSectionsData });
 
+  // Mixer changes are reported per channel rather than as one "user touched the mixer" event:
+  // which channel gets muted is the interesting signal (muting Keys to play the piano part is
+  // a different session from muting Drums because the click is annoying).
+  const handleInstrumentsChange = useCallback((next: InstrumentState[]) => {
+    const prev = instrumentStates;
+    const changed = next.find((inst, i) => {
+      const before = prev[i];
+      return before && (before.muted !== inst.muted || before.solo !== inst.solo || before.volume !== inst.volume);
+    });
+    if (changed) {
+      const before = prev.find(p => p.id === changed.id);
+      const action = before && before.muted !== changed.muted ? 'mute'
+        : before && before.solo !== changed.solo ? 'solo'
+        : 'volume';
+      analytics.songMixerChanged(song.slug, changed.id, action);
+    }
+    setInstrumentStates(next);
+  }, [instrumentStates, song.slug]);
+
+  const handleMetronomeChange = useCallback((enabled: boolean) => {
+    setMetronome(enabled);
+    analytics.songMetronomeToggled(song.slug, enabled);
+  }, [song.slug]);
+
+  const handleDensityChange = useCallback((next: Density) => {
+    setDensity(next);
+    analytics.songDensityChanged(song.slug, next);
+  }, [song.slug]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className={inline ? '' : 'pb-24'}>
-      {/* ─ Player bar: top when inline, fixed-bottom when not ─ */}
-      <SongPlayerBar
-        song={song}
-        isPlaying={isPlaying}
-        isLoading={isLoading}
-        isExportingWav={isExportingWav}
-        bpm={bpm}
-        transpose={transpose}
-        displayKey={displayKey}
-        baseChordOffset={baseChordOffset}
-        totalChordSpan={totalSpan}
-        allChordsCount={allChordsFlat.length}
-        sectionMarkers={sectionMarkers}
-        activeSectionIndex={activeSectionIndex}
-        onSeekSection={handlePlaySection}
-        onPanelSectionTap={handleSectionCardTap}
-        queuedSectionIndex={queuedSectionIndex}
-        canGoPrevSection={canGoPrevSection}
-        canGoNextSection={canGoNextSection}
-        onPrevSection={handlePrevSection}
-        onNextSection={handleNextSection}
-        isLoopingSection={loopingSectionIndex !== null}
-        onToggleLoop={handleToggleLoop}
-        onPlayPause={handlePlay}
-        onBpmChange={(v) => setBpm(v)}
-        onTransposeChange={(v) => setTranspose(v)}
-        onExportWav={handleExportWav}
-        onExportMidi={handleExportMidi}
-        editorUrl={editorUrl}
-        inline={inline}
-        showWavExport={showWavExport}
-        consoleOpen={consoleOpen}
-        onToggleConsole={() => setConsoleOpen(v => !v)}
-        isSoloSection={isSoloSection}
-        activeSectionSpanStart={activeSectionSpanStart}
-        activeSectionSpanLength={activeSectionSpanLength}
-        instruments={instrumentStates}
-        onInstrumentsChange={setInstrumentStates}
-        hasVocalTrack={!!song.audioTrack}
-        vocalMuted={vocalMuted}
-        vocalVolume={vocalVolume}
-        onVocalMutedChange={setVocalMuted}
-        onVocalVolumeChange={setVocalVolume}
-        vocalForcedMuted={vocalForcedMuted}
-        originalBpm={song.bpm}
-      />
+    <div>
+      {inline ? (
+        /* ─ SongCreator's preview dialog — unchanged top transport bar ─ */
+        <SongPlayerBar
+          song={song}
+          isPlaying={isPlaying}
+          isLoading={isLoading}
+          isExportingWav={isExportingWav}
+          bpm={bpm}
+          transpose={transpose}
+          displayKey={displayKey}
+          baseChordOffset={baseChordOffset}
+          totalChordSpan={totalSpan}
+          allChordsCount={allChordsFlat.length}
+          sectionMarkers={sectionMarkers}
+          activeSectionIndex={activeSectionIndex}
+          onSeekSection={handlePlaySection}
+          onPanelSectionTap={handleSectionCardTap}
+          queuedSectionIndex={queuedSectionIndex}
+          loopTargetIndex={loopTarget}
+          onToggleLoop={handleToggleLoop}
+          onPlayPause={handlePlay}
+          onBpmChange={(v) => setBpm(v)}
+          onTransposeChange={(v) => setTranspose(v)}
+          onExportWav={handleExportWav}
+          onExportMidi={handleExportMidi}
+          editorUrl={editorUrl}
+          inline={inline}
+          showWavExport={showWavExport}
+          consoleOpen={consoleOpen}
+          onToggleConsole={() => setConsoleOpen(v => !v)}
+          isSoloSection={isSoloSection}
+          activeSectionSpanStart={activeSectionSpanStart}
+          activeSectionSpanLength={activeSectionSpanLength}
+          instruments={instrumentStates}
+          onInstrumentsChange={handleInstrumentsChange}
+          metronome={metronome}
+          onMetronomeChange={handleMetronomeChange}
+          hasVocalTrack={!!song.audioTrack}
+          vocalMuted={vocalMuted}
+          vocalVolume={vocalVolume}
+          onVocalMutedChange={setVocalMuted}
+          onVocalVolumeChange={setVocalVolume}
+          vocalForcedMuted={vocalForcedMuted}
+          originalBpm={song.bpm}
+        />
+      ) : (
+        <>
+          {/* ─ Header transport (Play/Stop + Practice door) — portalled into the now
+              non-sticky song header in [slug].astro ─ */}
+          {headerTransportTarget && createPortal(
+            <SongHeaderTransport
+              isPlaying={isPlaying}
+              isLoading={isLoading}
+              onPlayPause={handlePlay}
+              practiceOpen={practiceOpen}
+              onTogglePractice={() => setPracticeOpen(v => !v)}
+            />,
+            headerTransportTarget,
+          )}
+
+          {/* ─ Practice panel — Sections/Mixer/Tempo/Export, expands in normal document flow ─ */}
+          {practicePanelTarget && createPortal(
+            <SongPracticePanel
+              open={practiceOpen}
+              sectionMarkers={sectionMarkers}
+              activeSectionIndex={activeSectionIndex}
+              onSelectSection={handleSectionCardTap}
+              queuedSectionIndex={queuedSectionIndex}
+              isPlaying={isPlaying}
+              loopTargetIndex={loopTarget}
+              onToggleLoop={handleToggleLoop}
+              isLoading={isLoading}
+              isSoloSection={isSoloSection}
+              activeSectionSpanStart={activeSectionSpanStart}
+              activeSectionSpanLength={activeSectionSpanLength}
+              instruments={instrumentStates}
+              onInstrumentsChange={handleInstrumentsChange}
+              hasVocalTrack={!!song.audioTrack}
+              vocalMuted={vocalMuted}
+              vocalVolume={vocalVolume}
+              onVocalMutedChange={setVocalMuted}
+              onVocalVolumeChange={setVocalVolume}
+              vocalForcedMuted={vocalForcedMuted}
+              bpm={bpm}
+              originalBpm={song.bpm}
+              onBpmChange={setBpm}
+              transpose={transpose}
+              onTransposeChange={setTranspose}
+              displayKey={displayKey}
+              metronome={metronome}
+              onMetronomeChange={handleMetronomeChange}
+              songSlug={song.slug}
+              allChordsCount={allChordsFlat.length}
+              isExportingWav={isExportingWav}
+              onExportWav={handleExportWav}
+              onExportMidi={handleExportMidi}
+              editorUrl={editorUrl}
+              showWavExport={showWavExport}
+            />,
+            practicePanelTarget,
+          )}
+        </>
+      )}
 
       {/* ─ Vocal reference muted while transposed — can't follow the pitch shift yet ─ */}
       {song.audioTrack && transpose !== 0 && (
@@ -640,185 +849,97 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
         </button>
       )}
 
+      {/* ─ The one floating element on the page, and only while audio is actually running ─ */}
+      {!inline && isPlaying && (
+        <SongPlayingPill
+          sectionName={activeSectionIndex !== null ? song.sections[activeSectionIndex]?.name ?? null : null}
+          onStop={stop}
+          baseChordOffset={baseChordOffset}
+          cumulativeBeats={cumulativeBeatsAtChordIndex}
+          totalBeats={totalBeats}
+          bpm={bpm}
+        />
+      )}
+
       {/* ─ Song chart ─ */}
-      <div className={`space-y-6 ${inline ? 'mt-4 px-5 pb-5' : ''}`}>
-        {displayedSections.map((section, si) => {
-          const collapsed = collapsedSections.has(si);
-
-          const isSectionPlaying = isPlaying && playingSection === si;
-          const isActiveSection = activeSectionIndex === si;
-          const isSectionPlayable = sectionChordCounts[si] > 0;
-
-          return (
-            <div
-              key={si}
-              // No child here needs edge-to-edge clipping to the rounded corners (the header
-              // row has no background of its own), so overflow-hidden served no visual purpose
-              // — it just risked silently clipping the last lyric line when content height came
-              // in a pixel or two over the card's computed height on some browsers/font metrics.
-              className={`rounded-xl border transition-colors
-                ${isActiveSection ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}
-              `}
-            >
-              {/* Section header */}
-              <div className="flex items-center px-4 py-2.5 gap-2">
-                {/* Collapse/expand area */}
-                <button
-                  onClick={() => toggleSection(si)}
-                  className="flex-1 flex items-center justify-between text-left hover:bg-transparent transition-colors min-w-0"
-                >
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <span className={`text-xs font-bold uppercase tracking-widest truncate
-                      ${isActiveSection ? 'text-primary' : 'text-muted-foreground'}
-                    `}>
-                      {section.name}
-                    </span>
-                    {(song.sections[si].repeatCount ?? 1) > 1 && (
-                      <span
-                        title={`Repeats ${song.sections[si].repeatCount}×`}
-                        className="shrink-0 text-[10px] font-bold text-primary/80 bg-primary/10 border border-primary/20 rounded-full px-1.5 py-0.5"
-                      >
-                        ×{song.sections[si].repeatCount}
-                      </span>
-                    )}
-                  </span>
-                  {collapsed
-                    ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0 ml-2" />
-                    : <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0 ml-2" />
-                  }
-                </button>
-
-                {/* Per-section play button */}
-                {isSectionPlayable && (
+      <div className={inline ? 'mt-4 px-5 pb-5' : ''}>
+        {!inline && (
+          <>
+            <SongStructureMap
+              items={structureItems}
+              activeSectionIndex={activeSectionIndex}
+              queuedSectionIndex={queuedSectionIndex}
+              onSelect={handleSectionCardTap}
+            />
+            <div className="flex items-center justify-end mb-4">
+              <div className="inline-flex p-0.5 rounded-lg bg-secondary/60">
+                {([
+                  ['full', 'Lyrics + chords'],
+                  ['compact', 'Compact'],
+                  ['chords', 'Chords only'],
+                ] as const).map(([d, label]) => (
                   <button
-                    onClick={() => handlePlaySection(si)}
-                    disabled={isLoading}
-                    title={isSectionPlaying ? 'Stop' : `Play ${section.name}`}
-                    className={`
-                      shrink-0 flex items-center justify-center w-6 h-6 rounded-md transition-all
-                      ${isSectionPlaying
-                        ? 'bg-primary text-primary-foreground hover:bg-primary/80'
-                        : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
-                      }
+                    key={d}
+                    type="button"
+                    onClick={() => handleDensityChange(d)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors
+                      ${density === d ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}
                     `}
                   >
-                    {isSectionPlaying
-                      ? <Square className="w-3 h-3" />
-                      : <Play className="w-3 h-3" />
-                    }
+                    {label}
                   </button>
-                )}
+                ))}
               </div>
-
-              {/* Section content. pb-6 (not pb-4) — measured line heights are fractional
-                  (73.5px), meaning this box already sat at a near-zero-margin fit; different
-                  browsers round subpixel layout differently, so give it real slack instead of
-                  relying on an exact match. */}
-              {!collapsed && (
-                <div className="px-4 pb-6 space-y-3">
-                  {section.lines.map((line, li) => {
-                    if (line.length === 0) return null;
-
-                    // Lines with only chords (no real lyrics) = chord-only display
-                    const isChordOnlyLine = line.every(t => !t.lyrics.trim());
-
-                    return (
-                      <div key={li} className={`flex flex-wrap ${isChordOnlyLine ? 'gap-x-3 gap-y-1' : ''}`}>
-                        {line.map((token, ti) => {
-                          if (!token.chord && !token.lyrics.trim()) return null;
-
-                          const isActive = isPlaying && token.globalIndex === activeGlobal;
-                          const hasChord = token.chord !== '';
-
-                          return (
-                            <span
-                              key={ti}
-                              ref={hasChord ? el => {
-                                if (el) chordRefs.current.set(token.globalIndex, el);
-                                else chordRefs.current.delete(token.globalIndex);
-                              } : undefined}
-                              className="inline-flex flex-col items-start relative max-w-full min-w-0"
-                              style={{ fontFamily: 'var(--font-mono, monospace)' }}
-                            >
-                              {/* Chord name row */}
-                              {hasChord ? (
-                                <Popover
-                                  open={openTooltipIdx === token.globalIndex}
-                                  onOpenChange={(open) => { if (!open) setOpenTooltipIdx(null); }}
-                                >
-                                  <PopoverTrigger asChild>
-                                    {/* Real min-h-[44px] box (not a ::before hit-area hack — that
-                                        enlarges the clickable region but automated touch-target
-                                        audits measure the element's own bounding box, which the
-                                        pseudo-element isn't part of). The -mt/-mb negative margins
-                                        pull the extra height back out of the visual layout so the
-                                        chord chart doesn't visibly grow — the real box overlaps
-                                        into the row above/below instead of pushing them apart. */}
-                                    <button
-                                      type="button"
-                                      className={`
-                                        relative inline-flex items-center justify-center
-                                        min-h-[44px] min-w-[1ch] -mt-[14px] -mb-[12px] px-0.5
-                                        text-xs font-bold whitespace-pre transition-all duration-100
-                                        cursor-pointer select-none
-                                        ${isActive
-                                          ? 'text-primary bg-primary/15 rounded scale-105'
-                                          : 'text-primary/70 hover:text-primary'
-                                        }
-                                      `}
-                                      onMouseEnter={() => setOpenTooltipIdx(token.globalIndex)}
-                                      onClick={() => {
-                                        const parsed = parseChordString(token.chord);
-                                        if (parsed[0]) {
-                                          analytics.playChordPreview(song.slug, token.chord, 'chart');
-                                          playChordPreview(parsed[0]);
-                                        }
-                                      }}
-                                    >
-                                      {token.chord}
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent
-                                    side="top"
-                                    sideOffset={10}
-                                    collisionPadding={16}
-                                    className="p-0 border-none shadow-none bg-transparent overflow-visible w-auto"
-                                  >
-                                    <ChordTooltip chord={token.chord} />
-                                  </PopoverContent>
-                                </Popover>
-                              ) : (
-                                <span className="invisible select-none inline-flex items-center h-[18px] text-xs font-bold whitespace-pre px-0.5" style={{ minWidth: '0' }}>.</span>
-                              )}
-
-                              {/* Duration dots — only while playing */}
-                              {hasChord && isPlaying && <DurationDots duration={token.duration} isActive={isActive} bpm={bpm} uid={token.globalIndex} rawIndex={currentChordIndex} className="mt-0.5" />}
-
-                              {/* Lyrics row */}
-                              {!isChordOnlyLine && (
-                                <span
-                                  className={`
-                                    text-sm leading-relaxed whitespace-pre-wrap break-words transition-colors duration-100
-                                    ${isActive
-                                      ? 'text-foreground font-medium'
-                                      : 'text-muted-foreground'
-                                    }
-                                  `}
-                                >
-                                  {token.lyrics || (hasChord ? ' ' : '')}
-                                </span>
-                              )}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
-          );
-        })}
+          </>
+        )}
+
+        {!inline && density === 'chords' ? (
+          <SongChordsOnlyChart
+            rows={chordOnlyRows}
+            activeSectionIndex={activeSectionIndex}
+            activeGlobal={activeGlobal}
+            isPlaying={isPlaying}
+            isLoading={isLoading}
+            loopTargetIndex={loopTarget}
+            onPlaySection={handlePlaySection}
+            onToggleLoop={handleToggleLoop}
+            isSectionPlaying={(si) => isPlaying && playingSection === si}
+            songSlug={song.slug}
+          />
+        ) : (
+          <div className={!inline ? 'lg:columns-2 lg:gap-10' : ''}>
+            {displayedSections.map((section, si) => {
+              const repeatOfIdx = sectionIsRepeatOf[si];
+              return (
+                <SongSectionChart
+                  key={si}
+                  section={section}
+                  repeatCount={song.sections[si]?.repeatCount ?? 1}
+                  isActiveSection={activeSectionIndex === si}
+                  isSectionPlaying={isPlaying && playingSection === si}
+                  isSectionPlayable={sectionChordCounts[si] > 0}
+                  isSectionLoopArmed={loopTarget === si}
+                  collapsed={collapsedSections.has(si)}
+                  onToggleCollapse={() => toggleSection(si)}
+                  onPlaySection={() => handlePlaySection(si)}
+                  onToggleLoop={() => handleToggleLoop(si)}
+                  isLoading={isLoading}
+                  isPlaying={isPlaying}
+                  activeGlobal={activeGlobal}
+                  currentChordIndex={currentChordIndex}
+                  bpm={bpm}
+                  songSlug={song.slug}
+                  compact={!inline && density === 'compact'}
+                  chordRefs={chordRefs}
+                  openTooltipIdx={openTooltipIdx}
+                  onOpenTooltip={setOpenTooltipIdx}
+                  repeatOfName={!inline && repeatOfIdx !== null ? song.sections[repeatOfIdx]?.name ?? null : null}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

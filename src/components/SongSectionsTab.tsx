@@ -21,8 +21,10 @@ interface SongSectionsTabProps {
   // previous had a chance to actually stop anything), audible as several sections playing at
   // once. Same guard already used by the chord chart's own per-section play button.
   isLoading: boolean;
-  isLoopingSection: boolean;
-  onToggleLoop: () => void;
+  // Which section is armed to loop, if any — a song.sections index that is meaningful even
+  // when nothing is playing, which is why the ⟳ on each card is never disabled.
+  loopTargetIndex: number | null;
+  onToggleLoop: (si?: number) => void;
   // For the active card's progress ring — whether the currently scheduled Section[] is a
   // solo-played single section (playbackPosition already 0-based within it) or the full song
   // (playbackPosition is global, needs localizing by spanStart) — see SongChordPlayer.tsx.
@@ -65,7 +67,7 @@ export function SongSectionsTab({
   queuedSectionIndex,
   isPlaying,
   isLoading,
-  isLoopingSection,
+  loopTargetIndex,
   onToggleLoop,
   isSoloSection,
   activeSectionSpanStart,
@@ -90,10 +92,15 @@ export function SongSectionsTab({
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-2.5">
+      {/* Cards are capped at a fixed width (auto-fill, not stretch-to-fill) so they stay the
+          same compact size at every viewport — a 2-col phone-width grid otherwise stretches
+          into oversized squares on a wide desktop panel. More columns simply appear as space
+          allows; PAGE_SIZE (4) still caps how many render per page regardless of width. */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,160px))] gap-2.5">
         {pageMarkers.map(m => {
           const isActive = m.sectionIndex === activeSectionIndex;
           const isQueued = m.sectionIndex === queuedSectionIndex;
+          const isLooping = m.sectionIndex === loopTargetIndex;
           return (
             // A plain div (not a button) wraps two SIBLING buttons — the full-card "jump to
             // section" button and the small Loop button — rather than nesting one button
@@ -131,19 +138,21 @@ export function SongSectionsTab({
                 </span>
               </button>
 
-              {isActive && (
-                <button
-                  type="button"
-                  onClick={() => onToggleLoop()}
-                  disabled={!isPlaying}
-                  title={isLoopingSection ? 'Stop looping this section' : 'Loop this section'}
-                  className={`absolute top-3 right-3 w-[26px] h-[26px] flex items-center justify-center rounded-full shadow-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed
-                    ${isLoopingSection ? 'bg-primary text-primary-foreground' : 'bg-card/80 text-muted-foreground hover:text-foreground'}
-                  `}
-                >
-                  <Repeat className="w-3 h-3" />
-                </button>
-              )}
+              {/* On EVERY card, not just the active one, and never disabled: arming the
+                  chorus while the song is stopped and then pressing Play is the whole point
+                  (see loopTarget in SongChordPlayer.tsx). 30px so it clears the card's own
+                  tap target without becoming the thing your thumb hits by accident. */}
+              <button
+                type="button"
+                onClick={() => onToggleLoop(m.sectionIndex)}
+                aria-pressed={isLooping}
+                title={isLooping ? `Stop looping ${m.name}` : `Loop ${m.name}`}
+                className={`absolute top-2.5 right-2.5 w-[30px] h-[30px] flex items-center justify-center rounded-full shadow-sm transition-colors
+                  ${isLooping ? 'bg-primary text-primary-foreground' : 'bg-card/80 text-muted-foreground hover:text-foreground'}
+                `}
+              >
+                <Repeat className="w-3.5 h-3.5" />
+              </button>
             </div>
           );
         })}

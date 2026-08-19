@@ -68,14 +68,30 @@ export const analytics = {
   playSongSection: (songSlug: string, sectionName: string) => track('play_song_section', { song_slug: songSlug, section_name: sectionName }),
   playChordPreview: (songSlug: string, chord: string, entryPoint: 'chart' | 'aside') => track('play_chord_preview', { song_slug: songSlug, chord, entry_point: entryPoint }),
   songPdfExported: (songSlug: string) => track('song_pdf_exported', { song_slug: songSlug }),
+  // Songs — practice controls. These separate "played the song" from "sat down to work on
+  // it": looping a section, muting an instrument to play its part, or slowing the tempo are
+  // the behaviours that distinguish a practice session from a listen, and they're the ones
+  // the desktop rail exists to enable (they were unreachable above `sm` before it).
+  songLoopToggled: (songSlug: string, sectionName: string, enabled: boolean) =>
+    track('song_loop_toggled', { song_slug: songSlug, section_name: sectionName, enabled }),
+  songMixerChanged: (songSlug: string, channel: string, action: 'mute' | 'solo' | 'volume') =>
+    track('song_mixer_changed', { song_slug: songSlug, channel, action }),
+  songMetronomeToggled: (songSlug: string, enabled: boolean) =>
+    track('song_metronome_toggled', { song_slug: songSlug, enabled }),
+  // Which of the three chart densities (Lyrics+chords / Compact / Chords only) someone reaches
+  // for — the signal that tells us whether the chords-only view (never offered before) is
+  // actually used, versus being a mockup idea nobody touches.
+  songDensityChanged: (songSlug: string, density: 'full' | 'compact' | 'chords') =>
+    track('song_density_changed', { song_slug: songSlug, density }),
   // Song page → editor. This is the SEO-traffic-to-product conversion: the visitor
   // arrived to read a chart and leaves with it loaded in the editor. Fires on an <a>
   // that navigates away — gtag sends via navigator.sendBeacon, which survives unload.
-  // `entry_point` separates the three entry points, which are not comparable: 'player_bar'
-  // is a small link in the transport row, 'cta_block' is the panel under the chart,
-  // 'practice_tools' is a card two thirds down the page. The two Astro-rendered ones
-  // fire the same event from an inline script in songs/[slug].astro, not from here.
-  songEditorOpened: (songSlug: string, entryPoint: 'player_bar' | 'cta_block' | 'practice_tools') =>
+  // `entry_point` separates the entry points, which are not comparable: 'player_bar' is the
+  // inline preview's small transport link, 'practice_panel' is the Export row inside the
+  // on-demand Practice panel, 'cta_block' is the panel under the chart, 'practice_tools' is a
+  // card two thirds down the page. The two Astro-rendered ones fire the same event from an
+  // inline script in songs/[slug].astro, not from here.
+  songEditorOpened: (songSlug: string, entryPoint: 'player_bar' | 'practice_panel' | 'cta_block' | 'practice_tools') =>
     track('song_editor_opened', { song_slug: songSlug, entry_point: entryPoint }),
 
   // Editor

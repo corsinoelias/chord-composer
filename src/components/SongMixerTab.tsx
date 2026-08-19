@@ -12,6 +12,10 @@ interface SongMixerTabProps {
   onVocalMutedChange: (muted: boolean) => void;
   onVocalVolumeChange: (volume: number) => void;
   vocalForcedMuted: boolean;
+  // Sized for the desktop rail (a ~276px content box) instead of a phone panel: channels
+  // share the width evenly rather than each claiming a fixed 54px, and the faders lose a
+  // little travel. Same controls, same order — only the geometry differs.
+  compact?: boolean;
 }
 
 // Short mixer-console labels — local to this component only. INSTRUMENTS[].name in
@@ -67,18 +71,21 @@ export function SongMixerTab({
   onVocalMutedChange,
   onVocalVolumeChange,
   vocalForcedMuted,
+  compact = false,
 }: SongMixerTabProps) {
+  const channelClass = compact ? 'flex-1 min-w-0' : 'w-[54px] shrink-0';
+  const faderHeight = compact ? 92 : 130;
   const updateInstrument = (id: InstrumentType, updates: Partial<InstrumentState>) =>
     onInstrumentsChange(instruments.map(inst => (inst.id === id ? { ...inst, ...updates } : inst)));
 
   return (
-    <div className="flex justify-between gap-2">
+    <div className={`flex justify-between ${compact ? 'gap-1' : 'gap-2'}`}>
       {CHANNEL_ORDER.map(id => {
         const inst = instruments.find(i => i.id === id);
         if (!inst) return null;
         const Icon = CHANNEL_ICON[id];
         return (
-          <div key={id} className="flex flex-col items-center gap-2.5 w-[54px] shrink-0">
+          <div key={id} className={`flex flex-col items-center gap-2.5 ${channelClass}`}>
             <div className="flex items-center gap-1 text-muted-foreground">
               <Icon className="w-3 h-3" />
               <span className="text-[10px] font-bold uppercase tracking-wide">{CHANNEL_LABEL[id]}</span>
@@ -87,6 +94,7 @@ export function SongMixerTab({
               value={inst.volume}
               onChange={(v) => updateInstrument(id, { volume: v })}
               disabled={inst.muted}
+              heightPx={faderHeight}
               label={`${CHANNEL_LABEL[id]} volume`}
             />
             <div className="flex flex-col gap-1.5">
@@ -112,7 +120,7 @@ export function SongMixerTab({
       })}
 
       {hasVocalTrack && (
-        <div className="flex flex-col items-center gap-2.5 w-[54px] shrink-0">
+        <div className={`flex flex-col items-center gap-2.5 ${channelClass}`}>
           <div className="flex items-center gap-1 text-muted-foreground">
             <Mic className="w-3 h-3" />
             <span className="text-[10px] font-bold uppercase tracking-wide">Vocals</span>
@@ -121,6 +129,7 @@ export function SongMixerTab({
             value={vocalVolume}
             onChange={onVocalVolumeChange}
             disabled={vocalMuted || vocalForcedMuted}
+            heightPx={faderHeight}
             label="Vocals volume"
           />
           <div className="flex flex-col items-center gap-1.5">

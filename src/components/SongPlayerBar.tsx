@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { Play, Square, Download, ExternalLink, Loader2, SkipBack, SkipForward, Repeat, ChevronUp } from 'lucide-react';
+import { Play, Square, Download, ExternalLink, Loader2, ChevronUp } from 'lucide-react';
 import type { Song } from '@/data/songs';
 import { analytics } from '@/lib/analytics';
 import { usePlayback, usePlaybackPosition } from '@/contexts/PlaybackContext';
@@ -35,12 +35,10 @@ interface SongPlayerBarProps {
   // handleSectionCardTap in SongChordPlayer.tsx).
   onPanelSectionTap?: (si: number) => void;
   queuedSectionIndex?: number | null;
-  canGoPrevSection?: boolean;
-  canGoNextSection?: boolean;
-  onPrevSection?: () => void;
-  onNextSection?: () => void;
-  isLoopingSection?: boolean;
-  onToggleLoop?: () => void;
+  // The section armed to loop, if any — meaningful with playback stopped, which is what lets
+  // the sections panel mark the right card before anything has been played.
+  loopTargetIndex?: number | null;
+  onToggleLoop?: (si?: number) => void;
   onPlayPause: () => void;
   onBpmChange: (bpm: number) => void;
   onTransposeChange: (t: number) => void;
@@ -59,6 +57,8 @@ interface SongPlayerBarProps {
   activeSectionSpanLength: number;
   instruments: InstrumentState[];
   onInstrumentsChange: (next: InstrumentState[]) => void;
+  metronome: boolean;
+  onMetronomeChange: (enabled: boolean) => void;
   hasVocalTrack: boolean;
   vocalMuted: boolean;
   vocalVolume: number;
@@ -158,11 +158,7 @@ export function SongPlayerBar({
   onSeekSection,
   onPanelSectionTap,
   queuedSectionIndex = null,
-  canGoPrevSection = false,
-  canGoNextSection = false,
-  onPrevSection,
-  onNextSection,
-  isLoopingSection = false,
+  loopTargetIndex = null,
   onToggleLoop,
   onPlayPause,
   onBpmChange,
@@ -179,6 +175,8 @@ export function SongPlayerBar({
   activeSectionSpanLength,
   instruments,
   onInstrumentsChange,
+  metronome,
+  onMetronomeChange,
   hasVocalTrack,
   vocalMuted,
   vocalVolume,
@@ -209,8 +207,8 @@ export function SongPlayerBar({
             queuedSectionIndex={queuedSectionIndex}
             isLoading={isLoading}
             isPlaying={isPlaying}
-            isLoopingSection={isLoopingSection}
-            onToggleLoop={() => onToggleLoop?.()}
+            loopTargetIndex={loopTargetIndex}
+            onToggleLoop={(si) => onToggleLoop?.(si)}
             isSoloSection={isSoloSection}
             activeSectionSpanStart={activeSectionSpanStart}
             activeSectionSpanLength={activeSectionSpanLength}
@@ -228,6 +226,8 @@ export function SongPlayerBar({
             transpose={transpose}
             onTransposeChange={onTransposeChange}
             displayKey={displayKey}
+            metronome={metronome}
+            onMetronomeChange={onMetronomeChange}
           />
         </div>
       )}
@@ -246,7 +246,7 @@ export function SongPlayerBar({
             container as the controls row below, so "Intro" and "Center"/"Editor" line up at the
             same left/right edges instead of the timeline running flush to the viewport edge while
             everything under it is inset — that mismatch is what read as disjointed on desktop. */}
-        <div className="max-w-5xl mx-auto px-4 pt-1.5 pb-1">
+        <div className="max-w-6xl mx-auto px-4 pt-1.5 pb-1">
           {sectionMarkers.length > 1 && (
             <div ref={timelineRef} className="relative h-4 select-none">
               {markers.map(m => (
@@ -294,7 +294,7 @@ export function SongPlayerBar({
           </div>
         </div>
 
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3 sm:gap-4">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 sm:gap-4">
 
           {/* Song info — the whole cluster is the mobile expand/collapse tap target (chevron
               rotates to indicate state), mirroring how a mini-player expands into a full
@@ -329,8 +329,9 @@ export function SongPlayerBar({
             )}
           </button>
 
-          {/* BPM — hidden on mobile */}
-          <div className="hidden sm:flex items-center gap-1 shrink-0">
+          {/* BPM — `sm` up to `lg` only, same reasoning as Transpose below: above `lg` the
+              rail carries BPM (plus reset and speed presets) permanently. */}
+          <div className="hidden sm:flex lg:hidden items-center gap-1 shrink-0">
             <button
               onClick={() => onBpmChange(Math.max(50, bpm - 4))}
               className="w-6 h-6 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 text-xs font-bold transition-colors"
@@ -342,73 +343,16 @@ export function SongPlayerBar({
             >+</button>
           </div>
 
-          {/* Section transport: prev / play / next / loop, grouped as one module — desktop
-              only. On mobile this is fully superseded by the Sections panel above (tap a
-              card to jump, tap its Loop button to repeat it), so showing this pill too would
-              just be a second, redundant way to do the same thing. */}
-          <div className="hidden sm:flex items-center gap-0.5 shrink-0 rounded-full bg-muted/50 p-1">
-            <button
-              onClick={onPrevSection}
-              disabled={!isPlaying || !canGoPrevSection}
-              title="Previous section"
-              className="w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/70 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <SkipBack className="w-3.5 h-3.5" />
-            </button>
-
-            <button
-              onClick={onPlayPause}
-              disabled={isLoading}
-              className={`
-                inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold
-                transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
-                disabled:opacity-50 disabled:cursor-not-allowed
-                ${isPlaying
-                  ? 'bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                }
-              `}
-            >
-              {isLoading
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : isPlaying
-                  ? <><Square className="w-3.5 h-3.5 fill-current" /> Stop</>
-                  : <><Play className="w-3.5 h-3.5 fill-current" /> Play chords</>
-              }
-            </button>
-
-            <button
-              onClick={onNextSection}
-              disabled={!isPlaying || !canGoNextSection}
-              title="Next section"
-              className="w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/70 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <SkipForward className="w-3.5 h-3.5" />
-            </button>
-
-            <button
-              onClick={onToggleLoop}
-              disabled={!isPlaying}
-              title={isLoopingSection ? 'Stop looping this section' : 'Loop this section'}
-              className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed
-                ${isLoopingSection
-                  ? 'text-primary bg-primary/15 hover:bg-primary/25'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/70'
-                }
-              `}
-            >
-              <Repeat className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Standalone Play/Stop — mobile only (desktop has it inside the transport pill
-              above). Not gated on `inline` — the inline embed variant still needs a primary
-              play action below `sm`, it just has no expand-panel to fall back on. */}
+          {/* One Play/Stop at every width. The desktop-only prev/next/loop pill that used to
+              sit here is gone: the performance rail lists every section with tap-to-jump and
+              its own loop toggle per row, which is strictly more than prev/next could do, and
+              keeping both meant two competing ways to move around the same song. Below `lg`
+              (no rail) the phone console owns that job, exactly as before. */}
           <button
             onClick={onPlayPause}
             disabled={isLoading}
             className={`
-              sm:hidden inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold shrink-0
+              inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold shrink-0
               transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
               disabled:opacity-50 disabled:cursor-not-allowed
               ${isPlaying
@@ -421,12 +365,14 @@ export function SongPlayerBar({
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : isPlaying
                 ? <><Square className="w-3.5 h-3.5 fill-current" /> Stop</>
-                : <><Play className="w-3.5 h-3.5 fill-current" /> Play</>
+                : <><Play className="w-3.5 h-3.5 fill-current" /> Play<span className="hidden sm:inline">&nbsp;chords</span></>
             }
           </button>
 
-          {/* Transpose — hidden on mobile */}
-          <div className="hidden sm:flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-background shrink-0">
+          {/* Transpose — `sm` up to `lg` only. Above `lg` the rail's own Pitch stepper (with a
+              reset, which this never had) is permanently on screen, so this would be a second
+              control for the same value sitting a few hundred pixels away from it. */}
+          <div className="hidden sm:flex lg:hidden items-center gap-1 border border-border rounded-lg px-2 py-1 bg-background shrink-0">
             <button
               onClick={() => onTransposeChange(Math.max(-6, transpose - 1))}
               disabled={transpose <= -6}

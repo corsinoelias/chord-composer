@@ -21,8 +21,8 @@ interface SongPerformanceConsoleProps {
   queuedSectionIndex: number | null;
   isPlaying: boolean;
   isLoading: boolean;
-  isLoopingSection: boolean;
-  onToggleLoop: () => void;
+  loopTargetIndex: number | null;
+  onToggleLoop: (si?: number) => void;
   isSoloSection: boolean;
   activeSectionSpanStart: number;
   activeSectionSpanLength: number;
@@ -44,6 +44,8 @@ interface SongPerformanceConsoleProps {
   transpose: number;
   onTransposeChange: (t: number) => void;
   displayKey: string;
+  metronome: boolean;
+  onMetronomeChange: (enabled: boolean) => void;
 }
 
 // The mobile performance console's expanding panel — anchored above SongPlayerBar's collapsed
@@ -58,7 +60,7 @@ export function SongPerformanceConsole({
   queuedSectionIndex,
   isPlaying,
   isLoading,
-  isLoopingSection,
+  loopTargetIndex,
   onToggleLoop,
   isSoloSection,
   activeSectionSpanStart,
@@ -77,6 +79,8 @@ export function SongPerformanceConsole({
   transpose,
   onTransposeChange,
   displayKey,
+  metronome,
+  onMetronomeChange,
 }: SongPerformanceConsoleProps) {
   const [mixerOpen, setMixerOpen] = useState(false);
 
@@ -96,7 +100,7 @@ export function SongPerformanceConsole({
               queuedSectionIndex={queuedSectionIndex}
               isPlaying={isPlaying}
               isLoading={isLoading}
-              isLoopingSection={isLoopingSection}
+              loopTargetIndex={loopTargetIndex}
               onToggleLoop={onToggleLoop}
               isSoloSection={isSoloSection}
               activeSectionSpanStart={activeSectionSpanStart}
@@ -142,6 +146,8 @@ export function SongPerformanceConsole({
               transpose={transpose}
               onTransposeChange={onTransposeChange}
               displayKey={displayKey}
+              metronome={metronome}
+              onMetronomeChange={onMetronomeChange}
             />
           </div>
         </div>
