@@ -1,8 +1,8 @@
 // Ported verbatim (formulas unchanged) from the user's Claude Design project
 // "Batería Virtual Interactiva" (drum-synth.js) — layered Web Audio synthesis.
 // Electronic kit is pure synthesis. Acoustic kit plays real sampled sounds
-// (see ACOUSTIC_SAMPLE_PATHS below) and only falls back to synthesis for a
-// piece whose sample hasn't loaded (or been sourced) yet.
+// from /audio/drums/ (see ACOUSTIC_SAMPLE_PATHS below) and only falls back to
+// synthesis for a piece whose sample hasn't loaded (or been sourced) yet.
 
 export type DrumPieceId =
   | 'kick' | 'snare' | 'stick'
@@ -13,12 +13,13 @@ export type DrumPieceId =
 
 export type DrumKitId = 'acoustic' | 'electronic'
 
-// Real sampled sounds for the Acoustic kit — the same /audio/*.mp3 files the
-// Chord Player's drum engine (src/lib/audioEngine.ts) already uses, loaded
-// independently here since that module's sample cache is tied to its own
-// playback scheduling. Any path that 404s (e.g. the zone-specific crash/ride
-// files, sourced separately) just leaves that key unset — the synthesized
-// ac* function below is used for that piece until the file shows up.
+// Real sampled sounds for the Acoustic kit — the same /audio/drums/*.mp3
+// files the Chord Player's drum engine (src/lib/audioEngine.ts) already
+// uses, loaded independently here since that module's sample cache is tied
+// to its own playback scheduling. Any path that 404s (e.g. a zone-specific
+// crash/ride file, sourced separately) just leaves that key unset — the
+// synthesized ac* function below is used for that piece until the file
+// shows up.
 type AcousticSampleKey =
   | 'kick' | 'snare' | 'stick'
   | 'hhClosed' | 'hhOpen1' | 'hhOpen2' | 'hhOpen3' | 'hhFoot1' | 'hhFoot2'
@@ -27,24 +28,24 @@ type AcousticSampleKey =
   | 'rideEdge' | 'rideBody' | 'rideBell'
 
 const ACOUSTIC_SAMPLE_PATHS: Record<AcousticSampleKey, string> = {
-  kick: '/audio/kick.mp3',
-  snare: '/audio/snare-drum.mp3',
-  stick: '/audio/snare-stick.mp3',
-  hhClosed: '/audio/hihat.mp3',
-  hhOpen1: '/audio/hihat-open.mp3',
-  hhOpen2: '/audio/hihat-open-2.mp3',
-  hhOpen3: '/audio/hihat-open-3.mp3',
-  hhFoot1: '/audio/hihat-foot.mp3',
-  hhFoot2: '/audio/hihat-foot-2.mp3',
-  tomHi: '/audio/tom1.mp3',
-  tomLo: '/audio/tom2.mp3',
-  tomFloor: '/audio/floor-tom.mp3',
-  crashEdge: '/audio/crash.mp3',
-  crashBody: '/audio/crash-body.mp3',
-  crashBell: '/audio/crash-bell.mp3',
-  rideEdge: '/audio/ride-edge.mp3',
-  rideBody: '/audio/ride.mp3',
-  rideBell: '/audio/ride-bell.mp3',
+  kick: '/audio/drums/kick.mp3',
+  snare: '/audio/drums/snare-drum.mp3',
+  stick: '/audio/drums/snare-stick.mp3',
+  hhClosed: '/audio/drums/hihat.mp3',
+  hhOpen1: '/audio/drums/hihat-open.mp3',
+  hhOpen2: '/audio/drums/hihat-open-2.mp3',
+  hhOpen3: '/audio/drums/hihat-open-3.mp3',
+  hhFoot1: '/audio/drums/hihat-foot.mp3',
+  hhFoot2: '/audio/drums/hihat-foot-2.mp3',
+  tomHi: '/audio/drums/tom1.mp3',
+  tomLo: '/audio/drums/tom2.mp3',
+  tomFloor: '/audio/drums/floor-tom.mp3',
+  crashEdge: '/audio/drums/crash.mp3',
+  crashBody: '/audio/drums/crash-body.mp3',
+  crashBell: '/audio/drums/crash-bell.mp3',
+  rideEdge: '/audio/drums/ride-edge.mp3',
+  rideBody: '/audio/drums/ride.mp3',
+  rideBell: '/audio/drums/ride-bell.mp3',
 }
 
 export interface DrumEngine {
