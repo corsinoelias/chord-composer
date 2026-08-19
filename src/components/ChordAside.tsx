@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
+import { Play } from 'lucide-react';
 import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
+import { getUkuleleVoicing } from '@/data/ukuleleChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
+import { InstrumentViewSelector } from '@/components/InstrumentViewSelector';
+import { useSyncedChordView } from '@/hooks/useSyncedChordView';
 import { playChordPreview } from '@/lib/audioEngine';
 import { analytics } from '@/lib/analytics';
 
@@ -40,10 +44,8 @@ interface Props {
   songSlug: string;
 }
 
-type View = 'piano' | 'guitar';
-
 export default function ChordAside({ chords, songKey, songSlug }: Props) {
-  const [view, setView] = useState<View>('guitar');
+  const [view, setView] = useSyncedChordView('guitar');
   const [semitones, setSemitones] = useState(0);
 
   useEffect(() => {
@@ -65,8 +67,9 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
       const parsed = parseChordString(chord);
       const chordObj = parsed[0] ?? null;
       const notes = chordObj ? getChordNotes(chordObj) : [];
-      const voicing = chordObj ? getGuitarVoicing(chordObj) : null;
-      return { chord, chordObj, notes, voicing };
+      const guitarVoicing = chordObj ? getGuitarVoicing(chordObj) : null;
+      const ukuleleVoicing = chordObj ? getUkuleleVoicing(chordObj) : null;
+      return { chord, chordObj, notes, guitarVoicing, ukuleleVoicing };
     })
     .filter(item => item.chordObj && item.notes.length > 0);
 
@@ -81,28 +84,15 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
         <span className="text-xs text-muted-foreground/50 font-mono tabular-nums">
           {items.length}
         </span>
-        <div className="flex rounded-md border border-border overflow-hidden shrink-0 ml-auto">
-          {(['guitar', 'piano'] as View[]).map(v => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`text-[10px] font-semibold px-2 py-1 capitalize transition-colors
-                ${view === v
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
+        <InstrumentViewSelector value={view} onChange={setView} className="ml-auto" />
       </div>
 
       {/* ── Chord strip — always visible, horizontal scroll, one tap per chord to hear it.
-          Diagrams stay small and chrome-free (no per-chord card/border) so the whole row
-          reads as a strip you scan, not a list you have to open first. ── */}
+          Diagrams stay chrome-free at rest; on hover, the diagram itself "pops" into an
+          elevated card with a play-button overlay (mirrors the reference chord-chart hover
+          pattern) so the strip signals "click me to hear this" without extra copy. ── */}
       <div className="flex gap-5 overflow-x-auto px-4 py-4">
-        {items.map(({ chord, chordObj, notes, voicing }) => (
+        {items.map(({ chord, chordObj, notes, guitarVoicing, ukuleleVoicing }) => (
           <button
             key={chord}
             type="button"
@@ -112,20 +102,38 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
               playChordPreview(chordObj);
             }}
             title={`Play ${chord}`}
-            className="flex flex-col items-center gap-1.5 shrink-0 group"
+            className="group relative flex flex-col items-center gap-1.5 shrink-0 hover:z-10"
           >
             <span className="text-sm font-bold text-primary group-hover:text-primary/80 transition-colors">
               {chord}
             </span>
-            {view === 'piano' ? (
-              <PianoKeyboard activeNotes={notes} className="w-36" />
-            ) : voicing ? (
-              <GuitarChordDiagram voicing={voicing} className="w-20" />
-            ) : (
-              <span className="w-20 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
-                No voicing
-              </span>
-            )}
+            <div className="relative rounded-xl p-2 -m-2 transition-all duration-150 group-hover:bg-card group-hover:shadow-lg group-hover:shadow-black/10 group-hover:ring-1 group-hover:ring-border group-hover:-translate-y-0.5">
+              {view === 'piano' ? (
+                <PianoKeyboard activeNotes={notes} className="w-36" />
+              ) : view === 'ukulele' ? (
+                ukuleleVoicing ? (
+                  <GuitarChordDiagram voicing={ukuleleVoicing} className="w-16" />
+                ) : (
+                  <span className="w-16 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
+                    No voicing
+                  </span>
+                )
+              ) : guitarVoicing ? (
+                <GuitarChordDiagram voicing={guitarVoicing} className="w-20" />
+              ) : (
+                <span className="w-20 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
+                  No voicing
+                </span>
+              )}
+              {/* Play overlay — only makes sense once there's something to actually hear */}
+              {chordObj && (
+                <div className="absolute inset-2 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-opacity bg-background/45 backdrop-blur-[1px] pointer-events-none">
+                  <span className="flex items-center justify-center w-9 h-9 rounded-full bg-foreground/85 text-background shadow-md">
+                    <Play className="w-4 h-4 ml-0.5 fill-current" />
+                  </span>
+                </div>
+              )}
+            </div>
           </button>
         ))}
       </div>

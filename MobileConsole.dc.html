@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: hsl(262 83% 52%); text-decoration: none; }
+    a:hover { color: hsl(262 83% 42%); }
+    .rt {
+      --bg: hsl(220 20% 97%);
+      --fg: hsl(220 20% 10%);
+      --card: hsl(0 0% 100%);
+      --primary: hsl(262 83% 52%);
+      --primary-fg: hsl(0 0% 100%);
+      --secondary: hsl(220 14% 92%);
+      --muted-fg: hsl(220 10% 42%);
+      --border: hsl(220 13% 87%);
+      --destructive: hsl(0 72% 51%);
+      --tint: hsl(262 83% 52% / 0.06);
+      --tint-strong: hsl(262 83% 52% / 0.12);
+    }
+  </style>
+</helmet>
+
+<div class="rt" style="width: 390px; height: 844px; position: relative; overflow: hidden; background: var(--bg); color: var(--fg); font-family: 'Inter', system-ui, sans-serif; font-size: 14px;">
+
+  <!-- chart still visible above the console -->
+  <div style="padding: 14px 16px 0;">
+    <div style="font-size: 19px; font-weight: 700; letter-spacing: -0.015em;">Holy Forever Chords</div>
+    <div style="font-size: 12px; color: var(--muted-fg); margin-top: 2px; margin-bottom: 14px;">Chris Tomlin · Key of C · Capo 1</div>
+    <div style="border: 1px solid hsl(262 83% 52% / 0.4); border-radius: 12px; background: var(--tint);">
+      <div style="display: flex; align-items: center; gap: 7px; padding: 9px 14px;">
+        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--primary);">Chorus</span>
+        <span style="font-size: 10px; font-weight: 700; color: hsl(262 83% 52% / 0.8); background: var(--tint-strong); border: 1px solid hsl(262 83% 52% / 0.2); border-radius: 999px; padding: 1px 6px;">×2</span>
+        <div style="flex-grow: 1;"></div>
+        <div style="width: 30px; height: 30px; border-radius: 8px; background: var(--tint-strong); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 14px 18px;">
+        <div style="display: flex; align-items: flex-end; flex-wrap: wrap;">
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">F</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">Holy for</span></div>
+          <div style="display: flex; flex-direction: column;">
+            <span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: var(--primary); background: var(--tint-strong); border-radius: 4px; padding: 1px 3px;">C</span>
+            <span style="font-size: 14px; color: var(--fg); font-weight: 500; line-height: 1.6; white-space: pre;">ever</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-end; flex-wrap: wrap;">
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">Am</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">And all I say is </span></div>
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">G</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">holy</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- console open, anchored above the bar -->
+  <div style="position: absolute; left: 12px; right: 12px; bottom: 12px;">
+
+    <div style="border: 1px solid var(--border); border-bottom: none; border-radius: 26px 26px 0 0; background: var(--card); box-shadow: 0 -8px 28px hsl(220 20% 10% / 0.12); padding: 16px 16px 12px;">
+
+      <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted-fg);">Sections</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px;">
+        <sc-for list="{{sections}}" as="s" hint-placeholder-count="4">
+          <div style="position: relative; height: 78px; border-radius: 16px; border: 1px solid {{s.bd}}; background: {{s.bg}}; padding: 12px 14px; display: flex; flex-direction: column;">
+            <sc-if value="{{s.active}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <svg width="26" height="26" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(220 13% 87%)" stroke-width="3"/>
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(262 83% 52%)" stroke-width="3" stroke-linecap="round" stroke-dasharray="94.2" stroke-dashoffset="58"/>
+                </svg>
+                <div style="width: 26px; height: 26px; border-radius: 999px; background: var(--primary); color: var(--primary-fg); display: flex; align-items: center; justify-content: center;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+                </div>
+              </div>
+            </sc-if>
+            <div style="flex-grow: 1;"></div>
+            <span style="font-size: 15px; font-weight: 800; line-height: 1.15; color: {{s.fg}};">{{s.name}}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 18px;">
+        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted-fg);">Mixer</span>
+        <div style="width: 26px; height: 26px; border-radius: 999px; background: var(--secondary); display: flex; align-items: center; justify-content: center; color: var(--muted-fg);">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform: rotate(180deg);"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; gap: 4px; margin-top: 12px;">
+        <sc-for list="{{channels}}" as="ch" hint-placeholder-count="5">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 54px;">
+            <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-fg);">{{ch.label}}</span>
+            <div style="position: relative; width: 4px; height: 92px; border-radius: 999px; background: var(--secondary);">
+              <div style="position: absolute; left: 0; right: 0; bottom: 0; border-radius: 999px; background: var(--primary); height: {{ch.level}};"></div>
+              <div style="position: absolute; left: 50%; transform: translate(-50%, 50%); bottom: {{ch.level}}; width: 22px; height: 22px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 2px 5px hsl(220 20% 10% / 0.14);"></div>
+            </div>
+            <div style="width: 26px; height: 26px; border-radius: 999px; border: 1px solid {{ch.muteBorder}}; background: {{ch.muteBg}}; color: {{ch.muteFg}}; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;">M</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);">
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-size: 11px; color: var(--muted-fg);">Key</span>
+          <div style="display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px; border: 1px solid var(--border);">
+            <div style="width: 26px; height: 26px; border-radius: 999px; background: var(--secondary); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">−</div>
+            <span style="flex-grow: 1; text-align: center; font-size: 14px; font-weight: 800;">C</span>
+            <div style="width: 26px; height: 26px; border-radius: 999px; background: var(--secondary); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">+</div>
+          </div>
+        </div>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-size: 11px; color: var(--muted-fg);">BPM</span>
+          <div style="display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px; border: 1px solid var(--border);">
+            <div style="width: 26px; height: 26px; border-radius: 999px; background: var(--secondary); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">−</div>
+            <span style="flex-grow: 1; text-align: center; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums;">64</span>
+            <div style="width: 26px; height: 26px; border-radius: 999px; background: var(--secondary); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">+</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); margin-top: 10px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M12 3 5 21h14L12 3Z"/><path d="M6.5 16h11"/><path d="M12 16 17 6"/></svg>
+        <span style="font-size: 13px; font-weight: 600;">Metronome</span>
+        <div style="flex-grow: 1;"></div>
+        <div style="width: 36px; height: 21px; border-radius: 999px; background: var(--primary); position: relative;">
+          <span style="position: absolute; right: 2px; top: 2px; width: 17px; height: 17px; border-radius: 999px; background: #fff;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- bar -->
+    <div style="border: 1px solid var(--border); border-radius: 0 0 26px 26px; background: var(--card); box-shadow: 0 16px 28px hsl(220 20% 10% / 0.16); padding: 10px 14px 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--tint-strong); display: flex; align-items: center; justify-content: center; color: var(--primary);">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <div style="flex-grow: 1; min-width: 0;">
+          <div style="font-size: 13px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Holy Forever</div>
+          <div style="font-size: 12px; font-weight: 500; color: var(--primary);">Chorus · loop</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 18px; border-radius: 999px; background: hsl(0 72% 51% / 0.1); border: 1px solid hsl(0 72% 51% / 0.2); color: var(--destructive); font-size: 13px; font-weight: 600;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+          Stop
+        </div>
+        <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: var(--muted-fg);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform: rotate(180deg);"><path d="m18 15-6-6-6 6"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    const idle = { bg: 'hsl(220 14% 92% / 0.45)', bd: 'hsl(220 13% 87%)', fg: 'var(--fg)', active: false };
+    return {
+      sections: [
+        { name: 'Intro', ...idle },
+        { name: 'Verse 1', ...idle },
+        { name: 'Pre-chorus', ...idle },
+        { name: 'Chorus', bg: 'hsl(262 83% 52% / 0.08)', bd: 'hsl(262 83% 52%)', fg: 'var(--primary)', active: true },
+      ],
+      channels: [
+        { label: 'Bass',  level: '62%', muteBorder: 'var(--border)', muteBg: 'var(--card)', muteFg: 'var(--muted-fg)' },
+        { label: 'Drums', level: '20%', muteBorder: 'var(--destructive)', muteBg: 'hsl(0 72% 51% / 0.15)', muteFg: 'var(--destructive)' },
+        { label: 'Gtr',   level: '74%', muteBorder: 'var(--border)', muteBg: 'var(--card)', muteFg: 'var(--muted-fg)' },
+        { label: 'Keys',  level: '55%', muteBorder: 'var(--border)', muteBg: 'var(--card)', muteFg: 'var(--muted-fg)' },
+        { label: 'Vocal', level: '88%', muteBorder: 'var(--border)', muteBg: 'var(--card)', muteFg: 'var(--muted-fg)' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

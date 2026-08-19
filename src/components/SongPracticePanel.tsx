@@ -43,7 +43,7 @@ interface SongPracticePanelProps {
   onBpmChange: (bpm: number) => void;
   transpose: number;
   onTransposeChange: (t: number) => void;
-  displayKey: string;
+  songKey: string;
   metronome: boolean;
   onMetronomeChange: (enabled: boolean) => void;
 
@@ -96,7 +96,7 @@ export function SongPracticePanel({
   onBpmChange,
   transpose,
   onTransposeChange,
-  displayKey,
+  songKey,
   metronome,
   onMetronomeChange,
   songSlug,
@@ -150,7 +150,7 @@ export function SongPracticePanel({
             onBpmChange={onBpmChange}
             transpose={transpose}
             onTransposeChange={onTransposeChange}
-            displayKey={displayKey}
+            songKey={songKey}
             metronome={metronome}
             onMetronomeChange={onMetronomeChange}
           />

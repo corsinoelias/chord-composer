@@ -32,6 +32,7 @@ import { parseChordString } from '@/lib/chordParser';
 import { decodeEditorSections, editorSectionsToSections } from '@/lib/editorLink';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
+import { getUkuleleVoicing } from '@/data/ukuleleChords';
 import { getSongForViewer, setSongVisibility, saveSongWithSync } from '@/lib/songStorage';
 import { saveForkDraft, loadForkDraft, clearForkDraft, shouldRestoreForkDraft } from '@/lib/forkDraft';
 import { analytics } from '@/lib/analytics';
@@ -52,6 +53,9 @@ import { ShortcutsHelp } from '@/components/ShortcutsHelp';
 import { WaveformVisualizer } from '@/components/WaveformVisualizer';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
+import { DurationDots } from '@/components/DurationDots';
+import { InstrumentViewSelector } from '@/components/InstrumentViewSelector';
+import type { ChordView } from '@/hooks/useSyncedChordView';
 import { MixingConsole } from '@/components/MixingConsole';
 import { AuthModal } from '@/components/AuthModal';
 import { AccountPromptModal } from '@/components/AccountPromptModal';
@@ -1053,6 +1057,11 @@ const Index = ({ songId }: IndexProps) => {
     return sections[0]?.chords[0] ?? null;
   }, [isPlaying, currentPlayingChord, previewChord, sections]);
 
+  // Chord visualizer's instrument view — piano by default here (unlike the song pages'
+  // "Now playing", which defaults to guitar): this is the editor's own local toggle, not
+  // synced with anything else, since no other component on this page shares the choice.
+  const [visualizerView, setVisualizerView] = useState<ChordView>('piano');
+
   const activeNotes = useMemo(
     () => (visualChord ? getChordNotes(visualChord, transposition) : []),
     [visualChord, transposition],
@@ -1065,6 +1074,11 @@ const Index = ({ songId }: IndexProps) => {
 
   const guitarVoicing = useMemo(
     () => (visualChord ? getGuitarVoicing(visualChord, transposition) : null),
+    [visualChord, transposition],
+  );
+
+  const ukuleleVoicing = useMemo(
+    () => (visualChord ? getUkuleleVoicing(visualChord, transposition) : null),
     [visualChord, transposition],
   );
 
@@ -1384,25 +1398,64 @@ const Index = ({ songId }: IndexProps) => {
           }}
         />
 
-        {/* Chord visualizer — always visible when chords exist */}
+        {/* Chord visualizer — always visible when chords exist. Same card language as the
+            song pages' "Now playing" (pulse dot + gradient header, primary accent while
+            live) — was a plain centered label before, now reads as the same component
+            family instead of a one-off. */}
         {hasChords && (
-          <div className="rounded-xl border border-border bg-card/60 px-4 py-4">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-3">
-              {isPlaying ? 'Now playing' : 'Chord preview'}
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-              {guitarVoicing && (
+          <div
+            className={`rounded-2xl border bg-card overflow-hidden transition-colors
+              ${isPlaying ? 'border-primary/30 shadow-sm shadow-primary/10' : 'border-border'}
+            `}
+          >
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-gradient-to-r from-primary/[0.06] to-transparent">
+              <span
+                className={`w-1.5 h-1.5 rounded-full shrink-0 ${isPlaying ? 'bg-primary animate-pulse' : 'bg-muted-foreground/40'}`}
+                aria-hidden="true"
+              />
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`}>
+                {isPlaying ? 'Now playing' : 'Chord preview'}
+              </p>
+              {visualChord && (
+                <span className="text-primary">
+                  <DurationDots
+                    duration={visualChord.duration ?? 4}
+                    isActive={isPlaying}
+                    bpm={bpm}
+                    uid="editor-now-playing"
+                    rawIndex={currentChordIndex}
+                    size={7}
+                  />
+                </span>
+              )}
+              <InstrumentViewSelector value={visualizerView} onChange={setVisualizerView} className="ml-auto" />
+            </div>
+            <div className="flex items-center justify-center px-4 py-4">
+              {visualizerView === 'piano' ? (
+                <PianoKeyboard
+                  activeNotes={activeNotes}
+                  chordName={currentChordDisplayName}
+                  className="w-full max-w-xs sm:max-w-sm"
+                />
+              ) : visualizerView === 'ukulele' ? (
+                ukuleleVoicing ? (
+                  <GuitarChordDiagram
+                    voicing={ukuleleVoicing}
+                    chordName={currentChordDisplayName}
+                    className="w-28 sm:w-32 flex-shrink-0"
+                  />
+                ) : (
+                  <p className="text-xs text-muted-foreground py-2">No ukulele voicing available</p>
+                )
+              ) : guitarVoicing ? (
                 <GuitarChordDiagram
                   voicing={guitarVoicing}
                   chordName={currentChordDisplayName}
                   className="w-28 sm:w-32 flex-shrink-0"
                 />
+              ) : (
+                <p className="text-xs text-muted-foreground py-2">No guitar voicing available</p>
               )}
-              <PianoKeyboard
-                activeNotes={activeNotes}
-                chordName={guitarVoicing ? undefined : currentChordDisplayName}
-                className="w-full max-w-xs sm:max-w-sm"
-              />
             </div>
           </div>
         )}

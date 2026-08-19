@@ -1,0 +1,248 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: hsl(262 83% 52%); text-decoration: none; }
+    a:hover { color: hsl(262 83% 42%); }
+    .rt {
+      --bg: hsl(220 20% 97%); --fg: hsl(220 20% 10%); --card: hsl(0 0% 100%);
+      --primary: hsl(262 83% 52%); --primary-fg: hsl(0 0% 100%);
+      --secondary: hsl(220 14% 92%); --muted-fg: hsl(220 10% 42%);
+      --border: hsl(220 13% 87%); --destructive: hsl(0 72% 51%);
+      --tint: hsl(262 83% 52% / 0.06); --tint2: hsl(262 83% 52% / 0.12);
+    }
+    .mono { font-family: 'Space Mono', monospace; }
+    .chd { font-family: 'Space Mono', monospace; font-size: 11.5px; font-weight: 700; color: hsl(262 83% 52% / 0.75); }
+    .lyr { font-size: 13.5px; line-height: 1.5; white-space: pre; color: var(--muted-fg); }
+    .sechd { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.13em; color: var(--muted-fg); }
+    .icobtn { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; color: var(--muted-fg); }
+  </style>
+</helmet>
+
+<div class="rt" style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: var(--bg); color: var(--fg); font-family: 'Inter', system-ui, sans-serif;">
+
+  <div style="display: flex; align-items: center; gap: 24px; height: 64px; padding: 0 32px; border-bottom: 1px solid var(--border);">
+    <span style="font-weight: 800; font-size: 15px; letter-spacing: -0.01em;">chordsequence</span>
+    <div style="display: flex; gap: 20px; font-size: 13px; color: var(--muted-fg);"><span>Songs</span><span>Tools</span><span>Instruments</span><span>Learn</span></div>
+    <div style="flex-grow: 1;"></div>
+    <div style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 10px; background: var(--primary); color: var(--primary-fg); font-size: 13px; font-weight: 600;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg> Try Chord Player
+    </div>
+  </div>
+
+  <div style="max-width: 1152px; margin: 0 auto; padding: 18px 0 0;">
+
+    <!-- ── one compact head line: identity + transport + how dense you want it ── -->
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div style="width: 52px; height: 52px; border-radius: 11px; border: 1px solid var(--border); background: linear-gradient(135deg, hsl(200 60% 25%), hsl(262 70% 55%)); flex-shrink: 0;"></div>
+      <div style="min-width: 0;">
+        <div style="font-size: 25px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em;">Center</div>
+        <div style="font-size: 13px; color: var(--muted-fg);">Bethel Music &#183; Key of A &#183; 66 BPM &#183; 3:04</div>
+      </div>
+      <div style="flex-grow: 1;"></div>
+
+      <!-- density: the control this page has never had -->
+      <div style="display: flex; padding: 3px; border-radius: 10px; background: var(--secondary);">
+        <sc-for list="{{densities}}" as="d" hint-placeholder-count="3">
+          <div style="padding: 6px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; background: {{d.bg}}; color: {{d.fg}}; box-shadow: {{d.sh}};">{{d.label}}</div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 999px; background: var(--primary); color: var(--primary-fg); font-size: 13.5px; font-weight: 600;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg> Play
+      </div>
+      <div style="display: flex; align-items: center; gap: 7px; height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); font-size: 12.5px; font-weight: 600; color: var(--muted-fg);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="9" cy="8" r="2.5" fill="currentColor"/><circle cx="15" cy="16" r="2.5" fill="currentColor"/></svg>
+        Practice
+      </div>
+    </div>
+
+    <!-- ── STRUCTURE MAP: the whole arrangement in one line. Today you can only infer this
+         by scrolling 4.800px. Click a chip to jump; the ×N is where repeats live. ── -->
+    <div style="display: flex; align-items: center; gap: 6px; margin-top: 16px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); overflow: hidden;">
+      <span style="font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.13em; color: var(--muted-fg); margin-right: 4px;">Structure</span>
+      <sc-for list="{{map}}" as="m" hint-placeholder-count="9">
+        <div style="display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 8px; background: {{m.bg}}; border: 1px solid {{m.bd}};">
+          <span style="font-size: 11.5px; font-weight: 700; color: {{m.fg}};">{{m.name}}</span>
+          <span style="font-size: 9.5px; font-weight: 700; color: {{m.xfg}};">{{m.x}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- ── the songbook: two columns, because the longest lyric line is 445px and the page
+         has been giving each line 780px ── -->
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 34px; margin-top: 18px;">
+
+      <!-- column 1 -->
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border); margin-bottom: 9px;">
+            <span class="sechd">Intro</span>
+            <div style="flex-grow: 1;"></div>
+            <div class="icobtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>
+            <div class="icobtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></div>
+          </div>
+          <div style="display: flex; gap: 20px;">
+            <span class="chd">Aadd9</span><span class="chd">Amaj7</span><span class="chd">Dmaj7</span><span class="chd">F&#35;min7</span><span class="chd">Dmaj7</span>
+          </div>
+        </div>
+
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border); margin-bottom: 9px;">
+            <span class="sechd">Verse 1</span>
+            <span style="font-size: 9.5px; font-weight: 700; color: var(--muted-fg); background: var(--secondary); border-radius: 999px; padding: 1px 6px;">&#215;2</span>
+            <div style="flex-grow: 1;"></div>
+            <div class="icobtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>
+            <div class="icobtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div><div class="chd">A</div><div class="lyr">Maybe we've made this complicated</div></div>
+            <div><div class="chd">Dmaj7</div><div class="lyr">More than it was ever meant to be</div></div>
+            <div><div class="chd">F&#35;m</div><div class="lyr">Hasn't it always been about the same thing</div></div>
+            <div><div class="chd">Dmaj7</div><div class="lyr">Falling at Your feet and worshipping</div></div>
+          </div>
+        </div>
+
+        <!-- ACTIVE -->
+        <div style="margin: 0 -12px; padding: 10px 12px 12px; border-radius: 12px; background: var(--tint); border: 1px solid hsl(262 83% 52% / 0.35);">
+          <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid hsl(262 83% 52% / 0.2); margin-bottom: 9px;">
+            <span class="sechd" style="color: var(--primary);">Chorus 1</span>
+            <span style="font-size: 9.5px; font-weight: 700; color: var(--primary); background: var(--tint2); border-radius: 999px; padding: 1px 6px;">&#215;2</span>
+            <div style="flex-grow: 1;"></div>
+            <div class="icobtn" style="background: var(--primary); color: var(--primary-fg);"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div>
+            <div class="icobtn" style="background: var(--tint2); color: var(--primary);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: flex-end;">
+              <div><div class="chd">D</div><div class="lyr">You, be the </div></div>
+              <div><div class="chd" style="color: var(--primary); background: var(--tint2); border-radius: 4px; padding: 1px 3px;">F&#35;m</div><div class="lyr" style="color: var(--fg); font-weight: 500;">center of </div></div>
+              <div><div class="chd">A</div><div class="lyr">it all </div></div>
+              <div><div class="chd">E</div><div class="lyr">my heart belongs to You</div></div>
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+              <div><div class="chd">F&#35;m</div><div class="lyr">My Savior </div></div>
+              <div><div class="chd">A</div><div class="lyr">all in all </div></div>
+              <div><div class="chd">E</div><div class="lyr">You're the one I hold on </div></div>
+              <div><div class="chd">C&#35;m</div><div class="lyr">to</div></div>
+            </div>
+            <div><div class="lyr">For the beauty of Your </div></div>
+            <div style="display: flex; align-items: flex-end;">
+              <div><div class="chd">D</div><div class="lyr">My soul will live to say Jesus, </div></div>
+              <div><div class="chd">E</div><div class="lyr">I love You</div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- column 2 -->
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border); margin-bottom: 9px;">
+            <span class="sechd">Verse 2</span>
+            <div style="flex-grow: 1;"></div>
+            <div class="icobtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>
+            <div class="icobtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div><div class="chd">A</div><div class="lyr">Teach us to discern the moment</div></div>
+            <div style="display: flex; align-items: flex-end;">
+              <div><div class="chd">Amaj7</div><div class="lyr">When to serve and </div></div>
+              <div><div class="chd">Dmaj7</div><div class="lyr">when to sit here at </div></div>
+              <div><div class="chd">C&#35;min7</div><div class="lyr">Your feet</div></div>
+            </div>
+            <div><div class="chd">F&#35;min7</div><div class="lyr">Keep us awake to what's important</div></div>
+            <div><div class="chd">D</div><div class="lyr">Just like Mary chose the better thing</div></div>
+          </div>
+        </div>
+
+        <!-- a repeat, printed as a reference instead of a second full copy -->
+        <div style="display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px dashed var(--border); border-radius: 10px; background: var(--secondary);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-fg)" stroke-width="2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+          <span style="font-size: 12.5px; color: var(--muted-fg);"><strong style="color: var(--fg);">Chorus 1</strong> again &#215;2</span>
+          <div style="flex-grow: 1;"></div>
+          <span style="font-size: 11px; color: var(--muted-fg);">printed once, above</span>
+        </div>
+
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border); margin-bottom: 9px;">
+            <span class="sechd">Bridge 2</span>
+            <span style="font-size: 9.5px; font-weight: 700; color: var(--muted-fg); background: var(--secondary); border-radius: 999px; padding: 1px 6px;">&#215;2</span>
+            <div style="flex-grow: 1;"></div>
+            <div class="icobtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>
+            <div class="icobtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: flex-end;">
+              <div><div class="chd">A</div><div class="lyr">Oh, how we need You </div></div>
+              <div><div class="chd">E</div><div class="lyr">Lord</div></div>
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+              <div><div class="chd">F&#35;m</div><div class="lyr">You are the air we </div></div>
+              <div><div class="chd">D</div><div class="lyr">breathe</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border); margin-bottom: 9px;">
+            <span class="sechd">Tag</span>
+            <div style="flex-grow: 1;"></div>
+            <div class="icobtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>
+            <div class="icobtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></div>
+          </div>
+          <div style="display: flex; align-items: flex-end;">
+            <div><div class="chd">D</div><div class="lyr">Jesus, </div></div>
+            <div><div class="chd">E</div><div class="lyr">I love You</div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 30px; display: flex; align-items: center; gap: 10px; padding: 0 20px; background: hsl(142 71% 45% / 0.10); border-top: 1px solid hsl(142 71% 45% / 0.25);">
+    <span style="font-size: 11px; font-weight: 700; color: hsl(142 71% 32%);">Whole song: ~1.4 screens</span>
+    <span style="font-size: 11px; color: hsl(142 71% 32%);">&#8212; down from 5.3 (4.800px). Two columns reclaim the ~40% of width the single column was leaving empty; repeats print once.</span>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    const off = { bg: 'var(--secondary)', bd: 'transparent', fg: 'var(--muted-fg)', xfg: 'hsl(220 10% 42% / 0.6)' };
+    const on  = { bg: 'var(--tint2)', bd: 'hsl(262 83% 52% / 0.35)', fg: 'var(--primary)', xfg: 'hsl(262 83% 52% / 0.7)' };
+    return {
+      densities: [
+        { label: 'Lyrics + chords', bg: 'var(--card)', fg: 'var(--fg)', sh: '0 1px 2px hsl(220 20% 10% / 0.08)' },
+        { label: 'Compact', bg: 'transparent', fg: 'var(--muted-fg)', sh: 'none' },
+        { label: 'Chords only', bg: 'transparent', fg: 'var(--muted-fg)', sh: 'none' },
+      ],
+      map: [
+        { name: 'Intro',    x: '',   ...off },
+        { name: 'Verse 1',  x: '×2', ...off },
+        { name: 'Chorus 1', x: '×2', ...on  },
+        { name: 'Verse 2',  x: '',   ...off },
+        { name: 'Chorus 1', x: '',   ...off },
+        { name: 'Bridge 2', x: '×2', ...off },
+        { name: 'Tag',      x: '',   ...off },
+        { name: 'Chorus 1', x: '',   ...off },
+        { name: 'Tag 2',    x: '',   ...off },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

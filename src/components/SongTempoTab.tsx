@@ -1,4 +1,24 @@
+import { useEffect, useState } from 'react';
 import { RotateCcw, Triangle } from 'lucide-react';
+
+// Same small transpose-label helper duplicated across the song-page components (ChordAside.tsx,
+// SongChordPreview.tsx, SongChordPlayer.tsx, SongHeaderActions.tsx) — needed here to label every
+// option in the Pitch dropdown, not just whichever one is currently selected.
+const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLATS  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const FLAT_KEYS = new Set(['F','Bb','Eb','Ab','Db','Gb','Dm','Gm','Cm','Fm','Bbm','Ebm']);
+function noteIndex(n: string) { const i = SHARPS.indexOf(n); return i !== -1 ? i : FLATS.indexOf(n); }
+function transposeKey(key: string, s: number) {
+  const minor = key.endsWith('m') && key.length > 1;
+  const root = minor ? key.slice(0, -1) : key;
+  const i = noteIndex(root); if (i === -1) return key;
+  return (FLAT_KEYS.has(key) ? FLATS : SHARPS)[((i + s) % 12 + 12) % 12] + (minor ? 'm' : '');
+}
+
+const MIN_BPM = 50;
+const MAX_BPM = 200;
+const MIN_TRANSPOSE = -6;
+const MAX_TRANSPOSE = 6;
 
 interface SongTempoTabProps {
   bpm: number;
@@ -6,25 +26,16 @@ interface SongTempoTabProps {
   onBpmChange: (bpm: number) => void;
   transpose: number;
   onTransposeChange: (t: number) => void;
-  displayKey: string;
+  songKey: string;
   metronome: boolean;
   onMetronomeChange: (enabled: boolean) => void;
 }
 
-// Percent-of-original tempo, alongside the absolute BPM stepper — practising a part slowly is
-// the whole reason to loop it, and "90%" is how players think about that, not "65 BPM". The
-// presets round to a whole BPM so the stepper's own value never shows a fraction.
-const SPEED_PRESETS = [0.75, 0.9, 1] as const;
-
-function StepperColumn({ label, value, onReset, resetDisabled, onDecrement, onIncrement, decrementDisabled, incrementDisabled }: {
+function StepperShell({ label, onReset, resetDisabled, children }: {
   label: string;
-  value: string;
   onReset: () => void;
   resetDisabled: boolean;
-  onDecrement: () => void;
-  onIncrement: () => void;
-  decrementDisabled?: boolean;
-  incrementDisabled?: boolean;
+  children: React.ReactNode;
 }) {
   return (
     <div className="flex-1 flex flex-col gap-2">
@@ -41,74 +52,110 @@ function StepperColumn({ label, value, onReset, resetDisabled, onDecrement, onIn
         </button>
       </div>
       <div className="flex items-center justify-between gap-1 rounded-full border border-border bg-card p-1">
-        <button
-          onClick={onDecrement}
-          disabled={decrementDisabled}
-          className="w-[26px] h-[26px] shrink-0 flex items-center justify-center rounded-full bg-secondary/60 text-sm font-bold hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >−</button>
-        <span className="flex-1 text-center text-sm font-extrabold tabular-nums">{value}</span>
-        <button
-          onClick={onIncrement}
-          disabled={incrementDisabled}
-          className="w-[26px] h-[26px] shrink-0 flex items-center justify-center rounded-full bg-secondary/60 text-sm font-bold hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >+</button>
+        {children}
       </div>
     </div>
   );
 }
 
-// One bordered card, two columns (Pitch, BPM) divided by a hairline — matches the reference
-// exactly: label + reset button row, rounded stepper pill below. Reset restores that column's
-// value to the song's original (transpose -> 0, BPM -> the song's own default tempo).
-export function SongTempoTab({ bpm, originalBpm, onBpmChange, transpose, onTransposeChange, displayKey, metronome, onMetronomeChange }: SongTempoTabProps) {
+const stepBtnClass = 'w-[26px] h-[26px] shrink-0 flex items-center justify-center rounded-full bg-secondary/60 text-sm font-bold hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors';
+
+// Typing a BPM was previously impossible — only ±4 nudges — which is slow when you know exactly
+// what tempo you want. A local text buffer lets the field sit empty/mid-edit without forcing an
+// invalid clamp on every keystroke; the real value only commits on blur or Enter.
+function BpmStepper({ bpm, onBpmChange, onReset, resetDisabled }: {
+  bpm: number;
+  onBpmChange: (bpm: number) => void;
+  onReset: () => void;
+  resetDisabled: boolean;
+}) {
+  const [text, setText] = useState(String(bpm));
+  useEffect(() => { setText(String(bpm)); }, [bpm]);
+
+  const commit = () => {
+    const n = parseInt(text, 10);
+    if (Number.isFinite(n)) onBpmChange(Math.min(MAX_BPM, Math.max(MIN_BPM, n)));
+    else setText(String(bpm));
+  };
+
+  return (
+    <StepperShell label="BPM" onReset={onReset} resetDisabled={resetDisabled}>
+      <button type="button" onClick={() => onBpmChange(Math.max(MIN_BPM, bpm - 4))} className={stepBtnClass}>−</button>
+      <input
+        type="number"
+        inputMode="numeric"
+        value={text}
+        min={MIN_BPM}
+        max={MAX_BPM}
+        onChange={e => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') { commit(); (e.target as HTMLInputElement).blur(); } }}
+        className="flex-1 min-w-0 text-center text-sm font-extrabold tabular-nums bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
+      <button type="button" onClick={() => onBpmChange(Math.min(MAX_BPM, bpm + 4))} className={stepBtnClass}>+</button>
+    </StepperShell>
+  );
+}
+
+// Pitch is a discrete set of 13 semitone offsets, not free text — a dropdown listing every key
+// by name (not just the current one) is a more direct way to "pick a key" than clicking ± up to
+// six times to get there, while the ± buttons stay for quick one-semitone nudges.
+function PitchStepper({ transpose, onTransposeChange, onReset, resetDisabled, songKey }: {
+  transpose: number;
+  onTransposeChange: (t: number) => void;
+  onReset: () => void;
+  resetDisabled: boolean;
+  songKey: string;
+}) {
+  return (
+    <StepperShell label="Pitch" onReset={onReset} resetDisabled={resetDisabled}>
+      <button
+        type="button"
+        onClick={() => onTransposeChange(Math.max(MIN_TRANSPOSE, transpose - 1))}
+        disabled={transpose <= MIN_TRANSPOSE}
+        className={stepBtnClass}
+      >−</button>
+      <select
+        value={transpose}
+        onChange={e => onTransposeChange(Number(e.target.value))}
+        className="flex-1 min-w-0 text-center text-sm font-extrabold tabular-nums bg-transparent outline-none cursor-pointer"
+      >
+        {Array.from({ length: MAX_TRANSPOSE - MIN_TRANSPOSE + 1 }, (_, i) => MIN_TRANSPOSE + i).map(s => (
+          <option key={s} value={s} className="text-foreground bg-card">
+            {transposeKey(songKey, s)}{s !== 0 ? ` (${s > 0 ? '+' : ''}${s})` : ''}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={() => onTransposeChange(Math.min(MAX_TRANSPOSE, transpose + 1))}
+        disabled={transpose >= MAX_TRANSPOSE}
+        className={stepBtnClass}
+      >+</button>
+    </StepperShell>
+  );
+}
+
+// One bordered card, two columns (Pitch, BPM) divided by a hairline. Reset restores that
+// column's value to the song's original (transpose -> 0, BPM -> the song's own default tempo).
+export function SongTempoTab({ bpm, originalBpm, onBpmChange, transpose, onTransposeChange, songKey, metronome, onMetronomeChange }: SongTempoTabProps) {
   return (
     <div className="border border-border rounded-2xl bg-secondary/30 px-4 py-3.5">
       <div className="flex">
-        <StepperColumn
-          label="Pitch"
-          value={displayKey}
+        <PitchStepper
+          transpose={transpose}
+          onTransposeChange={onTransposeChange}
           onReset={() => onTransposeChange(0)}
           resetDisabled={transpose === 0}
-          onDecrement={() => onTransposeChange(Math.max(-6, transpose - 1))}
-          onIncrement={() => onTransposeChange(Math.min(6, transpose + 1))}
-          decrementDisabled={transpose <= -6}
-          incrementDisabled={transpose >= 6}
+          songKey={songKey}
         />
         <div className="w-px bg-border mx-4" />
-        <StepperColumn
-          label="BPM"
-          value={String(bpm)}
+        <BpmStepper
+          bpm={bpm}
+          onBpmChange={onBpmChange}
           onReset={() => onBpmChange(originalBpm)}
           resetDisabled={bpm === originalBpm}
-          onDecrement={() => onBpmChange(Math.max(50, bpm - 4))}
-          onIncrement={() => onBpmChange(Math.min(200, bpm + 4))}
         />
-      </div>
-
-      {/* Speed presets — computed against the song's OWN tempo, not the current one, so
-          tapping 75% twice doesn't compound down to 56%. Marked active by exact match on the
-          rounded target, which is also what the ± stepper writes, so nudging BPM by hand
-          simply clears the highlight instead of leaving a lying one. */}
-      <div className="flex gap-1.5 mt-3">
-        {SPEED_PRESETS.map(pct => {
-          const target = Math.round(originalBpm * pct);
-          const active = bpm === target;
-          return (
-            <button
-              key={pct}
-              type="button"
-              onClick={() => onBpmChange(Math.min(200, Math.max(50, target)))}
-              className={`flex-1 h-8 rounded-lg text-xs font-bold transition-colors border
-                ${active
-                  ? 'border-primary/35 bg-primary/15 text-primary'
-                  : 'border-border bg-card text-muted-foreground hover:bg-accent/50'
-                }
-              `}
-            >
-              {Math.round(pct * 100)}%
-            </button>
-          );
-        })}
       </div>
 
       <button

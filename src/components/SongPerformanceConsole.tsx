@@ -43,7 +43,7 @@ interface SongPerformanceConsoleProps {
   onBpmChange: (bpm: number) => void;
   transpose: number;
   onTransposeChange: (t: number) => void;
-  displayKey: string;
+  songKey: string;
   metronome: boolean;
   onMetronomeChange: (enabled: boolean) => void;
 }
@@ -78,7 +78,7 @@ export function SongPerformanceConsole({
   onBpmChange,
   transpose,
   onTransposeChange,
-  displayKey,
+  songKey,
   metronome,
   onMetronomeChange,
 }: SongPerformanceConsoleProps) {
@@ -145,7 +145,7 @@ export function SongPerformanceConsole({
               onBpmChange={onBpmChange}
               transpose={transpose}
               onTransposeChange={onTransposeChange}
-              displayKey={displayKey}
+              songKey={songKey}
               metronome={metronome}
               onMetronomeChange={onMetronomeChange}
             />

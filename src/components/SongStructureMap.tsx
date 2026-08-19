@@ -19,7 +19,7 @@ export function SongStructureMap({ items, activeSectionIndex, queuedSectionIndex
   if (items.length <= 1) return null;
 
   return (
-    <div className="flex items-center gap-1.5 mb-5 px-2.5 py-2 border border-border rounded-xl bg-card overflow-x-auto">
+    <div className="flex items-center gap-1.5 px-2.5 py-2 border border-border rounded-xl bg-card overflow-x-auto min-w-0 flex-1">
       <span className="shrink-0 text-[9.5px] font-bold uppercase tracking-widest text-muted-foreground mr-0.5">
         Structure
       </span>

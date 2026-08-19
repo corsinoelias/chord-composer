@@ -815,7 +815,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
               onBpmChange={setBpm}
               transpose={transpose}
               onTransposeChange={setTranspose}
-              displayKey={displayKey}
+              songKey={song.key}
               metronome={metronome}
               onMetronomeChange={handleMetronomeChange}
               songSlug={song.slug}
@@ -864,14 +864,18 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
       {/* ─ Song chart ─ */}
       <div className={inline ? 'mt-4 px-5 pb-5' : ''}>
         {!inline && (
-          <>
+          /* Structure map + density picker share one row on desktop — stacked, they were two
+             skinny bars each mostly empty next to a handful of section chips / three buttons.
+             The map takes the available width (min-w-0 + flex-1) and scrolls internally if the
+             song has a lot of sections; the density picker stays put on the right. */
+          <div className="flex flex-col lg:flex-row lg:items-center gap-2.5 lg:gap-4 mb-4">
             <SongStructureMap
               items={structureItems}
               activeSectionIndex={activeSectionIndex}
               queuedSectionIndex={queuedSectionIndex}
               onSelect={handleSectionCardTap}
             />
-            <div className="flex items-center justify-end mb-4">
+            <div className="flex items-center justify-end lg:shrink-0 lg:ml-auto">
               <div className="inline-flex p-0.5 rounded-lg bg-secondary/60">
                 {([
                   ['full', 'Lyrics + chords'],
@@ -891,7 +895,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
                 ))}
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {!inline && density === 'chords' ? (

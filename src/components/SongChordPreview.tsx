@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
+import { getUkuleleVoicing } from '@/data/ukuleleChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
+import { InstrumentViewSelector } from '@/components/InstrumentViewSelector';
+import { useSyncedChordView } from '@/hooks/useSyncedChordView';
 import { DurationDots } from '@/components/DurationDots';
 
 // ── Transpose helpers ─────────────────────────────────────────────────────────
@@ -36,12 +39,14 @@ interface Props {
   songKey: string;
 }
 
-// The "what's sounding right now" visualizer — a piano/guitar diagram of the active chord (or
-// the song's first chord before playback starts). Its own island, up near the top of the page
-// (see [slug].astro), separate from ChordAside's "Chords used" list below the chart: burying
-// this under a whole song's worth of chart used to mean scrolling past everything just to see
-// it while playing.
+// The "what's sounding right now" visualizer — a diagram of the active chord (or the song's
+// first chord before playback starts). Its own island, up near the top of the page (see
+// [slug].astro), separate from ChordAside's "Chords used" list below the chart: burying this
+// under a whole song's worth of chart used to mean scrolling past everything just to see it
+// while playing. Shows exactly ONE diagram at a time (view selector, not guitar+piano stacked)
+// so the card stays compact instead of eating a screenful of vertical space.
 export default function SongChordPreview({ chords, songKey }: Props) {
+  const [view, setView] = useSyncedChordView('guitar');
   const [semitones, setSemitones] = useState(0);
   const [activeChord, setActiveChord] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -83,30 +88,59 @@ export default function SongChordPreview({ chords, songKey }: Props) {
     const chordObj = parsed[0] ?? null;
     if (!chordObj) return null;
     const notes = getChordNotes(chordObj);
-    const voicing = getGuitarVoicing(chordObj);
     if (notes.length === 0) return null;
-    return { chord: nowPlayingChord, notes, voicing };
+    const guitarVoicing = getGuitarVoicing(chordObj);
+    const ukuleleVoicing = getUkuleleVoicing(chordObj);
+    return { chord: nowPlayingChord, notes, guitarVoicing, ukuleleVoicing };
   })();
 
   if (!nowPlayingItem) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-primary/5 px-3 py-3">
-      <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-2">
-        {isPlaying ? 'Now playing' : 'Chord preview'}
-      </p>
-      <div className="flex justify-center text-primary mb-3">
-        <DurationDots duration={duration} isActive={isPlaying} bpm={bpm} uid="now-playing" rawIndex={rawIndex} size={9} />
-      </div>
-      <div className="flex flex-col items-center gap-3">
-        {nowPlayingItem.voicing && (
-          <GuitarChordDiagram voicing={nowPlayingItem.voicing} chordName={nowPlayingItem.chord} className="w-24" />
-        )}
-        <PianoKeyboard
-          activeNotes={nowPlayingItem.notes}
-          chordName={nowPlayingItem.voicing ? undefined : nowPlayingItem.chord}
-          className="w-full max-w-[220px]"
+    <div
+      className={`rounded-2xl border bg-card overflow-hidden transition-colors
+        ${isPlaying ? 'border-primary/30 shadow-sm shadow-primary/10' : 'border-border'}
+      `}
+    >
+      {/* ── Header: live status + instrument selector — same selector as ChordAside's
+          "Chords used", kept in sync via useSyncedChordView so switching either updates both. ── */}
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-gradient-to-r from-primary/[0.06] to-transparent">
+        <span
+          className={`w-1.5 h-1.5 rounded-full shrink-0 ${isPlaying ? 'bg-primary animate-pulse' : 'bg-muted-foreground/40'}`}
+          aria-hidden="true"
         />
+        <p className={`text-[10px] font-bold uppercase tracking-widest ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`}>
+          {isPlaying ? 'Now playing' : 'Chord preview'}
+        </p>
+        <InstrumentViewSelector value={view} onChange={setView} className="ml-auto" />
+      </div>
+
+      {/* ── Body: chord identity on the left, diagram front and center on the right ── */}
+      <div className="flex items-center gap-5 px-4 py-4">
+        <div className="flex flex-col items-start gap-1.5 shrink-0">
+          <span className="text-2xl sm:text-3xl font-bold font-mono text-foreground tracking-tight leading-none">
+            {nowPlayingItem.chord}
+          </span>
+          <span className="text-primary">
+            <DurationDots duration={duration} isActive={isPlaying} bpm={bpm} uid="now-playing" rawIndex={rawIndex} size={7} />
+          </span>
+        </div>
+
+        <div className="w-px self-stretch bg-border shrink-0" aria-hidden="true" />
+
+        <div className="flex-1 flex justify-center">
+          {view === 'piano' ? (
+            <PianoKeyboard activeNotes={nowPlayingItem.notes} className="w-full max-w-[220px]" />
+          ) : view === 'ukulele' ? (
+            nowPlayingItem.ukuleleVoicing
+              ? <GuitarChordDiagram voicing={nowPlayingItem.ukuleleVoicing} className="w-20" />
+              : <p className="text-[10px] text-muted-foreground py-2">No ukulele voicing available</p>
+          ) : (
+            nowPlayingItem.guitarVoicing
+              ? <GuitarChordDiagram voicing={nowPlayingItem.guitarVoicing} className="w-24" />
+              : <p className="text-[10px] text-muted-foreground py-2">No guitar voicing available</p>
+          )}
+        </div>
       </div>
     </div>
   );

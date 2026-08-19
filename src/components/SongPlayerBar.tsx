@@ -225,7 +225,7 @@ export function SongPlayerBar({
             onBpmChange={onBpmChange}
             transpose={transpose}
             onTransposeChange={onTransposeChange}
-            displayKey={displayKey}
+            songKey={song.key}
             metronome={metronome}
             onMetronomeChange={onMetronomeChange}
           />

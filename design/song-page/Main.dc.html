@@ -1,0 +1,256 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: hsl(262 83% 52%); text-decoration: none; }
+    a:hover { color: hsl(262 83% 42%); }
+    .rt {
+      --bg: hsl(220 20% 97%); --fg: hsl(220 20% 10%); --card: hsl(0 0% 100%);
+      --primary: hsl(262 83% 52%); --primary-fg: hsl(0 0% 100%);
+      --secondary: hsl(220 14% 92%); --muted-fg: hsl(220 10% 42%);
+      --border: hsl(220 13% 87%); --destructive: hsl(0 72% 51%);
+      --tint: hsl(262 83% 52% / 0.06); --tint2: hsl(262 83% 52% / 0.12);
+    }
+    .rt.dark {
+      --bg: hsl(224 24% 10%); --fg: hsl(220 14% 96%); --card: hsl(224 20% 14%);
+      --primary: hsl(262 83% 65%);
+      --secondary: hsl(224 18% 20%); --muted-fg: hsl(220 10% 55%);
+      --border: hsl(224 15% 22%); --destructive: hsl(0 72% 55%);
+      --tint: hsl(262 83% 65% / 0.10); --tint2: hsl(262 83% 65% / 0.18);
+    }
+    .mono { font-family: 'Space Mono', monospace; }
+    .chd { font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.75); }
+    .lyr { font-size: 14px; line-height: 1.55; white-space: pre; color: var(--muted-fg); }
+    .sechd { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted-fg); }
+    .icobtn { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted-fg); }
+  </style>
+</helmet>
+
+<div class="rt {{themeClass}}" style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: var(--bg); color: var(--fg); font-family: 'Inter', system-ui, sans-serif;">
+
+  <!-- The ONE fixed thing left on the page: the site navbar. -->
+  <div style="display: flex; align-items: center; gap: 24px; height: 64px; padding: 0 32px; border-bottom: 1px solid var(--border); background: var(--bg);">
+    <span style="font-weight: 800; font-size: 15px; letter-spacing: -0.01em;">chordsequence</span>
+    <div style="display: flex; gap: 20px; font-size: 13px; color: var(--muted-fg);">
+      <span>Songs</span><span>Tools</span><span>Instruments</span><span>Learn</span>
+    </div>
+    <div style="flex-grow: 1;"></div>
+    <div style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 10px; background: var(--primary); color: var(--primary-fg); font-size: 13px; font-weight: 600;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+      Try Chord Player
+    </div>
+  </div>
+
+  <div style="max-width: 1152px; margin: 0 auto; padding: 22px 0 0; display: grid; grid-template-columns: minmax(0, 1fr) 296px; gap: 24px; align-items: start;">
+
+    <!-- ── Chart: full 836px reading band, nothing pinned over it ── -->
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+
+      <!-- a card cut off at the top edge: the page is scrolled, the header has scrolled away -->
+      <div style="border: 1px solid var(--border); border-radius: 12px; background: var(--card); padding: 0 16px 18px; margin-top: -34px;">
+        <div style="height: 34px;"></div>
+        <div style="display: flex; align-items: flex-end;">
+          <div><div class="chd">F&#35;min7</div><div class="lyr">Keep us awake to what's important</div></div>
+        </div>
+        <div style="display: flex; align-items: flex-end; margin-top: 10px;">
+          <div style="width: 92px;"></div>
+          <div><div class="chd">D</div><div class="lyr">Just like Mary chose the better thing</div></div>
+        </div>
+      </div>
+
+      <!-- ACTIVE section -->
+      <div style="border: 1px solid hsl(262 83% 52% / 0.4); border-radius: 12px; background: var(--tint);">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 11px 16px;">
+          <span class="sechd" style="color: var(--primary);">Chorus 1</span>
+          <span style="font-size: 10px; font-weight: 700; color: hsl(262 83% 52% / 0.85); background: var(--tint2); border: 1px solid hsl(262 83% 52% / 0.2); border-radius: 999px; padding: 2px 7px;">&#215;2</span>
+          <div style="flex-grow: 1;"></div>
+          <div class="icobtn" style="background: var(--primary); color: var(--primary-fg);">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+          </div>
+          <div class="icobtn" style="background: var(--tint2); color: var(--primary);">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+          </div>
+        </div>
+        <div style="height: 2px; margin: 0 16px 14px; border-radius: 999px; background: hsl(262 83% 52% / 0.15); position: relative;">
+          <div style="position: absolute; inset: 0 62% 0 0; border-radius: 999px; background: var(--primary);"></div>
+        </div>
+        <div style="padding: 0 16px 20px; display: flex; flex-direction: column; gap: 11px;">
+          <div style="display: flex; align-items: flex-end;">
+            <div><div class="chd">D</div><div class="lyr">You, be the </div></div>
+            <div><div class="chd" style="color: var(--primary); background: var(--tint2); border-radius: 4px; padding: 1px 3px;">F&#35;m</div><div class="lyr" style="color: var(--fg); font-weight: 500;">center of </div></div>
+            <div><div class="chd">A</div><div class="lyr">it all </div></div>
+            <div><div class="chd">E</div><div class="lyr">my heart belongs to </div></div>
+            <div><div class="chd">D</div><div class="lyr">You</div></div>
+          </div>
+          <div style="display: flex; align-items: flex-end;">
+            <div style="width: 22px;"></div>
+            <div><div class="chd">F&#35;m</div><div class="lyr">My Savior </div></div>
+            <div><div class="chd">A</div><div class="lyr">all in all </div></div>
+            <div><div class="chd">E</div><div class="lyr">You're the one I hold on </div></div>
+            <div><div class="chd">C&#35;m</div><div class="lyr">to</div></div>
+          </div>
+          <div style="display: flex; align-items: flex-end;">
+            <div><div class="lyr">For the beauty of Your </div></div>
+            <div><div class="chd">F&#35;m</div><div class="lyr">Name</div></div>
+          </div>
+          <div style="display: flex; align-items: flex-end;">
+            <div><div class="lyr">My soul will live to </div></div>
+            <div><div class="chd">D</div><div class="lyr">say Jesus, </div></div>
+            <div><div class="chd">E</div><div class="lyr">I love You</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="border: 1px solid var(--border); border-radius: 12px; background: var(--card);">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 11px 16px;">
+          <span class="sechd">Bridge 2</span>
+          <span style="font-size: 10px; font-weight: 700; color: var(--muted-fg); background: var(--secondary); border-radius: 999px; padding: 2px 7px;">&#215;2</span>
+          <div style="flex-grow: 1;"></div>
+          <div class="icobtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>
+          <div class="icobtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></div>
+        </div>
+        <div style="padding: 0 16px 20px; display: flex; flex-direction: column; gap: 11px;">
+          <div style="display: flex; align-items: flex-end;">
+            <div><div class="chd">A</div><div class="lyr">Oh, how we need You </div></div>
+            <div><div class="chd">E</div><div class="lyr">Lord</div></div>
+          </div>
+          <div style="display: flex; align-items: flex-end;">
+            <div><div class="chd">F&#35;m</div><div class="lyr">You are the air we </div></div>
+            <div><div class="chd">D</div><div class="lyr">breathe</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="border: 1px solid var(--border); border-radius: 12px; background: var(--card); padding: 11px 16px 20px;">
+        <span class="sechd">Tag</span>
+      </div>
+
+    </div>
+
+    <!-- ── The rail: now the ONLY pinned element besides the navbar. It absorbs the
+         transport that used to live in the fixed bottom bar. ── -->
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+
+      <!-- transport, moved out of the bottom bar and into the top of the rail -->
+      <div style="border: 1px solid var(--border); border-radius: 12px; background: var(--card); padding: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 11px;">
+          <div style="width: 38px; height: 38px; border-radius: 9px; background: linear-gradient(135deg, hsl(200 60% 30%), hsl(262 70% 55%)); flex-shrink: 0;"></div>
+          <div style="min-width: 0;">
+            <div style="font-size: 13px; font-weight: 700; line-height: 1.2;">Center</div>
+            <div style="font-size: 11px; color: var(--muted-fg);">Bethel Music</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 7px; height: 40px; border-radius: 999px; background: hsl(0 72% 51% / 0.1); border: 1px solid hsl(0 72% 51% / 0.2); color: var(--destructive); font-size: 13px; font-weight: 600; justify-content: center;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+          Stop
+        </div>
+        <div style="display: flex; align-items: center; gap: 7px; margin-top: 9px; font-size: 12px; font-weight: 600; color: var(--primary);">
+          <span style="display: flex; align-items: flex-end; gap: 2px; height: 10px;">
+            <span style="width: 2px; height: 6px; border-radius: 9px; background: var(--primary);"></span>
+            <span style="width: 2px; height: 10px; border-radius: 9px; background: var(--primary);"></span>
+            <span style="width: 2px; height: 8px; border-radius: 9px; background: var(--primary);"></span>
+          </span>
+          Chorus 1 &#183; loop
+          <div style="flex-grow: 1;"></div>
+          <span class="mono" style="font-size: 11px; color: var(--muted-fg);">1:12 / 3:04</span>
+        </div>
+        <!-- the song timeline, moved off the bottom of the screen -->
+        <div style="position: relative; height: 4px; border-radius: 999px; background: var(--secondary); margin-top: 9px;">
+          <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 39%; border-radius: 999px; background: var(--primary);"></div>
+          <div style="position: absolute; left: 39%; top: 50%; transform: translate(-50%, -50%); width: 9px; height: 9px; border-radius: 999px; background: var(--primary); box-shadow: 0 0 0 4px hsl(262 83% 52% / 0.15);"></div>
+        </div>
+      </div>
+
+      <div style="border: 1px solid var(--border); border-radius: 12px; background: var(--card); padding: 10px 11px 9px;">
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted-fg); margin-bottom: 7px;">Sections</div>
+        <sc-for list="{{sections}}" as="s" hint-placeholder-count="5">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 5px 9px; border-radius: 8px; background: {{s.bg}}; border: 1px solid {{s.bd}}; margin-bottom: 3px;">
+            <span style="font-size: 12.5px; font-weight: {{s.w}}; color: {{s.fg}};">{{s.name}}</span>
+            <div style="flex-grow: 1;"></div>
+            <div style="width: 20px; height: 20px; border-radius: 999px; background: {{s.lbg}}; color: {{s.lfg}}; display: flex; align-items: center; justify-content: center;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="border: 1px solid var(--border); border-radius: 12px; background: var(--card); padding: 10px 12px 12px;">
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted-fg);">Mixer</div>
+        <div style="display: flex; justify-content: space-between; gap: 4px; margin-top: 10px;">
+          <sc-for list="{{channels}}" as="ch" hint-placeholder-count="4">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1;">
+              <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--muted-fg);">{{ch.label}}</span>
+              <div style="position: relative; width: 4px; height: 74px; border-radius: 999px; background: var(--secondary);">
+                <div style="position: absolute; left: 0; right: 0; bottom: 0; border-radius: 999px; background: var(--primary); height: {{ch.level}};"></div>
+                <div style="position: absolute; left: 50%; transform: translate(-50%, 50%); bottom: {{ch.level}}; width: 18px; height: 18px; border-radius: 999px; background: var(--card); border: 1px solid var(--border);"></div>
+              </div>
+              <div style="width: 20px; height: 20px; border-radius: 999px; border: 1px solid {{ch.mb}}; background: {{ch.mbg}}; color: {{ch.mfg}}; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center;">M</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="border: 1px solid var(--border); border-radius: 12px; background: var(--card); padding: 11px 12px; display: flex; gap: 10px;">
+        <div style="flex: 1;">
+          <div style="font-size: 10px; color: var(--muted-fg); margin-bottom: 5px;">Key</div>
+          <div style="display: flex; align-items: center; gap: 3px; padding: 3px; border-radius: 999px; border: 1px solid var(--border);">
+            <div style="width: 21px; height: 21px; border-radius: 999px; background: var(--secondary); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">&#8722;</div>
+            <span style="flex: 1; text-align: center; font-size: 13px; font-weight: 800;">A</span>
+            <div style="width: 21px; height: 21px; border-radius: 999px; background: var(--secondary); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">+</div>
+          </div>
+        </div>
+        <div style="flex: 1;">
+          <div style="font-size: 10px; color: var(--muted-fg); margin-bottom: 5px;">BPM</div>
+          <div style="display: flex; align-items: center; gap: 3px; padding: 3px; border-radius: 999px; border: 1px solid var(--border);">
+            <div style="width: 21px; height: 21px; border-radius: 999px; background: var(--secondary); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">&#8722;</div>
+            <span class="mono" style="flex: 1; text-align: center; font-size: 13px; font-weight: 700;">66</span>
+            <div style="width: 21px; height: 21px; border-radius: 999px; background: var(--secondary); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">+</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- measurement band -->
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 30px; display: flex; align-items: center; gap: 10px; padding: 0 20px; background: hsl(142 71% 45% / 0.10); border-top: 1px solid hsl(142 71% 45% / 0.25);">
+    <span style="font-size: 11px; font-weight: 700; color: hsl(142 71% 32%);">Reading band 836px</span>
+    <span style="font-size: 11px; color: hsl(142 71% 32%);">&#8212; up from 663px today (+26%). Fixed chrome: 64px, down from 237px.</span>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":false,"section":"Theme"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const idle = { bg: 'transparent', bd: 'transparent', fg: 'var(--muted-fg)', w: '600', lbg: 'var(--secondary)', lfg: 'var(--muted-fg)' };
+    return {
+      themeClass: (this.props.dark ?? false) ? 'dark' : '',
+      sections: [
+        { name: 'Intro', ...idle },
+        { name: 'Verse 1', ...idle },
+        { name: 'Chorus 1', bg: 'var(--tint2)', bd: 'hsl(262 83% 52% / 0.3)', fg: 'var(--primary)', w: '700', lbg: 'var(--primary)', lfg: 'var(--primary-fg)' },
+        { name: 'Verse 2', ...idle },
+        { name: 'Bridge 2', ...idle },
+        { name: 'Tag', ...idle },
+      ],
+      channels: [
+        { label: 'Bass',  level: '64%', mb: 'var(--border)', mbg: 'var(--card)', mfg: 'var(--muted-fg)' },
+        { label: 'Drums', level: '22%', mb: 'var(--destructive)', mbg: 'hsl(0 72% 51% / 0.15)', mfg: 'var(--destructive)' },
+        { label: 'Gtr',   level: '76%', mb: 'var(--border)', mbg: 'var(--card)', mfg: 'var(--muted-fg)' },
+        { label: 'Keys',  level: '58%', mb: 'var(--border)', mbg: 'var(--card)', mfg: 'var(--muted-fg)' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

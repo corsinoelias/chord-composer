@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: hsl(262 83% 52%); text-decoration: none; }
+    a:hover { color: hsl(262 83% 42%); }
+    .rt {
+      --bg: hsl(220 20% 97%); --fg: hsl(220 20% 10%); --card: hsl(0 0% 100%);
+      --primary: hsl(262 83% 52%); --primary-fg: hsl(0 0% 100%);
+      --secondary: hsl(220 14% 92%); --muted-fg: hsl(220 10% 42%);
+      --border: hsl(220 13% 87%);
+      --tint: hsl(262 83% 52% / 0.06); --tint2: hsl(262 83% 52% / 0.12);
+    }
+    .mono { font-family: 'Space Mono', monospace; }
+  </style>
+</helmet>
+
+<div class="rt" style="width: 1440px; height: 720px; position: relative; overflow: hidden; background: var(--bg); color: var(--fg); font-family: 'Inter', system-ui, sans-serif;">
+
+  <div style="max-width: 1152px; margin: 0 auto; padding: 26px 0 0;">
+
+    <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 18px;">
+      <div>
+        <div style="font-size: 23px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1;">Center</div>
+        <div style="font-size: 12.5px; color: var(--muted-fg);">Bethel Music &#183; Key of A &#183; 66 BPM &#183; 4/4</div>
+      </div>
+      <div style="flex-grow: 1;"></div>
+      <div style="display: flex; padding: 3px; border-radius: 10px; background: var(--secondary);">
+        <div style="padding: 6px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--muted-fg);">Lyrics + chords</div>
+        <div style="padding: 6px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--muted-fg);">Compact</div>
+        <div style="padding: 6px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; background: var(--card); color: var(--fg); box-shadow: 0 1px 2px hsl(220 20% 10% / 0.08);">Chords only</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 18px; border-radius: 999px; background: var(--primary); color: var(--primary-fg); font-size: 13px; font-weight: 600;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg> Play
+      </div>
+    </div>
+
+    <!-- ── the arrangement as bars, the way a player who knows the words reads it ── -->
+    <div style="border: 1px solid var(--border); border-radius: 14px; background: var(--card); overflow: hidden;">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+        <div style="display: flex; align-items: stretch; border-bottom: 1px solid var(--border); background: {{r.rowBg}};">
+          <div style="width: 132px; flex-shrink: 0; display: flex; align-items: center; gap: 6px; padding: 0 14px; border-right: 1px solid var(--border);">
+            <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: {{r.nameFg}};">{{r.name}}</span>
+            <span style="font-size: 9.5px; font-weight: 700; color: var(--muted-fg);">{{r.x}}</span>
+          </div>
+          <div style="flex-grow: 1; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr));">
+            <sc-for list="{{r.bars}}" as="bar" hint-placeholder-count="8">
+              <div style="height: 46px; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border); background: {{bar.bg}};">
+                <span class="mono" style="font-size: 13px; font-weight: 700; color: {{bar.fg}};">{{bar.c}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- chord vocabulary of the whole song, once -->
+    <div style="display: flex; align-items: center; gap: 8px; margin-top: 16px;">
+      <span style="font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.13em; color: var(--muted-fg); margin-right: 4px;">Chords used</span>
+      <sc-for list="{{vocab}}" as="v" hint-placeholder-count="8">
+        <div class="mono" style="padding: 6px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); font-size: 12px; font-weight: 700; color: var(--primary);">{{v}}</div>
+      </sc-for>
+    </div>
+
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 30px; display: flex; align-items: center; gap: 10px; padding: 0 20px; background: hsl(142 71% 45% / 0.10); border-top: 1px solid hsl(142 71% 45% / 0.25);">
+    <span style="font-size: 11px; font-weight: 700; color: hsl(142 71% 32%);">The entire arrangement, one screen, zero scrolling</span>
+    <span style="font-size: 11px; color: hsl(142 71% 32%);">&#8212; the third density setting. This is what a player who already knows the words is actually looking for, and the page has never offered it.</span>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    const B = (c) => ({ c, bg: 'transparent', fg: 'var(--fg)' });
+    const E = () => ({ c: '', bg: 'transparent', fg: 'var(--fg)' });
+    const A = (c) => ({ c, bg: 'var(--tint2)', fg: 'var(--primary)' });
+    const row = (name, x, bars, active) => ({
+      name, x, bars,
+      rowBg: active ? 'var(--tint)' : 'transparent',
+      nameFg: active ? 'var(--primary)' : 'var(--muted-fg)',
+    });
+    return {
+      rows: [
+        row('Intro', '', [B('Aadd9'), B('Amaj7'), B('Dmaj7'), B('F#m7'), B('Dmaj7'), E(), E(), E()]),
+        row('Verse 1', '×2', [B('A'), B('A'), B('Dmaj7'), B('Dmaj7'), B('F#m'), B('F#m'), B('Dmaj7'), B('Dmaj7')]),
+        row('Chorus 1', '×2', [A('D'), A('F#m'), A('A'), A('E'), B('F#m'), B('A'), B('E'), B('C#m')], true),
+        row('Verse 2', '', [B('A'), B('Amaj7'), B('Dmaj7'), B('C#m7'), B('F#m7'), B('F#m7'), B('D'), B('D')]),
+        row('Chorus 1', '', [B('D'), B('F#m'), B('A'), B('E'), B('F#m'), B('A'), B('E'), B('C#m')]),
+        row('Bridge 2', '×2', [B('A'), B('E'), B('F#m'), B('D'), B('A'), B('E'), B('F#m'), B('D')]),
+        row('Tag', '', [B('D'), B('E'), E(), E(), E(), E(), E(), E()]),
+        row('Chorus 1', '', [B('D'), B('F#m'), B('A'), B('E'), B('F#m'), B('A'), B('E'), B('C#m')]),
+        row('Tag 2', '', [B('D'), B('E'), B('A'), E(), E(), E(), E(), E()]),
+      ],
+      vocab: ['A', 'Aadd9', 'Amaj7', 'D', 'Dmaj7', 'E', 'F#m', 'F#min7', 'C#m', 'C#min7'],
+    };
+  }
+}
+</script>
+</body>
+</html>

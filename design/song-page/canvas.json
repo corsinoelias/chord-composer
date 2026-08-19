@@ -1,0 +1,55 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "A · Un solo elemento fijo", "x": 0, "y": 0, "w": 1440, "h": 900 },
+    { "file": "ChartHead.dc.html", "title": "B · Cabecera de partitura (cero fijos)", "x": 1540, "y": 0, "w": 1440, "h": 900 },
+    { "file": "Songbook.dc.html", "title": "C · Cancionero de dos columnas", "x": 3080, "y": 0, "w": 1440, "h": 900 },
+    { "file": "ChordsOnly.dc.html", "title": "C · densidad «Solo acordes»", "x": 4620, "y": 0, "w": 1440, "h": 720 },
+    { "file": "Mobile.dc.html", "title": "Móvil · parado", "x": 6160, "y": 0, "w": 390, "h": 844 },
+    { "file": "MobilePlaying.dc.html", "title": "Móvil · sonando", "x": 6620, "y": 0, "w": 390, "h": 844 }
+  ],
+  "annotations": [
+    {
+      "id": "diagnostico",
+      "x": 0,
+      "y": -330,
+      "w": 900,
+      "text": "MEDIDO EN LA PÁGINA REAL DE CENTER (1440×900)\n\n· Altura de página: 4.800px = 5,3 pantallas para una canción de 3:04.\n· Cromo permanente: navbar 64 + cabecera sticky 88 + barra inferior ~85 = 237px, el 26% del viewport.\n· Banda real de lectura: 663px de 900.\n· Columna del chart: 780px, pero la línea de letra más larga mide ~445px → ~40% de ancho vacío.\n· La cabecera sticky es translúcida y el chart se transparenta por detrás.\n\nTenías razón en las dos cosas. Pero el problema de fondo no son los elementos fijos: es que la página desperdicia el ancho y te lo cobra en scroll."
+    },
+    {
+      "id": "opcion-a",
+      "x": 0,
+      "y": -140,
+      "w": 680,
+      "text": "A · UN SOLO ELEMENTO FIJO\n\nDesaparecen la barra inferior y la cabecera sticky. El rail —que ya estaba pegado— absorbe el transporte: Play/Stop, sección sonando, tiempo y timeline suben a su cabecera.\n\nQueda 1 elemento fijo en vez de 3. La banda de lectura pasa de 663 a 836px.\n\nEs el cambio más pequeño: no toca el chart, solo reubica controles que ya existen."
+    },
+    {
+      "id": "opcion-b",
+      "x": 1540,
+      "y": -140,
+      "w": 680,
+      "text": "B · CABECERA DE PARTITURA — CERO ELEMENTOS FIJOS\n\nLa cabecera deja de ser una barra de app y pasa a ser el encabezado del documento: portada, título, Play, tono/BPM/capo y una puerta «Practice» para lo avanzado. Scrollea y se va, como cualquier título.\n\nMientras suena aparece una píldora flotante con Stop; al parar, desaparece. Parado, la página no tiene NADA fijo salvo el navbar.\n\nMedida de lectura de 760px, ajustada a la línea más larga real (445px) en vez de 780px vacíos."
+    },
+    {
+      "id": "opcion-c",
+      "x": 3080,
+      "y": -190,
+      "w": 900,
+      "text": "C · LA OTRA FORMA DE REPRESENTAR LA PÁGINA (esto es el «ir más allá»)\n\nDeja de tratar la canción como un documento largo y trátala como una PARTITURA.\n\n1. Dos columnas. La línea más larga mide 445px; dándole 780px se tira el 40%. A dos columnas la canción entera cabe en ~1,4 pantallas en vez de 5,3.\n2. Mapa de estructura arriba: Intro · V1×2 · C1×2 · V2 · C1 · Bridge×2 · Tag · C1 · Tag2. Hoy esa información solo se obtiene scrolleando 4.800px.\n3. Selector de densidad: Letra + acordes / Compacto / Solo acordes.\n4. Las repeticiones se imprimen una vez y se referencian, en vez de duplicar el bloque entero.\n\nY hay un beneficio de SEO real: menos scroll hasta el contenido y toda la letra por encima del pliegue."
+    },
+    {
+      "id": "opcion-c2",
+      "x": 4620,
+      "y": -140,
+      "w": 680,
+      "text": "C · TERCERA DENSIDAD: «SOLO ACORDES»\n\nLa canción entera como rejilla de compases, una pantalla, cero scroll. Es como lee un músico que ya se sabe la letra — y es exactamente lo que la página nunca ha ofrecido.\n\nTambién es la vista que mejor se imprime y la que tiene sentido en un atril o en el móvil apaisado.\n\nNota: los compases del mockup son plausibles, no exactos; el dato de duración por acorde ya existe en el modelo (Chord.duration en beats), así que esto es derivable, no inventado."
+    },
+    {
+      "id": "movil",
+      "x": 6160,
+      "y": -190,
+      "w": 700,
+      "text": "MÓVIL — donde más se nota\n\nParado: cero cromo. Se quita la barra fija de ~150px (tira de timeline + barra) y la pantalla entera es letra y acordes. El chart pierde las tarjetas con borde: una regla por sección da ~32px más de ancho útil por línea.\n\nSonando: una sola píldora de 52px con la sección, el tiempo, la puerta a la consola y Stop. Al parar, desaparece.\n\nEl indicador de posición ya no necesita barra: la sección activa se resalta y su propia regla hace de progreso."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

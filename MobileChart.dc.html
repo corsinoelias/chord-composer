@@ -1,0 +1,164 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: hsl(262 83% 52%); text-decoration: none; }
+    a:hover { color: hsl(262 83% 42%); }
+    .rt {
+      --bg: hsl(220 20% 97%);
+      --fg: hsl(220 20% 10%);
+      --card: hsl(0 0% 100%);
+      --primary: hsl(262 83% 52%);
+      --primary-fg: hsl(0 0% 100%);
+      --secondary: hsl(220 14% 92%);
+      --muted-fg: hsl(220 10% 42%);
+      --border: hsl(220 13% 87%);
+      --destructive: hsl(0 72% 51%);
+      --tint: hsl(262 83% 52% / 0.06);
+      --tint-strong: hsl(262 83% 52% / 0.12);
+    }
+  </style>
+</helmet>
+
+<div class="rt" style="width: 390px; height: 844px; position: relative; overflow: hidden; background: var(--bg); color: var(--fg); font-family: 'Inter', system-ui, sans-serif; font-size: 14px;">
+
+  <!-- sticky song header -->
+  <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--bg);">
+    <div style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--border); background: linear-gradient(135deg, hsl(262 60% 40%), hsl(262 83% 62%)); display: flex; align-items: center; justify-content: center; color: #fff;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    </div>
+    <div style="flex-grow: 1; min-width: 0;">
+      <div style="font-size: 19px; font-weight: 700; line-height: 1.2; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Holy Forever Chords</div>
+      <div style="font-size: 12px; color: var(--muted-fg); margin-top: 1px;">Chris Tomlin · Key of C · Capo 1</div>
+    </div>
+  </div>
+
+  <!-- tabs -->
+  <div style="display: flex; border-bottom: 1px solid var(--border);">
+    <div style="padding: 9px 16px; font-size: 14px; font-weight: 600; border-bottom: 2px solid var(--primary); margin-bottom: -1px;">Chords</div>
+    <div style="padding: 9px 16px; font-size: 14px; font-weight: 600; color: var(--muted-fg);">Lyrics</div>
+  </div>
+
+  <!-- chart -->
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
+
+    <div style="border: 1px solid var(--border); border-radius: 12px; background: var(--card);">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 9px 14px;">
+        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted-fg);">Verse 1</span>
+        <div style="flex-grow: 1;"></div>
+        <div style="display: flex; gap: 2px;">
+          <div style="width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted-fg);">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+          </div>
+          <div style="width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted-fg);">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 14px 18px;">
+        <div style="display: flex; align-items: flex-end; flex-wrap: wrap;">
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">C</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">A thousand generations </span></div>
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">F</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">falling down in </span></div>
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">C</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">worship</span></div>
+        </div>
+        <div style="display: flex; align-items: flex-end; flex-wrap: wrap;">
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">Am</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">To sing the song of </span></div>
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">G</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">ages to the </span></div>
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">F</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">Lamb</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- active chorus -->
+    <div style="border: 1px solid hsl(262 83% 52% / 0.4); border-radius: 12px; background: var(--tint);">
+      <div style="display: flex; align-items: center; gap: 7px; padding: 9px 14px;">
+        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--primary);">Chorus</span>
+        <span style="font-size: 10px; font-weight: 700; color: hsl(262 83% 52% / 0.8); background: var(--tint-strong); border: 1px solid hsl(262 83% 52% / 0.2); border-radius: 999px; padding: 1px 6px;">×2</span>
+        <div style="flex-grow: 1;"></div>
+        <div style="display: flex; gap: 2px;">
+          <div style="width: 30px; height: 30px; border-radius: 8px; background: var(--primary); color: var(--primary-fg); display: flex; align-items: center; justify-content: center;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+          </div>
+          <div style="width: 30px; height: 30px; border-radius: 8px; background: var(--tint-strong); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+          </div>
+        </div>
+      </div>
+      <div style="height: 2px; margin: 0 14px 12px; border-radius: 999px; background: hsl(262 83% 52% / 0.15); position: relative;">
+        <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 38%; border-radius: 999px; background: var(--primary);"></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 14px 18px;">
+        <div style="display: flex; align-items: flex-end; flex-wrap: wrap;">
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">F</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">Holy for</span></div>
+          <div style="display: flex; flex-direction: column;">
+            <span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: var(--primary); background: var(--tint-strong); border-radius: 4px; padding: 1px 3px;">C</span>
+            <span style="font-size: 14px; color: var(--fg); font-weight: 500; line-height: 1.6; white-space: pre;">ever</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-end; flex-wrap: wrap;">
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">Am</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">And all I say is </span></div>
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">G</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">holy</span></div>
+        </div>
+        <div style="display: flex; align-items: flex-end; flex-wrap: wrap;">
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">F</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">Holy for</span></div>
+          <div style="display: flex; flex-direction: column;"><span style="font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: hsl(262 83% 52% / 0.7);">C</span><span style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; white-space: pre;">ever</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- collapsed dock — same floating pill it already has today -->
+  <div style="position: absolute; left: 12px; right: 12px; bottom: 12px; border: 1px solid var(--border); border-radius: 26px; background: var(--card); box-shadow: 0 16px 28px hsl(220 20% 10% / 0.16); padding: 6px 14px 12px;">
+    <div style="position: relative; height: 14px; margin-bottom: 4px;">
+      <span style="position: absolute; left: 0%; font-size: 9px; font-weight: 600; text-transform: uppercase; color: hsl(220 10% 42% / 0.7);">Intro</span>
+      <span style="position: absolute; left: 30%; font-size: 9px; font-weight: 600; text-transform: uppercase; color: hsl(220 10% 42% / 0.7);">Verse</span>
+      <span style="position: absolute; left: 58%; font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--primary);">Chorus</span>
+    </div>
+    <div style="position: relative; height: 4px; border-radius: 999px; background: var(--secondary); margin-bottom: 10px;">
+      <div style="position: absolute; left: 58%; right: 14%; top: -1px; bottom: -1px; border-radius: 999px; background: var(--tint-strong); border: 1px solid hsl(262 83% 52% / 0.35);"></div>
+      <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 68%; border-radius: 999px; background: var(--primary);"></div>
+      <div style="position: absolute; left: 68%; top: 50%; transform: translate(-50%, -50%); width: 9px; height: 9px; border-radius: 999px; background: var(--primary); box-shadow: 0 0 0 4px hsl(262 83% 52% / 0.15);"></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--tint-strong); display: flex; align-items: center; justify-content: center; color: var(--primary);">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </div>
+      <div style="flex-grow: 1; min-width: 0;">
+        <div style="font-size: 13px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Holy Forever</div>
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--primary);">
+          <span style="display: flex; align-items: flex-end; gap: 2px; height: 10px;">
+            <span style="width: 2px; height: 6px; border-radius: 999px; background: var(--primary);"></span>
+            <span style="width: 2px; height: 10px; border-radius: 999px; background: var(--primary);"></span>
+            <span style="width: 2px; height: 8px; border-radius: 999px; background: var(--primary);"></span>
+          </span>
+          Chorus · loop
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 18px; border-radius: 999px; background: hsl(0 72% 51% / 0.1); border: 1px solid hsl(0 72% 51% / 0.2); color: var(--destructive); font-size: 13px; font-weight: 600;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+        Stop
+      </div>
+      <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: var(--muted-fg);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

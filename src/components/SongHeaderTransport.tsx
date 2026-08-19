@@ -11,9 +11,11 @@ interface SongHeaderTransportProps {
 // The header's whole transport: Play/Stop plus the door into everything else (Sections, Mixer,
 // Tempo, Metronome, Export). Lives in the document header (scrolls away with it, never fixed) —
 // the only place on the page besides SongPlayingPill where playback state is ever surfaced.
+// No margin of its own — its portal target sits in a row shared with the song stats badges
+// (see [slug].astro), which owns the spacing so the two align cleanly.
 export function SongHeaderTransport({ isPlaying, isLoading, onPlayPause, practiceOpen, onTogglePractice }: SongHeaderTransportProps) {
   return (
-    <div className="flex items-center gap-2.5 mt-4">
+    <div className="flex items-center gap-2.5">
       <button
         onClick={onPlayPause}
         disabled={isLoading}

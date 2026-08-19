@@ -1,0 +1,47 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Opción A · Dock flotante + consola (desktop)", "x": 0, "y": 0, "w": 1280, "h": 1080 },
+    { "file": "MobileChart.dc.html", "title": "Opción A · móvil, consola cerrada", "x": 1360, "y": 0, "w": 390, "h": 844 },
+    { "file": "MobileConsole.dc.html", "title": "Opción A · móvil, consola abierta", "x": 1810, "y": 0, "w": 390, "h": 844 },
+    { "file": "PracticeMode.dc.html", "title": "Opción B · Modo Ensayo", "x": 2280, "y": 0, "w": 1280, "h": 860 },
+    { "file": "SideRail.dc.html", "title": "Opción C · Rail lateral persistente", "x": 3640, "y": 0, "w": 1280, "h": 1000 }
+  ],
+  "annotations": [
+    {
+      "id": "opt-a",
+      "x": 0,
+      "y": -230,
+      "w": 620,
+      "text": "OPCIÓN A — Dock flotante + consola\n\nEl loop ⟳ vive en la cabecera de cada sección del chart: puedes armarlo estando parado. La barra deja de ser de borde a borde y pasa a ser un dock centrado que se subordina visualmente al chart.\n\nLa consola (Sections / Mixer / Tempo & key) es la MISMA que ya tienes en móvil, solo que en desktop se despliega en 3 columnas en vez de apiladas. Cerrada por defecto.\n\nA favor: reutiliza componentes que ya funcionan; riesgo bajo; entrega por fases.\nEn contra: sigue siendo una función que hay que descubrir abriendo un panel."
+    },
+    {
+      "id": "opt-a-mobile",
+      "x": 1360,
+      "y": -230,
+      "w": 620,
+      "text": "MÓVIL EN LA OPCIÓN A\n\nCasi no cambia: la píldora flotante, el grid 2×2 de secciones, los faders y los steppers son los que ya están hoy en SongPerformanceConsole. Lo que se añade es el ⟳ en la cabecera de sección y el metrónomo.\n\nEl punto es este: hoy este diseño está encerrado tras `sm:hidden`. Lo que hace la opción A es dejar de esconderlo, no rehacerlo."
+    },
+    {
+      "id": "opt-b",
+      "x": 2280,
+      "y": -230,
+      "w": 620,
+      "text": "OPCIÓN B — Modo Ensayo\n\nLa página se queda como está para leer; un toggle la convierte en vista de escenario: fondo oscuro, la línea que suena en 44px, las de alrededor atenuadas, y el rail derecho como consola completa.\n\nA favor: es lo más diferenciador; nadie más lo tiene; convierte la página en herramienta de práctica de verdad.\nEn contra: es un segundo layout entero que mantener, y no resuelve nada para quien solo pasa a leer los acordes."
+    },
+    {
+      "id": "opt-c",
+      "x": 3640,
+      "y": -230,
+      "w": 620,
+      "text": "OPCIÓN C — Rail lateral persistente\n\nLa columna derecha crece de 220px a 300px y pasa a llevar Now playing + Secciones + Mezcla + Tono/BPM siempre visibles. El dock inferior se reduce a play + timeline.\n\nA favor: todo a la vista, cero clics para mezclar o loopear.\nEn contra: el chart pierde ~80px de ancho — en un portátil de 1280px las líneas de letra empiezan a partirse, y es justo lo que la gente viene a leer. Compáralo con la Opción A a la izquierda."
+    },
+    {
+      "id": "comun",
+      "x": 0,
+      "y": 1150,
+      "w": 900,
+      "text": "COMÚN A LAS TRES: el loop se puede armar sin estar reproduciendo (hoy `handleToggleLoop` sale antes si no suena nada), el metrónomo se enciende (hoy `metronome: false` está fijo en las dos llamadas a play()), y hay tempo en % para practicar lento. Los tokens son los reales del proyecto: Inter, Space Mono para acordes, primary hsl(262 83% 52%), radios 8/12px."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

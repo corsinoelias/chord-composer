@@ -2,9 +2,12 @@ import { memo } from 'react';
 import type { GuitarVoicing } from '@/data/guitarChords';
 
 // ─── SVG coordinate constants (reverse-engineered from reference SVGs) ────────
-const W = 235;
+// String x-positions are derived from the voicing's own string count (35px apart, 30px
+// left padding) rather than hardcoded to 6 — that's what lets this same diagram render a
+// 4-string ukulele voicing (see ukuleleChords.ts) with no separate component.
+const STRING_SPACING = 35;
+const PAD_X = 30;
 const H = 271;
-const STRING_X = [30, 65, 100, 135, 170, 205] as const;
 const FRET_Y    = [55, 104, 153, 202, 251]    as const; // 5 lines (nut + 4 frets)
 const ROW_Y     = [79.5, 128.5, 177.5, 226.5] as const; // centers between fret pairs
 const ABOVE_Y   = 35.4;   // y for open ○ and muted × markers
@@ -12,13 +15,20 @@ const DOT_R     = 16;     // finger dot radius
 const OPEN_R    = 7;      // open string circle radius
 
 // ─── Colors (dark-theme CSS variables) ────────────────────────────────────────
-const C_LINE   = 'hsl(var(--border))';
+// Line color intentionally pulls from --muted-foreground (not --border) at fixed opacity —
+// --border reads as near-invisible hairlines on this diagram's white/dark card background;
+// this reads as a real string/fret line at a glance, closer to reference chord-chart UIs.
+const C_LINE   = 'hsl(var(--muted-foreground) / 0.55)';
 const C_NUT    = 'hsl(var(--foreground))';
 const C_DOT    = 'hsl(var(--primary))';
 const C_DOT_TXT= 'hsl(var(--primary-foreground))';
 const C_OPEN   = 'hsl(var(--foreground))';
 const C_MUTED  = 'hsl(var(--muted-foreground))';
 const C_LABEL  = 'hsl(var(--foreground))';
+// Halo behind finger dots/barre so they read as sitting ON TOP of the string lines instead of
+// visually merging with them — matches how reference chord-chart apps punch a dot through the
+// string. Falls back cleanly since it's just another filled shape, not a real cutout.
+const C_HALO   = 'hsl(var(--card))';
 
 interface Props {
   voicing: GuitarVoicing;
@@ -28,6 +38,8 @@ interface Props {
 
 export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing, chordName, className = '' }: Props) {
   const { frets, fingers, barre, baseFret } = voicing;
+  const STRING_X = frets.map((_, i) => PAD_X + i * STRING_SPACING);
+  const W = STRING_X[STRING_X.length - 1] + PAD_X;
 
   // Row index for an absolute fret (0-indexed within the 4 visible rows)
   const toRow = (fret: number) => fret - baseFret;
@@ -67,7 +79,8 @@ export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing, ch
             x1={x} y1={FRET_Y[0]}
             x2={x} y2={FRET_Y[4]}
             stroke={C_LINE}
-            strokeWidth={1}
+            strokeWidth={1.5}
+            strokeLinecap="round"
           />
         ))}
 
@@ -76,9 +89,10 @@ export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing, ch
           <line
             key={y}
             x1={STRING_X[0]} y1={y}
-            x2={STRING_X[5]} y2={y}
+            x2={STRING_X[STRING_X.length - 1]} y2={y}
             stroke={i === 0 && baseFret === 1 ? C_NUT : C_LINE}
-            strokeWidth={i === 0 && baseFret === 1 ? 4 : 1}
+            strokeWidth={i === 0 && baseFret === 1 ? 5 : 1.5}
+            strokeLinecap="round"
           />
         ))}
 
@@ -92,14 +106,14 @@ export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing, ch
                 cx={x} cy={ABOVE_Y} r={OPEN_R}
                 fill="transparent"
                 stroke={C_OPEN}
-                strokeWidth={2}
+                strokeWidth={2.5}
               />
             );
           }
           if (fret === -1) {
             const s = OPEN_R - 1;
             return (
-              <g key={`muted-${si}`} stroke={C_MUTED} strokeWidth={2}>
+              <g key={`muted-${si}`} stroke={C_MUTED} strokeWidth={2.5} strokeLinecap="round">
                 <line x1={x - s} y1={ABOVE_Y - s} x2={x + s} y2={ABOVE_Y + s} />
                 <line x1={x + s} y1={ABOVE_Y - s} x2={x - s} y2={ABOVE_Y + s} />
               </g>
@@ -122,13 +136,22 @@ export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing, ch
             si >= barre.fromString && si <= barre.toString && frets[si] === barre.fret
           ) ?? 0;
           return (
-            <g fill={C_DOT}>
+            <g>
+              <rect
+                x={x1 - 10 - 2}
+                y={cy - DOT_R - 2}
+                width={x2 - x1 + 20 + 4}
+                height={DOT_R * 2 + 4}
+                rx={DOT_R + 2}
+                fill={C_HALO}
+              />
               <rect
                 x={x1 - 10}
                 y={cy - DOT_R}
                 width={x2 - x1 + 20}
                 height={DOT_R * 2}
                 rx={DOT_R}
+                fill={C_DOT}
               />
               {barreFinger > 0 && (
                 <text
@@ -163,8 +186,9 @@ export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing, ch
           const cy = ROW_Y[row];
           const finger = fingers[si];
           return (
-            <g key={`dot-${si}`} fill={C_DOT}>
-              <circle cx={cx} cy={cy} r={DOT_R} stroke="transparent" />
+            <g key={`dot-${si}`}>
+              <circle cx={cx} cy={cy} r={DOT_R + 2} fill={C_HALO} />
+              <circle cx={cx} cy={cy} r={DOT_R} fill={C_DOT} />
               {finger > 0 && (
                 <text
                   x={cx}

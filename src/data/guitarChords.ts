@@ -241,6 +241,19 @@ function fromDbEntry(entry: DbVoicingEntry): GuitarVoicing | null {
   return { frets, fingers, barre, baseFret: computeBaseFret(frets) };
 }
 
+// Lowest-position entry — the smallest "highest fretted string" across the voicing, so an
+// open/near-nut shape always wins over a barre further up the neck. Index 0 usually IS that
+// shape, but not always (~17% of entries), so this picks it explicitly rather than assuming.
+function maxPlayedFret(entry: DbVoicingEntry): number {
+  const frets = entry.p.split(',').map(t => (t === 'x' ? -1 : parseInt(t, 10)));
+  const played = frets.filter(f => f > 0);
+  return played.length ? Math.max(...played) : 0;
+}
+
+function pickEasiest(entries: DbVoicingEntry[]): DbVoicingEntry {
+  return entries.reduce((best, e) => (maxPlayedFret(e) < maxPlayedFret(best) ? e : best));
+}
+
 function getCuratedVoicing(chord: Chord, transposition: number): GuitarVoicing | null {
   const key = DB_QUALITY_KEY[chord.quality];
   if (key === undefined) return null;
@@ -248,7 +261,7 @@ function getCuratedVoicing(chord: Chord, transposition: number): GuitarVoicing |
   const rootName = midiToFlatName(midiNotes[0], transposition);
   const entries = (guitarVoicingsDb as GuitarVoicingsDb).EADGBE[rootName + key];
   if (!entries || !entries.length) return null;
-  return fromDbEntry(entries[0]); // index 0 = "Common" / open position
+  return fromDbEntry(pickEasiest(entries));
 }
 
 // ─── baseFret computation ─────────────────────────────────────────────────────
