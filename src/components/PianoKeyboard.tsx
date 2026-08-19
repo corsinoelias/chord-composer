@@ -8,10 +8,11 @@ interface PianoKeyboardProps {
 
 const WW = 28;
 const WH = 78;
-const BW = 18;
+const BW = 20;
 const BH = 48;
+const CORNER_R = 6; // rounded bottom corners on the outer silhouette — the one flourish borrowed from the reference
 
-// Fixed 2-octave layout: C to B × 2
+// Fixed 2-octave layout: C to B × 2 — always the same span, regardless of chord
 const WHITE_NOTES = ['C','D','E','F','G','A','B','C','D','E','F','G','A','B'];
 // Semitone position of each white key (C4=0 … B5=23)
 const WHITE_POS   = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23];
@@ -75,7 +76,24 @@ function computeHighlights(activeNotes: string[]) {
   return { white, black };
 }
 
-const TOTAL_W = WHITE_NOTES.length * WW; // 392
+const TOTAL_W = WHITE_NOTES.length * WW;
+const OUTLINE_D = `M0,0 H${TOTAL_W} V${WH - CORNER_R} A${CORNER_R},${CORNER_R} 0 0 1 ${TOTAL_W - CORNER_R},${WH} H${CORNER_R} A${CORNER_R},${CORNER_R} 0 0 1 0,${WH - CORNER_R} Z`;
+
+// Marker radii — kept close to each other so the two forms read as "the same
+// dot" at a glance. The hollow black-key ring is drawn a touch bigger than
+// the solid white-key disc: an outline reads as lighter/smaller than a filled
+// shape of the same radius (the eye weighs ink, not just the boundary), so
+// this compensates rather than actually matching pixel-for-pixel.
+const W_DOT_R = 7.5;
+const B_DOT_R = 8;
+const B_DOT_STROKE = 2.5;
+
+// Fixed, theme-independent piano colors — a keyboard is a real-world object
+// (always white/black keys), not a themed UI surface, so it stays legible
+// against the app's background in both light and dark mode.
+const WHITE_KEY_FILL = '#f4f4f5'; // zinc-100 — just enough off-white to read as a shape on a white card
+const KEY_LINE = '#71717a';       // zinc-500 — one clean line per key boundary, no doubling
+const BLACK_KEY_FILL = '#3f3f46'; // zinc-700 — dark but not ink-heavy
 
 export function PianoKeyboard({ activeNotes, chordName, className = '' }: PianoKeyboardProps) {
   const { white: wHighlight, black: bHighlight } = useMemo(
@@ -86,7 +104,7 @@ export function PianoKeyboard({ activeNotes, chordName, className = '' }: PianoK
   return (
     <div className={`flex flex-col items-center gap-2 ${className}`}>
       {chordName && (
-        <span className="text-base font-bold font-mono text-foreground tracking-tight">
+        <span className="text-base font-bold text-primary tracking-tight">
           {chordName}
         </span>
       )}
@@ -97,86 +115,58 @@ export function PianoKeyboard({ activeNotes, chordName, className = '' }: PianoK
         style={{ maxWidth: TOTAL_W }}
         aria-hidden="true"
       >
-        {/* White keys */}
-        {WHITE_NOTES.map((note, i) => {
-          const active = wHighlight.has(i);
-          return (
-            <rect
-              key={`w-${i}`}
-              x={i * WW + 1} y={0}
-              width={WW - 2} height={WH}
-              rx={3}
-              fill={active ? 'hsl(var(--primary))' : 'hsl(220 14% 82%)'}
-              stroke="hsl(var(--border))"
-              strokeWidth="1"
-            />
-          );
-        })}
+        {/* Outer silhouette — one continuous stroke for the whole white-key row (rounded at the
+            bottom corners), instead of a stroked rect per key. Adjacent per-key strokes used to
+            sit a couple pixels apart and read as a doubled line; a single outline has none of that. */}
+        <path d={OUTLINE_D} fill={WHITE_KEY_FILL} stroke={KEY_LINE} strokeWidth="1.5" strokeLinejoin="round" />
 
-        {/* Labels on active white keys */}
-        {WHITE_NOTES.map((note, i) =>
-          wHighlight.has(i) ? (
-            <text
-              key={`wl-${i}`}
-              x={i * WW + WW / 2} y={WH - 9}
-              textAnchor="middle" fontSize="9" fontWeight="700"
-              fill="hsl(var(--primary-foreground))"
-              style={{ userSelect: 'none' }}
-            >
-              {note}
-            </text>
-          ) : null,
-        )}
+        {/* Key dividers — one line per boundary, shared between neighbors */}
+        {Array.from({ length: WHITE_NOTES.length - 1 }, (_, i) => (i + 1) * WW).map(x => (
+          <line key={`div-${x}`} x1={x} y1={0} x2={x} y2={WH} stroke={KEY_LINE} strokeWidth="1" />
+        ))}
 
         {/* Black keys — 2 octaves */}
         {[0, 1].flatMap(oct =>
-          BLACK_X_IN_OCT.map((xOff, ki) => {
-            const globalIdx = oct * 5 + ki;
-            const active = bHighlight.has(globalIdx);
-            return (
-              <rect
-                key={`b-${oct}-${ki}`}
-                x={oct * OCT_W + xOff} y={0}
-                width={BW} height={BH}
-                rx={2}
-                fill={active ? 'hsl(var(--primary))' : 'hsl(224 71% 8%)'}
-              />
-            );
-          }),
+          BLACK_X_IN_OCT.map((xOff, ki) => (
+            <rect
+              key={`b-${oct}-${ki}`}
+              x={oct * OCT_W + xOff} y={0}
+              width={BW} height={BH}
+              rx={2}
+              fill={BLACK_KEY_FILL}
+            />
+          )),
         )}
 
-        {/* Labels on active black keys */}
+        {/* Dot markers — solid on white keys (dot fill contrasts against the light key),
+            hollow on black keys (a solid dot would disappear against the dark key) */}
+        {WHITE_NOTES.map((_, i) =>
+          wHighlight.has(i) ? (
+            <circle
+              key={`wd-${i}`}
+              cx={i * WW + WW / 2} cy={WH - W_DOT_R - 8}
+              r={W_DOT_R}
+              fill="hsl(var(--primary))"
+            />
+          ) : null,
+        )}
+
         {[0, 1].flatMap(oct =>
           BLACK_X_IN_OCT.map((xOff, ki) => {
             const globalIdx = oct * 5 + ki;
             return bHighlight.has(globalIdx) ? (
-              <text
-                key={`bl-${oct}-${ki}`}
-                x={oct * OCT_W + xOff + BW / 2} y={BH - 7}
-                textAnchor="middle" fontSize="8" fontWeight="700"
-                fill="hsl(var(--primary-foreground))"
-                style={{ userSelect: 'none' }}
-              >
-                {BLACK_NOTES_2[globalIdx]}
-              </text>
+              <circle
+                key={`bd-${oct}-${ki}`}
+                cx={oct * OCT_W + xOff + BW / 2} cy={BH - B_DOT_R - 5}
+                r={B_DOT_R}
+                fill={WHITE_KEY_FILL}
+                stroke="hsl(var(--primary))"
+                strokeWidth={B_DOT_STROKE}
+              />
             ) : null;
           }),
         )}
       </svg>
-
-      {/* Note pills */}
-      {activeNotes.length > 0 && (
-        <div className="flex gap-1.5 flex-wrap justify-center">
-          {activeNotes.map(note => (
-            <span
-              key={note}
-              className="text-xs font-mono font-semibold px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/30"
-            >
-              {note}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

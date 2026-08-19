@@ -127,7 +127,7 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
               )}
               {/* Play overlay — only makes sense once there's something to actually hear */}
               {chordObj && (
-                <div className="absolute inset-2 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-opacity bg-background/45 backdrop-blur-[1px] pointer-events-none">
+                <div className="absolute inset-2 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                   <span className="flex items-center justify-center w-9 h-9 rounded-full bg-foreground/85 text-background shadow-md">
                     <Play className="w-4 h-4 ml-0.5 fill-current" />
                   </span>

@@ -3,7 +3,7 @@ import type { ChordView } from '@/hooks/useSyncedChordView';
 const VIEWS: { id: ChordView; label: string }[] = [
   { id: 'guitar', label: 'guitar' },
   { id: 'piano', label: 'piano' },
-  { id: 'ukulele', label: 'uke' },
+  { id: 'ukulele', label: 'ukulele' },
 ];
 
 interface Props {

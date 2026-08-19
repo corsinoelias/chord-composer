@@ -1,9 +1,10 @@
-import { useState } from 'react';
 import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
+import { getUkuleleVoicing } from '@/data/ukuleleChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
+import { useSyncedChordView } from '@/hooks/useSyncedChordView';
 import { playChordPreview } from '@/lib/audioEngine';
 import { Play } from 'lucide-react';
 
@@ -11,16 +12,18 @@ interface Props {
   chord: string; // e.g. "Am7"
 }
 
-type View = 'piano' | 'guitar';
-
 export default function ChordTooltip({ chord }: Props) {
-  const [view, setView] = useState<View>('piano');
+  // No instrument toggle here on purpose — at w-56 there's barely room for the diagram itself,
+  // let alone a three-way switch. Instead this just follows whatever's already selected in
+  // "Chords used" / the song's chord preview, via the same cross-island synced view.
+  const [view] = useSyncedChordView('guitar');
 
   const parsed = parseChordString(chord);
   const chordObj = parsed[0] ?? null;
 
   const notes = chordObj ? getChordNotes(chordObj) : [];
   const voicing = chordObj ? getGuitarVoicing(chordObj) : null;
+  const ukuleleVoicing = chordObj ? getUkuleleVoicing(chordObj) : null;
 
   if (!chordObj || notes.length === 0) return null;
 
@@ -32,32 +35,15 @@ export default function ChordTooltip({ chord }: Props) {
   return (
     <div className="w-56 rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-foreground font-mono">{chord}</span>
-          <button
-            onClick={handlePlay}
-            title="Play chord"
-            className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-          >
-            <Play className="w-3 h-3 fill-primary" />
-          </button>
-        </div>
-        <div className="flex rounded-lg border border-border bg-muted/30 p-0.5 gap-0.5">
-          {(['piano', 'guitar'] as View[]).map(v => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`text-xs px-2 py-0.5 rounded-md transition-all capitalize
-                ${view === v
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              {v === 'piano' ? 'Piano' : 'Guitar'}
-            </button>
-          ))}
-        </div>
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+        <span className="text-sm font-bold text-foreground font-mono">{chord}</span>
+        <button
+          onClick={handlePlay}
+          title="Play chord"
+          className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+        >
+          <Play className="w-3 h-3 fill-primary" />
+        </button>
       </div>
 
       {/* Notes */}
@@ -73,6 +59,14 @@ export default function ChordTooltip({ chord }: Props) {
       <div className="p-3">
         {view === 'piano' ? (
           <PianoKeyboard activeNotes={notes} className="w-full" />
+        ) : view === 'ukulele' ? (
+          ukuleleVoicing ? (
+            <GuitarChordDiagram voicing={ukuleleVoicing} className="w-full" />
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              No ukulele voicing available
+            </p>
+          )
         ) : voicing ? (
           <GuitarChordDiagram voicing={voicing} className="w-full" />
         ) : (
