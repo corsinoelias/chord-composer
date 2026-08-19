@@ -1241,7 +1241,7 @@ export function ChordFinderTool({
             )}
 
             {showBuildPiano && (
-              <div ref={buildPianoRef} style={{ paddingTop: 4, touchAction: 'manipulation' }}>
+              <div ref={buildPianoRef} style={{ paddingTop: 4, touchAction: 'manipulation', overflowX: 'hidden' }}>
                 <div style={{ position: 'relative', height: 176, width: buildPianoM.w }}>
                   {buildWhite.map((k, i) => (
                     <div
@@ -1525,7 +1525,7 @@ export function ChordFinderTool({
                   >▶</button>
                 </div>
               )}
-              <div ref={identPianoRef} style={{ paddingTop: 2, touchAction: 'manipulation' }}>
+              <div ref={identPianoRef} style={{ paddingTop: 2, touchAction: 'manipulation', overflowX: 'hidden' }}>
                 <div style={{ position: 'relative', height: 186, width: identPianoM.w }}>
                   {ident.iWhite.map(k => (
                     <button key={`w${k.sm}`} type="button" className="cf-tap" onClick={() => toggleKey(k.sm)} aria-label={`Note ${k.label}`} style={{ position: 'absolute', top: 0, left: k.x, width: k.w, height: 172, background: k.bg, border: `1px solid ${k.bd}`, borderRadius: '0 0 6px 6px', boxSizing: 'border-box', zIndex: 1, boxShadow: k.gl, transition: 'background 0.1s ease, box-shadow 0.1s ease', padding: 0, cursor: 'pointer' }}>
