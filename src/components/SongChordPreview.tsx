@@ -117,7 +117,10 @@ export default function SongChordPreview({ chords, songKey }: Props) {
 
       {/* ── Body: chord identity on the left, diagram front and center on the right ── */}
       <div className="flex items-center gap-5 px-4 py-4">
-        <div className="flex flex-col items-start gap-1.5 shrink-0">
+        {/* min-w fixed regardless of chord name length ("B" vs "F#sus2") — otherwise this
+            column's content-driven width changes the space left for the flex-1 diagram below
+            to center in, and the diagram visibly drifts left/right as chords change. */}
+        <div className="flex flex-col items-start gap-1.5 shrink-0 min-w-[110px]">
           <span className="text-2xl sm:text-3xl font-bold font-mono text-foreground tracking-tight leading-none">
             {nowPlayingItem.chord}
           </span>

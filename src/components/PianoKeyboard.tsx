@@ -10,7 +10,6 @@ const WW = 28;
 const WH = 78;
 const BW = 20;
 const BH = 48;
-const CORNER_R = 6; // rounded bottom corners on the outer silhouette — the one flourish borrowed from the reference
 
 // Fixed 2-octave layout: C to B × 2 — always the same span, regardless of chord
 const WHITE_NOTES = ['C','D','E','F','G','A','B','C','D','E','F','G','A','B'];
@@ -77,7 +76,6 @@ function computeHighlights(activeNotes: string[]) {
 }
 
 const TOTAL_W = WHITE_NOTES.length * WW;
-const OUTLINE_D = `M0,0 H${TOTAL_W} V${WH - CORNER_R} A${CORNER_R},${CORNER_R} 0 0 1 ${TOTAL_W - CORNER_R},${WH} H${CORNER_R} A${CORNER_R},${CORNER_R} 0 0 1 0,${WH - CORNER_R} Z`;
 
 // Marker radii — kept close to each other so the two forms read as "the same
 // dot" at a glance. The hollow black-key ring is drawn a touch bigger than
@@ -115,10 +113,10 @@ export function PianoKeyboard({ activeNotes, chordName, className = '' }: PianoK
         style={{ maxWidth: TOTAL_W }}
         aria-hidden="true"
       >
-        {/* Outer silhouette — one continuous stroke for the whole white-key row (rounded at the
-            bottom corners), instead of a stroked rect per key. Adjacent per-key strokes used to
-            sit a couple pixels apart and read as a doubled line; a single outline has none of that. */}
-        <path d={OUTLINE_D} fill={WHITE_KEY_FILL} stroke={KEY_LINE} strokeWidth="1.5" strokeLinejoin="round" />
+        {/* Outer silhouette — one continuous stroke for the whole white-key row, instead of a
+            stroked rect per key. Adjacent per-key strokes used to sit a couple pixels apart and
+            read as a doubled line; a single outline has none of that. */}
+        <rect x={0} y={0} width={TOTAL_W} height={WH} fill={WHITE_KEY_FILL} stroke={KEY_LINE} strokeWidth="1.5" />
 
         {/* Key dividers — one line per boundary, shared between neighbors */}
         {Array.from({ length: WHITE_NOTES.length - 1 }, (_, i) => (i + 1) * WW).map(x => (

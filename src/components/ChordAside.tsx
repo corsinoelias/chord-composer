@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play } from 'lucide-react';
+import { Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
@@ -8,6 +8,7 @@ import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { InstrumentViewSelector } from '@/components/InstrumentViewSelector';
 import { useSyncedChordView } from '@/hooks/useSyncedChordView';
+import { useHorizontalScrollArrows } from '@/hooks/useHorizontalScrollArrows';
 import { playChordPreview } from '@/lib/audioEngine';
 import { analytics } from '@/lib/analytics';
 
@@ -47,6 +48,7 @@ interface Props {
 export default function ChordAside({ chords, songKey, songSlug }: Props) {
   const [view, setView] = useSyncedChordView('guitar');
   const [semitones, setSemitones] = useState(0);
+  const { ref: stripRef, canScrollLeft, canScrollRight, scrollByPage } = useHorizontalScrollArrows<HTMLDivElement>();
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -90,52 +92,77 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
       {/* ── Chord strip — always visible, horizontal scroll, one tap per chord to hear it.
           Diagrams stay chrome-free at rest; on hover, the diagram itself "pops" into an
           elevated card with a play-button overlay (mirrors the reference chord-chart hover
-          pattern) so the strip signals "click me to hear this" without extra copy. ── */}
-      <div className="flex gap-5 overflow-x-auto px-4 py-4">
-        {items.map(({ chord, chordObj, notes, guitarVoicing, ukuleleVoicing }) => (
-          <button
-            key={chord}
-            type="button"
-            onClick={() => {
-              if (!chordObj) return;
-              analytics.playChordPreview(songSlug, chord, 'aside');
-              playChordPreview(chordObj);
-            }}
-            title={`Play ${chord}`}
-            className="group relative flex flex-col items-center gap-1.5 shrink-0 hover:z-10"
-          >
-            <span className="text-sm font-bold text-primary group-hover:text-primary/80 transition-colors">
-              {chord}
-            </span>
-            <div className="relative rounded-xl p-2 -m-2 transition-all duration-150 group-hover:bg-card group-hover:shadow-lg group-hover:shadow-black/10 group-hover:ring-1 group-hover:ring-border group-hover:-translate-y-0.5">
-              {view === 'piano' ? (
-                <PianoKeyboard activeNotes={notes} className="w-36" />
-              ) : view === 'ukulele' ? (
-                ukuleleVoicing ? (
-                  <GuitarChordDiagram voicing={ukuleleVoicing} className="w-16" />
+          pattern) so the strip signals "click me to hear this" without extra copy. Native
+          scrollbar hidden and replaced with prev/next arrows — same reasoning as Structure:
+          a mouse has no drag/swipe gesture to move the strip once the scrollbar's gone. ── */}
+      <div className="flex items-center gap-1 px-1 py-4">
+        <button
+          type="button"
+          onClick={() => scrollByPage(-1)}
+          disabled={!canScrollLeft}
+          aria-label="Scroll chords left"
+          className="shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-0 disabled:pointer-events-none transition-opacity"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div
+          ref={stripRef}
+          className="flex gap-5 overflow-x-auto px-3 min-w-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {items.map(({ chord, chordObj, notes, guitarVoicing, ukuleleVoicing }) => (
+            <button
+              key={chord}
+              type="button"
+              onClick={() => {
+                if (!chordObj) return;
+                analytics.playChordPreview(songSlug, chord, 'aside');
+                playChordPreview(chordObj);
+              }}
+              title={`Play ${chord}`}
+              className="group relative flex flex-col items-center gap-1.5 shrink-0 hover:z-10"
+            >
+              <span className="text-sm font-bold text-primary group-hover:text-primary/80 transition-colors">
+                {chord}
+              </span>
+              <div className="relative rounded-xl p-2 -m-2 transition-all duration-150 group-hover:bg-card group-hover:shadow-lg group-hover:shadow-black/10 group-hover:ring-1 group-hover:ring-border group-hover:-translate-y-0.5">
+                {view === 'piano' ? (
+                  <PianoKeyboard activeNotes={notes} className="w-36" />
+                ) : view === 'ukulele' ? (
+                  ukuleleVoicing ? (
+                    <GuitarChordDiagram voicing={ukuleleVoicing} className="w-16" />
+                  ) : (
+                    <span className="w-16 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
+                      No voicing
+                    </span>
+                  )
+                ) : guitarVoicing ? (
+                  <GuitarChordDiagram voicing={guitarVoicing} className="w-20" />
                 ) : (
-                  <span className="w-16 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
+                  <span className="w-20 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
                     No voicing
                   </span>
-                )
-              ) : guitarVoicing ? (
-                <GuitarChordDiagram voicing={guitarVoicing} className="w-20" />
-              ) : (
-                <span className="w-20 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
-                  No voicing
-                </span>
-              )}
-              {/* Play overlay — only makes sense once there's something to actually hear */}
-              {chordObj && (
-                <div className="absolute inset-2 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  <span className="flex items-center justify-center w-9 h-9 rounded-full bg-foreground/85 text-background shadow-md">
-                    <Play className="w-4 h-4 ml-0.5 fill-current" />
-                  </span>
-                </div>
-              )}
-            </div>
-          </button>
-        ))}
+                )}
+                {/* Play overlay — only makes sense once there's something to actually hear */}
+                {chordObj && (
+                  <div className="absolute inset-2 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <span className="flex items-center justify-center w-9 h-9 rounded-full bg-foreground/85 text-background shadow-md">
+                      <Play className="w-4 h-4 ml-0.5 fill-current" />
+                    </span>
+                  </div>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => scrollByPage(1)}
+          disabled={!canScrollRight}
+          aria-label="Scroll chords right"
+          className="shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-0 disabled:pointer-events-none transition-opacity"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
       </div>
 
     </div>

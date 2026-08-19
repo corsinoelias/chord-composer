@@ -26,8 +26,12 @@ interface Props {
   isLocalhost: boolean;
 }
 
+// Icon-only (w-8 h-8) below sm — there's only ever room for a compact toolbar there. From sm
+// up the buttons sit inline with the title where there's space to spare, so they widen out to
+// fit an icon + label instead of making people guess what a bare glyph does.
 const iconButtonClass =
-  'inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+  'inline-flex items-center justify-center gap-1.5 w-8 h-8 sm:w-auto sm:px-3 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+const labelClass = 'hidden sm:inline text-sm font-medium';
 
 export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Props) {
   const [transpose, setTranspose] = useState(0);
@@ -85,17 +89,21 @@ export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Pr
   return (
     <div className="flex items-center gap-1.5 shrink-0">
       <button onClick={handleShare} title={shareTitle} className={iconButtonClass}>
-        <Share2 className="w-4 h-4" />
+        <Share2 className="w-4 h-4 shrink-0" />
+        <span className={labelClass}>{shareTitle}</span>
       </button>
       <a href={`/songs/pdf/${song.slug}/`} target="_blank" rel="noopener" title="Download PDF" className={iconButtonClass}>
-        <Printer className="w-4 h-4" />
+        <Printer className="w-4 h-4 shrink-0" />
+        <span className={labelClass}>Print</span>
       </a>
       <button onClick={handleDownloadImage} disabled={imageBusy} title="Download Image" className={iconButtonClass}>
-        <ImageIcon className="w-4 h-4" />
+        <ImageIcon className="w-4 h-4 shrink-0" />
+        <span className={labelClass}>Image</span>
       </button>
       {isLocalhost && (
         <a href={editUrl} title="Edit song" className={iconButtonClass}>
-          <Pencil className="w-4 h-4" />
+          <Pencil className="w-4 h-4 shrink-0" />
+          <span className={labelClass}>Edit</span>
         </a>
       )}
     </div>

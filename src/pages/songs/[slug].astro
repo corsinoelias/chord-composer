@@ -380,7 +380,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
     <!-- Song header: title + cover + actions — a normal document heading now, not pinned.
          Scrolls away like any title; Play/Practice live in #song-header-transport below,
          portalled in by SongChordPlayer (see SongHeaderTransport.tsx). -->
-    <div class="-mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-1 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border">
+    <div class="-mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-1 flex items-start sm:items-center gap-4 border-b border-border">
       {coverImage && (
         <img
           src={coverImage}
@@ -391,20 +391,25 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
           height="64"
         />
       )}
-      <div class="flex-1 min-w-0">
-        <h1 class="text-xl sm:text-3xl font-bold text-foreground leading-tight truncate">{song.title} Chords</h1>
-        <p class="text-sm text-muted-foreground mt-0.5 truncate">
-          {song.artist}{song.year ? ` · ${song.year}` : ''}{song.album ? ` · ${song.album}` : ''}
-        </p>
-      </div>
-      <!-- w-full forces this onto its own line on mobile, where the title/album otherwise had
-           to compete with 3-4 icon buttons for space in one row and got squeezed unreadable;
-           sm:w-auto puts it back inline once there's room. justify-start (not -end): the icon
-           row sits under the title on its own line on mobile/tablet, so right-aligning it read
-           as a stray floating block disconnected from everything else — left-aligning keeps it
-           flush with the title/breadcrumb above it, like the rest of the page. -->
-      <div class="w-full sm:w-auto flex justify-start">
-        <SongHeaderActions client:load song={song} isCommunity={isCommunity} isLocalhost={isLocalhost} />
+      <!-- Title and actions share this column (instead of actions sitting next to the cover
+           image at the outer level) so that when actions wrap to their own line on mobile,
+           they inherit the title's left edge, not the cover art's — previously they lined up
+           flush with the thumbnail, a column to the left of where the title actually starts,
+           which read as a stray toolbar rather than something that belonged to the heading. -->
+      <div class="flex-1 min-w-0 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div class="flex-1 min-w-0">
+          <h1 class="text-xl sm:text-3xl font-bold text-foreground leading-tight truncate">{song.title} Chords</h1>
+          <p class="text-sm text-muted-foreground mt-0.5 truncate">
+            {song.artist}{song.year ? ` · ${song.year}` : ''}{song.album ? ` · ${song.album}` : ''}
+          </p>
+        </div>
+        <!-- w-full forces this onto its own line on mobile, where the title/album otherwise had
+             to compete with 3-4 icon buttons for space in one row and got squeezed unreadable;
+             sm:w-auto + sm:ml-auto puts it back inline, pinned to the row's right edge, once
+             there's room. -->
+        <div class="w-full sm:w-auto sm:ml-auto flex justify-start">
+          <SongHeaderActions client:load song={song} isCommunity={isCommunity} isLocalhost={isLocalhost} />
+        </div>
       </div>
     </div>
 
