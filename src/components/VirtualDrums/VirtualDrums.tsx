@@ -160,6 +160,9 @@ export function VirtualDrums() {
   // Lookahead scheduler tick (setInterval) driving the beat loop — separate from
   // beatTimersRef, which only holds the individual visual-cue setTimeouts it queues.
   const beatSchedulerRef = useRef<number | null>(null)
+  // Audio-clock time the current bar started — read by getBeatPlayhead() so the
+  // Beat Editor can show a synced step highlight without running its own scheduler.
+  const beatBarStartRef = useRef(0)
   const cdTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -318,6 +321,7 @@ export function VirtualDrums() {
 
     let idx = 0
     let barStart = engine.now() + 0.05
+    beatBarStartRef.current = barStart
 
     const tick = () => {
       const spb = 60 / beatBpmRef.current
@@ -335,6 +339,7 @@ export function VirtualDrums() {
         if (idx >= events.length) {
           idx = 0
           barStart += pat.beats * spb
+          beatBarStartRef.current = barStart
         }
       }
     }
@@ -369,24 +374,33 @@ export function VirtualDrums() {
     if (beatOnRef.current) startBeat()
   }, [startBeat])
 
-  // Stop the live kit beat before the editor opens — otherwise its own preview
-  // loop would overlap with the one already running underneath.
-  const openEditor = useCallback(() => {
-    if (beatOnRef.current) stopBeat()
-    setEditorOpen(true)
-  }, [stopBeat])
+  // Current 0-15 step position within the playing bar, for the Beat Editor to show
+  // a synced playhead without running a second scheduler alongside this one.
+  const getBeatPlayhead = useCallback((): number => {
+    const engine = engineRef.current
+    if (!beatOnRef.current || !engine) return -1
+    const spb = 60 / beatBpmRef.current
+    const barDur = 4 * spb // every pattern (built-in and custom) is 4 beats / 16 steps
+    const elapsed = engine.now() - beatBarStartRef.current
+    const pos = ((elapsed % barDur) + barDur) % barDur
+    return Math.floor((pos / barDur) * 16)
+  }, [])
 
   // Custom beats never overwrite a built-in one — they're always appended at
   // PATTERNS.length, so saving again from the editor just replaces that one slot.
-  const handleSaveCustomPattern = useCallback((pattern: BeatPattern) => {
+  // `resume` reflects whatever was audibly playing right before Save (the main kit
+  // beat, synced, or the editor's own draft preview) — either way, saving swaps the
+  // main beat over to the new pattern and keeps it going; if nothing was playing it
+  // stays stopped.
+  const handleSaveCustomPattern = useCallback((pattern: BeatPattern, resume: boolean) => {
     setCustomPattern(pattern)
     const idx = PATTERNS.length
     setBeatIdx(idx)
     beatIdxRef.current = idx
     setBeatBpm(pattern.bpm)
     setEditorOpen(false)
-    if (beatOnRef.current) startBeat()
-  }, [startBeat])
+    if (resume) startBeat(); else stopBeat()
+  }, [startBeat, stopBeat])
 
   const toggleRecord = useCallback(() => {
     if (countdownRef.current > 0) {
@@ -563,7 +577,7 @@ export function VirtualDrums() {
       <div style={{ background: '#efe8fb', borderTop: '1px solid #e0d6f7', borderBottom: '1px solid #e0d6f7' }}>
         <div className="vd-topbar-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 10, paddingBottom: 10, flexWrap: 'wrap' }}>
           <button
-            onClick={openEditor}
+            onClick={() => setEditorOpen(true)}
             style={{ padding: '9px 14px', border: '1px solid #d6cdeb', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: '#ffffff', color: '#5a2fc0', whiteSpace: 'nowrap' }}
           >
             🎵 Beat editor
@@ -639,6 +653,9 @@ export function VirtualDrums() {
         trigger={(id, vel) => trigger(id, vel, true)}
         kit={kit}
         onKitChange={setKit}
+        mainPlaying={beatOn}
+        getMainStep={getBeatPlayhead}
+        onStopMain={stopBeat}
       />
     </div>
   )
