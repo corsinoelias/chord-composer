@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import type { DrumPieceId } from '../../lib/virtualDrums/drumSynth'
+import type { DrumKitId, DrumPieceId } from '../../lib/virtualDrums/drumSynth'
 import type { BeatPattern } from './VirtualDrums'
 
 const STEPS = 16
@@ -63,9 +63,11 @@ interface BeatEditorProps {
   initialPattern: BeatPattern | null
   onSave: (pattern: BeatPattern) => void
   trigger: (id: DrumPieceId, vel: number) => void
+  kit: DrumKitId
+  onKitChange: (kit: DrumKitId) => void
 }
 
-export function BeatEditor({ open, onClose, initialPattern, onSave, trigger }: BeatEditorProps) {
+export function BeatEditor({ open, onClose, initialPattern, onSave, trigger, kit, onKitChange }: BeatEditorProps) {
   const [name, setName] = useState(DEFAULT_NAME)
   const [bpm, setBpm] = useState(DEFAULT_BPM)
   const [grid, setGrid] = useState<boolean[][]>(blankGrid)
@@ -194,6 +196,10 @@ export function BeatEditor({ open, onClose, initialPattern, onSave, trigger }: B
               onChange={e => setBpm(Number(e.target.value))}
               style={{ flex: 1, accentColor: '#7442d6' }}
             />
+          </div>
+          <div style={{ display: 'flex', border: '1px solid #d6cdeb', borderRadius: 999, overflow: 'hidden' }}>
+            <button onClick={() => onKitChange('acoustic')} style={{ padding: '7px 12px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: kit === 'acoustic' ? '#7442d6' : 'transparent', color: kit === 'acoustic' ? '#ffffff' : '#3c3355' }}>Acoustic</button>
+            <button onClick={() => onKitChange('electronic')} style={{ padding: '7px 12px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: kit === 'electronic' ? '#7442d6' : 'transparent', color: kit === 'electronic' ? '#ffffff' : '#3c3355' }}>Electronic</button>
           </div>
           <button
             onClick={togglePreview}

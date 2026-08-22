@@ -511,28 +511,23 @@ export function VirtualDrums() {
           read as an inviting strip, not just another control. */}
       <div style={{ background: '#efe8fb', borderTop: '1px solid #e0d6f7', borderBottom: '1px solid #e0d6f7' }}>
         <div className="vd-topbar-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 10, paddingBottom: 10, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#5a2fc0', whiteSpace: 'nowrap' }}>
-            🎵 Jam over a beat
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, borderRadius: 999, overflow: 'hidden', background: '#ffffff' }}>
-              <select
-                value={beatIdx}
-                onChange={onBeatChange}
-                style={{ appearance: 'none', padding: '9px 12px', border: 'none', background: beatOn ? '#ece5fb' : '#ffffff', color: '#3c3355', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none' }}
-              >
-                {allPatterns.map((p, i) => (
-                  <option key={p.name + i} value={i}>{i >= PATTERNS.length ? '✎ ' : ''}{p.name} · {p.bpm} bpm</option>
-                ))}
-              </select>
-              <button onClick={toggleBeat} style={{ padding: '9px 16px', border: 'none', borderLeft: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: beatOn ? '#7442d6' : '#f1edfa', color: beatOn ? '#ffffff' : '#5a2fc0', whiteSpace: 'nowrap' }}>{beatLabel}</button>
-            </div>
-            <button
-              onClick={() => setEditorOpen(true)}
-              style={{ padding: '9px 14px', border: '1px solid #d6cdeb', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 600, background: '#ffffff', color: '#5a2fc0', whiteSpace: 'nowrap' }}
+          <button
+            onClick={() => setEditorOpen(true)}
+            style={{ padding: '9px 14px', border: '1px solid #d6cdeb', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: '#ffffff', color: '#5a2fc0', whiteSpace: 'nowrap' }}
+          >
+            🎵 Beat editor
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, borderRadius: 999, overflow: 'hidden', background: '#ffffff' }}>
+            <select
+              value={beatIdx}
+              onChange={onBeatChange}
+              style={{ appearance: 'none', padding: '9px 12px', border: 'none', background: beatOn ? '#ece5fb' : '#ffffff', color: '#3c3355', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none' }}
             >
-              ✎ Beat editor
-            </button>
+              {allPatterns.map((p, i) => (
+                <option key={p.name + i} value={i}>{i >= PATTERNS.length ? '✎ ' : ''}{p.name} · {p.bpm} bpm</option>
+              ))}
+            </select>
+            <button onClick={toggleBeat} style={{ padding: '9px 16px', border: 'none', borderLeft: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: beatOn ? '#7442d6' : '#f1edfa', color: beatOn ? '#ffffff' : '#5a2fc0', whiteSpace: 'nowrap' }}>{beatLabel}</button>
           </div>
         </div>
       </div>
@@ -578,9 +573,11 @@ export function VirtualDrums() {
       <BeatEditor
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
-        initialPattern={customPattern}
+        initialPattern={allPatterns[beatIdx] ?? null}
         onSave={handleSaveCustomPattern}
         trigger={(id, vel) => trigger(id, vel, true)}
+        kit={kit}
+        onKitChange={setKit}
       />
     </div>
   )
