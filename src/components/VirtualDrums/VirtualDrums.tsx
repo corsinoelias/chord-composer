@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createDrumEngine, type DrumEngine, type DrumKitId, type DrumPieceId } from '../../lib/virtualDrums/drumSynth'
 import { buildKitSvg, SCENES } from '../../lib/virtualDrums/kitSvg'
+import { BeatEditor } from './BeatEditor'
 
 // Ported from the user's Claude Design project "Batería Virtual Interactiva"
 // (Virtual Drums.dc.html) — same keymap, MIDI map, beat patterns, and
@@ -25,8 +26,8 @@ const MIDI_MAP: Record<number, DrumPieceId> = {
   41: 'tom-floor', 43: 'tom-floor',
 }
 
-interface BeatEvent { t: number; id: DrumPieceId; v: number }
-interface BeatPattern { name: string; bpm: number; beats: number; ev: BeatEvent[] }
+export interface BeatEvent { t: number; id: DrumPieceId; v: number }
+export interface BeatPattern { name: string; bpm: number; beats: number; ev: BeatEvent[] }
 
 const PATTERNS: BeatPattern[] = [
   { name: 'Rock', bpm: 96, beats: 4, ev: [
@@ -120,6 +121,10 @@ export function VirtualDrums() {
   const [beatOn, setBeatOn] = useState(false)
   const [midiText, setMidiText] = useState('MIDI')
   const [midiOk, setMidiOk] = useState(false)
+  const [editorOpen, setEditorOpen] = useState(false)
+  // User-built beat, kept only for this session (not persisted) — appended after the
+  // built-in PATTERNS so it shows up in the same dropdown once created.
+  const [customPattern, setCustomPattern] = useState<BeatPattern | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<DrumEngine | null>(null)
@@ -130,6 +135,12 @@ export function VirtualDrums() {
   const beatIdxRef = useRef(beatIdx); beatIdxRef.current = beatIdx
   const beatOnRef = useRef(beatOn); beatOnRef.current = beatOn
   const countdownRef = useRef(countdown); countdownRef.current = countdown
+
+  // Built-in beats plus the user's custom one (if created), appended at the end so
+  // its index is stable while it exists. Kept in a ref too so the setTimeout-driven
+  // startBeat loop always reads the latest patterns without needing to restart.
+  const allPatterns = useMemo(() => (customPattern ? [...PATTERNS, customPattern] : PATTERNS), [customPattern])
+  const allPatternsRef = useRef(allPatterns); allPatternsRef.current = allPatterns
 
   const eventsRef = useRef<{ t: number; id: DrumPieceId }[]>([])
   const recStartRef = useRef(0)
@@ -280,7 +291,7 @@ export function VirtualDrums() {
 
   const startBeat = useCallback(() => {
     stopBeat()
-    const pat = PATTERNS[beatIdxRef.current]
+    const pat = allPatternsRef.current[beatIdxRef.current] ?? PATTERNS[0]
     const spb = 60000 / pat.bpm
     const loop = () => {
       pat.ev.forEach(ev => {
@@ -312,6 +323,17 @@ export function VirtualDrums() {
     const i = parseInt(e.target.value, 10)
     setBeatIdx(i)
     beatIdxRef.current = i
+    if (beatOnRef.current) startBeat()
+  }, [startBeat])
+
+  // Custom beats never overwrite a built-in one — they're always appended at
+  // PATTERNS.length, so saving again from the editor just replaces that one slot.
+  const handleSaveCustomPattern = useCallback((pattern: BeatPattern) => {
+    setCustomPattern(pattern)
+    const idx = PATTERNS.length
+    setBeatIdx(idx)
+    beatIdxRef.current = idx
+    setEditorOpen(false)
     if (beatOnRef.current) startBeat()
   }, [startBeat])
 
@@ -492,17 +514,25 @@ export function VirtualDrums() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#5a2fc0', whiteSpace: 'nowrap' }}>
             🎵 Jam over a beat
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, borderRadius: 999, overflow: 'hidden', background: '#ffffff' }}>
-            <select
-              value={beatIdx}
-              onChange={onBeatChange}
-              style={{ appearance: 'none', padding: '9px 12px', border: 'none', background: beatOn ? '#ece5fb' : '#ffffff', color: '#3c3355', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none' }}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, borderRadius: 999, overflow: 'hidden', background: '#ffffff' }}>
+              <select
+                value={beatIdx}
+                onChange={onBeatChange}
+                style={{ appearance: 'none', padding: '9px 12px', border: 'none', background: beatOn ? '#ece5fb' : '#ffffff', color: '#3c3355', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none' }}
+              >
+                {allPatterns.map((p, i) => (
+                  <option key={p.name + i} value={i}>{i >= PATTERNS.length ? '✎ ' : ''}{p.name} · {p.bpm} bpm</option>
+                ))}
+              </select>
+              <button onClick={toggleBeat} style={{ padding: '9px 16px', border: 'none', borderLeft: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: beatOn ? '#7442d6' : '#f1edfa', color: beatOn ? '#ffffff' : '#5a2fc0', whiteSpace: 'nowrap' }}>{beatLabel}</button>
+            </div>
+            <button
+              onClick={() => setEditorOpen(true)}
+              style={{ padding: '9px 14px', border: '1px solid #d6cdeb', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 600, background: '#ffffff', color: '#5a2fc0', whiteSpace: 'nowrap' }}
             >
-              {PATTERNS.map((p, i) => (
-                <option key={p.name} value={i}>{p.name} · {p.bpm} bpm</option>
-              ))}
-            </select>
-            <button onClick={toggleBeat} style={{ padding: '9px 16px', border: 'none', borderLeft: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: beatOn ? '#7442d6' : '#f1edfa', color: beatOn ? '#ffffff' : '#5a2fc0', whiteSpace: 'nowrap' }}>{beatLabel}</button>
+              ✎ Beat editor
+            </button>
           </div>
         </div>
       </div>
@@ -543,6 +573,15 @@ export function VirtualDrums() {
           </div>
         </div>
       )}
+
+      {/* BEAT EDITOR */}
+      <BeatEditor
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        initialPattern={customPattern}
+        onSave={handleSaveCustomPattern}
+        trigger={(id, vel) => trigger(id, vel, true)}
+      />
     </div>
   )
 }
