@@ -58,7 +58,7 @@ export async function prepareSoundfont(sound: string): Promise<void> {
     }
     const player = await sf.instrument(ctx, instrument, {
       soundfont: 'MusyngKite',
-      nameToUrl: () => `/soundfonts/${instrument}-mp3.js`,
+      nameToUrl: () => `/audio/soundfonts/${instrument}-mp3.js`,
     })
     if (masterGain) player.connect(masterGain)
     sfPlayers.set(sound, player)
