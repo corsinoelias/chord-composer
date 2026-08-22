@@ -28,6 +28,29 @@ function blankGrid(): boolean[][] {
   return ROWS.map(() => Array(STEPS).fill(false))
 }
 
+// Per-row odds that a given 16th-note step gets a hit when randomizing. Kick and
+// snare are biased toward the strong beats (steps 0/4/8/12, backbeat on 4 & 12) so
+// a random roll still reads as a beat instead of noise; hi-hat stays dense and even;
+// everything else stays sparse.
+function stepDensity(id: DrumPieceId, step: number): number {
+  const onBeat = step % 4 === 0
+  switch (id) {
+    case 'kick': return onBeat ? 0.55 : 0.1
+    case 'snare': return (step === 4 || step === 12) ? 0.85 : 0.06
+    case 'stick': return 0.1
+    case 'hh-closed': return step % 2 === 0 ? 0.65 : 0.4
+    case 'hh-open': return 0.08
+    case 'tom-hi': case 'tom-lo': case 'tom-floor': return 0.06
+    case 'crash-edge': return step === 0 ? 0.25 : 0.02
+    case 'ride-body': return 0.15
+    default: return 0.1
+  }
+}
+
+function randomGrid(): boolean[][] {
+  return ROWS.map(row => Array.from({ length: STEPS }, (_, step) => Math.random() < stepDensity(row.id, step)))
+}
+
 function defaultVols(): number[] {
   return ROWS.map(r => r.defaultVel)
 }
@@ -150,6 +173,7 @@ export function BeatEditor({ open, onClose, initialPattern, onSave, trigger, kit
   }
 
   const handleClear = () => setGrid(blankGrid())
+  const handleRandomize = () => setGrid(randomGrid())
 
   const handleClose = () => {
     stopPreview()
@@ -212,6 +236,12 @@ export function BeatEditor({ open, onClose, initialPattern, onSave, trigger, kit
             style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid #d6cdeb', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: '#ffffff', color: '#6d6685', whiteSpace: 'nowrap' }}
           >
             Clear
+          </button>
+          <button
+            onClick={handleRandomize}
+            style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid #d6cdeb', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: '#ffffff', color: '#6d6685', whiteSpace: 'nowrap' }}
+          >
+            🎲 Randomize
           </button>
         </div>
 

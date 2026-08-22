@@ -125,6 +125,9 @@ export function VirtualDrums() {
   // User-built beat, kept only for this session (not persisted) — appended after the
   // built-in PATTERNS so it shows up in the same dropdown once created.
   const [customPattern, setCustomPattern] = useState<BeatPattern | null>(null)
+  // Live tempo override for whichever beat is selected — starts at that beat's own
+  // bpm but can be dragged independently, same idea as the drum machine's BPM slider.
+  const [beatBpm, setBeatBpm] = useState(PATTERNS[0].bpm)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<DrumEngine | null>(null)
@@ -134,6 +137,7 @@ export function VirtualDrums() {
   const playingRef = useRef(playing); playingRef.current = playing
   const beatIdxRef = useRef(beatIdx); beatIdxRef.current = beatIdx
   const beatOnRef = useRef(beatOn); beatOnRef.current = beatOn
+  const beatBpmRef = useRef(beatBpm); beatBpmRef.current = beatBpm
   const countdownRef = useRef(countdown); countdownRef.current = countdown
 
   // Built-in beats plus the user's custom one (if created), appended at the end so
@@ -292,8 +296,10 @@ export function VirtualDrums() {
   const startBeat = useCallback(() => {
     stopBeat()
     const pat = allPatternsRef.current[beatIdxRef.current] ?? PATTERNS[0]
-    const spb = 60000 / pat.bpm
+    // spb (seconds per beat) is recomputed every bar from beatBpmRef, not baked in
+    // once at start, so dragging the BPM slider takes effect without a restart.
     const loop = () => {
+      const spb = 60000 / beatBpmRef.current
       pat.ev.forEach(ev => {
         beatTimersRef.current.push(window.setTimeout(() => trigger(ev.id, ev.v, true), ev.t * spb))
       })
@@ -323,8 +329,17 @@ export function VirtualDrums() {
     const i = parseInt(e.target.value, 10)
     setBeatIdx(i)
     beatIdxRef.current = i
+    const pat = allPatternsRef.current[i]
+    if (pat) setBeatBpm(pat.bpm)
     if (beatOnRef.current) startBeat()
   }, [startBeat])
+
+  // Stop the live kit beat before the editor opens — otherwise its own preview
+  // loop would overlap with the one already running underneath.
+  const openEditor = useCallback(() => {
+    if (beatOnRef.current) stopBeat()
+    setEditorOpen(true)
+  }, [stopBeat])
 
   // Custom beats never overwrite a built-in one — they're always appended at
   // PATTERNS.length, so saving again from the editor just replaces that one slot.
@@ -333,6 +348,7 @@ export function VirtualDrums() {
     const idx = PATTERNS.length
     setBeatIdx(idx)
     beatIdxRef.current = idx
+    setBeatBpm(pattern.bpm)
     setEditorOpen(false)
     if (beatOnRef.current) startBeat()
   }, [startBeat])
@@ -512,11 +528,20 @@ export function VirtualDrums() {
       <div style={{ background: '#efe8fb', borderTop: '1px solid #e0d6f7', borderBottom: '1px solid #e0d6f7' }}>
         <div className="vd-topbar-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 10, paddingBottom: 10, flexWrap: 'wrap' }}>
           <button
-            onClick={() => setEditorOpen(true)}
+            onClick={openEditor}
             style={{ padding: '9px 14px', border: '1px solid #d6cdeb', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: '#ffffff', color: '#5a2fc0', whiteSpace: 'nowrap' }}
           >
             🎵 Beat editor
           </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label style={{ fontSize: 12, color: '#5a2fc0', fontWeight: 600, whiteSpace: 'nowrap' }}>BPM · {beatBpm}</label>
+            <input
+              type="range" min={60} max={200} step={1} value={beatBpm}
+              onChange={e => setBeatBpm(Number(e.target.value))}
+              style={{ width: 90, accentColor: '#7442d6' }}
+            />
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, borderRadius: 999, overflow: 'hidden', background: '#ffffff' }}>
             <select
               value={beatIdx}
@@ -528,6 +553,7 @@ export function VirtualDrums() {
               ))}
             </select>
             <button onClick={toggleBeat} style={{ padding: '9px 16px', border: 'none', borderLeft: `1px solid ${beatOn ? '#7442d6' : '#d6cdeb'}`, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: beatOn ? '#7442d6' : '#f1edfa', color: beatOn ? '#ffffff' : '#5a2fc0', whiteSpace: 'nowrap' }}>{beatLabel}</button>
+          </div>
           </div>
         </div>
       </div>
