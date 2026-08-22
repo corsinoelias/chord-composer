@@ -49,7 +49,12 @@ const ACOUSTIC_SAMPLE_PATHS: Record<AcousticSampleKey, string> = {
 }
 
 export interface DrumEngine {
-  play(kit: DrumKitId, id: DrumPieceId, vel?: number): void
+  // `time` is an AudioContext.currentTime-relative timestamp for sample-accurate
+  // scheduling; omit it (or pass a past/undefined value) to play immediately.
+  play(kit: DrumKitId, id: DrumPieceId, vel?: number, time?: number): void
+  // Current AudioContext clock, for schedulers that look ahead of "now". Creates
+  // the context (without unlocking audio) if it doesn't exist yet.
+  now(): number
   setVolume(v: number): void
   setReverb(v: number): void
 }
@@ -392,11 +397,13 @@ export function createDrumEngine(): DrumEngine {
   }
 
   return {
-    play(kit: DrumKitId, id: DrumPieceId, vel?: number) {
+    play(kit: DrumKitId, id: DrumPieceId, vel?: number, time?: number) {
       ensure()
       const fn = (TABLE[kit] || TABLE.acoustic)[id]
-      if (fn) fn(ctx!.currentTime, Math.max(0.1, Math.min(1, vel == null ? 1 : vel)))
+      const t = time != null && time > ctx!.currentTime ? time : ctx!.currentTime
+      if (fn) fn(t, Math.max(0.1, Math.min(1, vel == null ? 1 : vel)))
     },
+    now() { ensure(); return ctx!.currentTime },
     setVolume(v: number) { vol = v; if (master) master.gain.setTargetAtTime(v, ctx!.currentTime, 0.02) },
     setReverb(v: number) { rev = v; if (wet) wet.gain.setTargetAtTime(v, ctx!.currentTime, 0.02) },
   }

@@ -281,6 +281,12 @@ export function BeatEditor({ open, onClose, initialPattern, onSave, trigger, kit
                       <button
                         key={step}
                         onClick={() => toggleCell(rowIdx, step)}
+                        // Stops the browser's default click→focus→scrollIntoView from
+                        // yanking the grid's horizontal scroll (and the dialog's vertical
+                        // scroll) when tapping a cell near an edge, without breaking Tab
+                        // navigation (mousedown preventDefault only suppresses the focus
+                        // that a mouse click would otherwise trigger).
+                        onMouseDown={e => e.preventDefault()}
                         style={{
                           flex: '1 0 0', minWidth: 20, aspectRatio: '1 / 1', padding: 0,
                           marginLeft: step % 4 === 0 && step > 0 ? 8 : 0,

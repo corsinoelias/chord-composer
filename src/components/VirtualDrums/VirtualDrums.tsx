@@ -82,6 +82,13 @@ const PATTERNS: BeatPattern[] = [
   ] },
 ]
 
+// Lookahead scheduling for the beat loop (same technique as the drum machine's
+// audio-clock scheduler): only ever schedule a small window ahead of "now" and
+// re-tick every LOOKAHEAD_MS, so a BPM change is heard within one tick instead
+// of waiting for the whole bar that was queued up front.
+const BEAT_LOOKAHEAD_MS = 25
+const BEAT_SCHEDULE_AHEAD_S = 0.12
+
 const SHORTCUT_LIST = [
   { k: 'Z / V', n: 'Bass drum' },
   { k: 'X / C', n: 'Snare drum' },
@@ -150,6 +157,9 @@ export function VirtualDrums() {
   const recStartRef = useRef(0)
   const playTimersRef = useRef<number[]>([])
   const beatTimersRef = useRef<number[]>([])
+  // Lookahead scheduler tick (setInterval) driving the beat loop — separate from
+  // beatTimersRef, which only holds the individual visual-cue setTimeouts it queues.
+  const beatSchedulerRef = useRef<number | null>(null)
   const cdTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -288,26 +298,51 @@ export function VirtualDrums() {
   }, [trigger])
 
   const stopBeat = useCallback(() => {
+    if (beatSchedulerRef.current != null) { clearInterval(beatSchedulerRef.current); beatSchedulerRef.current = null }
     beatTimersRef.current.forEach(clearTimeout)
     beatTimersRef.current = []
     if (beatOnRef.current) setBeatOn(false)
   }, [])
 
+  // Audio-clock lookahead scheduler: only schedules events up to
+  // BEAT_SCHEDULE_AHEAD_S into the future, re-ticking every BEAT_LOOKAHEAD_MS and
+  // re-reading beatBpmRef each time — so a BPM slider change is audible on the very
+  // next tick instead of waiting for the bar that was already queued to finish.
   const startBeat = useCallback(() => {
     stopBeat()
+    const engine = engineRef.current
+    if (!engine) return
     const pat = allPatternsRef.current[beatIdxRef.current] ?? PATTERNS[0]
-    // spb (seconds per beat) is recomputed every bar from beatBpmRef, not baked in
-    // once at start, so dragging the BPM slider takes effect without a restart.
-    const loop = () => {
-      const spb = 60000 / beatBpmRef.current
-      pat.ev.forEach(ev => {
-        beatTimersRef.current.push(window.setTimeout(() => trigger(ev.id, ev.v, true), ev.t * spb))
-      })
-      beatTimersRef.current.push(window.setTimeout(loop, pat.beats * spb))
+    const events = [...pat.ev].sort((a, b) => a.t - b.t)
+    if (!events.length) { setBeatOn(true); return }
+
+    let idx = 0
+    let barStart = engine.now() + 0.05
+
+    const tick = () => {
+      const spb = 60 / beatBpmRef.current
+      const horizon = engine.now() + BEAT_SCHEDULE_AHEAD_S
+      while (barStart + events[idx].t * spb < horizon) {
+        const ev = events[idx]
+        const time = barStart + ev.t * spb
+        engine.play(kitRef.current, ev.id, ev.v, time)
+        const delayMs = Math.max(0, (time - engine.now()) * 1000)
+        beatTimersRef.current.push(window.setTimeout(() => {
+          animateHit(ev.id)
+          crowdReact(ev.id)
+        }, delayMs))
+        idx++
+        if (idx >= events.length) {
+          idx = 0
+          barStart += pat.beats * spb
+        }
+      }
     }
+
     setBeatOn(true)
-    loop()
-  }, [stopBeat, trigger])
+    tick()
+    beatSchedulerRef.current = window.setInterval(tick, BEAT_LOOKAHEAD_MS)
+  }, [stopBeat, animateHit, crowdReact])
 
   const stopPlayback = useCallback(() => {
     playTimersRef.current.forEach(clearTimeout)
