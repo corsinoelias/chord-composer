@@ -109,7 +109,16 @@ export function SongsPanel({ open, onClose, onPlay, onOpenMidi, refreshKey }: Pr
                       style={{ ...ghostBtn(), padding: '7px 11px', fontSize: 12 }}
                     >⬇</button>
                     <button
-                      onClick={() => { deleteMySong(s.id); setMySongs(getMySongs()) }}
+                      onClick={() => {
+                        const sharedId = deleteMySong(s.id)
+                        setMySongs(getMySongs())
+                        // Best-effort — if the visitor isn't logged in any more (or
+                        // never linked it, or it's already gone), the local delete
+                        // above still went through regardless; see pianoShare.ts.
+                        if (sharedId) {
+                          import('../../lib/virtualPiano/pianoShare').then(({ deleteSharedRecording }) => deleteSharedRecording(sharedId))
+                        }
+                      }}
                       title="Delete"
                       style={{ ...ghostBtn(), padding: '7px 11px', fontSize: 12, color: '#ff8a9c' }}
                     >🗑</button>

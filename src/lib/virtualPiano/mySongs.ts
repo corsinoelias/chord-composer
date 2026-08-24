@@ -14,6 +14,12 @@ export interface MySong {
   source: 'recording' | 'midi'
   bpm: number
   notes: MySongNote[]
+  // Set once this recording has also been shared (see handleShareRecording /
+  // runShare in VirtualPiano.tsx) — the id of its row in Supabase's
+  // piano_recordings table. Lets deleting this entry also clean up the cloud
+  // row (see SongsPanel.tsx's delete handler) instead of leaving an orphaned
+  // share link nothing local points at any more.
+  sharedId?: string
 }
 
 function readAll(): MySong[] {
@@ -54,6 +60,17 @@ export function renameMySong(id: string, name: string): void {
   if (song) { song.name = name; writeAll(all) }
 }
 
-export function deleteMySong(id: string): void {
-  writeAll(readAll().filter(s => s.id !== id))
+/** Records that this entry has a corresponding shared row, so deleting it later can clean that up too. */
+export function linkSharedRecording(id: string, sharedId: string): void {
+  const all = readAll()
+  const song = all.find(s => s.id === id)
+  if (song) { song.sharedId = sharedId; writeAll(all) }
+}
+
+/** Returns the deleted entry's sharedId (if it had one), so the caller can also delete the cloud row. */
+export function deleteMySong(id: string): string | undefined {
+  const all = readAll()
+  const song = all.find(s => s.id === id)
+  writeAll(all.filter(s => s.id !== id))
+  return song?.sharedId
 }

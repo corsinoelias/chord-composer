@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Toaster as Sonner, toast as sonnerToast } from '@/components/ui/sonner'
+import { analytics } from '@/lib/analytics'
 import { loadPianoSamples } from '../../lib/virtualPiano/pianoSamples'
 import { keyXFrac } from '../../lib/virtualPiano/pianoKeyLayout'
-import { getMySongs, saveMySong } from '../../lib/virtualPiano/mySongs'
+import { getMySongs, linkSharedRecording, saveMySong } from '../../lib/virtualPiano/mySongs'
 import {
   buildMidiFile, buildVoice, download, parseMidiFile, renderRecordingToWav,
   type InstrumentId, type RecEvent, type Voice,
@@ -15,6 +17,13 @@ import { RecordPanel } from './RecordPanel'
 import { PianoVisualizer, type Burst } from './PianoVisualizer'
 import { PianoKeys } from './PianoKeys'
 import { STAGE_H_PAD, TEAL, TEXT_DIM, TEXT_HI, TEXT_MED, VIOLET, VIOLET_2, ghostBtn, optionStyle, pillBtn } from './pianoTheme'
+
+// Sharing is the only piano feature that needs an account, and account UI drags in
+// Radix Dialog/Tabs + supabase.ts (~230KB combined, same weight AccountSlot.tsx's
+// comment measures for the navbar's own AuthModal) — lazy so the vast majority of
+// pageviews, which never press Share, never fetch either chunk.
+const AccountPromptModal = lazy(() => import('@/components/AccountPromptModal').then(m => ({ default: m.AccountPromptModal })))
+const AuthModal = lazy(() => import('@/components/AuthModal').then(m => ({ default: m.AuthModal })))
 
 // Ported from the user's Claude Design project "Piano virtual realista"
 // (Virtual Piano.dc.html) — audio synthesis, recording, marks, and MIDI
@@ -49,7 +58,22 @@ function blackKeyWidthFactor(nOct: number): number {
   return nOct <= 2 ? 0.74 : 0.62
 }
 
-export function VirtualPiano() {
+// Shared by the live recording buffer (recEventsRef) and a fetched shared recording
+// (sharedRecording prop, /piano/r/[id].astro) — both are RecEvent[] on absolute-seconds
+// timestamps, so they convert to the transport's TransportNote[] the same way.
+function eventsToTransportNotes(evs: RecEvent[]): TransportNote[] {
+  return evs.map(ev => ({ midi: ev.midi, time: ev.tOn, dur: Math.max((ev.tOff ?? ev.tOn) - ev.tOn, 0.12) }))
+}
+
+export interface SharedPianoRecording { name: string; events: RecEvent[] }
+
+interface VirtualPianoProps {
+  // Set by /piano/r/[id].astro when this component is reused as the viewer for a
+  // shared link, instead of building a second player just to play back one song.
+  sharedRecording?: SharedPianoRecording | null
+}
+
+export function VirtualPiano({ sharedRecording = null }: VirtualPianoProps = {}) {
   const [baseOctave, setBaseOctave] = useState(3)
   const [nOct, setNOct] = useState(4)
   const [octOverride, setOctOverride] = useState<number | null>(null)
@@ -73,6 +97,16 @@ export function VirtualPiano() {
   const [countdown, setCountdown] = useState(0)
   const [freePlayDimmed, setFreePlayDimmed] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+
+  // Share state — see handleShareRecording. `shareState` drives the button's label in
+  // RecordPanel; `accountPromptOpen`/`authModalOpen` are the two-step "why an account"
+  // → real form chain, copied from the chord editor (Index.tsx). `authModalLoaded`
+  // keeps AuthModal (and its lazy chunk) mounted once requested, same as AccountSlot.tsx,
+  // so closing it doesn't tear down Radix's close animation.
+  const [shareState, setShareState] = useState<'idle' | 'working' | 'shared'>('idle')
+  const [accountPromptOpen, setAccountPromptOpen] = useState(false)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [authModalLoaded, setAuthModalLoaded] = useState(false)
 
   const baseOctaveRef = useRef(baseOctave); baseOctaveRef.current = baseOctave
   const nOctRef = useRef(nOct); nOctRef.current = nOct
@@ -102,6 +136,19 @@ export function VirtualPiano() {
   const toastTimerRef = useRef<number | null>(null)
   const burstsRef = useRef<Burst[]>([])
   const prevTransportSongRef = useRef<TransportSong | null>(null)
+
+  // Share flow. `pendingShareNameRef` carries the typed name across the sign-up detour
+  // (the recording modal's own name input resets on remount, so the name has to be
+  // captured at click time, not re-read after auth finishes). `sharedRecordingIdRef`
+  // is what makes a second Share click idempotent — re-copy the same link instead of
+  // inserting a second row, mirroring handleShare's `isPublic` check in Index.tsx.
+  const pendingShareNameRef = useRef<string | null>(null)
+  const sharedRecordingIdRef = useRef<string | null>(null)
+  // The My Songs id this take was saved under, if Save was pressed — lets Save and
+  // Share (in either order) link the two, so deleting the My Songs entry later can
+  // also delete its cloud row instead of leaving an orphaned link. See mySongs.ts's
+  // `sharedId` field and SongsPanel.tsx's delete handler.
+  const savedMySongIdRef = useRef<string | null>(null)
 
   const resize = useCallback(() => {
     if (octOverrideRef.current !== null) return
@@ -266,13 +313,28 @@ export function VirtualPiano() {
     setBaseOctave(Math.max(1, Math.min(6, base)))
   }, [])
 
-  const playSong = useCallback((song: TransportSong, opts: { practice?: boolean } = {}) => {
+  const playSong = useCallback((song: TransportSong, opts: { practice?: boolean; autoplay?: boolean } = {}) => {
     releaseAllVoices()
     fitSong(song.notes)
     ensureCtx()
-    transport.load(song, { practice: opts.practice, autoplay: true })
+    transport.load(song, { practice: opts.practice, autoplay: opts.autoplay ?? true })
     setSongsOpen(false)
   }, [releaseAllVoices, fitSong, ensureCtx, transport])
+
+  // Loads a shared recording passed in from the /piano/r/[id].astro viewer route —
+  // NOT autoplayed. A page load is never a user gesture, so ensureCtx()'s
+  // ctx.resume() call would be silently ignored by the browser's autoplay policy:
+  // the transport would tick along "playing" with nothing audible until the visitor
+  // happened to press a real piano key (whose own gesture unlocks the context for
+  // everything after it) — confirmed exactly that behavior when this first shipped.
+  // Loading paused instead leaves the transport ready with a normal Play button,
+  // and PlayerBar's onEnsureAudio calls ensureCtx() synchronously inside that click.
+  useEffect(() => {
+    if (!sharedRecording) return
+    playSong({ name: sharedRecording.name, bpm: 120, notes: eventsToTransportNotes(sharedRecording.events) }, { autoplay: false })
+    analytics.sharedPianoRecordingOpened()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const doLoadMidi = useCallback(() => {
     const inp = document.createElement('input')
@@ -320,7 +382,7 @@ export function VirtualPiano() {
   }, [])
 
   const recordingToTransportNotes = useCallback((): TransportNote[] =>
-    recEventsRef.current.map(ev => ({ midi: ev.midi, time: ev.tOn, dur: Math.max((ev.tOff ?? ev.tOn) - ev.tOn, 0.12) })), [])
+    eventsToTransportNotes(recEventsRef.current), [])
 
   const handlePlayRecording = useCallback(() => {
     if (!recEventsRef.current.length) return
@@ -332,17 +394,104 @@ export function VirtualPiano() {
     if (!recEventsRef.current.length) return
     const id = saveMySong({ name, source: 'recording', bpm: 120, notes: recordingToTransportNotes() })
     if (id) {
+      savedMySongIdRef.current = id
       setRecordingSaved(true)
       setMySongsVersion(v => v + 1)
+      // Share may have already happened this session (either order is allowed) —
+      // link the two now so a later delete from My Songs can clean up the cloud row.
+      if (sharedRecordingIdRef.current) linkSharedRecording(id, sharedRecordingIdRef.current)
     } else {
       showToast('Could not save — storage is full')
     }
   }, [recordingToTransportNotes, showToast])
 
+  // Does the actual Supabase write + clipboard copy, once we know the visitor is
+  // signed in. Mirrors handleShare's UX contract in Index.tsx: opt-in, idempotent (a
+  // second call re-copies sharedRecordingIdRef's existing id instead of inserting a
+  // second row), clipboard write with a toast fallback when the Clipboard API is
+  // blocked, and a reversible "Stop sharing" action in the toast itself.
+  const runShare = useCallback(async (name: string) => {
+    const evs = recEventsRef.current
+    if (!evs.length) { setShareState('idle'); return }
+    setShareState('working')
+    const { createSharedRecording, setRecordingVisibility } = await import('../../lib/virtualPiano/pianoShare')
+
+    let id = sharedRecordingIdRef.current
+    if (!id) {
+      const durationSec = Math.max(...evs.map(e => e.tOff ?? 0))
+      id = await createSharedRecording(name, durationSec, evs)
+      if (!id) {
+        setShareState('idle')
+        showToast('Could not create the share link')
+        return
+      }
+      sharedRecordingIdRef.current = id
+      analytics.pianoRecordingShared()
+      // Save may have already happened this session (either order is allowed) —
+      // link the two now so a later delete from My Songs can clean up this row.
+      if (savedMySongIdRef.current) linkSharedRecording(savedMySongIdRef.current, id)
+    }
+
+    const url = `${window.location.origin}/piano/r/${id}/`
+    const unshare = {
+      label: 'Stop sharing',
+      onClick: async () => {
+        const sharedId = sharedRecordingIdRef.current
+        if (sharedId && await setRecordingVisibility(sharedId, false)) {
+          sharedRecordingIdRef.current = null
+          setShareState('idle')
+          analytics.pianoRecordingUnshared()
+          sonnerToast('Sharing turned off', { description: 'The link no longer opens this recording.' })
+        }
+      },
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareState('shared')
+      sonnerToast.success('Share link copied', {
+        description: 'Anyone with the link can listen. Recording and My Songs never need an account — only sharing does.',
+        action: unshare,
+      })
+    } catch {
+      // Clipboard blocked (no permission, or a non-secure origin) — show the link instead.
+      setShareState('shared')
+      sonnerToast('Your share link', { description: url, action: unshare })
+    }
+  }, [showToast])
+
+  // Share button in the recording modal. Login-gated — recording, playing back,
+  // downloading and My Songs all stay usable logged out; only writing a Supabase row
+  // needs an account. `ensureAuth`/pianoShare are dynamically imported so the ~230KB
+  // of Radix+supabase.ts never loads for the vast majority of pageviews that don't
+  // press Share (same reasoning as the lazy AccountPromptModal/AuthModal below).
+  const handleShareRecording = useCallback(async (name: string) => {
+    if (!recEventsRef.current.length) return
+    setShareState('working')
+    const { ensureAuth } = await import('../../lib/supabase')
+    const userId = await ensureAuth()
+    if (!userId) {
+      setShareState('idle')
+      pendingShareNameRef.current = name
+      setAuthModalLoaded(true)
+      setAccountPromptOpen(true)
+      // The recording modal is a custom `position:fixed; zIndex:1000` overlay — well
+      // above the account modals' Tailwind `z-50` (Radix portals to document.body, but
+      // z-index still decides stacking there). Left open, it visually buries the login
+      // dialog: it renders, it's just invisible underneath. Close it for the length of
+      // the auth detour and reopen it from the modals' own close/success handlers.
+      setRecPanelOpen(false)
+      return
+    }
+    await runShare(name)
+  }, [runShare])
+
   const doToggleRecord = useCallback(() => {
     const st = recStateRef.current
     if (st === 'idle') {
       setRecordingSaved(false)
+      setShareState('idle')
+      sharedRecordingIdRef.current = null
+      savedMySongIdRef.current = null
       let n = 4
       setRecState('count'); setCountdown(n)
       countTimerRef.current = window.setInterval(() => {
@@ -526,6 +675,7 @@ export function VirtualPiano() {
     { q: 'What is Practice mode?', a: 'Load any song from the library or your own recordings, turn on Practice, and play along — notes fall toward the keys and you’re scored on hits vs. misses instead of the song playing itself.' },
     { q: 'WAV or MIDI — which download should I pick?', a: 'WAV is a finished audio file — share it or listen anywhere. MIDI stores the notes themselves, so you can open it in any music software (GarageBand, Ableton, MuseScore…) to edit the notes or change the instrument.' },
     { q: 'Where do my recordings go?', a: 'Save a recording (or an opened .mid file) to "My Songs" and it stays in your browser — no account needed — ready to play, practice, rename or download again any time you come back.' },
+    { q: 'Can I send someone a recording?', a: 'Yes — open a recording and press Share to get a link anyone can play in their browser, no download needed. Sharing is the one thing here that asks you to sign in (it’s free); recording, playing back, and My Songs never do.' },
     { q: 'How do I share my marked notes?', a: 'Marks are saved in the page address as you make them — just copy the URL from your browser and send it. Whoever opens it sees the same keys marked and can play them with the space bar.' },
   ]
 
@@ -671,7 +821,7 @@ export function VirtualPiano() {
             />
           </div>
 
-          <PlayerBar transport={transport} onClose={() => transport.close()} />
+          <PlayerBar transport={transport} onClose={() => transport.close()} onEnsureAudio={ensureCtx} />
         </div>
       </section>
 
@@ -767,10 +917,61 @@ export function VirtualPiano() {
           onDownloadWav={doDlWav}
           onDownloadMidi={doDlMidi}
           onSave={handleSaveRecording}
-          onNewRecording={() => { releaseAllVoices(); setRecState('idle'); setRecSecs(0); setRecPanelOpen(false); setRecordingSaved(false) }}
+          onNewRecording={() => { releaseAllVoices(); setRecState('idle'); setRecSecs(0); setRecPanelOpen(false); setRecordingSaved(false); setShareState('idle'); sharedRecordingIdRef.current = null; savedMySongIdRef.current = null }}
           saved={recordingSaved}
+          onShare={handleShareRecording}
+          shareState={shareState}
         />,
         document.body,
+      )}
+
+      {/* Sonner mount for the share flow's toasts (success/"Stop sharing", and
+          AuthModal's own sign-up/sign-in errors) — the piano is a client:only island
+          with no ancestor Toaster, unlike the editor/library pages that each mount
+          their own (see EditorApp.tsx). Cheap enough to always mount, unlike the
+          account modals below. */}
+      {createPortal(<Sonner />, document.body)}
+
+      {/* Account gate for Share — see handleShareRecording. Both modals are lazy
+          (see the top of this file) and only requested the first time Share is
+          pressed logged out, so their chunks never load for anyone who doesn't. */}
+      {accountPromptOpen && (
+        <Suspense fallback={null}>
+          <AccountPromptModal
+            open={accountPromptOpen}
+            onOpenChange={(open) => {
+              setAccountPromptOpen(open)
+              // A real cancel (Escape / overlay click / "Not now") — Continue doesn't
+              // go through here, it calls onContinue below directly. Bring the
+              // recording modal back so the visitor isn't left looking at nothing.
+              if (!open) { pendingShareNameRef.current = null; setRecPanelOpen(true) }
+            }}
+            onContinue={() => { setAccountPromptOpen(false); setAuthModalOpen(true) }}
+          />
+        </Suspense>
+      )}
+      {authModalLoaded && (
+        <Suspense fallback={null}>
+          <AuthModal
+            open={authModalOpen}
+            onOpenChange={(open) => {
+              setAuthModalOpen(open)
+              // Same cancel case as above (onSuccess already clears the ref and
+              // reopens the panel itself, so this only fires for a real cancel).
+              if (!open && pendingShareNameRef.current) { pendingShareNameRef.current = null; setRecPanelOpen(true) }
+            }}
+            entryPoint="piano_share"
+            onSuccess={() => {
+              setAuthModalOpen(false)
+              const name = pendingShareNameRef.current
+              if (name) {
+                pendingShareNameRef.current = null
+                setRecPanelOpen(true)
+                runShare(name)
+              }
+            }}
+          />
+        </Suspense>
       )}
       </div>
     </div>

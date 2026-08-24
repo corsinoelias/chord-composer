@@ -160,4 +160,12 @@ export const analytics = {
   bassTabExport: (format: string) => track('bass_tab_export', { format }),
   bassTabPresetLoaded: (presetName: string) => track('bass_tab_preset_loaded', { preset_name: presetName }),
   bassTabShared: () => track('bass_tab_shared'),
+
+  // Virtual Piano recording sharing. Login-gated (unlike everything else on the piano),
+  // so `entry_point: 'piano_share'` on the resulting sign_up/login events is what
+  // distinguishes a piano-driven account creation from the chord editor's
+  // ('save_cta', 'export_nudge', 'shared_song_fork') in the same GA4 property.
+  pianoRecordingShared: () => track('piano_recording_shared'),
+  pianoRecordingUnshared: () => track('piano_recording_unshared'),
+  sharedPianoRecordingOpened: () => track('shared_piano_recording_opened'),
 };

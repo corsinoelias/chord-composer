@@ -5,6 +5,13 @@ import { TEAL, TEXT_DIM, TEXT_HI, TEXT_MED, VIOLET, VIOLET_2, ghostBtn, iconBtn,
 interface Props {
   transport: PianoTransport
   onClose: () => void
+  // Called synchronously before togglePlay, so the AudioContext resume() that
+  // starting playback needs happens inside this click's own user-gesture — not
+  // async later when the transport's rAF loop actually reaches the first note.
+  // Browsers only allow audio to start as a direct result of a real gesture;
+  // see the mount-effect comment in VirtualPiano.tsx for why that matters for a
+  // shared recording opened cold, with no prior key press to have unlocked it.
+  onEnsureAudio: () => void
 }
 
 function fmtMMSS(sec: number): string {
@@ -18,7 +25,7 @@ function fmtMMSS(sec: number): string {
 // keys with nothing in between (see VirtualPiano.tsx's stage layout comment).
 // Collapses to one row (title/play/time/loop) under ~560px so a 2-octave
 // keyboard still gets the vertical space it needs; see pianoTheme mobile note.
-export function PlayerBar({ transport, onClose }: Props) {
+export function PlayerBar({ transport, onClose, onEnsureAudio }: Props) {
   const { song, posSec, posSecRef, totalDur, playing, practice, speed, loopOn, loopStart, loopEnd, scoreHit, scoreMissed } = transport
   const trackRef = useRef<HTMLDivElement>(null)
   const fillRef = useRef<HTMLDivElement>(null)
@@ -145,7 +152,7 @@ export function PlayerBar({ transport, onClose }: Props) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 5v14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M18 6L8 12l10 6V6z" fill="currentColor" /></svg>
         </button>
         <button
-          onClick={() => transport.togglePlay()}
+          onClick={() => { onEnsureAudio(); transport.togglePlay() }}
           title={playing ? 'Pause' : 'Play'}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: VIOLET, border: '1px solid ' + VIOLET, color: '#fff', width: 44, height: 44, borderRadius: 12, cursor: 'pointer' }}
         >

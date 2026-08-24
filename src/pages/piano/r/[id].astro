@@ -1,0 +1,36 @@
+---
+// Viewer for a shared Virtual Piano recording (/piano/r/<id>/). A real SSR route, not
+// a prerendered shell + client-side pathname parsing like /chord-player/<id> — that
+// approach only exists there because /chord-player/ itself is prerendered and needed a
+// Netlify edge-function rewrite to make it work (see chord-player-deeplink.ts's header
+// comment). output: 'server' is already the default here, so a plain dynamic route gets
+// a real per-recording <title>/og:image for free, same as /songs/[slug].astro.
+//
+// getSharedRecording relies on RLS, not app logic, to keep this private: an
+// unauthenticated server request only ever matches the "piano_recordings public read"
+// policy (is_public = true), so a recording that was never shared — or had sharing
+// turned off — resolves to `null` here exactly like a wrong id would.
+import BaseLayout from '../../../layouts/BaseLayout.astro'
+import { VirtualPiano } from '../../../components/VirtualPiano/VirtualPiano'
+import { getSharedRecording } from '../../../lib/virtualPiano/pianoShare'
+
+const { id } = Astro.params
+const shared = id ? await getSharedRecording(id) : null
+
+if (!shared) {
+  return Astro.redirect('/piano/', 302)
+}
+
+const title = `${shared.data.name} — Virtual Piano recording`
+const description = `Listen to "${shared.data.name}", a recording made with Chord Sequence's free Virtual Piano.`
+const canonicalUrl = `https://chordsequence.com/piano/r/${id}/`
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  canonicalUrl={canonicalUrl}
+  noIndex={true}
+>
+  <VirtualPiano client:only="react" sharedRecording={{ name: shared.data.name, events: shared.data.events }} />
+</BaseLayout>

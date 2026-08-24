@@ -24,6 +24,18 @@ import { getCachedAuth } from '@/lib/authCache';
  * which is why AuthModal and supabase.ts were split out of this island's static
  * import graph (see AccountSlot.tsx and the dynamic import in refresh() below) —
  * that's the part actually worth shrinking.
+ *
+ * Subscribing to supabase.auth.onAuthStateChange (not just a one-shot refresh() on
+ * mount) is what keeps this correct across *separate* islands: a page can mount more
+ * than one AuthModal (the navbar's own, plus a feature-local one — e.g. the piano's
+ * Share flow) and they share no React state, only the one Supabase client singleton
+ * (same module, same import graph). Without this subscription, signing in through
+ * any AuthModal other than the navbar's left the navbar showing "Sign in" until a
+ * full page reload — that instance's `refresh()` call, from its own `onSuccess`, has
+ * no way to reach this hook's state in a different island. The subscription fires
+ * once immediately with the current session (Supabase's own INITIAL_SESSION event),
+ * which is what does the mount-time check now — the old separate direct refresh()
+ * call on mount would just be a redundant second one.
  */
 export function useAccountState() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -49,7 +61,20 @@ export function useAccountState() {
   }, []);
 
   useEffect(() => {
-    refresh();
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+
+    (async () => {
+      const { supabase } = await import('@/lib/supabase');
+      if (!supabase || cancelled) return;
+      const { data } = supabase.auth.onAuthStateChange(() => { refresh(); });
+      unsubscribe = () => data.subscription.unsubscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [refresh]);
 
   return { isLoggedIn, displayName, isLoading, refresh };

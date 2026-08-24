@@ -15,7 +15,11 @@ interface SongHeaderTransportProps {
 // (see [slug].astro), which owns the spacing so the two align cleanly.
 export function SongHeaderTransport({ isPlaying, isLoading, onPlayPause, practiceOpen, onTogglePractice }: SongHeaderTransportProps) {
   return (
-    <div className="flex items-center gap-2.5">
+    // col-start-1 row-start-1: overlaps the shimmer placeholder in the same grid cell
+    // (see the #song-header-transport comment in songs/[slug].astro) instead of
+    // stacking below it as a second block row while both are briefly mounted — a
+    // no-op outside that grid parent (`inline`/other callers of this component).
+    <div className="col-start-1 row-start-1 flex items-center gap-2.5">
       <button
         onClick={onPlayPause}
         disabled={isLoading}

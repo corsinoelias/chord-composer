@@ -418,8 +418,24 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
          right, flush with the transport, and only stack under it once the screen narrows. -->
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mt-4 mb-6">
       <!-- Portal target for the React island's header transport (Play/Stop + Practice) — see
-           SongHeaderTransport.tsx. Expands in normal document flow, never fixed/sticky. -->
-      <div id="song-header-transport"></div>
+           SongHeaderTransport.tsx. SongChordPlayer (client:load) is one of the heaviest
+           islands on this page — it carries the whole playback engine — so this div sits
+           empty in the server-rendered HTML until its bundle downloads, parses and
+           hydrates, which is slow enough to notice, especially in dev.
+           `grid` + `grid-template-columns: minmax(0,1fr)` here, with both the shimmer AND
+           SongHeaderTransport's own root (see its `col-start-1 row-start-1`) placed in the
+           SAME cell, is the piano page's skeleton-stacking trick (piano/index.astro):
+           the two layers overlap instead of stacking as separate block rows, so fading the
+           shimmer out never reserves double height/width for the ~150ms both are mounted —
+           a plain block parent did exactly that and was the actual cause of the visible
+           jump + blank gap, not the fade timing itself. The script at the bottom of this
+           file removes the shimmer once createPortal has appended the real buttons. -->
+      <div id="song-header-transport" class="grid" style="grid-template-columns: minmax(0,1fr);">
+        <div id="song-header-transport-skeleton" class="col-start-1 row-start-1 flex items-center gap-2.5 transition-opacity duration-150" aria-hidden="true">
+          <span class="h-10 w-[136px] rounded-full bg-muted animate-pulse"></span>
+          <span class="h-10 w-[108px] rounded-full bg-muted animate-pulse"></span>
+        </div>
+      </div>
 
       <!-- Song stats -->
       <div class="flex flex-wrap gap-2 lg:justify-end">
@@ -726,5 +742,37 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
         g('event', 'song_editor_opened', { song_slug: el.dataset.songSlug, entry_point: el.dataset.entryPoint });
       });
     });
+
+    // Removes the Play/Practice shimmer once SongChordPlayer's createPortal appends the
+    // real buttons into the same #song-header-transport node (see the comment above it).
+    // A MutationObserver, not the astro:hydrate event the piano page's skeleton uses —
+    // this page mounts several other client:load islands too (SongHeaderActions,
+    // SongChordPreview, ChordAside), so "the first island to hydrate" isn't reliably this
+    // one; watching the actual DOM effect we care about is the only precise signal.
+    const headerTransport = document.getElementById('song-header-transport');
+    if (headerTransport) {
+      const removeShimmer = () => {
+        const shimmer = document.getElementById('song-header-transport-skeleton');
+        if (!shimmer) return;
+        shimmer.style.opacity = '0';
+        shimmer.addEventListener('transitionend', () => shimmer.remove(), { once: true });
+        setTimeout(() => shimmer.remove(), 250); // fallback in case transitionend never fires
+      };
+      // .children (Element children only), not .childNodes — childNodes also counts the
+      // whitespace text nodes between this template's tags, which made the "already
+      // hydrated" check below true from the very first paint and removed the shimmer
+      // almost immediately, well before SongChordPlayer had actually loaded.
+      if (headerTransport.children.length > 1) {
+        removeShimmer();
+      } else {
+        const shimmerObserver = new MutationObserver(() => {
+          if (headerTransport.children.length > 1) {
+            shimmerObserver.disconnect();
+            removeShimmer();
+          }
+        });
+        shimmerObserver.observe(headerTransport, { childList: true });
+      }
+    }
   </script>
 </BaseLayout>

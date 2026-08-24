@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
-import { TEXT_DIM, TEXT_HI, TEXT_MED, VIOLET, ghostBtn, pillBtn } from './pianoTheme'
+import { TEAL, TEXT_DIM, TEXT_HI, TEXT_MED, VIOLET, ghostBtn, pillBtn } from './pianoTheme'
+
+type ShareState = 'idle' | 'working' | 'shared'
 
 interface Props {
   open: boolean
@@ -11,6 +13,13 @@ interface Props {
   onSave: (name: string) => void
   onNewRecording: () => void
   saved: boolean
+  // Share is separate from Save: Save writes to localStorage and never needs an
+  // account, Share writes a Supabase row and does — see handleShareRecording in
+  // VirtualPiano.tsx for the account-gating flow. `working` covers both the network
+  // round trip and (the first time) the sign-up detour, so the button can't be
+  // double-clicked into two rows.
+  onShare: (name: string) => void
+  shareState: ShareState
 }
 
 // Replaces the old hover-triggered dropdown on the Record button — a menu
@@ -33,19 +42,27 @@ export function RecordPanel(props: Props) {
         </div>
         <p style={{ fontSize: 12.5, color: TEXT_DIM, margin: '2px 0 16px' }}>{props.duration} recorded.</p>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Song name"
-            style={{ fontFamily: 'inherit', flex: 1, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.16)', color: TEXT_HI, borderRadius: 8, padding: '9px 10px', fontSize: 13 }}
-          />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Song name"
+          style={{ fontFamily: 'inherit', width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.16)', color: TEXT_HI, borderRadius: 8, padding: '9px 10px', fontSize: 13, marginBottom: 8 }}
+        />
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
           <button
             onClick={() => props.onSave(name.trim() || 'My recording')}
             disabled={props.saved}
             style={{ ...pillBtn(true), background: props.saved ? '#2fae95' : VIOLET, borderColor: props.saved ? '#2fae95' : VIOLET, opacity: props.saved ? 0.85 : 1 }}
           >
             {props.saved ? 'Saved ✓' : 'Save to My Songs'}
+          </button>
+          <button
+            onClick={() => props.onShare(name.trim() || 'My recording')}
+            disabled={props.shareState === 'working'}
+            style={{ ...pillBtn(false), ...(props.shareState === 'shared' ? { borderColor: TEAL, color: TEAL } : {}), opacity: props.shareState === 'working' ? 0.7 : 1 }}
+          >
+            {props.shareState === 'working' ? 'Sharing…' : props.shareState === 'shared' ? 'Link copied ✓' : '🔗 Share'}
           </button>
         </div>
 
