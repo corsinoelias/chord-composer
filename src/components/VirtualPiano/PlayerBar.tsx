@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { PianoTransport } from './usePianoTransport'
 import { TEAL, TEXT_DIM, TEXT_HI, TEXT_MED, VIOLET, VIOLET_2, ghostBtn, iconBtn, optionStyle } from './pianoTheme'
 
@@ -19,9 +19,30 @@ function fmtMMSS(sec: number): string {
 // Collapses to one row (title/play/time/loop) under ~560px so a 2-octave
 // keyboard still gets the vertical space it needs; see pianoTheme mobile note.
 export function PlayerBar({ transport, onClose }: Props) {
-  const { song, posSec, totalDur, playing, practice, speed, loopOn, loopStart, loopEnd, scoreHit, scoreMissed } = transport
+  const { song, posSec, posSecRef, totalDur, playing, practice, speed, loopOn, loopStart, loopEnd, scoreHit, scoreMissed } = transport
   const trackRef = useRef<HTMLDivElement>(null)
+  const fillRef = useRef<HTMLDivElement>(null)
+  const thumbRef = useRef<HTMLDivElement>(null)
+  const totalDurRef = useRef(totalDur); totalDurRef.current = totalDur
   const [dragging, setDragging] = useState<null | 'seek' | 'loop-start' | 'loop-end'>(null)
+
+  // Drives the scrub fill/thumb every rAF frame straight from posSecRef,
+  // bypassing the throttled `posSec` state (see POS_FLUSH_MS in
+  // usePianoTransport.ts — kept low-frequency on purpose so the falling-notes
+  // canvas doesn't stutter from a 60fps re-render of this whole tree). Without
+  // this the bar visibly steps once every ~100ms instead of gliding.
+  useEffect(() => {
+    let raf: number
+    const tick = () => {
+      raf = requestAnimationFrame(tick)
+      const dur = totalDurRef.current
+      const pct = dur > 0 ? Math.max(0, Math.min(100, (posSecRef.current / dur) * 100)) : 0
+      if (fillRef.current) fillRef.current.style.width = pct + '%'
+      if (thumbRef.current) thumbRef.current.style.left = pct + '%'
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [posSecRef])
 
   const posFromClientX = useCallback((clientX: number) => {
     const el = trackRef.current
@@ -99,8 +120,8 @@ export function PlayerBar({ transport, onClose }: Props) {
           {loopOn && (
             <div style={{ position: 'absolute', top: 0, bottom: 0, left: lp0 + '%', width: Math.max(0, lp1 - lp0) + '%', background: 'rgba(124,92,255,.30)', borderRadius: 9, pointerEvents: 'none' }} />
           )}
-          <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: pct + '%', background: 'rgba(245,242,255,.22)', borderRadius: '9px 0 0 9px', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', top: -3, bottom: -3, width: 2, left: pct + '%', background: '#fff', boxShadow: '0 0 8px rgba(255,255,255,.85)', pointerEvents: 'none' }} />
+          <div ref={fillRef} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: pct + '%', background: 'rgba(245,242,255,.22)', borderRadius: '9px 0 0 9px', pointerEvents: 'none' }} />
+          <div ref={thumbRef} style={{ position: 'absolute', top: -3, bottom: -3, width: 2, left: pct + '%', background: '#fff', boxShadow: '0 0 8px rgba(255,255,255,.85)', pointerEvents: 'none' }} />
           {loopOn && (
             <>
               <div onPointerDown={(e) => { e.stopPropagation(); beginDrag('loop-start', e) }} style={{ position: 'absolute', top: -4, bottom: -4, width: 18, marginLeft: -9, left: lp0 + '%', cursor: 'ew-resize', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
