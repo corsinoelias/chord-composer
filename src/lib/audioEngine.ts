@@ -1163,6 +1163,15 @@ function playSample(
   source.start(startTime);
 }
 
+// Tonal parameters for the synthesized (non-Acoustic-Kit) drum sound types, matching the
+// character of the Analog/Punch/Lo-Fi kits on /tools/drum-machine/. `master` is an overall
+// lowpass applied to every synthesized hit for that kit (mirrors useDrumSynth's shared filter).
+const DRUM_SYNTH_KITS: Record<string, { kickPitch: number; kickDecay: number; snareBP: number; snDecay: number; hatHP: number; master: number }> = {
+  analog: { kickPitch: 130, kickDecay: 0.5, snareBP: 1700, snDecay: 0.2, hatHP: 7200, master: 18000 },
+  punch: { kickPitch: 210, kickDecay: 0.22, snareBP: 2400, snDecay: 0.12, hatHP: 9200, master: 18000 },
+  lofi: { kickPitch: 100, kickDecay: 0.6, snareBP: 1300, snDecay: 0.25, hatHP: 5200, master: 3200 },
+};
+
 /**
  * Plays a drum hit with samples for Acoustic Kit or synthesis for others
  */
@@ -1178,14 +1187,39 @@ function playDrumHit(
   kit: Partial<AcousticKitSamples> = acousticKit
 ): void {
   const gainNode = ctx.createGain();
-  gainNode.connect(destination);
   const useAcousticSamples = soundType.id === 'standard';
-  
+  const kitParams = DRUM_SYNTH_KITS[soundType.id];
+  if (!useAcousticSamples && kitParams) {
+    // Shared lowpass gives the kit its overall brightness/darkness (e.g. Lo-Fi's muffled tone).
+    const colorFilter = ctx.createBiquadFilter();
+    colorFilter.type = 'lowpass';
+    colorFilter.frequency.value = kitParams.master;
+    gainNode.connect(colorFilter);
+    colorFilter.connect(destination);
+  } else {
+    gainNode.connect(destination);
+  }
+
   if (drumType === 'kick') {
     if (useAcousticSamples && kit.kick) {
       playSample(ctx, gainNode, kit.kick, startTime, volume * 1.1);
+    } else if (kitParams) {
+      // Matches useDrumSynth's kick exactly: pitch ramps over half the decay,
+      // amplitude decays over the full decay.
+      const dur = kitParams.kickDecay;
+      const osc = newOscillator(ctx);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(kitParams.kickPitch, startTime);
+      osc.frequency.exponentialRampToValueAtTime(46, startTime + dur * 0.5);
+      const kickGain = ctx.createGain();
+      kickGain.gain.setValueAtTime(1.15 * volume, startTime);
+      kickGain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+      osc.connect(kickGain);
+      kickGain.connect(gainNode);
+      osc.start(startTime);
+      osc.stop(startTime + dur + 0.05);
     } else {
-      // Synthesized kick
+      // Synthesized kick (fallback for sound types with no dedicated kit params)
       const osc = newOscillator(ctx);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(150, startTime);
@@ -1197,7 +1231,7 @@ function playDrumHit(
       kickGain.connect(gainNode);
       osc.start(startTime);
       osc.stop(startTime + 0.35);
-      
+
       const click = newOscillator(ctx);
       click.type = 'triangle';
       click.frequency.value = 800;
@@ -1209,12 +1243,47 @@ function playDrumHit(
       click.start(startTime);
       click.stop(startTime + 0.03);
     }
-    
+
   } else if (drumType === 'snare') {
     if (useAcousticSamples && kit.snare) {
       playSample(ctx, gainNode, kit.snare, startTime, volume * 1.0);
+    } else if (kitParams) {
+      // Matches useDrumSynth's snare exactly: bandpass noise body + a short triangle "snap".
+      const dur = kitParams.snDecay;
+      const bufferSize = ctx.sampleRate * (dur + 0.05);
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = newSource(ctx);
+      noise.buffer = noiseBuffer;
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.value = kitParams.snareBP;
+      noiseFilter.Q.value = 1;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.8 * volume, startTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(gainNode);
+      noise.start(startTime);
+      noise.stop(startTime + dur + 0.05);
+
+      const osc = newOscillator(ctx);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(195, startTime);
+      osc.frequency.exponentialRampToValueAtTime(130, startTime + 0.045);
+      const oscGain = ctx.createGain();
+      oscGain.gain.setValueAtTime(0.5 * volume, startTime);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.09);
+      osc.connect(oscGain);
+      oscGain.connect(gainNode);
+      osc.start(startTime);
+      osc.stop(startTime + 0.14);
     } else {
-      // Synthesized snare
+      // Synthesized snare (fallback for sound types with no dedicated kit params)
       const bufferSize = ctx.sampleRate * 0.2;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = noiseBuffer.getChannelData(0);
@@ -1234,7 +1303,7 @@ function playDrumHit(
       noiseGain.connect(gainNode);
       noise.start(startTime);
       noise.stop(startTime + 0.2);
-      
+
       const osc = newOscillator(ctx);
       osc.type = 'triangle';
       osc.frequency.value = 180;
@@ -1246,13 +1315,49 @@ function playDrumHit(
       osc.start(startTime);
       osc.stop(startTime + 0.1);
     }
-    
+
   } else if (drumType === 'snareStick') {
     // Snare rim/edge hit
     if (useAcousticSamples && kit.snareStick) {
       playSample(ctx, gainNode, kit.snareStick, startTime, volume * 0.7);
+    } else if (kitParams) {
+      // The drum-machine reference doesn't vary its rim click by kit either, but this
+      // piece carries most non-kick rhythms (e.g. Reggaeton's dembow rimshot), so give it
+      // the kit's brightness/pitch character too: tighter+brighter for Punch, rounder for
+      // Analog, duller+longer for Lo-Fi.
+      const dur = 0.03 + kitParams.snDecay * 0.1;
+      const osc = newOscillator(ctx);
+      osc.type = 'triangle';
+      osc.frequency.value = kitParams.hatHP * 0.15;
+      const oscGain = ctx.createGain();
+      oscGain.gain.setValueAtTime(0.55 * volume, startTime);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+      osc.connect(oscGain);
+      oscGain.connect(gainNode);
+      osc.start(startTime);
+      osc.stop(startTime + dur + 0.05);
+
+      const bufferSize = ctx.sampleRate * (dur + 0.05);
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = newSource(ctx);
+      noise.buffer = noiseBuffer;
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'highpass';
+      noiseFilter.frequency.value = kitParams.hatHP * 0.4;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.35 * volume, startTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + dur * 0.8);
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(gainNode);
+      noise.start(startTime);
+      noise.stop(startTime + dur + 0.05);
     } else {
-      // Synthesized rim click
+      // Synthesized rim click (fallback for sound types with no dedicated kit params)
       const osc = newOscillator(ctx);
       osc.type = 'triangle';
       osc.frequency.value = 1200;
@@ -1264,13 +1369,37 @@ function playDrumHit(
       osc.start(startTime);
       osc.stop(startTime + 0.05);
     }
-    
+
+
   } else if (drumType === 'hihat') {
     // Hi-hat closed (hand)
     if (useAcousticSamples && kit.hihat) {
       playSample(ctx, gainNode, kit.hihat, startTime, volume * 0.7);
+    } else if (kitParams) {
+      // Matches useDrumSynth's chh exactly: highpass noise, 50ms decay.
+      const dur = 0.05;
+      const bufferSize = ctx.sampleRate * (dur + 0.05);
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = newSource(ctx);
+      noise.buffer = noiseBuffer;
+      const hiFilter = ctx.createBiquadFilter();
+      hiFilter.type = 'highpass';
+      hiFilter.frequency.value = kitParams.hatHP;
+      hiFilter.Q.value = 1;
+      const hatGain = ctx.createGain();
+      hatGain.gain.setValueAtTime(0.5 * volume, startTime);
+      hatGain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+      noise.connect(hiFilter);
+      hiFilter.connect(hatGain);
+      hatGain.connect(gainNode);
+      noise.start(startTime);
+      noise.stop(startTime + dur + 0.05);
     } else {
-      // Synthesized hi-hat
+      // Synthesized hi-hat (fallback for sound types with no dedicated kit params)
       const bufferSize = ctx.sampleRate * 0.1;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = noiseBuffer.getChannelData(0);
@@ -1295,7 +1424,7 @@ function playDrumHit(
       noise.start(startTime);
       noise.stop(startTime + 0.08);
     }
-    
+
   } else if (drumType === 'hihatOpen') {
     // Hi-hat open - use one of the open samples with random variation
     if (useAcousticSamples) {
@@ -1304,8 +1433,31 @@ function playDrumHit(
         const sample = openSamples[Math.floor(Math.random() * openSamples.length)];
         playSample(ctx, gainNode, sample!, startTime, volume * 0.75);
       }
+    } else if (kitParams) {
+      // Matches useDrumSynth's ohh exactly: highpass noise, 380ms decay.
+      const dur = 0.38;
+      const bufferSize = ctx.sampleRate * (dur + 0.05);
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = newSource(ctx);
+      noise.buffer = noiseBuffer;
+      const hiFilter = ctx.createBiquadFilter();
+      hiFilter.type = 'highpass';
+      hiFilter.frequency.value = kitParams.hatHP;
+      hiFilter.Q.value = 1;
+      const hatGain = ctx.createGain();
+      hatGain.gain.setValueAtTime(0.4 * volume, startTime);
+      hatGain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+      noise.connect(hiFilter);
+      hiFilter.connect(hatGain);
+      hatGain.connect(gainNode);
+      noise.start(startTime);
+      noise.stop(startTime + dur + 0.05);
     } else {
-      // Synthesized open hi-hat (longer, more sustain)
+      // Synthesized open hi-hat (fallback for sound types with no dedicated kit params)
       const bufferSize = ctx.sampleRate * 0.3;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = noiseBuffer.getChannelData(0);
@@ -1330,7 +1482,7 @@ function playDrumHit(
       noise.start(startTime);
       noise.stop(startTime + 0.3);
     }
-    
+
   } else if (drumType === 'hihatFoot') {
     // Hi-hat foot pedal
     if (useAcousticSamples && kit.hihatFoot2) {
@@ -1349,7 +1501,7 @@ function playDrumHit(
       noise.buffer = noiseBuffer;
       const filter = ctx.createBiquadFilter();
       filter.type = 'bandpass';
-      filter.frequency.value = 5000;
+      filter.frequency.value = kitParams ? kitParams.hatHP * (5000 / 7000) : 5000;
       filter.Q.value = 2;
       const hatGain = ctx.createGain();
       hatGain.gain.setValueAtTime(0.1 * volume, startTime);
@@ -1360,17 +1512,19 @@ function playDrumHit(
       noise.start(startTime);
       noise.stop(startTime + 0.06);
     }
-    
+
   } else if (drumType === 'tom1') {
     // High tom
     if (useAcousticSamples && kit.tom1) {
       playSample(ctx, gainNode, kit.tom1, startTime, volume * 1.0);
     } else {
-      // Synthesized high tom
+      // Synthesized high tom — pitch follows the kit's kick tuning (Punch's tighter/higher
+      // kick reads as a brighter tom, Lo-Fi's lower kick as a duller one).
+      const pitchScale = kitParams ? kitParams.kickPitch / 150 : 1;
       const osc = newOscillator(ctx);
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(200, startTime);
-      osc.frequency.exponentialRampToValueAtTime(120, startTime + 0.15);
+      osc.frequency.setValueAtTime(200 * pitchScale, startTime);
+      osc.frequency.exponentialRampToValueAtTime(120 * pitchScale, startTime + 0.15);
       const tomGain = ctx.createGain();
       tomGain.gain.setValueAtTime(0.4 * volume, startTime);
       tomGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
@@ -1386,10 +1540,11 @@ function playDrumHit(
       playSample(ctx, gainNode, kit.tom2, startTime, volume * 1.0);
     } else {
       // Synthesized mid tom
+      const pitchScale = kitParams ? kitParams.kickPitch / 150 : 1;
       const osc = newOscillator(ctx);
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(150, startTime);
-      osc.frequency.exponentialRampToValueAtTime(90, startTime + 0.18);
+      osc.frequency.setValueAtTime(150 * pitchScale, startTime);
+      osc.frequency.exponentialRampToValueAtTime(90 * pitchScale, startTime + 0.18);
       const tomGain = ctx.createGain();
       tomGain.gain.setValueAtTime(0.4 * volume, startTime);
       tomGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
@@ -1405,10 +1560,11 @@ function playDrumHit(
       playSample(ctx, gainNode, kit.floorTom, startTime, volume * 1.0);
     } else {
       // Synthesized floor tom
+      const pitchScale = kitParams ? kitParams.kickPitch / 150 : 1;
       const osc = newOscillator(ctx);
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(100, startTime);
-      osc.frequency.exponentialRampToValueAtTime(60, startTime + 0.2);
+      osc.frequency.setValueAtTime(100 * pitchScale, startTime);
+      osc.frequency.exponentialRampToValueAtTime(60 * pitchScale, startTime + 0.2);
       const tomGain = ctx.createGain();
       tomGain.gain.setValueAtTime(0.45 * volume, startTime);
       tomGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
@@ -1434,7 +1590,7 @@ function playDrumHit(
       noise.buffer = noiseBuffer;
       const filter = ctx.createBiquadFilter();
       filter.type = 'bandpass';
-      filter.frequency.value = 5000;
+      filter.frequency.value = kitParams ? kitParams.hatHP * (5000 / 7000) : 5000;
       filter.Q.value = 0.5;
       const rideGain = ctx.createGain();
       rideGain.gain.setValueAtTime(0.1 * volume, startTime);
@@ -1462,7 +1618,7 @@ function playDrumHit(
       noise.buffer = noiseBuffer;
       const hiFilter = ctx.createBiquadFilter();
       hiFilter.type = 'highpass';
-      hiFilter.frequency.value = 3000;
+      hiFilter.frequency.value = kitParams ? kitParams.hatHP * (3000 / 7000) : 3000;
       const crashGain = ctx.createGain();
       crashGain.gain.setValueAtTime(0.15 * volume, startTime);
       crashGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.7);
