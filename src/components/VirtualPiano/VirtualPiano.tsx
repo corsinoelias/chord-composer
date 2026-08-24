@@ -511,7 +511,8 @@ export function VirtualPiano() {
 
   const heroDimmed = !!transport.song || freePlayDimmed
   const eyebrowText = transport.song
-    ? (transport.practice ? `Practice: ${transport.song.name}` : `Playing: ${transport.song.name}`)
+    ? (transport.posSec < 0 ? `Get ready: ${transport.song.name}`
+      : transport.practice ? `Practice: ${transport.song.name}` : `Playing: ${transport.song.name}`)
     : 'Free play'
 
   const shortcutRows = [

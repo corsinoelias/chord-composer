@@ -19,6 +19,18 @@ const POS_FLUSH_MS = 100 // UI-visible posSec update cadence (scrub bar / time t
 const HIT_WINDOW = 0.35
 const MISS_GRACE = 0.35
 
+// Starting playback with posSec pinned at exactly 0 made the very first note
+// fire the instant `playing` flips true: no time for the falling-notes
+// canvas to show it coming (it just appears already at the keyline) and no
+// time for the AudioContext to finish resuming, which is what was clipping
+// the first note. Instead, playback from the beginning starts the clock at
+// -PRE_ROLL_SEC so real time has to pass (and the note falls the whole way
+// down the canvas, see LEAD_SEC in PianoVisualizer.tsx) before posSec
+// crosses each note's own `time` and it actually sounds. `fmtMMSS` and the
+// scrub bar already clamp negative posSec to 0, so this is invisible in the
+// transport UI — only the falling-notes canvas and the audio timing see it.
+const PRE_ROLL_SEC = 1.5
+
 interface Args {
   onNoteOn: (midi: number, vel: number) => void
   onNoteOff: (midi: number) => void
@@ -99,8 +111,11 @@ export function usePianoTransport({ onNoteOn, onNoteOff }: Args) {
     setScoreHit(0)
     setScoreMissed(0)
     if (opts.autoplay) {
+      posSecRef.current = -PRE_ROLL_SEC
+      scanPosRef.current = -PRE_ROLL_SEC - 0.0005
       playingRef.current = true
       lastWallRef.current = performance.now()
+      setPosSec(-PRE_ROLL_SEC)
       setPlaying(true)
     } else {
       playingRef.current = false
@@ -142,11 +157,19 @@ export function usePianoTransport({ onNoteOn, onNoteOff }: Args) {
   const play = useCallback(() => {
     if (!notesRef.current.length) return
     if (posSecRef.current >= totalDurRef.current - 0.02) seek(loopOnRef.current ? loopStartRef.current : 0)
+    // Only pre-roll when truly starting from the top — not on every resume
+    // after a pause, which would make scrubbing/resuming feel laggy.
+    if (posSecRef.current <= 0.001) {
+      posSecRef.current = -PRE_ROLL_SEC
+      scanPosRef.current = -PRE_ROLL_SEC - 0.0005
+      flushPos(true)
+    } else {
+      scanPosRef.current = posSecRef.current - 0.0005
+    }
     playingRef.current = true
     lastWallRef.current = performance.now()
-    scanPosRef.current = posSecRef.current - 0.0005
     setPlaying(true)
-  }, [seek])
+  }, [seek, flushPos])
 
   const pause = useCallback(() => {
     stopSounding(posSecRef.current)
