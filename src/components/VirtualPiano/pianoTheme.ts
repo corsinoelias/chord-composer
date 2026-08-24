@@ -16,6 +16,14 @@ export const TEXT_DIM = '#a99fce'
 
 export const FONT_DISPLAY = "'Fraunces', 'Iowan Old Style', Georgia, serif"
 
+// Horizontal inset shared by the visualizer canvas and the keyboard frame —
+// they must match exactly or falling notes drift off their key. The keyboard
+// frame is a normal in-flow child so a CSS `padding` gives it this inset for
+// free; the canvas is `position:absolute`, where `inset:0` fills the parent's
+// padding box and ignores that padding entirely, so it needs this same number
+// applied to its own left/right inset instead of 0. See PianoVisualizer.tsx.
+export const STAGE_H_PAD = 10
+
 import type React from 'react'
 
 export function pillBtn(active: boolean): React.CSSProperties {
@@ -36,6 +44,13 @@ export function ghostBtn(): React.CSSProperties {
     fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
   }
 }
+
+// A dark <select> lets its <option>s inherit its light text color, but the
+// OS-native dropdown popup ignores the select's own `background:transparent`
+// and renders on a system-white background — light text on white is
+// unreadable. Force each option to a plain, always-legible white/dark pair
+// regardless of the select's own styling.
+export const optionStyle: React.CSSProperties = { color: '#1c1926', background: '#fff' }
 
 export function iconBtn(): React.CSSProperties {
   return {

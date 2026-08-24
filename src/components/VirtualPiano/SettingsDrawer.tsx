@@ -1,6 +1,6 @@
 import React from 'react'
 import type { InstrumentId } from '../../lib/virtualPiano/pianoAudio'
-import { TEXT_DIM, TEXT_HI, TEXT_MED, pillBtn } from './pianoTheme'
+import { TEXT_DIM, TEXT_HI, TEXT_MED, optionStyle, pillBtn } from './pianoTheme'
 
 type LabelMode = 'none' | 'notes' | 'keys'
 type Notation = 'latina' | 'anglo'
@@ -49,13 +49,13 @@ export function SettingsDrawer(props: Props) {
             onChange={(e) => props.onSetInstrument(e.target.value as InstrumentId)}
             style={{ fontFamily: 'inherit', width: '100%', background: 'rgba(255,255,255,.08)', color: '#fff', border: '1px solid rgba(255,255,255,.14)', borderRadius: 8, padding: '7px 8px', fontSize: 12.5 }}
           >
-            <option value="acoustic">Acoustic Piano</option>
-            <option value="piano">Classic Piano</option>
-            <option value="epiano">Electric Piano</option>
-            <option value="organ">Organ</option>
-            <option value="synth">Synthesizer</option>
-            <option value="strings">Strings</option>
-            <option value="musicbox">Music Box</option>
+            <option style={optionStyle} value="acoustic">Acoustic Piano</option>
+            <option style={optionStyle} value="piano">Classic Piano</option>
+            <option style={optionStyle} value="epiano">Electric Piano</option>
+            <option style={optionStyle} value="organ">Organ</option>
+            <option style={optionStyle} value="synth">Synthesizer</option>
+            <option style={optionStyle} value="strings">Strings</option>
+            <option style={optionStyle} value="musicbox">Music Box</option>
           </select>
         </div>
 

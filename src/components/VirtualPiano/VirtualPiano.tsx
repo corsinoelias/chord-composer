@@ -13,7 +13,8 @@ import { SongsPanel } from './SongsPanel'
 import { SettingsDrawer } from './SettingsDrawer'
 import { RecordPanel } from './RecordPanel'
 import { PianoVisualizer, type Burst } from './PianoVisualizer'
-import { TEAL, TEXT_DIM, TEXT_HI, TEXT_MED, VIOLET, VIOLET_2, ghostBtn, pillBtn } from './pianoTheme'
+import { PianoKeys } from './PianoKeys'
+import { STAGE_H_PAD, TEAL, TEXT_DIM, TEXT_HI, TEXT_MED, VIOLET, VIOLET_2, ghostBtn, optionStyle, pillBtn } from './pianoTheme'
 
 // Ported from the user's Claude Design project "Piano virtual realista"
 // (Virtual Piano.dc.html) — audio synthesis, recording, marks, and MIDI
@@ -29,8 +30,6 @@ type Notation = 'latina' | 'anglo'
 type RecState = 'idle' | 'count' | 'rec' | 'done'
 
 const WS = [0, 2, 4, 5, 7, 9, 11]
-const LAT = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si']
-const ANG = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const ROW = 'QWERTYUIOP'
 
 // Minimum comfortable white-key width used to pick auto octave count. Floor
@@ -489,79 +488,11 @@ export function VirtualPiano() {
     enter: () => { if (ptrRef.current) { noteOn(midi); spawnLiveBurst(midi) } },
   }), [toggleMarkNote, noteOn, noteOff, spawnLiveBurst, endLiveBurst])
 
-  const label = (midi: number, isBlack: boolean): string => {
-    if (labelMode === 'none') return ''
-    if (labelMode === 'keys') {
-      const pc = midi % 12
-      const oct = Math.floor(midi / 12) - 1 - baseOctave
-      if (!isBlack) {
-        const i = oct * 7 + WS.indexOf(pc)
-        return i >= 0 && i < 10 ? ROW[i] : ''
-      }
-      const wi = oct * 7 + WS.indexOf(pc - 1)
-      if (wi < 0 || wi > 8) return ''
-      const d = wi + 2
-      return d <= 9 ? String(d) : '0'
-    }
-    const names = notation === 'latina' ? LAT : ANG
-    return names[midi % 12] + (Math.floor(midi / 12) - 1)
-  }
-
   const octDown = useCallback(() => setBaseOctave(b => Math.max(1, b - 1)), [])
   const octUp = useCallback(() => setBaseOctave(b => Math.min(6, b + 1)), [])
 
   // ---------- derived render values ----------
-  const nW = nOct * 7 + 1
   const blackWidthFactor = blackKeyWidthFactor(nOct)
-  interface KeyRenderData { midi: number; label: string; style: React.CSSProperties; dotStyle: React.CSSProperties; down: (e: React.PointerEvent) => void; up: () => void; enter: () => void }
-  const whites: KeyRenderData[] = []
-  const blacks: KeyRenderData[] = []
-  for (let i = 0; i < nW; i++) {
-    const midi = whiteMidi(i)
-    const act = !!active[midi]
-    const isMarked = marked.includes(midi)
-    whites.push({
-      midi,
-      ...keyHandlers(midi),
-      label: label(midi, false),
-      style: {
-        flex: 1, position: 'relative', minWidth: 0, cursor: 'pointer', userSelect: 'none', touchAction: 'none',
-        border: '1px solid #b8ac86', borderTop: 'none', borderRadius: '0 0 6px 6px',
-        background: act ? 'linear-gradient(180deg,#e4d9ff,#c9b8ff)' : 'linear-gradient(180deg,#f7f2e4,#ddd2b0)',
-        boxShadow: act ? 'inset 0 -5px 10px rgba(124,92,255,.35)' : 'inset 0 -5px 6px rgba(0,0,0,.10)',
-        display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center',
-        paddingBottom: 8, gap: 6,
-      },
-      dotStyle: {
-        display: isMarked ? 'block' : 'none', width: 10, height: 10, borderRadius: '50%',
-        background: VIOLET, boxShadow: '0 0 6px ' + VIOLET,
-      },
-    })
-    if (i < nW - 1 && [0, 1, 3, 4, 5].includes(i % 7)) {
-      const bm = midi + 1
-      const bact = !!active[bm]
-      const bmarked = marked.includes(bm)
-      const bw = (blackWidthFactor * 100) / nW
-      blacks.push({
-        midi: bm,
-        ...keyHandlers(bm),
-        label: label(bm, true),
-        style: {
-          position: 'absolute', top: 0, left: ((i + 1) * 100 / nW - bw / 2) + '%', width: bw + '%', height: '62%',
-          cursor: 'pointer', userSelect: 'none', touchAction: 'none', zIndex: 2,
-          background: bact ? 'linear-gradient(180deg,#a596ff,#7c5cff)' : 'linear-gradient(180deg,#2a2236,#18131f)',
-          border: '1px solid #000', borderTop: 'none', borderRadius: '0 0 5px 5px',
-          boxShadow: bact ? '0 0 14px rgba(124,92,255,.75)' : '0 3px 5px rgba(0,0,0,.5), inset 0 -4px 5px rgba(0,0,0,.5)',
-          display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center',
-          paddingBottom: 6, gap: 5,
-        },
-        dotStyle: {
-          display: bmarked ? 'block' : 'none', width: 8, height: 8, borderRadius: '50%',
-          background: TEAL, boxShadow: '0 0 6px ' + TEAL,
-        },
-      })
-    }
-  }
 
   const mm = Math.floor(recSecs / 60), ss = String(recSecs % 60).padStart(2, '0')
   const recLabel = recState === 'count' ? `Ready? ${countdown}…`
@@ -680,13 +611,13 @@ export function VirtualPiano() {
               title="Instrument"
               style={{ fontFamily: 'inherit', background: 'transparent', color: TEXT_HI, border: 'none', padding: '8px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
             >
-              <option value="acoustic">Acoustic Piano</option>
-              <option value="piano">Classic Piano</option>
-              <option value="epiano">Electric Piano</option>
-              <option value="organ">Organ</option>
-              <option value="synth">Synthesizer</option>
-              <option value="strings">Strings</option>
-              <option value="musicbox">Music Box</option>
+              <option style={optionStyle} value="acoustic">Acoustic Piano</option>
+              <option style={optionStyle} value="piano">Classic Piano</option>
+              <option style={optionStyle} value="epiano">Electric Piano</option>
+              <option style={optionStyle} value="organ">Organ</option>
+              <option style={optionStyle} value="synth">Synthesizer</option>
+              <option style={optionStyle} value="strings">Strings</option>
+              <option style={optionStyle} value="musicbox">Music Box</option>
             </select>
             <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: 2 }}>
               <button onClick={octDown} aria-label="Lower octave" style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,.08)', color: TEXT_HI, fontSize: 15, cursor: 'pointer' }}>−</button>
@@ -718,26 +649,25 @@ export function VirtualPiano() {
           </div>
         </div>
 
-        {/* Keyboard dock */}
-        <div style={{ position: 'relative', zIndex: 5, flexShrink: 0, padding: '0 10px 10px' }}>
+        {/* Keyboard dock — horizontal padding must equal the visualizer
+            canvas's own left/right inset (STAGE_H_PAD) or falling notes
+            drift off their key; see pianoTheme.ts. */}
+        <div style={{ position: 'relative', zIndex: 5, flexShrink: 0, padding: `0 ${STAGE_H_PAD}px ${STAGE_H_PAD}px` }}>
           <p className="vp-keymap-hint" style={{ textAlign: 'center', fontSize: 12, color: TEXT_DIM, padding: '9px 12px 4px', maxWidth: 900, margin: '0 auto' }}>
             The <b style={{ color: '#e7e1fb', fontFamily: 'IBM Plex Mono, ui-monospace, monospace' }}>Q W E R T Y U I O P</b> row plays the white keys and the number row <b style={{ color: '#e7e1fb', fontFamily: 'IBM Plex Mono, ui-monospace, monospace' }}>2 3 · 5 6 7 · 9 0</b> plays the black keys — hold several at once to play chords.
           </p>
           <div className="vp-keyboard-frame" style={{ position: 'relative', height: 'clamp(140px, 30dvh, 240px)', borderRadius: 16, overflow: 'hidden', background: 'linear-gradient(180deg,#0d0a16,#050409)', boxShadow: '0 20px 60px rgba(20,16,32,.35), inset 0 0 0 1px rgba(255,255,255,.06)', touchAction: 'none' }}>
-            <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
-              {whites.map(k => (
-                <div key={k.midi} onPointerDown={k.down} onPointerUp={k.up} onPointerEnter={k.enter} onPointerLeave={k.up} style={k.style}>
-                  <div style={k.dotStyle} />
-                  <span style={{ fontSize: 'clamp(9px, 1.2vw, 13px)', color: '#8a7f5c', fontWeight: 600, pointerEvents: 'none' }}>{k.label}</span>
-                </div>
-              ))}
-              {blacks.map(k => (
-                <div key={k.midi} onPointerDown={k.down} onPointerUp={k.up} onPointerEnter={k.enter} onPointerLeave={k.up} style={k.style}>
-                  <div style={k.dotStyle} />
-                  <span style={{ fontSize: 'clamp(8px, 1vw, 11px)', color: '#cfc6ee', fontWeight: 600, pointerEvents: 'none' }}>{k.label}</span>
-                </div>
-              ))}
-            </div>
+            <PianoKeys
+              baseOctave={baseOctave}
+              nOct={nOct}
+              active={active}
+              marked={marked}
+              labelMode={labelMode}
+              notation={notation}
+              blackWidthFactor={blackWidthFactor}
+              whiteMidi={whiteMidi}
+              keyHandlers={keyHandlers}
+            />
           </div>
 
           <PlayerBar transport={transport} onClose={() => transport.close()} />

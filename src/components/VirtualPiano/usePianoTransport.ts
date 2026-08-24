@@ -15,7 +15,7 @@ export interface TransportNote { midi: number; time: number; dur: number }
 export interface TransportSong { name: string; bpm: number; notes: TransportNote[] }
 export interface JudgedNote extends TransportNote { judged: 'hit' | 'miss' | null }
 
-const POS_FLUSH_MS = 45 // UI-visible posSec update cadence; canvas reads the ref directly every frame
+const POS_FLUSH_MS = 100 // UI-visible posSec update cadence (scrub bar / time text only — the canvas reads posSecRef directly every rAF frame, independent of this). Kept low-frequency on purpose: usePianoTransport is called directly in VirtualPiano, so every flush here re-renders that whole component tree — see PianoKeys.tsx's React.memo comment for why that used to make the falling-notes canvas stutter.
 const HIT_WINDOW = 0.35
 const MISS_GRACE = 0.35
 

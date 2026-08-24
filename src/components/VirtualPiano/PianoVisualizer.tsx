@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react'
 import { keyXFrac } from '../../lib/virtualPiano/pianoKeyLayout'
+import { STAGE_H_PAD } from './pianoTheme'
 import type { PianoTransport } from './usePianoTransport'
 
 const LEAD_SEC = 2.2 // fixed time window a falling note is visible before it's due — independent of canvas height, see PianoVisualizer comment below
-const HOLD_GROW_MS = 220 // time a held live key takes to reach its max rooted height
-const HOLD_MAX_FRAC = 0.30 // rooted bar's max height, as a fraction of canvas height
+const HOLD_FULL_MS = 4000 // a held key keeps growing the whole time it's down — this is how long it takes to reach the full canvas height, it never plateaus early
 const RELEASE_MS = 550 // how long the bar takes to rise off and fade after key-up
 const VIOLET = '#a596ff'
 const TEAL = '#5fe3c9'
@@ -64,15 +64,15 @@ export function PianoVisualizer({ transport, baseOctave, nOct, burstsRef, blackW
         const x = b.xFrac * W + 1
         g.fillStyle = b.black ? TEAL : VIOLET
         if (b.offAt === null) {
-          // Held: a bar rooted at the keyline, growing up to a cap.
-          const h = Math.min(HOLD_MAX_FRAC, ((now - b.onAt) / HOLD_GROW_MS) * HOLD_MAX_FRAC) * H
+          // Held: a bar rooted at the keyline that keeps growing the whole time it's held.
+          const h = Math.min(H, ((now - b.onAt) / HOLD_FULL_MS) * H)
           g.globalAlpha = 0.85
           g.beginPath()
           g.roundRect(x, H - h, barW, h, 5)
           g.fill()
         } else {
           // Released: the bar it had grown to detaches and rises off, fading out.
-          const heldH = Math.min(HOLD_MAX_FRAC, ((b.offAt - b.onAt) / HOLD_GROW_MS) * HOLD_MAX_FRAC) * H
+          const heldH = Math.min(H, ((b.offAt - b.onAt) / HOLD_FULL_MS) * H)
           const t = (now - b.offAt) / RELEASE_MS
           const yBottom = H - H * 0.42 * t
           const yTop = Math.max(0, yBottom - heldH)
@@ -93,7 +93,7 @@ export function PianoVisualizer({ transport, baseOctave, nOct, burstsRef, blackW
         const pos = keyXFrac(n.midi, baseOctaveRef.current, nOctRef.current, blackWidthFactorRef.current)
         if (!pos) return
         const [xFrac, wFrac] = pos
-        const barW = Math.max(6, wFrac * W * 0.6)
+        const barW = Math.max(6, wFrac * W - 2) // same width formula as the live-press bar (b.wFrac*W-2 above) — they're the same key
         const barH = Math.max(14, (n.dur / LEAD_SEC) * H * 0.9)
         const yBottom = H - (remain / LEAD_SEC) * H
         const yTop = Math.min(yBottom - barH, H)
@@ -108,7 +108,7 @@ export function PianoVisualizer({ transport, baseOctave, nOct, burstsRef, blackW
         g.globalAlpha = practice && n.judged === 'miss' ? 0.55 : 0.92
         g.fillStyle = color
         g.beginPath()
-        g.roundRect(xFrac * W + 1, Math.max(0, yTop), Math.max(2, barW - 2), Math.min(barH, H - Math.max(0, yTop)), 5)
+        g.roundRect(xFrac * W + 1, Math.max(0, yTop), barW, Math.min(barH, H - Math.max(0, yTop)), 5)
         g.fill()
       })
       g.globalAlpha = 1
@@ -118,5 +118,7 @@ export function PianoVisualizer({ transport, baseOctave, nOct, burstsRef, blackW
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />
+  // NOT `inset: 0` — see STAGE_H_PAD's comment in pianoTheme.ts. This has to
+  // land on exactly the same pixels as the keyboard frame below it.
+  return <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, bottom: 0, left: STAGE_H_PAD, right: STAGE_H_PAD, width: `calc(100% - ${STAGE_H_PAD * 2}px)`, height: '100%', display: 'block' }} />
 }

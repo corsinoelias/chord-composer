@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react'
 import type { PianoTransport } from './usePianoTransport'
-import { TEAL, TEXT_DIM, TEXT_HI, TEXT_MED, VIOLET, VIOLET_2, ghostBtn, iconBtn } from './pianoTheme'
+import { TEAL, TEXT_DIM, TEXT_HI, TEXT_MED, VIOLET, VIOLET_2, ghostBtn, iconBtn, optionStyle } from './pianoTheme'
 
 interface Props {
   transport: PianoTransport
@@ -151,11 +151,11 @@ export function PlayerBar({ transport, onClose }: Props) {
           title="Playback speed"
           style={{ fontFamily: 'inherit', background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.16)', color: TEXT_MED, borderRadius: 10, padding: '7px 8px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
         >
-          <option value="0.5">50%</option>
-          <option value="0.75">75%</option>
-          <option value="1">100%</option>
-          <option value="1.25">125%</option>
-          <option value="1.5">150%</option>
+          <option style={optionStyle} value="0.5">50%</option>
+          <option style={optionStyle} value="0.75">75%</option>
+          <option style={optionStyle} value="1">100%</option>
+          <option style={optionStyle} value="1.25">125%</option>
+          <option style={optionStyle} value="1.5">150%</option>
         </select>
         <button
           onClick={() => transport.setLoop(!loopOn)}
