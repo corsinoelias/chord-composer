@@ -374,8 +374,10 @@ export function VirtualDrums() {
     if (beatOnRef.current) startBeat()
   }, [startBeat])
 
-  // Current 0-15 step position within the playing bar, for the Beat Editor to show
-  // a synced playhead without running a second scheduler alongside this one.
+  // Continuous 0-16 step position within the playing bar (fractional — e.g. 5.3 is
+  // a third of the way through step 5), for the Beat Editor to show a synced
+  // playhead without running a second scheduler, and to hand off playback to its
+  // own preview loop mid-step instead of restarting the bar (floor for a display step).
   const getBeatPlayhead = useCallback((): number => {
     const engine = engineRef.current
     if (!beatOnRef.current || !engine) return -1
@@ -383,7 +385,7 @@ export function VirtualDrums() {
     const barDur = 4 * spb // every pattern (built-in and custom) is 4 beats / 16 steps
     const elapsed = engine.now() - beatBarStartRef.current
     const pos = ((elapsed % barDur) + barDur) % barDur
-    return Math.floor((pos / barDur) * 16)
+    return (pos / barDur) * 16
   }, [])
 
   // Custom beats never overwrite a built-in one — they're always appended at

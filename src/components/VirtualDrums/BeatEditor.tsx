@@ -155,11 +155,16 @@ export function BeatEditor({
     setLocalStep(-1)
   }, [])
 
-  const startPreview = useCallback(() => {
+  // `handoff` is set when taking over from the main loop mid-bar (see
+  // takeOverIfSynced below): `fromStep` is the step that was just heard playing
+  // there, and `delayMs` is how much of it is still ringing out, so the first
+  // thing this loop does is wait out that remainder and pick up at the *next*
+  // step — not re-trigger the one that already just played a moment ago.
+  const startPreview = useCallback((handoff?: { fromStep: number; delayMs: number }) => {
     if (mainPlaying) onStopMain()
     stopPreview()
     setPlaying(true)
-    let step = 0
+    let step = handoff ? handoff.fromStep : 0
     const loop = () => {
       setLocalStep(step)
       gridRef.current.forEach((row, i) => {
@@ -168,7 +173,12 @@ export function BeatEditor({
       step = (step + 1) % STEPS
       stepTimerRef.current = window.setTimeout(loop, 60000 / bpmRef.current / 4)
     }
-    loop()
+    if (handoff) {
+      setLocalStep(step)
+      stepTimerRef.current = window.setTimeout(() => { step = (step + 1) % STEPS; loop() }, handoff.delayMs)
+    } else {
+      loop()
+    }
   }, [mainPlaying, onStopMain, stopPreview, trigger])
 
   // Synced = the main kit beat is already running and we haven't started our own
@@ -191,7 +201,7 @@ export function BeatEditor({
       return
     }
     const poll = () => {
-      setSyncedStep(getMainStep())
+      setSyncedStep(Math.floor(getMainStep()))
       syncRafRef.current = requestAnimationFrame(poll)
     }
     syncRafRef.current = requestAnimationFrame(poll)
@@ -207,25 +217,53 @@ export function BeatEditor({
   }, [open, stopPreview])
   useEffect(() => () => stopPreview(), [stopPreview])
 
+  // Edits made while merely "synced" (the main kit beat is playing underneath,
+  // untouched) never reach that loop — it's iterating a snapshot pattern array
+  // handed to it back when it started, not this editor's live grid/vols. So the
+  // first edit here takes over playback into this editor's own preview loop,
+  // which — unlike the main loop — reads gridRef/volsRef fresh every step, so
+  // every edit after this one is audible immediately without needing Save.
+  // The handoff happens mid-bar, at whatever point the main loop was actually
+  // at (not step 0), so it doesn't sound like a stop-then-restart.
+  const takeOverIfSynced = () => {
+    if (!isSyncedWithMain) return
+    const phase = getMainStep()
+    if (phase < 0) { startPreview(); return }
+    const fromStep = Math.floor(phase) % STEPS
+    const frac = phase - Math.floor(phase)
+    const stepMs = 60000 / bpmRef.current / 4
+    startPreview({ fromStep, delayMs: (1 - frac) * stepMs })
+  }
+
   const toggleCell = (rowIdx: number, step: number) => {
-    setGrid(prev => {
-      const next = prev.map(row => row.slice())
-      next[rowIdx][step] = !next[rowIdx][step]
-      if (next[rowIdx][step]) trigger(ROWS[rowIdx].id, volsRef.current[rowIdx])
-      return next
-    })
+    const next = gridRef.current.map(row => row.slice())
+    next[rowIdx][step] = !next[rowIdx][step]
+    gridRef.current = next
+    setGrid(next)
+    if (next[rowIdx][step]) trigger(ROWS[rowIdx].id, volsRef.current[rowIdx])
+    takeOverIfSynced()
   }
 
   const setVol = (rowIdx: number, v: number) => {
-    setVols(prev => {
-      const next = prev.slice()
-      next[rowIdx] = v
-      return next
-    })
+    const next = volsRef.current.slice()
+    next[rowIdx] = v
+    volsRef.current = next
+    setVols(next)
+    takeOverIfSynced()
   }
 
-  const handleClear = () => setGrid(blankGrid())
-  const handleRandomize = () => setGrid(randomGrid())
+  const handleClear = () => {
+    const next = blankGrid()
+    gridRef.current = next
+    setGrid(next)
+    takeOverIfSynced()
+  }
+  const handleRandomize = () => {
+    const next = randomGrid()
+    gridRef.current = next
+    setGrid(next)
+    takeOverIfSynced()
+  }
 
   const handleClose = () => {
     stopPreview()
