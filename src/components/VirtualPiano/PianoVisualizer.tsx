@@ -105,10 +105,20 @@ export function PianoVisualizer({ transport, baseOctave, nOct, burstsRef, blackW
           const hue = (n.midi % 12) * 30
           color = `hsl(${hue} 70% 68%)`
         }
+        // Clip against BOTH the bar's own true yBottom and the canvas edges —
+        // not just `H - yTop` — so a note entering at the top of the canvas
+        // grows in from zero height as it slides into view instead of
+        // popping in already fully formed (the old formula only clipped
+        // against the canvas bottom, so a long note's whole barH appeared
+        // instantly the moment its onset crossed the LEAD_SEC window).
+        const clipTop = Math.max(0, yTop)
+        const clipBottom = Math.min(H, yBottom)
+        const drawH = clipBottom - clipTop
+        if (drawH <= 0) return
         g.globalAlpha = practice && n.judged === 'miss' ? 0.55 : 0.92
         g.fillStyle = color
         g.beginPath()
-        g.roundRect(xFrac * W + 1, Math.max(0, yTop), barW, Math.min(barH, H - Math.max(0, yTop)), 5)
+        g.roundRect(xFrac * W + 1, clipTop, barW, drawH, 5)
         g.fill()
       })
       g.globalAlpha = 1
