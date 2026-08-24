@@ -1,222 +1,58 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { PIANO_SONGS, type PianoNote, type PianoSong } from '../../lib/virtualPiano/pianoSongs'
-import { getPianoSample, loadPianoSamples } from '../../lib/virtualPiano/pianoSamples'
+import { loadPianoSamples } from '../../lib/virtualPiano/pianoSamples'
+import { keyXFrac } from '../../lib/virtualPiano/pianoKeyLayout'
+import { getMySongs, saveMySong } from '../../lib/virtualPiano/mySongs'
+import {
+  buildMidiFile, buildVoice, download, parseMidiFile, renderRecordingToWav,
+  type InstrumentId, type RecEvent, type Voice,
+} from '../../lib/virtualPiano/pianoAudio'
+import { usePianoTransport, type TransportNote, type TransportSong } from './usePianoTransport'
+import { PlayerBar } from './PlayerBar'
+import { SongsPanel } from './SongsPanel'
+import { SettingsDrawer } from './SettingsDrawer'
+import { RecordPanel } from './RecordPanel'
+import { PianoVisualizer, type Burst } from './PianoVisualizer'
+import { TEAL, TEXT_DIM, TEXT_HI, TEXT_MED, VIOLET, VIOLET_2, ghostBtn, pillBtn } from './pianoTheme'
 
 // Ported from the user's Claude Design project "Piano virtual realista"
-// (Virtual Piano.dc.html) — same audio synthesis, recording, marks, MIDI
-// in/out, song library and waterfall behavior as the original. The
-// synthesized 'piano' voice from that design is kept as "Classic Piano";
-// 'acoustic' is a real sampled grand piano (see pianoSamples.ts), reusing
-// the same sample set as the Chord Player's own engine.
+// (Virtual Piano.dc.html) — audio synthesis, recording, marks, and MIDI
+// in/out are original to that port. The stage layout (full-height dark hero
+// with a falling-notes visualizer, transport bar below the keyboard, song
+// library) and the transport/My Songs system were redesigned afterward —
+// see the piano redesign plan discussed in chat for the reasoning behind
+// each piece; the component-level comments below cover the "why" that
+// wouldn't be obvious from the code alone.
 
-type InstrumentId = 'acoustic' | 'piano' | 'epiano' | 'organ' | 'synth' | 'strings' | 'musicbox'
 type LabelMode = 'none' | 'notes' | 'keys'
 type Notation = 'latina' | 'anglo'
 type RecState = 'idle' | 'count' | 'rec' | 'done'
-type BannerMode = 'auto' | 'wf' | 'result'
-
-interface Banner { name: string; mode: BannerMode }
-interface RecEvent { midi: number; vel: number; inst: InstrumentId; tOn: number; tOff: number | null }
-interface WfNote { midi: number; t: number; dur: number; hit: boolean; missed: boolean }
-interface WfState { mode: 'auto' | 'wf'; notes: WfNote[]; start: number; lead: number }
-interface Voice { release: (t: number) => void }
-interface PlayableSong { name: string; bpm: number; notes: PianoNote[] }
-
-const ACCENT = '#7C3AED'
-const WOOD_BG = 'linear-gradient(172deg, #37332e 0%, #1a1714 55%, #23201b 100%)'
 
 const WS = [0, 2, 4, 5, 7, 9, 11]
 const LAT = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si']
 const ANG = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const ROW = 'QWERTYUIOP'
 
-function buildSampleVoice(ctx: BaseAudioContext, dest: AudioNode, buf: AudioBuffer, t: number, vel: number): Voice {
-  const peak = 0.32 * vel
-  const source = ctx.createBufferSource()
-  source.buffer = buf
-  const gainNode = ctx.createGain()
-  source.connect(gainNode)
-  gainNode.connect(dest)
-  gainNode.gain.setValueAtTime(0.0001, t)
-  gainNode.gain.linearRampToValueAtTime(peak, t + 0.01)
-  source.start(t)
-  return {
-    release: (rt: number) => {
-      gainNode.gain.cancelScheduledValues(rt)
-      gainNode.gain.setValueAtTime(gainNode.gain.value, rt)
-      gainNode.gain.linearRampToValueAtTime(0.0001, rt + 0.28)
-      try { source.stop(rt + 0.35) } catch { /* already stopped */ }
-    },
-  }
+// Minimum comfortable white-key width used to pick auto octave count. Floor
+// is always 2 octaves (14 white keys) even on the narrowest phone — never 1,
+// per the "at least 2 octaves must fit" requirement. Ceiling is 4, which is
+// also what a normal desktop width resolves to — a wide monitor doesn't get
+// more than that automatically; use the Settings density override for that.
+function computeAutoOct(width: number): number {
+  return Math.max(2, Math.min(4, Math.floor(width / (7 * 34))))
 }
 
-function buildVoice(ctx: BaseAudioContext, dest: AudioNode, inst: InstrumentId, midi: number, t: number, vel: number): Voice {
-  if (inst === 'acoustic') {
-    const buf = getPianoSample(midi)
-    if (buf) return buildSampleVoice(ctx, dest, buf, t, vel)
-    inst = 'piano' // sample not loaded yet (or genuinely missing) — fall through to synthesis
-  }
-
-  const f = 440 * Math.pow(2, (midi - 69) / 12)
-  const out = ctx.createGain()
-  out.connect(dest)
-  const oscs: OscillatorNode[] = []
-  const mk = (type: OscillatorType, freq: number, g: number) => {
-    const o = ctx.createOscillator()
-    o.type = type; o.frequency.value = freq
-    const gn = ctx.createGain(); gn.gain.value = g
-    o.connect(gn); gn.connect(out); o.start(t)
-    oscs.push(o)
-    return o
-  }
-  const env = out.gain
-  const peak = 0.32 * vel
-  env.setValueAtTime(0.0001, t)
-  let relTime = 0.3
-  if (inst === 'piano') {
-    mk('triangle', f, 1); mk('sine', f * 2, 0.28); mk('sine', f * 3.001, 0.08)
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800 + 3500 * vel
-    out.disconnect(); out.connect(lp); lp.connect(dest)
-    env.linearRampToValueAtTime(peak, t + 0.006)
-    env.setTargetAtTime(peak * 0.12, t + 0.006, 1.4)
-    relTime = 0.25
-  } else if (inst === 'epiano') {
-    mk('sine', f, 1); mk('sine', f * 3, 0.14)
-    const lfo = ctx.createOscillator(); lfo.frequency.value = 5.2
-    const lg = ctx.createGain(); lg.gain.value = 0.12 * peak
-    lfo.connect(lg); lg.connect(env); lfo.start(t); oscs.push(lfo)
-    env.linearRampToValueAtTime(peak, t + 0.004)
-    env.setTargetAtTime(peak * 0.2, t + 0.004, 1.1)
-    relTime = 0.2
-  } else if (inst === 'organ') {
-    mk('sine', f, 0.5); mk('sine', f * 2, 0.34); mk('sine', f * 3, 0.18); mk('sine', f * 4, 0.12)
-    env.linearRampToValueAtTime(peak, t + 0.03)
-    relTime = 0.09
-  } else if (inst === 'synth') {
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 4
-    lp.frequency.setValueAtTime(250, t)
-    lp.frequency.exponentialRampToValueAtTime(2600 + 2000 * vel, t + 0.09)
-    out.disconnect(); out.connect(lp); lp.connect(dest)
-    mk('sawtooth', f * Math.pow(2, -0.06 / 12), 0.5); mk('sawtooth', f * Math.pow(2, 0.06 / 12), 0.5)
-    env.linearRampToValueAtTime(peak, t + 0.01)
-    env.setTargetAtTime(peak * 0.65, t + 0.01, 0.4)
-    relTime = 0.22
-  } else if (inst === 'strings') {
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200
-    out.disconnect(); out.connect(lp); lp.connect(dest)
-    mk('sawtooth', f, 0.34); mk('sawtooth', f * Math.pow(2, 0.09 / 12), 0.34); mk('sawtooth', f * Math.pow(2, -0.09 / 12), 0.34)
-    env.linearRampToValueAtTime(peak * 0.9, t + 0.35)
-    relTime = 0.5
-  } else { // musicbox
-    mk('sine', f, 1); mk('sine', f * 4.2, 0.22); mk('sine', f * 7.9, 0.06)
-    env.linearRampToValueAtTime(peak, t + 0.003)
-    env.setTargetAtTime(0.0001, t + 0.003, 0.45)
-    relTime = 0.12
-  }
-  return {
-    release: (rt: number) => {
-      env.cancelScheduledValues(rt)
-      env.setTargetAtTime(0.0001, rt, relTime / 3)
-      oscs.forEach(o => { try { o.stop(rt + relTime * 2 + 0.1) } catch { /* already stopped */ } })
-    },
-  }
-}
-
-function download(blob: Blob, name: string) {
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = name
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000)
-}
-
-function encodeWav(buf: AudioBuffer): Blob {
-  const n = buf.length, ch = buf.numberOfChannels, sr = buf.sampleRate
-  const bytes = 44 + n * ch * 2
-  const ab = new ArrayBuffer(bytes)
-  const dv = new DataView(ab)
-  const ws = (o: number, s: string) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)) }
-  ws(0, 'RIFF'); dv.setUint32(4, bytes - 8, true); ws(8, 'WAVE'); ws(12, 'fmt ')
-  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, ch, true)
-  dv.setUint32(24, sr, true); dv.setUint32(28, sr * ch * 2, true); dv.setUint16(32, ch * 2, true)
-  dv.setUint16(34, 16, true); ws(36, 'data'); dv.setUint32(40, n * ch * 2, true)
-  let off = 44
-  const chans: Float32Array[] = []
-  for (let c = 0; c < ch; c++) chans.push(buf.getChannelData(c))
-  for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++) {
-    const s = Math.max(-1, Math.min(1, chans[c][i]))
-    dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2
-  }
-  return new Blob([ab], { type: 'audio/wav' })
-}
-
-function parseMidiFile(d: Uint8Array, name: string): PlayableSong {
-  let p = 0
-  const u32 = () => (d[p++] << 24) | (d[p++] << 16) | (d[p++] << 8) | d[p++]
-  const u16 = () => (d[p++] << 8) | d[p++]
-  if (u32() !== 0x4d546864) throw new Error('bad header')
-  u32(); u16()
-  const nTracks = u16()
-  const div = u16()
-  let uspb = 500000
-  const raw: { tick: number; midi: number; on: boolean; vel: number }[] = []
-  for (let tr = 0; tr < nTracks; tr++) {
-    if (u32() !== 0x4d54726b) throw new Error('bad track')
-    const len = u32()
-    const end = p + len
-    let tick = 0, run = 0
-    while (p < end) {
-      let v = 0, b
-      do { b = d[p++]; v = (v << 7) | (b & 0x7f) } while (b & 0x80)
-      tick += v
-      let st = d[p]
-      if (st & 0x80) { p++; run = st } else st = run
-      const cmd = st & 0xf0
-      if (cmd === 0x90 || cmd === 0x80) {
-        const note = d[p++], vel = d[p++]
-        raw.push({ tick, midi: note, on: cmd === 0x90 && vel > 0, vel: vel / 127 })
-      } else if (cmd === 0xa0 || cmd === 0xb0 || cmd === 0xe0) p += 2
-      else if (cmd === 0xc0 || cmd === 0xd0) p += 1
-      else if (st === 0xff) {
-        const type = d[p++]
-        let l = 0; do { b = d[p++]; l = (l << 7) | (b & 0x7f) } while (b & 0x80)
-        if (type === 0x51) uspb = (d[p] << 16) | (d[p + 1] << 8) | d[p + 2]
-        p += l
-      } else if (st === 0xf0 || st === 0xf7) {
-        let l = 0; do { b = d[p++]; l = (l << 7) | (b & 0x7f) } while (b & 0x80)
-        p += l
-      } else break
-    }
-    p = end
-  }
-  const bpm = 60000000 / uspb
-  const beats = (t: number) => t / div
-  const open: Record<number, { tick: number }> = {}
-  const notes: PianoNote[] = []
-  raw.sort((a, b) => a.tick - b.tick)
-  raw.forEach(ev => {
-    if (ev.on) open[ev.midi] = ev
-    else if (open[ev.midi]) {
-      const o = open[ev.midi]
-      notes.push([ev.midi, beats(o.tick), Math.max(beats(ev.tick - o.tick), 0.1)])
-      delete open[ev.midi]
-    }
-  })
-  return { name: name.replace(/\.midi?$/i, ''), bpm, notes }
-}
-
-function btn(on: boolean): React.CSSProperties {
-  return {
-    fontFamily: 'inherit', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer',
-    background: on ? ACCENT : '#EDE8F5', color: on ? '#FFFFFF' : '#2B2438',
-    border: '1px solid ' + (on ? ACCENT : '#D9D0E8'), fontWeight: on ? 600 : 400,
-  }
+// Widens the black key's touch target on the cramped 2-octave mobile layout.
+// Single source of truth used by both the rendered keys and the falling-note
+// visualizer/burst positions (via keyXFrac) — they must all agree or notes
+// visibly drift off their key.
+function blackKeyWidthFactor(nOct: number): number {
+  return nOct <= 2 ? 0.74 : 0.62
 }
 
 export function VirtualPiano() {
   const [baseOctave, setBaseOctave] = useState(3)
-  const [nOct, setNOct] = useState(3)
+  const [nOct, setNOct] = useState(4)
   const [octOverride, setOctOverride] = useState<number | null>(null)
   const [instrument, setInstrument] = useState<InstrumentId>('acoustic')
   const [volume, setVolume] = useState(0.8)
@@ -227,20 +63,18 @@ export function VirtualPiano() {
   const [markMode, setMarkMode] = useState(false)
   const [recState, setRecState] = useState<RecState>('idle')
   const [recSecs, setRecSecs] = useState(0)
+  const [recPanelOpen, setRecPanelOpen] = useState(false)
+  const [recordingSaved, setRecordingSaved] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [songsOpen, setSongsOpen] = useState(false)
+  const [mySongsVersion, setMySongsVersion] = useState(0)
   const [midiName, setMidiName] = useState('')
-  const [banner, setBanner] = useState<Banner | null>(null)
-  const [wfScore, setWfScore] = useState(0)
-  const [wfTotal, setWfTotal] = useState(0)
-  const [playRecActive, setPlayRecActive] = useState(false)
   const [isFs, setIsFs] = useState(false)
   const [fauxFs, setFauxFs] = useState(false)
   const [countdown, setCountdown] = useState(0)
-  const [recMenu, setRecMenu] = useState(false)
+  const [freePlayDimmed, setFreePlayDimmed] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
-  // Mirrors of state for use inside imperative callbacks (keyboard/MIDI/timers)
-  // that must always read the latest value without being recreated every render.
   const baseOctaveRef = useRef(baseOctave); baseOctaveRef.current = baseOctave
   const nOctRef = useRef(nOct); nOctRef.current = nOct
   const octOverrideRef = useRef(octOverride); octOverrideRef.current = octOverride
@@ -252,33 +86,27 @@ export function VirtualPiano() {
   const recStateRef = useRef(recState); recStateRef.current = recState
   const fauxFsRef = useRef(fauxFs); fauxFsRef.current = fauxFs
   const settingsOpenRef = useRef(settingsOpen); settingsOpenRef.current = settingsOpen
-  const libraryOpenRef = useRef(libraryOpen); libraryOpenRef.current = libraryOpen
-  const wfScoreRef = useRef(wfScore); wfScoreRef.current = wfScore
-  const wfTotalRef = useRef(wfTotal); wfTotalRef.current = wfTotal
+  const songsOpenRef = useRef(songsOpen); songsOpenRef.current = songsOpen
 
-  const wfCanvasRef = useRef<HTMLCanvasElement>(null)
-  const pianoWrapRef = useRef<HTMLDivElement>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
   const ctxRef = useRef<AudioContext | null>(null)
   const masterRef = useRef<GainNode | null>(null)
   const voicesRef = useRef<Record<number, Voice>>({})
-  const timeoutsRef = useRef<number[]>([])
+  const markTimeoutsRef = useRef<number[]>([])
   const recEventsRef = useRef<RecEvent[]>([])
   const heldCodesRef = useRef<Record<string, number>>({})
-  const wfRef = useRef<WfState | null>(null)
-  const rafIdRef = useRef<number | null>(null)
   const ptrRef = useRef(false)
   const recStartRef = useRef(0)
   const countTimerRef = useRef<number | null>(null)
   const recTimerRef = useRef<number | null>(null)
-
-  const computeAutoOct = () => {
-    const w = window.innerWidth
-    return w < 540 ? 1 : w < 900 ? 2 : 3
-  }
+  const heroTimerRef = useRef<number | null>(null)
+  const toastTimerRef = useRef<number | null>(null)
+  const burstsRef = useRef<Burst[]>([])
+  const prevTransportSongRef = useRef<TransportSong | null>(null)
 
   const resize = useCallback(() => {
     if (octOverrideRef.current !== null) return
-    const nOctNew = computeAutoOct()
+    const nOctNew = computeAutoOct(window.innerWidth)
     if (nOctNew !== nOctRef.current) {
       setNOct(nOctNew)
       setBaseOctave(b => Math.min(b, 7 - nOctNew))
@@ -288,7 +116,7 @@ export function VirtualPiano() {
   const setDensity = useCallback((n: number | null) => {
     if (n === null) {
       setOctOverride(null)
-      const nOctNew = computeAutoOct()
+      const nOctNew = computeAutoOct(window.innerWidth)
       setNOct(nOctNew)
       setBaseOctave(b => Math.min(b, 7 - nOctNew))
     } else {
@@ -314,12 +142,31 @@ export function VirtualPiano() {
     return ctxRef.current
   }, [])
 
-  const wfHit = useCallback((midi: number) => {
-    const wf = wfRef.current
-    if (!wf) return
-    const el = performance.now() / 1000 - wf.start
-    const n = wf.notes.find(n => !n.hit && !n.missed && n.midi === midi && Math.abs(n.t - el) < 0.35)
-    if (n) { n.hit = true; setWfScore(s => s + 1) }
+  const showToast = useCallback((msg: string) => {
+    setToast(msg)
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 3200)
+  }, [])
+
+  // Hides the hero title while something is actively happening (free play or
+  // a loaded song) so the falling-notes visualizer isn't fighting with the
+  // marketing copy. When no song is loaded, free play triggers a fade-out
+  // that reverts ~8s after the last note (see pingHero calls in noteOn and
+  // the "song closed" effect below).
+  const pingHero = useCallback(() => {
+    setFreePlayDimmed(true)
+    if (heroTimerRef.current) clearTimeout(heroTimerRef.current)
+    heroTimerRef.current = window.setTimeout(() => setFreePlayDimmed(false), 8000)
+  }, [])
+
+  const releaseAllVoices = useCallback(() => {
+    const ctx = ctxRef.current
+    Object.keys(voicesRef.current).forEach(m => {
+      const v = voicesRef.current[+m]
+      if (v && ctx) v.release(ctx.currentTime)
+    })
+    voicesRef.current = {}
+    setActive({})
   }, [])
 
   const noteOn = useCallback((midi: number, vel = 0.9) => {
@@ -331,9 +178,10 @@ export function VirtualPiano() {
     if (recStateRef.current === 'rec') {
       recEventsRef.current.push({ midi, vel, inst: instrumentRef.current, tOn: performance.now() / 1000 - recStartRef.current, tOff: null })
     }
-    if (wfRef.current && wfRef.current.mode === 'wf') wfHit(midi)
+    if (transportRef.current?.song && transportRef.current.practice) transportRef.current.registerHit(midi)
+    if (!transportRef.current?.song) pingHero()
     setActive(a => ({ ...a, [midi]: true }))
-  }, [ensureCtx, wfHit])
+  }, [ensureCtx, pingHero])
 
   const noteOff = useCallback((midi: number) => {
     const v = voicesRef.current[midi]
@@ -347,13 +195,31 @@ export function VirtualPiano() {
     setActive(a => { const next = { ...a }; delete next[midi]; return next })
   }, [])
 
-  const stopAll = useCallback(() => {
-    timeoutsRef.current.forEach(clearTimeout)
-    timeoutsRef.current = []
-    Object.keys(voicesRef.current).forEach(m => noteOff(+m))
-    if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current)
-    wfRef.current = null
-  }, [noteOff])
+  // Spawns/ends the visualizer's "reverse waterfall" bar for a key press —
+  // called only at real user-input sites (pointer/keyboard/MIDI), NOT from
+  // noteOn/noteOff themselves, so a song playing itself doesn't also draw a
+  // rising bar on top of its own falling note.
+  const spawnLiveBurst = useCallback((midi: number) => {
+    const pos = keyXFrac(midi, baseOctaveRef.current, nOctRef.current, blackKeyWidthFactor(nOctRef.current))
+    if (pos) burstsRef.current.push({ midi, xFrac: pos[0], wFrac: pos[1], black: pos[2], onAt: performance.now(), offAt: null })
+  }, [])
+  const endLiveBurst = useCallback((midi: number) => {
+    for (let i = burstsRef.current.length - 1; i >= 0; i--) {
+      if (burstsRef.current[i].midi === midi && burstsRef.current[i].offAt === null) { burstsRef.current[i].offAt = performance.now(); break }
+    }
+  }, [])
+
+  // The transport hook drives song playback through these same noteOn/noteOff
+  // functions — a song's notes sound exactly like the player's own key
+  // presses (including feeding the recorder if you're recording over a
+  // song, and lighting up keys), so there's one audio path, not two.
+  const transport = usePianoTransport({ onNoteOn: noteOn, onNoteOff: noteOff })
+  const transportRef = useRef(transport); transportRef.current = transport
+
+  useEffect(() => {
+    if (prevTransportSongRef.current && !transport.song) pingHero()
+    prevTransportSongRef.current = transport.song
+  }, [transport.song, pingHero])
 
   const whiteMidi = useCallback((i: number) => {
     const oct = baseOctaveRef.current + Math.floor(i / 7)
@@ -373,79 +239,6 @@ export function VirtualPiano() {
     return null
   }, [whiteMidi])
 
-  const keyX = useCallback((midi: number): [number, number, boolean] | null => {
-    const bo = baseOctaveRef.current
-    const no = nOctRef.current
-    const nW = no * 7 + 1
-    const pc = ((midi % 12) + 12) % 12
-    const oct = Math.floor(midi / 12) - 1 - bo
-    const wIdx = WS.indexOf(pc)
-    if (wIdx >= 0) {
-      const i = oct * 7 + wIdx
-      if (i < 0 || i >= nW) return null
-      return [i / nW, 1 / nW, false]
-    }
-    const wBefore = WS.indexOf(pc - 1)
-    const i = oct * 7 + wBefore
-    if (i < 0 || i >= nW - 1) return null
-    const bw = 0.62 / nW
-    return [(i + 1) / nW - bw / 2, bw, true]
-  }, [])
-
-  const wfDraw = useCallback(() => {
-    const cv = wfCanvasRef.current
-    const wf = wfRef.current
-    if (!cv || !wf) return
-    const W = cv.clientWidth, H = cv.clientHeight
-    if (cv.width !== W * 2) { cv.width = W * 2; cv.height = H * 2 }
-    const g = cv.getContext('2d')
-    if (!g) return
-    g.setTransform(2, 0, 0, 2, 0, 0)
-    g.clearRect(0, 0, W, H)
-    const el = performance.now() / 1000 - wf.start
-    const lead = wf.lead
-    const auto = wf.mode === 'auto'
-    let allDone = true
-    wf.notes.forEach(n => {
-      if (!auto && !n.hit && !n.missed && n.t < el - 0.35) n.missed = true
-      const yBottom = ((el - (n.t - lead)) / lead) * H
-      const h = Math.max(10, (n.dur / lead) * H)
-      const yTop = yBottom - h
-      if (yTop > H + 5) return
-      if (yBottom < H + h + 20) allDone = false
-      if (!auto && n.hit) return
-      const pos = keyX(n.midi)
-      if (!pos) return
-      const [x, w, black] = pos
-      if (auto) {
-        const hue = (n.midi % 12) * 30
-        g.fillStyle = `hsl(${hue} 65% ${black ? 48 : 60}%)`
-      } else {
-        g.fillStyle = n.missed ? 'rgba(150,140,125,.25)' : black ? ACCENT : ACCENT + 'cc'
-      }
-      g.beginPath()
-      g.roundRect(x * W + 1, Math.min(yTop, H), w * W - 2, Math.min(h - 2, H - yTop), 4)
-      g.fill()
-    })
-    g.fillStyle = 'rgba(239,233,224,.25)'
-    g.fillRect(0, H - 1, W, 1)
-    if (!auto && allDone && el > lead) {
-      const sc = wfScoreRef.current, tot = wfTotalRef.current
-      wfRef.current = null
-      if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current)
-      setBanner({ name: `Score: ${sc} of ${tot} notes`, mode: 'result' })
-    }
-  }, [keyX])
-
-  const startWfLoop = useCallback(() => {
-    const loop = () => {
-      if (!wfRef.current) return
-      wfDraw()
-      rafIdRef.current = requestAnimationFrame(loop)
-    }
-    rafIdRef.current = requestAnimationFrame(loop)
-  }, [wfDraw])
-
   const toggleMarkNote = useCallback((midi: number) => {
     setMarked(prev => {
       const next = prev.includes(midi) ? prev.filter(m => m !== midi) : [...prev, midi]
@@ -458,14 +251,99 @@ export function VirtualPiano() {
     const seq = [...markedRef.current]
     ensureCtx()
     seq.forEach((midi, i) => {
-      timeoutsRef.current.push(window.setTimeout(() => noteOn(midi, 0.85), i * 450))
-      timeoutsRef.current.push(window.setTimeout(() => noteOff(midi), i * 450 + 380))
+      markTimeoutsRef.current.push(window.setTimeout(() => noteOn(midi, 0.85), i * 450))
+      markTimeoutsRef.current.push(window.setTimeout(() => noteOff(midi), i * 450 + 380))
     })
   }, [ensureCtx, noteOn, noteOff])
+
+  const fitSong = useCallback((notes: { midi: number }[]) => {
+    if (!notes.length) return
+    const midis = notes.map(n => n.midi)
+    const lo = Math.min(...midis)
+    let base = Math.floor(lo / 12) - 1
+    const hi = Math.max(...midis)
+    const span = 12 * (nOctRef.current + 0.5)
+    while (12 * (base + 1) + span < hi && base < 6) base++
+    setBaseOctave(Math.max(1, Math.min(6, base)))
+  }, [])
+
+  const playSong = useCallback((song: TransportSong, opts: { practice?: boolean } = {}) => {
+    releaseAllVoices()
+    fitSong(song.notes)
+    ensureCtx()
+    transport.load(song, { practice: opts.practice, autoplay: true })
+    setSongsOpen(false)
+  }, [releaseAllVoices, fitSong, ensureCtx, transport])
+
+  const doLoadMidi = useCallback(() => {
+    const inp = document.createElement('input')
+    inp.type = 'file'
+    inp.accept = '.mid,.midi,audio/midi'
+    inp.onchange = async () => {
+      const file = inp.files?.[0]
+      if (!file) return
+      try {
+        const parsed = parseMidiFile(new Uint8Array(await file.arrayBuffer()), file.name)
+        if (!parsed.notes.length) throw new Error('no notes')
+        const spb = 60 / parsed.bpm
+        const notes: TransportNote[] = parsed.notes.map(([midi, start, dur]) => ({ midi, time: start * spb, dur: dur * spb }))
+        playSong({ name: parsed.name, bpm: parsed.bpm, notes })
+        const alreadySaved = getMySongs().some(s => s.source === 'midi' && s.name === parsed.name)
+        if (!alreadySaved) {
+          saveMySong({ name: parsed.name, source: 'midi', bpm: parsed.bpm, notes })
+          setMySongsVersion(v => v + 1)
+          showToast(`Added "${parsed.name}" to My Songs`)
+        }
+      } catch {
+        showToast('Could not read that MIDI file')
+      }
+    }
+    inp.click()
+  }, [playSong, showToast])
+
+  const doDlWav = useCallback(async () => {
+    const evs = recEventsRef.current
+    if (!evs.length) return
+    download(await renderRecordingToWav(evs, volumeRef.current), 'piano-recording.wav')
+  }, [])
+
+  const doDlMidi = useCallback(() => {
+    const evs = recEventsRef.current
+    if (!evs.length) return
+    download(buildMidiFile(evs), 'piano-recording.mid')
+  }, [])
+
+  const recDuration = useCallback(() => {
+    const evs = recEventsRef.current
+    if (!evs.length) return '0:00'
+    const t = Math.round(Math.max(...evs.map(e => e.tOff ?? 0)))
+    return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0')
+  }, [])
+
+  const recordingToTransportNotes = useCallback((): TransportNote[] =>
+    recEventsRef.current.map(ev => ({ midi: ev.midi, time: ev.tOn, dur: Math.max((ev.tOff ?? ev.tOn) - ev.tOn, 0.12) })), [])
+
+  const handlePlayRecording = useCallback(() => {
+    if (!recEventsRef.current.length) return
+    playSong({ name: 'Your recording', bpm: 120, notes: recordingToTransportNotes() })
+    setRecPanelOpen(false)
+  }, [playSong, recordingToTransportNotes])
+
+  const handleSaveRecording = useCallback((name: string) => {
+    if (!recEventsRef.current.length) return
+    const id = saveMySong({ name, source: 'recording', bpm: 120, notes: recordingToTransportNotes() })
+    if (id) {
+      setRecordingSaved(true)
+      setMySongsVersion(v => v + 1)
+    } else {
+      showToast('Could not save — storage is full')
+    }
+  }, [recordingToTransportNotes, showToast])
 
   const doToggleRecord = useCallback(() => {
     const st = recStateRef.current
     if (st === 'idle') {
+      setRecordingSaved(false)
       let n = 4
       setRecState('count'); setCountdown(n)
       countTimerRef.current = window.setInterval(() => {
@@ -488,164 +366,20 @@ export function VirtualPiano() {
       if (recTimerRef.current != null) clearInterval(recTimerRef.current)
       const now = performance.now() / 1000 - recStartRef.current
       recEventsRef.current.forEach(ev => { if (ev.tOff === null) ev.tOff = now })
-      setRecState(recEventsRef.current.length ? 'done' : 'idle')
+      const hasNotes = recEventsRef.current.length > 0
+      setRecState(hasNotes ? 'done' : 'idle')
+      if (hasNotes) setRecPanelOpen(true)
+    } else if (st === 'done') {
+      setRecPanelOpen(true)
     }
-  }, [])
-
-  const recDuration = useCallback(() => {
-    const evs = recEventsRef.current
-    if (!evs.length) return '0:00'
-    const t = Math.round(Math.max(...evs.map(e => e.tOff ?? 0)))
-    return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0')
-  }, [])
-
-  const doPlayRec = useCallback(() => {
-    stopAll()
-    setPlayRecActive(true)
-    const lead = 3.2
-    let maxT = 0
-    recEventsRef.current.forEach(ev => {
-      const tOff = ev.tOff ?? ev.tOn
-      timeoutsRef.current.push(window.setTimeout(() => noteOn(ev.midi, ev.vel), (ev.tOn + lead) * 1000))
-      timeoutsRef.current.push(window.setTimeout(() => noteOff(ev.midi), (tOff + lead) * 1000))
-      maxT = Math.max(maxT, tOff)
-    })
-    wfRef.current = {
-      mode: 'auto',
-      notes: recEventsRef.current.map(ev => ({ midi: ev.midi, t: ev.tOn + lead, dur: Math.max((ev.tOff ?? ev.tOn) - ev.tOn, 0.15), hit: false, missed: false })),
-      start: performance.now() / 1000, lead,
-    }
-    setBanner({ name: 'Your recording', mode: 'auto' })
-    startWfLoop()
-    timeoutsRef.current.push(window.setTimeout(() => {
-      stopAll()
-      setPlayRecActive(false)
-      setBanner(null)
-    }, (maxT + lead) * 1000 + 600))
-  }, [stopAll, noteOn, noteOff, startWfLoop])
-
-  const fitSong = useCallback((song: PlayableSong) => {
-    const midis = song.notes.map(n => n[0])
-    const lo = Math.min(...midis)
-    let base = Math.floor(lo / 12) - 1
-    const hi = Math.max(...midis)
-    const span = 12 * (nOctRef.current + 0.5)
-    while (12 * (base + 1) + span < hi && base < 6) base++
-    setBaseOctave(Math.max(1, Math.min(6, base)))
-  }, [])
-
-  const doPlayAuto = useCallback((song: PlayableSong) => {
-    stopAll()
-    fitSong(song)
-    ensureCtx()
-    const spb = 60 / song.bpm
-    const lead = 3.2
-    let end = 0
-    song.notes.forEach(([midi, start, dur]) => {
-      const t0 = (start * spb + lead) * 1000, t1 = (start * spb + Math.max(dur * 0.92, 0.15) * spb + lead) * 1000
-      timeoutsRef.current.push(window.setTimeout(() => noteOn(midi, 0.85), t0))
-      timeoutsRef.current.push(window.setTimeout(() => noteOff(midi), t1))
-      end = Math.max(end, t1)
-    })
-    wfRef.current = {
-      mode: 'auto',
-      notes: song.notes.map(([midi, start, dur]) => ({ midi, t: start * spb + lead, dur: dur * spb, hit: false, missed: false })),
-      start: performance.now() / 1000, lead,
-    }
-    timeoutsRef.current.push(window.setTimeout(() => { stopAll(); setBanner(null) }, end + 1200))
-    setBanner({ name: song.name, mode: 'auto' })
-    setLibraryOpen(false)
-    startWfLoop()
-  }, [stopAll, fitSong, ensureCtx, noteOn, noteOff, startWfLoop])
-
-  const doPlayWf = useCallback((song: PlayableSong) => {
-    stopAll()
-    fitSong(song)
-    ensureCtx()
-    const spb = 60 / song.bpm
-    wfRef.current = {
-      mode: 'wf',
-      notes: song.notes.map(([midi, start, dur]) => ({ midi, t: start * spb + 3.2, dur: dur * spb, hit: false, missed: false })),
-      start: performance.now() / 1000, lead: 3.2,
-    }
-    setBanner({ name: song.name, mode: 'wf' })
-    setWfScore(0)
-    setWfTotal(song.notes.length)
-    setLibraryOpen(false)
-    startWfLoop()
-  }, [stopAll, fitSong, ensureCtx, startWfLoop])
-
-  const doStopSong = useCallback(() => {
-    stopAll()
-    setBanner(null)
-  }, [stopAll])
-
-  const doLoadMidi = useCallback(() => {
-    const inp = document.createElement('input')
-    inp.type = 'file'
-    inp.accept = '.mid,.midi,audio/midi'
-    inp.onchange = async () => {
-      const file = inp.files?.[0]
-      if (!file) return
-      try {
-        const song = parseMidiFile(new Uint8Array(await file.arrayBuffer()), file.name)
-        if (!song.notes.length) throw new Error('no notes')
-        doPlayAuto(song)
-      } catch {
-        setBanner({ name: 'Could not read that MIDI file', mode: 'result' })
-      }
-    }
-    inp.click()
-  }, [doPlayAuto])
-
-  const doDlWav = useCallback(async () => {
-    const evs = recEventsRef.current
-    if (!evs.length) return
-    const dur = Math.max(...evs.map(e => e.tOff ?? e.tOn)) + 2
-    const sr = 44100
-    const ctx = new OfflineAudioContext(2, Math.ceil(dur * sr), sr)
-    const master = ctx.createGain()
-    master.gain.value = volumeRef.current
-    const comp = ctx.createDynamicsCompressor()
-    master.connect(comp); comp.connect(ctx.destination)
-    evs.forEach(ev => {
-      const v = buildVoice(ctx, master, ev.inst, ev.midi, ev.tOn + 0.05, ev.vel)
-      v.release((ev.tOff ?? ev.tOn) + 0.05)
-    })
-    const buf = await ctx.startRendering()
-    download(encodeWav(buf), 'piano-recording.wav')
-  }, [])
-
-  const doDlMidi = useCallback(() => {
-    const evs = recEventsRef.current
-    if (!evs.length) return
-    const PROG: Record<InstrumentId, number> = { acoustic: 0, piano: 0, epiano: 4, organ: 19, synth: 81, strings: 48, musicbox: 10 }
-    const div = 480, uspb = 500000 // 120 bpm
-    const list: { t: number; b: number[] }[] = []
-    evs.forEach(ev => {
-      const tick = (s: number) => Math.round(s * 1e6 / uspb * div)
-      list.push({ t: tick(ev.tOn), b: [0x90, ev.midi, Math.round(ev.vel * 127)] })
-      list.push({ t: tick(ev.tOff ?? ev.tOn), b: [0x80, ev.midi, 0] })
-    })
-    list.sort((a, b) => a.t - b.t)
-    const bytes: number[] = []
-    const vlq = (v: number) => { const st = [v & 0x7f]; while ((v >>= 7)) st.push((v & 0x7f) | 0x80); return st.reverse() }
-    bytes.push(0, 0xc0 | 0, PROG[evs[0].inst] || 0)
-    let last = 0
-    list.forEach(ev => { bytes.push(...vlq(ev.t - last), ...ev.b); last = ev.t })
-    bytes.push(0, 0xff, 0x2f, 0)
-    const track = [77, 84, 114, 107, (bytes.length >> 24) & 255, (bytes.length >> 16) & 255, (bytes.length >> 8) & 255, bytes.length & 255, ...bytes]
-    const head = [77, 84, 104, 100, 0, 0, 0, 6, 0, 0, 0, 1, div >> 8, div & 255]
-    download(new Blob([new Uint8Array([...head, ...track])], { type: 'audio/midi' }), 'piano-recording.mid')
   }, [])
 
   const toggleFullscreen = useCallback(() => {
     if (fauxFsRef.current) { setFauxFs(false); return }
     if (document.fullscreenElement) { document.exitFullscreen(); return }
-    // Fullscreen just the piano wrapper (not document.documentElement) — this
-    // component is embedded in the site's own page, which has its own navbar
-    // and footer above/below it that shouldn't come along into fullscreen.
-    const el = pianoWrapRef.current
+    // Fullscreen the whole stage (hero + visualizer + keyboard + player bar),
+    // not just the keyboard — the falling-notes practice view is the point.
+    const el = stageRef.current
     const p = el?.requestFullscreen ? el.requestFullscreen() : Promise.reject()
     Promise.resolve(p).catch(() => setFauxFs(true))
   }, [])
@@ -655,22 +389,32 @@ export function VirtualPiano() {
     const target = e.target as HTMLElement
     if (target && /INPUT|SELECT|TEXTAREA/.test(target.tagName)) return
     if (e.code === 'Escape' && fauxFsRef.current) { setFauxFs(false); return }
-    if (e.code === 'Escape' && (settingsOpenRef.current || libraryOpenRef.current)) { setSettingsOpen(false); setLibraryOpen(false); return }
-    if (e.code === 'Space') { e.preventDefault(); if (markedRef.current.length) doPlayMarks(); return }
+    if (e.code === 'Escape' && (settingsOpenRef.current || songsOpenRef.current)) { setSettingsOpen(false); setSongsOpen(false); return }
+    if (e.code === 'Space') {
+      e.preventDefault()
+      if (transportRef.current.song) transportRef.current.togglePlay()
+      else if (markedRef.current.length) doPlayMarks()
+      return
+    }
     const midi = codeToMidi(e.code)
     if (midi !== null && !heldCodesRef.current[e.code]) {
       heldCodesRef.current[e.code] = midi
       if (markModeRef.current) toggleMarkNote(midi)
       noteOn(midi)
+      spawnLiveBurst(midi)
     }
-  }, [codeToMidi, doPlayMarks, noteOn, toggleMarkNote])
+  }, [codeToMidi, doPlayMarks, noteOn, spawnLiveBurst, toggleMarkNote])
 
   const keyUpHandler = useCallback((e: KeyboardEvent) => {
     const midi = heldCodesRef.current[e.code]
-    if (midi !== undefined) { delete heldCodesRef.current[e.code]; noteOff(midi) }
-  }, [noteOff])
+    if (midi !== undefined) { delete heldCodesRef.current[e.code]; noteOff(midi); endLiveBurst(midi) }
+  }, [noteOff, endLiveBurst])
 
   useEffect(() => {
+    // Captured once — markTimeoutsRef.current is a stable array that only
+    // ever gets pushed to (never reassigned), so this reference stays valid
+    // and satisfies the exhaustive-deps ref-in-cleanup rule.
+    const markTimeouts = markTimeoutsRef.current
     const onResize = () => resize()
     const onPtrDown = () => { ptrRef.current = true }
     const onPtrUp = () => { ptrRef.current = false }
@@ -697,8 +441,8 @@ export function VirtualPiano() {
               if (!data) return
               const [st, note, vel] = data
               const cmd = st & 0xf0
-              if (cmd === 0x90 && vel > 0) noteOn(note, vel / 127)
-              else if (cmd === 0x80 || (cmd === 0x90 && vel === 0)) noteOff(note)
+              if (cmd === 0x90 && vel > 0) { noteOn(note, vel / 127); spawnLiveBurst(note) }
+              else if (cmd === 0x80 || (cmd === 0x90 && vel === 0)) { noteOff(note); endLiveBurst(note) }
             }
           })
           setMidiName(name)
@@ -708,10 +452,6 @@ export function VirtualPiano() {
       }).catch(() => {})
     }
 
-    // Preload the real piano samples right away (per-page load, not on first
-    // keypress) so "Acoustic Piano" is ready by the time someone plays —
-    // deferred to idle time so the 88 pooled fetches don't compete with
-    // hydration/the skeleton hand-off.
     const win = window as Window & { requestIdleCallback?: (cb: () => void) => number; cancelIdleCallback?: (id: number) => void }
     const startPreload = () => loadPianoSamples(ensureCtx())
     const idleId = win.requestIdleCallback ? win.requestIdleCallback(startPreload) : window.setTimeout(startPreload, 1)
@@ -725,8 +465,14 @@ export function VirtualPiano() {
       window.removeEventListener('pointerdown', onPtrDown, true)
       window.removeEventListener('pointerup', onPtrUp, true)
       document.removeEventListener('fullscreenchange', onFsChange)
-      stopAll()
-      if (ctxRef.current) ctxRef.current.close()
+      markTimeouts.forEach(clearTimeout)
+      releaseAllVoices()
+      // Null out after close() — a dev-mode double-mount (React StrictMode)
+      // or HMR remount otherwise finds a truthy-but-closed ctxRef.current
+      // and ensureCtx() reuses it instead of creating a fresh one, throwing
+      // "Cannot close a closed AudioContext" on the next unmount.
+      if (ctxRef.current) { ctxRef.current.close(); ctxRef.current = null }
+      masterRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -737,10 +483,11 @@ export function VirtualPiano() {
       try { (e.currentTarget as Element).releasePointerCapture(e.pointerId) } catch { /* not captured */ }
       if (markModeRef.current) toggleMarkNote(midi)
       noteOn(midi)
+      spawnLiveBurst(midi)
     },
-    up: () => { if (activeRef.current[midi]) noteOff(midi) },
-    enter: () => { if (ptrRef.current) noteOn(midi) },
-  }), [toggleMarkNote, noteOn, noteOff])
+    up: () => { if (activeRef.current[midi]) { noteOff(midi); endLiveBurst(midi) } },
+    enter: () => { if (ptrRef.current) { noteOn(midi); spawnLiveBurst(midi) } },
+  }), [toggleMarkNote, noteOn, noteOff, spawnLiveBurst, endLiveBurst])
 
   const label = (midi: number, isBlack: boolean): string => {
     if (labelMode === 'none') return ''
@@ -765,6 +512,7 @@ export function VirtualPiano() {
 
   // ---------- derived render values ----------
   const nW = nOct * 7 + 1
+  const blackWidthFactor = blackKeyWidthFactor(nOct)
   interface KeyRenderData { midi: number; label: string; style: React.CSSProperties; dotStyle: React.CSSProperties; down: (e: React.PointerEvent) => void; up: () => void; enter: () => void }
   const whites: KeyRenderData[] = []
   const blacks: KeyRenderData[] = []
@@ -778,23 +526,22 @@ export function VirtualPiano() {
       label: label(midi, false),
       style: {
         flex: 1, position: 'relative', minWidth: 0, cursor: 'pointer', userSelect: 'none', touchAction: 'none',
-        border: '1px solid #a49c8e', borderTop: 'none', borderRadius: '0 0 6px 6px',
-        background: act ? 'linear-gradient(#d9d2c4, #c9c0b0)' : 'linear-gradient(#fdfcf8, #efeade)',
-        boxShadow: act ? 'inset 0 3px 8px rgba(0,0,0,.3)' : 'inset 0 -7px 0 rgba(0,0,0,.07), 0 3px 5px rgba(0,0,0,.4)',
-        transform: act ? 'translateY(1px)' : 'none',
+        border: '1px solid #b8ac86', borderTop: 'none', borderRadius: '0 0 6px 6px',
+        background: act ? 'linear-gradient(180deg,#e4d9ff,#c9b8ff)' : 'linear-gradient(180deg,#f7f2e4,#ddd2b0)',
+        boxShadow: act ? 'inset 0 -5px 10px rgba(124,92,255,.35)' : 'inset 0 -5px 6px rgba(0,0,0,.10)',
         display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center',
         paddingBottom: 8, gap: 6,
       },
       dotStyle: {
         display: isMarked ? 'block' : 'none', width: 10, height: 10, borderRadius: '50%',
-        background: ACCENT, boxShadow: '0 0 6px ' + ACCENT,
+        background: VIOLET, boxShadow: '0 0 6px ' + VIOLET,
       },
     })
     if (i < nW - 1 && [0, 1, 3, 4, 5].includes(i % 7)) {
       const bm = midi + 1
       const bact = !!active[bm]
       const bmarked = marked.includes(bm)
-      const bw = 62 / nW
+      const bw = (blackWidthFactor * 100) / nW
       blacks.push({
         midi: bm,
         ...keyHandlers(bm),
@@ -802,65 +549,39 @@ export function VirtualPiano() {
         style: {
           position: 'absolute', top: 0, left: ((i + 1) * 100 / nW - bw / 2) + '%', width: bw + '%', height: '62%',
           cursor: 'pointer', userSelect: 'none', touchAction: 'none', zIndex: 2,
-          background: bact ? 'linear-gradient(#55504a, #2b2825)' : 'linear-gradient(#3c3934, #131110)',
+          background: bact ? 'linear-gradient(180deg,#a596ff,#7c5cff)' : 'linear-gradient(180deg,#2a2236,#18131f)',
           border: '1px solid #000', borderTop: 'none', borderRadius: '0 0 5px 5px',
-          boxShadow: bact ? 'inset 0 2px 6px rgba(0,0,0,.6)' : 'inset 0 -5px 0 rgba(255,255,255,.06), 0 4px 6px rgba(0,0,0,.55)',
-          transform: bact ? 'translateY(1px)' : 'none',
+          boxShadow: bact ? '0 0 14px rgba(124,92,255,.75)' : '0 3px 5px rgba(0,0,0,.5), inset 0 -4px 5px rgba(0,0,0,.5)',
           display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center',
           paddingBottom: 6, gap: 5,
         },
         dotStyle: {
           display: bmarked ? 'block' : 'none', width: 8, height: 8, borderRadius: '50%',
-          background: ACCENT, boxShadow: '0 0 6px ' + ACCENT,
+          background: TEAL, boxShadow: '0 0 6px ' + TEAL,
         },
       })
     }
   }
 
-  const diffs: { name: PianoSong['diff']; color: string }[] = [
-    { name: 'Easy', color: '#7BC47F' },
-    { name: 'Medium', color: ACCENT },
-    { name: 'Hard', color: '#D97757' },
-  ]
-  const groups = diffs.map(d => ({
-    ...d,
-    songs: PIANO_SONGS.filter(sg => sg.diff === d.name).map(sg => ({
-      name: sg.name, tags: sg.tags,
-      playAuto: () => doPlayAuto(sg),
-      playWf: () => doPlayWf(sg),
-    })),
-  })).filter(g => g.songs.length)
-
   const mm = Math.floor(recSecs / 60), ss = String(recSecs % 60).padStart(2, '0')
-  const bannerTexts: Record<BannerMode, string> = { auto: 'Now playing: ', wf: 'Waterfall mode — hit the notes when they reach the line: ', result: '' }
-
   const recLabel = recState === 'count' ? `Ready? ${countdown}…`
     : recState === 'rec' ? `■ Stop ${mm}:${ss}`
     : recState === 'done' ? '● Recording ready' : '● Record'
   const recBtnStyle: React.CSSProperties = {
-    ...btn(recState !== 'idle'),
+    ...pillBtn(recState !== 'idle'),
+    ...(recState === 'rec' ? { background: '#c0392b', borderColor: '#c0392b', animation: 'pianoRecBlink 1.4s infinite' } : {}),
     ...(recState === 'count' ? { animation: 'pianoRecBlink 0.8s infinite' } : {}),
-    ...(recState === 'rec' ? { background: '#c0392b', borderColor: '#c0392b', color: '#fff', animation: 'pianoRecBlink 1.4s infinite' } : {}),
   }
-  const recMenuShown = recState === 'done' && recMenu
-  const playRecLabel = playRecActive ? '▶ Playing…' : `▶ Play (${recDuration()})`
   const hasMarks = marked.length > 0
-  const bannerText = banner ? bannerTexts[banner.mode] + banner.name : ''
-  const bannerScore = banner && banner.mode === 'wf' ? `${wfScore} / ${wfTotal} hits` : ''
-  const wfAreaStyle: React.CSSProperties = {
-    display: banner && (banner.mode === 'wf' || banner.mode === 'auto') ? 'block' : 'none',
-    height: 230, marginBottom: 4, background: 'rgba(0,0,0,.35)', borderRadius: 8, overflow: 'hidden',
-  }
-  const fsLabel = (isFs || fauxFs) ? '⛶ Exit full screen' : '⛶ Full screen'
-  const pianoWrapStyle: React.CSSProperties = fauxFs
-    ? { position: 'fixed', inset: 0, zIndex: 40, background: '#F5F2FA', padding: '16px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }
-    : isFs
-      ? { width: '100%', height: '100%', background: '#F5F2FA', padding: '16px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }
-      : { padding: '0 10px', width: '100%' }
+  const fsLabel = (isFs || fauxFs) ? 'Exit full screen' : 'Full screen'
   const midiText = midiName ? 'MIDI: ' + midiName : 'MIDI: no device'
-  const midiColor = midiName ? '#7BC47F' : '#8A7FA0'
-  const volumePct = Math.round(volume * 100)
+  const midiConnected = !!midiName
   const octLabel = `C${baseOctave}–C${baseOctave + nOct}`
+
+  const heroDimmed = !!transport.song || freePlayDimmed
+  const eyebrowText = transport.song
+    ? (transport.practice ? `Practice: ${transport.song.name}` : `Playing: ${transport.song.name}`)
+    : 'Free play'
 
   const shortcutRows = [
     { label: 'Black keys', keys: ['2', '3', '·', '5', '6', '7', '·', '9', '0'] },
@@ -868,142 +589,175 @@ export function VirtualPiano() {
   ]
 
   const faqs = [
-    { q: 'Can I use a real MIDI keyboard?', a: 'Yes — connect a MIDI keyboard and use Chrome or Edge. It is detected automatically and its name appears in the badge at the top right. Anything you play on it sounds here and can be recorded too, with velocity sensitivity.' },
-    { q: 'Does it work on phones and tablets?', a: 'Yes — the piano adapts to your screen, showing fewer, bigger keys on small devices, and supports multi-touch so you can play chords with several fingers. You can also force a specific key density in Settings.' },
+    { q: 'Can I use a real MIDI keyboard?', a: 'Yes — connect a MIDI keyboard and use Chrome or Edge. It is detected automatically and its name appears in the badge at the top of the page. Anything you play on it sounds here and can be recorded too, with velocity sensitivity.' },
+    { q: 'Does it work on phones and tablets?', a: 'Yes — the piano always shows at least two full octaves, even on a small phone, and supports multi-touch so you can play chords with several fingers. You can also force a specific key density in Settings.' },
+    { q: 'What is Practice mode?', a: 'Load any song from the library or your own recordings, turn on Practice, and play along — notes fall toward the keys and you’re scored on hits vs. misses instead of the song playing itself.' },
     { q: 'WAV or MIDI — which download should I pick?', a: 'WAV is a finished audio file — share it or listen anywhere. MIDI stores the notes themselves, so you can open it in any music software (GarageBand, Ableton, MuseScore…) to edit the notes or change the instrument.' },
+    { q: 'Where do my recordings go?', a: 'Save a recording (or an opened .mid file) to "My Songs" and it stays in your browser — no account needed — ready to play, practice, rename or download again any time you come back.' },
     { q: 'How do I share my marked notes?', a: 'Marks are saved in the page address as you make them — just copy the URL from your browser and send it. Whoever opens it sees the same keys marked and can play them with the space bar.' },
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F5F2FA', color: '#2B2438', fontFamily: "'Outfit', sans-serif", display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: '#F5F2FA', color: '#2B2438', fontFamily: "'Outfit', sans-serif" }}>
       <style>{`
         @keyframes pianoRecBlink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
-        .vp-root input[type=range] { accent-color: #7C3AED; }
+        .vp-root input[type=range] { accent-color: ${VIOLET}; }
         .vp-root ::-webkit-scrollbar { height: 8px; width: 8px; }
         .vp-root ::-webkit-scrollbar-thumb { background: #D9D0E8; border-radius: 4px; }
         .vp-root details > summary { cursor: pointer; list-style: none; }
         .vp-root details > summary::-webkit-details-marker { display: none; }
         .vp-root a { color: #7C3AED; }
         .vp-root a:hover { color: #9A6BF5; }
+        .vp-stage { touch-action: none; }
+        .vp-hero-copy { transition: opacity 400ms ease; }
+        .vp-tbtn .vp-lbl { }
+        @media (hover: none) and (pointer: coarse) {
+          .vp-keymap-hint { display: none; }
+        }
+        @media (max-width: 600px) {
+          .vp-toolbar { gap: 6px; padding: 8px 8px 4px; }
+          .vp-tool-group { padding: 5px; gap: 3px; }
+          .vp-tbtn { padding: 8px 9px; }
+          .vp-tbtn .vp-lbl { display: none; }
+          .vp-midi-badge .vp-lbl { display: none; }
+          .vp-hero-copy p { display: none; }
+        }
+        @media (orientation: landscape) and (max-height: 560px) {
+          .vp-keyboard-frame { height: min(56dvh, 190px) !important; }
+          .vp-keymap-hint { display: none; }
+        }
       `}</style>
       <div className="vp-root">
 
-      {/* Header */}
-      <header style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, padding: '20px 24px 8px 24px' }}>
-        <span />
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: -0.5, textAlign: 'center', whiteSpace: 'nowrap' }}>Virtual Piano</h1>
-        <span style={{ justifySelf: 'end', fontSize: 12, color: midiColor, border: '1px solid #D9D0E8', borderRadius: 999, padding: '4px 12px' }}>{midiText}</span>
-      </header>
+      {/* ---------- Stage: dark full-height hero + visualizer + keyboard ---------- */}
+      <section
+        ref={stageRef}
+        className="vp-stage"
+        style={{
+          position: 'relative', minHeight: 'calc(100dvh - 64px)', display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+          background: 'radial-gradient(120% 90% at 15% -10%, rgba(124,92,255,.30), transparent 55%), radial-gradient(90% 70% at 100% 0%, rgba(95,227,201,.14), transparent 50%), linear-gradient(180deg, #141020 0%, #1d1830 55%, #251f3d 100%)',
+          ...(fauxFs ? { position: 'fixed', inset: 0, zIndex: 1000, minHeight: '100dvh' } as React.CSSProperties : {}),
+        }}
+      >
+        {toast && (
+          <div style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: 'rgba(20,16,32,.85)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 999, padding: '8px 16px', fontSize: 12.5, color: TEXT_HI, whiteSpace: 'nowrap', boxShadow: '0 10px 30px rgba(0,0,0,.35)' }}>
+            {toast}
+          </div>
+        )}
 
-      {/* Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 24px 14px 24px' }}>
-        <div
-          onMouseEnter={() => { if (recStateRef.current === 'done') setRecMenu(true) }}
-          onMouseLeave={() => setRecMenu(false)}
-          style={{ position: 'relative' }}
-        >
-          <button onClick={doToggleRecord} style={recBtnStyle}>{recLabel}</button>
-          {recMenuShown && (
-            <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 30, paddingTop: 4 }}>
-              <div style={{ background: '#EDE8F5', border: '1px solid #D9D0E8', borderRadius: 10, boxShadow: '0 10px 30px rgba(43,36,56,.18)', minWidth: 170, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <button onClick={doPlayRec} style={{ fontFamily: 'inherit', background: 'transparent', color: '#2B2438', border: 'none', textAlign: 'left', padding: '10px 14px', fontSize: 13, cursor: 'pointer' }}>{playRecLabel}</button>
-                <button onClick={doDlWav} style={{ fontFamily: 'inherit', background: 'transparent', color: '#2B2438', border: 'none', textAlign: 'left', padding: '10px 14px', fontSize: 13, cursor: 'pointer' }}>Download WAV</button>
-                <button onClick={doDlMidi} style={{ fontFamily: 'inherit', background: 'transparent', color: '#2B2438', border: 'none', textAlign: 'left', padding: '10px 14px', fontSize: 13, cursor: 'pointer' }}>Download MIDI</button>
-                <button onClick={() => { stopAll(); setRecState('idle'); setRecSecs(0); setRecMenu(false); setBanner(null); setPlayRecActive(false) }} style={{ fontFamily: 'inherit', background: 'transparent', color: '#6E6482', border: 'none', borderTop: '1px solid #D9D0E8', textAlign: 'left', padding: '10px 14px', fontSize: 13, cursor: 'pointer' }}>New recording</button>
-              </div>
+        {/* Toolbar */}
+        <div className="vp-toolbar" style={{ position: 'relative', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', padding: '14px 16px 6px' }}>
+          <div className="vp-tool-group" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', background: 'rgba(255,255,255,.055)', border: '1px solid rgba(255,255,255,.10)', padding: 6, borderRadius: 14 }}>
+            <button className="vp-tbtn" onClick={doToggleRecord} title="Record" style={{ ...tbtnStyle(recState !== 'idle'), ...(recState === 'rec' ? { background: '#ff5d7a', borderColor: '#ff5d7a', animation: 'pianoRecBlink 1.4s infinite' } : {}) }}>
+              <IconRecord /><span className="vp-lbl">{recLabel}</span>
+            </button>
+            <button className="vp-tbtn" onClick={() => setMarkMode(v => !v)} title="Mark" style={tbtnStyle(markMode)}>
+              <IconMark /><span className="vp-lbl">Mark</span>
+            </button>
+            {hasMarks && (
+              <>
+                <button className="vp-tbtn" onClick={doPlayMarks} title="Play marks" style={tbtnStyle(true)}>▸<span className="vp-lbl">&nbsp;Play</span></button>
+                <button onClick={() => { setMarked([]); history.replaceState(null, '', location.pathname + location.search) }} style={ghostBtn()}>Clear marks</button>
+              </>
+            )}
+            <button className="vp-tbtn" onClick={() => setSongsOpen(true)} title="Songs" style={tbtnStyle(songsOpen)}>
+              <IconSongs /><span className="vp-lbl">Songs</span>
+            </button>
+            <button className="vp-tbtn" onClick={doLoadMidi} title="Open MIDI file" style={tbtnStyle(false)}>
+              <IconOpenMidi /><span className="vp-lbl">Open MIDI…</span>
+            </button>
+            <div className="vp-midi-badge" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: midiConnected ? TEAL : TEXT_DIM, padding: '8px 12px' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: midiConnected ? TEAL : '#5c5578', boxShadow: midiConnected ? '0 0 0 3px rgba(95,227,201,.22)' : 'none' }} />
+              <span className="vp-lbl">{midiText}</span>
             </div>
-          )}
-        </div>
-        <button onClick={() => setMarkMode(v => !v)} style={btn(markMode)}>Mark</button>
-        {hasMarks && (
-          <>
-            <button onClick={doPlayMarks} style={btn(true)}>Play ▸</button>
-            <button onClick={() => { setMarked([]); history.replaceState(null, '', location.pathname + location.search) }} style={{ fontFamily: 'inherit', background: 'transparent', color: '#6E6482', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 12px', fontSize: 13, cursor: 'pointer' }}>Clear marks</button>
-          </>
-        )}
-        <button onClick={() => setLibraryOpen(true)} style={btn(libraryOpen)}>♪ Songs</button>
-        <button onClick={doLoadMidi} style={{ fontFamily: 'inherit', background: '#EDE8F5', color: '#2B2438', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer' }}>Open MIDI…</button>
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <select
-            value={instrument}
-            onChange={(e) => setInstrument(e.target.value as InstrumentId)}
-            style={{ fontFamily: 'inherit', background: '#EDE8F5', color: '#2B2438', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 10px', fontSize: 13, cursor: 'pointer' }}
-          >
-            <option value="acoustic">Acoustic Piano</option>
-            <option value="piano">Classic Piano</option>
-            <option value="epiano">Electric Piano</option>
-            <option value="organ">Organ</option>
-            <option value="synth">Synthesizer</option>
-            <option value="strings">Strings</option>
-            <option value="musicbox">Music Box</option>
-          </select>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#EDE8F5', border: '1px solid #D9D0E8', borderRadius: 8, padding: 2 }}>
-            <button onClick={octDown} style={{ fontFamily: 'inherit', background: 'transparent', color: '#2B2438', border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: 15, cursor: 'pointer' }}>−</button>
-            <span style={{ fontSize: 13, color: '#6E6482', minWidth: 66, textAlign: 'center' }}>Octave {octLabel}</span>
-            <button onClick={octUp} style={{ fontFamily: 'inherit', background: 'transparent', color: '#2B2438', border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: 15, cursor: 'pointer' }}>+</button>
           </div>
-          <button onClick={toggleFullscreen} style={{ fontFamily: 'inherit', background: '#EDE8F5', color: '#2B2438', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer' }}>{fsLabel}</button>
-          <button onClick={() => setSettingsOpen(true)} style={{ fontFamily: 'inherit', background: '#EDE8F5', color: '#2B2438', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer' }}>⚙ Settings</button>
-        </div>
-      </div>
 
-      {/* Song banner */}
-      {banner && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '0 16px 10px 16px', background: '#FFFFFF', border: '1px solid #D9D0E8', borderRadius: 10, padding: '10px 16px', fontSize: 14 }}>
-          <span style={{ color: ACCENT }}>♪</span>
-          <span>{bannerText}</span>
-          <span style={{ color: '#6E6482', fontSize: 13 }}>{bannerScore}</span>
-          <button onClick={doStopSong} style={{ marginLeft: 'auto', fontFamily: 'inherit', background: '#D9D0E8', color: '#2B2438', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>Stop</button>
-        </div>
-      )}
-
-      {/* Piano */}
-      <div ref={pianoWrapRef} style={pianoWrapStyle}>
-        {(fauxFs || isFs) && (
-          <button onClick={toggleFullscreen} style={{ alignSelf: 'flex-end', marginBottom: 10, fontFamily: 'inherit', background: '#EDE8F5', color: '#2B2438', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer' }}>✕ Exit full screen</button>
-        )}
-        <div style={{ width: '100%', background: WOOD_BG, borderRadius: 14, padding: '12px 12px 16px 12px', boxShadow: '0 14px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07)' }}>
-          <div style={wfAreaStyle}>
-            <canvas ref={wfCanvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />
-          </div>
-          <div style={{ height: 7, background: ACCENT, borderRadius: '3px 3px 0 0', boxShadow: '0 1px 3px rgba(0,0,0,.6)', marginBottom: 1 }} />
-          <div style={{ position: 'relative', display: 'flex', height: 'clamp(130px, 24vw, 230px)' }}>
-            {whites.map(k => (
-              <div key={k.midi} onPointerDown={k.down} onPointerUp={k.up} onPointerEnter={k.enter} onPointerLeave={k.up} style={k.style}>
-                <div style={k.dotStyle} />
-                <span style={{ fontSize: 'clamp(9px, 1.2vw, 13px)', color: '#8a8175', fontWeight: 500, pointerEvents: 'none' }}>{k.label}</span>
-              </div>
-            ))}
-            {blacks.map(k => (
-              <div key={k.midi} onPointerDown={k.down} onPointerUp={k.up} onPointerEnter={k.enter} onPointerLeave={k.up} style={k.style}>
-                <div style={k.dotStyle} />
-                <span style={{ fontSize: 'clamp(8px, 1vw, 11px)', color: '#cfc7b9', fontWeight: 500, pointerEvents: 'none' }}>{k.label}</span>
-              </div>
-            ))}
+          <div className="vp-tool-group" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', background: 'rgba(255,255,255,.055)', border: '1px solid rgba(255,255,255,.10)', padding: 6, borderRadius: 14 }}>
+            <select
+              value={instrument}
+              onChange={(e) => setInstrument(e.target.value as InstrumentId)}
+              title="Instrument"
+              style={{ fontFamily: 'inherit', background: 'transparent', color: TEXT_HI, border: 'none', padding: '8px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <option value="acoustic">Acoustic Piano</option>
+              <option value="piano">Classic Piano</option>
+              <option value="epiano">Electric Piano</option>
+              <option value="organ">Organ</option>
+              <option value="synth">Synthesizer</option>
+              <option value="strings">Strings</option>
+              <option value="musicbox">Music Box</option>
+            </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: 2 }}>
+              <button onClick={octDown} aria-label="Lower octave" style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,.08)', color: TEXT_HI, fontSize: 15, cursor: 'pointer' }}>−</button>
+              <span style={{ fontFamily: 'IBM Plex Mono, ui-monospace, monospace', fontSize: 12, color: TEXT_MED, padding: '0 9px', whiteSpace: 'nowrap' }}>Octave {octLabel}</span>
+              <button onClick={octUp} aria-label="Raise octave" style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,.08)', color: TEXT_HI, fontSize: 15, cursor: 'pointer' }}>+</button>
+            </div>
+            <button className="vp-tbtn" onClick={toggleFullscreen} title={fsLabel} style={tbtnStyle(isFs || fauxFs)}>
+              <IconFullscreen /><span className="vp-lbl">{fsLabel}</span>
+            </button>
+            <button className="vp-tbtn" onClick={() => setSettingsOpen(true)} title="Settings" style={tbtnStyle(settingsOpen)}>
+              <IconSettings /><span className="vp-lbl">Settings</span>
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Help line */}
-      <p style={{ textAlign: 'center', color: '#8A7FA0', fontSize: 13, margin: '14px 24px', lineHeight: 1.6 }}>
-        The <b style={{ color: '#574A6E' }}>Q W E R T Y U I O P</b> row plays the white keys and the number row <b style={{ color: '#574A6E' }}>2 3 · 5 6 7 · 9 0</b> plays the black keys — you can play several at once.
-        With «Mark» on, click keys to mark them and play them with the space bar; marks are saved in the web address so you can share them.
-      </p>
+        {/* Visualizer / hero — canvas fills the whole hero, falling notes travel
+            straight down into the keyboard below with nothing interrupting the
+            path (this is why the player bar lives BELOW the keyboard, not here). */}
+        <div style={{ position: 'relative', flex: '1 1 auto', minHeight: 120, zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', padding: '8px 10px' }}>
+          <PianoVisualizer transport={transport} baseOctave={baseOctave} nOct={nOct} burstsRef={burstsRef} blackWidthFactor={blackWidthFactor} />
+          <div className="vp-hero-copy" style={{ position: 'relative', zIndex: 3, maxWidth: 640, pointerEvents: 'none', opacity: heroDimmed ? 0 : 1, padding: '0 6px' }}>
+            <p style={{ fontFamily: 'IBM Plex Mono, ui-monospace, monospace', fontSize: 11.5, letterSpacing: '.16em', textTransform: 'uppercase', color: VIOLET_2, margin: '0 0 10px' }}>{eyebrowText}</p>
+            <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 600, fontSize: 'clamp(30px, 6vw, 56px)', lineHeight: 1.04, margin: '0 0 12px', color: '#faf8ff' }}>
+              Play the piano,<br />right here.
+            </h1>
+            <p style={{ fontSize: 'clamp(13px, 1.8vw, 16px)', color: '#c8c1e4', margin: 0, maxWidth: '46ch', lineHeight: 1.55 }}>
+              A fully playable piano with a real sampled acoustic sound plus six synthesized instruments. Click, tap, or use your computer keyboard — every key lights up as you play.
+            </p>
+          </div>
+        </div>
 
-      {/* About / How it works */}
+        {/* Keyboard dock */}
+        <div style={{ position: 'relative', zIndex: 5, flexShrink: 0, padding: '0 10px 10px' }}>
+          <p className="vp-keymap-hint" style={{ textAlign: 'center', fontSize: 12, color: TEXT_DIM, padding: '9px 12px 4px', maxWidth: 900, margin: '0 auto' }}>
+            The <b style={{ color: '#e7e1fb', fontFamily: 'IBM Plex Mono, ui-monospace, monospace' }}>Q W E R T Y U I O P</b> row plays the white keys and the number row <b style={{ color: '#e7e1fb', fontFamily: 'IBM Plex Mono, ui-monospace, monospace' }}>2 3 · 5 6 7 · 9 0</b> plays the black keys — hold several at once to play chords.
+          </p>
+          <div className="vp-keyboard-frame" style={{ position: 'relative', height: 'clamp(140px, 30dvh, 240px)', borderRadius: 16, overflow: 'hidden', background: 'linear-gradient(180deg,#0d0a16,#050409)', boxShadow: '0 20px 60px rgba(20,16,32,.35), inset 0 0 0 1px rgba(255,255,255,.06)', touchAction: 'none' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
+              {whites.map(k => (
+                <div key={k.midi} onPointerDown={k.down} onPointerUp={k.up} onPointerEnter={k.enter} onPointerLeave={k.up} style={k.style}>
+                  <div style={k.dotStyle} />
+                  <span style={{ fontSize: 'clamp(9px, 1.2vw, 13px)', color: '#8a7f5c', fontWeight: 600, pointerEvents: 'none' }}>{k.label}</span>
+                </div>
+              ))}
+              {blacks.map(k => (
+                <div key={k.midi} onPointerDown={k.down} onPointerUp={k.up} onPointerEnter={k.enter} onPointerLeave={k.up} style={k.style}>
+                  <div style={k.dotStyle} />
+                  <span style={{ fontSize: 'clamp(8px, 1vw, 11px)', color: '#cfc6ee', fontWeight: 600, pointerEvents: 'none' }}>{k.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <PlayerBar transport={transport} onClose={() => transport.close()} />
+        </div>
+      </section>
+
+      {/* ---------- About / SEO content (light section, below the fold) ---------- */}
       <section style={{ maxWidth: 860, width: '100%', margin: '30px auto 50px auto', padding: '0 24px' }}>
-        <h2 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 8px 0', letterSpacing: -0.4 }}>Play the piano, right in your browser</h2>
+        <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 24, fontWeight: 700, margin: '0 0 8px 0', letterSpacing: -0.4 }}>Play the piano, right in your browser</h2>
         <p style={{ color: '#6E6482', fontSize: 15, lineHeight: 1.7, margin: '0 0 8px 0' }}>Virtual Piano is a fully playable piano with a real sampled acoustic piano plus six synthesized sounds — classic and electric piano, organ, synth, strings and music box. Every key lights up and moves when you play it. Play by clicking the keys, with your computer keyboard, or by plugging in a real piano or keyboard over MIDI.</p>
-        <p style={{ color: '#6E6482', fontSize: 15, lineHeight: 1.7, margin: '0 0 28px 0' }}>A fun way to practice is to pick a song from the library and play along in Waterfall mode, or record yourself and listen back — you can even download your take as audio or MIDI.</p>
+        <p style={{ color: '#6E6482', fontSize: 15, lineHeight: 1.7, margin: '0 0 28px 0' }}>A fun way to practice is to pick a song from the library and play along in Practice mode — notes fall toward the keys and you're scored on your hits — or record yourself and listen back. Save any recording or opened .mid file to My Songs to come back to it later.</p>
 
         <h3 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 12px 0' }}>What you can do</h3>
         <ul style={{ color: '#6E6482', fontSize: 14, lineHeight: 1.9, margin: '0 0 28px 0', paddingLeft: 22 }}>
-          <li><b style={{ color: '#4C3B70' }}>Record</b> up to 5 minutes (with a 4-3-2-1 countdown), replay it with a colorful note waterfall, and download it as WAV or MIDI.</li>
-          <li><b style={{ color: '#4C3B70' }}>Learn songs</b> from the library, sorted by difficulty — «Play» performs them with falling notes; «Waterfall» lets you play them yourself and counts your hits.</li>
-          <li><b style={{ color: '#4C3B70' }}>Open any .mid file</b> and watch it played back with lit-up keys and colored falling notes.</li>
+          <li><b style={{ color: '#4C3B70' }}>Record</b> up to 5 minutes (with a 4-3-2-1 countdown), save it to My Songs, and download it as WAV or MIDI.</li>
+          <li><b style={{ color: '#4C3B70' }}>Learn songs</b> from the library, sorted by difficulty, with a full transport — play, pause, scrub, loop a section, and slow it down to 50%.</li>
+          <li><b style={{ color: '#4C3B70' }}>Practice</b> any song yourself with falling notes and a live hit/miss score.</li>
+          <li><b style={{ color: '#4C3B70' }}>Open any .mid file</b>, watch it played back, and it's saved to My Songs automatically so you don't have to re-open it next time.</li>
           <li><b style={{ color: '#4C3B70' }}>Mark keys</b> to build a sequence and play it with the space bar — marks live in the page address so you can share them.</li>
-          <li><b style={{ color: '#4C3B70' }}>Customize everything</b> in Settings: volume, key density (1–5 octaves or Auto), key labels, Do-Re-Mi vs C-D-E naming, base octave — plus full-screen mode.</li>
+          <li><b style={{ color: '#4C3B70' }}>Customize everything</b> in Settings: instrument, volume, key density, key labels, Do-Re-Mi vs C-D-E naming, base octave — plus full-screen practice mode.</li>
         </ul>
 
         <h3 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 12px 0' }}>Keyboard layout</h3>
@@ -1036,104 +790,85 @@ export function VirtualPiano() {
         </div>
       </section>
 
-      {/* Library modal — portalled to document.body: the piano's own DOM position
-          sits inside a `z-index: 1` grid-item wrapper (piano/index.astro's
-          skeleton/island stacking trick), which caps any z-index used here below
-          the site's sticky Navbar (z-50). Rendering outside that subtree via a
-          portal is what lets the modal actually paint above the nav. */}
-      {libraryOpen && createPortal(
-        <div onClick={() => setLibraryOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(43,36,56,.4)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '4vh 16px' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#FFFFFF', border: '1px solid #D9D0E8', borderRadius: 16, width: 900, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(43,36,56,.25)' }}>
-            <div style={{ position: 'sticky', top: 0, zIndex: 2, background: '#FFFFFF', borderBottom: '1px solid #E3DCEF', borderRadius: '16px 16px 0 0', display: 'flex', alignItems: 'baseline', gap: 12, padding: '18px 22px' }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Song Library</h2>
-              <span style={{ color: '#6E6482', fontSize: 13 }}><b style={{ color: '#4C3B70' }}>Play</b> performs with falling notes · <b style={{ color: '#4C3B70' }}>Waterfall</b> lets you play them yourself</span>
-              <button onClick={() => setLibraryOpen(false)} aria-label="Close song library" style={{ marginLeft: 'auto', fontFamily: 'inherit', background: 'transparent', color: '#6E6482', border: 'none', fontSize: 18, cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ padding: '4px 22px 22px' }}>
-              {groups.map(g => (
-                <div key={g.name} style={{ marginTop: 16 }}>
-                  <h3 style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: g.color, margin: '0 0 10px 0' }}>{g.name}</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
-                    {g.songs.map(song => (
-                      <div key={song.name} style={{ background: '#FFFFFF', border: '1px solid #E3DCEF', borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <div style={{ fontSize: 15, fontWeight: 500 }}>{song.name}</div>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {song.tags.map(tag => (
-                            <span key={tag} style={{ fontSize: 11, color: '#6E6482', background: '#EDE8F5', borderRadius: 999, padding: '3px 10px' }}>{tag}</span>
-                          ))}
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
-                          <button onClick={song.playAuto} style={btn(true)}>▶ Play</button>
-                          <button onClick={song.playWf} style={{ fontFamily: 'inherit', background: '#EDE8F5', color: '#2B2438', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer' }}>▼ Waterfall</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>,
+      {/* Panels portalled to document.body: the piano's own DOM position sits
+          inside a `z-index: 1` grid-item wrapper (piano/index.astro's
+          skeleton/island stacking trick), which caps any z-index used here
+          below the site's sticky Navbar (z-50). Rendering outside that
+          subtree via a portal is what lets these paint above the nav. */}
+      {songsOpen && createPortal(
+        <SongsPanel
+          open={songsOpen}
+          onClose={() => setSongsOpen(false)}
+          onPlay={(song, opts) => playSong(song, opts)}
+          onOpenMidi={doLoadMidi}
+          refreshKey={mySongsVersion}
+        />,
         document.body,
       )}
 
-      {/* Settings modal — portalled to document.body, see comment on the Library modal above */}
       {settingsOpen && createPortal(
-        <div onClick={() => setSettingsOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(43,36,56,.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#FFFFFF', border: '1px solid #D9D0E8', borderRadius: 16, padding: 24, width: 420, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18, boxShadow: '0 20px 60px rgba(43,36,56,.25)' }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Settings</h2>
-              <button onClick={() => setSettingsOpen(false)} style={{ marginLeft: 'auto', fontFamily: 'inherit', background: 'transparent', color: '#6E6482', border: 'none', fontSize: 18, cursor: 'pointer' }}>✕</button>
-            </div>
-            <div>
-              <label style={{ fontSize: 13, color: '#6E6482', display: 'block', marginBottom: 6 }}>Volume — {volumePct}%</label>
-              <input
-                type="range" min={0} max={100} value={volumePct}
-                onChange={(e) => {
-                  const v = Number(e.target.value) / 100
-                  if (masterRef.current) masterRef.current.gain.value = v
-                  setVolume(v)
-                }}
-                style={{ width: '100%' }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: 13, color: '#6E6482', display: 'block', marginBottom: 6 }}>Key density — octaves shown</label>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {[1, 2, 3, 4, 5].map(n => (
-                  <button key={n} onClick={() => setDensity(n)} style={btn(octOverride === n)}>{n}</button>
-                ))}
-                <button onClick={() => setDensity(null)} style={btn(octOverride === null)}>Auto</button>
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: 13, color: '#6E6482', display: 'block', marginBottom: 6 }}>Key labels</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => setLabelMode('notes')} style={btn(labelMode === 'notes')}>Notes</button>
-                <button onClick={() => setLabelMode('keys')} style={btn(labelMode === 'keys')}>Shortcuts</button>
-                <button onClick={() => setLabelMode('none')} style={btn(labelMode === 'none')}>None</button>
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: 13, color: '#6E6482', display: 'block', marginBottom: 6 }}>Note names</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => setNotation('latina')} style={btn(notation === 'latina')}>Do Re Mi</button>
-                <button onClick={() => setNotation('anglo')} style={btn(notation === 'anglo')}>C D E</button>
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: 13, color: '#6E6482', display: 'block', marginBottom: 6 }}>Base octave</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button onClick={octDown} style={{ fontFamily: 'inherit', background: '#EDE8F5', color: '#2B2438', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 16px', fontSize: 15, cursor: 'pointer' }}>−</button>
-                <span style={{ fontSize: 15 }}>{octLabel}</span>
-                <button onClick={octUp} style={{ fontFamily: 'inherit', background: '#EDE8F5', color: '#2B2438', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 16px', fontSize: 15, cursor: 'pointer' }}>+</button>
-              </div>
-            </div>
-          </div>
-        </div>,
+        <SettingsDrawer
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          volume={volume}
+          onVolumeChange={(v) => { if (masterRef.current) masterRef.current.gain.value = v; setVolume(v) }}
+          octOverride={octOverride}
+          onSetDensity={setDensity}
+          labelMode={labelMode}
+          onSetLabelMode={setLabelMode}
+          notation={notation}
+          onSetNotation={setNotation}
+          octLabel={octLabel}
+          onOctDown={octDown}
+          onOctUp={octUp}
+          instrument={instrument}
+          onSetInstrument={setInstrument}
+        />,
+        document.body,
+      )}
+
+      {recPanelOpen && createPortal(
+        <RecordPanel
+          open={recPanelOpen}
+          onClose={() => setRecPanelOpen(false)}
+          duration={recDuration()}
+          onPlay={handlePlayRecording}
+          onDownloadWav={doDlWav}
+          onDownloadMidi={doDlMidi}
+          onSave={handleSaveRecording}
+          onNewRecording={() => { releaseAllVoices(); setRecState('idle'); setRecSecs(0); setRecPanelOpen(false); setRecordingSaved(false) }}
+          saved={recordingSaved}
+        />,
         document.body,
       )}
       </div>
     </div>
   )
+}
+
+function tbtnStyle(active: boolean): React.CSSProperties {
+  return {
+    display: 'flex', alignItems: 'center', gap: 6, background: active ? VIOLET : 'transparent',
+    border: '1px solid ' + (active ? VIOLET : 'transparent'), color: '#eae5fb',
+    padding: '8px 12px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+  }
+}
+
+function IconRecord() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7" /></svg>
+}
+function IconMark() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 3h9l5 5v13H6z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M14 3v5h5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+}
+function IconSongs() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l11-2v13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><circle cx="6" cy="18" r="3" stroke="currentColor" strokeWidth="1.6" /><circle cx="17" cy="16" r="3" stroke="currentColor" strokeWidth="1.6" /></svg>
+}
+function IconOpenMidi() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+}
+function IconFullscreen() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M9 20H5a1 1 0 0 1-1-1v-4M15 20h4a1 1 0 0 0 1-1v-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+}
+function IconSettings() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" /><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.5 1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
 }

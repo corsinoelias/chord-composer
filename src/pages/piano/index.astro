@@ -16,9 +16,11 @@ const shortcutRows = [
 ]
 
 const faqs = [
-  { q: 'Can I use a real MIDI keyboard?', a: 'Yes — connect a MIDI keyboard and use Chrome or Edge. It is detected automatically and its name appears in the badge at the top right. Anything you play on it sounds here and can be recorded too, with velocity sensitivity.' },
-  { q: 'Does it work on phones and tablets?', a: 'Yes — the piano adapts to your screen, showing fewer, bigger keys on small devices, and supports multi-touch so you can play chords with several fingers. You can also force a specific key density in Settings.' },
+  { q: 'Can I use a real MIDI keyboard?', a: 'Yes — connect a MIDI keyboard and use Chrome or Edge. It is detected automatically and its name appears in the badge at the top of the page. Anything you play on it sounds here and can be recorded too, with velocity sensitivity.' },
+  { q: 'Does it work on phones and tablets?', a: 'Yes — the piano always shows at least two full octaves, even on a small phone, and supports multi-touch so you can play chords with several fingers. You can also force a specific key density in Settings.' },
+  { q: 'What is Practice mode?', a: 'Load any song from the library or your own recordings, turn on Practice, and play along — notes fall toward the keys and you’re scored on hits vs. misses instead of the song playing itself.' },
   { q: 'WAV or MIDI — which download should I pick?', a: 'WAV is a finished audio file — share it or listen anywhere. MIDI stores the notes themselves, so you can open it in any music software (GarageBand, Ableton, MuseScore…) to edit the notes or change the instrument.' },
+  { q: 'Where do my recordings go?', a: 'Save a recording (or an opened .mid file) to "My Songs" and it stays in your browser — no account needed — ready to play, practice, rename or download again any time you come back.' },
   { q: 'How do I share my marked notes?', a: 'Marks are saved in the page address as you make them — just copy the URL from your browser and send it. Whoever opens it sees the same keys marked and can play them with the space bar.' },
 ]
 
@@ -39,14 +41,17 @@ const webAppSchema = {
   url: 'https://chordsequence.com/piano/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Free virtual piano you can play in the browser. A real sampled acoustic piano plus six synthesized sounds, MIDI keyboard support, a song library with Waterfall practice mode, recording with WAV/MIDI export, and shareable marked-key sequences.',
+  description: 'Free virtual piano you can play in the browser. A real sampled acoustic piano plus six synthesized sounds, MIDI keyboard support, a song library with a full transport (play, pause, loop, speed) and Practice scoring, recording with WAV/MIDI export, a My Songs library, and shareable marked-key sequences.',
   featureList: [
     'A real sampled Acoustic Piano, plus six synthesized sounds — Classic Piano, Electric Piano, Organ, Synthesizer, Strings, Music Box',
     'Mouse, touch, computer keyboard, and MIDI keyboard control with velocity',
-    'Song library sorted by difficulty with auto-play and Waterfall practice mode',
+    'Song library sorted by difficulty with a full transport — play, pause, scrub, loop a section, and 50-150% speed',
+    'Practice mode: play along with falling notes and a live hit/miss score',
     'Open any .mid file and watch it played back',
     'Record up to 5 minutes with a 4-3-2-1 count-in, download as WAV or MIDI',
+    'My Songs — save recordings and opened MIDI files in your browser to play or practice again later',
     'Mark keys and share sequences via URL',
+    'Always at least two full octaves, even on a phone',
     'No signup, no download',
   ],
   browserRequirements: 'Requires a modern browser with Web Audio API support',
@@ -56,7 +61,7 @@ const webAppSchema = {
 
 <BaseLayout
   title="Free Virtual Piano Online — Play with Keyboard or MIDI"
-  description="Free online virtual piano — six live sounds, MIDI keyboard support, song library with Waterfall practice mode, and recording with WAV/MIDI export."
+  description="Free online virtual piano — six live sounds, MIDI keyboard support, a song library with loop/speed transport and Practice scoring, My Songs, and WAV/MIDI recording."
   canonicalUrl="https://chordsequence.com/piano/"
   ogImage="/og/page/piano/"
   ogImageAlt="Virtual Piano Online – Play Free with Keyboard, Mouse or MIDI"
@@ -64,7 +69,7 @@ const webAppSchema = {
   <Fragment slot="head">
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet" />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   </Fragment>
@@ -76,57 +81,57 @@ const webAppSchema = {
     same CSS grid cell as the island — same technique as
     src/pages/chord-player/index.astro's editor-skeleton (see the comment
     there for the stacking-context gotcha this works around). Unlike that
-    skeleton, most of this one is REAL text, not shimmer: the H1, MIDI badge,
+    skeleton, most of this one is REAL text, not shimmer: the eyebrow, H1,
     help line, and the whole About/FAQ section are 100% static copy that
     never changes per visitor, so they're rendered for real (kept in sync by
     hand with VirtualPiano.tsx) instead of gray bars — this kills the pop-in
     for the entire page, not just the header. Only the genuinely interactive,
-    stateful chrome (controls bar, piano keys) stays as loading shimmer.
+    stateful chrome (toolbar, piano keys) stays as loading shimmer. The dark
+    "stage" background matches VirtualPiano.tsx's own hero exactly so there's
+    no color flash when the island hydrates and the skeleton fades out.
   -->
+  <style is:inline>
+    @keyframes vp-skel-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+    .vp-skel-pill { background: rgba(255,255,255,.08); border-radius: 10px; animation: vp-skel-pulse 1.6s ease-in-out infinite; }
+  </style>
+
   <div style="display: grid; grid-template-columns: minmax(0, 1fr); position: relative;">
-    <div id="piano-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out; background: #F5F2FA; min-height: 100vh; font-family: 'Outfit', sans-serif;">
-      <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 20px 24px 8px 24px;">
-        <span />
-        <h1 style="margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px; text-align: center; white-space: nowrap; color: #2B2438;">Virtual Piano</h1>
-        <span style="justify-self: end; font-size: 12px; color: #8A7FA0; border: 1px solid #D9D0E8; border-radius: 999px; padding: 4px 12px;">MIDI: no device</span>
-      </div>
-
-      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 24px 14px 24px;" aria-hidden="true">
-        <span class="h-9 w-24 rounded-lg bg-muted animate-pulse"></span>
-        <span class="h-9 w-16 rounded-lg bg-muted animate-pulse"></span>
-        <span class="h-9 w-20 rounded-lg bg-muted animate-pulse"></span>
-        <span class="h-9 w-28 rounded-lg bg-muted animate-pulse"></span>
-        <span style="margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap;">
-          <span class="h-9 w-32 rounded-lg bg-muted animate-pulse"></span>
-          <span class="h-9 w-24 rounded-lg bg-muted animate-pulse"></span>
-          <span class="h-9 w-28 rounded-lg bg-muted animate-pulse"></span>
-          <span class="h-9 w-24 rounded-lg bg-muted animate-pulse"></span>
-        </span>
-      </div>
-
-      <div style="padding: 0 10px; width: 100%;" aria-hidden="true">
-        <div style="width: 100%; border-radius: 14px; padding: 12px 12px 16px 12px;" class="bg-muted animate-pulse">
-          <div style="height: clamp(130px, 24vw, 230px);"></div>
+    <div id="piano-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out;">
+      <section style="position: relative; min-height: calc(100dvh - 64px); display: flex; flex-direction: column; overflow: hidden; background: radial-gradient(120% 90% at 15% -10%, rgba(124,92,255,.30), transparent 55%), radial-gradient(90% 70% at 100% 0%, rgba(95,227,201,.14), transparent 50%), linear-gradient(180deg, #141020 0%, #1d1830 55%, #251f3d 100%);">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 14px 16px 6px;" aria-hidden="true">
+          <span class="vp-skel-pill" style="height: 34px; width: 260px;"></span>
+          <span style="margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap;">
+            <span class="vp-skel-pill" style="height: 34px; width: 220px;"></span>
+          </span>
         </div>
-      </div>
 
-      <p style="text-align: center; color: #8A7FA0; font-size: 13px; margin: 14px 24px; line-height: 1.6;">
-        The <b style="color:#574A6E;">Q W E R T Y U I O P</b> row plays the white keys and the number row <b style="color:#574A6E;">2 3 · 5 6 7 · 9 0</b> plays the black keys — you can play several at once.
-        With «Mark» on, click keys to mark them and play them with the space bar; marks are saved in the web address so you can share them.
-      </p>
+        <div style="position: relative; flex: 1 1 auto; min-height: 120px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 8px 16px;">
+          <p style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11.5px; letter-spacing: .16em; text-transform: uppercase; color: #a596ff; margin: 0 0 10px;">Free play</p>
+          <h1 style="font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: clamp(30px, 6vw, 56px); line-height: 1.04; margin: 0 0 12px; color: #faf8ff;">Play the piano,<br />right here.</h1>
+          <p style="font-size: clamp(13px, 1.8vw, 16px); color: #c8c1e4; margin: 0; max-width: 46ch; line-height: 1.55;">A fully playable piano with a real sampled acoustic sound plus six synthesized instruments. Click, tap, or use your computer keyboard — every key lights up as you play.</p>
+        </div>
 
-      <section style="max-width: 860px; width: 100%; margin: 30px auto 50px auto; padding: 0 24px; color: #2B2438; font-family: 'Outfit', sans-serif;">
-        <h2 style="font-size: 24px; font-weight: 700; margin: 0 0 8px 0; letter-spacing: -0.4px;">Play the piano, right in your browser</h2>
+        <div style="padding: 0 10px 10px;">
+          <p style="text-align: center; font-size: 12px; color: #a99fce; padding: 9px 12px 4px; max-width: 900px; margin: 0 auto;">
+            The <b style="color:#e7e1fb; font-family: 'IBM Plex Mono', ui-monospace, monospace;">Q W E R T Y U I O P</b> row plays the white keys and the number row <b style="color:#e7e1fb; font-family: 'IBM Plex Mono', ui-monospace, monospace;">2 3 · 5 6 7 · 9 0</b> plays the black keys — hold several at once to play chords.
+          </p>
+          <div class="vp-skel-pill" style="height: clamp(140px, 30dvh, 240px); border-radius: 16px;" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <section style="max-width: 860px; width: 100%; margin: 30px auto 50px auto; padding: 0 24px; color: #2B2438; font-family: 'Outfit', sans-serif; background: #F5F2FA;">
+        <h2 style="font-family: 'Fraunces', Georgia, serif; font-size: 24px; font-weight: 700; margin: 0 0 8px 0; letter-spacing: -0.4px;">Play the piano, right in your browser</h2>
         <p style="color: #6E6482; font-size: 15px; line-height: 1.7; margin: 0 0 8px 0;">Virtual Piano is a fully playable piano with a real sampled acoustic piano plus six synthesized sounds — classic and electric piano, organ, synth, strings and music box. Every key lights up and moves when you play it. Play by clicking the keys, with your computer keyboard, or by plugging in a real piano or keyboard over MIDI.</p>
-        <p style="color: #6E6482; font-size: 15px; line-height: 1.7; margin: 0 0 28px 0;">A fun way to practice is to pick a song from the library and play along in Waterfall mode, or record yourself and listen back — you can even download your take as audio or MIDI.</p>
+        <p style="color: #6E6482; font-size: 15px; line-height: 1.7; margin: 0 0 28px 0;">A fun way to practice is to pick a song from the library and play along in Practice mode — notes fall toward the keys and you're scored on your hits — or record yourself and listen back. Save any recording or opened .mid file to My Songs to come back to it later.</p>
 
         <h3 style="font-size: 17px; font-weight: 600; margin: 0 0 12px 0;">What you can do</h3>
         <ul style="color: #6E6482; font-size: 14px; line-height: 1.9; margin: 0 0 28px 0; padding-left: 22px;">
-          <li><b style="color:#4C3B70;">Record</b> up to 5 minutes (with a 4-3-2-1 countdown), replay it with a colorful note waterfall, and download it as WAV or MIDI.</li>
-          <li><b style="color:#4C3B70;">Learn songs</b> from the library, sorted by difficulty — «Play» performs them with falling notes; «Waterfall» lets you play them yourself and counts your hits.</li>
-          <li><b style="color:#4C3B70;">Open any .mid file</b> and watch it played back with lit-up keys and colored falling notes.</li>
+          <li><b style="color:#4C3B70;">Record</b> up to 5 minutes (with a 4-3-2-1 countdown), save it to My Songs, and download it as WAV or MIDI.</li>
+          <li><b style="color:#4C3B70;">Learn songs</b> from the library, sorted by difficulty, with a full transport — play, pause, scrub, loop a section, and slow it down to 50%.</li>
+          <li><b style="color:#4C3B70;">Practice</b> any song yourself with falling notes and a live hit/miss score.</li>
+          <li><b style="color:#4C3B70;">Open any .mid file</b>, watch it played back, and it's saved to My Songs automatically so you don't have to re-open it next time.</li>
           <li><b style="color:#4C3B70;">Mark keys</b> to build a sequence and play it with the space bar — marks live in the page address so you can share them.</li>
-          <li><b style="color:#4C3B70;">Customize everything</b> in Settings: volume, key density (1–5 octaves or Auto), key labels, Do-Re-Mi vs C-D-E naming, base octave — plus full-screen mode.</li>
+          <li><b style="color:#4C3B70;">Customize everything</b> in Settings: instrument, volume, key density, key labels, Do-Re-Mi vs C-D-E naming, base octave — plus full-screen practice mode.</li>
         </ul>
 
         <h3 style="font-size: 17px; font-weight: 600; margin: 0 0 12px 0;">Keyboard layout</h3>
