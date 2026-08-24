@@ -15,6 +15,7 @@ import { GuitarChordHelper } from './GuitarChordHelper'
 import { GuitarSeekBar } from './GuitarSeekBar'
 import { GuitarNotationView } from './GuitarNotationView'
 import { GuitarRecordingOverlay } from './GuitarRecordingOverlay'
+import { GuitarSongLibrary } from './GuitarSongLibrary'
 import { GUITAR_PRESETS } from '../../data/guitarPresets'
 
 const STORAGE_KEY = 'guitar-tab-track-v1'
@@ -22,11 +23,18 @@ const STORAGE_KEY = 'guitar-tab-track-v1'
 const STRING_COLORS = ['#0284c7','#7c3aed','#059669','#d97706','#ea580c','#dc2626']
 const STRING_NAMES  = ['e','B','G','D','A','E']
 
+// First-time visitors (nothing saved yet) get a short, recognizable demo loaded instead of a
+// blank grid — hitting Play should immediately show what the editor does, same reasoning as the
+// GuitarTabPreview on /tools/guitar-tab/.
+const DEFAULT_DEMO_PRESET_ID = 'preset-twinkletwinkle'
+
 function loadTrack(): GuitarTrack {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) return { ...DEFAULT_TRACK, ...JSON.parse(raw) }
   } catch {}
+  const demo = GUITAR_PRESETS.find(p => p.id === DEFAULT_DEMO_PRESET_ID)
+  if (demo) return { id: demo.id, name: demo.name, bpm: demo.bpm, beatsPerBar: demo.beatsPerBar, totalBars: demo.totalBars, notes: demo.notes, capo: demo.capo, sections: demo.sections }
   return { ...DEFAULT_TRACK }
 }
 
@@ -68,6 +76,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   const [viewMode, setViewMode]       = useState<'tab' | 'grid' | 'notation' | 'fretboard'>('tab')
   const [toastMsg, setToastMsg]       = useState<string | null>(null)
   const [editingName, setEditingName] = useState(false)
+  const [showSongLibrary, setShowSongLibrary] = useState(false)
 
   // ── New features ──────────────────────────────────────────────────────────────
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
@@ -82,7 +91,6 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   const countInStopRef    = useRef<(() => void) | null>(null)
   const midiInputRef      = useRef<HTMLInputElement | null>(null)
   const gpInputRef        = useRef<HTMLInputElement | null>(null)
-  const presetsSelectRef  = useRef<HTMLSelectElement | null>(null)
 
   const loopRef      = useRef(loop)
   const metroRef     = useRef(metronome)
@@ -474,39 +482,24 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
         <div style={{ flex: 1 }} />
 
         {GUITAR_PRESETS.length > 0 && (
-          <>
-            <button
-              onClick={() => presetsSelectRef.current?.click()}
-              title="Load a preset song"
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 500,
-                cursor: 'pointer', border: '1px solid hsl(224 15% 28%)',
-                background: 'hsl(224 18% 14%)', color: 'hsl(220 10% 62%)',
-                transition: 'all 0.15s', flexShrink: 0,
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(262 60% 45%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(262 80% 80%)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(224 15% 28%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 62%)' }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-              </svg>
-              Songs
-            </button>
-            <select
-              ref={presetsSelectRef}
-              onChange={e => {
-                const p = GUITAR_PRESETS.find(pr => pr.id === e.target.value)
-                if (p) handleLoadPreset(p)
-                e.target.value = ''
-              }}
-              defaultValue=""
-              style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
-            >
-              <option value="" disabled>Load preset…</option>
-              {GUITAR_PRESETS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </>
+          <button
+            onClick={() => setShowSongLibrary(true)}
+            title="Load a preset song"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 500,
+              cursor: 'pointer', border: '1px solid hsl(224 15% 28%)',
+              background: 'hsl(224 18% 14%)', color: 'hsl(220 10% 62%)',
+              transition: 'all 0.15s', flexShrink: 0,
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(262 60% 45%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(262 80% 80%)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(224 15% 28%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 62%)' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+            </svg>
+            Songs
+          </button>
         )}
 
         <span style={{
@@ -726,6 +719,14 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
         <GuitarChordHelper
           cursorBeat={cursorBeat}
           onInsertChord={handleInsertChord}
+        />
+      )}
+
+      {/* Song library modal */}
+      {showSongLibrary && (
+        <GuitarSongLibrary
+          onSelect={preset => { handleLoadPreset(preset); setShowSongLibrary(false); showToast(`Loaded "${preset.name}"`) }}
+          onClose={() => setShowSongLibrary(false)}
         />
       )}
 
