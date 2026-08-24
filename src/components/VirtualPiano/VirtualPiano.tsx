@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { PIANO_SONGS, type PianoNote, type PianoSong } from '../../lib/virtualPiano/pianoSongs'
 import { getPianoSample, loadPianoSamples } from '../../lib/virtualPiano/pianoSamples'
 
@@ -250,6 +251,8 @@ export function VirtualPiano() {
   const markModeRef = useRef(markMode); markModeRef.current = markMode
   const recStateRef = useRef(recState); recStateRef.current = recState
   const fauxFsRef = useRef(fauxFs); fauxFsRef.current = fauxFs
+  const settingsOpenRef = useRef(settingsOpen); settingsOpenRef.current = settingsOpen
+  const libraryOpenRef = useRef(libraryOpen); libraryOpenRef.current = libraryOpen
   const wfScoreRef = useRef(wfScore); wfScoreRef.current = wfScore
   const wfTotalRef = useRef(wfTotal); wfTotalRef.current = wfTotal
 
@@ -652,6 +655,7 @@ export function VirtualPiano() {
     const target = e.target as HTMLElement
     if (target && /INPUT|SELECT|TEXTAREA/.test(target.tagName)) return
     if (e.code === 'Escape' && fauxFsRef.current) { setFauxFs(false); return }
+    if (e.code === 'Escape' && (settingsOpenRef.current || libraryOpenRef.current)) { setSettingsOpen(false); setLibraryOpen(false); return }
     if (e.code === 'Space') { e.preventDefault(); if (markedRef.current.length) doPlayMarks(); return }
     const midi = codeToMidi(e.code)
     if (midi !== null && !heldCodesRef.current[e.code]) {
@@ -1032,43 +1036,50 @@ export function VirtualPiano() {
         </div>
       </section>
 
-      {/* Library modal */}
-      {libraryOpen && (
-        <div onClick={() => setLibraryOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(43,36,56,.4)', zIndex: 50, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '4vh 16px' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#FFFFFF', border: '1px solid #D9D0E8', borderRadius: 16, padding: 22, width: 900, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(43,36,56,.25)' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
+      {/* Library modal — portalled to document.body: the piano's own DOM position
+          sits inside a `z-index: 1` grid-item wrapper (piano/index.astro's
+          skeleton/island stacking trick), which caps any z-index used here below
+          the site's sticky Navbar (z-50). Rendering outside that subtree via a
+          portal is what lets the modal actually paint above the nav. */}
+      {libraryOpen && createPortal(
+        <div onClick={() => setLibraryOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(43,36,56,.4)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '4vh 16px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#FFFFFF', border: '1px solid #D9D0E8', borderRadius: 16, width: 900, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(43,36,56,.25)' }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 2, background: '#FFFFFF', borderBottom: '1px solid #E3DCEF', borderRadius: '16px 16px 0 0', display: 'flex', alignItems: 'baseline', gap: 12, padding: '18px 22px' }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Song Library</h2>
               <span style={{ color: '#6E6482', fontSize: 13 }}><b style={{ color: '#4C3B70' }}>Play</b> performs with falling notes · <b style={{ color: '#4C3B70' }}>Waterfall</b> lets you play them yourself</span>
-              <button onClick={() => setLibraryOpen(false)} style={{ marginLeft: 'auto', fontFamily: 'inherit', background: 'transparent', color: '#6E6482', border: 'none', fontSize: 18, cursor: 'pointer' }}>✕</button>
+              <button onClick={() => setLibraryOpen(false)} aria-label="Close song library" style={{ marginLeft: 'auto', fontFamily: 'inherit', background: 'transparent', color: '#6E6482', border: 'none', fontSize: 18, cursor: 'pointer' }}>✕</button>
             </div>
-            {groups.map(g => (
-              <div key={g.name} style={{ marginTop: 16 }}>
-                <h3 style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: g.color, margin: '0 0 10px 0' }}>{g.name}</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
-                  {g.songs.map(song => (
-                    <div key={song.name} style={{ background: '#FFFFFF', border: '1px solid #E3DCEF', borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ fontSize: 15, fontWeight: 500 }}>{song.name}</div>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {song.tags.map(tag => (
-                          <span key={tag} style={{ fontSize: 11, color: '#6E6482', background: '#EDE8F5', borderRadius: 999, padding: '3px 10px' }}>{tag}</span>
-                        ))}
+            <div style={{ padding: '4px 22px 22px' }}>
+              {groups.map(g => (
+                <div key={g.name} style={{ marginTop: 16 }}>
+                  <h3 style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: g.color, margin: '0 0 10px 0' }}>{g.name}</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
+                    {g.songs.map(song => (
+                      <div key={song.name} style={{ background: '#FFFFFF', border: '1px solid #E3DCEF', borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ fontSize: 15, fontWeight: 500 }}>{song.name}</div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {song.tags.map(tag => (
+                            <span key={tag} style={{ fontSize: 11, color: '#6E6482', background: '#EDE8F5', borderRadius: 999, padding: '3px 10px' }}>{tag}</span>
+                          ))}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+                          <button onClick={song.playAuto} style={btn(true)}>▶ Play</button>
+                          <button onClick={song.playWf} style={{ fontFamily: 'inherit', background: '#EDE8F5', color: '#2B2438', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer' }}>▼ Waterfall</button>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
-                        <button onClick={song.playAuto} style={btn(true)}>▶ Play</button>
-                        <button onClick={song.playWf} style={{ fontFamily: 'inherit', background: '#EDE8F5', color: '#2B2438', border: '1px solid #D9D0E8', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer' }}>▼ Waterfall</button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Settings modal */}
-      {settingsOpen && (
-        <div onClick={() => setSettingsOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(43,36,56,.4)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      {/* Settings modal — portalled to document.body, see comment on the Library modal above */}
+      {settingsOpen && createPortal(
+        <div onClick={() => setSettingsOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(43,36,56,.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#FFFFFF', border: '1px solid #D9D0E8', borderRadius: 16, padding: 24, width: 420, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18, boxShadow: '0 20px 60px rgba(43,36,56,.25)' }}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Settings</h2>
@@ -1119,7 +1130,8 @@ export function VirtualPiano() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
       </div>
     </div>
