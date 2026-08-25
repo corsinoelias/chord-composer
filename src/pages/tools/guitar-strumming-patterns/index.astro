@@ -1,0 +1,139 @@
+---
+export const prerender = true;
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import RelatedTools from '../../../components/RelatedTools.astro';
+import JsonLd from '../../../components/schema/JsonLd.astro';
+import { buildBreadcrumbSchema, buildWebApplicationSchema } from '../../../components/schema/builders';
+import { GuitarStrummingPlayer } from '../../../components/GuitarStrummingPlayer/GuitarStrummingPlayer';
+
+const CANONICAL_URL = 'https://chordsequence.com/tools/guitar-strumming-patterns/';
+
+const breadcrumbSchema = buildBreadcrumbSchema(CANONICAL_URL, [
+  { name: 'Home', item: 'https://chordsequence.com/' },
+  { name: 'Tools', item: 'https://chordsequence.com/tools/' },
+  { name: 'Guitar Strumming Patterns', item: CANONICAL_URL },
+]);
+
+const webAppSchema = buildWebApplicationSchema({
+  url: CANONICAL_URL,
+  name: 'Guitar Strumming & Arpeggio Player',
+  description: 'Free online guitar strumming and arpeggio pattern editor with a live 6-string fretboard visualizer, any chord, adjustable BPM, and count-in.',
+  featureList: [
+    'Real-time strumming and arpeggio playback',
+    '6-string fretboard visualizer with vibrating strings',
+    'Any chord — full root and quality picker with chord diagram',
+    'Strum grid: down/up/mute/silence per step, 8th or 16th notes',
+    'Arpeggio grid: per-string picking patterns',
+    'Multi-chord progression with a pattern assignable per chord',
+    'Built-in pattern presets plus save/load a custom library',
+    'Adjustable BPM, sustain, and 4-beat count-in',
+    'Play by dragging across the strings, clicking, or the keyboard',
+  ],
+});
+
+const faqs = [
+  {
+    q: 'What is a strumming pattern?',
+    a: 'It\'s the sequence of downward and upward strokes your picking hand repeats across the strings within a bar. It\'s written on a 1 & 2 & 3 & 4 & grid, where each slot is an eighth note.',
+  },
+  {
+    q: 'What\'s the difference between strumming and arpeggio?',
+    a: 'In strumming, you hit several strings at once with a single motion. In an arpeggio, you play the chord\'s notes one at a time, string by string — usually with your fingers.',
+  },
+  {
+    q: 'Can I edit the pattern while it\'s playing?',
+    a: 'Yes. The editor applies every change on the next loop cycle, so you can hear the result without stopping playback.',
+  },
+  {
+    q: 'Do I need a guitar to use it?',
+    a: 'No. The sound is synthesized in the browser, and you can play the strings with your mouse, your finger on a touchscreen, or the arrow keys.',
+  },
+  {
+    q: 'What chords can I use?',
+    a: 'Any chord — pick a root and a quality, and the tool works out a comfortable fingering near the nut and shows it on the diagram.',
+  },
+  {
+    q: 'Does it work on mobile?',
+    a: 'Yes. The fretboard responds to touch: drag across the strings to strum, or tap a single string for a single note.',
+  },
+];
+// FAQPage/HowTo JSON-LD are banned site-wide (see scripts/check-schema.mjs) — the FAQ
+// above stays plain HTML, matching /tools/bass-guitar-tab/'s approach.
+---
+
+<BaseLayout
+  title="Guitar Strumming & Arpeggio Patterns — Editor & Player"
+  description="Listen to, edit, and play guitar strumming and arpeggio patterns in real time. 6-string visualizer, any chord, adjustable BPM, and count-in. Free, no install."
+  canonicalUrl={CANONICAL_URL}
+  ogImage="/og/page/guitar-strumming-patterns/"
+  ogImageAlt="Guitar Strumming & Arpeggio Patterns — Editor & Player | Chord Sequence"
+>
+  <Fragment slot="head">
+    <JsonLd schema={webAppSchema} />
+    <JsonLd schema={breadcrumbSchema} />
+  </Fragment>
+
+  <style>
+    /* Used by GuitarStrummingPlayer's count-in number and its popovers/callouts. */
+    @keyframes cs-pop { 0% { transform: scale(1.5); opacity: 0; } 26% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.92); opacity: 0.85; } }
+    @keyframes cs-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+
+  <main>
+    <section aria-label="Interactive guitar strumming and arpeggio player">
+      <GuitarStrummingPlayer client:load />
+    </section>
+
+    <article class="mx-auto max-w-3xl px-4 sm:px-6 py-16 leading-relaxed">
+      <h1 class="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-tight mb-4">
+        Guitar Strumming and Arpeggio Patterns
+      </h1>
+      <p class="text-lg text-muted-foreground mb-8">
+        A guitar rhythm editor that plays while you edit it. Draw the pattern on an eighth- or
+        sixteenth-note grid, pick any chord, and watch all six strings vibrate on every hit.
+        You can play them yourself too — drag your finger or mouse across the fretboard.
+      </p>
+
+      <h2 class="text-2xl font-bold text-foreground tracking-tight mt-9 mb-3">How to read the grid</h2>
+      <p class="text-muted-foreground mb-4">
+        Every 4/4 bar is split into eight slots — <strong class="text-foreground">1 &amp; 2 &amp; 3 &amp; 4 &amp;</strong> —
+        or sixteen if you turn on sixteenth notes. A down arrow is a downstroke, an up arrow is an
+        upstroke, and the ✕ is a muted, percussive hit with no defined pitch. Empty slots are silence:
+        your hand keeps moving but doesn't touch the strings.
+      </p>
+
+      <h2 class="text-2xl font-bold text-foreground tracking-tight mt-9 mb-3">Strumming or arpeggio</h2>
+      <p class="text-muted-foreground mb-4">
+        In Strum mode, every slot moves your hand across all the chord's strings at once. In Arpeggio
+        mode, the grid opens into six rows, one per string, so you can write string-by-string patterns —
+        alternating bass notes, Travis-style fingerpicking, or ascending arpeggios. Switching modes
+        doesn't erase the other pattern.
+      </p>
+
+      <h2 class="text-2xl font-bold text-foreground tracking-tight mt-9 mb-3">Practicing with the tool</h2>
+      <p class="text-muted-foreground mb-4">
+        Slow the tempo down until the pattern comes out clean, then raise it five BPM at a time. The
+        4-beat count-in lets you start right on the loop, and the highlighted active slot shows you
+        exactly where you are in the bar. Use the ↓ and ↑ arrow keys to strum along with the loop
+        without touching the mouse.
+      </p>
+
+      <h2 class="text-2xl font-bold text-foreground tracking-tight mt-9 mb-3">Frequently asked questions</h2>
+      <dl class="space-y-5">
+        {faqs.map(f => (
+          <div class="rounded-xl border border-border bg-card p-5">
+            <dt class="font-semibold text-foreground mb-1.5">{f.q}</dt>
+            <dd class="text-sm text-muted-foreground m-0">{f.a}</dd>
+          </div>
+        ))}
+      </dl>
+    </article>
+
+    <RelatedTools tools={[
+      { href: '/tools/guitar-tab/', icon: 'guitar', label: 'Guitar Tab Player', desc: 'Draw fret-by-fret guitar tabs and hear them play back in real time.' },
+      { href: '/tools/bass-guitar-tab/', icon: 'bass', label: 'Bass Guitar Tab Player', desc: 'Play, learn and create 4-string bass tabs with 10+ preset songs.' },
+      { href: '/metronome/', icon: 'metronome', label: 'Online Metronome', desc: 'Practice your strumming patterns with a steady tempo. Tap tempo included.' },
+      { href: '/tuner/', icon: 'tuner', label: 'Online Tuner', desc: 'Tune your guitar before you play, using your device microphone.' },
+    ]} />
+  </main>
+</BaseLayout>
