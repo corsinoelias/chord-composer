@@ -28,6 +28,36 @@ const author = AUTHORS['elias-corsino'];
 
     <div class="space-y-6">
 
+      <!-- Feedback widget — listed first because it's the path that actually gets acted
+           on: it lands in the `feedback` table with the page, viewport and account
+           attached, where email lands in an inbox with none of that. -->
+      <div class="rounded-xl border border-primary/30 bg-primary/5 p-6">
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m3 11 18-5v12L3 14v-3z"/>
+              <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="font-semibold text-foreground mb-1">Report a bug or send feedback</h2>
+            <p class="text-sm text-muted-foreground mb-3">
+              The fastest way to reach us. No account needed — and if you hit the bug on
+              another page, use the <strong class="font-medium text-foreground">Feedback</strong>
+              link in the footer there so we get the page it happened on.
+            </p>
+            <button
+              type="button"
+              data-feedback-open
+              data-feedback-entry-point="contact"
+              class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Open the form
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Email -->
       <div class="rounded-xl border border-border bg-card p-6">
         <div class="flex items-start gap-4">

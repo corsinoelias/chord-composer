@@ -2,6 +2,7 @@
 import '../index.css';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
+import FeedbackModal from '../components/FeedbackModal';
 
 interface Props {
   title?: string;
@@ -221,5 +222,43 @@ const orgSchema = {
       <slot />
     </div>
     {showNav && <Footer />}
+
+    <!-- Renders nothing until something calls openFeedback() (src/lib/feedback.ts), so it
+         costs a closed page only its own hydration. client:idle, not client:load: nobody
+         opens this in the first second, and it must not compete with the editor or the
+         tab players for main-thread time on load. Mounted here rather than per page so a
+         bug found anywhere is reportable from where it was found — including on pages
+         rendered with showNav={false}, which have no footer link to open it. -->
+    <FeedbackModal client:idle />
+
+    <script>
+      import { openFeedback } from '@/lib/feedback';
+
+      // One delegated listener next to the modal it opens (rather than in Footer.astro,
+      // which showNav={false} pages never render) so a trigger is nothing but an
+      // attribute on any page: <button data-feedback-open data-feedback-entry-point="editor">.
+      //
+      // CAPTURE phase, and that matters. A feedback trigger can be a real <a href> (the
+      // navbar's is, so it still works without JS), and the nav-progress bar above listens
+      // for clicks on any same-origin link. Its listener is registered first — it's
+      // is:inline and runs during parse, while this module is deferred — so in the bubble
+      // phase it would fire BEFORE the preventDefault() below, start the bar, and then
+      // never finish it: that script deliberately has no "finish" call because a real
+      // navigation destroys the page, and here the navigation never happens. The bar would
+      // shoot to 90% and hang there every time someone opened the widget. Capturing runs
+      // this first regardless of registration order, so the `e.defaultPrevented` guard the
+      // progress bar already has does its job.
+      document.addEventListener('click', (event) => {
+        const target = event.target;
+        const trigger = target instanceof Element ? target.closest('[data-feedback-open]') : null;
+        if (!(trigger instanceof HTMLElement)) return;
+        event.preventDefault();
+        const kind = trigger.dataset.feedbackKind;
+        openFeedback({
+          entryPoint: trigger.dataset.feedbackEntryPoint ?? 'footer',
+          kind: kind === 'bug' || kind === 'idea' || kind === 'other' ? kind : undefined,
+        });
+      }, true);
+    </script>
   </body>
 </html>

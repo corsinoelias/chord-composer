@@ -111,6 +111,15 @@ const columns = [
         <a href="/privacy/" class="text-xs text-muted-foreground hover:text-foreground transition-colors">Privacy</a>
         <a href="/terms/" class="text-xs text-muted-foreground hover:text-foreground transition-colors">Terms</a>
         <a href="/contact/" class="text-xs text-muted-foreground hover:text-foreground transition-colors">Contact</a>
+        <!-- A button, not a link: this opens the widget in place rather than navigating,
+             so sending a report never costs you the page the bug is on. -->
+        <button
+          type="button"
+          data-feedback-open
+          class="text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Feedback
+        </button>
         <a href="/sitemap-combined.xml" class="text-xs text-muted-foreground hover:text-foreground transition-colors">Sitemap</a>
       </div>
     </div>

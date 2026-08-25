@@ -1,7 +1,26 @@
 ---
 import { AccountSlot } from './AccountSlot';
 
-const nav = [
+interface NavItem {
+  label: string;
+  href: string;
+  desc?: string | null;
+  /** Opens the feedback widget in place instead of navigating — see src/lib/feedback.ts.
+   *  The `href` is still a real page and still crawlable: the delegated listener in
+   *  BaseLayout calls preventDefault(), so with JS this never navigates, and without it
+   *  (or before the island hydrates) the link falls through to a page that does the job. */
+  feedback?: boolean;
+}
+
+interface NavSection {
+  id: string;
+  label: string;
+  /** A section with an href renders as a plain link; one without renders as a dropdown. */
+  href?: string;
+  items: NavItem[];
+}
+
+const nav: NavSection[] = [
   {
     id: 'songs',
     label: 'Songs',
@@ -46,8 +65,15 @@ const nav = [
   {
     id: 'about',
     label: 'About',
-    href: '/about/',
-    items: [],
+    // A dropdown rather than the plain /about/ link it used to be, so feedback has a home
+    // in the navbar without taking horizontal space from the sections that drive traffic —
+    // and so Contact is reachable from somewhere other than the footer. /about/ is still
+    // one hover away, as its own first item.
+    items: [
+      { label: 'About us →', href: '/about/', desc: 'Who makes Chord Sequence' },
+      { label: 'Contact', href: '/contact/', desc: 'Email, Instagram and LinkedIn' },
+      { label: 'Feedback', href: '/contact/', desc: 'Report a bug or suggest a feature', feedback: true },
+    ],
   },
   {
     id: 'progressions',
@@ -130,6 +156,7 @@ const nav = [
                     {section.items.map((item) => (
                       <a
                         href={item.href}
+                        {...(item.feedback ? { 'data-feedback-open': true, 'data-feedback-entry-point': 'navbar' } : {})}
                         class="flex flex-col px-3 py-2 rounded-lg hover:bg-accent/60 transition-colors group/item"
                       >
                         <span class="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors leading-snug">{item.label}</span>
@@ -203,6 +230,7 @@ const nav = [
               {section.items.map((item) => (
                 <a
                   href={item.href}
+                  {...(item.feedback ? { 'data-feedback-open': true, 'data-feedback-entry-point': 'navbar_mobile' } : {})}
                   class="block px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
                 >
                   {item.label}
@@ -224,11 +252,22 @@ const nav = [
   const hamburger = document.getElementById('hamburger-icon');
   const closeIcon = document.getElementById('close-icon');
 
-  btn?.addEventListener('click', () => {
-    const open = panel?.classList.toggle('hidden') === false;
-    btn.setAttribute('aria-expanded', String(open));
+  function setMobileNavOpen(open: boolean) {
+    panel?.classList.toggle('hidden', !open);
+    btn?.setAttribute('aria-expanded', String(open));
     hamburger?.classList.toggle('hidden', open);
     closeIcon?.classList.toggle('hidden', !open);
+  }
+
+  btn?.addEventListener('click', () => {
+    setMobileNavOpen(panel?.classList.contains('hidden') === true);
+  });
+
+  // Every other item in this panel navigates away, which disposes of the panel along with
+  // the page. The feedback item is the first one that doesn't — without this it would open
+  // the widget and leave the menu sitting behind it, still there once the widget closes.
+  panel?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('[data-feedback-open]')) setMobileNavOpen(false);
   });
 
   document.querySelectorAll<HTMLButtonElement>('.mobile-accordion-btn').forEach((accBtn) => {

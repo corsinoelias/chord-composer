@@ -1,0 +1,27 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import AdminFeedback from '../../../components/AdminFeedback';
+
+const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(Astro.url.hostname);
+if (!isLocalhost) return Astro.redirect('/');
+---
+
+<BaseLayout
+  title="Feedback — Chord Sequence"
+  description="Localhost-only review queue for bug reports and feedback."
+  canonicalUrl="https://chordsequence.com/admin/feedback/"
+  noIndex={true}
+>
+  <main class="min-h-screen bg-background">
+    <header class="border-b border-border bg-card">
+      <div class="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
+        <a href="/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">← Home</a>
+        <span class="text-muted-foreground/40">|</span>
+        <span class="text-sm font-medium text-foreground">Feedback</span>
+      </div>
+    </header>
+    <div class="max-w-3xl mx-auto px-4 py-10">
+      <AdminFeedback client:load />
+    </div>
+  </main>
+</BaseLayout>

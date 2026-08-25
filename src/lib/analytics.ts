@@ -152,6 +152,17 @@ export const analytics = {
   songRequested: (entryPoint: 'search_empty' | 'library') =>
     track('song_requested', { entry_point: entryPoint }),
 
+  // Feedback / bug reports. Opened and submitted are tracked separately for the same
+  // reason as the song-request pair above: the gap between them is the only way to tell
+  // "nobody has anything to say" from "the form is too much work". `entry_point` says
+  // which trigger opened it, which is how we find out whether the footer link is
+  // discoverable enough or whether the widget needs to live closer to the app. The report
+  // itself lands in Supabase, not here — never send the message text to GA4, it is
+  // free-form user input and routinely contains PII.
+  feedbackOpened: (entryPoint: string) => track('feedback_opened', { entry_point: entryPoint }),
+  feedbackSubmitted: (kind: 'bug' | 'idea' | 'other', entryPoint: string) =>
+    track('feedback_submitted', { kind, entry_point: entryPoint }),
+
   // Standalone tool pages
   toolWidgetUsed: (tool: string) => track('tool_widget_used', { tool }),
 

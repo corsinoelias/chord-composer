@@ -153,104 +153,18 @@ const values = [
 
     <!-- Hero -->
     <header class="mb-16">
-      <div class="flex items-center gap-3 mb-6">
-        <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center shadow-sm shrink-0">
-          <svg class="w-5 h-5 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 18V5l12-2v13"/>
-            <circle cx="6" cy="18" r="3"/>
-            <circle cx="18" cy="16" r="3"/>
-          </svg>
-        </div>
-        <span class="font-bold text-foreground tracking-tight text-lg">ChordSequence</span>
-      </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-5">
         Music tools that get out of your way
       </h1>
       <p class="text-lg text-muted-foreground leading-relaxed max-w-2xl">
         Chord Sequence is a growing suite of free, browser-based tools for songwriters, producers, and students.
-        No account. No download. No cost. Just open it and make music.
+        <strong class="font-semibold text-foreground">No account. No download. No cost.</strong> Just open it and make music.
       </p>
     </header>
 
-    <!-- Story -->
-    <section class="mb-16 space-y-5 text-muted-foreground leading-relaxed">
-      <h2 class="text-2xl font-bold text-foreground mb-4">Our story</h2>
-      <p>
-        Elías Corsino Saldaña started learning music at 12 — piano first, then bass, guitar, and drums. Years later,
-        working as a software developer, he kept running into the same problem: the music theory tools online were either
-        too basic to be useful, locked behind a paywall, or buried under so many features they got in the way of
-        actually writing a song.
-      </p>
-      <p>
-        So in 2024 he built the first version of Chord Sequence: a simple chord progression editor that ran in the
-        browser, played back chords with real guitar samples, and let you export to WAV. No account, no ads, no cost.
-      </p>
-      <p>
-        It kept growing. Song charts with synchronized chord playback. A bass guitar tab editor with realistic
-        instrument samples, a fretboard, and a recording mode. A chromatic tuner. A metronome. An interactive
-        Circle of Fifths. A key detector. A chord transposer.
-      </p>
-      <p>
-        Each tool came from a real need — something missing from a practice session or a songwriting session.
-        That's still how it works today.
-      </p>
-    </section>
-
-    <!-- Vision -->
-    <section class="mb-16 space-y-5 text-muted-foreground leading-relaxed">
-      <h2 class="text-2xl font-bold text-foreground mb-4">Vision</h2>
-      <p>
-        The goal is to build the most useful free music toolkit on the web — a place where a beginner can learn
-        their first chord shapes and a working musician can practice a bass line, tune their instrument, and
-        chart out a song, all without paying for a subscription or installing anything.
-      </p>
-      <p>
-        Music theory should be something you experience, not something you read about. Every tool here
-        is designed to give you immediate feedback — play a chord and hear it, see the notes light up,
-        feel the rhythm. The learning happens in the doing.
-      </p>
-    </section>
-
-    <!-- Values -->
-    <section class="mb-16">
-      <h2 class="text-2xl font-bold text-foreground mb-6">Values</h2>
-      <div class="grid sm:grid-cols-2 gap-4">
-        {values.map((v) => (
-          <div class="rounded-xl border border-border bg-card p-5 flex gap-4">
-            <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-              <svg class="w-4.5 h-4.5 text-primary" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d={v.icon} />
-              </svg>
-            </div>
-            <div>
-              <p class="font-semibold text-foreground text-sm mb-1">{v.title}</p>
-              <p class="text-xs text-muted-foreground leading-relaxed">{v.desc}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-
-    <!-- What we've built -->
-    <section class="mb-16">
-      <h2 class="text-2xl font-bold text-foreground mb-2">What we've built</h2>
-      <p class="text-muted-foreground mb-6 leading-relaxed">
-        Eleven tools, all free, all running in your browser with no plugins required.
-      </p>
-      <div class="grid sm:grid-cols-2 gap-3">
-        {tools.map((t) => (
-          <a
-            href={t.href}
-            class="rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-accent/30 transition-colors group"
-          >
-            <p class="font-semibold text-foreground text-sm mb-1 group-hover:text-primary transition-colors">{t.label}</p>
-            <p class="text-xs text-muted-foreground leading-relaxed">{t.desc}</p>
-          </a>
-        ))}
-      </div>
-    </section>
-
-    <!-- Who built it -->
+    <!-- Who built it — before the story on purpose: the story is written in the third
+         person about someone the reader hasn't met yet, so introducing him first (photo,
+         role, bio) gives the paragraphs below a subject. -->
     <section class="mb-16">
       <h2 class="text-2xl font-bold text-foreground mb-6">Who built it</h2>
       <div class="rounded-xl border border-border bg-card p-6">
@@ -300,6 +214,90 @@ const values = [
             Full bio →
           </a>
         </div>
+      </div>
+    </section>
+
+    <!-- Story -->
+    <section class="mb-16 space-y-5 text-muted-foreground leading-relaxed">
+      <h2 class="text-2xl font-bold text-foreground mb-4">Our story</h2>
+      <p>
+        {/* The card above already covers "started learning music at 12 … piano, bass, guitar,
+            and drums" verbatim in author.bio — with Who built it moved ahead of this, keeping
+            it here read as the same sentence twice in a row. "Years later" now refers back to
+            that bio, which sits directly above. */}
+        Years later, working as a software developer,
+        <a href="/about/elias-corsino/" class="font-semibold text-foreground hover:text-primary transition-colors">Elías Corsino Saldaña</a>
+        kept running into the same problem: the music theory tools online were either
+        <strong class="font-semibold text-foreground">too basic to be useful, locked behind a paywall, or buried under so many features</strong>
+        they got in the way of actually writing a song.
+      </p>
+      <p>
+        So in 2024 he built the first version of Chord Sequence: a simple chord progression editor that ran in the
+        browser, played back chords with real guitar samples, and let you export to WAV.
+        <strong class="font-semibold text-foreground">No account, no ads, no cost.</strong>
+      </p>
+      <p>
+        It kept growing. Song charts with synchronized chord playback. A bass guitar tab editor with realistic
+        instrument samples, a fretboard, and a recording mode. A chromatic tuner. A metronome. An interactive
+        Circle of Fifths. A key detector. A chord transposer.
+      </p>
+      <p>
+        <strong class="font-semibold text-foreground">Each tool came from a real need</strong> — something missing from a
+        practice session or a songwriting session. That's still how it works today.
+      </p>
+    </section>
+
+    <!-- Vision -->
+    <section class="mb-16 space-y-5 text-muted-foreground leading-relaxed">
+      <h2 class="text-2xl font-bold text-foreground mb-4">Vision</h2>
+      <p>
+        The goal is to build <strong class="font-semibold text-foreground">the most useful free music toolkit on the web</strong>
+        — a place where a beginner can learn their first chord shapes and a working musician can practice a bass line,
+        tune their instrument, and chart out a song, all without paying for a subscription or installing anything.
+      </p>
+      <p>
+        <strong class="font-semibold text-foreground">Music theory should be something you experience, not something you read about.</strong>
+        Every tool here is designed to give you immediate feedback — play a chord and hear it, see the notes light up,
+        feel the rhythm. The learning happens in the doing.
+      </p>
+    </section>
+
+    <!-- Values -->
+    <section class="mb-16">
+      <h2 class="text-2xl font-bold text-foreground mb-6">Values</h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        {values.map((v) => (
+          <div class="rounded-xl border border-border bg-card p-5 flex gap-4">
+            <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+              <svg class="w-4.5 h-4.5 text-primary" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d={v.icon} />
+              </svg>
+            </div>
+            <div>
+              <p class="font-semibold text-foreground text-sm mb-1">{v.title}</p>
+              <p class="text-xs text-muted-foreground leading-relaxed">{v.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- What we've built -->
+    <section class="mb-16">
+      <h2 class="text-2xl font-bold text-foreground mb-2">What we've built</h2>
+      <p class="text-muted-foreground mb-6 leading-relaxed">
+        <strong class="font-semibold text-foreground">Eleven tools, all free</strong>, all running in your browser with no plugins required.
+      </p>
+      <div class="grid sm:grid-cols-2 gap-3">
+        {tools.map((t) => (
+          <a
+            href={t.href}
+            class="rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-accent/30 transition-colors group"
+          >
+            <p class="font-semibold text-foreground text-sm mb-1 group-hover:text-primary transition-colors">{t.label}</p>
+            <p class="text-xs text-muted-foreground leading-relaxed">{t.desc}</p>
+          </a>
+        ))}
       </div>
     </section>
 
