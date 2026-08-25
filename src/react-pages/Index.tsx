@@ -210,9 +210,7 @@ const Index = ({ songId }: IndexProps) => {
     if (restoredDraft) return restoredDraft.title;
     const titleParam = new URLSearchParams(window.location.search).get('title');
     if (titleParam) return titleParam;
-    const now = new Date();
-    const date = now.toLocaleString('en', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-    return `My Song · ${date}`;
+    return 'My Song';
   });
   const [transposition, setTransposition] = useState(restoredDraft?.transposition ?? 0);
   const [metronomeEnabled, setMetronomeEnabled] = useState(restoredDraft?.metronomeEnabled ?? true);
