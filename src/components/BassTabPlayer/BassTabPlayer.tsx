@@ -4,13 +4,15 @@ import { importMidi, type MidiImportResult } from '../../lib/import/midiImport'
 import { parseGpFile } from '../../lib/bassTab/gpImport'
 import { BassTabSeekBar } from './BassTabSeekBar'
 import { MobileBarView } from './MobileBarView'
-import { MobileTabEditor } from './MobileTabEditor'
+import { MobileFretStrip } from './MobileFretStrip'
 import { type BassNote, type BassTrack, type BassSound, type SnapValue, type StringIndex, type LoopRange, DEFAULT_TRACK } from '../../lib/bassTab/types'
 import { DEFAULT_INTRO_TRACK } from '../../data/defaultBassTab'
 import { TabScore } from './TabScore'
 import { ScoreView } from './ScoreView'
-import { snapToGrid, findNoteAtBeat, clampDuration } from '../../lib/bassTab/bassTheory'
+import { snapToGrid, findNoteAtBeat, clampDuration, STRINGS } from '../../lib/bassTab/bassTheory'
 import { startPlayback, stopPlayback, setMasterVolume, previewNote } from '../../lib/bassTab/bassAudio'
+import { triggerHaptic } from '../../lib/bassTab/haptics'
+import { ZoomBtn } from './ZoomBtn'
 import { RecordingOverlay } from './RecordingOverlay'
 import { ExportImageModal } from './ExportImageModal'
 import { ExportVideoModal } from './ExportVideoModal'
@@ -372,7 +374,8 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const handleDeleteNote = useCallback((id: string) => {
     deleteNote(id)
     setSelectedId(prev => prev === id ? null : prev)
-  }, [deleteNote])
+    if (isMobile) triggerHaptic('delete')
+  }, [deleteNote, isMobile])
 
   const handleNoteDurationChange = useCallback((d: number) => {
     setNoteDuration(d)
@@ -408,6 +411,14 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const handleNotePreview = useCallback((stringIndex: StringIndex, fret: number) => {
     previewNote(stringIndex, fret, sound)
   }, [sound])
+
+  // ── Mobile fret strip → set pitch of the selected note ───────────────────
+  const handleFretStripSelect = useCallback((fret: number) => {
+    if (!selectedNoteId || !selectedNote) return
+    beginEdit()
+    updateNote(selectedNoteId, { fret })
+    previewNote(selectedNote.stringIndex, fret, sound)
+  }, [selectedNoteId, selectedNote, beginEdit, updateNote, sound])
 
   // ── Duplicate ─────────────────────────────────────────────────────────────
   const duplicateNote = useCallback((id?: string | null) => {
@@ -1010,13 +1021,26 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           {/* Mobile: Edit (editable notation) or Score (read-only notation) */}
           {isMobile ? (
             activeView === 'tab' ? (
-              <MobileBarView
-                track={track} currentBeat={currentBeat} isPlaying={isPlaying}
-                onSeek={handleSeek} viewMode="score"
-                editable selectedNoteId={selectedNoteId} sound={sound} noteDuration={noteDuration}
-                onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote}
-                onSelectNote={setSelectedId} onBeginEdit={beginEdit}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', background: v('paper'), padding: '8px 0' }}>
+                  <BassTabGrid
+                    track={track} zoom={zoom} currentBeat={currentBeat}
+                    cursorBeat={cursorBeat} isPlaying={isPlaying} selectedNoteId={selectedNoteId}
+                    fitWidth={fitWidth} isMobile={isMobile}
+                    onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={handleDeleteNote}
+                    onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
+                    onZoomChange={handleZoomChange} onBeginEdit={beginEdit}
+                    onNotePreview={handleNotePreview} onLongPressNote={handleLongPress}
+                    onFitWidthToggle={() => setFitWidth(f => !f)}
+                  />
+                </div>
+                <MobileFretStrip
+                  visible={!!selectedNote}
+                  selectedFret={selectedNote?.fret ?? null}
+                  stringColor={selectedNote ? STRINGS[selectedNote.stringIndex].color : undefined}
+                  onFretSelect={handleFretStripSelect}
+                />
+              </div>
             ) : activeView === 'score' ? (
               <MobileBarView
                 track={track} currentBeat={currentBeat} isPlaying={isPlaying}
@@ -1192,13 +1216,22 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
       {/* Context menu */}
       {ctxMenu && (() => {
+        const menuW = 180
+        const menuH = ctxMenu.bar !== undefined ? 160 : 90
+        const margin = 8
+        const left = isMobile
+          ? Math.min(Math.max(ctxMenu.x, margin), window.innerWidth - menuW - margin)
+          : ctxMenu.x
+        const top = isMobile
+          ? Math.min(Math.max(ctxMenu.y, margin), window.innerHeight - menuH - margin)
+          : ctxMenu.y
         const menuStyle: React.CSSProperties = {
-          position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
+          position: 'fixed', left, top, zIndex: 9999,
           background: 'var(--bt-rule)',
           border: '1px solid var(--bt-rule)',
           borderRadius: 8,
           boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px var(--bt-rule)',
-          minWidth: 180, overflow: 'hidden',
+          minWidth: menuW, overflow: 'hidden',
           fontFamily: 'var(--bt-ui)',
         }
         const CtxBtn = ({ label, onClick, danger, disabled }: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean }) => (
@@ -1207,10 +1240,11 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             disabled={disabled}
             style={{
               display: 'block', width: '100%', textAlign: 'left',
-              padding: '8px 14px', fontSize: 12, cursor: disabled ? 'not-allowed' : 'pointer',
+              padding: isMobile ? '13px 14px' : '8px 14px', fontSize: 12, cursor: disabled ? 'not-allowed' : 'pointer',
               background: 'transparent', border: 'none',
               color: disabled ? 'var(--bt-dim)' : danger ? 'var(--bt-danger)' : 'var(--bt-ink)',
               transition: 'background 0.08s', fontFamily: 'inherit',
+              WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
             }}
             onMouseEnter={e => { if (!disabled) (e.target as HTMLElement).style.background = 'var(--bt-rule)' }}
             onMouseLeave={e => { (e.target as HTMLElement).style.background = 'transparent' }}
@@ -1244,9 +1278,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           return (
             <div style={menuStyle} onPointerDown={e => e.stopPropagation()}>
               <CtxBtn label="Duplicate  Ctrl+D" onClick={() => { duplicateNote(nid); closeCtxMenu() }} />
-              <Sep />
-              <CtxBtn label="Fret +1  ↑" onClick={() => { const n = track.notes.find(x => x.id === nid); if(n) updateNote(n.id, {fret: Math.min(24, n.fret+1)}); closeCtxMenu() }} />
-              <CtxBtn label="Fret -1  ↓" onClick={() => { const n = track.notes.find(x => x.id === nid); if(n) updateNote(n.id, {fret: Math.max(0, n.fret-1)}); closeCtxMenu() }} />
               <Sep />
               <CtxBtn label="Delete  Del" danger onClick={() => { handleDeleteNote(nid); closeCtxMenu() }} />
             </div>
@@ -1462,41 +1493,6 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         />
       )}
     </div>
-  )
-}
-
-// ── Zoom (barra de vistas) ─────────────────────────────────────────────────
-function ZoomBtn({ children, title, onClick, disabled, active, wide }: {
-  children: React.ReactNode
-  title: string
-  onClick: () => void
-  disabled?: boolean
-  active?: boolean
-  wide?: boolean
-}) {
-  const [hov, setHov] = useState(false)
-  return (
-    <button
-      onClick={onClick} disabled={disabled} title={title} aria-pressed={active}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{
-        width: wide ? undefined : 28, height: 28,
-        padding: wide ? '0 9px' : 0,
-        border: 'none',
-        borderLeft: wide ? `1px solid ${v('rule')}` : 'none',
-        background: active ? v('accentWash') : hov && !disabled ? v('sunken') : 'transparent',
-        color: active ? v('accent') : hov && !disabled ? v('ink') : v('muted'),
-        fontSize: wide ? 11 : 13,
-        fontWeight: wide ? 600 : 400,
-        fontVariantNumeric: 'tabular-nums',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
-        fontFamily: 'var(--bt-ui)',
-        transition: 'background .12s, color .12s',
-      }}
-    >
-      {children}
-    </button>
   )
 }
 

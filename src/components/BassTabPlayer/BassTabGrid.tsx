@@ -1,6 +1,8 @@
 import React, { useRef, useCallback, useState, useLayoutEffect, useEffect } from 'react'
 import { type BassNote, type BassTrack, type StringIndex } from '../../lib/bassTab/types'
 import { STRINGS, snapToGrid, beatToPixel, pixelToBeat } from '../../lib/bassTab/bassTheory'
+import { triggerHaptic } from '../../lib/bassTab/haptics'
+import { ZoomBtn } from './ZoomBtn'
 
 export const PPB = 80
 const ROW_H_MIN  = 48
@@ -17,9 +19,10 @@ const NOTE_COLORS: Record<number, { bg: string; border: string }> = {
 }
 
 type DragOp =
-  | { type: 'move';   noteId: string; startX: number; startY: number; origBeat: number; origString: StringIndex; origDuration: number }
-  | { type: 'resize'; noteId: string; startX: number; origDuration: number }
-  | { type: 'create'; noteId: string; startX: number; origDuration: number }
+  | { type: 'move';        noteId: string; startX: number; startY: number; origBeat: number; origString: StringIndex; origDuration: number }
+  | { type: 'resize';      noteId: string; startX: number; origDuration: number }
+  | { type: 'resize-left'; noteId: string; startX: number; origStartBeat: number; origDuration: number }
+  | { type: 'create';      noteId: string; startX: number; origDuration: number }
 
 interface GridProps {
   track: BassTrack
@@ -39,6 +42,7 @@ interface GridProps {
   onBeginEdit?: () => void
   onNotePreview?: (stringIndex: StringIndex, fret: number) => void
   onLongPressNote?: (noteId: string, x: number, y: number) => void
+  onFitWidthToggle?: () => void
 }
 
 const SNAP = 0.125
@@ -48,7 +52,7 @@ export function BassTabGrid({
   fitWidth = false, isMobile = false,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote,
   onCursorBeatChange, onZoomChange, onBeginEdit,
-  onNotePreview, onLongPressNote,
+  onNotePreview, onLongPressNote, onFitWidthToggle,
 }: GridProps) {
   const outerRef     = useRef<HTMLDivElement>(null)
   const gridRef      = useRef<HTMLDivElement>(null)
@@ -103,9 +107,10 @@ export function BassTabGrid({
   const doDeleteSel = useCallback(() => {
     const ids = selIdsRef.current
     ids.forEach(id => onDeleteNote(id))
+    if (isMobile) triggerHaptic('delete')
     setSelIds(new Set())
     onSelectNote(null)
-  }, [onDeleteNote, onSelectNote])
+  }, [onDeleteNote, onSelectNote, isMobile])
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -139,8 +144,11 @@ export function BassTabGrid({
   }, [])
 
   const totalBeats  = track.totalBars * track.beatsPerBar
+  // On mobile, a long track fit to the screen can shrink notes past what a
+  // finger can tap accurately — floor it higher and let horizontal scroll
+  // (already supported below) take over instead of the zoom getting tiny.
   const fitZoom     = fitWidth && containerW > 0 && totalBeats > 0
-    ? Math.max(0.2, (containerW - LABEL_W) / (totalBeats * PPB))
+    ? Math.max(isMobile ? 0.55 : 0.2, (containerW - LABEL_W) / (totalBeats * PPB))
     : null
   const effectiveZoom = fitZoom ?? zoom
   const pxPerBeat  = PPB * effectiveZoom
@@ -172,8 +180,9 @@ export function BassTabGrid({
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault()
     const target   = e.target as HTMLElement
-    const noteEl   = target.closest('[data-note-id]') as HTMLElement | null
-    const resizeEl = target.closest('[data-resize]') as HTMLElement | null
+    const noteEl       = target.closest('[data-note-id]') as HTMLElement | null
+    const resizeEl     = target.closest('[data-resize]') as HTMLElement | null
+    const resizeLeftEl = target.closest('[data-resize-left]') as HTMLElement | null
 
     gridRef.current?.setPointerCapture(e.pointerId)
 
@@ -200,6 +209,7 @@ export function BassTabGrid({
         cancelLongPress()
         onBeginEdit?.()
         onDeleteNote(noteId)
+        if (isMobile) triggerHaptic('delete')
         dblRef.current = null
         dragRef.current = null
         return
@@ -213,6 +223,7 @@ export function BassTabGrid({
       lpOriginRef.current = { x: e.clientX, y: e.clientY }
       lpTimerRef.current = setTimeout(() => {
         dragRef.current = null
+        if (isMobile) triggerHaptic('longpress')
         onLongPressNote?.(noteId, lpOriginRef.current?.x ?? e.clientX, lpOriginRef.current?.y ?? e.clientY)
         lpOriginRef.current = null
       }, LONG_PRESS_MS)
@@ -220,6 +231,9 @@ export function BassTabGrid({
       if (resizeEl) {
         onBeginEdit?.()
         dragRef.current = { type: 'resize', noteId, startX: e.clientX, origDuration: note.durationBeats }
+      } else if (resizeLeftEl) {
+        onBeginEdit?.()
+        dragRef.current = { type: 'resize-left', noteId, startX: e.clientX, origStartBeat: note.startBeat, origDuration: note.durationBeats }
       } else {
         onBeginEdit?.()
         dragRef.current = {
@@ -264,14 +278,16 @@ export function BassTabGrid({
       onCursorBeatChange(beat + newNote.durationBeats)
       dblRef.current = null
       if (isMobile) {
-        onLongPressNote?.(newNote.id, e.clientX, e.clientY)
+        // The fret strip opens on its own because it tracks selection — no
+        // need to also pop the long-press menu over the note you just placed.
+        triggerHaptic('tap')
         dragRef.current = null
       } else {
         onNotePreview?.(stringIndex, 0)
         dragRef.current = { type: 'create', noteId: newNote.id, startX: e.clientX, origDuration: newNote.durationBeats }
       }
     }
-  }, [track.notes, pxPerBeat, rowH, multiMode,
+  }, [track.notes, pxPerBeat, rowH, multiMode, isMobile,
       onAddNote, onDeleteNote, onSelectNote,
       onCursorBeatChange, onBeginEdit, onNotePreview, onLongPressNote, cancelLongPress])
 
@@ -300,6 +316,12 @@ export function BassTabGrid({
     if (op.type === 'create' || op.type === 'resize') {
       const newDuration = Math.max(SNAP, snapToGrid(op.origDuration + deltaBeat, SNAP))
       onUpdateNote(op.noteId, { durationBeats: newDuration })
+    } else if (op.type === 'resize-left') {
+      // End stays fixed; dragging the left edge trades startBeat for duration,
+      // same as a video-editor left trim handle.
+      const origEnd  = op.origStartBeat + op.origDuration
+      const newStart = Math.max(0, Math.min(origEnd - SNAP, snapToGrid(op.origStartBeat + deltaBeat, SNAP)))
+      onUpdateNote(op.noteId, { startBeat: newStart, durationBeats: origEnd - newStart })
     } else if (op.type === 'move') {
       const dy        = e.clientY - op.startY
       const newBeat   = Math.max(0, snapToGrid(op.origBeat + deltaBeat, SNAP))
@@ -392,12 +414,13 @@ export function BassTabGrid({
             <button
               onClick={() => { setMultiMode(m => !m); if (multiMode) setSelIds(new Set()) }}
               style={{
-                height: 28, padding: '0 10px', borderRadius: 6,
+                height: 40, padding: '0 10px', borderRadius: 6,
                 background: multiMode ? 'var(--bt-accent-wash)' : 'var(--bt-sunken)',
                 border: `1px solid ${multiMode ? 'var(--bt-accent)' : 'var(--bt-rule)'}`,
                 color: multiMode ? 'var(--bt-accent)' : 'var(--bt-muted)',
-                fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                letterSpacing: '0.04em',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                letterSpacing: '0.04em', flexShrink: 0,
+                WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
               }}
             >
               {multiMode ? '✓ Selección' : 'Seleccionar'}
@@ -406,28 +429,28 @@ export function BassTabGrid({
 
           {/* Selection count */}
           {hasMultiSel && (
-            <span style={{ fontSize: 11, color: 'var(--bt-accent)', fontWeight: 600 }}>
+            <span style={{ fontSize: 11, color: 'var(--bt-accent)', fontWeight: 600, flexShrink: 0 }}>
               {selIds.size} notes
             </span>
           )}
 
           {/* Copy */}
           {hasMultiSel && (
-            <button onClick={doCopy} style={tbBtn('#1d4ed8', '#60a5fa')}>
+            <button onClick={doCopy} style={tbBtn('#1d4ed8', '#60a5fa', isMobile)}>
               Copy
             </button>
           )}
 
           {/* Delete selection */}
           {hasMultiSel && (
-            <button onClick={doDeleteSel} style={tbBtn('#9b1c1c', '#f87171')}>
+            <button onClick={doDeleteSel} style={tbBtn('#9b1c1c', '#f87171', isMobile)}>
               Eliminar
             </button>
           )}
 
           {/* Paste */}
           {hasClipboard && (
-            <button onClick={doPaste} style={tbBtn('#15803d', '#4ade80')}>
+            <button onClick={doPaste} style={tbBtn('#15803d', '#4ade80', isMobile)}>
               Pegar {clipboard.length > 1 ? `(${clipboard.length})` : ''}
             </button>
           )}
@@ -437,6 +460,31 @@ export function BassTabGrid({
             <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--bt-dim)' }}>
               Shift+click · Shift+arrastrar · Ctrl+C/V
             </span>
+          )}
+
+          {/* Zoom cluster — mobile only. Desktop gets this from the view-bar
+              above BassTabGrid; mobile has no such bar, so it lives here. */}
+          {isMobile && (
+            <div style={{
+              marginLeft: 'auto', flexShrink: 0,
+              display: 'flex', alignItems: 'center', overflow: 'hidden',
+              border: '1px solid var(--bt-rule)', borderRadius: 8, background: 'var(--bt-card)',
+            }}>
+              <ZoomBtn title="Alejar" mobile
+                onClick={() => onZoomChange(Math.max(0.4, zoom - 0.25))}
+                disabled={fitWidth || zoom <= 0.4}
+              >−</ZoomBtn>
+              <ZoomBtn title="Acercar" mobile
+                onClick={() => onZoomChange(Math.min(4, zoom + 0.25))}
+                disabled={fitWidth || zoom >= 4}
+              >+</ZoomBtn>
+              <ZoomBtn title="Ajustar al ancho de la pantalla" mobile wide
+                onClick={() => onFitWidthToggle?.()}
+                active={fitWidth}
+              >
+                {fitWidth ? 'Fit' : `${Math.round(effectiveZoom * 100)}%`}
+              </ZoomBtn>
+            </div>
           )}
         </div>
       )}
@@ -518,7 +566,9 @@ export function BassTabGrid({
 
               {track.notes.length === 0 && (
                 <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', textAlign:'center', pointerEvents:'none' }}>
-                  <p style={{ color:'var(--bt-staff)', fontSize:12, fontFamily:'var(--bt-mono)', margin:0 }}>Tap a fret above ↑ — or click here to add a note</p>
+                  <p style={{ color:'var(--bt-staff)', fontSize:12, fontFamily:'var(--bt-mono)', margin:0 }}>
+                    {isMobile ? 'Tap here to add a note, then pick its pitch below ↓' : 'Tap a fret above ↑ — or click here to add a note'}
+                  </p>
                 </div>
               )}
 
@@ -532,38 +582,65 @@ export function BassTabGrid({
                 const playing = activeNoteIds.has(note.id)
                 const noteH   = rowH - 12
                 const strColor = STRINGS[note.stringIndex].color
+                // Clamp so the two handles never exceed the note's own width —
+                // a short note stays legible instead of the caps swallowing it whole.
+                const capW   = Math.max(6, Math.min(isMobile ? 32 : 16, Math.floor((width - 4) / 2)))
+                const hatchW = isMobile ? 30 : 22
                 return (
-                  <div
-                    key={note.id}
-                    data-note-id={note.id}
-                    style={{
-                      position:'absolute', left, top, width, height:noteH,
-                      background: playing
-                        ? `linear-gradient(135deg, ${c.bg}, ${strColor}aa)`
-                        : c.bg,
-                      border: inMulti
-                        ? `1.5px solid var(--bt-accent)`
-                        : playing
-                          ? `1.5px solid ${strColor}`
-                          : `1.5px solid ${c.border}`,
-                      borderRadius:5, cursor:'grab',
-                      boxShadow: inMulti
-                        ? `0 0 0 2px var(--bt-accent), 0 0 10px transparent`
-                        : sel
-                          ? `0 0 0 2px #fff, 0 0 12px rgba(255,255,255,0.2)`
+                  <React.Fragment key={note.id}>
+                    {/* Hatched strips flanking a selected note — same visual cue as a
+                        video-editor trim handle: this is the space you can drag into. */}
+                    {sel && (
+                      <>
+                        <div style={{ position:'absolute', left: left - hatchW, top, width: hatchW, height: noteH, ...hatchStyle, zIndex: 3 }} />
+                        <div style={{ position:'absolute', left: left + width, top, width: hatchW, height: noteH, ...hatchStyle, zIndex: 3 }} />
+                      </>
+                    )}
+                    <div
+                      data-note-id={note.id}
+                      style={{
+                        position:'absolute', left, top, width, height:noteH,
+                        background: playing
+                          ? `linear-gradient(135deg, ${c.bg}, ${strColor}aa)`
+                          : c.bg,
+                        border: inMulti
+                          ? `1.5px solid var(--bt-accent)`
                           : playing
-                            ? `0 0 12px ${strColor}80, 0 0 4px ${strColor}40`
-                            : '0 2px 6px rgba(0,0,0,0.6)',
-                      display:'flex', alignItems:'center', overflow:'hidden', paddingLeft:6,
-                      zIndex: inMulti ? 6 : sel ? 5 : playing ? 4 : 2, touchAction:'none',
-                      transition: 'box-shadow 0.08s, border-color 0.08s, background 0.08s',
-                    }}
-                  >
-                    <span style={{ color:'#fff', fontSize:noteH>32?14:11, fontWeight:700, fontFamily:'var(--bt-mono)', lineHeight:1, pointerEvents:'none', flexShrink:0 }}>
-                      {note.fret}
-                    </span>
-                    <div data-resize="true" style={{ position:'absolute', right:0, top:0, width: isMobile ? 32 : 14, height:'100%', cursor:'ew-resize', background:'rgba(255,255,255,0.08)', borderLeft:'1px solid rgba(255,255,255,0.08)', touchAction:'none' }} />
-                  </div>
+                            ? `1.5px solid ${strColor}`
+                            : `1.5px solid ${c.border}`,
+                        borderRadius: 5, cursor:'grab',
+                        boxShadow: inMulti
+                          ? `0 0 0 2px var(--bt-accent), 0 0 10px transparent`
+                          : sel
+                            ? `0 0 0 2px #fff, 0 0 12px rgba(255,255,255,0.2)`
+                            : playing
+                              ? `0 0 12px ${strColor}80, 0 0 4px ${strColor}40`
+                              : '0 2px 6px rgba(0,0,0,0.6)',
+                        display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden',
+                        zIndex: inMulti ? 6 : sel ? 5 : playing ? 4 : 2, touchAction:'none',
+                        transition: 'box-shadow 0.08s, border-color 0.08s, background 0.08s',
+                      }}
+                    >
+                      <span style={{ color:'#fff', fontSize:noteH>32?14:11, fontWeight:700, fontFamily:'var(--bt-mono)', lineHeight:1, pointerEvents:'none', flexShrink:0 }}>
+                        {note.fret}
+                      </span>
+                      {/* Trim handles — only shown once the note is selected, like a
+                          video-editor clip's start/end handles, so the first tap
+                          always just selects instead of blindly starting a resize.
+                          White end-caps + dark grab bar; capW is clamped above so
+                          they never overrun a short note's own width. */}
+                      {sel && (
+                        <div data-resize-left="true" style={{ ...capStyle(capW), left:0, borderTopLeftRadius:5, borderBottomLeftRadius:5, boxShadow:'inset -1px 0 0 rgba(0,0,0,0.12)' }}>
+                          <div style={handleBarStyle(isMobile)} />
+                        </div>
+                      )}
+                      {sel && (
+                        <div data-resize="true" style={{ ...capStyle(capW), right:0, borderTopRightRadius:5, borderBottomRightRadius:5, boxShadow:'inset 1px 0 0 rgba(0,0,0,0.12)' }}>
+                          <div style={handleBarStyle(isMobile)} />
+                        </div>
+                      )}
+                    </div>
+                  </React.Fragment>
                 )
               })}
 
@@ -609,12 +686,39 @@ export function BassTabGrid({
   )
 }
 
-// ── Toolbar button helper ─────────────────────────────────────────────────────
-function tbBtn(bg: string, border: string): React.CSSProperties {
+// ── Selected-note trim-clip visuals ────────────────────────────────────────────
+// Diagonal hatch flanking a selected note — signals "draggable space" like a
+// video-editor clip's trimmed region.
+const hatchStyle: React.CSSProperties = {
+  backgroundColor: 'rgba(148,163,184,0.10)',
+  backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.16) 0, rgba(255,255,255,0.16) 1.5px, transparent 1.5px, transparent 7px)',
+  pointerEvents: 'none',
+}
+
+// Only the outer corners round (fused flush against the colored middle) —
+// callers set borderTop/BottomLeft or -Right radius on top of this.
+function capStyle(width: number): React.CSSProperties {
   return {
-    height: 28, padding: '0 10px', borderRadius: 6,
+    position: 'absolute', top: 0, width, height: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'ew-resize', touchAction: 'none', zIndex: 8,
+    background: '#fff',
+  }
+}
+
+function handleBarStyle(mobile: boolean): React.CSSProperties {
+  return {
+    width: mobile ? 5 : 4, height: mobile ? 22 : 16, borderRadius: 3,
+    background: '#1f2937',
+  }
+}
+
+// ── Toolbar button helper ─────────────────────────────────────────────────────
+function tbBtn(bg: string, border: string, mobile?: boolean): React.CSSProperties {
+  return {
+    height: mobile ? 40 : 28, padding: '0 10px', borderRadius: 6,
     background: bg + '33', border: `1px solid ${border}88`,
-    color: border, fontSize: 11, fontWeight: 600,
+    color: border, fontSize: mobile ? 12 : 11, fontWeight: 600,
     cursor: 'pointer', letterSpacing: '0.03em',
   }
 }

@@ -21,9 +21,10 @@ const NOTE_COLORS: Record<number, { bg: string; border: string; text: string }> 
 }
 
 type DragOp =
-  | { type: 'move';   noteId: string; startX: number; startY: number; origBeat: number; origString: GuitarStringIndex; origDuration: number }
-  | { type: 'resize'; noteId: string; startX: number; origDuration: number }
-  | { type: 'create'; noteId: string; startX: number; origDuration: number }
+  | { type: 'move';        noteId: string; startX: number; startY: number; origBeat: number; origString: GuitarStringIndex; origDuration: number }
+  | { type: 'resize';      noteId: string; startX: number; origDuration: number }
+  | { type: 'resize-left'; noteId: string; startX: number; origStartBeat: number; origDuration: number }
+  | { type: 'create';      noteId: string; startX: number; origDuration: number }
 
 interface GridProps {
   track: GuitarTrack
@@ -159,8 +160,9 @@ export function GuitarTabGrid({
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault()
-    const noteEl   = (e.target as HTMLElement).closest('[data-note-id]') as HTMLElement | null
-    const resizeEl = (e.target as HTMLElement).closest('[data-resize]') as HTMLElement | null
+    const noteEl       = (e.target as HTMLElement).closest('[data-note-id]') as HTMLElement | null
+    const resizeEl     = (e.target as HTMLElement).closest('[data-resize]') as HTMLElement | null
+    const resizeLeftEl = (e.target as HTMLElement).closest('[data-resize-left]') as HTMLElement | null
     gridRef.current?.setPointerCapture(e.pointerId)
 
     if (noteEl) {
@@ -192,6 +194,9 @@ export function GuitarTabGrid({
       if (resizeEl) {
         onBeginEdit?.()
         dragRef.current = { type: 'resize', noteId, startX: e.clientX, origDuration: note.durationBeats }
+      } else if (resizeLeftEl) {
+        onBeginEdit?.()
+        dragRef.current = { type: 'resize-left', noteId, startX: e.clientX, origStartBeat: note.startBeat, origDuration: note.durationBeats }
       } else {
         onBeginEdit?.()
         dragRef.current = { type: 'move', noteId, startX: e.clientX, startY: e.clientY, origBeat: note.startBeat, origString: note.stringIndex, origDuration: note.durationBeats }
@@ -247,6 +252,12 @@ export function GuitarTabGrid({
     const deltaBeat = pixelToBeat(dx, pxPerBeat)
     if (op.type === 'create' || op.type === 'resize') {
       onUpdateNote(op.noteId, { durationBeats: Math.max(SNAP, snapToGrid(op.origDuration + deltaBeat, SNAP)) })
+    } else if (op.type === 'resize-left') {
+      // End stays fixed; dragging the left edge trades startBeat for duration,
+      // same as a video-editor left trim handle.
+      const origEnd  = op.origStartBeat + op.origDuration
+      const newStart = Math.max(0, Math.min(origEnd - SNAP, snapToGrid(op.origStartBeat + deltaBeat, SNAP)))
+      onUpdateNote(op.noteId, { startBeat: newStart, durationBeats: origEnd - newStart })
     } else if (op.type === 'move') {
       const dy = e.clientY - op.startY
       const newBeat   = Math.max(0, snapToGrid(op.origBeat + deltaBeat, SNAP))
@@ -439,34 +450,58 @@ export function GuitarTabGrid({
                 const inMulti = selIds.has(note.id) && selIds.size > 1
                 const playing = activeNoteIds.has(note.id)
                 const noteH   = rowH - 10
+                // Clamp so the two handles never exceed the note's own width —
+                // a short note stays legible instead of the caps swallowing it whole.
+                const capW    = Math.max(6, Math.min(isMobile ? 30 : 12, Math.floor((width - 4) / 2)))
+                const hatchW  = isMobile ? 30 : 22
                 return (
-                  <div
-                    key={note.id}
-                    data-note-id={note.id}
-                    style={{
-                      position: 'absolute', left, top, width, height: noteH,
-                      background: playing ? `linear-gradient(135deg, ${c.bg}, ${c.border})` : c.bg,
-                      border: inMulti
-                        ? '1.5px solid #7c3aed'
-                        : playing ? `1.5px solid ${c.border}` : `1.5px solid ${c.border}`,
-                      borderRadius: 5, cursor: 'grab',
-                      boxShadow: inMulti
-                        ? '0 0 0 2px #7c3aed, 0 0 8px rgba(124,58,237,0.3)'
-                        : sel
-                          ? '0 0 0 2px #1e293b, 0 0 8px rgba(0,0,0,0.15)'
-                          : playing
-                            ? `0 0 10px ${c.bg}80`
-                            : '0 1px 3px rgba(0,0,0,0.15)',
-                      display: 'flex', alignItems: 'center', overflow: 'hidden', paddingLeft: 5,
-                      zIndex: inMulti ? 6 : sel ? 5 : playing ? 4 : 2, touchAction: 'none',
-                      transition: 'box-shadow 0.08s',
-                    }}
-                  >
-                    <span style={{ color: c.text, fontSize: noteH > 28 ? 13 : 10, fontWeight: 700, fontFamily: 'ui-monospace, monospace', lineHeight: 1, pointerEvents: 'none', flexShrink: 0 }}>
-                      {note.fret}
-                    </span>
-                    <div data-resize="true" style={{ position: 'absolute', right: 0, top: 0, width: isMobile ? 30 : 12, height: '100%', cursor: 'ew-resize', background: 'rgba(0,0,0,0.06)', borderLeft: '1px solid rgba(0,0,0,0.06)', touchAction: 'none' }} />
-                  </div>
+                  <React.Fragment key={note.id}>
+                    {/* Hatched strips flanking a selected note — same visual cue as a
+                        video-editor trim handle: this is the space you can drag into. */}
+                    {sel && (
+                      <>
+                        <div style={{ position: 'absolute', left: left - hatchW, top, width: hatchW, height: noteH, ...hatchStyle, zIndex: 3 }} />
+                        <div style={{ position: 'absolute', left: left + width, top, width: hatchW, height: noteH, ...hatchStyle, zIndex: 3 }} />
+                      </>
+                    )}
+                    <div
+                      data-note-id={note.id}
+                      style={{
+                        position: 'absolute', left, top, width, height: noteH,
+                        background: playing ? `linear-gradient(135deg, ${c.bg}, ${c.border})` : c.bg,
+                        border: inMulti
+                          ? '1.5px solid #7c3aed'
+                          : playing ? `1.5px solid ${c.border}` : `1.5px solid ${c.border}`,
+                        borderRadius: 5, cursor: 'grab',
+                        boxShadow: inMulti
+                          ? '0 0 0 2px #7c3aed, 0 0 8px rgba(124,58,237,0.3)'
+                          : sel
+                            ? '0 0 0 2px #1e293b, 0 0 8px rgba(0,0,0,0.15)'
+                            : playing
+                              ? `0 0 10px ${c.bg}80`
+                              : '0 1px 3px rgba(0,0,0,0.15)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                        zIndex: inMulti ? 6 : sel ? 5 : playing ? 4 : 2, touchAction: 'none',
+                        transition: 'box-shadow 0.08s',
+                      }}
+                    >
+                      <span style={{ color: c.text, fontSize: noteH > 28 ? 13 : 10, fontWeight: 700, fontFamily: 'ui-monospace, monospace', lineHeight: 1, pointerEvents: 'none', flexShrink: 0 }}>
+                        {note.fret}
+                      </span>
+                      {/* Trim handles — only shown once selected, like a video-editor
+                          clip's start/end handles: white rounded end-caps + dark grab bar. */}
+                      {sel && (
+                        <div data-resize-left="true" style={{ ...capStyle(capW), left: 0, borderTopLeftRadius: 5, borderBottomLeftRadius: 5, boxShadow: 'inset -1px 0 0 rgba(0,0,0,0.12)' }}>
+                          <div style={handleBarStyle} />
+                        </div>
+                      )}
+                      {sel && (
+                        <div data-resize="true" style={{ ...capStyle(capW), right: 0, borderTopRightRadius: 5, borderBottomRightRadius: 5, boxShadow: 'inset 1px 0 0 rgba(0,0,0,0.12)' }}>
+                          <div style={handleBarStyle} />
+                        </div>
+                      )}
+                    </div>
+                  </React.Fragment>
                 )
               })}
 
@@ -497,6 +532,30 @@ export function GuitarTabGrid({
       </div>
     </div>
   )
+}
+
+// ── Selected-note trim-clip visuals ────────────────────────────────────────────
+// Diagonal hatch flanking a selected note — signals "draggable space" like a
+// video-editor clip's trimmed region.
+const hatchStyle: React.CSSProperties = {
+  backgroundColor: 'rgba(100,116,139,0.10)',
+  backgroundImage: 'repeating-linear-gradient(45deg, rgba(0,0,0,0.08) 0, rgba(0,0,0,0.08) 1.5px, transparent 1.5px, transparent 7px)',
+  pointerEvents: 'none',
+}
+
+// Only the outer corners round (fused flush against the colored middle) —
+// callers set borderTop/BottomLeft or -Right radius on top of this.
+function capStyle(width: number): React.CSSProperties {
+  return {
+    position: 'absolute', top: 0, width, height: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'ew-resize', touchAction: 'none', zIndex: 8,
+    background: '#fff',
+  }
+}
+
+const handleBarStyle: React.CSSProperties = {
+  width: 4, height: 16, borderRadius: 3, background: '#1f2937',
 }
 
 function tbBtn(bg: string, border: string, color: string): React.CSSProperties {
