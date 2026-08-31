@@ -73,9 +73,34 @@ export const onRequest = defineMiddleware(async (context, next) => {
     response.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()');
   }
 
-  // Edge-cache dynamic songs pages — content only changes when a song is published
+  // Edge-cache dynamic song pages — content only changes when a song is published.
+  //
+  // Aug 2026 measurement: 9 of 12 song pages were cold on a first request from a single PoP
+  // (the other 3 were warm only because earlier requests in the same session had warmed
+  // them). Cold TTFB was 0.6–4.7s against 0.32s warm. The previous config could never stay
+  // warm at this volume: ~106 song-page views/day spread over 61 songs and dozens of edge
+  // nodes puts the average song well under one view per node per day, so a 1h s-maxage
+  // always expired before the next visitor arrived — the cache was effectively decorative.
+  //
+  // `durable` opts into Netlify's Durable Cache, a shared layer that every edge node reads
+  // from, so one origin render serves all regions instead of one render per node. That is
+  // the part that actually fixes the hit rate; the longer TTL alone would not.
+  //
+  // Two headers on purpose: Netlify-CDN-Cache-Control governs the CDN and takes precedence
+  // there, while the plain Cache-Control governs browsers. The browser one revalidates
+  // every time (cheap 304 against a warm CDN) so a republished song shows up on the next
+  // visit instead of being pinned in someone's browser for a day.
+  //
+  // Invalidation rides on deploys: publishing a song fires the Supabase webhook → Netlify
+  // build hook documented at the top of netlify.toml, and a new deploy drops the durable
+  // cache. Worth confirming on the first publish after this ships — if it does not, a song
+  // edit could serve stale for up to the s-maxage below.
   if (pathname.startsWith('/songs/') && !pathname.startsWith('/songs/new')) {
-    response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+    response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+    response.headers.set(
+      'Netlify-CDN-Cache-Control',
+      'public, s-maxage=86400, stale-while-revalidate=604800, durable',
+    );
   }
 
   return response;

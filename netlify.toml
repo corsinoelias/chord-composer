@@ -47,10 +47,16 @@
 # Security headers are restated explicitly here (not just relying on the global /* block
 # above) because Netlify's per-path header merging is not guaranteed when multiple
 # [[headers]] blocks match the same path — this previously left /songs/* without HSTS.
+#
+# The caching pair below (browser Cache-Control + Netlify-CDN-Cache-Control with `durable`)
+# mirrors src/middleware.ts, which is what actually applies on these SSR routes — see the
+# long comment there for why the old per-node `s-maxage=3600` never stayed warm. Restated
+# here only to honour the two-sources-of-truth rule noted at the top of this file.
 [[headers]]
   for = "/songs/"
   [headers.values]
-    Cache-Control = "public, s-maxage=3600, stale-while-revalidate=86400"
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Netlify-CDN-Cache-Control = "public, s-maxage=86400, stale-while-revalidate=604800, durable"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
@@ -61,7 +67,8 @@
 [[headers]]
   for = "/songs/*"
   [headers.values]
-    Cache-Control = "public, s-maxage=3600, stale-while-revalidate=86400"
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Netlify-CDN-Cache-Control = "public, s-maxage=86400, stale-while-revalidate=604800, durable"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
