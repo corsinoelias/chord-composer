@@ -32,16 +32,19 @@ interface MixingConsoleProps {
 }
 
 /** Vertical EQ band with visual gain meter */
-function EQBand({ 
-  label, 
-  freq, 
-  value, 
-  onChange 
-}: { 
-  label: string; 
-  freq: string; 
-  value: number; 
-  onChange: (v: number) => void; 
+function EQBand({
+  label,
+  freq,
+  value,
+  onChange,
+  onCommit,
+}: {
+  label: string;
+  freq: string;
+  value: number;
+  onChange: (v: number) => void;
+  /** Fires once when the fader is released, for analytics — see the handlers below. */
+  onCommit: () => void;
 }) {
   const percentage = ((value + 12) / 24) * 100; // 0..100, 50 = center (0 dB)
   const isBoost = value > 0;
@@ -68,6 +71,7 @@ function EQBand({
         step={0.5}
         value={[value]}
         onValueChange={([v]) => onChange(v)}
+        onValueCommit={onCommit}
         aria-label={`${label} EQ gain`}
         className="relative flex flex-col items-center justify-center w-10 h-32 touch-none select-none"
       >
@@ -150,6 +154,7 @@ function EffectSlider({
   step,
   format,
   onChange,
+  onCommit,
 }: {
   label: string;
   value: number;
@@ -158,6 +163,8 @@ function EffectSlider({
   step: number;
   format: (v: number) => string;
   onChange: (v: number) => void;
+  /** Fires once when the slider is released, for analytics — see the handlers below. */
+  onCommit: () => void;
 }) {
   return (
     <div className="space-y-1.5">
@@ -171,6 +178,7 @@ function EffectSlider({
         max={max}
         step={step}
         onValueChange={([val]) => onChange(val)}
+        onValueCommit={onCommit}
       />
     </div>
   );
@@ -194,7 +202,6 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
       }
     }));
     updateEQ(band, { gain });
-    analytics.effectChanged('eq');
   }, []);
 
   const handleReverbChange = useCallback((key: keyof EffectsState['reverb'], value: number | boolean) => {
@@ -203,7 +210,6 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
       reverb: { ...prev.reverb, [key]: value }
     }));
     updateReverb({ [key]: value });
-    analytics.effectChanged('reverb');
   }, []);
 
   const handleCompressorChange = useCallback((key: keyof EffectsState['compressor'], value: number | boolean) => {
@@ -212,8 +218,15 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
       compressor: { ...prev.compressor, [key]: value }
     }));
     updateCompressor({ [key]: value });
-    analytics.effectChanged('compressor');
   }, []);
+
+  // Analytics fires on commit — the fader released, or the switch toggled — never from the
+  // handlers above, which run on every pointer move so the sound follows the finger. Firing
+  // from there sent ~100 `effect_changed` events per drag; see trackCoalesced in analytics.ts,
+  // which additionally folds a burst of commits (three EQ bands in a row) into one event.
+  const trackEq = useCallback(() => analytics.effectChanged('eq'), []);
+  const trackReverb = useCallback(() => analytics.effectChanged('reverb'), []);
+  const trackCompressor = useCallback(() => analytics.effectChanged('compressor'), []);
 
   const handleReset = useCallback(() => {
     setEffects(DEFAULT_EFFECTS_STATE);
@@ -261,18 +274,21 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
                   freq="100 Hz"
                   value={effects.eq.low.gain}
                   onChange={(gain) => handleEQChange('low', gain)}
+                  onCommit={trackEq}
                 />
                 <EQBand
                   label="Mid"
                   freq="1 kHz"
                   value={effects.eq.mid.gain}
                   onChange={(gain) => handleEQChange('mid', gain)}
+                  onCommit={trackEq}
                 />
                 <EQBand
                   label="High"
                   freq="8 kHz"
                   value={effects.eq.high.gain}
                   onChange={(gain) => handleEQChange('high', gain)}
+                  onCommit={trackEq}
                 />
               </div>
               
@@ -291,7 +307,10 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
           <EffectSection 
             title="Reverb" 
             enabled={effects.reverb.enabled}
-            onToggle={(checked) => handleReverbChange('enabled', checked)}
+            onToggle={(checked) => {
+              handleReverbChange('enabled', checked);
+              trackReverb();
+            }}
           >
             <div className="space-y-4">
               <EffectSlider
@@ -302,6 +321,7 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
                 step={0.1}
                 format={(v) => `${v.toFixed(1)}s`}
                 onChange={(v) => handleReverbChange('decay', v)}
+                onCommit={trackReverb}
               />
               <EffectSlider
                 label="Wet / Dry"
@@ -311,6 +331,7 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
                 step={0.01}
                 format={(v) => `${Math.round(v * 100)}%`}
                 onChange={(v) => handleReverbChange('wetDry', v)}
+                onCommit={trackReverb}
               />
             </div>
           </EffectSection>
@@ -321,7 +342,10 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
           <EffectSection 
             title="Compressor" 
             enabled={effects.compressor.enabled}
-            onToggle={(checked) => handleCompressorChange('enabled', checked)}
+            onToggle={(checked) => {
+              handleCompressorChange('enabled', checked);
+              trackCompressor();
+            }}
           >
             <div className="space-y-4">
               <EffectSlider
@@ -332,6 +356,7 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
                 step={1}
                 format={(v) => `${v} dB`}
                 onChange={(v) => handleCompressorChange('threshold', v)}
+                onCommit={trackCompressor}
               />
               <EffectSlider
                 label="Ratio"
@@ -341,6 +366,7 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
                 step={0.5}
                 format={(v) => `${v}:1`}
                 onChange={(v) => handleCompressorChange('ratio', v)}
+                onCommit={trackCompressor}
               />
               <EffectSlider
                 label="Attack"
@@ -350,6 +376,7 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
                 step={0.001}
                 format={(v) => `${(v * 1000).toFixed(0)} ms`}
                 onChange={(v) => handleCompressorChange('attack', v)}
+                onCommit={trackCompressor}
               />
               <EffectSlider
                 label="Release"
@@ -359,6 +386,7 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
                 step={0.01}
                 format={(v) => `${(v * 1000).toFixed(0)} ms`}
                 onChange={(v) => handleCompressorChange('release', v)}
+                onCommit={trackCompressor}
               />
             </div>
           </EffectSection>

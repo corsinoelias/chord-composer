@@ -33,6 +33,52 @@ function track(eventName: string, params?: Record<string, unknown>) {
   gtag('event', eventName, params);
 }
 
+// Events fired from a continuously-changing control have to be coalesced or they drown out
+// everything else in the property: `effect_changed` was called from inside the mixer's
+// value-change handlers, so one fader drag sent ~100 events. Aug 2026: 6,344 events from 58
+// users (110 each) — more than `chord_added` from a tenth of the people — which inflated
+// eventCount and made per-user event averages across the whole property meaningless.
+// Call sites should still fire on commit (pointer release) rather than per change; this is
+// the backstop that keeps a drag stream from reaching GA4 if one doesn't.
+//
+// Trailing debounce, keyed per event+key so two different effects tweaked in the same window
+// still report separately. The last call's params win, which is what you want for a slider:
+// the value the user settled on, not the one they dragged through.
+const COALESCE_MS = 1000;
+const pendingTracks = new Map<
+  string,
+  { timer: ReturnType<typeof setTimeout>; eventName: string; params?: Record<string, unknown> }
+>();
+
+function flushPendingTracks() {
+  for (const pending of pendingTracks.values()) {
+    clearTimeout(pending.timer);
+    track(pending.eventName, pending.params);
+  }
+  pendingTracks.clear();
+}
+
+// Without this, dragging a fader and immediately closing the tab loses the event entirely.
+// `pagehide` (not `unload`) is the one that still fires on iOS Safari and bfcache navigations.
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushPendingTracks);
+}
+
+function trackCoalesced(eventName: string, key: string, params?: Record<string, unknown>) {
+  if (typeof window === 'undefined') return;
+  const mapKey = `${eventName}:${key}`;
+  const existing = pendingTracks.get(mapKey);
+  if (existing) clearTimeout(existing.timer);
+  pendingTracks.set(mapKey, {
+    eventName,
+    params,
+    timer: setTimeout(() => {
+      pendingTracks.delete(mapKey);
+      track(eventName, params);
+    }, COALESCE_MS),
+  });
+}
+
 export const analytics = {
   // Auth — `entry_point` identifies which entry point opened the modal (e.g.
   // 'save_cta', 'export_nudge') so conversion can be compared per entry point.
@@ -115,7 +161,10 @@ export const analytics = {
   transposed: (semitones: number) => track('transposed', { semitones }),
   metronomeToggled: (enabled: boolean) => track('metronome_toggled', { enabled }),
   variationChanged: (instrument: string) => track('variation_changed', { instrument }),
-  effectChanged: (effect: 'eq' | 'reverb' | 'compressor') => track('effect_changed', { effect }),
+  // Coalesced per effect — see trackCoalesced. Callers fire this on commit (fader released,
+  // switch toggled), never per value change.
+  effectChanged: (effect: 'eq' | 'reverb' | 'compressor') =>
+    trackCoalesced('effect_changed', effect, { effect }),
   customStyleSaved: (mode: string) => track('custom_style_saved', { mode }),
 
   // Song library search (/songs/). `view_search_results` is GA4's own recommended event
