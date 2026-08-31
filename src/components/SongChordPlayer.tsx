@@ -109,6 +109,106 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
     window.dispatchEvent(new CustomEvent('song-transpose', { detail: { semitones: transpose } }));
   }, [transpose, updatePlaybackOptions]);
 
+  // ── Listening telemetry ──────────────────────────────────────────────────────
+  // song_audio_ready / song_play_failed / song_play_progress / song_play_stopped — see
+  // analytics.ts for what each answers. isPlayingRef mirrors state.isPlaying so the
+  // async code below (which runs after awaits/timeouts, outside any render) always
+  // reads the current value instead of one closed over at click time.
+  const isPlayingRef = useRef(isPlaying);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+
+  const playAttemptIdRef = useRef(0);
+  const playedMsRef = useRef(0); // cumulative time actually spent playing, this page visit
+  const playSegmentStartRef = useRef<number | null>(null);
+  const firedMilestonesRef = useRef(new Set<'10s' | '30s' | '60s' | '180s'>());
+  // Set to 'ended' right before the one stop() call that represents a solo-section chain
+  // running out of neighbors to play next (see handlePlaySection's onEnded below); left at
+  // the 'user' default for every other stop() — including the internal stop()-then-play()
+  // handoffs between chained sections, which the debounce below filters out before this
+  // ref would ever be read for them.
+  const stopReasonRef = useRef<'user' | 'ended'>('user');
+  const stopDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Wraps a play() call to report how long it took to actually start (or whether it
+  // silently didn't). PlaybackContext.play() never rejects — it swallows its own errors
+  // (see the try/catch around startPlayback there) — so a try/catch here would never see
+  // a failure; checking isPlayingRef a beat after the promise settles is the only signal
+  // available from outside the engine. The 50ms delay is slack for React to commit the
+  // isPlaying state change (from either the success or the swallowed-error path) before
+  // it's read; attemptId guards against reporting on a click that a newer one superseded.
+  const trackPlayAttempt = useCallback((playPromise: Promise<void>) => {
+    const attemptId = ++playAttemptIdRef.current;
+    const clickedAt = performance.now();
+    playPromise.then(() => {
+      setTimeout(() => {
+        if (playAttemptIdRef.current !== attemptId) return;
+        if (!isPlayingRef.current) { analytics.songPlayFailed(song.slug, 'play'); return; }
+        const latencyMs = performance.now() - clickedAt;
+        const bucket = latencyMs < 1000 ? '<1s' : latencyMs < 3000 ? '1-3s' : '>3s';
+        analytics.songAudioReady(song.slug, bucket);
+      }, 50);
+    });
+  }, [song.slug]);
+
+  // Accumulates listening time across pauses/section changes and reports the stop that
+  // ends a listen. Debounced 400ms on the false transition — keepContext section-to-
+  // section handoffs (stop() immediately followed by play() for the next section, see
+  // handlePlaySection below) flip isPlaying false→true well inside that window, so they
+  // never get mistaken for the user actually stopping. 400ms, not something tighter,
+  // because that's what keepContext exists to make fast in the first place.
+  useEffect(() => {
+    if (isPlaying) {
+      if (stopDebounceRef.current) { clearTimeout(stopDebounceRef.current); stopDebounceRef.current = null; }
+      playSegmentStartRef.current = performance.now();
+    } else {
+      if (playSegmentStartRef.current !== null) {
+        playedMsRef.current += performance.now() - playSegmentStartRef.current;
+        playSegmentStartRef.current = null;
+      }
+      stopDebounceRef.current = setTimeout(() => {
+        stopDebounceRef.current = null;
+        analytics.songPlayStopped(song.slug, stopReasonRef.current);
+        stopReasonRef.current = 'user';
+      }, 400);
+    }
+  }, [isPlaying, song.slug]);
+
+  // One row in GA4 per milestone per page visit, on cumulative play time (pausing and
+  // resuming several times still counts toward the same total) — this is the curve that
+  // answers "how long does a listen actually last", the thing a hard cutoff needs to know
+  // before picking a number.
+  useEffect(() => {
+    if (!isPlaying) return;
+    const THRESHOLDS: Array<['10s' | '30s' | '60s' | '180s', number]> = [
+      ['10s', 10_000], ['30s', 30_000], ['60s', 60_000], ['180s', 180_000],
+    ];
+    const id = setInterval(() => {
+      const segmentMs = playSegmentStartRef.current !== null ? performance.now() - playSegmentStartRef.current : 0;
+      const elapsed = playedMsRef.current + segmentMs;
+      for (const [label, ms] of THRESHOLDS) {
+        if (elapsed >= ms && !firedMilestonesRef.current.has(label)) {
+          firedMilestonesRef.current.add(label);
+          analytics.songPlayProgress(song.slug, label);
+        }
+      }
+    }, 2000);
+    return () => clearInterval(id);
+  }, [isPlaying, song.slug]);
+
+  // 'navigated' is fired straight from pagehide rather than through the debounce above —
+  // there's no time left for a 400ms timer once the page is unloading. gtag queues its own
+  // events on pagehide via sendBeacon (see the comment on analytics.ts's flushPendingTracks),
+  // so this still reaches GA4 even though nothing runs after this handler returns.
+  useEffect(() => {
+    const handlePageHide = () => {
+      if (!isPlayingRef.current) return;
+      if (stopDebounceRef.current) { clearTimeout(stopDebounceRef.current); stopDebounceRef.current = null; }
+      analytics.songPlayStopped(song.slug, 'navigated');
+    };
+    window.addEventListener('pagehide', handlePageHide);
+    return () => window.removeEventListener('pagehide', handlePageHide);
+  }, [song.slug]);
+
   // Keep the Voz channel's manual mute/volume live during playback — engine OR's this with
   // the transpose-forced mute above (see isVocalEffectivelyMuted in audioEngine.ts).
   useEffect(() => {
@@ -485,14 +585,16 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
     setIsLoading(true);
     try {
       const fullSections = buildFullSongSections();
-      await play(fullSections, {
+      const playPromise = play(fullSections, {
         bpm, metronome, instruments, loop: true,
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
         melodic: resolvedStyle.melodic,
         audioTrack: buildAudioTrack(fullSections),
       });
+      trackPlayAttempt(playPromise);
+      await playPromise;
     } finally { setIsLoading(false); }
-  }, [isPlaying, play, stop, allChordsFlat.length, bpm, metronome, song, transpose, buildFullSongSections, instruments, resolvedStyle, buildAudioTrack, loopTarget, sectionChordCounts]);
+  }, [isPlaying, play, stop, allChordsFlat.length, bpm, metronome, song, transpose, buildFullSongSections, instruments, resolvedStyle, buildAudioTrack, loopTarget, sectionChordCounts, trackPlayAttempt]);
 
   // ── Play single section ────────────────────────────────────────────────────
   // Synchronous reentrancy guard — `isLoading` (React state) already disables the section-card
@@ -524,7 +626,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
       setIsLoading(true);
       try {
       const sectionAudioRange = song.sections[si]?.audioRange;
-      await play([buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name, song.sections[si].repeatCount ?? 1)], {
+      const sectionPlayPromise = play([buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name, song.sections[si].repeatCount ?? 1)], {
         // Soloing one section plays it once, then — like reaching that point during full-song
         // playback — carries on into whatever comes next (see onEnded), rather than just going
         // quiet. The Loop button is what makes it stick on one section instead; handled live via
@@ -550,8 +652,11 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
             return;
           }
           const next = findPlayableNeighbor(si, 1);
-          if (next !== null) handlePlaySectionRef.current(next, { keepContext: true });
-          else stop();
+          if (next !== null) { handlePlaySectionRef.current(next, { keepContext: true }); return; }
+          // No next section to chain into — this is a genuine "the listen finished on its
+          // own" stop, not the user cutting it off. See stopReasonRef above.
+          stopReasonRef.current = 'ended';
+          stop();
         },
         // Only one section is ever scheduled here, so its own audioRange (if set) can be
         // treated as the whole clip for this play() call — a whole-song-scoped range
@@ -560,9 +665,11 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
           ? { url: song.audioTrack.url, wholeRange: sectionAudioRange }
           : undefined,
       });
+      trackPlayAttempt(sectionPlayPromise);
+      await sectionPlayPromise;
     } finally { setIsLoading(false); }
     } finally { playSectionInFlightRef.current = false; }
-  }, [isPlaying, playingSection, play, stop, bpm, metronome, song.slug, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments, resolvedStyle, song.audioTrack, findPlayableNeighbor]);
+  }, [isPlaying, playingSection, play, stop, bpm, metronome, song.slug, song.style, sectionStartIndices, sectionChordCounts, song.sections, transpose, buildPlayback, instruments, resolvedStyle, song.audioTrack, findPlayableNeighbor, trackPlayAttempt]);
   handlePlaySectionRef.current = handlePlaySection;
 
   // ── Deliver a queued section during FULL-SONG playback ──────────────────────────────────
@@ -662,7 +769,16 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   const handleExportMidi = useCallback(() => {
     const sections = buildFullSongSections();
     exportMidi(sections, bpm, transpose, `${song.title} - ${song.artist}`);
+    analytics.songExportMidi(song.slug);
   }, [bpm, song, transpose, buildFullSongSections]);
+
+  // Wraps setTranspose so every entry point into the Pitch stepper (the practice panel's
+  // SongTempoTab today, the inline preview's SongPlayerBar) reports the same event —
+  // see analytics.songTransposed for why it's coalesced.
+  const handleTransposeChange = useCallback((v: number) => {
+    setTranspose(v);
+    analytics.songTransposed(song.slug, v);
+  }, [song.slug]);
 
   // Stop on unmount
   useEffect(() => () => { stop(); }, []);
@@ -749,7 +865,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
           onToggleLoop={handleToggleLoop}
           onPlayPause={handlePlay}
           onBpmChange={(v) => setBpm(v)}
-          onTransposeChange={(v) => setTranspose(v)}
+          onTransposeChange={handleTransposeChange}
           onExportWav={handleExportWav}
           onExportMidi={handleExportMidi}
           editorUrl={editorUrl}
@@ -814,7 +930,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
               originalBpm={song.bpm}
               onBpmChange={setBpm}
               transpose={transpose}
-              onTransposeChange={setTranspose}
+              onTransposeChange={handleTransposeChange}
               songKey={song.key}
               metronome={metronome}
               onMetronomeChange={handleMetronomeChange}

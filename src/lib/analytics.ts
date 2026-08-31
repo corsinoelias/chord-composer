@@ -113,7 +113,53 @@ export const analytics = {
   playSong: (songSlug: string, songTitle: string) => track('play_song', { song_slug: songSlug, song_title: songTitle }),
   playSongSection: (songSlug: string, sectionName: string) => track('play_song_section', { song_slug: songSlug, section_name: sectionName }),
   playChordPreview: (songSlug: string, chord: string, entryPoint: 'chart' | 'aside') => track('play_chord_preview', { song_slug: songSlug, chord, entry_point: entryPoint }),
+  // Song pages — how long a listen actually lasts, and whether the 92% of visitors who
+  // never press Play are choosing not to or the audio engine is failing them silently.
+  // Aug 2026: neither question had a single data point behind it, which is what made a
+  // hard cutoff at 20s an unverifiable guess. This block exists to replace the guess.
+  //
+  // Latency from click to first sound, bucketed rather than raw milliseconds so it reads
+  // as a GA4 dimension without a numeric-range report: '<1s' feels instant, '1-3s' is a
+  // beat, '>3s' is long enough that someone plausibly gave up and left before it started.
+  songAudioReady: (songSlug: string, latencyBucket: '<1s' | '1-3s' | '>3s') =>
+    track('song_audio_ready', { song_slug: songSlug, latency_bucket: latencyBucket }),
+  // `stage` is deliberately a single free label today ('play') rather than a granular
+  // union — PlaybackContext.play() swallows its own errors (see the try/catch around
+  // startPlayback there) and this only observes "isPlaying never went true after we
+  // asked it to", not which internal step failed. Widen the union if a real stage
+  // breakdown becomes available from the engine itself.
+  songPlayFailed: (songSlug: string, stage: string) => track('song_play_failed', { song_slug: songSlug, stage }),
+  // Fired once per threshold per page visit, on CUMULATIVE time spent actually playing
+  // audio on this page (pausing and resuming several times still counts toward the same
+  // total — a practice session stitched from short bursts is exactly the behavior this
+  // exists to see). Not fired per section restart: only real listening time counts.
+  songPlayProgress: (songSlug: string, milestone: '10s' | '30s' | '60s' | '180s') =>
+    track('song_play_progress', { song_slug: songSlug, milestone }),
+  // Distinguishes three very different reasons playback stopped: 'user' (someone paused
+  // it deliberately — the closest thing to a rejection signal these pages have), 'ended'
+  // (a solo-play chain ran out of sections to chain into — satisfaction, not rejection;
+  // note the full song plays with loop:true and never reaches this path), 'navigated'
+  // (they left the tab mid-song — fired straight from pagehide, not through the debounce
+  // below, since there's no time left for a timer to fire). Debounced ~400ms on the
+  // isPlaying-false transition so an internal section-to-section handoff (stop()
+  // immediately followed by play() for the next section, still inside the same click)
+  // never gets reported as a stop — see handleTransposeChange/trackCoalesced above for
+  // the same "don't let an implementation detail become a fake user action" concern.
+  songPlayStopped: (songSlug: string, reason: 'user' | 'ended' | 'navigated') =>
+    track('song_play_stopped', { song_slug: songSlug, reason }),
+  // Print/PDF funnel, tracked from both ends: `songPdfOpened` fires on the song page's
+  // own Print link (GA is already loaded there), `songPdfExported` on the PDF page's
+  // actual print button (see the GA snippet added to songs/pdf/[slug].astro — that page
+  // writes its own <html> and doesn't inherit BaseLayout's script). The gap between the
+  // two tells you whether the printable sheet delivers once someone reaches it, not just
+  // whether the link gets clicked.
+  songPdfOpened: (songSlug: string) => track('song_pdf_opened', { song_slug: songSlug }),
   songPdfExported: (songSlug: string) => track('song_pdf_exported', { song_slug: songSlug }),
+  // MIDI export from a song page's practice panel. Named separately from the editor's
+  // `exportMidi` (no song_slug there) so the two surfaces don't get merged in reporting —
+  // this button renders unconditionally in production; the WAV button next to it doesn't
+  // (see showWavExport in SongChordPlayer.tsx) so there is no song_export_wav to match.
+  songExportMidi: (songSlug: string) => track('song_export_midi', { song_slug: songSlug }),
   // Songs — practice controls. These separate "played the song" from "sat down to work on
   // it": looping a section, muting an instrument to play its part, or slowing the tempo are
   // the behaviours that distinguish a practice session from a listen, and they're the ones
@@ -129,14 +175,27 @@ export const analytics = {
   // actually used, versus being a mockup idea nobody touches.
   songDensityChanged: (songSlug: string, density: 'full' | 'compact' | 'chords') =>
     track('song_density_changed', { song_slug: songSlug, density }),
+  // Transposing on a song page — the highest-intent signal these pages have (it means
+  // "I'm about to play this, and not in the original key"), and until Aug 2026 it was
+  // only tracked from the editor's own transpose control, not this one. Coalesced per
+  // song (same reasoning as effectChanged): the stepper's +/- buttons and the key
+  // dropdown can both fire several times a second, and only the value someone settles
+  // on is worth a row in GA4.
+  songTransposed: (songSlug: string, semitones: number) =>
+    trackCoalesced('song_transposed', songSlug, { song_slug: songSlug, semitones }),
   // Song page → editor. This is the SEO-traffic-to-product conversion: the visitor
   // arrived to read a chart and leaves with it loaded in the editor. Fires on an <a>
   // that navigates away — gtag sends via navigator.sendBeacon, which survives unload.
-  // `entry_point` separates the entry points, which are not comparable: 'player_bar' is the
-  // inline preview's small transport link, 'practice_panel' is the Export row inside the
-  // on-demand Practice panel, 'cta_block' is the panel under the chart, 'practice_tools' is a
-  // card two thirds down the page. The two Astro-rendered ones fire the same event from an
-  // inline script in songs/[slug].astro, not from here.
+  // `entry_point` separates the entry points, which are not comparable: 'practice_panel'
+  // is the Export row inside the on-demand Practice panel, 'cta_block' is the panel under
+  // the chart, 'practice_tools' is a card two thirds down the page — all three real SEO
+  // traffic reaches. The two Astro-rendered ones fire the same event from an inline
+  // script in songs/[slug].astro, not from here.
+  // 'player_bar' is NOT one of those three: it only renders inside SongPlayerBar's inline
+  // mode, which is SongCreator's own preview dialog (src/components/SongCreator/ChordStep.tsx),
+  // and /songs/new/ 302s to /songs/ for everyone but localhost. Any song_editor_opened with
+  // this entry_point in GA4 is your own dev traffic, not a visitor converting off a song
+  // page — read it as noise, or exclude your IP in GA4 so it stops showing up at all.
   songEditorOpened: (songSlug: string, entryPoint: 'player_bar' | 'practice_panel' | 'cta_block' | 'practice_tools') =>
     track('song_editor_opened', { song_slug: songSlug, entry_point: entryPoint }),
 

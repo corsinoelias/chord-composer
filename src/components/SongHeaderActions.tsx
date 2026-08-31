@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Share2, Printer, Image as ImageIcon, Pencil } from 'lucide-react';
 import { parseLyricLine, type Song } from '@/data/songs';
 import { generateSongImage, downloadCanvasAsPng, type ImageSection } from '@/lib/songImage';
+import { analytics } from '@/lib/analytics';
 
 // Transpose helpers (same small duplicated set used in ChordAside.tsx / SongChordPlayer.tsx)
 const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -92,7 +93,14 @@ export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Pr
         <Share2 className="w-4 h-4 shrink-0" />
         <span className={labelClass}>{shareTitle}</span>
       </button>
-      <a href={`/songs/pdf/${song.slug}/`} target="_blank" rel="noopener" title="Download PDF" className={iconButtonClass}>
+      <a
+        href={`/songs/pdf/${song.slug}/`}
+        target="_blank"
+        rel="noopener"
+        title="Download PDF"
+        className={iconButtonClass}
+        onClick={() => analytics.songPdfOpened(song.slug)}
+      >
         <Printer className="w-4 h-4 shrink-0" />
         <span className={labelClass}>Print</span>
       </a>

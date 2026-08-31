@@ -391,6 +391,7 @@ export default function SongCreator() {
         open={authModalOpen}
         onOpenChange={setAuthModalOpen}
         onSuccess={handleAuthSuccess}
+        entryPoint="song_creator_publish"
       />
     </div>
   );

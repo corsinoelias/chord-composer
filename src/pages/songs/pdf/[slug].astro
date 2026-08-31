@@ -102,6 +102,23 @@ if (!song) return Astro.redirect('/songs/');
       @page { size: A4; margin: 2cm 2.2cm; }
     }
   </style>
+
+  <!-- Google Analytics 4 — this page writes its own <html> instead of using BaseLayout
+       (see the comment on the .print-controls button below), so it doesn't get GA for
+       free the way every other page does. Without this the Print button's
+       `typeof gtag !== 'undefined'` guard always failed and song_pdf_exported never
+       fired — confirmed 0 events in 90 days. noindex above, so this has no SEO cost. -->
+  {import.meta.env.PROD && (
+    <>
+      <script async is:inline src="https://www.googletagmanager.com/gtag/js?id=G-K25BHMSXF1"></script>
+      <script is:inline>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-K25BHMSXF1');
+      </script>
+    </>
+  )}
 </head>
 <body>
 

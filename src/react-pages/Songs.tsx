@@ -225,6 +225,7 @@ const Songs = () => {
         open={authModalOpen}
         onOpenChange={setAuthModalOpen}
         onSuccess={handleAuthSuccess}
+        entryPoint="my_library_gate"
       />
 
       {activeSong && (

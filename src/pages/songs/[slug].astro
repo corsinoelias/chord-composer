@@ -699,17 +699,20 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
 
   </main>
 
-  <script>
+  <script define:vars={{ songSlug: song.slug }}>
+    // Plain JS below, not TS — `define:vars` (needed to get songSlug into this inline
+    // script) makes Astro treat the whole tag as `is:inline`, which drops TS processing;
+    // see https://docs.astro.build/en/guides/client-side-scripts/#script-processing.
     // Tab nav buttons (in the tab bar, role=tab) handle both styling + switching
-    const navBtns = document.querySelectorAll<HTMLButtonElement>('[role="tab"][data-tab]');
+    const navBtns = document.querySelectorAll('[role="tab"][data-tab]');
     // All [data-tab] elements (including "Play with chords" CTA) trigger switching
-    const allTriggers = document.querySelectorAll<HTMLElement>('[data-tab]');
-    const panels: Record<string, HTMLElement | null> = {
+    const allTriggers = document.querySelectorAll('[data-tab]');
+    const panels = {
       chords: document.getElementById('tab-panel-chords'),
       lyrics: document.getElementById('tab-panel-lyrics'),
     };
 
-    function switchTab(target: string) {
+    function switchTab(target) {
       navBtns.forEach(btn => {
         const active = btn.dataset.tab === target;
         btn.setAttribute('aria-selected', String(active));
@@ -724,8 +727,24 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
       });
     }
 
+    // Chords vs Lyrics is the split between "wants to play along" and "wants to read
+    // along" traffic — see the song_tab_switched entry in src/lib/analytics.ts. Tracked
+    // here (not from React) because the tab bar itself is plain server-rendered markup,
+    // same reasoning as the song_editor_opened CTAs below. `role="tab"` distinguishes the
+    // actual tab bar from the "Play with chords" CTA button, which also carries
+    // `data-tab="chords"` to reuse switchTab but isn't really tab navigation.
     allTriggers.forEach(el => {
-      el.addEventListener('click', () => switchTab(el.dataset.tab!));
+      el.addEventListener('click', () => {
+        const target = el.dataset.tab;
+        switchTab(target);
+        const g = window.gtag;
+        if (typeof g !== 'function') return;
+        g('event', 'song_tab_switched', {
+          song_slug: songSlug,
+          tab: target,
+          entry_point: el.getAttribute('role') === 'tab' ? 'tab_bar' : 'lyrics_cta',
+        });
+      });
     });
 
     // Song → editor conversion, from the two server-rendered links on this page. The
@@ -735,9 +754,9 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
     // sendBeacon, which survives unload.
     // The parameter must stay `entry_point`, never `source` — GA4 reads `source` as the
     // session's traffic source and overwrites the real one (see src/lib/analytics.ts).
-    document.querySelectorAll<HTMLAnchorElement>('[data-editor-cta]').forEach(el => {
+    document.querySelectorAll('[data-editor-cta]').forEach(el => {
       el.addEventListener('click', () => {
-        const g = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
+        const g = window.gtag;
         if (typeof g !== 'function') return;
         g('event', 'song_editor_opened', { song_slug: el.dataset.songSlug, entry_point: el.dataset.entryPoint });
       });

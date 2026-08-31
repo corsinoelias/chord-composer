@@ -14,8 +14,8 @@ interface AuthModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  /** Which entry point opened this modal (e.g. 'save_cta', 'export_nudge') — tags the resulting analytics events so conversion can be compared per entry point. Not named `source`: that is a reserved GA4 param, see src/lib/analytics.ts. */
-  entryPoint?: string;
+  /** Which entry point opened this modal (e.g. 'save_cta', 'export_nudge') — tags the resulting analytics events so conversion can be compared per entry point. Required, not optional: an omitted entryPoint used to land two mount sites' sign_up/login events in GA4's '(not set)' bucket, which by Aug 2026 was 51% of all sign_ups — silently unattributable. Not named `source`: that is a reserved GA4 param, see src/lib/analytics.ts. */
+  entryPoint: string;
 }
 
 // Every field in this form is required — the native `required` attribute
