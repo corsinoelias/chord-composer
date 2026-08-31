@@ -96,11 +96,26 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // cache. Worth confirming on the first publish after this ships — if it does not, a song
   // edit could serve stale for up to the s-maxage below.
   if (pathname.startsWith('/songs/') && !pathname.startsWith('/songs/new')) {
-    response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+    // 5 minutes, not the `max-age=0, must-revalidate` this briefly shipped with: these
+    // responses carry no ETag or Last-Modified, so a revalidation cannot be answered with a
+    // 304 and the browser re-downloads the whole 195-292KB document. Without a validator,
+    // a short freshness window is the only thing that makes a repeat navigation free. A
+    // republished song is at worst 5 minutes late for someone who already has it.
+    response.headers.set('Cache-Control', 'public, max-age=300');
     response.headers.set(
       'Netlify-CDN-Cache-Control',
       'public, s-maxage=86400, stale-while-revalidate=604800, durable',
     );
+    // Netlify's default is to vary the cache key on the FULL query string, which measured
+    // as a real cost: /songs/<slug>/ hit in 0.35s while the same page with
+    // ?utm_source=chatgpt.com was a vary-miss at 1.37s. Every tracking parameter — the
+    // utm_source ChatGPT appends to its citations, fbclid, gclid — minted its own cache
+    // entry, so referred visitors always paid the cold path. That fell hardest on the AI
+    // assistant channel, which is the best-engaging traffic the site gets.
+    // `page` is the only query parameter any of these routes reads on the server (the
+    // index's pagination, see songs/index.astro); song pages read none. Varying on just
+    // that collapses every tracking-parameter variant onto one entry.
+    response.headers.set('Netlify-Vary', 'query=page');
   }
 
   return response;

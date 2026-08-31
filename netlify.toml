@@ -55,8 +55,9 @@
 [[headers]]
   for = "/songs/"
   [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
+    Cache-Control = "public, max-age=300"
     Netlify-CDN-Cache-Control = "public, s-maxage=86400, stale-while-revalidate=604800, durable"
+    Netlify-Vary = "query=page"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
@@ -67,8 +68,9 @@
 [[headers]]
   for = "/songs/*"
   [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
+    Cache-Control = "public, max-age=300"
     Netlify-CDN-Cache-Control = "public, s-maxage=86400, stale-while-revalidate=604800, durable"
+    Netlify-Vary = "query=page"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
