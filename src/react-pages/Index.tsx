@@ -72,7 +72,21 @@ interface IndexProps {
   songId?: string;
 }
 
-const EXPORT_NUDGE_SESSION_KEY = 'chord-player-export-nudge-shown';
+// Export → save nudge. Aug 2026 this converted at 4.4% (91 shown, 4 clicked), and the
+// mechanics were most of the reason: it fired in the same tick as the "exported
+// successfully" toast, which itself stacked on the still-visible "Rendering audio…" one.
+// Three toasts at once, two of them opening with the same word, arriving at the exact
+// moment the browser pops its own download UI and the user's attention leaves the page.
+// Now the export owns a single toast (one id, loading → success) and the nudge arrives
+// alone, a beat later, once that has cleared. See showExportSaveNudge.
+const EXPORT_NUDGE_SESSION_KEY = 'chord-player-export-nudge-count';
+// Someone who exports twice in a session is showing more intent, not less, so the nudge
+// gets a second chance — but never twice for the same export, and never a third time.
+const EXPORT_NUDGE_MAX_PER_SESSION = 2;
+const EXPORT_NUDGE_DELAY_MS = 1600;
+// Shared by both export paths so the progress/success/error states replace each other in
+// place instead of piling up.
+const EXPORT_TOAST_ID = 'chord-player-export';
 
 // The fields that constitute "the visitor changed this song", used to spot the first
 // real edit on a copy opened from a share link. Instruments are deliberately left out:
@@ -957,28 +971,42 @@ const Index = ({ songId }: IndexProps) => {
   // Nudge anonymous users to save right after they export — the moment
   // they've clearly gotten value out of the progression, not a moment of
   // fear of loss. A toast, not a modal: doesn't interrupt them checking out
-  // their export, and shown once per session so it doesn't nag on repeat
-  // exports of the same song.
+  // their export.
   const showExportSaveNudge = useCallback(() => {
     if (isLoggedIn) return;
-    if (sessionStorage.getItem(EXPORT_NUDGE_SESSION_KEY)) return;
-    sessionStorage.setItem(EXPORT_NUDGE_SESSION_KEY, 'true');
-    analytics.exportNudgeShown();
-    toast('Downloaded! Create a free account to save this progression and pick up where you left off.', {
-      duration: Infinity,
-      closeButton: true,
-      action: {
-        label: 'Sign up',
-        onClick: () => {
-          analytics.exportNudgeClicked();
-          // The nudge's whole pitch is "don't lose this" — signing up from it should
-          // leave the song saved, not just leave them logged in.
-          pendingSaveRef.current = true;
-          setAuthModalEntryPoint('export_nudge');
-          setAuthModalOpen(true);
+    const shownSoFar = Number(sessionStorage.getItem(EXPORT_NUDGE_SESSION_KEY)) || 0;
+    if (shownSoFar >= EXPORT_NUDGE_MAX_PER_SESSION) return;
+
+    // Deliberately delayed: the download and its success toast get their moment first.
+    // Counting and reporting happen inside the timeout so a nudge nobody stayed around
+    // to see is neither counted against the session limit nor reported as shown.
+    window.setTimeout(() => {
+      sessionStorage.setItem(EXPORT_NUDGE_SESSION_KEY, String(shownSoFar + 1));
+      analytics.exportNudgeShown();
+      // Clear the export toast so the nudge is the only thing on screen rather than the
+      // second of two saying much the same thing.
+      toast.dismiss(EXPORT_TOAST_ID);
+      toast('Save this progression to your account and pick it up on any device.', {
+        duration: Infinity,
+        closeButton: true,
+        action: {
+          // "Save it", not "Sign up". Signing up from here actually saves the song
+          // (pendingSaveRef below), so this names the outcome instead of the chore.
+          label: 'Save it',
+          onClick: () => {
+            analytics.exportNudgeClicked();
+            // The nudge's whole pitch is "don't lose this" — signing up from it should
+            // leave the song saved, not just leave them logged in.
+            pendingSaveRef.current = true;
+            setAuthModalEntryPoint('export_nudge');
+            // Through the same two-step "why an account" prompt as every other entry
+            // point (save CTA, shared-song fork). This one used to drop straight into
+            // the raw auth form; it was the only one that skipped the explanation.
+            setAccountPromptOpen(true);
+          },
         },
-      },
-    });
+      });
+    }, EXPORT_NUDGE_DELAY_MS);
   }, [isLoggedIn]);
 
   const handleExport = useCallback(async () => {
@@ -986,19 +1014,24 @@ const Index = ({ songId }: IndexProps) => {
     if (!hasChords) return;
 
     setIsExporting(true);
-    toast.info('Rendering audio...');
+    // One toast for the whole export, replaced in place. Previously 'Rendering audio...'
+    // was its own toast on the default 4s timer, so a fast render left it on screen with
+    // the success toast stacked on top of it.
+    toast.loading('Rendering audio…', { id: EXPORT_TOAST_ID });
 
     try {
       const style = resolveActiveStyle(selectedStyleId, liveEditedStyle, customStyles, getStyleOverride);
       const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition);
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
       await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
-      toast.success('WAV exported successfully!');
+      // Short: it's confirming something the browser is already showing a download for,
+      // and it has to be gone before the nudge arrives.
+      toast.success('WAV exported', { id: EXPORT_TOAST_ID, duration: 2000 });
       analytics.exportWav();
       showExportSaveNudge();
     } catch (error) {
       console.error('Export failed:', error);
-      toast.error('Export failed. Please try again.');
+      toast.error('Export failed. Please try again.', { id: EXPORT_TOAST_ID, duration: 5000 });
     } finally {
       setIsExporting(false);
     }
@@ -1010,12 +1043,12 @@ const Index = ({ songId }: IndexProps) => {
     try {
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
       exportMidi(sections, bpm, transposition, filename);
-      toast.success('MIDI exported successfully!');
+      toast.success('MIDI exported', { id: EXPORT_TOAST_ID, duration: 2000 });
       analytics.exportMidi();
       showExportSaveNudge();
     } catch (error) {
       console.error('MIDI export failed:', error);
-      toast.error('MIDI export failed. Please try again.');
+      toast.error('MIDI export failed. Please try again.', { id: EXPORT_TOAST_ID, duration: 5000 });
     }
   }, [sections, bpm, transposition, songTitle, showExportSaveNudge]);
 
