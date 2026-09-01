@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  diatonic, transposeKey, transposeChord, isFlatKey, type ChartNotation, KEYS_CHROMATIC,
+  diatonic, transposeKey, transposeChord, isFlatKey, moveChord, removeChord, lineTokens,
+  type ChartNotation, KEYS_CHROMATIC,
 } from '@/lib/chordSheet/chordSheetCore';
 import type { DiagramInstrument } from '@/lib/chordSheet/chordDiagramLookup';
 import { saveChordSheet, updateChordSheet, getMyChordSheetById, type ChordSheet } from '@/lib/chordSheets';
@@ -136,7 +137,9 @@ export function ChordSheetMaker() {
       setSongId(sheet.id);
       setIsPublished(sheet.is_published);
       setSaveStatus('saved');
+      resetHistory();
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resume-on-mount only
   }, []);
 
   useEffect(() => {
@@ -205,6 +208,7 @@ export function ChordSheetMaker() {
     setSaveStatus('idle');
     setEditParam(null);
     setScreen('editor');
+    resetHistory();
   }
 
   function handleOpen(sheet: ChordSheet) {
@@ -214,6 +218,7 @@ export function ChordSheetMaker() {
     setSaveStatus('saved');
     setEditParam(sheet.id);
     setScreen('editor');
+    resetHistory();
   }
 
   async function handleDuplicate(sheet: ChordSheet) {
@@ -236,6 +241,30 @@ export function ChordSheetMaker() {
   );
   const palette = diatonic(displayKey);
 
+  // ── Undo/redo — 40-entry history of `doc.text`, one entry per burst of typing (a fresh
+  // entry only after a 600ms pause) or per discrete action (a drag/drop, a click-to-insert).
+  // Kept in refs (not state) so pushUndo/popUndo always see the latest stack synchronously;
+  // the counters below only exist to re-render the undo/redo buttons' enabled state.
+  const undoRef = useRef<string[]>([]);
+  const redoRef = useRef<string[]>([]);
+  const [undoCount, setUndoCount] = useState(0);
+  const [redoCount, setRedoCount] = useState(0);
+  const lastTypedRef = useRef(0);
+
+  const pushUndo = useCallback(() => {
+    undoRef.current = [...undoRef.current, docRef.current.text].slice(-40);
+    redoRef.current = [];
+    setUndoCount(undoRef.current.length);
+    setRedoCount(0);
+  }, []);
+
+  const resetHistory = useCallback(() => {
+    undoRef.current = [];
+    redoRef.current = [];
+    setUndoCount(0);
+    setRedoCount(0);
+  }, []);
+
   const insertChord = useCallback((chord: string) => {
     const el = textRef.current;
     if (!el) return;
@@ -243,21 +272,110 @@ export function ChordSheetMaker() {
     const end = el.selectionEnd ?? start;
     const token = `[${chord}]`;
     const next = doc.text.slice(0, start) + token + doc.text.slice(end);
+    pushUndo();
+    lastTypedRef.current = 0;
     patch({ text: next });
     requestAnimationFrame(() => {
       el.focus();
       const caret = start + token.length;
       el.setSelectionRange(caret, caret);
     });
-  }, [doc.text, patch]);
+  }, [doc.text, patch, pushUndo]);
+
+  // One undo entry per burst of typing in the ChordPro textarea: a fresh entry only after
+  // a pause, so holding a key down doesn't fill the stack with one entry per character.
+  const textEdit = useCallback((value: string) => {
+    const now = Date.now();
+    if (now - lastTypedRef.current > 600) pushUndo();
+    lastTypedRef.current = now;
+    patch({ text: value });
+  }, [patch, pushUndo]);
 
   // ── Drag & drop of chords onto the live preview ──
   // Character-precise pointer drag (see useChordSheetDrag / chordHitTest), not a DnD
   // library: an existing chip is picked up straight off the sheet, a palette chip is picked
-  // up here and dropped onto the sheet by the same engine.
+  // up here and dropped onto the sheet by the same engine. Every drag/drop is a discrete
+  // action (unlike typing), so it always pushes its own undo entry.
   const getText = useCallback(() => docRef.current.text, []);
-  const applyText = useCallback((next: string) => patch({ text: next }), [patch]);
-  const { drag, selected, beginDrag, beginPaletteDrag } = useChordSheetDrag({ getText, onChange: applyText, onFlash: flash });
+  const applyDragChange = useCallback((next: string) => {
+    pushUndo();
+    patch({ text: next });
+  }, [pushUndo, patch]);
+  const { drag, selected, setSelected, beginDrag, beginPaletteDrag } = useChordSheetDrag({ getText, onChange: applyDragChange, onFlash: flash });
+
+  const popUndo = useCallback(() => {
+    lastTypedRef.current = 0;
+    if (!undoRef.current.length) return;
+    const prev = undoRef.current[undoRef.current.length - 1];
+    undoRef.current = undoRef.current.slice(0, -1);
+    redoRef.current = [...redoRef.current, docRef.current.text].slice(-40);
+    setUndoCount(undoRef.current.length);
+    setRedoCount(redoRef.current.length);
+    setSelected(null);
+    patch({ text: prev });
+    flash('Undone');
+  }, [patch, flash, setSelected]);
+
+  const popRedo = useCallback(() => {
+    lastTypedRef.current = 0;
+    if (!redoRef.current.length) return;
+    const next = redoRef.current[redoRef.current.length - 1];
+    redoRef.current = redoRef.current.slice(0, -1);
+    undoRef.current = [...undoRef.current, docRef.current.text].slice(-40);
+    setUndoCount(undoRef.current.length);
+    setRedoCount(redoRef.current.length);
+    setSelected(null);
+    patch({ text: next });
+    flash('Redone');
+  }, [patch, flash, setSelected]);
+
+  const nudge = useCallback((delta: number) => {
+    if (!selected) return;
+    const tk = lineTokens(docRef.current.text.split('\n')[selected.src] || '');
+    const c = tk.chords[selected.ci];
+    if (!c) return;
+    const at = Math.max(0, Math.min(tk.plain.length, c.at + delta));
+    pushUndo();
+    patch({ text: moveChord(docRef.current.text, selected.src, selected.ci, at, delta > 0) });
+  }, [selected, pushUndo, patch]);
+
+  const removeSelected = useCallback(() => {
+    if (!selected) return;
+    pushUndo();
+    patch({ text: removeChord(docRef.current.text, selected.src, selected.ci) });
+    setSelected(null);
+    flash('Chord removed');
+  }, [selected, pushUndo, patch, setSelected, flash]);
+
+  const selectedChord = selected ? lineTokens(doc.text.split('\n')[selected.src] || '').chords[selected.ci] : null;
+  const selectedLabel = selectedChord ? `${selectedChord.chord} · char ${selectedChord.at}` : '';
+
+  // Cmd/Ctrl+S to save, Cmd/Ctrl+Z (Shift = redo) for history, and — while a chord is
+  // selected — arrow keys nudge it a character at a time, Backspace/Delete removes it,
+  // Escape deselects. Stage mode owns its own keydown handler while it's open.
+  useEffect(() => {
+    if (stageOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSave(isPublished);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) popRedo(); else popUndo();
+        return;
+      }
+      if (!selected) return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); nudge(-1); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); nudge(1); }
+      else if (e.key === 'Escape') setSelected(null);
+      else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); removeSelected(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSave/isPublished read fresh via closure each effect re-run
+  }, [stageOpen, selected, nudge, removeSelected, popUndo, popRedo, setSelected, isPublished]);
 
   if (screen === 'library') {
     return (
@@ -304,6 +422,26 @@ export function ChordSheetMaker() {
           >
             ← Library
           </button>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={popUndo}
+              disabled={undoCount === 0}
+              title="Undo (Ctrl+Z)"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-sm text-foreground hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ↺
+            </button>
+            <button
+              type="button"
+              onClick={popRedo}
+              disabled={redoCount === 0}
+              title="Redo (Ctrl+Shift+Z)"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-sm text-foreground hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ↻
+            </button>
+          </div>
           {songId && (
             <button
               type="button"
@@ -426,7 +564,7 @@ export function ChordSheetMaker() {
           <textarea
             ref={textRef}
             value={doc.text}
-            onChange={(e) => patch({ text: e.target.value })}
+            onChange={(e) => textEdit(e.target.value)}
             spellCheck={false}
             className="min-h-0 flex-1 resize-none border-t border-border bg-background px-4 py-3 font-mono text-[13px] leading-relaxed text-foreground outline-none"
           />
@@ -447,6 +585,18 @@ export function ChordSheetMaker() {
             selected={selected}
             onBeginDrag={beginDrag}
           />
+
+          {selected && selectedLabel && (
+            <div className="no-print sticky bottom-2.5 z-10 mt-3.5 flex justify-center">
+              <div className="flex items-center gap-2 rounded-full border border-border bg-card py-1.5 pl-3.5 pr-1.5 shadow-lg">
+                <span className="text-xs text-muted-foreground">{selectedLabel}</span>
+                <button type="button" onClick={() => nudge(-1)} title="Move left one character" className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-sm text-foreground hover:bg-accent/40">←</button>
+                <button type="button" onClick={() => nudge(1)} title="Move right one character" className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-sm text-foreground hover:bg-accent/40">→</button>
+                <button type="button" onClick={removeSelected} title="Remove this chord" className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-sm text-destructive hover:bg-accent/40">×</button>
+                <button type="button" onClick={() => setSelected(null)} className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Done</button>
+              </div>
+            </div>
+          )}
         </section>
       </div>
 
