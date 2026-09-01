@@ -1,0 +1,21 @@
+---
+// SSR (not prerendered) — reads a live row from Supabase, same reasoning as
+// src/pages/songs/[slug].astro. noIndex for now, same as the rest of Chord Sheet Maker
+// while it's mid-build (see the "Construir Chord Sheet Maker" plan).
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { getChordSheetBySlug } from '@/lib/chordSheets';
+import { ChordSheetView } from '@/components/ChordSheetMaker/ChordSheetView';
+
+const { slug } = Astro.params;
+const sheet = slug ? await getChordSheetBySlug(slug) : null;
+if (!sheet) return Astro.redirect('/chord-sheet-maker/');
+---
+
+<BaseLayout
+  title={`${sheet.title} — Chord Sheet | Chord Sequence`}
+  description={`${sheet.title}${sheet.artist ? ` by ${sheet.artist}` : ''} — chord chart in the key of ${sheet.baseKey}.`}
+  canonicalUrl={`https://chordsequence.com/chord-sheet-maker/${sheet.slug}/`}
+  noIndex={true}
+>
+  <ChordSheetView sheet={sheet} client:load />
+</BaseLayout>

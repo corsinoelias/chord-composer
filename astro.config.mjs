@@ -37,8 +37,11 @@ const learnLastmodBySlug = new Map(
 //   (no H1, no headings, no internal links). They're the CTA target of the /tools/*
 //   landing pages and canonicalize to them — see the canonicalUrl in each .astro file.
 //   The routes stay live and linked; they're just not search destinations.
+// - /chord-sheet-maker/editor: same client:only shape as /bass-tab, plus it's mid-build
+//   (see the "Construir Chord Sheet Maker" plan) — noIndex on the page covers the meta
+//   tag, this keeps it out of the sitemap file too until both come off together.
 const SITEMAP_EXCLUDED_PREFIXES = ['/app', '/songs/new', '/admin'];
-const SITEMAP_EXCLUDED_PATHS = new Set(['/bass-tab/', '/guitar-tab/']);
+const SITEMAP_EXCLUDED_PATHS = new Set(['/bass-tab/', '/guitar-tab/', '/chord-sheet-maker/editor/']);
 
 export default defineConfig({
   site: 'https://chordsequence.com',

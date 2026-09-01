@@ -121,8 +121,11 @@ export const analytics = {
   // Latency from click to first sound, bucketed rather than raw milliseconds so it reads
   // as a GA4 dimension without a numeric-range report: '<1s' feels instant, '1-3s' is a
   // beat, '>3s' is long enough that someone plausibly gave up and left before it started.
-  songAudioReady: (songSlug: string, latencyBucket: '<1s' | '1-3s' | '>3s') =>
-    track('song_audio_ready', { song_slug: songSlug, latency_bucket: latencyBucket }),
+  // `latency_ms` is the raw rounded figure behind the bucket — register it as a GA4
+  // custom metric so the tail (how far past 3s the slow ones really are) is legible;
+  // `latency_bucket` still goes out so existing dimension breakdowns keep working.
+  songAudioReady: (songSlug: string, latencyBucket: '<1s' | '1-3s' | '>3s', latencyMs: number) =>
+    track('song_audio_ready', { song_slug: songSlug, latency_bucket: latencyBucket, latency_ms: Math.round(latencyMs) }),
   // `stage` is deliberately a single free label today ('play') rather than a granular
   // union — PlaybackContext.play() swallows its own errors (see the try/catch around
   // startPlayback there) and this only observes "isPlaying never went true after we

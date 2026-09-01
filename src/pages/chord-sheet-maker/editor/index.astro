@@ -1,0 +1,21 @@
+---
+// client:only app shell — same pattern as src/pages/chord-player/index.astro and
+// src/pages/bass-tab.astro (showNav={false}, no server-rendered app content). All build
+// phases have shipped (style presets, drag & drop of chords onto the preview, Stage mode).
+// noIndex stays on here (and on [slug]/) until the chord_sheets migration is run and
+// save/publish is smoke-tested live — flip both off then. Save/publish/library work
+// against its own table, chord_sheets (see supabase/migrations/20260901_chord_sheets.sql)
+// — fully independent of public_songs/Songs.
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { ChordSheetMaker } from '../../../components/ChordSheetMaker/ChordSheetMaker';
+---
+
+<BaseLayout
+  title="Chord Sheet Maker — Editor | Chord Sequence"
+  description="Write lyrics, drop in chords, transpose, and print a clean chord chart."
+  canonicalUrl="https://chordsequence.com/chord-sheet-maker/editor/"
+  showNav={false}
+  noIndex={true}
+>
+  <ChordSheetMaker client:only="react" />
+</BaseLayout>

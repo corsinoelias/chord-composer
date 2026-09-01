@@ -145,7 +145,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
         if (!isPlayingRef.current) { analytics.songPlayFailed(song.slug, 'play'); return; }
         const latencyMs = performance.now() - clickedAt;
         const bucket = latencyMs < 1000 ? '<1s' : latencyMs < 3000 ? '1-3s' : '>3s';
-        analytics.songAudioReady(song.slug, bucket);
+        analytics.songAudioReady(song.slug, bucket, latencyMs);
       }, 50);
     });
   }, [song.slug]);
