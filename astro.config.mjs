@@ -40,8 +40,17 @@ const learnLastmodBySlug = new Map(
 // - /chord-sheet-maker/editor: same client:only shape as /bass-tab, plus it's mid-build
 //   (see the "Construir Chord Sheet Maker" plan) — noIndex on the page covers the meta
 //   tag, this keeps it out of the sitemap file too until both come off together.
+// - /account/, /auth/reset/: noIndex={true} pages that were still shipping to Google in
+//   the sitemap, contradicting their own meta tag (GSC caught it and excluded them, but
+//   fixing the sitemap directly is the correct source of truth) — confirmed 2026-09-02.
 const SITEMAP_EXCLUDED_PREFIXES = ['/app', '/songs/new', '/admin'];
-const SITEMAP_EXCLUDED_PATHS = new Set(['/bass-tab/', '/guitar-tab/', '/chord-sheet-maker/editor/']);
+const SITEMAP_EXCLUDED_PATHS = new Set([
+  '/bass-tab/',
+  '/guitar-tab/',
+  '/chord-sheet-maker/editor/',
+  '/account/',
+  '/auth/reset/',
+]);
 
 export default defineConfig({
   site: 'https://chordsequence.com',
