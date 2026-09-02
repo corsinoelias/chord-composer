@@ -178,6 +178,12 @@ export const analytics = {
   // actually used, versus being a mockup idea nobody touches.
   songDensityChanged: (songSlug: string, density: 'full' | 'compact' | 'chords') =>
     track('song_density_changed', { song_slug: songSlug, density }),
+  // Which chord spelling someone reads a chart in. Added after a user asked for Nashville
+  // numbers ("say the numbers… so I can add in passing chords"); this is how we find out
+  // whether that's one player's habit or a whole segment reading charts the wrong way round.
+  // Not coalesced, unlike transposing: it's a discrete pick from three buttons, not a stepper.
+  songNotationChanged: (songSlug: string, notation: 'standard' | 'number' | 'fixed') =>
+    track('song_notation_changed', { song_slug: songSlug, notation }),
   // Transposing on a song page — the highest-intent signal these pages have (it means
   // "I'm about to play this, and not in the original key"), and until Aug 2026 it was
   // only tracked from the editor's own transpose control, not this one. Coalesced per

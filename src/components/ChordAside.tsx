@@ -8,6 +8,8 @@ import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { InstrumentViewSelector } from '@/components/InstrumentViewSelector';
 import { useSyncedChordView } from '@/hooks/useSyncedChordView';
+import { useSongNotation } from '@/hooks/useSongNotation';
+import { displayChord } from '@/lib/songNotation';
 import { useHorizontalScrollArrows } from '@/hooks/useHorizontalScrollArrows';
 import { playChordPreview } from '@/lib/audioEngine';
 import { analytics } from '@/lib/analytics';
@@ -47,6 +49,7 @@ interface Props {
 
 export default function ChordAside({ chords, songKey, songSlug }: Props) {
   const [view, setView] = useSyncedChordView('guitar');
+  const [notation] = useSongNotation();
   const [semitones, setSemitones] = useState(0);
   const { ref: stripRef, canScrollLeft, canScrollRight, scrollByPage } = useHorizontalScrollArrows<HTMLDivElement>();
 
@@ -122,7 +125,7 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
               className="group relative flex flex-col items-center gap-1.5 shrink-0 hover:z-10"
             >
               <span className="text-sm font-bold text-primary group-hover:text-primary/80 transition-colors">
-                {chord}
+                {displayChord(chord, displayKey, notation)}
               </span>
               <div className="relative rounded-xl p-2 -m-2 transition-all duration-150 group-hover:bg-card group-hover:shadow-lg group-hover:shadow-black/10 group-hover:ring-1 group-hover:ring-border group-hover:-translate-y-0.5">
                 {view === 'piano' ? (

@@ -409,9 +409,24 @@ const DEG_OF_SEMI: Record<number, [number, string]> = {
 
 export type ChartNotation = 'standard' | 'number' | 'fixed' | 'movable';
 
+/**
+ * Pitch class the degree numbers are counted from. A song in a minor key is numbered from its
+ * RELATIVE MAJOR (Am → 6m 4 1 5, not 1m 3 6 7) — that's the Nashville convention, and the one
+ * worship charts use. Separately, IDX has no 'Am'/'F#m' entries at all, so without stripping the
+ * 'm' every minor-key song fell through `degreeOf`'s null branch and silently rendered as plain
+ * chord names. Only the song pages hit this: Chord Sheet Maker picks its key from KEYS, which is
+ * majors only.
+ */
+function keyTonicIndex(key: string): number | null {
+  const minor = key.endsWith('m') && key.length > 1;
+  const i = IDX[minor ? key.slice(0, -1) : key];
+  if (i == null) return null;
+  return minor ? (i + 3) % 12 : i;
+}
+
 function degreeOf(root: string, key: string): [number, string] | null {
   const r = IDX[root];
-  const k = IDX[key];
+  const k = keyTonicIndex(key);
   if (r == null || k == null) return null;
   return DEG_OF_SEMI[((r - k) % 12 + 12) % 12];
 }

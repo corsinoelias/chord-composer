@@ -10,6 +10,7 @@ import { SongPlayerBar } from '@/components/SongPlayerBar';
 import { SongHeaderTransport } from '@/components/SongHeaderTransport';
 import { SongPracticePanel } from '@/components/SongPracticePanel';
 import { SongStructureMap } from '@/components/SongStructureMap';
+import { NotationSelector } from '@/components/NotationSelector';
 import { SongPlayingPill } from '@/components/SongPlayingPill';
 import { SongSectionChart } from '@/components/SongSectionChart';
 import { SongChordsOnlyChart, type ChordOnlyRow } from '@/components/SongChordsOnlyChart';
@@ -20,6 +21,8 @@ import { exportMidi } from '@/lib/midiExporter';
 import { MUSICAL_STYLES } from '@/lib/styles';
 import { analytics } from '@/lib/analytics';
 import { buildSongEditorUrl, type EditorLinkSection } from '@/lib/editorLink';
+import { useSongNotation } from '@/hooks/useSongNotation';
+import type { SongNotation } from '@/lib/songNotation';
 
 type Density = 'full' | 'compact' | 'chords';
 
@@ -85,6 +88,14 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   // header's Practice button. Density — which of the three ways to render the chart itself.
   const [practiceOpen, setPracticeOpen] = useState(false);
   const [density, setDensity] = useState<Density>('full');
+  // How chord names are spelled (standard / Nashville numbers / Do-Re-Mi). Purely a display
+  // layer: it never reaches the audio engine, the editor deep-link or the exports, all of which
+  // keep working off the real chord names.
+  const [notationPref, setNotation] = useSongNotation();
+  // SongCreator's inline preview has no chart-view row to put the picker in, and an author
+  // checking the chords they just typed wants to see those chords — not their degrees in
+  // whatever notation they last read a song page in.
+  const notation = inline ? 'standard' : notationPref;
 
   // The header transport and Practice panel are Astro-rendered markup outside this island, but
   // both need PlaybackContext and this component's own state, so they can't be their own
@@ -103,11 +114,22 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   // Keep context BPM in sync for live tempo changes during playback
   useEffect(() => { setContextBpm(bpm); }, [bpm, setContextBpm]);
 
-  // Keep context transposition in sync + notify ChordAside
+  // The key everything on the page is read in. Declared up here, above the broadcast below,
+  // because that effect ships it to the non-React listeners too.
+  const displayKey = useMemo(() => transpose === 0 ? song.key : transposeKey(song.key, transpose), [song.key, transpose]);
+
+  // Keep context transposition in sync + notify ChordAside.
+  // `displayKey` rides along so listeners don't have to re-derive it: the header's "Key of …"
+  // chip is plain Astro markup with no transpose helper of its own, and the copies that do exist
+  // disagree about sharps-vs-flats (they pick the spelling from the source key, chordSheetCore
+  // picks it from the destination). Shipping the value this component already computed is the
+  // only way the chip and the chart are guaranteed to name the key identically.
   useEffect(() => {
     updatePlaybackOptions({ transposition: transpose });
-    window.dispatchEvent(new CustomEvent('song-transpose', { detail: { semitones: transpose } }));
-  }, [transpose, updatePlaybackOptions]);
+    window.dispatchEvent(new CustomEvent('song-transpose', {
+      detail: { semitones: transpose, displayKey },
+    }));
+  }, [transpose, displayKey, updatePlaybackOptions]);
 
   // ── Listening telemetry ──────────────────────────────────────────────────────
   // song_audio_ready / song_play_failed / song_play_progress / song_play_stopped — see
@@ -306,8 +328,6 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   // Live-patch mute/solo/volume into the running scheduler without restarting playback — same
   // pattern as the bpm/transposition sync effects above.
   useEffect(() => { updatePlaybackOptions({ instruments }); }, [instruments, updatePlaybackOptions]);
-
-  const displayKey = useMemo(() => transpose === 0 ? song.key : transposeKey(song.key, transpose), [song.key, transpose]);
 
   const displayedSections = useMemo(() => {
     if (transpose === 0) return resolvedSections;
@@ -840,6 +860,11 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
     analytics.songDensityChanged(song.slug, next);
   }, [song.slug]);
 
+  const handleNotationChange = useCallback((next: SongNotation) => {
+    setNotation(next);
+    analytics.songNotationChanged(song.slug, next);
+  }, [setNotation, song.slug]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div>
@@ -983,7 +1008,10 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
           /* Structure map + density picker share one row on desktop — stacked, they were two
              skinny bars each mostly empty next to a handful of section chips / three buttons.
              The map takes the available width (min-w-0 + flex-1) and scrolls internally if the
-             song has a lot of sections; the density picker stays put on the right. */
+             song has a lot of sections; the density picker stays put on the right, with the
+             notation picker to its left — the two are the same kind of choice ("how do I read
+             this chart"), so they share a row and wear the same styling. `flex-wrap` on the
+             right-hand group is what keeps six buttons from squeezing the map at mid widths. */
           <div className="flex flex-col lg:flex-row lg:items-center gap-2.5 lg:gap-4 mb-4">
             <SongStructureMap
               items={structureItems}
@@ -991,7 +1019,12 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
               queuedSectionIndex={queuedSectionIndex}
               onSelect={handleSectionCardTap}
             />
-            <div className="flex items-center justify-end lg:shrink-0 lg:ml-auto">
+            <div className="flex flex-wrap items-center justify-end gap-2 lg:shrink-0 lg:ml-auto">
+              <NotationSelector
+                value={notation}
+                onChange={handleNotationChange}
+                displayKey={displayKey}
+              />
               <div className="inline-flex p-0.5 rounded-lg bg-secondary/60">
                 {([
                   ['full', 'Lyrics + chords'],
@@ -1026,6 +1059,8 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
             onToggleLoop={handleToggleLoop}
             isSectionPlaying={(si) => isPlaying && playingSection === si}
             songSlug={song.slug}
+            notation={notation}
+            displayKey={displayKey}
           />
         ) : (
           <div className={!inline ? 'lg:columns-2 lg:gap-10' : ''}>
@@ -1050,6 +1085,8 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
                   currentChordIndex={currentChordIndex}
                   bpm={bpm}
                   songSlug={song.slug}
+                  notation={notation}
+                  displayKey={displayKey}
                   compact={!inline && density === 'compact'}
                   chordRefs={chordRefs}
                   openTooltipIdx={openTooltipIdx}

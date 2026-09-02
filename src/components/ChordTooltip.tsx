@@ -7,12 +7,15 @@ import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { useSyncedChordView } from '@/hooks/useSyncedChordView';
 import { playChordPreview } from '@/lib/audioEngine';
 import { Play } from 'lucide-react';
+import { displayChord, type SongNotation } from '@/lib/songNotation';
 
 interface Props {
-  chord: string; // e.g. "Am7"
+  chord: string; // e.g. "Am7" — always the real name; everything below derives from it
+  notation?: SongNotation;
+  displayKey?: string;
 }
 
-export default function ChordTooltip({ chord }: Props) {
+export default function ChordTooltip({ chord, notation = 'standard', displayKey = 'C' }: Props) {
   // No instrument toggle here on purpose — at w-56 there's barely room for the diagram itself,
   // let alone a three-way switch. Instead this just follows whatever's already selected in
   // "Chords used" / the song's chord preview, via the same cross-island synced view.
@@ -36,7 +39,15 @@ export default function ChordTooltip({ chord }: Props) {
     <div className="w-56 rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-        <span className="text-sm font-bold text-foreground font-mono">{chord}</span>
+        <span className="text-sm font-bold text-foreground font-mono">
+          {displayChord(chord, displayKey, notation)}
+        </span>
+        {/* Numbers only — the translation back to the sounding chord is what makes a number
+            chart learnable. Solfège needs no gloss: "Sol♯m" and "G#m" are the same name in two
+            alphabets, so showing both just reads as a contradiction. */}
+        {notation === 'number' && (
+          <span className="text-[11px] font-medium text-muted-foreground font-mono">{chord}</span>
+        )}
         <button
           onClick={handlePlay}
           title="Play chord"
