@@ -106,6 +106,16 @@ export async function getPublicSongBySlug(slug: string): Promise<PublicSong | nu
 
 // Published songs sharing at least one genre with `genres`, excluding `excludeSlug`.
 // Used for "related songs" cross-linking — includes both curated and community songs.
+//
+// Pulls a wide candidate pool (up to 30) and picks `limit` at random from it, rather than
+// always the `limit` newest (the old `order('created_at', {ascending:false}).limit(limit)`).
+// With "newest wins", every song's related list is always the same 3 latest same-genre
+// songs — as the catalogue grows, older songs stop being the newest-in-genre anywhere and
+// never appear as a "related" link again, from any page. Confirmed as the root cause of
+// several 2-3 month old community songs sitting at 0 referring URLs in GSC (2026-09-02
+// sitemap audit) despite live, indexable pages. Random sampling on every request (this
+// route is SSR, output:'server', no build-time caching) means a different trio surfaces
+// across requests/crawls, so every song in a genre eventually gets linked from somewhere.
 export async function getRelatedPublicSongs(excludeSlug: string, genres: string[], limit = 3): Promise<PublicSong[]> {
   if (!supabase || genres.length === 0) return [];
   const { data, error } = await supabase
@@ -114,10 +124,14 @@ export async function getRelatedPublicSongs(excludeSlug: string, genres: string[
     .eq('is_published', true)
     .neq('slug', excludeSlug)
     .overlaps('genre', genres)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(30);
   if (error) { console.error('getRelatedPublicSongs:', error.message); return []; }
-  return (data ?? []).map(fromDb);
+  const pool = (data ?? []).map(fromDb);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, limit);
 }
 
 export async function getMyDraftSongs(): Promise<PublicSong[]> {
