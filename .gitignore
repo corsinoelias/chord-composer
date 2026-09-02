@@ -41,3 +41,7 @@ deno.lock
 graphify-out/
 # Supabase CLI version cache — written by any `npx supabase` invocation
 supabase/.temp/
+drive-diag.mjs
+drive-diag2.mjs
+drive-tmp2.mjs
+drive-tmp3.mjs

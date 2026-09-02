@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
 import {
-  parseDoc, parseSheet, slotsOf, barTokens, transposeChord, transposeKey, isFlatKey,
-  uniqueChords, formatChordParts, type ChartNotation,
+  parseDoc, parseSheet, transposeChord, transposeKey, isFlatKey,
+  uniqueChords, type ChartNotation, type DocLine,
 } from '@/lib/chordSheet/chordSheetCore';
 import type { DiagramInstrument } from '@/lib/chordSheet/chordDiagramLookup';
 import { type StyleLayout } from '@/lib/chordSheet/presets';
 import { SheetFrame } from './SheetFrame';
-import { makeRoleStyle, presetMeta, JUSTIFY } from './sheetChrome';
-import { ChordOnlyLine } from './ChordOnlyLine';
+import { PaginatedPaper } from './PaginatedPaper';
+import { makeRoleStyle } from './sheetChrome';
+import { renderStaticLine, type StaticLineCtx } from './staticLine';
 
 interface Props {
   text: string;
@@ -20,8 +21,12 @@ interface Props {
   chartType: ChartNotation;
   layout: StyleLayout;
   /** Overrides the preset's page-width cap — Stage mode widens the column so big type
-   *  wraps less. */
+   *  wraps less. Ignored when `paginate` is set (pages are real 96dpi size, auto-scaled to fit). */
   maxWidthPx?: number;
+  /** Canva-style real multi-page layout instead of one flowing "paper" card. Off by
+   *  default so Stage Mode (a single continuous auto-scroll) is unaffected; the public
+   *  chart view and the editor's preview turn it on. */
+  paginate?: boolean;
 }
 
 /** The rendered "paper" — read-only chart used by the public `/chord-sheet-maker/[slug]`
@@ -31,7 +36,7 @@ interface Props {
  *  prop), the stored text never changes because the key was nudged. Colors/fonts come
  *  from `layout`'s preset — literal values, not the site's --primary/--card tokens,
  *  because this is printed/shared content, not app chrome (see presets.ts). */
-export function SheetPaper({ text, title, artist, baseKey, semi, capo, instrument, chartType, layout, maxWidthPx }: Props) {
+export function SheetPaper({ text, title, artist, baseKey, semi, capo, instrument, chartType, layout, maxWidthPx, paginate }: Props) {
   const sections = useMemo(() => parseDoc(text), [text]);
   const displayKey = useMemo(() => transposeKey(baseKey, semi), [baseKey, semi]);
   const flats = isFlatKey(displayKey);
@@ -44,16 +49,25 @@ export function SheetPaper({ text, title, artist, baseKey, semi, capo, instrumen
     [text, semi, flats],
   );
 
-  const renderChord = (raw: string) => {
-    const parts = formatChordParts(chordName(raw), displayKey, chartType);
+  const staticCtx: StaticLineCtx = { displayKey, chartType, chordName, roleStyle, layout };
+  const renderLine = (line: DocLine) => renderStaticLine(line, line.src, staticCtx);
+
+  if (paginate) {
     return (
-      <span style={roleStyle('chords')} className="whitespace-nowrap">
-        {parts.main}
-        {parts.sup && <sup style={{ fontSize: '0.75em' }}>{parts.sup}</sup>}
-        {parts.tail}
-      </span>
+      <PaginatedPaper
+        layout={layout}
+        title={title}
+        artist={artist}
+        displayKey={displayKey}
+        capo={capo}
+        instrument={instrument}
+        diagramChords={diagramChords}
+        sections={sections}
+        renderLine={renderLine}
+        staticCtx={staticCtx}
+      />
     );
-  };
+  }
 
   return (
     <SheetFrame
@@ -74,37 +88,7 @@ export function SheetPaper({ text, title, artist, baseKey, semi, capo, instrumen
             </div>
           )}
           <div className="flex flex-col gap-3">
-            {section.lines.map((line, li) => {
-              if (line.blank) return <div key={li} className="h-2" />;
-              if (line.chordsOnly) {
-                return (
-                  <ChordOnlyLine
-                    key={li}
-                    tokens={barTokens(line)}
-                    align={layout.align}
-                    barColor={presetMeta(layout)}
-                    renderChord={(t) => renderChord(t.chord)}
-                  />
-                );
-              }
-              return (
-                <div
-                  key={li}
-                  className="csm-line flex flex-wrap leading-[2.2]"
-                  style={{ justifyContent: JUSTIFY[layout.align], breakInside: 'avoid' }}
-                >
-                  {slotsOf(line.plain, line.chords).map((slot, ti) => {
-                    if (!slot.chord) return <span key={ti} style={roleStyle('lyrics')}>{slot.lyric}</span>;
-                    return (
-                      <span key={ti} className="relative inline-block pr-0.5">
-                        <span className="absolute -top-[1.15em] left-0">{renderChord(slot.chord)}</span>
-                        <span style={roleStyle('lyrics')}>{slot.lyric || '  '}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-              );
-            })}
+            {section.lines.map((line, li) => renderStaticLine(line, li, staticCtx))}
           </div>
         </div>
       ))}

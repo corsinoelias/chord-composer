@@ -92,6 +92,7 @@ export function ChordSheetView({ sheet }: Props) {
         instrument={raw.instrument ?? 'guitar'}
         chartType={raw.chartType ?? 'standard'}
         layout={styleLayout}
+        paginate
       />
 
       <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} onSuccess={handleAuthSuccess} entryPoint="chord_sheet_maker_fork" />
@@ -116,7 +117,11 @@ export function ChordSheetView({ sheet }: Props) {
         @media print {
           .no-print { display: none !important; }
           body { background: #fff; }
-          .csm-paper { box-shadow: none !important; border: 0 !important; max-width: none !important; margin: 0 !important; }
+          .csm-pages { gap: 0 !important; }
+          .csm-page-wrap { break-after: page; page-break-after: always; }
+          .csm-page-wrap:last-child { break-after: auto; page-break-after: auto; }
+          .csm-page-reserve { width: auto !important; height: auto !important; }
+          .csm-paper { box-shadow: none !important; border: 0 !important; width: auto !important; min-height: 0 !important; max-width: none !important; transform: none !important; margin: 0 !important; overflow: visible !important; }
           .csm-sec-title, .csm-line { break-inside: avoid; }
         }
       `}</style>

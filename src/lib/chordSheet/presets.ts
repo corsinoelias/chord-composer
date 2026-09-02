@@ -108,6 +108,21 @@ export const PAGE_SIZES: { value: PageSize; label: string; widthMm: number; heig
   { value: 'a4', label: 'A4', widthMm: 210, heightMm: 297 },
 ];
 
+/** Logo/watermark images, stored inline as data URIs (downscaled client-side before
+ *  saving — see imageAsset.ts) rather than in Supabase storage: a chart's `layout` is
+ *  already one jsonb column, and this keeps a shared/forked chart's images copying with it
+ *  automatically instead of needing their own storage-bucket lifecycle. */
+export interface StyleAssets {
+  logo?: string;
+  /** px, height of the logo in the header. */
+  logoH?: number;
+  watermark?: string;
+  /** 0-100, opacity of the watermark behind the content. */
+  wmOpacity?: number;
+  /** 0-100, watermark width as a percent of the page's content width. */
+  wmScale?: number;
+}
+
 export interface StyleLayout {
   preset: PresetId;
   fonts: Record<FontRoleName, FontRole>;
@@ -116,13 +131,14 @@ export interface StyleLayout {
   scale: number;
   pageSize: PageSize;
   diagramSpot: DiagramSpot;
+  assets: StyleAssets;
 }
 
 export function defaultLayout(preset: PresetId = 'classic'): StyleLayout {
   const p = PRESETS[preset];
   return {
     preset, fonts: clone(p.fonts), columns: p.columns, align: 'left',
-    scale: p.scale, pageSize: 'letter', diagramSpot: 'top',
+    scale: p.scale, pageSize: 'letter', diagramSpot: 'top', assets: {},
   };
 }
 
@@ -145,6 +161,7 @@ export function resolveStyleLayout(raw: unknown): StyleLayout {
     scale: typeof r.scale === 'number' ? r.scale : base.scale,
     pageSize: r.pageSize === 'a4' ? 'a4' : 'letter',
     diagramSpot: r.diagramSpot === 'bottom' || r.diagramSpot === 'none' ? r.diagramSpot : 'top',
+    assets: { ...base.assets, ...r.assets },
   };
 }
 

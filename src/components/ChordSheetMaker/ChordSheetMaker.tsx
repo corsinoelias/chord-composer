@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  diatonic, transposeKey, transposeChord, isFlatKey, moveChord, removeChord, lineTokens,
+  diatonic, transposeKey, transposeChord, isFlatKey, moveChord, removeChord, lineTokens, replaceLine, playChord,
   type ChartNotation, KEYS_CHROMATIC,
 } from '@/lib/chordSheet/chordSheetCore';
 import type { DiagramInstrument } from '@/lib/chordSheet/chordDiagramLookup';
@@ -12,9 +12,12 @@ import { AuthModal } from '@/components/AuthModal';
 import { InteractiveSheet } from './InteractiveSheet';
 import { useChordSheetDrag } from './useChordSheetDrag';
 import { ChordDragGhost } from './ChordDragGhost';
+import { ChordProEditor, type ChordProEditorHandle } from './ChordProEditor';
 import { StageMode } from './StageMode';
 import { StyleControls } from './StyleControls';
 import { Library } from './Library';
+import { useIsNarrow } from './useIsNarrow';
+import { MobileChrome, type MobileSheetId } from './MobileChrome';
 
 const DRAFT_KEY = 'chord-sheet-maker-draft-v1';
 
@@ -36,7 +39,7 @@ Unending [Em]love, a[C]mazing [G]grace
 Outro
 [C] [G] | [D] [G]`;
 
-interface ChordSheetDoc {
+export interface ChordSheetDoc {
   title: string;
   artist: string;
   baseKey: string;
@@ -108,6 +111,7 @@ export function ChordSheetMaker() {
   const [screen, setScreen] = useState<'editor' | 'library'>('editor');
   const [doc, setDoc] = useState<ChordSheetDoc>(loadDraft);
   const [songId, setSongId] = useState<string | null>(null);
+  const [songSlug, setSongSlug] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -116,9 +120,21 @@ export function ChordSheetMaker() {
   const [toast, setToast] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout>>();
   const pendingActionRef = useRef<(() => void) | null>(null);
-  const textRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<ChordProEditorHandle>(null);
   const docRef = useRef(doc);
   docRef.current = doc;
+  const narrow = useIsNarrow();
+
+  // ── Mobile chrome state (Phase 3) — bottom tab bar, Key/Layout rails, Style/Font/More
+  // bottom sheets, the line-edit modal, and the full-screen ChordPro source editor. Only
+  // MobileChrome (mounted when `narrow`) reads most of these; `mobileMode` also gates the
+  // tap-to-edit-line behavior on InteractiveSheet and the nudge-pill's visibility below.
+  const [mobileMode, setMobileMode] = useState<'view' | 'edit'>('view');
+  const [sheet, setSheet] = useState<MobileSheetId>('');
+  const [lineEdit, setLineEdit] = useState<{ src: number; value: string } | null>(null);
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const lineEditRef = useRef(lineEdit);
+  lineEditRef.current = lineEdit;
 
   const flash = useCallback((msg: string) => {
     clearTimeout(toastTimer.current);
@@ -135,6 +151,7 @@ export function ChordSheetMaker() {
       if (!sheet) return;
       setDoc(docFromSheet(sheet));
       setSongId(sheet.id);
+      setSongSlug(sheet.slug);
       setIsPublished(sheet.is_published);
       setSaveStatus('saved');
       resetHistory();
@@ -188,6 +205,7 @@ export function ChordSheetMaker() {
     const saved = await saveChordSheet({ ...payload, slug });
     if (saved) {
       setSongId(saved.id);
+      setSongSlug(saved.slug);
       setIsPublished(publish);
       setSaveStatus('saved');
       setEditParam(saved.id);
@@ -204,21 +222,25 @@ export function ChordSheetMaker() {
   function handleNew() {
     setDoc(BLANK_DOC);
     setSongId(null);
+    setSongSlug(null);
     setIsPublished(false);
     setSaveStatus('idle');
     setEditParam(null);
     setScreen('editor');
     resetHistory();
+    resetMobileChrome();
   }
 
   function handleOpen(sheet: ChordSheet) {
     setDoc(docFromSheet(sheet));
     setSongId(sheet.id);
+    setSongSlug(sheet.slug);
     setIsPublished(sheet.is_published);
     setSaveStatus('saved');
     setEditParam(sheet.id);
     setScreen('editor');
     resetHistory();
+    resetMobileChrome();
   }
 
   async function handleDuplicate(sheet: ChordSheet) {
@@ -240,6 +262,12 @@ export function ChordSheetMaker() {
     [doc.semi, doc.baseKey],
   );
   const palette = diatonic(displayKey);
+  // Same transpose used by InteractiveSheet's live preview — MobileChrome needs it too, for
+  // the "copy as text" / "email" export actions (sheetToPlainText renders in the on-screen key).
+  const chordName = useCallback(
+    (raw: string) => transposeChord(raw, doc.semi, isFlatKey(displayKey)),
+    [doc.semi, displayKey],
+  );
 
   // ── Undo/redo — 40-entry history of `doc.text`, one entry per burst of typing (a fresh
   // entry only after a 600ms pause) or per discrete action (a drag/drop, a click-to-insert).
@@ -265,22 +293,20 @@ export function ChordSheetMaker() {
     setRedoCount(0);
   }, []);
 
+  const resetMobileChrome = useCallback(() => {
+    setMobileMode('view');
+    setSheet('');
+    setLineEdit(null);
+    setSourceOpen(false);
+  }, []);
+
   const insertChord = useCallback((chord: string) => {
-    const el = textRef.current;
-    if (!el) return;
-    const start = el.selectionStart ?? doc.text.length;
-    const end = el.selectionEnd ?? start;
-    const token = `[${chord}]`;
-    const next = doc.text.slice(0, start) + token + doc.text.slice(end);
+    const next = editorRef.current?.insertChordAtCaret(chord);
+    if (next == null) return;
     pushUndo();
     lastTypedRef.current = 0;
     patch({ text: next });
-    requestAnimationFrame(() => {
-      el.focus();
-      const caret = start + token.length;
-      el.setSelectionRange(caret, caret);
-    });
-  }, [doc.text, patch, pushUndo]);
+  }, [patch, pushUndo]);
 
   // One undo entry per burst of typing in the ChordPro textarea: a fresh entry only after
   // a pause, so holding a key down doesn't fill the stack with one entry per character.
@@ -350,11 +376,82 @@ export function ChordSheetMaker() {
   const selectedChord = selected ? lineTokens(doc.text.split('\n')[selected.src] || '').chords[selected.ci] : null;
   const selectedLabel = selectedChord ? `${selectedChord.chord} · char ${selectedChord.at}` : '';
 
+  // ── Mobile line-edit sheet + full-screen source editor — all discrete text mutations,
+  // so (like drag/drop) each one pushes its own undo entry rather than coalescing.
+  const onTapLine = useCallback((src: number) => {
+    const raw = docRef.current.text.split('\n')[src] ?? '';
+    setLineEdit({ src, value: raw });
+  }, []);
+
+  const onLineEditChange = useCallback((value: string) => {
+    const le = lineEditRef.current;
+    if (!le) return;
+    const now = Date.now();
+    if (now - lastTypedRef.current > 600) pushUndo();
+    lastTypedRef.current = now;
+    setLineEdit({ ...le, value });
+    patch({ text: replaceLine(docRef.current.text, le.src, value) });
+  }, [patch, pushUndo]);
+
+  const closeLineEdit = useCallback(() => {
+    lastTypedRef.current = 0;
+    setLineEdit(null);
+  }, []);
+
+  const insertLineAfter = useCallback(() => {
+    const le = lineEditRef.current;
+    if (!le) return;
+    const lines = docRef.current.text.split('\n');
+    lines.splice(le.src + 1, 0, 'New line');
+    pushUndo();
+    lastTypedRef.current = 0;
+    patch({ text: lines.join('\n') });
+    setLineEdit({ src: le.src + 1, value: 'New line' });
+  }, [patch, pushUndo]);
+
+  const deleteLine = useCallback(() => {
+    const le = lineEditRef.current;
+    if (!le) return;
+    const lines = docRef.current.text.split('\n');
+    lines.splice(le.src, 1);
+    pushUndo();
+    patch({ text: lines.join('\n') });
+    setLineEdit(null);
+    flash('Line deleted');
+  }, [patch, pushUndo, flash]);
+
+  const addLine = useCallback(() => {
+    pushUndo();
+    patch({ text: docRef.current.text ? `${docRef.current.text}\nNew line` : 'New line' });
+    flash('Line added — tap it to edit');
+  }, [patch, pushUndo, flash]);
+
+  const addSection = useCallback(() => {
+    pushUndo();
+    const base = docRef.current.text;
+    patch({ text: `${base ? `${base}\n` : ''}\nSection\nNew line` });
+    flash('Section added');
+  }, [patch, pushUndo, flash]);
+
+  const appendChordToLine = useCallback((chord: string) => {
+    const le = lineEditRef.current;
+    if (!le) return;
+    const value = `${le.value}[${chord}]`;
+    pushUndo();
+    lastTypedRef.current = 0;
+    setLineEdit({ ...le, value });
+    patch({ text: replaceLine(docRef.current.text, le.src, value) });
+  }, [patch, pushUndo]);
+
+  const onSourceChange = useCallback((value: string) => {
+    textEdit(value);
+  }, [textEdit]);
+
   // Cmd/Ctrl+S to save, Cmd/Ctrl+Z (Shift = redo) for history, and — while a chord is
   // selected — arrow keys nudge it a character at a time, Backspace/Delete removes it,
   // Escape deselects. Stage mode owns its own keydown handler while it's open.
   useEffect(() => {
-    if (stageOpen) return;
+    if (stageOpen || lineEdit || sourceOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
@@ -375,7 +472,7 @@ export function ChordSheetMaker() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSave/isPublished read fresh via closure each effect re-run
-  }, [stageOpen, selected, nudge, removeSelected, popUndo, popRedo, setSelected, isPublished]);
+  }, [stageOpen, lineEdit, sourceOpen, selected, nudge, removeSelected, popUndo, popRedo, setSelected, isPublished]);
 
   if (screen === 'library') {
     return (
@@ -422,6 +519,18 @@ export function ChordSheetMaker() {
           >
             ← Library
           </button>
+          <div className="flex gap-0.5 rounded-lg bg-muted/60 p-0.5 lg:hidden">
+            {(['view', 'edit'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMobileMode(m)}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold capitalize ${mobileMode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-1">
             <button
               type="button"
@@ -481,7 +590,7 @@ export function ChordSheetMaker() {
         )}
       </header>
 
-      <div className="no-print flex flex-wrap items-end gap-5 border-b border-border px-5 py-2.5">
+      <div className="no-print hidden flex-wrap items-end gap-5 border-b border-border px-5 py-2.5 lg:flex">
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-semibold text-muted-foreground">Transpose Key</span>
           <div className="flex items-center gap-1.5">
@@ -548,7 +657,7 @@ export function ChordSheetMaker() {
       </div>
 
       <div className="csm-shell grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(300px,0.85fr)_1.15fr]">
-        <section className="no-print flex min-h-0 flex-col border-b border-border bg-card lg:border-b-0 lg:border-r">
+        <section className="no-print hidden min-h-0 flex-col border-b border-border bg-card lg:flex lg:border-b-0 lg:border-r">
           <div className="px-4 pb-2 pt-3">
             <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">ChordPro source</div>
             <p className="mt-1 text-[11px] text-muted-foreground">
@@ -561,16 +670,16 @@ export function ChordSheetMaker() {
               <PaletteChip key={c} shown={c} stored={storeChord(c)} onInsert={insertChord} onBeginDrag={beginPaletteDrag} />
             ))}
           </div>
-          <textarea
-            ref={textRef}
+          <ChordProEditor
+            ref={editorRef}
             value={doc.text}
-            onChange={(e) => textEdit(e.target.value)}
-            spellCheck={false}
-            className="min-h-0 flex-1 resize-none border-t border-border bg-background px-4 py-3 font-mono text-[13px] leading-relaxed text-foreground outline-none"
+            onChange={textEdit}
+            onBeginChipDrag={beginDrag}
+            className="min-h-0 flex-1 overflow-y-auto border-t border-border bg-background px-4 py-3 font-mono text-[13px] leading-relaxed text-foreground outline-none"
           />
         </section>
 
-        <section className="csm-sheet-pane min-h-0 overflow-auto bg-muted/20 px-4 py-6 sm:px-8">
+        <section className="csm-sheet-pane min-h-0 overflow-auto bg-muted/20 px-4 pb-28 pt-6 sm:px-8 lg:pb-6">
           <InteractiveSheet
             text={doc.text}
             title={doc.title}
@@ -584,9 +693,10 @@ export function ChordSheetMaker() {
             drag={drag}
             selected={selected}
             onBeginDrag={beginDrag}
+            onTapLine={narrow && mobileMode === 'edit' ? onTapLine : undefined}
           />
 
-          {selected && selectedLabel && (
+          {selected && selectedLabel && (!narrow || mobileMode === 'edit') && (
             <div className="no-print sticky bottom-2.5 z-10 mt-3.5 flex justify-center">
               <div className="flex items-center gap-2 rounded-full border border-border bg-card py-1.5 pl-3.5 pr-1.5 shadow-lg">
                 <span className="text-xs text-muted-foreground">{selectedLabel}</span>
@@ -602,6 +712,38 @@ export function ChordSheetMaker() {
 
       <ChordDragGhost drag={drag} />
 
+      {narrow && !stageOpen && (
+        <MobileChrome
+          mobileMode={mobileMode}
+          onMobileModeChange={setMobileMode}
+          sheet={sheet}
+          onSheetChange={setSheet}
+          doc={doc}
+          displayKey={displayKey}
+          chordName={chordName}
+          palette={palette}
+          storeChord={storeChord}
+          onPatch={patch}
+          onLayoutChange={(p) => patch({ layout: { ...doc.layout, ...p } })}
+          onSourceChange={onSourceChange}
+          lineEdit={lineEdit}
+          onLineEditChange={onLineEditChange}
+          onLineEditClose={closeLineEdit}
+          onLineInsertAfter={insertLineAfter}
+          onLineDelete={deleteLine}
+          onLineAppendChord={appendChordToLine}
+          onAddLine={addLine}
+          onAddSection={addSection}
+          sourceOpen={sourceOpen}
+          onSourceOpen={() => setSourceOpen(true)}
+          onSourceClose={() => setSourceOpen(false)}
+          isPublished={isPublished}
+          songSlug={songSlug}
+          onStage={() => setStageOpen(true)}
+          flash={flash}
+        />
+      )}
+
       {toast && (
         <div className="no-print fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background shadow-lg">
           {toast}
@@ -614,7 +756,11 @@ export function ChordSheetMaker() {
           .no-print { display: none !important; }
           .csm-shell { display: block !important; }
           .csm-sheet-pane { overflow: visible !important; background: #fff !important; }
-          .csm-paper { box-shadow: none !important; border: 0 !important; max-width: none !important; }
+          .csm-pages { gap: 0 !important; }
+          .csm-page-wrap { break-after: page; page-break-after: always; }
+          .csm-page-wrap:last-child { break-after: auto; page-break-after: auto; }
+          .csm-page-reserve { width: auto !important; height: auto !important; }
+          .csm-paper { box-shadow: none !important; border: 0 !important; width: auto !important; min-height: 0 !important; max-width: none !important; transform: none !important; overflow: visible !important; }
           .csm-sec-title, .csm-line { break-inside: avoid; }
         }
       `}</style>
@@ -653,7 +799,7 @@ function PaletteChip({ shown, stored, onInsert, onBeginDrag }: {
     <button
       type="button"
       onPointerDown={(e) => onBeginDrag(e, stored, shown)}
-      onClick={() => onInsert(stored)}
+      onClick={() => { playChord(shown); onInsert(stored); }}
       title="Click to insert · drag onto the preview to place it"
       className="cursor-grab rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1 font-mono text-xs font-bold text-primary hover:bg-primary/20 active:cursor-grabbing"
       style={{ touchAction: 'none' }}

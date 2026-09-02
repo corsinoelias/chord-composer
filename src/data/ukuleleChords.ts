@@ -84,3 +84,19 @@ export function getUkuleleVoicing(chord: Chord, transposition = 0): UkuleleVoici
   if (!entries || !entries.length) return null;
   return fromDbEntry(pickEasiest(entries));
 }
+
+/** Every curated voicing for a chord, easiest (lowest position) first — additive alongside
+ *  getUkuleleVoicing() above, which every other caller keeps using untouched. Chord Sheet
+ *  Maker's diagram strip uses this to let a click cycle through alternate fingerings; empty
+ *  when the chord has no curated ukulele voicing at all (this DB has no algorithmic
+ *  fallback, unlike guitar's). */
+export function getUkuleleVoicings(chord: Chord, transposition = 0): UkuleleVoicing[] {
+  const key = DB_QUALITY_KEY[chord.quality];
+  if (key === undefined) return [];
+  const midiNotes = chordToMidiNotes(chord);
+  const rootName = midiToFlatName(midiNotes[0], transposition);
+  const entries = (ukuleleVoicingsDb as UkuleleVoicingsDb).GCEA[rootName + key];
+  if (!entries || !entries.length) return [];
+  const sorted = [...entries].sort((a, b) => maxPlayedFret(a) - maxPlayedFret(b));
+  return sorted.map(fromDbEntry).filter((v): v is UkuleleVoicing => v !== null);
+}

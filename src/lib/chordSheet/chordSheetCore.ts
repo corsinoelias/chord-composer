@@ -147,6 +147,30 @@ export function lineTokens(raw: string): LineTokens {
   return { plain, chords };
 }
 
+/** Converts a "full text" offset — bracket markup counted in the length, e.g. `[G]` = 3, the
+ *  coordinate space ChordProEditor's contenteditable DOM measures caret/drop positions in —
+ *  into the plain-lyrics offset (brackets stripped) that moveChord/insertChord expect. An
+ *  offset landing inside a bracket token itself (shouldn't happen from a real DOM caret,
+ *  which can't land inside a contenteditable=false chip, but a defensive case here too)
+ *  snaps to just before that chord's own plain position. */
+export function fullOffsetToPlainOffset(raw: string, fullOffset: number): number {
+  const re = /\[([^\]]*)\]/g;
+  let plain = 0;
+  let consumed = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(raw))) {
+    const gap = m.index - consumed;
+    if (consumed + gap >= fullOffset) return plain + Math.max(0, fullOffset - consumed);
+    plain += gap;
+    consumed = m.index;
+    const tokenLen = m[0].length;
+    if (fullOffset <= consumed + tokenLen) return plain;
+    consumed += tokenLen;
+  }
+  const gap = raw.length - consumed;
+  return plain + Math.max(0, Math.min(gap, fullOffset - consumed));
+}
+
 export function tokensToLine(plain: string, chords: LineChord[]): string {
   let out = '';
   let prev = 0;
@@ -255,6 +279,37 @@ export function removeChord(text: string, idx: number, ci: number): string {
   const tk = lineTokens(l[idx]);
   if (!tk.chords[ci]) return text;
   tk.chords.splice(ci, 1);
+  l[idx] = tokensToLine(tk.plain, tk.chords);
+  return l.join('\n');
+}
+
+/** Reorders chord #ci of line `idx` to array index `toIndex` among that line's chords —
+ *  the chord-only-line counterpart to moveChord's at/after model. A chord-only line's
+ *  brackets often sit flush against each other ("[G][C][D]"), so every chord shares the
+ *  exact same character `at` (there's no whitespace between them to differ by) and the
+ *  at/after model can only tell "before everything" from "after everything" apart, never
+ *  "between chord 1 and chord 2" — moveChord always ends up shoving the moved chord to one
+ *  end. Character position is cosmetic noise for a chord-only line anyway (barTokens spaces
+ *  them evenly regardless), so this only touches array order, which is unambiguous. */
+export function moveChordToIndex(text: string, idx: number, ci: number, toIndex: number): string {
+  const l = (text || '').split('\n');
+  if (idx < 0 || idx >= l.length) return text;
+  const tk = lineTokens(l[idx]);
+  if (!tk.chords[ci]) return text;
+  const moved = tk.chords.splice(ci, 1)[0];
+  tk.chords.splice(Math.max(0, Math.min(tk.chords.length, toIndex)), 0, moved);
+  l[idx] = tokensToLine(tk.plain, tk.chords);
+  return l.join('\n');
+}
+
+/** insertChord's array-index counterpart, for dropping a chord (from another line, or a
+ *  fresh palette chord) into a chord-only line — see moveChordToIndex for why. */
+export function insertChordAtIndex(text: string, idx: number, name: string, toIndex: number): string {
+  const l = (text || '').split('\n');
+  if (idx < 0 || idx >= l.length) return text;
+  const tk = lineTokens(l[idx]);
+  const c: LineChord = { chord: name, at: 0 };
+  tk.chords.splice(Math.max(0, Math.min(tk.chords.length, toIndex)), 0, c);
   l[idx] = tokensToLine(tk.plain, tk.chords);
   return l.join('\n');
 }

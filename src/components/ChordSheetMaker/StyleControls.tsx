@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   PRESETS, SWATCHES, PAGE_SIZES, type StyleLayout, type PresetId, type FontRoleName, type FontFamily,
 } from '@/lib/chordSheet/presets';
+import { fileToDataUri } from '@/lib/chordSheet/imageAsset';
 
 interface Props {
   layout: StyleLayout;
@@ -34,9 +35,25 @@ export function StyleControls({ layout, onChange }: Props) {
   const [openPanel, setOpenPanel] = useState<'style' | 'font' | null>(null);
   const [fontRole, setFontRole] = useState<FontRoleName>('lyrics');
   const role = layout.fonts[fontRole];
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const wmInputRef = useRef<HTMLInputElement>(null);
 
   function patchFont(patch: Partial<typeof role>) {
     onChange({ fonts: { ...layout.fonts, [fontRole]: { ...role, ...patch } } });
+  }
+
+  function patchAssets(patch: Partial<StyleLayout['assets']>) {
+    onChange({ assets: { ...layout.assets, ...patch } });
+  }
+
+  async function pickLogo(file: File | undefined) {
+    if (!file) return;
+    try { patchAssets({ logo: await fileToDataUri(file, 300) }); } catch { /* not a readable image — ignore */ }
+  }
+
+  async function pickWatermark(file: File | undefined) {
+    if (!file) return;
+    try { patchAssets({ watermark: await fileToDataUri(file, 900) }); } catch { /* not a readable image — ignore */ }
   }
 
   function applyPreset(id: PresetId) {
@@ -116,13 +133,45 @@ export function StyleControls({ layout, onChange }: Props) {
               ))}
             </div>
             <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Diagrams</div>
-            <div className="flex gap-1.5">
+            <div className="mb-3 flex gap-1.5">
               {DIAGRAM_SPOTS.map((d) => (
                 <button key={d.value} type="button" onClick={() => onChange({ diagramSpot: d.value })} className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-semibold ${layout.diagramSpot === d.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'}`}>
                   {d.label}
                 </button>
               ))}
             </div>
+
+            <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Background</div>
+            <div className="mb-2 flex gap-1.5">
+              <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickLogo(e.target.files?.[0])} />
+              <button type="button" onClick={() => logoInputRef.current?.click()} className="flex-1 rounded-md border border-dashed border-border px-2 py-1.5 text-xs font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary">
+                {layout.assets.logo ? '✓ Logo' : '+ Logo'}
+              </button>
+              <input ref={wmInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickWatermark(e.target.files?.[0])} />
+              <button type="button" onClick={() => wmInputRef.current?.click()} className="flex-1 rounded-md border border-dashed border-border px-2 py-1.5 text-xs font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary">
+                {layout.assets.watermark ? '✓ Watermark' : '+ Watermark'}
+              </button>
+            </div>
+            {layout.assets.logo && (
+              <div className="mb-1.5 flex items-center gap-2">
+                <span className="w-16 shrink-0 text-[10px] text-muted-foreground">Logo · {layout.assets.logoH ?? 46}px</span>
+                <input type="range" min={24} max={90} value={layout.assets.logoH ?? 46} onChange={(e) => patchAssets({ logoH: Number(e.target.value) })} className="flex-1 accent-primary" />
+                <button type="button" onClick={() => patchAssets({ logo: undefined })} className="text-muted-foreground hover:text-destructive">×</button>
+              </div>
+            )}
+            {layout.assets.watermark && (
+              <>
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className="w-16 shrink-0 text-[10px] text-muted-foreground">Size · {layout.assets.wmScale ?? 60}%</span>
+                  <input type="range" min={20} max={100} value={layout.assets.wmScale ?? 60} onChange={(e) => patchAssets({ wmScale: Number(e.target.value) })} className="flex-1 accent-primary" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-16 shrink-0 text-[10px] text-muted-foreground">Fade · {layout.assets.wmOpacity ?? 12}%</span>
+                  <input type="range" min={3} max={40} value={layout.assets.wmOpacity ?? 12} onChange={(e) => patchAssets({ wmOpacity: Number(e.target.value) })} className="flex-1 accent-primary" />
+                  <button type="button" onClick={() => patchAssets({ watermark: undefined })} className="text-muted-foreground hover:text-destructive">×</button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

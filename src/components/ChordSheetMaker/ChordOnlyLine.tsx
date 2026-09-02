@@ -14,6 +14,8 @@ interface Props {
   /** Editor only — marks the row as a drag/drop hit-test target (chordHitTest.ts reads
    *  `[data-csm-line]`). Omitted by the read-only SheetPaper. */
   lineIndex?: number;
+  /** Mobile edit mode only — tapping the row (not a chord chip) opens the line-edit sheet. */
+  onLineClick?: () => void;
 }
 
 /** A line that carries only chords + bar marks (`[G] [C] | [G] [D]`). Its whitespace is
@@ -21,11 +23,12 @@ interface Props {
  *  `[G][C][G] [D]` and `[G] [C] [G] [D]` render identically. Shared by the read-only
  *  SheetPaper and the editor's InteractiveSheet; only the chord cell differs (a plain span
  *  vs. a drag handle), passed in via `renderChord`. */
-export function ChordOnlyLine({ tokens, align, barColor, renderChord, lineIndex }: Props) {
+export function ChordOnlyLine({ tokens, align, barColor, renderChord, lineIndex, onLineClick }: Props) {
   return (
     <div
-      className="csm-line flex flex-wrap items-baseline gap-x-4 gap-y-1 leading-[2.2]"
+      className={`csm-line flex flex-wrap items-baseline gap-x-4 gap-y-1 leading-[2.2] ${onLineClick ? 'cursor-text rounded hover:bg-primary/5' : ''}`}
       data-csm-line={lineIndex}
+      onClick={onLineClick}
       style={{ justifyContent: JUSTIFY[align], breakInside: 'avoid' }}
     >
       {tokens.map((t, i) =>

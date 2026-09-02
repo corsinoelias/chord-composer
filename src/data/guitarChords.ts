@@ -321,3 +321,21 @@ export function getGuitarVoicing(chord: Chord, transposition = 0): GuitarVoicing
 
   return null;
 }
+
+/** Every curated voicing for a chord, easiest (lowest position) first — Chord Sheet Maker's
+ *  diagram strip uses this to let a click cycle through alternate fingerings. Additive:
+ *  getGuitarVoicing() above is untouched and still used by every other caller site-wide.
+ *  Empty when the chord isn't in the curated database (rare/altered qualities, or no
+ *  database entry at all) — callers should fall back to getGuitarVoicing()'s single
+ *  algorithmic shape in that case, same as getGuitarVoicing does internally. */
+export function getGuitarVoicings(chord: Chord, transposition = 0): GuitarVoicing[] {
+  const key = DB_QUALITY_KEY[chord.quality];
+  if (key === undefined) return [];
+  const midiNotes = chordToMidiNotes(chord);
+  const rootName = midiToFlatName(midiNotes[0], transposition);
+  const entries = (guitarVoicingsDb as GuitarVoicingsDb).EADGBE[rootName + key];
+  if (!entries || !entries.length) return [];
+  const sorted = [...entries].sort((a, b) => maxPlayedFret(a) - maxPlayedFret(b));
+  const voicings = sorted.map(fromDbEntry).filter((v): v is GuitarVoicing => v !== null);
+  return voicings.length ? voicings : [];
+}
