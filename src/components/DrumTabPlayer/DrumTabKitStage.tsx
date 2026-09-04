@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import {
   DRUM_ROWS, STEPS_PER_BEAT,
@@ -29,20 +29,38 @@ import { PART_ICON } from './partIcons'
 /**
  * Two crops, because the band is two very different shapes.
  *
- * On a desktop it is wide and short (4.4:1), so the viewBox widens past the
- * scene and the backdrop fills the extra width. Reusing that on a phone is what
- * left the kit as a ~90px strip floating in an almost empty band: a 2:1 portrait
- * container fitted to a 4.4:1 drawing letterboxes hard. Narrow gets a crop
- * ceilinged to the kit itself and `slice`, which is the same trick
- * `VirtualDrums` uses for its own narrow case.
+ * Wide and short (4.4:1) the viewBox widens past the scene and the backdrop
+ * fills the extra width. Fitting that drawing into a squarer container
+ * letterboxes hard — it is what left the kit as a ~90px strip floating in an
+ * almost empty band on a phone — so the squarer case gets a crop ceilinged to
+ * the kit itself and `slice`, the same trick `VirtualDrums` uses.
+ *
+ * Which one is chosen is measured off the band, not inferred from the device.
+ * Keying it to "is a phone" got both phone orientations wrong: portrait wants
+ * the tight crop and got the wide one, landscape wants the wide one and got the
+ * tight one sliced down to the drum shells.
  */
-const STAGE_VIEWBOX_WIDE   = '-620 140 2840 650'
-const STAGE_VIEWBOX_NARROW = '170 120 1270 700'
+const STAGE_VIEWBOX_WIDE  = '-620 140 2840 650'
+const STAGE_VIEWBOX_TIGHT = '170 120 1270 700'
 const STAGE_SCENE = SCENES[0]   // Dark Stage — its colours, minus the dressing
 
+/**
+ * Aspect ratios the two crops are chosen at, with a gap between them: the band
+ * is measured on every resize, and a single threshold would rebuild the SVG
+ * markup back and forth while a window is dragged across it.
+ */
+const RATIO_TO_WIDE  = 3.2
+const RATIO_TO_TIGHT = 2.8
+
 const COLLAPSED_H = 54
-const EXPANDED_H  = 'clamp(170px, 27vh, 300px)'
-const EXPANDED_H_NARROW = 'clamp(150px, 24vh, 300px)'
+/**
+ * One rule at every size. It used to be two — a 170px floor on desktop and a
+ * 150px one on phones — and the floor, not the `vh`, is what broke a phone in
+ * landscape: at 390px tall the band claimed 150 of the 326px the editor had.
+ * Down here the `vh` term does the work in every orientation, and the floor is
+ * only there so the kit never becomes a smear.
+ */
+const EXPANDED_H = 'clamp(100px, 26vh, 300px)'
 
 /**
  * Cymbal zones the kit can voice but the tab has no row for. A click on the
@@ -71,16 +89,39 @@ interface Props {
   /** Row the grid and the inspector consider current; drawn with a glow. */
   selectedPiece: DrumPieceId | null
   onSelectPiece: (piece: DrumPieceId) => void
-  /** Portrait phone: a tighter crop and a shorter band. */
-  narrow?: boolean
 }
 
 export function DrumTabKitStage({
   kit, track, currentBeat, isPlaying, collapsed,
-  onToggleCollapse, selectedPiece, onSelectPiece, narrow = false,
+  onToggleCollapse, selectedPiece, onSelectPiece,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
+  const sectionRef = useRef<HTMLElement>(null)
+
+  /**
+   * Measured in a layout effect rather than guessed from the viewport: React
+   * flushes the state it sets before the browser paints, so the first frame
+   * already has the crop the band's own shape asks for.
+   */
+  const [wideBand, setWideBand] = useState(true)
+  useLayoutEffect(() => {
+    const el = sectionRef.current
+    // Collapsed the band is a 54px strip with no kit in it. Measuring that
+    // would answer "wide", and expanding would then paint the wrong crop for a
+    // frame before correcting itself; the shape it had last is the better guess.
+    if (!el || collapsed) return
+    const measure = () => {
+      const r = el.getBoundingClientRect()
+      if (!r.height) return
+      const ratio = r.width / r.height
+      setWideBand(prev => (prev ? ratio > RATIO_TO_TIGHT : ratio >= RATIO_TO_WIDE))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [collapsed])
 
   const svgMarkup = useMemo(
     () => buildKitSvg({
@@ -88,10 +129,10 @@ export function DrumTabKitStage({
       scene: STAGE_SCENE,
       showLabels: false,
       bare: true,
-      viewBox: narrow ? STAGE_VIEWBOX_NARROW : STAGE_VIEWBOX_WIDE,
-      fit: narrow ? 'slice' : 'meet',
+      viewBox: wideBand ? STAGE_VIEWBOX_WIDE : STAGE_VIEWBOX_TIGHT,
+      fit: wideBand ? 'meet' : 'slice',
     }),
-    [kit, narrow],
+    [kit, wideBand],
   )
 
   /** Which pieces are struck on each sixteenth, so playback lookup is O(1). */
@@ -149,12 +190,13 @@ export function DrumTabKitStage({
 
   return (
     <section
+      ref={sectionRef}
       aria-label="Drum kit"
       style={{
         position: 'relative', flexShrink: 0,
         background: collapsed ? BT.panel : STAGE_SCENE.wall,
         borderBottom: '1px solid ' + BT.panelRule,
-        height: collapsed ? COLLAPSED_H : narrow ? EXPANDED_H_NARROW : EXPANDED_H,
+        height: collapsed ? COLLAPSED_H : EXPANDED_H,
         transition: 'height 180ms ease-out',
         overflow: 'hidden',
       }}
@@ -165,6 +207,12 @@ export function DrumTabKitStage({
           style={{
             height: '100%', display: 'flex', alignItems: 'center', gap: 4,
             padding: '0 14px', overflowX: 'auto',
+            // The Kit button floats over the right end of the band. Over the
+            // drawing that is fine; over a scrolling row of chips it swallows
+            // whichever one is passing under it. Ending the scroller short of
+            // the button keeps every chip readable — padding would not, since
+            // the chips would still scroll beneath it.
+            marginRight: 74,
           }}
         >
           {DRUM_ROWS.map(row => {

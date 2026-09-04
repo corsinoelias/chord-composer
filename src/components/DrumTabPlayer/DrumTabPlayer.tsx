@@ -9,7 +9,7 @@ import { startPlayback, stopPlayback, setMasterVolume, previewHit } from '../../
 import { parseDrumTab } from '../../lib/drumTab/drumTabText'
 import { encodeTrackToHash, decodeTrackFromHash, copyToClipboard } from '../../lib/drumTab/exportDrumTab'
 import { useDrumTrackEditor } from '../../hooks/useDrumTrackEditor'
-import { useIsMobile, useIsDesktop, useIsWide } from '../../hooks/use-mobile'
+import { useIsMobile, useIsDesktop, useIsShort, useIsWide } from '../../hooks/use-mobile'
 import { analytics } from '../../lib/analytics'
 import { BT, BT_VARS, f } from '../../lib/bassTab/theme'
 import { DrumTabTopBar } from './DrumTabTopBar'
@@ -81,6 +81,15 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const isMobile  = useIsMobile()
   const isDesktop = useIsDesktop()
   const isWide    = useIsWide()
+  const isShort   = useIsShort()
+
+  /**
+   * A phone in landscape is wide enough for the desktop top bar and far too
+   * short for it: at 844×390 it wrapped onto two rows and, with the kit band
+   * under it, left the grid a couple of rows hidden behind the transport. Width
+   * decides how much fits on a row; height decides how many rows there are.
+   */
+  const compactBars = isMobile || isShort
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initialTrack = useMemo(() => loadInitialTrack(initialPreset), [])
@@ -102,6 +111,13 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [shareLabel, setShareLabel]   = useState('Copy share link')
   const [barPage, setBarPage]         = useState(0)
   const [kitCollapsed, setKitCollapsed] = useState(loadKitCollapsed)
+  /**
+   * On a short screen the kit starts as the icon strip and opens only if asked.
+   * It is a separate, unsaved opt-in rather than a forced `kitCollapsed`: the
+   * saved preference belongs to the screen it was set on, and a phone turned
+   * sideways for one bar should not rewrite how the kit opens on a desktop.
+   */
+  const [kitOpenWhenShort, setKitOpenWhenShort] = useState(false)
   const [selectedPiece, setSelectedPiece] = useState<DrumPieceId | null>(null)
   const [mixerOpen, setMixerOpen] = useState(loadMixerOpen)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -396,18 +412,26 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
       {/* Structure belongs to the track, not to a view, so it stays put as you
           switch between grid, notation and text. On a phone it doubles as the
-          navigator: tapping a section takes the one-bar window to it. */}
-      <DrumTabArrangement
-        totalBars={track.totalBars}
-        beatsPerBar={track.beatsPerBar}
-        sections={track.sections}
-        currentBeat={currentBeat}
-        isPlaying={isPlaying}
-        labelW={labelW}
-        compact={isMobile}
-        onJumpToBar={isMobile ? setBarPage : undefined}
-        onChange={setSections}
-      />
+          navigator: tapping a section takes the one-bar window to it.
+
+          The exception is a screen too short for it: the lane is a fixed 62px,
+          which on a phone in landscape is most of what the grid has left. It is
+          the one band here that is about arranging rather than playing, the
+          bar buttons still navigate without it, and turning the phone upright
+          brings it back. */}
+      {!isShort && (
+        <DrumTabArrangement
+          totalBars={track.totalBars}
+          beatsPerBar={track.beatsPerBar}
+          sections={track.sections}
+          currentBeat={currentBeat}
+          isPlaying={isPlaying}
+          labelW={labelW}
+          compact={isMobile}
+          onJumpToBar={isMobile ? setBarPage : undefined}
+          onChange={setSections}
+        />
+      )}
     </div>
   )
 
@@ -430,7 +454,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         showMixerToggle={isWide}
         mixerOpen={mixerOpen}
         onMixerToggle={() => setMixerOpen(o => !o)}
-        compact={isMobile}
+        compact={compactBars}
         onOpenSheet={() => setSheetOpen(true)}
         onNameChange={setName}
         onKitChange={setKit}
@@ -441,13 +465,14 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       />
 
       <DrumTabKitStage
-        narrow={isMobile}
         kit={track.kit}
         track={track}
         currentBeat={currentBeat}
         isPlaying={isPlaying}
-        collapsed={kitCollapsed}
-        onToggleCollapse={() => setKitCollapsed(c => !c)}
+        collapsed={isShort ? !kitOpenWhenShort : kitCollapsed}
+        onToggleCollapse={
+          isShort ? () => setKitOpenWhenShort(o => !o) : () => setKitCollapsed(c => !c)
+        }
         selectedPiece={selectedPiece}
         onSelectPiece={hitPiece}
       />
@@ -504,7 +529,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         onRedo={redo}
       />
 
-      {isMobile && (
+      {compactBars && (
         <DrumTabMobileSheet
           open={sheetOpen}
           trackName={track.name}
