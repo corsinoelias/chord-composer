@@ -172,8 +172,13 @@ export const STEPS_PER_BEAT = 4
  * arrangement lane below it. It lives here rather than in either component
  * because the two only line their bars up while they agree on it, and a pair of
  * constants that must match is the kind that stops matching.
+ *
+ * Two of them because 152px is 39% of a 390px phone. The narrow one fits the
+ * icon and the short name and nothing else, which is all there is room for —
+ * the player picks one and passes it to both components.
  */
 export const GRID_LABEL_W = 152
+export const GRID_LABEL_W_NARROW = 92
 
 export type DrumView = 'score' | 'grid' | 'text'
 

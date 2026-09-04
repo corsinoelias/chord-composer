@@ -18,7 +18,7 @@ import { PART_ICON } from './partIcons'
  * still a sixteenth and not a tile. Only past the lower clamp does it scroll.
  */
 
-const LABEL_W  = GRID_LABEL_W
+
 const CELL_GAP = 2
 const ROW_GAP  = 3
 
@@ -59,6 +59,13 @@ interface Props {
   barWindow: { start: number; count: number } | null
   /** Row the kit stage considers current — kept visible and marked. */
   selectedPiece?: DrumPieceId | null
+  /** Label gutter width, shared with the arrangement lane so bars line up. */
+  labelW?: number
+  /**
+   * Phone: dropped, so the narrow gutter has room for the piece name. The same
+   * control lives in the inspector, which on a phone is inside the sheet.
+   */
+  showRowVelocity?: boolean
   onToggleCell: (pieceId: DrumPieceId, slot: number) => void
   onSetRowVelocity: (pieceId: DrumPieceId, velocity: number) => void
   onPreviewRow: (pieceId: DrumPieceId) => void
@@ -66,7 +73,7 @@ interface Props {
 }
 
 export function DrumTabGrid({
-  track, currentBeat, isPlaying, barWindow, selectedPiece,
+  track, currentBeat, isPlaying, barWindow, selectedPiece, labelW = GRID_LABEL_W, showRowVelocity = true,
   onToggleCell, onSetRowVelocity, onPreviewRow, onSelectRow,
 }: Props) {
   const slotsPerBar = track.beatsPerBar * STEPS_PER_BEAT
@@ -190,7 +197,7 @@ export function DrumTabGrid({
     >
       {/* Bar / beat ruler */}
       <div style={{ display: 'flex', flexShrink: 0, borderBottom: '1px solid ' + BT.rule, background: BT.sunken }}>
-        <div style={{ width: LABEL_W, flexShrink: 0 }} />
+        <div style={{ width: labelW, flexShrink: 0 }} />
         <div ref={rulerRef} style={{ overflow: 'hidden', flex: 1 }}>
           <div style={{ display: 'flex', gap: CELL_GAP, width: gridW, padding: '5px 0' }}>
             {Array.from({ length: totalSlots }, (_, i) => {
@@ -221,7 +228,7 @@ export function DrumTabGrid({
           cell width, changes the moment a scrollbar appears. */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflowY: 'auto', scrollbarGutter: 'stable' }}>
         {/* Row labels */}
-        <div style={{ width: LABEL_W, flexShrink: 0, borderRight: '1px solid ' + BT.rule }}>
+        <div style={{ width: labelW, flexShrink: 0, borderRight: '1px solid ' + BT.rule }}>
           {visibleRows.map(row => {
             const Icon = PART_ICON[row.id]
             const vel  = rowVelocity[row.id] ?? row.defaultVel
@@ -254,6 +261,7 @@ export function DrumTabGrid({
                     {row.short}
                   </span>
                 </button>
+                {showRowVelocity && (
                 <input
                   type="range"
                   min={0.3} max={1} step={0.05}
@@ -263,6 +271,7 @@ export function DrumTabGrid({
                   aria-label={row.label + ' velocity'}
                   style={{ width: 40, accentColor: BT.accent, cursor: 'pointer' }}
                 />
+                )}
               </div>
             )
           })}

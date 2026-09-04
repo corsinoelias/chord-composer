@@ -1,5 +1,5 @@
 import React from 'react'
-import { Library, Share2, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Library, MoreHorizontal, Share2, SlidersHorizontal, Trash2 } from 'lucide-react'
 import type { DrumKitId, DrumView } from '../../lib/drumTab/types'
 import { BT, f } from '../../lib/bassTab/theme'
 import { IconButton, Segmented, TextButton } from './barControls'
@@ -39,6 +39,12 @@ interface Props {
   showMixerToggle: boolean
   mixerOpen: boolean
   onMixerToggle: () => void
+  /**
+   * Phone layout: name, kit, library, share and clear move into the sheet, so
+   * the bar keeps only the heading and the view picker and fits on one row.
+   */
+  compact: boolean
+  onOpenSheet: () => void
   onNameChange: (name: string) => void
   onKitChange: (kit: DrumKitId) => void
   onViewChange: (view: DrumView) => void
@@ -49,9 +55,34 @@ interface Props {
 
 export function DrumTabTopBar({
   trackName, kit, view, shareLabel, showLibraryButton,
-  showMixerToggle, mixerOpen, onMixerToggle,
+  showMixerToggle, mixerOpen, onMixerToggle, compact, onOpenSheet,
   onNameChange, onKitChange, onViewChange, onOpenLibrary, onShare, onClear,
 }: Props) {
+  if (compact) {
+    return (
+      <div style={{
+        flexShrink: 0, background: BT.card, borderBottom: '1px solid ' + BT.rule,
+        padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        {/* Stays the page heading even here — the track name lives in the
+            sheet. Swapping it for the pattern's name would leave the document
+            without the h1 the static HTML promises. */}
+        <h1 style={{
+          margin: 0, fontFamily: f('ui'), fontSize: 14, fontWeight: 700,
+          color: BT.ink, letterSpacing: '-.01em', whiteSpace: 'nowrap',
+          overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
+        }}>
+          Drum Tab Player
+        </h1>
+        <div style={{ flex: 1, minWidth: 4 }} />
+        <Segmented tone="light" options={VIEWS} value={view} onChange={onViewChange} ariaLabel="View" />
+        <IconButton tone="light" onClick={onOpenSheet} title="Pattern settings">
+          <MoreHorizontal size={18} />
+        </IconButton>
+      </div>
+    )
+  }
+
   return (
     <div style={{
       flexShrink: 0, background: BT.card, borderBottom: '1px solid ' + BT.rule,

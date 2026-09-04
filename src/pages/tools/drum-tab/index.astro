@@ -394,7 +394,10 @@ BD|o-------o-------|o-------o-------|</code></pre>
       flex-direction: column;
       overflow: hidden;
       background: #f4f2ec;
-      height: auto;
+      /* The editor fills the viewport at every size, phone included, so the
+         placeholder has to as well — otherwise the page jumps by most of a
+         screen when the island mounts. `64px` is the navbar's own `h-16`. */
+      height: calc(100dvh - 64px);
     }
     .dt-skel-top {
       flex-shrink: 0;
@@ -415,11 +418,12 @@ BD|o-------o-------|o-------o-------|</code></pre>
     }
     .dt-skel-kit {
       flex-shrink: 0;
-      height: clamp(170px, 27vh, 300px);
+      /* Mirrors DrumTabKitStage's narrow band; the wider one is set below. */
+      height: clamp(150px, 24vh, 300px);
       background: #111426;
       border-bottom: 1px solid #3a3833;
     }
-    .dt-skel-body { flex: 1; min-height: 220px; background: #f4f2ec; }
+    .dt-skel-body { flex: 1; min-height: 0; background: #f4f2ec; }
     .dt-skel-transport {
       flex-shrink: 0;
       display: flex;
@@ -439,11 +443,10 @@ BD|o-------o-------|o-------o-------|</code></pre>
     @keyframes dtPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
     @media (prefers-reduced-motion: reduce) { .dt-shimmer { animation: none; } }
 
-    /* Above the mobile breakpoint the editor is the screen — matches the
-       `isMobile` switch in DrumTabPlayer, and the navbar's own `h-16`. */
+    /* Above the mobile breakpoint the kit band is taller — matches the
+       `narrow` switch in DrumTabKitStage. */
     @media (min-width: 768px) {
-      .dt-skeleton { height: calc(100dvh - 64px); }
-      .dt-skel-body { min-height: 0; }
+      .dt-skel-kit { height: clamp(170px, 27vh, 300px); }
     }
   </style>
 </BaseLayout>

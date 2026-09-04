@@ -77,10 +77,16 @@ interface Props {
   currentBeat: number
   isPlaying: boolean
   onChange: (sections: DrumSection[]) => void
+  /** Label gutter width, shared with the grid so the bars line up. */
+  labelW?: number
+  /** Phone: names only, and tapping a block jumps the bar pager to it. */
+  compact?: boolean
+  onJumpToBar?: (bar: number) => void
 }
 
 export function DrumTabArrangement({
   totalBars, beatsPerBar, sections, currentBeat, isPlaying, onChange,
+  labelW = GRID_LABEL_W, compact = false, onJumpToBar,
 }: Props) {
   const [editing, setEditing] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
@@ -149,16 +155,20 @@ export function DrumTabArrangement({
       }}
     >
       <div style={{
-        width: GRID_LABEL_W, flexShrink: 0, padding: '0 10px',
+        width: labelW, flexShrink: 0, padding: '0 10px',
         borderRight: '1px solid ' + BT.rule,
         display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3,
       }}>
-        <span style={label}>Arrangement</span>
-        <span style={{ fontFamily: f('ui'), fontSize: 11, color: BT.soft }}>
-          {blocks.length
-            ? blocks.length + (blocks.length === 1 ? ' section' : ' sections')
-            : 'Name a stretch of bars'}
-        </span>
+        <span style={label}>{compact ? 'Sections' : 'Arrangement'}</span>
+        {/* The sub-line is dropped on a phone: at 92px it wraps to three lines
+            and pushes out of the lane's own height. */}
+        {!compact && (
+          <span style={{ fontFamily: f('ui'), fontSize: 11, color: BT.soft }}>
+            {blocks.length
+              ? blocks.length + (blocks.length === 1 ? ' section' : ' sections')
+              : 'Name a stretch of bars'}
+          </span>
+        )}
       </div>
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 3, padding: 7 }}>
@@ -182,7 +192,9 @@ export function DrumTabArrangement({
           return (
             <React.Fragment key={block.startBar}>
               <div
+                onClick={compact && onJumpToBar ? () => onJumpToBar(block.startBar) : undefined}
                 style={{
+                  cursor: compact && onJumpToBar ? 'pointer' : 'default',
                   flex: bars, minWidth: 0, height: '100%', borderRadius: 8,
                   padding: '5px 8px', display: 'flex', flexDirection: 'column',
                   justifyContent: 'space-between',
@@ -212,8 +224,15 @@ export function DrumTabArrangement({
                   ) : (
                     <button
                       type="button"
-                      onClick={() => { setEditing(block.index); setDraft(block.name) }}
-                      title="Rename this section"
+                      onClick={() => {
+                        // On a phone the lane is a navigator: tapping a section
+                        // goes there. Renaming stays a wider-screen action —
+                        // the block is ~90px there, too small to hold both.
+                        if (compact) { onJumpToBar?.(block.startBar); return }
+                        setEditing(block.index)
+                        setDraft(block.name)
+                      }}
+                      title={compact ? 'Go to ' + block.name : 'Rename this section'}
                       style={{
                         flex: 1, minWidth: 0, textAlign: 'left', padding: 0, cursor: 'pointer',
                         background: 'none', border: 'none', color: block.color,
@@ -224,7 +243,7 @@ export function DrumTabArrangement({
                       {block.name}
                     </button>
                   )}
-                  {block.index > 0 && !isEditing && (
+                  {block.index > 0 && !isEditing && !compact && (
                     <button
                       type="button"
                       onClick={() => removeAt(block.index)}
@@ -242,7 +261,13 @@ export function DrumTabArrangement({
                 {/* The block's own bars, so every bar that is not already a
                     boundary offers one. Without these the only split points
                     were the boundaries themselves, which meant a single section
-                    covering the track could never be divided at all. */}
+                    covering the track could never be divided at all.
+
+                    Dropped on a phone: at 390px a block is ~90px wide, and four
+                    bar numbers with split handles between them is smaller than
+                    a fingertip. There the lane is for reading and jumping; the
+                    splitting happens on a bigger screen. */}
+                {!compact && (
                 <div style={{ display: 'flex', alignItems: 'stretch', gap: 1, minWidth: 0 }}>
                   {Array.from({ length: bars }, (_, i) => {
                     const bar = block.startBar + i
@@ -287,6 +312,16 @@ export function DrumTabArrangement({
                     )
                   })}
                 </div>
+                )}
+
+                {compact && (
+                  <span style={{
+                    fontFamily: f('mono'), fontSize: 9.5, color: BT.soft,
+                    fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+                  }}>
+                    {bars === 1 ? 'bar ' + (block.startBar + 1) : `${block.startBar + 1}–${block.endBar}`}
+                  </span>
+                )}
               </div>
             </React.Fragment>
           )

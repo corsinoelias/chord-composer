@@ -37,6 +37,9 @@ interface Props {
   onSelectPiece: (piece: DrumPieceId) => void
   onChannelChange: (piece: DrumPieceId, patch: Partial<DrumChannel>) => void
   onRowVelocityChange: (piece: DrumPieceId, velocity: number) => void
+  /** Overridden when it is embedded in the phone sheet rather than a column. */
+  width?: number | string
+  bordered?: boolean
 }
 
 function channelOf(mix: DrumMix | undefined, piece: DrumPieceId): DrumChannel {
@@ -46,6 +49,7 @@ function channelOf(mix: DrumMix | undefined, piece: DrumPieceId): DrumChannel {
 export function DrumTabInspector({
   selectedPiece, mix, rowVelocity, usedPieces,
   onSelectPiece, onChannelChange, onRowVelocityChange,
+  width = PANEL_W, bordered = true,
 }: Props) {
   const soloActive = hasSolo(mix)
   const row = selectedPiece ? ROW_BY_PIECE[selectedPiece] : null
@@ -64,9 +68,10 @@ export function DrumTabInspector({
     <aside
       aria-label="Kit inspector"
       style={{
-        width: PANEL_W, flexShrink: 0, minHeight: 0,
+        width, flexShrink: 0, minHeight: 0,
         display: 'flex', flexDirection: 'column',
-        background: BT.card, borderLeft: '1px solid ' + BT.rule,
+        background: BT.card,
+        borderLeft: bordered ? '1px solid ' + BT.rule : 'none',
       }}
     >
       {/* ── The selected piece ─────────────────────────────────────────── */}

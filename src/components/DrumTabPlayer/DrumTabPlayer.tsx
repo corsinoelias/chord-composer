@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  DEFAULT_CHANNEL, DRUM_STORAGE_KEY, STEPS_PER_BEAT, makeHitId, hitsSignature,
+  DEFAULT_CHANNEL, DRUM_STORAGE_KEY, GRID_LABEL_W, GRID_LABEL_W_NARROW,
+  STEPS_PER_BEAT, makeHitId, hitsSignature,
   type DrumChannel, type DrumKitId, type DrumPieceId, type DrumTrack, type DrumView, type LoopRange,
 } from '../../lib/drumTab/types'
 import { defaultDrumTrack, getDrumPreset, type DrumPreset } from '../../data/drumPresets'
@@ -17,6 +18,7 @@ import { DrumTabKitStage } from './DrumTabKitStage'
 import { DrumTabGrid } from './DrumTabGrid'
 import { DrumTabArrangement } from './DrumTabArrangement'
 import { DrumTabInspector } from './DrumTabInspector'
+import { DrumTabMobileSheet } from './DrumTabMobileSheet'
 import { DrumTabScore } from './DrumTabScore'
 import { DrumTabTextEditor } from './DrumTabTextEditor'
 import { DrumTabLibrary } from './DrumTabLibrary'
@@ -102,6 +104,9 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [kitCollapsed, setKitCollapsed] = useState(loadKitCollapsed)
   const [selectedPiece, setSelectedPiece] = useState<DrumPieceId | null>(null)
   const [mixerOpen, setMixerOpen] = useState(loadMixerOpen)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  /** Phone transport: folded to Play/BPM/position until asked to open. */
+  const [transportExpanded, setTransportExpanded] = useState(false)
 
   /**
    * The rail has nothing to close. It has to be a stable identity rather than an
@@ -324,6 +329,8 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
   // On a phone the grid shows one bar at a time; on desktop it scrolls.
   const barWindow = isMobile ? { start: barPage, count: 1 } : null
+  // One gutter width for the grid and the lane, so their bars stay in column.
+  const labelW = isMobile ? GRID_LABEL_W_NARROW : GRID_LABEL_W
 
   const editorPane = (
     <div style={{
@@ -338,6 +345,8 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             isPlaying={isPlaying}
             barWindow={barWindow}
             selectedPiece={selectedPiece}
+            labelW={labelW}
+            showRowVelocity={!isMobile}
             onToggleCell={toggleCell}
             onSetRowVelocity={setRowVelocity}
             onPreviewRow={previewRow}
@@ -386,17 +395,19 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       )}
 
       {/* Structure belongs to the track, not to a view, so it stays put as you
-          switch between grid, notation and text. A phone has no room for it. */}
-      {!isMobile && (
-        <DrumTabArrangement
-          totalBars={track.totalBars}
-          beatsPerBar={track.beatsPerBar}
-          sections={track.sections}
-          currentBeat={currentBeat}
-          isPlaying={isPlaying}
-          onChange={setSections}
-        />
-      )}
+          switch between grid, notation and text. On a phone it doubles as the
+          navigator: tapping a section takes the one-bar window to it. */}
+      <DrumTabArrangement
+        totalBars={track.totalBars}
+        beatsPerBar={track.beatsPerBar}
+        sections={track.sections}
+        currentBeat={currentBeat}
+        isPlaying={isPlaying}
+        labelW={labelW}
+        compact={isMobile}
+        onJumpToBar={isMobile ? setBarPage : undefined}
+        onChange={setSections}
+      />
     </div>
   )
 
@@ -404,9 +415,10 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     <div style={{
       ...BT_VARS,
       background: BT.paper,
-      // A phone keeps the page scrolling normally; from `md` up the editor is the
-      // screen. Same shape Virtual Drums uses, and the same navbar allowance.
-      height: isMobile ? 'auto' : `calc(100dvh - ${NAVBAR_H}px)`,
+      // The editor is the screen at every size, phone included — `dvh` rather
+      // than `vh` so a mobile browser's collapsing address bar does not leave
+      // the transport hanging off the bottom. Same shape `BassTabPlayer` uses.
+      height: `calc(100dvh - ${NAVBAR_H}px)`,
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
     }}>
       <DrumTabTopBar
@@ -418,6 +430,8 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         showMixerToggle={isWide}
         mixerOpen={mixerOpen}
         onMixerToggle={() => setMixerOpen(o => !o)}
+        compact={isMobile}
+        onOpenSheet={() => setSheetOpen(true)}
         onNameChange={setName}
         onKitChange={setKit}
         onViewChange={setView}
@@ -427,6 +441,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       />
 
       <DrumTabKitStage
+        narrow={isMobile}
         kit={track.kit}
         track={track}
         currentBeat={currentBeat}
@@ -477,6 +492,8 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         currentBeat={currentBeat}
         canUndo={canUndo}
         canRedo={canRedo}
+        compact={isMobile && !transportExpanded}
+        onToggleExpand={isMobile ? () => setTransportExpanded(e => !e) : undefined}
         onTogglePlay={togglePlay}
         onBpmChange={bpm => setBpm(bpm, isPlaying)}
         onLoopChange={setLoop}
@@ -486,6 +503,28 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         onUndo={undo}
         onRedo={redo}
       />
+
+      {isMobile && (
+        <DrumTabMobileSheet
+          open={sheetOpen}
+          trackName={track.name}
+          kit={track.kit}
+          shareLabel={shareLabel}
+          mix={track.mix}
+          selectedPiece={selectedPiece}
+          rowVelocity={selectedRowVelocity}
+          usedPieces={usedPieces}
+          onClose={() => setSheetOpen(false)}
+          onNameChange={setName}
+          onKitChange={setKit}
+          onOpenLibrary={() => setLibraryOpen(true)}
+          onShare={handleShare}
+          onClear={clearAll}
+          onSelectPiece={hitPiece}
+          onChannelChange={setChannel}
+          onRowVelocityChange={setRowVelocity}
+        />
+      )}
 
       {!isDesktop && (
         <DrumTabLibrary

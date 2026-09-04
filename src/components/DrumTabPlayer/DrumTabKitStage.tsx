@@ -26,12 +26,23 @@ import { PART_ICON } from './partIcons'
  * still tell you what is being struck.
  */
 
-/** Wide, short crop: the whole kit plus backdrop either side. See `buildKitSvg`. */
-const STAGE_VIEWBOX = '-620 140 2840 650'
-const STAGE_SCENE   = SCENES[0]   // Dark Stage — its colours, minus the dressing
+/**
+ * Two crops, because the band is two very different shapes.
+ *
+ * On a desktop it is wide and short (4.4:1), so the viewBox widens past the
+ * scene and the backdrop fills the extra width. Reusing that on a phone is what
+ * left the kit as a ~90px strip floating in an almost empty band: a 2:1 portrait
+ * container fitted to a 4.4:1 drawing letterboxes hard. Narrow gets a crop
+ * ceilinged to the kit itself and `slice`, which is the same trick
+ * `VirtualDrums` uses for its own narrow case.
+ */
+const STAGE_VIEWBOX_WIDE   = '-620 140 2840 650'
+const STAGE_VIEWBOX_NARROW = '170 120 1270 700'
+const STAGE_SCENE = SCENES[0]   // Dark Stage — its colours, minus the dressing
 
 const COLLAPSED_H = 54
 const EXPANDED_H  = 'clamp(170px, 27vh, 300px)'
+const EXPANDED_H_NARROW = 'clamp(150px, 24vh, 300px)'
 
 /**
  * Cymbal zones the kit can voice but the tab has no row for. A click on the
@@ -60,11 +71,13 @@ interface Props {
   /** Row the grid and the inspector consider current; drawn with a glow. */
   selectedPiece: DrumPieceId | null
   onSelectPiece: (piece: DrumPieceId) => void
+  /** Portrait phone: a tighter crop and a shorter band. */
+  narrow?: boolean
 }
 
 export function DrumTabKitStage({
   kit, track, currentBeat, isPlaying, collapsed,
-  onToggleCollapse, selectedPiece, onSelectPiece,
+  onToggleCollapse, selectedPiece, onSelectPiece, narrow = false,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
@@ -75,9 +88,10 @@ export function DrumTabKitStage({
       scene: STAGE_SCENE,
       showLabels: false,
       bare: true,
-      viewBox: STAGE_VIEWBOX,
+      viewBox: narrow ? STAGE_VIEWBOX_NARROW : STAGE_VIEWBOX_WIDE,
+      fit: narrow ? 'slice' : 'meet',
     }),
-    [kit],
+    [kit, narrow],
   )
 
   /** Which pieces are struck on each sixteenth, so playback lookup is O(1). */
@@ -140,7 +154,7 @@ export function DrumTabKitStage({
         position: 'relative', flexShrink: 0,
         background: collapsed ? BT.panel : STAGE_SCENE.wall,
         borderBottom: '1px solid ' + BT.panelRule,
-        height: collapsed ? COLLAPSED_H : EXPANDED_H,
+        height: collapsed ? COLLAPSED_H : narrow ? EXPANDED_H_NARROW : EXPANDED_H,
         transition: 'height 180ms ease-out',
         overflow: 'hidden',
       }}
