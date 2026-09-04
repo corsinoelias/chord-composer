@@ -94,11 +94,22 @@ export function TabTextEditor({
 
   const dirty = draft !== canonical
 
-  // Fires twice for one click on Apply — the button blurs the textarea first, so
-  // `onBlur` runs and then `onClick` does. Deliberately not defended against
-  // here: the consumer's `onApply` ignores a tab that matches the track it
-  // already has, which is a guard no stale closure can slip past.
-  const apply = useCallback(() => { onApply(draft) }, [draft, onApply])
+  /**
+   * Applied only when the draft has actually diverged.
+   *
+   * This is not an optimisation. Blur applies, and *pressing Play blurs the
+   * textarea* — so with an unconditional apply, clicking Play rewrote the track
+   * from its own text. For anything the text cannot express (a note off the
+   * sixteenth grid, a duration) that meant the act of listening quantised the
+   * music and cut the notes short. Nothing to apply, nothing applied.
+   *
+   * It also fires twice for one click on Apply — the button blurs the textarea
+   * first, so `onBlur` runs and then `onClick` does. The second call finds the
+   * draft no longer dirty, because applying reset it from the track.
+   */
+  const apply = useCallback(() => {
+    if (draft !== canonical) onApply(draft)
+  }, [draft, canonical, onApply])
 
   const copy = useCallback(async () => {
     try {
@@ -145,6 +156,7 @@ export function TabTextEditor({
     }
 
     let raf = 0
+    let lastSystem = -1
     const frame = () => {
       const { rendered: r, dirty: isDirty, charW: cw } = stateRef.current
       // A dirty draft and the column map describe different tabs. Rather than
@@ -166,15 +178,13 @@ export function TabTextEditor({
       mark.style.width = `${Math.max(cw, column.width * cw)}px`
       mark.style.height = `${system.rowLines * LINE_HEIGHT}px`
 
-      // Keep the sounding system on screen, but only when it has left it —
-      // scrolling on every frame would fight the user's own scrolling.
-      const area = areaRef.current
-      if (area) {
-        const top = system.firstLine * LINE_HEIGHT
-        const bottom = top + system.rowLines * LINE_HEIGHT
-        if (top < area.scrollTop || bottom > area.scrollTop + area.clientHeight) {
-          area.scrollTop = Math.max(0, top - LINE_HEIGHT)
-        }
+      // Keep the sounding system on screen — once, when the playhead reaches a
+      // new one. Asking for this on every frame would fight the user's own
+      // scrolling, and the textarea no longer scrolls vertically anyway: it is
+      // as tall as the tab, and the panel around it is what moves.
+      if (system.index !== lastSystem) {
+        lastSystem = system.index
+        mark.scrollIntoView({ block: 'nearest' })
       }
       raf = requestAnimationFrame(frame)
     }
@@ -325,11 +335,23 @@ export function TabTextEditor({
           aria-label="Tab, as text"
           style={{
             position: 'relative', background: 'transparent',
-            width: '100%', minHeight: 220, resize: 'vertical',
+            width: '100%', resize: 'vertical',
+            // Tall enough for the whole tab.
+            //
+            // A fixed 220px is nine lines, which is most of a four-bar drum
+            // pattern and about half of a six-string guitar system — so the tab
+            // was there but the box showed a slice of it, and the rest needed a
+            // scroll nobody knew was there. The panel around this one scrolls
+            // instead, which is the thing the eye expects to scroll.
+            height: (draft.split('\n').length * LINE_HEIGHT) + PAD * 2 + 2,
+            minHeight: 220,
             fontFamily: f('mono'), fontSize: FONT_SIZE, lineHeight: `${LINE_HEIGHT}px`,
             color: BT.ink,
             border: '1px solid ' + (dirty ? alpha('accent', 0.5) : BT.rule),
-            borderRadius: 8, padding: PAD, whiteSpace: 'pre', overflow: 'auto',
+            borderRadius: 8, padding: PAD, whiteSpace: 'pre',
+            // Only sideways: a system wider than the panel still scrolls, but
+            // the vertical scroll belongs to the panel now.
+            overflowX: 'auto', overflowY: 'hidden',
           }}
         />
       </div>

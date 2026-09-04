@@ -49,6 +49,18 @@ export interface ParseOptions {
    * markers, ties. Reported as unknown otherwise.
    */
   ignoreChars?: Set<string>
+  /**
+   * A token may span several characters (a fret number, `12h`).
+   *
+   * It changes how the column grid is inferred: with multi-character tokens a
+   * non-rest character that follows another one is the *tail* of that token,
+   * not a token of its own, and counting it as one rules out the very column
+   * width the tab was written at — `8---8-10` then reads as thirty-seconds and
+   * every note after it lands half a column early.
+   *
+   * Off for drums, where `ddX` really is three strokes in three columns.
+   */
+  multiCharTokens?: boolean
 }
 
 export interface ParsedTabGeometry extends ParsedTab {
@@ -207,6 +219,7 @@ interface SystemLine {
 export function parseTabGeometry(text: string, options: ParseOptions): ParsedTabGeometry {
   const beatsPerBar = options.beatsPerBar ?? 4
   const ignore = options.ignoreChars ?? new Set<string>()
+  const multiChar = options.multiCharTokens ?? false
   const lines = text.split(/\r?\n/)
 
   const unknownLabels: string[] = []
@@ -258,7 +271,9 @@ export function parseTabGeometry(text: string, options: ParseOptions): ParsedTab
       for (const line of current) {
         const seg = barSlice(line.text, bound.start, bound.end)
         for (let x = 0; x < seg.length; x++) {
-          if (!isRestChar(seg[x])) tokenXs.push(x)
+          if (isRestChar(seg[x])) continue
+          if (multiChar && x > 0 && !isRestChar(seg[x - 1])) continue
+          tokenXs.push(x)
         }
       }
 

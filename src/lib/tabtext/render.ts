@@ -86,7 +86,28 @@ export function renderTab(model: TabTextModel, options: RenderOptions = {}): Ren
     if (opts.columnWidth === 'bar') {
       for (let bar = 0; bar < barCount; bar++) {
         const from = bar * colsPerBar
-        const barWidth = Math.max(...width.slice(from, from + colsPerBar))
+        let barWidth = Math.max(...width.slice(from, from + colsPerBar))
+
+        // A bar where two neighbouring columns both hold a token cannot be
+        // written one character wide without lying: `9` then `7` on the same
+        // string reads as fret 97, and that is exactly how a bass line of
+        // sixteenths came back with two thirds of its notes missing. Widening
+        // the bar puts a rest between them, so a two-digit number is a
+        // two-digit number and adjacent notes are adjacent notes.
+        // `width` already carries the separator, so the comparison is against
+        // `2 + gap` rather than 2.
+        if (barWidth < 2 + gap) {
+          for (const row of model.rows) {
+            const cells = model.cells.get(row.key)
+            if (!cells) continue
+            for (let c = 1; c < colsPerBar; c++) {
+              const here = startBar * colsPerBar + from + c
+              if (cells.get(here) && cells.get(here - 1)) { barWidth = 2 + gap; break }
+            }
+            if (barWidth >= 2 + gap) break
+          }
+        }
+
         for (let c = from; c < from + colsPerBar; c++) width[c] = barWidth
       }
     }

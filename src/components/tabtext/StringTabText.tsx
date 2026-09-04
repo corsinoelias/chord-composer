@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react'
 import { BT, f } from '../../lib/bassTab/theme'
 import { renderTab } from '../../lib/tabtext/render'
 import {
-  carryOverNotes, stringNotesFromText, stringTrackToModel,
+  carryOverNotes, chooseColumnsPerBeat, stringNotesFromText, stringTrackToModel,
   type StringNote, type StringTabTrack,
 } from '../../lib/tabtext/adapters/strings'
 import type { RenderOptions } from '../../lib/tabtext/types'
@@ -40,10 +40,14 @@ interface Props {
 export function StringTabText({
   track, labels, storageKey, onApply, getBeat, isPlaying, onSeekBeat, actions,
 }: Props) {
+  // Triplets need a grid of three, not four. Chosen from the notes rather than
+  // fixed, so a shuffle is written as a shuffle instead of being drawn — and
+  // then applied — on the nearest sixteenth.
   const shape = useMemo(() => ({
     labels,
+    columnsPerBeat: chooseColumnsPerBeat(track.notes),
     header: (t: StringTabTrack) => `♩ = ${t.bpm} bpm    ${t.totalBars} bars × ${t.beatsPerBar}/4`,
-  }), [labels])
+  }), [labels, track.notes])
 
   const render = useCallback(
     (options: RenderOptions) => renderTab(stringTrackToModel(track, shape), {
@@ -58,7 +62,8 @@ export function StringTabText({
     // back from the notes that were already there, so applying an unedited tab
     // does not flatten the track to sixteenths.
     onApply(
-      carryOverNotes(track.notes, parsed.notes),
+      // Half a column: the furthest a note can have moved by being written down.
+      carryOverNotes(track.notes, parsed.notes, 0.5 / shape.columnsPerBeat),
       Math.max(1, parsed.bars || track.totalBars),
     )
   }, [shape, track.notes, track.beatsPerBar, track.totalBars, onApply])
