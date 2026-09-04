@@ -3,6 +3,7 @@ import { Library, MoreHorizontal, Share2, SlidersHorizontal, Trash2 } from 'luci
 import type { DrumKitId, DrumView } from '../../lib/drumTab/types'
 import { BT, f } from '../../lib/bassTab/theme'
 import { IconButton, Segmented, TextButton } from './barControls'
+import { DrumTabExportMenu } from './DrumTabExportMenu'
 
 /**
  * What the pattern *is*: its name, its kit, which view you are reading it in.
@@ -51,12 +52,17 @@ interface Props {
   onOpenLibrary: () => void
   onShare: () => void
   onClear: () => void
+  onExportMidi: () => void
+  onExportMidiSplit: () => void
+  onExportWav: () => void
+  exporting: boolean
 }
 
 function DrumTabTopBarImpl({
   trackName, kit, view, shareLabel, showLibraryButton,
   showMixerToggle, mixerOpen, onMixerToggle, compact, onOpenSheet,
   onNameChange, onKitChange, onViewChange, onOpenLibrary, onShare, onClear,
+  onExportMidi, onExportMidiSplit, onExportWav, exporting,
 }: Props) {
   if (compact) {
     return (
@@ -131,6 +137,13 @@ function DrumTabTopBarImpl({
           <SlidersHorizontal size={15} /> Mixer
         </TextButton>
       )}
+
+      <DrumTabExportMenu
+        onMidi={onExportMidi}
+        onMidiSplit={onExportMidiSplit}
+        onWav={onExportWav}
+        busy={exporting}
+      />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <IconButton tone="light" onClick={onShare} title={shareLabel}>

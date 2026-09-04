@@ -4,6 +4,7 @@ import type { DrumChannel, DrumKitId, DrumMix, DrumPieceId } from '../../lib/dru
 import { BT, f } from '../../lib/bassTab/theme'
 import { Segmented, TextButton } from './barControls'
 import { DrumTabInspector } from './DrumTabInspector'
+import { DrumTabExportMenu } from './DrumTabExportMenu'
 
 /**
  * Everything the phone's top bar cannot hold.
@@ -39,6 +40,10 @@ interface Props {
   onOpenLibrary: () => void
   onShare: () => void
   onClear: () => void
+  onExportMidi: () => void
+  onExportMidiSplit: () => void
+  onExportWav: () => void
+  exporting: boolean
   onSelectPiece: (piece: DrumPieceId) => void
   onChannelChange: (piece: DrumPieceId, patch: Partial<DrumChannel>) => void
   onRowVelocityChange: (piece: DrumPieceId, velocity: number) => void
@@ -47,6 +52,7 @@ interface Props {
 function DrumTabMobileSheetImpl({
   open, trackName, kit, shareLabel, mix, selectedPiece, rowVelocity, usedPieces,
   onClose, onNameChange, onKitChange, onOpenLibrary, onShare, onClear,
+  onExportMidi, onExportMidiSplit, onExportWav, exporting,
   onSelectPiece, onChannelChange, onRowVelocityChange,
 }: Props) {
   if (!open) return null
@@ -129,6 +135,17 @@ function DrumTabMobileSheetImpl({
               <TextButton tone="light" onClick={onClear} title="Clear all hits">
                 <Trash2 size={15} /> Clear
               </TextButton>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={label}>Export</span>
+              <DrumTabExportMenu
+                inline
+                onMidi={onExportMidi}
+                onMidiSplit={onExportMidiSplit}
+                onWav={onExportWav}
+                busy={exporting}
+              />
             </div>
           </div>
 

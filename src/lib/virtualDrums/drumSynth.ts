@@ -62,23 +62,58 @@ export interface DrumEngine {
   context(): AudioContext
   setVolume(v: number): void
   setReverb(v: number): void
+  /**
+   * Resolves once the acoustic samples have loaded (or failed to).
+   *
+   * Live playback does not need this — a piece whose sample has not arrived
+   * falls back to synthesis for one stroke and nobody notices. A render does:
+   * an export started a moment too early would be a whole file of fallback
+   * sounds, silently different from what the app was playing.
+   */
+  samplesReady(): Promise<void>
+  /** The decoded samples, to hand to an offline engine instead of re-fetching. */
+  sampleCache(): Partial<Record<AcousticSampleKey, AudioBuffer>>
 }
 
-export function createDrumEngine(): DrumEngine {
-  let ctx: AudioContext | null = null
+export interface DrumEngineOptions {
+  /**
+   * Render into a context that already exists instead of opening one.
+   *
+   * This is what makes an offline render possible: an `OfflineAudioContext`
+   * passed here gets the identical signal chain (compressor, saturator, master,
+   * convolution reverb) and the identical voices, so a WAV export is the same
+   * kit the speakers were playing rather than a second implementation of it
+   * that would drift from the first.
+   */
+  context?: BaseAudioContext
+  /**
+   * Decoded acoustic samples to reuse. An offline context can play buffers
+   * decoded by the live one — they only have to agree on sample rate — so
+   * handing them over avoids re-fetching every hit of the kit to export.
+   */
+  samples?: Partial<Record<AcousticSampleKey, AudioBuffer>>
+}
+
+export function createDrumEngine(options: DrumEngineOptions = {}): DrumEngine {
+  let ctx: BaseAudioContext | null = null
   let master: GainNode | null = null
   let wet: GainNode | null = null
   let noiseBuf: AudioBuffer | null = null
   let vol = 0.9
   let rev = 0.25
-  const samples: Partial<Record<AcousticSampleKey, AudioBuffer>> = {}
+  const samples: Partial<Record<AcousticSampleKey, AudioBuffer>> = { ...options.samples }
+  /** Resolves once every sample that is going to load has. */
+  let loaded: Promise<void> = Promise.resolve()
 
   function ensure() {
     if (ctx) {
-      if (ctx.state === 'suspended') ctx.resume()
+      // An OfflineAudioContext also reports "suspended" until it renders, and
+      // resuming one outside of a render throws — so only a context this engine
+      // opened itself is ever unlocked here.
+      if (!options.context && ctx.state === 'suspended') (ctx as AudioContext).resume()
       return
     }
-    ctx = new AudioContext()
+    ctx = options.context ?? new AudioContext()
 
     const comp = ctx.createDynamicsCompressor()
     comp.threshold.value = -12; comp.knee.value = 18; comp.ratio.value = 4
@@ -100,13 +135,18 @@ export function createDrumEngine(): DrumEngine {
 
     noiseBuf = makeNoise(2)
 
-    ;(Object.keys(ACOUSTIC_SAMPLE_PATHS) as AcousticSampleKey[]).forEach(key => {
-      fetch(ACOUSTIC_SAMPLE_PATHS[key])
-        .then(res => (res.ok ? res.arrayBuffer() : Promise.reject(res.status)))
-        .then(arrayBuffer => ctx!.decodeAudioData(arrayBuffer))
-        .then(buf => { samples[key] = buf })
-        .catch(() => { /* not sourced yet — synthesized fallback is used until it is */ })
-    })
+    // Samples handed in are already decoded; only fetch what is missing, which
+    // for an offline render is usually nothing at all.
+    const pending = (Object.keys(ACOUSTIC_SAMPLE_PATHS) as AcousticSampleKey[])
+      .filter(key => !samples[key])
+      .map(key =>
+        fetch(ACOUSTIC_SAMPLE_PATHS[key])
+          .then(res => (res.ok ? res.arrayBuffer() : Promise.reject(res.status)))
+          .then(arrayBuffer => ctx!.decodeAudioData(arrayBuffer))
+          .then(buf => { samples[key] = buf })
+          .catch(() => { /* not sourced yet — synthesized fallback is used until it is */ }),
+      )
+    loaded = Promise.all(pending).then(() => undefined)
   }
 
   function playSample(buf: AudioBuffer, t: number, v: number, gainMul: number, wetAmt: number) {
@@ -409,7 +449,9 @@ export function createDrumEngine(): DrumEngine {
       if (fn) fn(t, Math.max(0.1, Math.min(1, vel == null ? 1 : vel)))
     },
     now() { ensure(); return ctx!.currentTime },
-    context() { ensure(); return ctx! },
+    context() { ensure(); return ctx! as AudioContext },
+    samplesReady() { ensure(); return loaded },
+    sampleCache() { ensure(); return samples },
     setVolume(v: number) { vol = v; if (master) master.gain.setTargetAtTime(v, ctx!.currentTime, 0.02) },
     setReverb(v: number) { rev = v; if (wet) wet.gain.setTargetAtTime(v, ctx!.currentTime, 0.02) },
   }

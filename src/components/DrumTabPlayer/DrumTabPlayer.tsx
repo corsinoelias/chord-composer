@@ -8,6 +8,8 @@ import { defaultDrumTrack, getDrumPreset, type DrumPreset } from '../../data/dru
 import { startPlayback, stopPlayback, seekPlayback, setMasterVolume, previewHit } from '../../lib/drumTab/drumAudio'
 import { parseDrumTab } from '../../lib/drumTab/drumTabText'
 import { encodeTrackToHash, decodeTrackFromHash, copyToClipboard } from '../../lib/drumTab/exportDrumTab'
+import { exportDrumMidi } from '../../lib/drumTab/drumMidi'
+import { exportDrumWav } from '../../lib/drumTab/exportDrumAudio'
 import { useDrumTrackEditor } from '../../hooks/useDrumTrackEditor'
 import { useIsMobile, useIsDesktop, useIsShort, useIsWide, MOBILE_BREAKPOINT } from '../../hooks/use-mobile'
 import { analytics } from '../../lib/analytics'
@@ -354,6 +356,33 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     analytics.drumTabUserTabLoaded()
   }, [loadTrack, stop])
 
+  /**
+   * Export reads the track through `trackRef` rather than closing over it, so
+   * these callbacks keep a stable identity — the top bar is memoised, and this
+   * component re-renders on every sixteenth to move its position readout.
+   */
+  const [exporting, setExporting] = useState(false)
+
+  const handleExportMidi = useCallback(() => {
+    exportDrumMidi(trackRef.current)
+    analytics.drumTabExport('midi')
+  }, [])
+
+  const handleExportMidiSplit = useCallback(() => {
+    exportDrumMidi(trackRef.current, { splitByPiece: true })
+    analytics.drumTabExport('midi')
+  }, [])
+
+  const handleExportWav = useCallback(async () => {
+    setExporting(true)
+    try {
+      await exportDrumWav(trackRef.current)
+      analytics.drumTabExport('wav')
+    } finally {
+      setExporting(false)
+    }
+  }, [])
+
   const handleShare = useCallback(async () => {
     const hash = encodeTrackToHash(trackRef.current)
     if (!hash) { setShareLabel('Could not build a link'); return }
@@ -502,7 +531,13 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
       {view === 'text' && (
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-          <DrumTabTextEditor track={track} onApply={applyText} />
+          <DrumTabTextEditor
+            track={track}
+            onApply={applyText}
+            getBeat={getBeat}
+            isPlaying={isPlaying}
+            onSeekBeat={seekToBeat}
+          />
         </div>
       )}
 
@@ -555,6 +590,10 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         onViewChange={setView}
         onOpenLibrary={openLibrary}
         onShare={handleShare}
+        onExportMidi={handleExportMidi}
+        onExportMidiSplit={handleExportMidiSplit}
+        onExportWav={handleExportWav}
+        exporting={exporting}
         onClear={clearAll}
       />
 
@@ -636,6 +675,10 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           onKitChange={setKit}
           onOpenLibrary={openLibrary}
           onShare={handleShare}
+          onExportMidi={handleExportMidi}
+          onExportMidiSplit={handleExportMidiSplit}
+          onExportWav={handleExportWav}
+          exporting={exporting}
           onClear={clearAll}
           onSelectPiece={hitPiece}
           onChannelChange={setChannel}
