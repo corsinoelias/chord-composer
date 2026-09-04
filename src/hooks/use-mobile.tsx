@@ -41,6 +41,37 @@ export function useIsDesktop() {
 }
 
 /**
+ * True when the viewport is too short to stack a full editor into — a phone in
+ * landscape, mostly (844×390, 932×430), but a short desktop window counts too,
+ * because the squeeze is the same one.
+ *
+ * It is deliberately a *height* query. The drum tab's mobile layout was built
+ * entirely on width, so landscape phones took the desktop branch at a third of
+ * the height it assumes: the kit band alone ate half the editor and the grid
+ * was left with a couple of rows behind the transport.
+ *
+ * 560px: taller than any phone laid on its side (the tallest is ~460), shorter
+ * than a small tablet in portrait (768), which wants the normal layout.
+ */
+const SHORT_BREAKPOINT = 560;
+
+export function useIsShort() {
+  const [isShort, setIsShort] = React.useState<boolean>(
+    () => typeof window !== "undefined" && window.innerHeight < SHORT_BREAKPOINT,
+  );
+
+  React.useEffect(() => {
+    const mql = window.matchMedia(`(max-height: ${SHORT_BREAKPOINT - 1}px)`);
+    const onChange = () => setIsShort(window.innerHeight < SHORT_BREAKPOINT);
+    mql.addEventListener("change", onChange);
+    setIsShort(window.innerHeight < SHORT_BREAKPOINT);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  return isShort;
+}
+
+/**
  * True at 1440px and up. Used by the Drum Tab Player to decide whether there is
  * room for a third column (the kit inspector) beside the library rail and the
  * grid: below this the grid's sixteenths get squeezed under the width they need

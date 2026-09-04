@@ -418,8 +418,8 @@ BD|o-------o-------|o-------o-------|</code></pre>
     }
     .dt-skel-kit {
       flex-shrink: 0;
-      /* Mirrors DrumTabKitStage's narrow band; the wider one is set below. */
-      height: clamp(150px, 24vh, 300px);
+      /* `EXPANDED_H` in DrumTabKitStage, to the pixel. */
+      height: clamp(100px, 26vh, 300px);
       background: #111426;
       border-bottom: 1px solid #3a3833;
     }
@@ -443,10 +443,12 @@ BD|o-------o-------|o-------o-------|</code></pre>
     @keyframes dtPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
     @media (prefers-reduced-motion: reduce) { .dt-shimmer { animation: none; } }
 
-    /* Above the mobile breakpoint the kit band is taller — matches the
-       `narrow` switch in DrumTabKitStage. */
-    @media (min-width: 768px) {
-      .dt-skel-kit { height: clamp(170px, 27vh, 300px); }
+    /* Too short to stack a full editor into — a phone in landscape. The player
+       opens the kit as its 54px icon strip here (`useIsShort` in
+       `hooks/use-mobile.tsx`), so the placeholder has to as well, or the whole
+       page shifts up by a band the moment the island mounts. */
+    @media (max-height: 559px) {
+      .dt-skel-kit { height: 54px; }
     }
   </style>
 </BaseLayout>
