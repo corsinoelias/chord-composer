@@ -42,7 +42,26 @@ const KEY_LABELS = `
           <g><rect x="1135" y="282" width="160" height="30" rx="8" fill="rgba(10,12,16,0.78)"></rect><text x="1215" y="302" text-anchor="middle" font-size="15" font-weight="600" fill="#ffffff">2 / T · 3 bell</text></g>
         </g>`
 
-export function buildKitSvg(opts: { kit: 'acoustic' | 'electronic'; scene: SceneDef; showLabels: boolean; fit?: 'meet' | 'slice' }): string {
+export function buildKitSvg(opts: {
+  kit: 'acoustic' | 'electronic'
+  scene: SceneDef
+  showLabels: boolean
+  fit?: 'meet' | 'slice'
+  /**
+   * Drop the set dressing — truss, spotlights, crowd, backline amps — and keep
+   * the kit on a plain backdrop. For the Drum Tab Player's stage band, which is
+   * a few hundred pixels tall: at that size the crowd is a row of smudges and
+   * the light beams cross the whole strip.
+   */
+  bare?: boolean
+  /**
+   * SVG user-unit crop, default the full `0 0 1600 900` scene. A wide, short
+   * band wants something like `-620 140 2840 650`, so the kit stays its natural
+   * size and the backdrop fills the extra width instead of letterboxing.
+   * Only meaningful together with `bare`, which is what widens the backdrop.
+   */
+  viewBox?: string
+}): string {
   const ac = opts.kit === 'acoustic'
   const shellFill = ac ? 'url(#shellAc)' : 'url(#shellEl)'
   const headFill = ac ? 'url(#headAc)' : 'url(#headEl)'
@@ -53,7 +72,22 @@ export function buildKitSvg(opts: { kit: 'acoustic' | 'electronic'; scene: Scene
   const { wall: wallColor, floor: floorColor, spot } = opts.scene
 
   const fit = opts.fit === 'slice' ? 'slice' : 'meet'
-  return `<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid ${fit}" style="width: 100%; height: 100%; cursor: pointer; touch-action: none; display: block;">
+  const viewBox = opts.viewBox ?? '0 0 1600 900'
+  const bare = opts.bare === true
+
+  // The bare backdrop runs well past the scene's own 1600 units so a widened
+  // `viewBox` still lands on painted ground instead of transparent gutters.
+  const backdrop = bare
+    ? `<rect x="-2400" y="-600" width="6400" height="1300" fill="${wallColor}"></rect>
+      <rect x="-2400" y="700" width="6400" height="800" fill="${floorColor}"></rect>
+      <rect x="-2400" y="-600" width="6400" height="1300" fill="url(#wallShade)"></rect>
+      <rect x="-2400" y="700" width="6400" height="800" fill="url(#floorShade)"></rect>`
+    : `<rect x="0" y="0" width="1600" height="700" fill="${wallColor}"></rect>
+      <rect x="0" y="700" width="1600" height="200" fill="${floorColor}"></rect>
+      <rect x="0" y="0" width="1600" height="700" fill="url(#wallShade)"></rect>
+      <rect x="0" y="700" width="1600" height="200" fill="url(#floorShade)"></rect>`
+
+  return `<svg viewBox="${viewBox}" preserveAspectRatio="xMidYMid ${fit}" style="width: 100%; height: 100%; cursor: pointer; touch-action: none; display: block;">
       <defs>
         <linearGradient id="shellAc" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stop-color="#2e1206"></stop>
@@ -147,11 +181,8 @@ export function buildKitSvg(opts: { kit: 'acoustic' | 'electronic'; scene: Scene
         </linearGradient>
       </defs>
 
-      <rect x="0" y="0" width="1600" height="700" fill="${wallColor}"></rect>
-      <rect x="0" y="700" width="1600" height="200" fill="${floorColor}"></rect>
-      <rect x="0" y="0" width="1600" height="700" fill="url(#wallShade)"></rect>
-      <rect x="0" y="700" width="1600" height="200" fill="url(#floorShade)"></rect>
-      <g pointer-events="none" opacity="0.5">
+      ${backdrop}
+      ${bare ? '' : `<g pointer-events="none" opacity="0.5">
         <rect x="0" y="24" width="1600" height="9" fill="#0a0b0f"></rect>
         <rect x="0" y="76" width="1600" height="9" fill="#0a0b0f"></rect>
         <path d="M 0 33 L 60 76 L 120 33 L 180 76 L 240 33 L 300 76 L 360 33 L 420 76 L 480 33 L 540 76 L 600 33 L 660 76 L 720 33 L 780 76 L 840 33 L 900 76 L 960 33 L 1020 76 L 1080 33 L 1140 76 L 1200 33 L 1260 76 L 1320 33 L 1380 76 L 1440 33 L 1500 76 L 1560 33 L 1600 62" stroke="#0a0b0f" stroke-width="6" fill="none"></path>
@@ -179,7 +210,7 @@ export function buildKitSvg(opts: { kit: 'acoustic' | 'electronic'; scene: Scene
         <circle cx="1484" cy="545" r="44" fill="#0d0e13" stroke="#23252f" stroke-width="3"></circle>
         <circle cx="1484" cy="545" r="15" fill="#1a1c24"></circle>
         <rect x="1414" y="622" width="140" height="56" rx="6" fill="#07080b"></rect>
-      </g>
+      </g>`}
 
       <ellipse cx="800" cy="748" rx="195" ry="20" fill="rgba(0,0,0,0.35)" filter="url(#soft)" pointer-events="none"></ellipse>
       <ellipse cx="545" cy="750" rx="105" ry="14" fill="rgba(0,0,0,0.3)" filter="url(#soft)" pointer-events="none"></ellipse>

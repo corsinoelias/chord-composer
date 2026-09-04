@@ -8,10 +8,12 @@ import { startPlayback, stopPlayback, setMasterVolume, previewHit } from '../../
 import { parseDrumTab } from '../../lib/drumTab/drumTabText'
 import { encodeTrackToHash, decodeTrackFromHash, copyToClipboard } from '../../lib/drumTab/exportDrumTab'
 import { useDrumTrackEditor } from '../../hooks/useDrumTrackEditor'
-import { useIsMobile } from '../../hooks/use-mobile'
+import { useIsMobile, useIsDesktop } from '../../hooks/use-mobile'
 import { analytics } from '../../lib/analytics'
 import { BT, BT_VARS, f } from '../../lib/bassTab/theme'
+import { DrumTabTopBar } from './DrumTabTopBar'
 import { DrumTabTransport } from './DrumTabTransport'
+import { DrumTabKitStage } from './DrumTabKitStage'
 import { DrumTabGrid } from './DrumTabGrid'
 import { DrumTabScore } from './DrumTabScore'
 import { DrumTabTextEditor } from './DrumTabTextEditor'
@@ -24,7 +26,20 @@ import type { UserTab } from '../../lib/drumTab/userTabs'
  * It opens straight into the editor with a groove already loaded (no library
  * step to get past): whatever is in the URL hash, else whatever was last edited
  * in this browser, else the chord player's Rock Básico.
+ *
+ * **It fills the viewport.** Four bands stacked: what the pattern is (top bar),
+ * the kit playing it, the pattern itself, and the transport. The one thing that
+ * is not a band is the rhythm library, which on a wide screen is a rail down the
+ * left rather than a dialog — you pick a groove to compare it against the one
+ * you have, and a dialog covers exactly the thing being compared. Below `lg` it
+ * goes back to being a dialog, because at that width a rail is most of the
+ * screen.
  */
+
+/** Height of the site navbar (`h-16` in `Navbar.astro`), which sits above us. */
+const NAVBAR_H = 64
+
+const KIT_COLLAPSED_KEY = 'drum-tab-kit-collapsed-v1'
 
 /** URL hash → last session → the default groove. Same cascade as the bass tab. */
 function loadInitialTrack(presetId?: string): DrumTrack {
@@ -46,8 +61,14 @@ function loadInitialTrack(presetId?: string): DrumTrack {
   return defaultDrumTrack()
 }
 
+/** Expanded on a first visit — the kit is the thing that says what this page is. */
+function loadKitCollapsed(): boolean {
+  try { return localStorage.getItem(KIT_COLLAPSED_KEY) === '1' } catch { return false }
+}
+
 export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}) {
-  const isMobile = useIsMobile()
+  const isMobile  = useIsMobile()
+  const isDesktop = useIsDesktop()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initialTrack = useMemo(() => loadInitialTrack(initialPreset), [])
@@ -68,6 +89,16 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [presetId, setPresetId]       = useState(initialTrack.id)
   const [shareLabel, setShareLabel]   = useState('Copy share link')
   const [barPage, setBarPage]         = useState(0)
+  const [kitCollapsed, setKitCollapsed] = useState(loadKitCollapsed)
+  const [selectedPiece, setSelectedPiece] = useState<DrumPieceId | null>(null)
+
+  /**
+   * The rail has nothing to close. It has to be a stable identity rather than an
+   * inline arrow: the rail stays mounted and re-renders with this component,
+   * which during playback is every frame, and a fresh callback each time defeats
+   * the memo that keeps 30-odd preset thumbnails from re-rendering with it.
+   */
+  const noClose = useCallback(() => {}, [])
 
   // Getters the running scheduler reads each frame, so toggling loop or the
   // metronome mid-playback takes effect without restarting the transport.
@@ -78,6 +109,10 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
   useEffect(() => { setMasterVolume(volume) }, [volume])
   useEffect(() => () => { stopPlayback() }, [])
+
+  useEffect(() => {
+    try { localStorage.setItem(KIT_COLLAPSED_KEY, kitCollapsed ? '1' : '0') } catch { /* private mode */ }
+  }, [kitCollapsed])
 
   // Keep the page in range when bars are removed.
   useEffect(() => {
@@ -160,6 +195,15 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   }, [])
 
   /**
+   * Striking a piece on the kit stage: it sounds, and its row becomes the
+   * current one so the grid scrolls it into view ready to write into.
+   */
+  const hitPiece = useCallback((pieceId: DrumPieceId) => {
+    setSelectedPiece(pieceId)
+    previewRow(pieceId)
+  }, [previewRow])
+
+  /**
    * Applying the text view is idempotent: if the tab describes what the track
    * already holds, nothing happens and no undo entry is recorded.
    *
@@ -237,37 +281,11 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   // On a phone the grid shows one bar at a time; on desktop it scrolls.
   const barWindow = isMobile ? { start: barPage, count: 1 } : null
 
-  return (
-    <div style={{ ...BT_VARS, background: BT.paper, borderRadius: 14, padding: 12, display: 'grid', gap: 12 }}>
-      <DrumTabTransport
-        isPlaying={isPlaying}
-        bpm={track.bpm}
-        kit={track.kit}
-        loop={loop}
-        metronome={metronome}
-        volume={volume}
-        view={view}
-        totalBars={track.totalBars}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        trackName={track.name}
-        shareLabel={shareLabel}
-        onTogglePlay={togglePlay}
-        onBpmChange={bpm => setBpm(bpm, isPlaying)}
-        onKitChange={setKit}
-        onLoopChange={setLoop}
-        onMetronomeChange={setMetronome}
-        onVolumeChange={setVolume}
-        onViewChange={setView}
-        onTotalBarsChange={setTotalBars}
-        onUndo={undo}
-        onRedo={redo}
-        onOpenLibrary={() => setLibraryOpen(true)}
-        onShare={handleShare}
-        onClear={clearAll}
-        onNameChange={setName}
-      />
-
+  const editorPane = (
+    <div style={{
+      flex: 1, minWidth: 0, minHeight: 0,
+      display: 'flex', flexDirection: 'column', gap: 10, padding: 12,
+    }}>
       {view === 'grid' && (
         <>
           <DrumTabGrid
@@ -275,12 +293,14 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             currentBeat={currentBeat}
             isPlaying={isPlaying}
             barWindow={barWindow}
+            selectedPiece={selectedPiece}
             onToggleCell={toggleCell}
             onSetRowVelocity={setRowVelocity}
             onPreviewRow={previewRow}
+            onSelectRow={setSelectedPiece}
           />
           {barWindow && track.totalBars > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 6, flexShrink: 0 }}>
               {Array.from({ length: track.totalBars }, (_, bar) => (
                 <button
                   key={bar}
@@ -304,27 +324,105 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       )}
 
       {view === 'score' && (
-        <DrumTabScore
-          track={track}
-          zoom={1}
-          currentBeat={currentBeat}
-          isPlaying={isPlaying}
-          onSeekBeat={beat => setCurrentBeat(beat)}
-        />
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          <DrumTabScore
+            track={track}
+            zoom={1}
+            currentBeat={currentBeat}
+            isPlaying={isPlaying}
+            onSeekBeat={beat => setCurrentBeat(beat)}
+          />
+        </div>
       )}
 
       {view === 'text' && (
-        <DrumTabTextEditor track={track} onApply={applyText} />
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          <DrumTabTextEditor track={track} onApply={applyText} />
+        </div>
       )}
+    </div>
+  )
 
-      <DrumTabLibrary
-        open={libraryOpen}
-        currentId={presetId}
-        currentTrack={track}
-        onClose={() => setLibraryOpen(false)}
-        onLoad={handleLoadPreset}
-        onLoadUserTab={handleLoadUserTab}
+  return (
+    <div style={{
+      ...BT_VARS,
+      background: BT.paper,
+      // A phone keeps the page scrolling normally; from `md` up the editor is the
+      // screen. Same shape Virtual Drums uses, and the same navbar allowance.
+      height: isMobile ? 'auto' : `calc(100dvh - ${NAVBAR_H}px)`,
+      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+    }}>
+      <DrumTabTopBar
+        trackName={track.name}
+        kit={track.kit}
+        view={view}
+        shareLabel={shareLabel}
+        showLibraryButton={!isDesktop}
+        onNameChange={setName}
+        onKitChange={setKit}
+        onViewChange={setView}
+        onOpenLibrary={() => setLibraryOpen(true)}
+        onShare={handleShare}
+        onClear={clearAll}
       />
+
+      <DrumTabKitStage
+        kit={track.kit}
+        track={track}
+        currentBeat={currentBeat}
+        isPlaying={isPlaying}
+        collapsed={kitCollapsed}
+        onToggleCollapse={() => setKitCollapsed(c => !c)}
+        selectedPiece={selectedPiece}
+        onSelectPiece={hitPiece}
+      />
+
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {isDesktop && (
+          <DrumTabLibrary
+            variant="rail"
+            open
+            currentId={presetId}
+            currentTrack={track}
+            onClose={noClose}
+            onLoad={handleLoadPreset}
+            onLoadUserTab={handleLoadUserTab}
+          />
+        )}
+        {editorPane}
+      </div>
+
+      <DrumTabTransport
+        isPlaying={isPlaying}
+        bpm={track.bpm}
+        loop={loop}
+        metronome={metronome}
+        volume={volume}
+        totalBars={track.totalBars}
+        beatsPerBar={track.beatsPerBar}
+        currentBeat={currentBeat}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onTogglePlay={togglePlay}
+        onBpmChange={bpm => setBpm(bpm, isPlaying)}
+        onLoopChange={setLoop}
+        onMetronomeChange={setMetronome}
+        onVolumeChange={setVolume}
+        onTotalBarsChange={setTotalBars}
+        onUndo={undo}
+        onRedo={redo}
+      />
+
+      {!isDesktop && (
+        <DrumTabLibrary
+          open={libraryOpen}
+          currentId={presetId}
+          currentTrack={track}
+          onClose={() => setLibraryOpen(false)}
+          onLoad={handleLoadPreset}
+          onLoadUserTab={handleLoadUserTab}
+        />
+      )}
     </div>
   )
 }
