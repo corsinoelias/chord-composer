@@ -1,6 +1,6 @@
 import {
   DRUM_ROWS, ROW_BY_PIECE, STEPS_PER_BEAT, makeHitId,
-  type DrumHit, type DrumRow, type DrumTrack,
+  type DrumArticulation, type DrumHit, type DrumRow, type DrumTrack,
 } from '../../drumTab/types'
 import type { TabTextModel } from '../types'
 import { parseTabGeometry, type ParsedTabGeometry } from '../parse'
@@ -45,15 +45,20 @@ export function isXHead(pieceId: string): boolean {
 /**
  * What a character in a hit position means.
  *
- * `+` and `o` on a hi-hat line are the closed/open convention, `d` a drag and
- * `f` a flam — all of them strokes, which is why they belong here and not in
- * the "unknown character" pile. Their articulation is not modelled yet; they
- * sound as plain strokes until it is.
+ * `+` and `o` on a hi-hat line are the closed/open convention; `f` is a flam
+ * and `d` a drag, which are strokes with grace notes rather than characters to
+ * report as unreadable.
  */
 const GHOST_CHARS = new Set(['g', 'G'])
-const HIT_CHARS = new Set(['o', 'O', 'x', 'X', 'd', 'D', 'b', 'B', 'f', 'F', '+'])
+const HIT_CHARS = new Set(['o', 'O', 'x', 'X', 'b', 'B', '+'])
 
-export const TAB_CHARS = new Set([...GHOST_CHARS, ...HIT_CHARS])
+/** Strokes that are more than one hit of the stick, in the letters tabs use. */
+const ARTICULATION_CHARS: Record<string, DrumArticulation> = {
+  f: 'flam', F: 'flam',
+  d: 'drag', D: 'drag',
+}
+
+export const TAB_CHARS = new Set([...GHOST_CHARS, ...HIT_CHARS, ...Object.keys(ARTICULATION_CHARS)])
 
 export function resolveDrumRow(rawLabel: string): { key: string; label: string } | null {
   const key = rawLabel.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
@@ -82,7 +87,12 @@ export function drumTrackToModel(
     const column = Math.round(hit.startBeat * columnsPerBeat)
     if (column < 0) continue
     const base = isXHead(hit.pieceId) ? 'x' : 'o'
-    const token = hit.velocity <= 0.55 ? 'g' : hit.velocity >= 0.95 ? base.toUpperCase() : base
+    // A flam or a drag is written with its own letter, which is what says the
+    // stroke has grace notes; its dynamic goes with the letter's case.
+    const head = hit.articulation === 'flam' ? 'f' : hit.articulation === 'drag' ? 'd' : base
+    const token = hit.articulation
+      ? (hit.velocity >= 0.95 ? head.toUpperCase() : head)
+      : hit.velocity <= 0.55 ? 'g' : hit.velocity >= 0.95 ? base.toUpperCase() : base
     // Two strokes rounding to the same column can only be drawn once; the
     // louder one wins, so a flam does not read as a ghost note.
     const existing = bucket.get(column)
@@ -133,8 +143,10 @@ export function drumHitsFromText(text: string, beatsPerBar = 4): DrumParseResult
       // One character is one stroke: `ddX` in a spaced tab is three strokes on
       // consecutive columns, not one token three characters wide.
       const ch = cell.text[0]
+      const articulation: DrumArticulation | undefined = ARTICULATION_CHARS[ch]
       let velocity: number
       if (GHOST_CHARS.has(ch)) velocity = 0.5
+      else if (articulation) velocity = ch === ch.toUpperCase() ? 1 : drumRow.defaultVel
       else if (HIT_CHARS.has(ch)) {
         velocity = ch !== ch.toLowerCase() && ch !== '+' ? 1 : drumRow.defaultVel
       } else {
@@ -146,6 +158,7 @@ export function drumHitsFromText(text: string, beatsPerBar = 4): DrumParseResult
         pieceId: drumRow.id,
         startBeat: Math.max(0, Math.round(cell.beat * SNAP) / SNAP),
         velocity,
+        ...(articulation ? { articulation } : {}),
       })
     }
   }

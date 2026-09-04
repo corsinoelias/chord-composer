@@ -3,7 +3,7 @@ import { downloadWav, normalizeBuffer, renderOffline } from '../audio/offline'
 import { getDrumEngine } from './drumAudio'
 import { soundingHits } from './drumMidi'
 import { safeFileName } from '../smf'
-import type { DrumTrack } from './types'
+import { strikesFor, type DrumTrack } from './types'
 
 /**
  * The track as a WAV file.
@@ -63,7 +63,13 @@ export async function renderDrumTrack(
       for (let pass = 0; pass < repeats; pass++) {
         const offset = (countInBeats + pass * loopBeats) * beatDur
         for (const { hit, beat, velocity } of hits) {
-          engine.play(track.kit, hit.pieceId, velocity, offset + beat * beatDur)
+          // Same strikes the transport schedules, so a flam is a flam in the
+          // file too rather than the single hit a literal render would give.
+          for (const strike of strikesFor(hit.articulation)) {
+            const at = offset + beat * beatDur - strike.lead
+            if (at < 0) continue
+            engine.play(track.kit, hit.pieceId, velocity * strike.gain, at)
+          }
         }
       }
     },

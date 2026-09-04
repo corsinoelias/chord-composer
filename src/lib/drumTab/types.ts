@@ -11,11 +11,57 @@ export type { DrumKitId, DrumPieceId }
  * — a staff draws note *values*, not cells. The grid is derived from these hits,
  * never the other way round.
  */
+/**
+ * A stroke that is more than one hit of the stick.
+ *
+ * `flam` is a grace note a few milliseconds before the main stroke; `drag` is
+ * two. Both are written in real tabs (`f` and `d`) and both appear in the tabs
+ * this player was tested against, where they used to parse as plain strokes —
+ * audible as a single hit, which is the one thing a flam is not.
+ */
+export type DrumArticulation = 'flam' | 'drag'
+
 export interface DrumHit {
   id: string
   pieceId: DrumPieceId
   startBeat: number   // float, 0-indexed beats from the top of the track
   velocity: number    // 0-1 (0.5 reads as a ghost note)
+  articulation?: DrumArticulation
+}
+
+/** One stick hit: how far before the written beat, and how hard relative to it. */
+export interface Strike {
+  /**
+   * Seconds *before* the written position.
+   *
+   * Seconds rather than beats on purpose: a flam is a physical gesture — the
+   * two sticks are about 30 ms apart whether the tune is at 60 or at 180 — and
+   * expressing it in beats would make it a thirty-second note at one tempo and
+   * inaudible at another.
+   */
+  lead: number
+  /** Multiplied into the hit's velocity. Grace notes are quieter than the stroke. */
+  gain: number
+}
+
+const PLAIN: Strike[] = [{ lead: 0, gain: 1 }]
+const FLAM: Strike[] = [{ lead: 0.030, gain: 0.55 }, { lead: 0, gain: 1 }]
+const DRAG: Strike[] = [
+  { lead: 0.058, gain: 0.42 },
+  { lead: 0.029, gain: 0.48 },
+  { lead: 0, gain: 1 },
+]
+
+/**
+ * What a hit actually sounds like, as one or more strikes.
+ *
+ * One function so the live transport, the WAV render and the MIDI export cannot
+ * disagree about what a flam is — the same reason `mixedVelocity` exists.
+ */
+export function strikesFor(articulation: DrumArticulation | undefined): Strike[] {
+  if (articulation === 'flam') return FLAM
+  if (articulation === 'drag') return DRAG
+  return PLAIN
 }
 
 export interface DrumSection {
@@ -197,7 +243,7 @@ export const DRUM_STORAGE_KEY = 'drum-tab-track-v1'
  */
 export function hitsSignature(hits: DrumHit[]): string {
   return hits
-    .map(h => `${h.pieceId}@${h.startBeat.toFixed(4)}:${h.velocity.toFixed(2)}`)
+    .map(h => `${h.pieceId}@${h.startBeat.toFixed(4)}:${h.velocity.toFixed(2)}${h.articulation ? ':' + h.articulation : ''}`)
     .sort()
     .join('|')
 }

@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { DRUM_ROWS, GRID_LABEL_W, STEPS_PER_BEAT, type DrumPieceId, type DrumTrack } from '../../lib/drumTab/types'
+import {
+  DRUM_ROWS, GRID_LABEL_W, STEPS_PER_BEAT,
+  type DrumArticulation, type DrumPieceId, type DrumTrack,
+} from '../../lib/drumTab/types'
 import { BT, alpha, f } from '../../lib/bassTab/theme'
 import { PART_ICON } from './partIcons'
 
@@ -78,6 +81,12 @@ interface Props {
    */
   showRowVelocity?: boolean
   onToggleCell: (pieceId: DrumPieceId, slot: number) => void
+  /**
+   * Plain → flam → drag → plain, on a step that already has a stroke. Reached
+   * with alt-click or a right-click, both of which are "change this one" rather
+   * than "draw", so neither collides with dragging across cells to paint.
+   */
+  onCycleArticulation?: (pieceId: DrumPieceId, slot: number) => void
   onSetRowVelocity: (pieceId: DrumPieceId, velocity: number) => void
   onPreviewRow: (pieceId: DrumPieceId) => void
   onSelectRow?: (pieceId: DrumPieceId) => void
@@ -85,7 +94,7 @@ interface Props {
 
 function DrumTabGridImpl({
   track, getBeat, isPlaying, barWindow, selectedPiece, labelW = GRID_LABEL_W, showRowVelocity = true,
-  onToggleCell, onSetRowVelocity, onPreviewRow, onSelectRow,
+  onToggleCell, onCycleArticulation, onSetRowVelocity, onPreviewRow, onSelectRow,
 }: Props) {
   const slotsPerBar = track.beatsPerBar * STEPS_PER_BEAT
   const firstBar    = barWindow ? barWindow.start : 0
@@ -142,11 +151,13 @@ function DrumTabGridImpl({
   const paintRef = useRef<{ value: boolean } | null>(null)
 
   const { cells, rowVelocity } = useMemo(() => {
-    const cells = new Set<string>()
+    // A map rather than a set: the value is the stroke's articulation, so a flam
+    // can be drawn as one instead of looking exactly like a plain hit.
+    const cells = new Map<string, DrumArticulation | undefined>()
     const rowVelocity: Partial<Record<DrumPieceId, number>> = {}
     for (const h of track.hits) {
       const slot = Math.round(h.startBeat * STEPS_PER_BEAT)
-      cells.add(h.pieceId + '@' + slot)
+      cells.set(h.pieceId + '@' + slot, h.articulation)
       if (rowVelocity[h.pieceId] === undefined) rowVelocity[h.pieceId] = h.velocity
     }
     return { cells, rowVelocity }
@@ -169,10 +180,23 @@ function DrumTabGridImpl({
   }, [bodyH, visibleRows.length])
   const cellH = rowH - ROW_GAP
 
-  const handleDown = useCallback((pieceId: DrumPieceId, slot: number, on: boolean) => {
+  const handleDown = useCallback((
+    e: React.PointerEvent,
+    pieceId: DrumPieceId,
+    slot: number,
+    on: boolean,
+  ) => {
+    // Alt-click and right-click change the stroke that is there; they never
+    // create or erase one, so a mis-hit on an empty cell does nothing.
+    if (on && onCycleArticulation && (e.altKey || e.button === 2)) {
+      e.preventDefault()
+      onCycleArticulation(pieceId, slot)
+      return
+    }
+    if (e.button === 2) return
     paintRef.current = { value: !on }
     onToggleCell(pieceId, slot)
-  }, [onToggleCell])
+  }, [onToggleCell, onCycleArticulation])
 
   const handleEnter = useCallback((pieceId: DrumPieceId, slot: number, on: boolean) => {
     const paint = paintRef.current
@@ -358,20 +382,28 @@ function DrumTabGridImpl({
               >
                 {Array.from({ length: totalSlots }, (_, i) => {
                   const slot        = firstSlot + i
-                  const on          = cells.has(row.id + '@' + slot)
+                  const key         = row.id + '@' + slot
+                  const on          = cells.has(key)
+                  const articulation = cells.get(key)
                   const isBarStart  = slot % slotsPerBar === 0
                   const isBeatStart = slot % STEPS_PER_BEAT === 0
                   return (
                     <button
                       key={slot}
                       type="button"
-                      onPointerDown={() => handleDown(row.id, slot, on)}
+                      onPointerDown={e => handleDown(e, row.id, slot, on)}
                       onPointerEnter={() => handleEnter(row.id, slot, on)}
-                      aria-label={row.label + ' step ' + (slot + 1)}
+                      onContextMenu={e => e.preventDefault()}
+                      aria-label={
+                        row.label + ' step ' + (slot + 1) + (articulation ? ', ' + articulation : '')
+                      }
                       aria-pressed={on}
+                      title={on && onCycleArticulation ? 'Alt-click for a flam or a drag' : undefined}
                       style={{
                         width: cellW, height: cellH, padding: 0, cursor: 'pointer',
                         borderRadius: 5,
+                        display: 'flex', alignItems: 'center', gap: 1,
+                        paddingLeft: articulation ? 2 : 0,
                         border: isBarStart
                           ? '1px solid ' + alpha('bar', 0.45)
                           : '1px solid ' + (on ? 'transparent' : BT.rule),
@@ -381,7 +413,22 @@ function DrumTabGridImpl({
                           : BT.card,
                         touchAction: 'none',
                       }}
-                    />
+                    >
+                      {/* Grace notes, drawn as the sticks that play them: one
+                          dot before the stroke for a flam, two for a drag. */}
+                      {articulation && Array.from(
+                        { length: articulation === 'drag' ? 2 : 1 },
+                        (_, g) => (
+                          <span
+                            key={g}
+                            style={{
+                              width: 2, height: 2, borderRadius: '50%',
+                              background: 'rgba(255,255,255,0.85)', flex: 'none',
+                            }}
+                          />
+                        ),
+                      )}
+                    </button>
                   )
                 })}
               </div>

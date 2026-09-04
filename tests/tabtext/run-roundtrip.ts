@@ -14,7 +14,7 @@
  */
 
 import { parseDrumTab, toDrumTab } from '../../src/lib/drumTab/drumTabText'
-import { hitsSignature, ROW_BY_PIECE, type DrumTrack } from '../../src/lib/drumTab/types'
+import { hitsSignature, ROW_BY_PIECE, strikesFor, type DrumTrack } from '../../src/lib/drumTab/types'
 import { toAsciiTab as bassAscii } from '../../src/lib/bassTab/exportTab'
 import { toAsciiTab as guitarAscii } from '../../src/lib/guitarTab/exportTab'
 import { stringNotesFromText } from '../../src/lib/tabtext/adapters/strings'
@@ -169,6 +169,36 @@ console.log('\nbass tab — two-digit frets keep their column')
   const lines = text.split('\n').filter(l => l.includes('|'))
   const widths = new Set(lines.map(l => l.length))
   check('every string line is the same length', widths.size === 1, [...widths].join(', '))
+}
+
+console.log('\ndrum tab — flams and drags survive the text')
+{
+  const track: DrumTrack = {
+    id: 'a', name: 'Fills', bpm: 100, beatsPerBar: 4, totalBars: 1, kit: 'acoustic',
+    hits: [
+      { id: '1', pieceId: 'snare', startBeat: 0, velocity: 1, articulation: 'flam' },
+      // A tom rather than the snare for the unaccented one: the snare's own
+      // default velocity is 0.95, which the format writes as an accent, so it
+      // could not come back as anything else — a property of ASCII's three
+      // dynamic levels, not of the parser.
+      { id: '2', pieceId: 'tom-hi', startBeat: 1, velocity: ROW_BY_PIECE['tom-hi'].defaultVel, articulation: 'drag' },
+      { id: '3', pieceId: 'kick', startBeat: 2, velocity: 1 },
+      { id: '4', pieceId: 'snare', startBeat: 3, velocity: 0.5 },
+    ],
+  }
+  for (const rest of ['dash', 'dot', 'space'] as RestStyle[]) {
+    const text = toDrumTab(track, { rest })
+    const back = parseDrumTab(text, 4)
+    check(`${rest}: flam, drag, accent and ghost all come back`,
+      hitsSignature(back.hits) === hitsSignature(track.hits),
+      `\n    want ${hitsSignature(track.hits)}\n    got  ${hitsSignature(back.hits)}`)
+  }
+  // A flam is two strikes, a drag three — the property the transport, the WAV
+  // render and the MIDI export all read from `strikesFor`.
+  check('a flam is two strikes and a drag is three',
+    strikesFor('flam').length === 2 && strikesFor('drag').length === 3 && strikesFor(undefined).length === 1)
+  check('grace notes come before the stroke, and quieter',
+    strikesFor('flam').every(s => s.lead >= 0 && s.gain <= 1) && strikesFor('flam')[0].lead > 0)
 }
 
 console.log('\nguitar tab — the two E strings stay apart')

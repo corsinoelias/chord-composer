@@ -1,5 +1,5 @@
 import { createDrumEngine, type DrumEngine } from '../virtualDrums/drumSynth'
-import { hasSolo, mixedVelocity, swingOffsetBeats, STEPS_PER_BEAT } from './types'
+import { hasSolo, mixedVelocity, strikesFor, swingOffsetBeats, STEPS_PER_BEAT } from './types'
 import type { DrumTrack, DrumHit, DrumMix, LoopRange, DrumKitId, DrumPieceId } from './types'
 
 /**
@@ -259,7 +259,13 @@ export async function startPlayback(
           // the swing push, expressed as a delay from the step's own time.
           const offBeats = (hit.startBeat - cursor / STEPS_PER_BEAT)
             + swingOffsetBeats(hit.startBeat, track.swing)
-          e.play(track.kit, hit.pieceId, vel, Math.max(now, cursorAt + offBeats * beatDur))
+          const at = cursorAt + offBeats * beatDur
+          // A plain stroke is one strike at `at`; a flam or a drag adds its
+          // grace notes ahead of it. Their lead is in seconds, so it does not
+          // stretch with the tempo — see `strikesFor`.
+          for (const strike of strikesFor(hit.articulation)) {
+            e.play(track.kit, hit.pieceId, vel * strike.gain, Math.max(now, at - strike.lead))
+          }
         }
       }
       if (metro && cursor % STEPS_PER_BEAT === 0) {

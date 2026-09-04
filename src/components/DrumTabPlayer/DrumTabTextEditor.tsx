@@ -63,6 +63,8 @@ export function DrumTabTextEditor({ track, onApply, getBeat, isPlaying, onSeekBe
         <b style={{ fontFamily: f('mono'), color: BT.ink }}>x</b>/<b style={{ fontFamily: f('mono'), color: BT.ink }}>o</b> hit ·{' '}
         <b style={{ fontFamily: f('mono'), color: BT.ink }}>X</b>/<b style={{ fontFamily: f('mono'), color: BT.ink }}>O</b> accent ·{' '}
         <b style={{ fontFamily: f('mono'), color: BT.ink }}>g</b> ghost ·{' '}
+        <b style={{ fontFamily: f('mono'), color: BT.ink }}>f</b> flam ·{' '}
+        <b style={{ fontFamily: f('mono'), color: BT.ink }}>d</b> drag ·{' '}
         <b style={{ fontFamily: f('mono'), color: BT.ink }}>-</b> rest
       </span>
     </>

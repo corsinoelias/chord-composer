@@ -1,5 +1,5 @@
 import React from 'react'
-import { Library, MoreHorizontal, Share2, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Library, MoreHorizontal, Share2, SlidersHorizontal, Trash2, Upload } from 'lucide-react'
 import type { DrumKitId, DrumView } from '../../lib/drumTab/types'
 import { BT, f } from '../../lib/bassTab/theme'
 import { IconButton, Segmented, TextButton } from './barControls'
@@ -55,6 +55,7 @@ interface Props {
   onExportMidi: () => void
   onExportMidiSplit: () => void
   onExportWav: () => void
+  onImport: () => void
   exporting: boolean
 }
 
@@ -62,7 +63,7 @@ function DrumTabTopBarImpl({
   trackName, kit, view, shareLabel, showLibraryButton,
   showMixerToggle, mixerOpen, onMixerToggle, compact, onOpenSheet,
   onNameChange, onKitChange, onViewChange, onOpenLibrary, onShare, onClear,
-  onExportMidi, onExportMidiSplit, onExportWav, exporting,
+  onExportMidi, onExportMidiSplit, onExportWav, onImport, exporting,
 }: Props) {
   if (compact) {
     return (
@@ -146,6 +147,9 @@ function DrumTabTopBarImpl({
       />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <IconButton tone="light" onClick={onImport} title="Import a MIDI file">
+          <Upload size={16} />
+        </IconButton>
         <IconButton tone="light" onClick={onShare} title={shareLabel}>
           <Share2 size={16} />
         </IconButton>

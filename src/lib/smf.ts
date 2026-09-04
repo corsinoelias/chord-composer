@@ -197,3 +197,169 @@ export function downloadMidi(bytes: Uint8Array, filename: string): void {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+// ── Reading ────────────────────────────────────────────────────────────────
+
+export interface SmfNote {
+  midi: number
+  startTick: number
+  endTick: number
+  /** Raw MIDI velocity, 0-127. */
+  velocity: number
+  channel: number
+  /** Index of the MTrk chunk it came from. */
+  track: number
+}
+
+export interface ParsedSmf {
+  notes: SmfNote[]
+  ticksPerBeat: number
+  bpm: number
+  timeSignature?: { numerator: number; denominator: number }
+  /**
+   * The furthest tick any track reaches, end-of-track meta included.
+   *
+   * Not the same as where the last note is: a file whose final bar is empty
+   * says so here and nowhere else, so a reader that measures by its last note
+   * silently shortens the loop.
+   */
+  endTick: number
+}
+
+function readVarLenAt(data: Uint8Array, pos: number): [number, number] {
+  let value = 0
+  let read = 0
+  for (;;) {
+    const b = data[pos + read]
+    read++
+    value = (value << 7) | (b & 0x7f)
+    if (!(b & 0x80)) break
+  }
+  return [value, read]
+}
+
+/**
+ * A Standard MIDI File, as notes.
+ *
+ * The counterpart to `buildSmf`, and the same consolidation: this reader was
+ * written three times over (the guitar tab's importer, the bass tab's, Virtual
+ * Piano's), and the drum tab's would have been the fourth.
+ *
+ * It reports notes and nothing else interpretive — which channel is the melody,
+ * what a drum note maps to, how a fret is chosen — because every caller answers
+ * those differently. What it does own is the parts that are the *format*:
+ * running status, note-on with velocity 0 meaning note-off, meta and sysex
+ * lengths, and notes left open when a track ends.
+ */
+export function parseSmf(buf: ArrayBuffer): ParsedSmf {
+  const data = new Uint8Array(buf)
+  let pos = 0
+
+  const read32 = () => {
+    const v = (data[pos] << 24) | (data[pos + 1] << 16) | (data[pos + 2] << 8) | data[pos + 3]
+    pos += 4
+    return v >>> 0
+  }
+  const read16 = () => { const v = (data[pos] << 8) | data[pos + 1]; pos += 2; return v }
+  const readStr = (n: number) => {
+    const s = String.fromCharCode(...data.slice(pos, pos + n))
+    pos += n
+    return s
+  }
+
+  if (readStr(4) !== 'MThd') throw new Error('Not a MIDI file')
+  const headerLen = read32()
+  read16()                       // format — the track loop handles 0, 1 and 2 alike
+  const trackCount = read16()
+  const division = read16()
+  // SMPTE division encodes frames per second rather than ticks per beat, and
+  // nothing here would know how to place a note on a beat grid from it.
+  if (division & 0x8000) throw new Error('SMPTE time division is not supported')
+  pos += Math.max(0, headerLen - 6)
+
+  let bpm = 120
+  let endTick = 0
+  let timeSignature: { numerator: number; denominator: number } | undefined
+  const notes: SmfNote[] = []
+
+  for (let track = 0; track < trackCount; track++) {
+    if (pos + 8 > data.length) break
+    const chunkId = readStr(4)
+    const chunkLen = read32()
+    if (chunkId !== 'MTrk') { pos += chunkLen; continue }
+
+    const end = pos + chunkLen
+    let tick = 0
+    let status = 0
+    const open = new Map<number, { startTick: number; velocity: number; channel: number }>()
+
+    const close = (note: number, at: number) => {
+      const on = open.get(note)
+      if (!on) return
+      notes.push({
+        midi: note, startTick: on.startTick, endTick: at,
+        velocity: on.velocity, channel: on.channel, track,
+      })
+      open.delete(note)
+    }
+
+    while (pos < end) {
+      const [delta, deltaLen] = readVarLenAt(data, pos)
+      pos += deltaLen
+      tick += delta
+
+      let statusByte = data[pos]
+      // Running status: a data byte here means "same status as last time".
+      if (statusByte & 0x80) { status = statusByte; pos++ } else { statusByte = status }
+
+      const type = statusByte & 0xf0
+      const channel = statusByte & 0x0f
+
+      if (type === 0x90) {
+        const note = data[pos++]
+        const velocity = data[pos++]
+        // Note-on at velocity 0 is how most writers spell a note-off.
+        if (velocity > 0) {
+          // A second note-on for a pitch that is still ringing ends the first
+          // one here. Without this the earlier note is simply overwritten and
+          // lost, which is what a flam or a fast roll looks like in a file
+          // whose gates are longer than the gap between strokes.
+          close(note, tick)
+          open.set(note, { startTick: tick, velocity, channel })
+        } else close(note, tick)
+      } else if (type === 0x80) {
+        const note = data[pos++]
+        pos++
+        close(note, tick)
+      } else if (type === 0xa0 || type === 0xb0 || type === 0xe0) {
+        pos += 2
+      } else if (type === 0xc0 || type === 0xd0) {
+        pos += 1
+      } else if (statusByte === 0xff) {
+        const metaType = data[pos++]
+        const [metaLen, metaLenBytes] = readVarLenAt(data, pos)
+        pos += metaLenBytes
+        if (metaType === 0x51 && metaLen === 3) {
+          const usPerBeat = (data[pos] << 16) | (data[pos + 1] << 8) | data[pos + 2]
+          if (usPerBeat > 0) bpm = Math.round(60_000_000 / usPerBeat)
+        } else if (metaType === 0x58 && metaLen >= 2 && !timeSignature) {
+          timeSignature = { numerator: data[pos], denominator: 2 ** data[pos + 1] }
+        }
+        pos += metaLen
+      } else if (statusByte === 0xf0 || statusByte === 0xf7) {
+        const [sysexLen, sysexLenBytes] = readVarLenAt(data, pos)
+        pos += sysexLenBytes + sysexLen
+      } else {
+        pos++
+      }
+    }
+
+    // A track that ends without closing its notes is not rare; they end here.
+    for (const [note] of open) close(note, tick)
+    if (tick > endTick) endTick = tick
+    pos = end
+  }
+
+  notes.sort((a, b) => a.startTick - b.startTick)
+  return { notes, ticksPerBeat: division, bpm, timeSignature, endTick }
+}

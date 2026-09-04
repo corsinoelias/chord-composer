@@ -1,5 +1,5 @@
 import React from 'react'
-import { Library, Share2, Trash2, X } from 'lucide-react'
+import { Library, Share2, Trash2, Upload, X } from 'lucide-react'
 import type { DrumChannel, DrumKitId, DrumMix, DrumPieceId } from '../../lib/drumTab/types'
 import { BT, f } from '../../lib/bassTab/theme'
 import { Segmented, TextButton } from './barControls'
@@ -43,6 +43,7 @@ interface Props {
   onExportMidi: () => void
   onExportMidiSplit: () => void
   onExportWav: () => void
+  onImport: () => void
   exporting: boolean
   onSelectPiece: (piece: DrumPieceId) => void
   onChannelChange: (piece: DrumPieceId, patch: Partial<DrumChannel>) => void
@@ -52,7 +53,7 @@ interface Props {
 function DrumTabMobileSheetImpl({
   open, trackName, kit, shareLabel, mix, selectedPiece, rowVelocity, usedPieces,
   onClose, onNameChange, onKitChange, onOpenLibrary, onShare, onClear,
-  onExportMidi, onExportMidiSplit, onExportWav, exporting,
+  onExportMidi, onExportMidiSplit, onExportWav, onImport, exporting,
   onSelectPiece, onChannelChange, onRowVelocityChange,
 }: Props) {
   if (!open) return null
@@ -131,6 +132,9 @@ function DrumTabMobileSheetImpl({
               </TextButton>
               <TextButton tone="light" onClick={onShare} title={shareLabel}>
                 <Share2 size={15} /> Share
+              </TextButton>
+              <TextButton tone="light" onClick={onImport} title="Import a MIDI file">
+                <Upload size={15} /> Import
               </TextButton>
               <TextButton tone="light" onClick={onClear} title="Clear all hits">
                 <Trash2 size={15} /> Clear

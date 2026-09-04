@@ -10,6 +10,7 @@ import { parseDrumTab } from '../../lib/drumTab/drumTabText'
 import { encodeTrackToHash, decodeTrackFromHash, copyToClipboard } from '../../lib/drumTab/exportDrumTab'
 import { exportDrumMidi } from '../../lib/drumTab/drumMidi'
 import { exportDrumWav } from '../../lib/drumTab/exportDrumAudio'
+import { importDrumMidi } from '../../lib/drumTab/drumMidiImport'
 import { useDrumTrackEditor } from '../../hooks/useDrumTrackEditor'
 import { useIsMobile, useIsDesktop, useIsShort, useIsWide, MOBILE_BREAKPOINT } from '../../hooks/use-mobile'
 import { analytics } from '../../lib/analytics'
@@ -340,9 +341,40 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     const current = trackRef.current
     const parsed = parseDrumTab(text, current.beatsPerBar)
     const bars = Math.max(1, parsed.bars || current.totalBars)
+
+    // Section comments (`// Verse`) are written into the tab and read back out
+    // of it. Applied separately from the hits because a tab can carry only the
+    // names — a text with no comment lines at all means "unchanged", not
+    // "delete the arrangement", which is what dropping this branch would do to
+    // anyone who pasted four bars into a track that had sections.
+    const sectionsChanged = parsed.sections.length > 0 &&
+      JSON.stringify(parsed.sections) !== JSON.stringify(current.sections ?? [])
+    if (sectionsChanged) setSections(parsed.sections)
+
     if (bars === current.totalBars && hitsSignature(parsed.hits) === hitsSignature(current.hits)) return
     replaceHits(parsed.hits, bars)
     analytics.drumTabTextApplied()
+  }, [replaceHits, setSections])
+
+  /**
+   * Plain → flam → drag → plain, on one stroke.
+   *
+   * Goes through `replaceHits` rather than mutating the hit in place because
+   * that is what records the undo step — and an articulation is exactly the
+   * kind of edit you want to be able to take back, since it is two clicks away
+   * from the one you meant.
+   */
+  const cycleArticulation = useCallback((pieceId: DrumPieceId, slot: number) => {
+    const current = trackRef.current
+    const order = [undefined, 'flam', 'drag'] as const
+    const next = current.hits.map(hit => {
+      if (hit.pieceId !== pieceId) return hit
+      if (Math.round(hit.startBeat * STEPS_PER_BEAT) !== slot) return hit
+      const at = order.indexOf(hit.articulation)
+      return { ...hit, articulation: order[(at + 1) % order.length] }
+    })
+    replaceHits(next, current.totalBars)
+    previewHit(current.kit, pieceId, 0.9, current.mix)
   }, [replaceHits])
 
   const handleLoadPreset = useCallback((preset: DrumPreset) => {
@@ -422,6 +454,58 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   }, [clearAll, showToast])
 
   const cancelClear = useCallback(() => setClearAsk(false), [])
+
+  // ── Import ────────────────────────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [dropping, setDropping] = useState(false)
+
+  const openImport = useCallback(() => fileInputRef.current?.click(), [])
+
+  /**
+   * A `.mid` becomes the whole track — tempo, metre and bars included — rather
+   * than being merged into the one that is open. Merging would need an answer
+   * to "at which bar?" that the file does not carry, and loading is undoable.
+   */
+  const importFile = useCallback(async (file: File) => {
+    try {
+      const parsed = importDrumMidi(await file.arrayBuffer(), file.name)
+      if (!parsed.track.hits.length) {
+        showToast('No drum notes in that file')
+        return
+      }
+      stop()
+      loadTrack({
+        ...trackRef.current,
+        ...parsed.track,
+        id: `midi-${Date.now().toString(36)}`,
+        sections: undefined,
+      })
+      setBarPage(0)
+      analytics.drumTabImport('midi')
+      showToast(
+        `Imported ${parsed.track.hits.length} hits` +
+        (parsed.skipped ? ` · ${parsed.skipped} non-drum notes skipped` : ''),
+      )
+    } catch {
+      // Bad file, SMPTE timing, or not a MIDI file at all — all of which look
+      // the same to someone who just dragged the wrong thing in.
+      showToast('Could not read that MIDI file')
+    }
+  }, [loadTrack, showToast, stop])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    const file = e.dataTransfer.files?.[0]
+    if (!file || !/\.midi?$/i.test(file.name)) { setDropping(false); return }
+    e.preventDefault()
+    setDropping(false)
+    void importFile(file)
+  }, [importFile])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    setDropping(true)
+  }, [])
 
   const handleShare = useCallback(async () => {
     const hash = encodeTrackToHash(trackRef.current)
@@ -525,6 +609,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             labelW={labelW}
             showRowVelocity={!isMobile}
             onToggleCell={toggleCell}
+            onCycleArticulation={cycleArticulation}
             onSetRowVelocity={setRowVelocity}
             onPreviewRow={previewRow}
             onSelectRow={setSelectedPiece}
@@ -612,15 +697,23 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   )
 
   return (
-    <div style={{
-      ...BT_VARS,
-      background: BT.paper,
-      // The editor is the screen at every size, phone included — `dvh` rather
-      // than `vh` so a mobile browser's collapsing address bar does not leave
-      // the transport hanging off the bottom. Same shape `BassTabPlayer` uses.
-      height: `calc(100dvh - ${NAVBAR_H}px)`,
-      display: 'flex', flexDirection: 'column', overflow: 'hidden',
-    }}>
+    <div
+      // Dropping a `.mid` anywhere on the editor loads it. The button in the
+      // top bar does the same thing for anyone who does not think to drag.
+      onDragOver={handleDragOver}
+      onDragLeave={() => setDropping(false)}
+      onDrop={handleDrop}
+      style={{
+        ...BT_VARS,
+        background: BT.paper,
+        // The editor is the screen at every size, phone included — `dvh` rather
+        // than `vh` so a mobile browser's collapsing address bar does not leave
+        // the transport hanging off the bottom. Same shape `BassTabPlayer` uses.
+        height: `calc(100dvh - ${NAVBAR_H}px)`,
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        outline: dropping ? '2px dashed ' + BT.accent : 'none',
+        outlineOffset: -6,
+      }}>
       <DrumTabTopBar
         trackName={track.name}
         kit={track.kit}
@@ -641,6 +734,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         onExportMidiSplit={handleExportMidiSplit}
         onExportWav={handleExportWav}
         exporting={exporting}
+        onImport={openImport}
         onClear={askClear}
       />
 
@@ -726,6 +820,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           onExportMidiSplit={handleExportMidiSplit}
           onExportWav={handleExportWav}
           exporting={exporting}
+          onImport={openImport}
           onClear={askClear}
           onSelectPiece={hitPiece}
           onChannelChange={setChannel}
@@ -743,6 +838,19 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           onLoadUserTab={handleLoadUserTab}
         />
       )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".mid,.midi,audio/midi"
+        style={{ display: 'none' }}
+        onChange={e => {
+          const file = e.target.files?.[0]
+          if (file) void importFile(file)
+          // Cleared so choosing the same file twice fires the change event.
+          e.target.value = ''
+        }}
+      />
 
       <ConfirmDialog
         open={clearAsk}

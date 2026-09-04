@@ -1,5 +1,5 @@
 import {
-  DRUM_ROWS, hasSolo, mixedVelocity, swingOffsetBeats,
+  DRUM_ROWS, hasSolo, mixedVelocity, strikesFor, swingOffsetBeats,
   type DrumHit, type DrumPieceId, type DrumTrack,
 } from './types'
 import {
@@ -89,14 +89,44 @@ export function buildDrumMidi(track: DrumTrack, options: DrumMidiOptions = {}): 
   const sounding = soundingHits(track, bakeSwing)
 
   const byPiece = new Map<DrumPieceId, SmfEvent[]>()
+  // A flam's grace note is 30 ms of real time, so how many ticks that is
+  // depends on the tempo — at 180 BPM it is twice as many as at 90.
+  const ticksPerSecond = (track.bpm / 60) * PPQ
+
+  // Every strike, per piece, before any of them is written — because how long a
+  // note may ring depends on when the next one on that same piece starts.
+  const strikesByPiece = new Map<DrumPieceId, { tick: number; velocity: number }[]>()
   for (const { hit, beat, velocity } of sounding) {
-    const note = GM_DRUM_NOTES[hit.pieceId]
-    if (note == null) continue
+    if (GM_DRUM_NOTES[hit.pieceId] == null) continue
     const startTick = Math.round(beat * PPQ)
-    const events = noteEvents(GM_CHANNEL, note, velocity, startTick, startTick + GATE_TICKS)
-    const bucket = byPiece.get(hit.pieceId)
-    if (bucket) bucket.push(...events)
-    else byPiece.set(hit.pieceId, [...events])
+    const list = strikesByPiece.get(hit.pieceId) ?? []
+    if (!strikesByPiece.has(hit.pieceId)) strikesByPiece.set(hit.pieceId, list)
+    // Grace notes are written as their own note-ons rather than dropped: a DAW
+    // has no way to know this stroke was a flam, so the file has to contain it.
+    for (const strike of strikesFor(hit.articulation)) {
+      list.push({
+        tick: Math.max(0, startTick - Math.round(strike.lead * ticksPerSecond)),
+        velocity: velocity * strike.gain,
+      })
+    }
+  }
+
+  for (const [pieceId, strikes] of strikesByPiece) {
+    const note = GM_DRUM_NOTES[pieceId]
+    strikes.sort((a, b) => a.tick - b.tick)
+    const events: SmfEvent[] = []
+    for (let i = 0; i < strikes.length; i++) {
+      const next = strikes[i + 1]
+      // A note that is still open when the same drum is struck again is not two
+      // hits to a reader — the second note-on replaces the first, and the flam
+      // or the thirty-second roll that produced them comes back as one stroke.
+      // So the gate is cut short of the next strike rather than fixed.
+      const end = next
+        ? Math.min(strikes[i].tick + GATE_TICKS, next.tick - 1)
+        : strikes[i].tick + GATE_TICKS
+      events.push(...noteEvents(GM_CHANNEL, note, strikes[i].velocity, strikes[i].tick, end))
+    }
+    byPiece.set(pieceId, events)
   }
 
   const endTick = Math.round(track.totalBars * track.beatsPerBar * PPQ)
