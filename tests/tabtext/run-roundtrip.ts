@@ -16,6 +16,7 @@
 import { parseDrumTab, toDrumTab } from '../../src/lib/drumTab/drumTabText'
 import { hitsSignature, ROW_BY_PIECE, type DrumTrack } from '../../src/lib/drumTab/types'
 import { toAsciiTab as bassAscii } from '../../src/lib/bassTab/exportTab'
+import { toAsciiTab as guitarAscii } from '../../src/lib/guitarTab/exportTab'
 import { stringNotesFromText } from '../../src/lib/tabtext/adapters/strings'
 import type { RestStyle } from '../../src/lib/tabtext/types'
 
@@ -168,6 +169,27 @@ console.log('\nbass tab — two-digit frets keep their column')
   const lines = text.split('\n').filter(l => l.includes('|'))
   const widths = new Set(lines.map(l => l.length))
   check('every string line is the same length', widths.size === 1, [...widths].join(', '))
+}
+
+console.log('\nguitar tab — the two E strings stay apart')
+{
+  // `e` and `E` are the high and low strings. Matched case-insensitively, every
+  // note on the high one landed on the low one, and the system split in two
+  // where the labels "repeated" — which is how the bar count doubled.
+  const labels = ['e', 'B', 'G', 'D', 'A', 'E']
+  const notes = [
+    { stringIndex: 0, fret: 3, startBeat: 0, durationBeats: 0.5, velocity: 0.8 },
+    { stringIndex: 5, fret: 3, startBeat: 1, durationBeats: 0.5, velocity: 0.8 },
+    { stringIndex: 1, fret: 1, startBeat: 2, durationBeats: 0.5, velocity: 0.8 },
+    { stringIndex: 4, fret: 12, startBeat: 5, durationBeats: 0.5, velocity: 0.8 },
+  ]
+  const track = { id: 'g', name: 'Riff', bpm: 120, beatsPerBar: 4, totalBars: 2, capo: 0, notes } as never
+  const text = guitarAscii(track)
+  const back = stringNotesFromText(text, { labels }, 4)
+  const want = notes.map(n => `s${n.stringIndex}f${n.fret}@${n.startBeat}`).sort().join(' ')
+  const got = back.notes.map(n => `s${n.stringIndex}f${n.fret}@${n.startBeat}`).sort().join(' ')
+  check('notes stay on their own string', want === got, `\n    want ${want}\n    got  ${got}`)
+  check('two bars, not four', back.bars === 2, `${back.bars} bars`)
 }
 
 console.log(failures ? `\n${failures} failing check(s)` : '\nall checks passed')

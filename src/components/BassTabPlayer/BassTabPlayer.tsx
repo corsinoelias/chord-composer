@@ -17,6 +17,8 @@ import { RecordingOverlay } from './RecordingOverlay'
 import { ExportImageModal } from './ExportImageModal'
 import { ExportVideoModal } from './ExportVideoModal'
 import { toAsciiTab, encodeTrackToHash, decodeTrackFromHash, copyToClipboard, exportMidiFile } from '../../lib/bassTab/exportTab'
+import { StringTabText } from '../tabtext/StringTabText'
+import { stringNotesSignature, type StringNote } from '../../lib/tabtext/adapters/strings'
 import { exportTrackAsWav } from '../../lib/bassTab/exportAudio'
 import { BassTabTransport } from './BassTabTransport'
 import { analytics } from '../../lib/analytics'
@@ -32,6 +34,11 @@ import { BT_VARS, v } from '../../lib/bassTab/theme'
 import { BassTabToolsPanel } from './BassTabToolsPanel'
 
 const GP_EXTENSIONS = ['gp', 'gp3', 'gp4', 'gp5', 'gpx', 'gp7']
+
+/** Etiquetas de la vista Text, de la cuerda más fina a la más gruesa. */
+const STRING_LABELS = STRINGS.map(s => s.displayName)
+/** Dónde recuerda la vista Text sus silencios, espaciado y compases por línea. */
+const TEXT_FORMAT_KEY = 'bass-tab-text-format-v1'
 
 function loadTrack(): BassTrack {
   if (typeof window !== 'undefined') {
@@ -88,7 +95,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [volume, setVolume]             = useState(0.75)
   const [selectedNoteId, setSelectedId] = useState<string | null>(null)
   const [metronome, setMetronome]       = useState(false)
-  const [activeView, setActiveView]     = useState<'tab' | 'score' | 'grid' | 'guitar'>('tab')
+  const [activeView, setActiveView]     = useState<'tab' | 'score' | 'grid' | 'guitar' | 'text'>('tab')
   const [noteDuration, setNoteDuration] = useState<number>(0.5)
   const [ctxMenu, setCtxMenu]           = useState<CtxMenu | null>(null)
   const [toast, setToast]               = useState<string | null>(null)
@@ -359,6 +366,39 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     setIsPlaying(false)
     setCurrentBeat(loopRange ? loopRange.startBeat : 0)
   }, [loopRange])
+
+  // ── Vista Text ────────────────────────────────────────────────────────────
+  /**
+   * El playhead como getter: así el cursor de la vista de texto corre en su
+   * propio frame en vez de re-renderizar este componente sesenta veces por
+   * segundo, igual que hacen la rejilla y la partitura del drum tab.
+   */
+  const beatRef = useRef(0)
+  beatRef.current = currentBeat
+  const getBeat = useCallback(() => beatRef.current, [])
+
+  /**
+   * Idempotente a propósito: un tab que describe las notas que ya están en la
+   * pista no hace nada y no deja paso de deshacer. Apply se dispara dos veces
+   * por clic —el botón desenfoca el textarea primero— y comparar la música es
+   * la única guarda que un closure viejo no puede saltarse.
+   */
+  const applyTabText = useCallback((notes: StringNote[], bars: number) => {
+    const next: BassNote[] = notes.map((n, i) => ({
+      id: n.id ?? `txt-${Date.now().toString(36)}-${i}`,
+      stringIndex: n.stringIndex as BassNote['stringIndex'],
+      fret: n.fret,
+      startBeat: n.startBeat,
+      durationBeats: n.durationBeats,
+      velocity: n.velocity,
+    }))
+    if (
+      bars === track.totalBars &&
+      stringNotesSignature(next) === stringNotesSignature(track.notes)
+    ) return
+    beginEdit()
+    setTrack(t => ({ ...t, notes: next, totalBars: bars }))
+  }, [track.notes, track.totalBars, beginEdit, setTrack])
 
   const handleSeek = useCallback((beat: number) => {
     const totalBeats = track.totalBars * track.beatsPerBar
@@ -918,6 +958,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
             { id: 'score',  label: 'Score',        icon: <ScoreIcon /> },
             { id: 'grid',   label: 'Grid',         icon: <GridIcon /> },
             { id: 'guitar', label: 'Bass Guitar',  icon: <GuitarIcon /> },
+            { id: 'text',   label: 'Text',         icon: <TextIcon /> },
           ] as const).map(view => {
             const active = activeView === view.id
             return (
@@ -1046,6 +1087,14 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                 track={track} currentBeat={currentBeat} isPlaying={isPlaying}
                 onSeek={handleSeek} viewMode="score"
               />
+            ) : activeView === 'text' ? (
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 10, background: v('paper') }}>
+                <StringTabText
+                  track={track} labels={STRING_LABELS} storageKey={TEXT_FORMAT_KEY}
+                  onApply={applyTabText} getBeat={getBeat} isPlaying={isPlaying}
+                  onSeekBeat={handleSeek}
+                />
+              </div>
             ) : null
           ) : (
             /* Lienzo de escritorio.
@@ -1091,6 +1140,14 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
                     onSelectNote={setSelectedId} onCursorBeatChange={setCursorBeat}
                     onBeginEdit={beginEdit} onSectionChange={handleSectionChange}
                   />
+                ) : activeView === 'text' ? (
+                  <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: '0 12px' }}>
+                    <StringTabText
+                      track={track} labels={STRING_LABELS} storageKey={TEXT_FORMAT_KEY}
+                      onApply={applyTabText} getBeat={getBeat} isPlaying={isPlaying}
+                      onSeekBeat={handleSeek}
+                    />
+                  </div>
                 ) : (
                   <BassTabGrid
                     track={track} zoom={zoom} currentBeat={currentBeat}
@@ -1179,6 +1236,7 @@ export function BassTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           {([
             { id: 'tab',    label: 'Edit',  icon: <TabIcon /> },
             { id: 'score',  label: 'Score', icon: <ScoreIcon /> },
+            { id: 'text',   label: 'Text',  icon: <TextIcon /> },
             { id: 'guitar', label: 'Bass',  icon: <GuitarIcon /> },
           ] as const).map(tab => {
             const isActive = activeView === tab.id
@@ -1602,6 +1660,16 @@ function ScoreIcon() {
       <ellipse cx="11" cy="10" rx="2.2" ry="1.5" transform="rotate(-15,11,10)" fill="currentColor" stroke="none" />
       {/* stem */}
       <line x1="13" y1="10" x2="13" y2="5" strokeWidth="1.4" />
+    </svg>
+  )
+}
+
+function TextIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <line x1="3" y1="6"  x2="17" y2="6"  />
+      <line x1="3" y1="10" x2="13" y2="10" />
+      <line x1="3" y1="14" x2="15" y2="14" />
     </svg>
   )
 }

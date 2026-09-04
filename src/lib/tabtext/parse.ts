@@ -319,7 +319,9 @@ export function parseTabGeometry(text: string, options: ParseOptions): ParsedTab
 
     const pipe = raw.indexOf('|')
     if (pipe >= 0) {
-      const rawLabel = raw.slice(0, pipe).trim().toUpperCase()
+      // Compared as written, case included: on a guitar `e` and `E` are the two
+      // outer strings, and folding their case turned one system into two.
+      const rawLabel = raw.slice(0, pipe).trim()
       const resolved = options.resolveRow(raw.slice(0, pipe))
       if (resolved) {
         // A label repeating inside the same system means the next system began

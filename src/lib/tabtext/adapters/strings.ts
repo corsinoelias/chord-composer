@@ -16,6 +16,8 @@ import { parseTabGeometry } from '../parse'
  */
 
 export interface StringNote {
+  /** Carried through a round trip so an untouched note keeps its identity. */
+  id?: string
   stringIndex: number
   fret: number
   startBeat: number
@@ -82,14 +84,22 @@ export function stringNotesFromText(
   shape: StringTabShape,
   beatsPerBar = 4,
 ): { notes: StringNote[]; bars: number; unknownLabels: string[] } {
-  const byLabel = new Map<string, string>()
-  shape.labels.forEach((label, i) => byLabel.set(label.toUpperCase(), String(i)))
+  // Case matters first: a guitar's outer strings are `e` and `E`, and matching
+  // case-insensitively put every note from the high E line onto the low one.
+  // The case-folded map is only a fallback, for a tab that writes `b|` for the
+  // B string — which plenty do.
+  const exact = new Map<string, string>()
+  const folded = new Map<string, string>()
+  shape.labels.forEach((label, i) => {
+    exact.set(label, String(i))
+    if (!folded.has(label.toUpperCase())) folded.set(label.toUpperCase(), String(i))
+  })
 
   const parsed = parseTabGeometry(text, {
     beatsPerBar,
     resolveRow(raw) {
-      const label = raw.trim().toUpperCase()
-      const key = byLabel.get(label)
+      const label = raw.trim()
+      const key = exact.get(label) ?? folded.get(label.toUpperCase())
       return key == null ? null : { key, label: shape.labels[Number(key)] }
     },
   })
@@ -123,4 +133,44 @@ export function stringNotesFromText(
 
   notes.sort((a, b) => a.startBeat - b.startBeat)
   return { notes, bars: parsed.bars, unknownLabels: parsed.unknownLabels }
+}
+
+/**
+ * Give parsed notes back what the text could not carry.
+ *
+ * ASCII tab says which fret on which string at which subdivision, and nothing
+ * about how long the note rings or how hard it was struck. Applied literally, a
+ * round trip through the text view would shorten every note in the track to a
+ * sixteenth — including the ones nobody edited.
+ *
+ * So each parsed note looks for the note that was already at that string, beat
+ * and fret, and keeps its duration, velocity and id. Only notes that are
+ * genuinely new take the default. It is also what makes applying an unedited
+ * tab a no-op, which is what stops the editor recording an undo step for it.
+ */
+export function carryOverNotes(previous: StringNote[], parsed: StringNote[]): StringNote[] {
+  const byKey = new Map<string, StringNote>()
+  for (const note of previous) {
+    byKey.set(`${note.stringIndex}:${note.fret}@${note.startBeat.toFixed(4)}`, note)
+  }
+  return parsed.map(note => {
+    const was = byKey.get(`${note.stringIndex}:${note.fret}@${note.startBeat.toFixed(4)}`)
+    if (!was) return note
+    return {
+      ...note,
+      id: was.id,
+      durationBeats: was.durationBeats,
+      velocity: was.velocity,
+      // A technique written into the text wins; one the text cannot show is kept.
+      technique: note.technique ?? was.technique,
+    }
+  })
+}
+
+/** Order-independent fingerprint, for "did this text actually change anything?". */
+export function stringNotesSignature(notes: StringNote[]): string {
+  return notes
+    .map(n => `${n.stringIndex}:${n.fret}${n.muted ? 'x' : ''}${n.technique ?? ''}@${n.startBeat.toFixed(4)}`)
+    .sort()
+    .join('|')
 }

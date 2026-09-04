@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BT, alpha, f } from '../../lib/bassTab/theme'
 import { columnAtBeat } from '../../lib/tabtext/render'
 import type { RenderOptions, RenderedTab, RestStyle } from '../../lib/tabtext/types'
+import { MOBILE_BREAKPOINT } from '../../hooks/use-mobile'
 
 /**
  * The ASCII tab, editable, with the transport's playhead running over it.
@@ -50,13 +51,32 @@ export interface TabTextEditorProps {
   actions?: React.ReactNode
 }
 
+/**
+ * One bar per line on a phone.
+ *
+ * Four bars of sixteenths is ~70 characters, which at a readable size is three
+ * screens wide — the tab becomes a thing you scroll sideways rather than
+ * something you can read. One bar fits, and the playhead can then scroll
+ * vertically, which a phone is shaped for.
+ *
+ * Read from `innerWidth` rather than through `useIsMobile`, which reports
+ * `false` on its first render: going through that would lay the tab out at four
+ * bars and reflow it a frame later.
+ */
+function defaultBarsPerSystem(): number {
+  if (typeof window === 'undefined') return 4
+  return window.innerWidth < MOBILE_BREAKPOINT ? 1 : 4
+}
+
 function loadOptions(key: string | undefined): RenderOptions {
-  if (!key) return {}
+  const base: RenderOptions = { barsPerSystem: defaultBarsPerSystem() }
+  if (!key) return base
   try {
     const raw = localStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as RenderOptions) : {}
+    // Stored choices win over the default, but only the ones actually stored.
+    return raw ? { ...base, ...(JSON.parse(raw) as RenderOptions) } : base
   } catch {
-    return {}
+    return base
   }
 }
 
@@ -73,11 +93,6 @@ export function TabTextEditor({
   useEffect(() => { setDraft(canonical) }, [canonical])
 
   const dirty = draft !== canonical
-
-  useEffect(() => {
-    if (!storageKey) return
-    try { localStorage.setItem(storageKey, JSON.stringify(options)) } catch { /* private mode */ }
-  }, [storageKey, options])
 
   // Fires twice for one click on Apply — the button blurs the textarea first, so
   // `onBlur` runs and then `onClick` does. Deliberately not defended against
@@ -194,8 +209,18 @@ export function TabTextEditor({
   }, [onSeekBeat, dirty, charW, rendered])
 
   const set = useCallback(<K extends keyof RenderOptions>(key: K, value: RenderOptions[K]) => {
-    setOptions(prev => ({ ...prev, [key]: value }))
-  }, [])
+    setOptions(prev => {
+      const next = { ...prev, [key]: value }
+      // Saved here rather than in an effect on `options`: an effect also fires
+      // on mount, which would store the screen-width default as though the
+      // user had picked it — and then a phone would set the desktop layout to
+      // one bar per line for good.
+      if (storageKey) {
+        try { localStorage.setItem(storageKey, JSON.stringify(next)) } catch { /* private mode */ }
+      }
+      return next
+    })
+  }, [storageKey])
 
   const chip = (active: boolean): React.CSSProperties => ({
     padding: '4px 10px', borderRadius: 7, cursor: 'pointer',
@@ -311,20 +336,23 @@ export function TabTextEditor({
 
       {/* ── Actions ────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          onClick={apply}
-          disabled={!dirty}
-          style={{
-            padding: '6px 14px', borderRadius: 8, cursor: dirty ? 'pointer' : 'default',
-            border: '1px solid ' + (dirty ? BT.accent : BT.rule),
-            background: dirty ? BT.accent : BT.sunken,
-            color: dirty ? '#fff' : BT.dim,
-            fontFamily: f('ui'), fontSize: 13, fontWeight: 600,
-          }}
-        >
-          {dirty ? 'Apply changes' : 'Up to date'}
-        </button>
+        {/* Only while there is something to apply. A permanent "Up to date"
+            button is a control that never does anything: the textarea's border
+            already turns accent when the draft has diverged, and blur applies
+            it anyway. */}
+        {dirty && (
+          <button
+            type="button"
+            onClick={apply}
+            style={{
+              padding: '6px 14px', borderRadius: 8, cursor: 'pointer',
+              border: '1px solid ' + BT.accent, background: BT.accent, color: '#fff',
+              fontFamily: f('ui'), fontSize: 13, fontWeight: 600,
+            }}
+          >
+            Apply changes
+          </button>
+        )}
         <button
           type="button"
           onClick={copy}
