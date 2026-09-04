@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import {
-  PRESETS, SWATCHES, PAGE_SIZES, type StyleLayout, type PresetId, type FontRoleName, type FontFamily,
+  PRESETS, SWATCHES, PAGE_SIZES, FAMILIES, type StyleLayout, type PresetId, type FontRoleName, type FontFamily,
 } from '@/lib/chordSheet/presets';
 import { fileToDataUri } from '@/lib/chordSheet/imageAsset';
 
@@ -88,9 +88,18 @@ export function StyleControls({ layout, onChange }: Props) {
 
       <div className="flex flex-col gap-1">
         <span className="text-[10px] font-semibold text-muted-foreground">Columns</span>
-        <div className="flex gap-0.5 rounded-lg bg-muted/60 p-0.5">
+        <div className="flex gap-1">
           {[1, 2].map((n) => (
-            <button key={n} type="button" onClick={() => onChange({ columns: n as 1 | 2 })} className={segButton(layout.columns === n)}>{n}</button>
+            <button
+              key={n}
+              type="button"
+              onClick={() => onChange({ columns: n as 1 | 2 })}
+              title={n === 1 ? 'Single column' : 'Two columns'}
+              className={`flex h-7 w-8 items-center justify-center gap-[3px] rounded-md border px-1.5 ${layout.columns === n ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
+            >
+              <span className="h-3.5 flex-1 rounded-[1px] bg-foreground/70" />
+              {n === 2 && <span className="h-3.5 flex-1 rounded-[1px] bg-foreground/70" />}
+            </button>
           ))}
         </div>
       </div>
@@ -105,32 +114,53 @@ export function StyleControls({ layout, onChange }: Props) {
       </div>
 
       <div className="relative flex flex-col gap-1">
-        <span className="text-[10px] font-semibold text-muted-foreground">Style</span>
-        <button
-          type="button"
-          onClick={() => setOpenPanel((p) => (p === 'style' ? null : 'style'))}
-          className="h-7 rounded-md border border-border bg-card px-2.5 text-xs font-semibold hover:border-primary/50"
-        >
-          {PRESETS[layout.preset].label} ▾
-        </button>
-        {openPanel === 'style' && (
-          <div className="absolute top-[52px] left-0 z-50 w-[300px] rounded-xl border border-border bg-card p-4 shadow-xl">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-bold">Page style</span>
-              <button type="button" onClick={() => setOpenPanel(null)} className="text-muted-foreground hover:text-foreground">×</button>
-            </div>
-            <div className="mb-3 grid grid-cols-2 gap-1.5">
-              {(Object.keys(PRESETS) as PresetId[]).map((id) => (
+        <span className="text-[10px] font-semibold text-muted-foreground">Design</span>
+        <div className="flex items-center gap-1.5">
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ maxWidth: 340 }}>
+            {(Object.keys(PRESETS) as PresetId[]).map((id) => {
+              const p = PRESETS[id];
+              const on = layout.preset === id;
+              return (
                 <button
                   key={id}
                   type="button"
                   onClick={() => applyPreset(id)}
-                  className={`rounded-lg border px-2.5 py-2 text-left text-xs font-semibold ${layout.preset === id ? 'border-primary bg-primary/10 text-primary' : 'border-border text-foreground hover:border-primary/40'}`}
-                  style={{ background: layout.preset === id ? undefined : PRESETS[id].paper, color: layout.preset === id ? undefined : PRESETS[id].ink }}
+                  title={p.label}
+                  className={`relative flex h-[38px] w-[54px] shrink-0 flex-col items-start justify-between overflow-hidden rounded-md border p-1 ${on ? 'border-primary ring-1 ring-primary' : 'border-border hover:border-primary/50'}`}
+                  style={{ background: p.paper }}
                 >
-                  {PRESETS[id].label}
+                  <span
+                    className="leading-none"
+                    style={{ fontFamily: FAMILIES[p.fonts.heading.family], color: p.fonts.heading.color, fontWeight: 700, fontSize: 13 }}
+                  >
+                    Aa
+                  </span>
+                  <span className="flex w-full gap-[2px]">
+                    <span className="h-[3px] flex-1 rounded-full" style={{ background: p.fonts.section.color }} />
+                    <span className="h-[3px] flex-1 rounded-full" style={{ background: p.fonts.chords.color }} />
+                    <span className="h-[3px] flex-1 rounded-full" style={{ background: p.ink }} />
+                  </span>
+                  {on && (
+                    <span className="absolute right-0 top-0 flex h-3.5 w-3.5 items-center justify-center rounded-bl-md bg-primary text-[9px] font-bold text-primary-foreground">✓</span>
+                  )}
                 </button>
-              ))}
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpenPanel((p) => (p === 'style' ? null : 'style'))}
+            title="More design options"
+            className="h-7 w-6 shrink-0 rounded-md border border-border text-xs hover:border-primary/50"
+          >
+            ▾
+          </button>
+        </div>
+        {openPanel === 'style' && (
+          <div className="absolute top-[52px] left-0 z-50 w-[300px] rounded-xl border border-border bg-card p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-bold">Design options</span>
+              <button type="button" onClick={() => setOpenPanel(null)} className="text-muted-foreground hover:text-foreground">×</button>
             </div>
             <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Diagrams</div>
             <div className="mb-3 flex gap-1.5">

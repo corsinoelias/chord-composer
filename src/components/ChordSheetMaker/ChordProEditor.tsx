@@ -1,7 +1,8 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import {
   paintSource, readSource, paintedText, markPainted, insertChordAtCaret, tokenizeAtCaret,
-  serializeSelection, replaceSelectionWithText, replaceAt, getSelectionPositions, type CaretPos,
+  serializeSelection, replaceSelectionWithText, replaceAt, getSelectionPositions, setChordCodec,
+  type CaretPos,
 } from './chordProEditorDom';
 
 // Replaces the plain <textarea> ChordPro source editor with a contenteditable field where
@@ -24,6 +25,13 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  /** Semitone transpose currently applied to the sheet. The source text in `value` always
+   *  stays in the base key, so a transpose is invisible to the `value`-diffing sync effect —
+   *  `semi` is the extra repaint trigger, and `chordDisplay` / `chordStore` map a stored
+   *  token to the shown (transposed) chip label and back. All three are inert at semi 0. */
+  semi?: number;
+  chordDisplay?: (stored: string) => string;
+  chordStore?: (shown: string) => string;
   /** Wired to useChordSheetDrag's beginDrag, so an existing chip in this editor can be picked
    *  up and dropped elsewhere (another spot in the source, or the sheet preview) exactly like
    *  a sheet chip already can — see the onPointerDown delegation below for how `src`/`ci` are
@@ -32,7 +40,7 @@ interface Props {
 }
 
 export const ChordProEditor = forwardRef<ChordProEditorHandle, Props>(function ChordProEditor(
-  { value, onChange, className, onBeginChipDrag },
+  { value, onChange, className, onBeginChipDrag, semi = 0, chordDisplay, chordStore },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null);
@@ -41,12 +49,19 @@ export const ChordProEditor = forwardRef<ChordProEditorHandle, Props>(function C
   // every intermediate candidate during that window — committing or tokenizing on those would
   // read a not-yet-final string, so onInput below no-ops until composition actually ends.
   const composingRef = useRef(false);
+  const paintedSemiRef = useRef(semi);
 
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
-    if (paintedText(el) !== value) paintSource(el, value);
-  }, [value]);
+    setChordCodec(el, chordDisplay, chordStore);
+    // `paintedText` only tracks the base-key source, so a transpose never shows up there —
+    // repaint on a `semi` change too, to re-label every chip in the new key.
+    if (paintedText(el) !== value || paintedSemiRef.current !== semi) {
+      paintSource(el, value);
+      paintedSemiRef.current = semi;
+    }
+  }, [value, semi, chordDisplay, chordStore]);
 
   const commit = useCallback(() => {
     const el = elRef.current;

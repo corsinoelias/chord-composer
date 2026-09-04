@@ -8,10 +8,34 @@
 const CHIP_ATTR = 'data-csm-chip';
 const REMOVE_ATTR = 'data-csm-x';
 
-interface ChipHostEl extends HTMLElement { _csmText?: string }
+interface ChipHostEl extends HTMLElement {
+  _csmText?: string;
+  _csmDisplay?: (stored: string) => string;
+  _csmStore?: (shown: string) => string;
+}
 
 export function paintedText(el: HTMLElement): string | undefined {
   return (el as ChipHostEl)._csmText;
+}
+
+/** Installs the transpose-aware codec used to *display* chips in a key other than the one
+ *  the source text is stored in: `display` maps a stored (base-key) token to its on-screen
+ *  label, `store` is the inverse for a chord typed straight into the field. Both are no-ops
+ *  when the sheet isn't transposed. readSource still returns base-key text either way — a
+ *  chip's `data-csm-chip` attribute always holds the stored token, never the shown label,
+ *  so caret/offset math (which counts `[Name]` from that attribute) is unaffected too. */
+export function setChordCodec(
+  el: HTMLElement,
+  display?: (stored: string) => string,
+  store?: (shown: string) => string,
+): void {
+  (el as ChipHostEl)._csmDisplay = display;
+  (el as ChipHostEl)._csmStore = store;
+}
+
+function shownLabel(el: HTMLElement, stored: string): string {
+  const fn = (el as ChipHostEl)._csmDisplay;
+  return fn ? fn(stored) : stored;
 }
 
 /** Stamps the element's "last known text" without repainting — call this whenever the DOM
@@ -23,13 +47,15 @@ export function markPainted(el: HTMLElement, text: string) {
   (el as ChipHostEl)._csmText = text;
 }
 
-export function buildChip(name: string): HTMLSpanElement {
+/** `name` is the stored (base-key) token that goes in `data-csm-chip` and round-trips
+ *  through readSource; `label`, when given, is the transposed text shown to the reader. */
+export function buildChip(name: string, label?: string): HTMLSpanElement {
   const chip = document.createElement('span');
   chip.setAttribute(CHIP_ATTR, name);
   chip.contentEditable = 'false';
   chip.className = 'csm-chip mx-0.5 inline-flex items-center gap-0.5 rounded-md border border-primary/30 bg-primary/10 py-0.5 pl-1.5 pr-0.5 align-baseline text-[0.92em] font-bold leading-normal text-primary';
   chip.style.userSelect = 'none';
-  chip.appendChild(document.createTextNode(name));
+  chip.appendChild(document.createTextNode(label ?? name));
   const remove = document.createElement('span');
   remove.setAttribute(REMOVE_ATTR, '1');
   remove.title = 'Remove chord';
@@ -64,7 +90,7 @@ export function paintSource(el: HTMLElement, text: string) {
     re.lastIndex = 0;
     while ((m = re.exec(line))) {
       if (m.index > i) div.appendChild(document.createTextNode(line.slice(i, m.index)));
-      div.appendChild(buildChip(m[1]));
+      div.appendChild(buildChip(m[1], shownLabel(el, m[1])));
       i = m.index + m[0].length;
     }
     const rest = line.slice(i);
@@ -153,7 +179,14 @@ function measureNode(node: Node): number {
 }
 
 /** Sums serialized length from the start of `line` up to (node, offset) — the inverse of
- *  walking readSource's own line-serializer, stopping partway through. */
+ *  walking readSource's own line-serializer, stopping partway through. `node` isn't always a
+ *  text node: landing a caret right before/after an atomic, contenteditable=false chip is
+ *  exactly the case a browser expresses as (containerElement, childIndex) rather than a text
+ *  offset — Home on a chip-starting line, or a click/arrow-step onto either edge of any chip,
+ *  routes through here with `node === line` itself. walk() has to be entered *at* `line` (not
+ *  just at its children) so that shape gets the same `node === targetNode` match a text node
+ *  gets — the previous version only ever called walk() on line's children, so `line` itself
+ *  as the target silently fell through and returned the whole line's length instead. */
 function offsetWithinLine(line: HTMLElement, targetNode: Node, targetOffset: number): number {
   let total = 0;
   function walk(node: Node): boolean {
@@ -177,7 +210,7 @@ function offsetWithinLine(line: HTMLElement, targetNode: Node, targetOffset: num
     }
     return false;
   }
-  for (const child of Array.from(line.childNodes)) { if (walk(child)) break; }
+  walk(line);
   return total;
 }
 
@@ -276,7 +309,7 @@ export function insertChordAtCaret(el: HTMLElement, chord: string): void {
     range.collapse(false);
   }
   range.deleteContents();
-  const chip = buildChip(chord);
+  const chip = buildChip(chord, shownLabel(el, chord));
   range.insertNode(chip);
   range.setStartAfter(chip);
   range.collapse(true);
@@ -374,7 +407,11 @@ export function tokenizeAtCaret(el: HTMLElement): boolean {
   // as its own sibling right after where the chip goes.
   const tail = (node as Text).splitText(matchStart);
   tail.splitText(m[0].length);
-  const chip = buildChip(m[1].trim());
+  // A chord typed straight in is in the *shown* (transposed) key — store it back in the
+  // base key so readSource stays consistent, exactly like the palette's click-to-insert.
+  const typed = m[1].trim();
+  const store = (el as ChipHostEl)._csmStore;
+  const chip = buildChip(store ? store(typed) : typed, typed);
   tail.parentNode?.replaceChild(chip, tail);
   const range = document.createRange();
   range.setStartAfter(chip);
