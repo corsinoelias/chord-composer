@@ -16,6 +16,7 @@ import { DrumTabGrid } from './DrumTabGrid'
 import { DrumTabScore } from './DrumTabScore'
 import { DrumTabTextEditor } from './DrumTabTextEditor'
 import { DrumTabLibrary } from './DrumTabLibrary'
+import type { UserTab } from '../../lib/drumTab/userTabs'
 
 /**
  * Drum Tab Player — owner of all state, the way `BassTabPlayer` is for the bass.
@@ -187,6 +188,19 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     analytics.drumTabPresetLoaded(preset.name, preset.source)
   }, [loadTrack, stop])
 
+  /**
+   * A saved tab carries its own track, so unlike a preset there is nothing to
+   * build. `presetId` is cleared to the tab's id so no included rhythm keeps
+   * showing as the active one.
+   */
+  const handleLoadUserTab = useCallback((tab: UserTab) => {
+    stop()
+    loadTrack(tab.track)
+    setPresetId(tab.id)
+    setBarPage(0)
+    analytics.drumTabUserTabLoaded()
+  }, [loadTrack, stop])
+
   const handleShare = useCallback(async () => {
     const hash = encodeTrackToHash(trackRef.current)
     if (!hash) { setShareLabel('Could not build a link'); return }
@@ -306,8 +320,10 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       <DrumTabLibrary
         open={libraryOpen}
         currentId={presetId}
+        currentTrack={track}
         onClose={() => setLibraryOpen(false)}
         onLoad={handleLoadPreset}
+        onLoadUserTab={handleLoadUserTab}
       />
     </div>
   )
