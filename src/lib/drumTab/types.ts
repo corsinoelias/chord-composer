@@ -108,6 +108,19 @@ export interface LoopRange {
 
 export const DRUM_STORAGE_KEY = 'drum-tab-track-v1'
 
+/**
+ * Order-independent fingerprint of a hit list — what was struck, where, how hard.
+ * Ids are deliberately excluded: two parses of the same tab produce the same
+ * music with different ids, and for "did this actually change anything?" only
+ * the music counts.
+ */
+export function hitsSignature(hits: DrumHit[]): string {
+  return hits
+    .map(h => `${h.pieceId}@${h.startBeat.toFixed(4)}:${h.velocity.toFixed(2)}`)
+    .sort()
+    .join('|')
+}
+
 let hitSeq = 0
 export function makeHitId(): string {
   hitSeq += 1

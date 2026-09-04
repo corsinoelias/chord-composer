@@ -29,10 +29,15 @@ export function DrumTabTextEditor({ track, onApply }: Props) {
   const parsed = useMemo(() => parseDrumTab(draft, track.beatsPerBar), [draft, track.beatsPerBar])
   const dirty = draft !== canonical
 
+  // Fires twice for one click on Apply — the button blurs the textarea first, so
+  // `onBlur` runs and then `onClick` does. That is deliberate rather than
+  // defended against here: `onApply` ignores a tab that matches the track it
+  // already has, which is a guard no stale closure can slip past. Trying to
+  // dedupe here with a ref did not work, because the second handler is captured
+  // before the first one's re-render.
   const apply = useCallback(() => {
-    if (!dirty) return
     onApply(draft)
-  }, [dirty, draft, onApply])
+  }, [draft, onApply])
 
   const copy = useCallback(async () => {
     const ok = await copyToClipboard(draft)

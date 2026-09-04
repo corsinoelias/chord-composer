@@ -12,17 +12,27 @@ import { DRUM_STORAGE_KEY, type DrumHit, type DrumSection, type DrumTrack } from
  * drum stroke has no duration and bars are fixed by the pattern — so a shared
  * hook would need four injected accessors to serve two callers. If a third
  * timeline editor ever appears, that is the moment to extract the common core.
+ *
+ * **History is pushed from the event handler, never from inside a `setTrack`
+ * updater.** Updaters must be pure: React calls them more than once and against
+ * different base states (the eager-dispatch path, then again while rendering,
+ * and twice more under StrictMode). Pushing a snapshot from in there recorded
+ * the state *after* the edit as well as before it, so undo appeared to do
+ * nothing. `trackRef` holds the last committed track, which is exactly the
+ * "before" an event handler wants.
  */
 
 const MAX_HISTORY = 60
 
 /**
- * An undo snapshot is `{ hits, totalBars }`, not just the hits: applying a shorter
- * tab or deleting a bar changes both, and restoring only the hits would strand them
- * outside a track too short to reach them.
+ * An undo snapshot is `{ hits, totalBars }`, not just the hits: applying a
+ * shorter tab or deleting a bar changes both, and restoring only the hits would
+ * strand them outside a track too short to reach them.
  */
 interface Snapshot { hits: DrumHit[]; totalBars: number }
 interface History { past: Snapshot[]; future: Snapshot[] }
+
+const snapshot = (t: DrumTrack): Snapshot => ({ hits: t.hits, totalBars: t.totalBars })
 
 export interface UseDrumTrackEditorReturn {
   track: DrumTrack
@@ -30,9 +40,8 @@ export interface UseDrumTrackEditorReturn {
   canUndo: boolean
   canRedo: boolean
   addHit: (hit: DrumHit) => void
-  updateHit: (id: string, patch: Partial<DrumHit>) => void
   deleteHit: (id: string) => void
-  replaceHits: (hits: DrumHit[]) => void
+  replaceHits: (hits: DrumHit[], totalBars?: number) => void
   beginEdit: () => void
   insertBar: (afterBar: number) => void
   deleteBar: (bar: number) => void
@@ -50,6 +59,7 @@ export function useDrumTrackEditor(initial: DrumTrack): UseDrumTrackEditorReturn
   const [track, setTrack]     = useState<DrumTrack>(initial)
   const [history, setHistory] = useState<History>({ past: [], future: [] })
 
+  // Assigned during render, so it always holds the last committed track.
   const trackRef = useRef(track)
   trackRef.current = track
 
@@ -57,35 +67,40 @@ export function useDrumTrackEditor(initial: DrumTrack): UseDrumTrackEditorReturn
     try { localStorage.setItem(DRUM_STORAGE_KEY, JSON.stringify(track)) } catch { /* private mode, quota */ }
   }, [track])
 
-  const pushHistory = useCallback((prev: Snapshot) => {
-    setHistory(h => ({ past: [...h.past.slice(-MAX_HISTORY + 1), prev], future: [] }))
+  /**
+   * Record the current track as the state undo will come back to.
+   *
+   * The snapshot is taken *before* `setHistory`, not inside its updater: React
+   * runs an updater whenever it likes — including during a later render, by
+   * which point `trackRef.current` is already the edited track and the snapshot
+   * would record the "after" instead of the "before".
+   */
+  const commit = useCallback(() => {
+    const before = snapshot(trackRef.current)
+    setHistory(h => ({ past: [...h.past.slice(-MAX_HISTORY + 1), before], future: [] }))
   }, [])
-
-  const snapshot = (t: DrumTrack): Snapshot => ({ hits: t.hits, totalBars: t.totalBars })
 
   const addHit = useCallback((hit: DrumHit) => {
-    setTrack(t => { pushHistory(snapshot(t)); return { ...t, hits: [...t.hits, hit] } })
-  }, [pushHistory])
-
-  const updateHit = useCallback((id: string, patch: Partial<DrumHit>) => {
-    setTrack(t => ({ ...t, hits: t.hits.map(h => h.id === id ? { ...h, ...patch } : h) }))
-  }, [])
+    commit()
+    setTrack(t => ({ ...t, hits: [...t.hits, hit] }))
+  }, [commit])
 
   const deleteHit = useCallback((id: string) => {
-    setTrack(t => { pushHistory(snapshot(t)); return { ...t, hits: t.hits.filter(h => h.id !== id) } })
-  }, [pushHistory])
+    if (!trackRef.current.hits.some(h => h.id === id)) return
+    commit()
+    setTrack(t => ({ ...t, hits: t.hits.filter(h => h.id !== id) }))
+  }, [commit])
 
-  const replaceHits = useCallback((hits: DrumHit[]) => {
-    setTrack(t => { pushHistory(snapshot(t)); return { ...t, hits } })
-  }, [pushHistory])
+  const replaceHits = useCallback((hits: DrumHit[], totalBars?: number) => {
+    commit()
+    setTrack(t => ({ ...t, hits, totalBars: totalBars ?? t.totalBars }))
+  }, [commit])
 
-  const beginEdit = useCallback(() => {
-    setTrack(t => { pushHistory(snapshot(t)); return t })
-  }, [pushHistory])
+  const beginEdit = useCallback(() => { commit() }, [commit])
 
   const insertBar = useCallback((afterBar: number) => {
+    commit()
     setTrack(t => {
-      pushHistory(snapshot(t))
       const pivot = (afterBar + 1) * t.beatsPerBar
       return {
         ...t,
@@ -94,12 +109,12 @@ export function useDrumTrackEditor(initial: DrumTrack): UseDrumTrackEditorReturn
         sections: t.sections?.map(s => s.startBar > afterBar ? { ...s, startBar: s.startBar + 1 } : s),
       }
     })
-  }, [pushHistory])
+  }, [commit])
 
   const deleteBar = useCallback((bar: number) => {
+    if (trackRef.current.totalBars <= 1) return
+    commit()
     setTrack(t => {
-      if (t.totalBars <= 1) return t
-      pushHistory(snapshot(t))
       const start = bar * t.beatsPerBar
       const end   = start + t.beatsPerBar
       return {
@@ -113,17 +128,17 @@ export function useDrumTrackEditor(initial: DrumTrack): UseDrumTrackEditorReturn
           .map(s => s.startBar > bar ? { ...s, startBar: s.startBar - 1 } : s),
       }
     })
-  }, [pushHistory])
+  }, [commit])
 
   const setTotalBars = useCallback((bars: number) => {
+    const next = Math.max(1, Math.min(32, bars))
+    if (next === trackRef.current.totalBars) return
+    commit()
     setTrack(t => {
-      const next = Math.max(1, Math.min(32, bars))
-      if (next === t.totalBars) return t
-      pushHistory(snapshot(t))
       const limit = next * t.beatsPerBar
       return { ...t, totalBars: next, hits: t.hits.filter(h => h.startBeat < limit) }
     })
-  }, [pushHistory])
+  }, [commit])
 
   const setSections = useCallback((sections: DrumSection[]) => {
     setTrack(t => ({ ...t, sections }))
@@ -145,38 +160,32 @@ export function useDrumTrackEditor(initial: DrumTrack): UseDrumTrackEditorReturn
   }, [])
 
   const clearAll = useCallback(() => {
-    setTrack(t => {
-      if (!t.hits.length) return t
-      pushHistory(snapshot(t))
-      return { ...t, hits: [] }
-    })
-  }, [pushHistory])
+    if (!trackRef.current.hits.length) return
+    commit()
+    setTrack(t => ({ ...t, hits: [] }))
+  }, [commit])
 
   const undo = useCallback(() => {
-    setHistory(h => {
-      if (!h.past.length) return h
-      const prev = h.past[h.past.length - 1]
-      const current = snapshot(trackRef.current)
-      setTrack(t => ({ ...t, hits: prev.hits, totalBars: prev.totalBars }))
-      return { past: h.past.slice(0, -1), future: [current, ...h.future] }
-    })
-  }, [])
+    const prev = history.past[history.past.length - 1]
+    if (!prev) return
+    const current = snapshot(trackRef.current)
+    setHistory(h => ({ past: h.past.slice(0, -1), future: [current, ...h.future] }))
+    setTrack(t => ({ ...t, hits: prev.hits, totalBars: prev.totalBars }))
+  }, [history.past])
 
   const redo = useCallback(() => {
-    setHistory(h => {
-      if (!h.future.length) return h
-      const next = h.future[0]
-      const current = snapshot(trackRef.current)
-      setTrack(t => ({ ...t, hits: next.hits, totalBars: next.totalBars }))
-      return { past: [...h.past, current], future: h.future.slice(1) }
-    })
-  }, [])
+    const next = history.future[0]
+    if (!next) return
+    const current = snapshot(trackRef.current)
+    setHistory(h => ({ past: [...h.past, current], future: h.future.slice(1) }))
+    setTrack(t => ({ ...t, hits: next.hits, totalBars: next.totalBars }))
+  }, [history.future])
 
   return {
     track, setTrack,
     canUndo: history.past.length > 0,
     canRedo: history.future.length > 0,
-    addHit, updateHit, deleteHit, replaceHits, beginEdit,
+    addHit, deleteHit, replaceHits, beginEdit,
     insertBar, deleteBar, setTotalBars, setSections,
     setBpm, setBeatsPerBar, loadTrack, clearAll, undo, redo,
   }

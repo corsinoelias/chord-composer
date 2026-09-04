@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  DRUM_STORAGE_KEY, STEPS_PER_BEAT, makeHitId,
+  DRUM_STORAGE_KEY, STEPS_PER_BEAT, makeHitId, hitsSignature,
   type DrumKitId, type DrumPieceId, type DrumTrack, type DrumView, type LoopRange,
 } from '../../lib/drumTab/types'
 import { defaultDrumTrack, getDrumPreset, type DrumPreset } from '../../data/drumPresets'
@@ -53,7 +53,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
 
   const {
     track, setTrack, canUndo, canRedo,
-    addHit, deleteHit, replaceHits, beginEdit,
+    addHit, deleteHit, replaceHits,
     setTotalBars, setBpm, loadTrack, clearAll, undo, redo,
   } = useDrumTrackEditor(initialTrack)
 
@@ -158,16 +158,26 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     previewHit(t.kit, pieceId, existing?.velocity ?? 0.9)
   }, [])
 
+  /**
+   * Applying the text view is idempotent: if the tab describes what the track
+   * already holds, nothing happens and no undo entry is recorded.
+   *
+   * This matters because Apply fires twice for one user action — clicking the
+   * button blurs the textarea first, so `onBlur` and `onClick` both run — and
+   * guarding inside the text editor could not fix it: the second handler is a
+   * closure captured before the first one's re-render, so it still believed it
+   * had something new to apply. The second application recorded a "before"
+   * snapshot of the already-edited track, which is what made undo look broken.
+   * Comparing the music itself is the guard that cannot go stale.
+   */
   const applyText = useCallback((text: string) => {
-    const parsed = parseDrumTab(text, trackRef.current.beatsPerBar)
-    beginEdit()
-    setTrack(t => ({
-      ...t,
-      hits: parsed.hits,
-      totalBars: Math.max(1, parsed.bars || t.totalBars),
-    }))
+    const current = trackRef.current
+    const parsed = parseDrumTab(text, current.beatsPerBar)
+    const bars = Math.max(1, parsed.bars || current.totalBars)
+    if (bars === current.totalBars && hitsSignature(parsed.hits) === hitsSignature(current.hits)) return
+    replaceHits(parsed.hits, bars)
     analytics.drumTabTextApplied()
-  }, [beginEdit, setTrack])
+  }, [replaceHits])
 
   const handleLoadPreset = useCallback((preset: DrumPreset) => {
     stop()
