@@ -114,7 +114,7 @@ const nav: NavSection[] = [
 ---
 
 <header class="sticky top-0 z-50 w-full border-b border-border/60 bg-background/95 backdrop-blur-md">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 xl:px-8">
     <div class="flex h-16 items-center justify-between gap-4">
 
       <!-- Logo -->
@@ -130,19 +130,27 @@ const nav: NavSection[] = [
       </a>
 
       <!-- Desktop nav -->
+      <!--
+        The desktop nav appears at `lg` (1024px), where the row wants 1000px of
+        content — logo 163 + nav 574 + actions 231 + gaps — but `lg:px-8` left
+        only 960, so every page scrolled 8px sideways between 1024 and ~1060.
+        The room comes back from two places between `lg` and `xl`: 16px of
+        container padding and 8px per nav item. Everything from `xl` up is
+        unchanged.
+      -->
       <nav class="hidden lg:flex items-center gap-0.5">
         {nav.map((section) => (
           'href' in section && section.href ? (
             <a
               href={section.href}
-              class="flex items-center px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+              class="flex items-center px-2 xl:px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
             >
               {section.label}
             </a>
           ) : (
             <div class="relative" data-nav-item>
               <button
-                class="flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+                class="flex items-center gap-1 px-2 xl:px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
                 aria-haspopup="true"
               >
                 {section.label}

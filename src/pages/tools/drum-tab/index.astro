@@ -146,23 +146,94 @@ const drumTabAppSchema = buildWebApplicationSchema({
 
   <main>
 
-    <!-- ── HERO ───────────────────────────────────────────────────────────── -->
-    <section class="mx-auto max-w-5xl px-4 sm:px-6 pt-12 pb-6 text-center">
-      <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Free Online Tool</p>
-      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4 leading-tight">
-        Drum Tab Player
-      </h1>
-      <p class="text-lg text-muted-foreground max-w-2xl mx-auto">
-        Read, play and write drum tabs in your browser. It opens with a groove already
-        loaded — press <strong class="text-foreground">Play</strong> and start changing it.
-      </p>
+    <!-- ── THE EDITOR ─────────────────────────────────────────────────────────
+      Full-bleed and viewport-tall, the way /drums/ mounts Virtual Drums: the
+      editor is what the page is for, and a 1024px column on a 1920px screen
+      showed two of four bars while the rest of the width sat empty. All the
+      long-form content below is unchanged and still crawlable — this only
+      changes what is above it.
+
+      The skeleton exists because the editor is `client:only="react"`, so
+      nothing of it is server-rendered: without a placeholder of the same
+      height the page would jump by most of a viewport on hydrate. It also
+      carries the real h1, which is otherwise absent from the static HTML
+      (the React top bar renders its own; the skeleton is removed the moment
+      that mounts, so only one is ever in the document).
+    -->
+    <section aria-label="Drum tab editor" class="dt-app">
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr); position: relative;">
+        <div id="drumtab-skeleton" class="dt-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out;">
+          <div class="dt-skel-top">
+            <h1>Drum Tab Player</h1>
+            <span class="dt-shimmer" style="width: 190px; height: 30px;"></span>
+            <span class="dt-shimmer" style="width: 160px; height: 30px;"></span>
+            <span style="flex: 1;"></span>
+            <span class="dt-shimmer" style="width: 180px; height: 30px;"></span>
+          </div>
+          <div class="dt-skel-kit"></div>
+          <div class="dt-skel-body"></div>
+          <div class="dt-skel-transport">
+            <span class="dt-shimmer dark" style="width: 96px; height: 36px;"></span>
+            <span class="dt-shimmer dark" style="width: 110px; height: 30px;"></span>
+            <span class="dt-shimmer dark" style="width: 150px; height: 30px;"></span>
+          </div>
+        </div>
+        <div id="drumtab-island" style="grid-area: 1 / 1; z-index: 1;">
+          <DrumTabPlayer client:only="react" />
+        </div>
+      </div>
     </section>
 
-    <!-- ── THE EDITOR ─────────────────────────────────────────────────────── -->
-    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-4" aria-label="Drum tab editor">
-      <DrumTabPlayer client:only="react" />
-      <p class="text-xs text-center text-muted-foreground mt-3">
-        Space plays and stops · click the grid to add hits · open the library for 30+ rhythms
+    <script>
+      /*
+        Retire the skeleton once the island has actually rendered.
+
+        Not `astro:hydrate`: that event had already fired by the time this module
+        ran here, so the listener never saw it and the placeholder stayed in the
+        document behind the live editor. Observing the island is ordering-proof —
+        `client:only` server-renders nothing, so "it has a child" is exactly
+        "React has mounted", whether that happened before or after this script.
+
+        There is deliberately no timeout that removes it anyway: if the island
+        never mounts, a visible placeholder is a better failure than an empty
+        gap where the editor should be.
+      */
+      const skeleton = document.getElementById('drumtab-skeleton')
+      const island = document.getElementById('drumtab-island')
+
+      if (skeleton && island) {
+        const mounted = () => {
+          const el = island.querySelector('astro-island')
+          return !!el && el.childElementCount > 0
+        }
+        const retire = () => {
+          skeleton.style.opacity = '0'
+          skeleton.addEventListener('transitionend', () => skeleton.remove(), { once: true })
+          setTimeout(() => skeleton.remove(), 250) // in case transitionend never fires
+        }
+        if (mounted()) {
+          retire()
+        } else {
+          const observer = new MutationObserver(() => {
+            if (!mounted()) return
+            observer.disconnect()
+            retire()
+          })
+          observer.observe(island, { childList: true, subtree: true })
+        }
+      }
+    </script>
+
+    <!-- ── WHAT IT IS ─────────────────────────────────────────────────────── -->
+    <section class="mx-auto max-w-3xl px-4 sm:px-6 pt-12 pb-2 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Free Online Tool</p>
+      <h2 class="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mb-4 leading-tight">
+        Read, play and write drum tabs in your browser
+      </h2>
+      <p class="text-lg text-muted-foreground">
+        It opens with a groove already loaded — press <strong class="text-foreground">Play</strong>
+        and start changing it. Space plays and stops, clicking the grid adds hits, and the
+        library on the left holds 30+ rhythms.
       </p>
     </section>
 
@@ -306,4 +377,76 @@ BD|o-------o-------|o-------o-------|</code></pre>
     ]} />
 
   </main>
+
+  <style>
+    /*
+      Skeleton for the `client:only` editor. Every measurement here mirrors a
+      real one in the React tree — top bar padding, the kit band's clamp, the
+      transport's height — because the whole point is that nothing moves when
+      the island takes over. If those change, these follow.
+
+      Colours are the literals from `src/lib/bassTab/theme.ts` (BT.paper,
+      BT.card, BT.rule, BT.panel…): the player is light-theme only, so they are
+      fixed rather than tokenised against the site's dark mode.
+    */
+    .dt-skeleton {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #f4f2ec;
+      /* The editor fills the viewport at every size, phone included, so the
+         placeholder has to as well — otherwise the page jumps by most of a
+         screen when the island mounts. `64px` is the navbar's own `h-16`. */
+      height: calc(100dvh - 64px);
+    }
+    .dt-skel-top {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 14px;
+      background: #ffffff;
+      border-bottom: 1px solid #e6e4dd;
+    }
+    .dt-skel-top h1 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #1c1b19;
+      white-space: nowrap;
+    }
+    .dt-skel-kit {
+      flex-shrink: 0;
+      /* Mirrors DrumTabKitStage's narrow band; the wider one is set below. */
+      height: clamp(150px, 24vh, 300px);
+      background: #111426;
+      border-bottom: 1px solid #3a3833;
+    }
+    .dt-skel-body { flex: 1; min-height: 0; background: #f4f2ec; }
+    .dt-skel-transport {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 14px;
+      background: #211f1c;
+      border-top: 1px solid #3a3833;
+    }
+    .dt-shimmer {
+      display: inline-block;
+      border-radius: 8px;
+      background: #eceae3;
+      animation: dtPulse 1.6s ease-in-out infinite;
+    }
+    .dt-shimmer.dark { background: #2a2823; }
+    @keyframes dtPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+    @media (prefers-reduced-motion: reduce) { .dt-shimmer { animation: none; } }
+
+    /* Above the mobile breakpoint the kit band is taller — matches the
+       `narrow` switch in DrumTabKitStage. */
+    @media (min-width: 768px) {
+      .dt-skel-kit { height: clamp(170px, 27vh, 300px); }
+    }
+  </style>
 </BaseLayout>

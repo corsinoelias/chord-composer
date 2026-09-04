@@ -1,139 +1,151 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import {
-  Play, Square, Repeat, Music2, Volume2, Undo2, Redo2,
-  Library, Share2, Trash2, Minus, Plus,
+  Play, Square, Repeat, Music2, Volume2, Undo2, Redo2, Minus, Plus,
+  ChevronDown, ChevronUp,
 } from 'lucide-react'
-import type { DrumKitId, DrumView } from '../../lib/drumTab/types'
-import { BT, alpha, f } from '../../lib/bassTab/theme'
+import { STEPS_PER_BEAT } from '../../lib/drumTab/types'
+import { BT, f } from '../../lib/bassTab/theme'
+import { BarLabel, IconButton } from './barControls'
+
+/**
+ * Playback. Anchored to the bottom of the app, so it stays under the pointer
+ * whichever view is open and however far the grid has scrolled.
+ *
+ * Everything about *what* the pattern is — name, kit, view, share — moved to
+ * `DrumTabTopBar`. This bar only ever changes how it is being played back.
+ */
 
 const MIN_BPM = 40
 const MAX_BPM = 260
+const MAX_BARS = 32
 
 interface Props {
   isPlaying: boolean
   bpm: number
-  kit: DrumKitId
   loop: boolean
   metronome: boolean
   volume: number
-  view: DrumView
   totalBars: number
+  beatsPerBar: number
+  currentBeat: number
   canUndo: boolean
   canRedo: boolean
-  trackName: string
-  shareLabel: string
+  /**
+   * Phone: only Play, BPM and the position stay on the bar; bars, loop,
+   * metronome, undo/redo and volume fold away behind the chevron. Same shape
+   * and same prop names as `BassTabTransport`, so the site's two transports
+   * behave alike.
+   */
+  compact?: boolean
+  onToggleExpand?: () => void
   onTogglePlay: () => void
   onBpmChange: (bpm: number) => void
-  onKitChange: (kit: DrumKitId) => void
   onLoopChange: (loop: boolean) => void
   onMetronomeChange: (on: boolean) => void
   onVolumeChange: (v: number) => void
-  onViewChange: (view: DrumView) => void
   onTotalBarsChange: (bars: number) => void
   onUndo: () => void
   onRedo: () => void
-  onOpenLibrary: () => void
-  onShare: () => void
-  onClear: () => void
-  onNameChange: (name: string) => void
 }
 
-const VIEWS: { id: DrumView; label: string }[] = [
-  { id: 'score', label: 'Notation' },
-  { id: 'grid',  label: 'Grid' },
-  { id: 'text',  label: 'Text' },
-]
-
-const KITS: { id: DrumKitId; label: string }[] = [
-  { id: 'acoustic',   label: 'Acoustic' },
-  { id: 'electronic', label: 'Electronic' },
-]
-
-function IconButton({
-  onClick, disabled, active, title, children,
-}: {
-  onClick: () => void
-  disabled?: boolean
-  active?: boolean
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      aria-label={title}
-      aria-pressed={active}
-      style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: 34, height: 34, borderRadius: 8,
-        border: '1px solid ' + (active ? BT.accent : BT.panelRule),
-        background: active ? alpha('accent', 0.22) : 'transparent',
-        color: disabled ? BT.dim : BT.panelInk,
-        cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.45 : 1,
-      }}
-    >
-      {children}
-    </button>
-  )
-}
-
-function Segmented<T extends string>({
-  options, value, onChange, ariaLabel,
-}: {
-  options: { id: T; label: string }[]
-  value: T
-  onChange: (v: T) => void
-  ariaLabel: string
-}) {
-  return (
-    <div
-      role="group"
-      aria-label={ariaLabel}
-      style={{
-        display: 'inline-flex', padding: 2, gap: 2, borderRadius: 9,
-        background: BT.panel2, border: '1px solid ' + BT.panelRule,
-      }}
-    >
-      {options.map(opt => (
-        <button
-          key={opt.id}
-          type="button"
-          onClick={() => onChange(opt.id)}
-          aria-pressed={value === opt.id}
-          style={{
-            padding: '5px 12px', borderRadius: 7, border: 'none', cursor: 'pointer',
-            background: value === opt.id ? BT.accent : 'transparent',
-            color: value === opt.id ? '#fff' : BT.panelInk,
-            fontFamily: f('ui'), fontSize: 12, fontWeight: 600,
-          }}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  )
+/** `bar.beat.sixteenth`, 1-indexed — how a drummer counts, and how a DAW reads. */
+function positionLabel(currentBeat: number, beatsPerBar: number): string {
+  const slot = Math.max(0, Math.floor(currentBeat * STEPS_PER_BEAT + 1e-6))
+  const slotsPerBar = beatsPerBar * STEPS_PER_BEAT
+  const bar = Math.floor(slot / slotsPerBar) + 1
+  const beat = Math.floor((slot % slotsPerBar) / STEPS_PER_BEAT) + 1
+  const sub = (slot % STEPS_PER_BEAT) + 1
+  return `${bar}.${beat}.${sub}`
 }
 
 export function DrumTabTransport({
-  isPlaying, bpm, kit, loop, metronome, volume, view, totalBars,
-  canUndo, canRedo, trackName, shareLabel,
-  onTogglePlay, onBpmChange, onKitChange, onLoopChange, onMetronomeChange,
-  onVolumeChange, onViewChange, onTotalBarsChange, onUndo, onRedo,
-  onOpenLibrary, onShare, onClear, onNameChange,
+  isPlaying, bpm, loop, metronome, volume, totalBars, beatsPerBar, currentBeat,
+  canUndo, canRedo,
+  compact = false, onToggleExpand,
+  onTogglePlay, onBpmChange, onLoopChange, onMetronomeChange,
+  onVolumeChange, onTotalBarsChange, onUndo, onRedo,
 }: Props) {
-  const labelStyle: React.CSSProperties = {
-    fontFamily: f('ui'), fontSize: 11, fontWeight: 600,
-    color: BT.dim, textTransform: 'uppercase', letterSpacing: '.06em',
+  const readout: React.CSSProperties = {
+    fontFamily: f('mono'), fontSize: 13, fontVariantNumeric: 'tabular-nums',
+    padding: '5px 9px', borderRadius: 7,
+    border: '1px solid ' + BT.panelRule, background: BT.panel2, color: BT.panelInk,
+    textAlign: 'center',
   }
+
+  // Whether the secondary controls get their own folding row at all. The player
+  // passes `onToggleExpand` only on a phone; everywhere else they stay inline.
+  const foldable = onToggleExpand !== undefined
+
+  /**
+   * `max-height: 0` clips the folded row but leaves what is inside it focusable,
+   * so a keyboard user tabs into a volume slider that is nowhere on screen.
+   * `inert` fixes that; it is set on the node rather than passed as a prop
+   * because React 18 does not type it.
+   */
+  const foldRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = foldRef.current
+    if (!el) return
+    if (compact) el.setAttribute('inert', '')
+    else el.removeAttribute('inert')
+  }, [compact])
+
+  const bars = (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <BarLabel tone="dark">Bars</BarLabel>
+        <IconButton onClick={() => onTotalBarsChange(totalBars - 1)} disabled={totalBars <= 1} title="Remove a bar">
+          <Minus size={15} />
+        </IconButton>
+        <span style={{
+          minWidth: 20, textAlign: 'center', color: BT.panelInk,
+          fontFamily: f('mono'), fontSize: 13, fontVariantNumeric: 'tabular-nums',
+        }}>
+          {totalBars}
+        </span>
+        <IconButton onClick={() => onTotalBarsChange(totalBars + 1)} disabled={totalBars >= MAX_BARS} title="Add a bar">
+          <Plus size={15} />
+        </IconButton>
+      </div>
+  )
+
+  const toggles = (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <IconButton onClick={() => onLoopChange(!loop)} active={loop} title="Loop">
+          <Repeat size={16} />
+        </IconButton>
+        <IconButton onClick={() => onMetronomeChange(!metronome)} active={metronome} title="Metronome">
+          <Music2 size={16} />
+        </IconButton>
+        <IconButton onClick={onUndo} disabled={!canUndo} title="Undo">
+          <Undo2 size={16} />
+        </IconButton>
+        <IconButton onClick={onRedo} disabled={!canRedo} title="Redo">
+          <Redo2 size={16} />
+        </IconButton>
+      </div>
+  )
+
+  const volumeControl = (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Volume2 size={15} style={{ color: '#9d978c' }} aria-hidden="true" />
+        <input
+          type="range"
+          min={0} max={1} step={0.02}
+          value={volume}
+          onChange={e => onVolumeChange(Number(e.target.value))}
+          aria-label="Volume"
+          style={{ width: 88, accentColor: BT.accent, cursor: 'pointer' }}
+        />
+      </div>
+  )
 
   return (
     <div style={{
-      background: BT.panel, border: '1px solid ' + BT.panelRule, borderRadius: 12,
-      padding: 12, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14,
+      flexShrink: 0, background: BT.panel, borderTop: '1px solid ' + BT.panelRule,
+    }}>
+    <div style={{
+      padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 14,
+      flexWrap: foldable ? 'nowrap' : 'wrap',
     }}>
       <button
         type="button"
@@ -151,7 +163,7 @@ export function DrumTabTransport({
       </button>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={labelStyle}>BPM</span>
+        <BarLabel tone="dark">BPM</BarLabel>
         <input
           type="number"
           min={MIN_BPM}
@@ -162,86 +174,55 @@ export function DrumTabTransport({
             if (Number.isFinite(n)) onBpmChange(Math.max(MIN_BPM, Math.min(MAX_BPM, Math.round(n))))
           }}
           aria-label="Tempo in beats per minute"
-          style={{
-            width: 62, padding: '5px 7px', borderRadius: 7,
-            border: '1px solid ' + BT.panelRule, background: BT.panel2, color: BT.panelInk,
-            fontFamily: f('mono'), fontSize: 13, fontVariantNumeric: 'tabular-nums',
-          }}
+          style={{ ...readout, width: 62 }}
         />
       </div>
 
+      {!foldable && bars}
+      {!foldable && toggles}
+
+      <div style={{ flex: 1, minWidth: 8 }} />
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={labelStyle}>Bars</span>
-        <IconButton onClick={() => onTotalBarsChange(totalBars - 1)} disabled={totalBars <= 1} title="Remove a bar">
-          <Minus size={15} />
-        </IconButton>
-        <span style={{
-          minWidth: 20, textAlign: 'center', color: BT.panelInk,
-          fontFamily: f('mono'), fontSize: 13, fontVariantNumeric: 'tabular-nums',
-        }}>
-          {totalBars}
+        <BarLabel tone="dark">Pos</BarLabel>
+        <span
+          style={{ ...readout, minWidth: 76 }}
+          aria-live="off"
+          title="Bar . beat . sixteenth"
+        >
+          {positionLabel(currentBeat, beatsPerBar)}
         </span>
-        <IconButton onClick={() => onTotalBarsChange(totalBars + 1)} disabled={totalBars >= 32} title="Add a bar">
-          <Plus size={15} />
-        </IconButton>
       </div>
 
-      <Segmented options={KITS} value={kit} onChange={onKitChange} ariaLabel="Drum kit" />
+      {!foldable && volumeControl}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <IconButton onClick={() => onLoopChange(!loop)} active={loop} title="Loop">
-          <Repeat size={16} />
+      {foldable && (
+        <IconButton
+          onClick={onToggleExpand!}
+          active={!compact}
+          title={compact ? 'More controls' : 'Fewer controls'}
+        >
+          {compact ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </IconButton>
-        <IconButton onClick={() => onMetronomeChange(!metronome)} active={metronome} title="Metronome">
-          <Music2 size={16} />
-        </IconButton>
-        <IconButton onClick={onUndo} disabled={!canUndo} title="Undo">
-          <Undo2 size={16} />
-        </IconButton>
-        <IconButton onClick={onRedo} disabled={!canRedo} title="Redo">
-          <Redo2 size={16} />
-        </IconButton>
+      )}
+    </div>
+
+    {foldable && (
+      <div ref={foldRef} style={{
+        overflow: 'hidden',
+        maxHeight: compact ? 0 : 200,
+        transition: 'max-height .22s ease',
+      }}>
+        <div style={{
+          padding: '0 14px 10px', display: 'flex', alignItems: 'center',
+          gap: 14, flexWrap: 'wrap',
+        }}>
+          {bars}
+          {toggles}
+          {volumeControl}
+        </div>
       </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Volume2 size={15} style={{ color: BT.dim }} aria-hidden="true" />
-        <input
-          type="range"
-          min={0} max={1} step={0.02}
-          value={volume}
-          onChange={e => onVolumeChange(Number(e.target.value))}
-          aria-label="Volume"
-          style={{ width: 78, accentColor: BT.accent, cursor: 'pointer' }}
-        />
-      </div>
-
-      <div style={{ flex: 1, minWidth: 12 }} />
-
-      <input
-        value={trackName}
-        onChange={e => onNameChange(e.target.value)}
-        aria-label="Pattern name"
-        placeholder="Untitled groove"
-        style={{
-          width: 150, padding: '5px 9px', borderRadius: 7,
-          border: '1px solid ' + BT.panelRule, background: BT.panel2, color: BT.panelInk,
-          fontFamily: f('ui'), fontSize: 13, fontWeight: 600,
-        }}
-      />
-
-      <Segmented options={VIEWS} value={view} onChange={onViewChange} ariaLabel="View" />
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <IconButton onClick={onOpenLibrary} title="Rhythm library">
-          <Library size={16} />
-        </IconButton>
-        <IconButton onClick={onShare} title={shareLabel}>
-          <Share2 size={16} />
-        </IconButton>
-        <IconButton onClick={onClear} title="Clear all hits">
-          <Trash2 size={16} />
-        </IconButton>
-      </div>
+    )}
     </div>
   )
 }

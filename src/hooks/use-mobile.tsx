@@ -39,3 +39,27 @@ export function useIsDesktop() {
 
   return isDesktop;
 }
+
+/**
+ * True at 1440px and up. Used by the Drum Tab Player to decide whether there is
+ * room for a third column (the kit inspector) beside the library rail and the
+ * grid: below this the grid's sixteenths get squeezed under the width they need
+ * to stay clickable, and the editor starts scrolling sideways to pay for a panel.
+ */
+const WIDE_BREAKPOINT = 1440;
+
+export function useIsWide() {
+  const [isWide, setIsWide] = React.useState<boolean>(
+    () => typeof window !== "undefined" && window.innerWidth >= WIDE_BREAKPOINT,
+  );
+
+  React.useEffect(() => {
+    const mql = window.matchMedia(`(min-width: ${WIDE_BREAKPOINT}px)`);
+    const onChange = () => setIsWide(window.innerWidth >= WIDE_BREAKPOINT);
+    mql.addEventListener("change", onChange);
+    setIsWide(window.innerWidth >= WIDE_BREAKPOINT);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  return isWide;
+}

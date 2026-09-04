@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createDrumEngine, type DrumEngine, type DrumKitId, type DrumPieceId } from '../../lib/virtualDrums/drumSynth'
 import { buildKitSvg, SCENES } from '../../lib/virtualDrums/kitSvg'
+import { animateKitHit, pieceFromPointer } from '../../lib/virtualDrums/kitAnim'
 import { BeatEditor } from './BeatEditor'
 
 // Ported from the user's Claude Design project "Batería Virtual Interactiva"
@@ -104,15 +105,6 @@ const SHORTCUT_LIST = [
   { k: '3 / Y', n: 'Bell (ride)' },
 ]
 
-type AnimKind = 'drum' | 'cym' | 'hho' | 'hhc' | 'hhf'
-const ANIM: Partial<Record<DrumPieceId, [string, AnimKind, number?]>> = {
-  'kick': ['an-kick', 'drum'], 'snare': ['an-snare', 'drum'], 'stick': ['an-snare', 'drum'],
-  'tom-hi': ['an-tomhi', 'drum'], 'tom-lo': ['an-tomlo', 'drum'], 'tom-floor': ['an-tomfloor', 'drum'],
-  'crash-edge': ['an-crash', 'cym', 6], 'crash-body': ['an-crash', 'cym', 3.5], 'crash-bell': ['an-crash', 'cym', 1.4],
-  'ride-edge': ['an-ride', 'cym', 4], 'ride-body': ['an-ride', 'cym', 2.2], 'ride-bell': ['an-ride', 'cym', 1],
-  'hh-closed': ['an-hhtop', 'hhc'], 'hh-open': ['an-hhtop', 'hho'], 'hh-foot': ['an-hhtop', 'hhf'],
-}
-
 export function VirtualDrums() {
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth <= 640)
   const [kit, setKit] = useState<DrumKitId>('acoustic')
@@ -182,46 +174,10 @@ export function VirtualDrums() {
     return () => mq.removeEventListener('change', onChange)
   }, [])
 
+  // The animation itself lives in `lib/virtualDrums/kitAnim.ts`, shared with the
+  // Drum Tab Player's kit stage; only the container is local to this component.
   const animateHit = useCallback((id: DrumPieceId) => {
-    const spec = ANIM[id]
-    if (!spec) return
-    const [elId, kind, amp = 0] = spec
-    const root = containerRef.current
-    if (!root) return
-    const el = root.querySelector<SVGElement>('#' + elId)
-    const fl = root.querySelector<SVGElement>('#fl-' + elId.slice(3))
-    if (fl) fl.animate([{ opacity: 0.45 }, { opacity: 0 }], { duration: 200, easing: 'ease-out' })
-    if (!el) return
-    if (kind === 'drum') {
-      el.animate(
-        [{ transform: 'scale(1)' }, { transform: 'scale(0.97)' }, { transform: 'scale(1)' }],
-        { duration: 130, easing: 'ease-out' },
-      )
-    } else if (kind === 'cym') {
-      el.animate([
-        { transform: 'rotate(0deg)' },
-        { transform: `rotate(${-amp}deg)` },
-        { transform: `rotate(${amp * 0.6}deg)` },
-        { transform: `rotate(${-amp * 0.35}deg)` },
-        { transform: 'rotate(0deg)' },
-      ], { duration: 850, easing: 'ease-out' })
-    } else if (kind === 'hho') {
-      el.animate([
-        { transform: 'translateY(0px) rotate(0deg)' },
-        { transform: 'translateY(-10px) rotate(-2deg)' },
-        { transform: 'translateY(-8px) rotate(1.5deg)' },
-        { transform: 'translateY(0px) rotate(0deg)' },
-      ], { duration: 550, easing: 'ease-out' })
-    } else if (kind === 'hhc') {
-      el.animate([
-        { transform: 'rotate(0deg)' }, { transform: 'rotate(-1.5deg)' },
-        { transform: 'rotate(1deg)' }, { transform: 'rotate(0deg)' },
-      ], { duration: 260, easing: 'ease-out' })
-    } else if (kind === 'hhf') {
-      el.animate([
-        { transform: 'translateY(-6px)' }, { transform: 'translateY(2px)' }, { transform: 'translateY(0px)' },
-      ], { duration: 200, easing: 'ease-out' })
-    }
+    animateKitHit(containerRef.current, id)
   }, [])
 
   const crowdReact = useCallback((id: DrumPieceId) => {
@@ -442,25 +398,8 @@ export function VirtualDrums() {
   }, [stopPlayback, trigger])
 
   const onKitDown = useCallback((e: React.PointerEvent) => {
-    const target = e.target as Element
-    const el = target.closest ? target.closest('[data-hit]') : null
-    if (!el) return
-    let id = el.getAttribute('data-hit') as DrumPieceId
-    const fam = id.split('-')[0]
-    if (fam === 'crash' || fam === 'ride') {
-      try {
-        const svg = containerRef.current?.querySelector('svg')
-        if (svg) {
-          const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM()!.inverse())
-          const C = fam === 'crash'
-            ? { x: 452, y: 205, rx: 128, ry: 30 }
-            : { x: 1215, y: 235, rx: 148, ry: 36 }
-          const d = Math.sqrt(((pt.x - C.x) / C.rx) ** 2 + ((pt.y - C.y) / C.ry) ** 2)
-          id = (fam + (d < 0.32 ? '-bell' : (d < 0.75 ? '-body' : '-edge'))) as DrumPieceId
-        }
-      } catch { /* keep element zone */ }
-    }
-    trigger(id, 1)
+    const id = pieceFromPointer(containerRef.current, e.target, e.clientX, e.clientY)
+    if (id) trigger(id, 1)
   }, [trigger])
 
   const svgMarkup = useMemo(

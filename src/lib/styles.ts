@@ -466,13 +466,17 @@ export const MUSICAL_STYLES: StylePattern[] = [
       kick:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
       // C: - - - - | X - - - | - - - - | X - - - (caja en 2 y 4)
       snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      // H: x x x x | x x x x | x x x x | x x x x (semicorcheas)
-      hihatOpen: [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0,],
+      // H: x - x - | x - x - | x - x - | x - x - (corcheas, charles cerrado)
+      // Estaba escrito en `hihatOpen` con `hihat` vacío, que es lo que hacía
+      // sonar un charles abierto en cada corchea — no es un rock básico, y el
+      // comentario de esta misma línea siempre dijo "charles". Único estilo de
+      // los 16 con las dos líneas cruzadas.
+      hihat: [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0],
+      hihatOpen: [],
       // B: X - - - | - - X - | X - - - | - - X - (fundamental y quinta)
       bass:  [1, 0, 0.8, 0, 1, 0, 0.8, 0, 1, 0, 0.8, 0, 1, 0, 0.8, 0],
       // P: - - - - | X - - - | - - - - | X - - - (acordes en backbeat)
       piano:  [0.8, 0, 1, 0, 0.8, 0, 1, 0, 0.8, 0, 1, 0, 0.8, 0,1, 0],
-      hihat:[]
       // G: X - - - | X - - - | X - - - | X - - - (power chords en cada tiempo)
       // guitar: [1, 0, 0.2, 0, 1, 0, 0.2, 0, 1, 0, 0.2, 0, 1, 0, 0.2, 0],
     },

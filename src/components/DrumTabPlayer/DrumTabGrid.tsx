@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useRef } from 'react'
-import { DRUM_ROWS, STEPS_PER_BEAT, type DrumPieceId, type DrumTrack } from '../../lib/drumTab/types'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { DRUM_ROWS, GRID_LABEL_W, STEPS_PER_BEAT, type DrumPieceId, type DrumTrack } from '../../lib/drumTab/types'
 import { BT, alpha, f } from '../../lib/bassTab/theme'
 import { PART_ICON } from './partIcons'
 
@@ -9,13 +9,45 @@ import { PART_ICON } from './partIcons'
  * Cells are a *view* of `track.hits`, not the storage — the model is hits at
  * beat positions (see `lib/drumTab/types.ts`), which is what lets the same track
  * carry a 6/8 bar or a swung groove that a fixed 16-cell matrix could not.
+ *
+ * Cell size is measured, not fixed. In the old boxed layout 26 × 26 always fit;
+ * full-screen it is the wrong number in every direction — it wasted half the
+ * width on a one-bar pattern, still hid bars 3 and 4 of a four-bar one, and left
+ * the bottom half of the screen empty. So the space the bars need is divided by
+ * the space there is, on both axes, clamped to a range where a sixteenth is
+ * still a sixteenth and not a tile. Only past the lower clamp does it scroll.
  */
 
-const LABEL_W  = 132
-const CELL_W   = 26
-const CELL_H   = 26
+
 const CELL_GAP = 2
 const ROW_GAP  = 3
+
+/**
+ * A cell narrower than this is not a pointer target any more. 11 is chosen so
+ * four bars of sixteenths still fit a 1280px laptop beside the library rail —
+ * the width one step below where the common case starts scrolling.
+ */
+const MIN_CELL_W = 11
+/** Past this the grid stops looking like sixteenths and starts looking like tiles. */
+const MAX_CELL_W = 34
+const FALLBACK_CELL_W = 26
+
+const MIN_ROW_H = 22
+/**
+ * Rows grow into spare height, but only this far. It is deliberately close to
+ * `MAX_CELL_W`, so a cell stays roughly square and keeps reading as one step of
+ * sixteen rather than a bar of a chart.
+ *
+ * Capping by a constant rather than by the measured cell width is what keeps
+ * this stable: tying row height to cell width closed a loop — taller rows
+ * overflow, the overflow raises a vertical scrollbar, the scrollbar narrows the
+ * cells, narrower cells shorten the rows, the overflow goes away — and React
+ * hit "Maximum update depth exceeded" oscillating around it.
+ */
+const MAX_ROW_H = 32
+const FALLBACK_ROW_H = 29
+/** The bar/beat ruler, which the rows do not get to share. */
+const RULER_H = 27
 
 const ALWAYS_VISIBLE: DrumPieceId[] = ['crash-edge', 'hh-closed', 'snare', 'kick']
 
@@ -25,20 +57,75 @@ interface Props {
   isPlaying: boolean
   /** Bars shown at once; the rest scroll. `null` = all of them. */
   barWindow: { start: number; count: number } | null
+  /** Row the kit stage considers current — kept visible and marked. */
+  selectedPiece?: DrumPieceId | null
+  /** Label gutter width, shared with the arrangement lane so bars line up. */
+  labelW?: number
+  /**
+   * Phone: dropped, so the narrow gutter has room for the piece name. The same
+   * control lives in the inspector, which on a phone is inside the sheet.
+   */
+  showRowVelocity?: boolean
   onToggleCell: (pieceId: DrumPieceId, slot: number) => void
   onSetRowVelocity: (pieceId: DrumPieceId, velocity: number) => void
   onPreviewRow: (pieceId: DrumPieceId) => void
+  onSelectRow?: (pieceId: DrumPieceId) => void
 }
 
 export function DrumTabGrid({
-  track, currentBeat, isPlaying, barWindow,
-  onToggleCell, onSetRowVelocity, onPreviewRow,
+  track, currentBeat, isPlaying, barWindow, selectedPiece, labelW = GRID_LABEL_W, showRowVelocity = true,
+  onToggleCell, onSetRowVelocity, onPreviewRow, onSelectRow,
 }: Props) {
   const slotsPerBar = track.beatsPerBar * STEPS_PER_BEAT
   const firstBar    = barWindow ? barWindow.start : 0
   const barCount    = barWindow ? Math.min(barWindow.count, track.totalBars - firstBar) : track.totalBars
   const firstSlot   = firstBar * slotsPerBar
   const totalSlots  = Math.max(0, barCount) * slotsPerBar
+
+  // Space available to the cells: the box minus the ruler, minus the row labels.
+  // Measuring the scroll container rather than the content means the reading
+  // never chases its own tail — the container is sized by flex, the content by
+  // this measurement, so it settles in one pass.
+  const cellsRef = useRef<HTMLDivElement>(null)
+  const frameRef = useRef<HTMLDivElement>(null)
+  const [cellsW, setCellsW] = useState(0)
+  const [frameH, setFrameH] = useState(0)
+
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return
+    const cells = cellsRef.current
+    const frame = frameRef.current
+    // Rounded, and only stored when the whole pixel actually changed.
+    // `contentRect` is fractional, so storing it raw re-rendered the grid on
+    // sub-pixel jitter — every frame during playback, since the playhead is
+    // already re-rendering it — for a cell size that never moved.
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        if (entry.target === cells) {
+          const w = Math.round(entry.contentRect.width)
+          setCellsW(prev => (prev === w ? prev : w))
+        }
+        if (entry.target === frame) {
+          const h = Math.round(entry.contentRect.height)
+          setFrameH(prev => (prev === h ? prev : h))
+        }
+      }
+    })
+    if (cells) ro.observe(cells)
+    if (frame) ro.observe(frame)
+    return () => ro.disconnect()
+  }, [])
+
+  // Height the rows may share out. Taken from the frame, which flex sizes, and
+  // not from the card, which hugs its rows — measuring the card would feed its
+  // own content height back into the row height that produced it.
+  const bodyH = Math.max(0, frameH - RULER_H)
+
+  const cellW = useMemo(() => {
+    if (!cellsW || !totalSlots) return FALLBACK_CELL_W
+    const fit = Math.floor(cellsW / totalSlots) - CELL_GAP
+    return Math.max(MIN_CELL_W, Math.min(MAX_CELL_W, fit))
+  }, [cellsW, totalSlots])
 
   // Painting state: dragging across cells applies the value the first cell got,
   // so a sweep fills a row instead of toggling each cell twice.
@@ -56,11 +143,21 @@ export function DrumTabGrid({
   }, [track.hits])
 
   // Rows the track uses, plus the four staples — a 15-row grid for a
-  // kick-and-snare pattern is mostly empty space.
+  // kick-and-snare pattern is mostly empty space. The selected piece joins them
+  // so that clicking a drum on the kit stage reveals a row to write into, even
+  // one the pattern has not touched yet.
   const visibleRows = useMemo(() => {
     const used = new Set(track.hits.map(h => h.pieceId))
-    return DRUM_ROWS.filter(r => used.has(r.id) || ALWAYS_VISIBLE.includes(r.id))
-  }, [track.hits])
+    return DRUM_ROWS.filter(
+      r => used.has(r.id) || ALWAYS_VISIBLE.includes(r.id) || r.id === selectedPiece,
+    )
+  }, [track.hits, selectedPiece])
+
+  const rowH = useMemo(() => {
+    if (!bodyH || !visibleRows.length) return FALLBACK_ROW_H
+    return Math.max(MIN_ROW_H, Math.min(MAX_ROW_H, Math.floor(bodyH / visibleRows.length)))
+  }, [bodyH, visibleRows.length])
+  const cellH = rowH - ROW_GAP
 
   const playSlot = isPlaying ? Math.floor(currentBeat * STEPS_PER_BEAT + 1e-6) : -1
 
@@ -77,18 +174,31 @@ export function DrumTabGrid({
 
   const endPaint = useCallback(() => { paintRef.current = null }, [])
 
-  const gridW = totalSlots * (CELL_W + CELL_GAP)
+  // Past the minimum cell width the cells scroll sideways; the ruler has to go
+  // with them, or the bar numbers stop naming the columns underneath.
+  const rulerRef = useRef<HTMLDivElement>(null)
+  const syncRuler = useCallback(() => {
+    const ruler = rulerRef.current
+    const cells = cellsRef.current
+    if (ruler && cells) ruler.scrollLeft = cells.scrollLeft
+  }, [])
+
+  const gridW = totalSlots * (cellW + CELL_GAP)
 
   return (
+    <div ref={frameRef} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
     <div
-      style={{ background: BT.card, border: '1px solid ' + BT.rule, borderRadius: 12, overflow: 'hidden' }}
+      style={{
+        background: BT.card, border: '1px solid ' + BT.rule, borderRadius: 12, overflow: 'hidden',
+        display: 'flex', flexDirection: 'column', minHeight: 0,
+      }}
       onPointerUp={endPaint}
       onPointerLeave={endPaint}
     >
       {/* Bar / beat ruler */}
-      <div style={{ display: 'flex', borderBottom: '1px solid ' + BT.rule, background: BT.sunken }}>
-        <div style={{ width: LABEL_W, flexShrink: 0 }} />
-        <div style={{ overflow: 'hidden', flex: 1 }}>
+      <div style={{ display: 'flex', flexShrink: 0, borderBottom: '1px solid ' + BT.rule, background: BT.sunken }}>
+        <div style={{ width: labelW, flexShrink: 0 }} />
+        <div ref={rulerRef} style={{ overflow: 'hidden', flex: 1 }}>
           <div style={{ display: 'flex', gap: CELL_GAP, width: gridW, padding: '5px 0' }}>
             {Array.from({ length: totalSlots }, (_, i) => {
               const slot        = firstSlot + i
@@ -99,7 +209,7 @@ export function DrumTabGrid({
                 <div
                   key={slot}
                   style={{
-                    width: CELL_W, textAlign: 'center',
+                    width: cellW, textAlign: 'center',
                     fontSize: 10, fontFamily: f('mono'), fontVariantNumeric: 'tabular-nums',
                     color: isBarStart ? BT.bar : isBeatStart ? BT.muted : BT.dim,
                     fontWeight: isBarStart ? 700 : 500,
@@ -113,23 +223,29 @@ export function DrumTabGrid({
         </div>
       </div>
 
-      <div style={{ display: 'flex' }}>
+      {/* `scrollbar-gutter: stable` so the cells keep the same width whether or
+          not the rows overflow — otherwise the measured width, and with it the
+          cell width, changes the moment a scrollbar appears. */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflowY: 'auto', scrollbarGutter: 'stable' }}>
         {/* Row labels */}
-        <div style={{ width: LABEL_W, flexShrink: 0, borderRight: '1px solid ' + BT.rule }}>
+        <div style={{ width: labelW, flexShrink: 0, borderRight: '1px solid ' + BT.rule }}>
           {visibleRows.map(row => {
             const Icon = PART_ICON[row.id]
             const vel  = rowVelocity[row.id] ?? row.defaultVel
+            const selected = row.id === selectedPiece
             return (
               <div
                 key={row.id}
                 style={{
-                  height: CELL_H + ROW_GAP, display: 'flex', alignItems: 'center', gap: 6,
+                  height: rowH, display: 'flex', alignItems: 'center', gap: 6,
                   padding: '0 8px', borderBottom: '1px solid ' + alpha('rule', 0.5),
+                  background: selected ? BT.accentWash : 'transparent',
+                  boxShadow: selected ? 'inset 3px 0 0 ' + BT.accent : 'none',
                 }}
               >
                 <button
                   type="button"
-                  onClick={() => onPreviewRow(row.id)}
+                  onClick={() => { onPreviewRow(row.id); onSelectRow?.(row.id) }}
                   title={'Play ' + row.label}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0,
@@ -145,6 +261,7 @@ export function DrumTabGrid({
                     {row.short}
                   </span>
                 </button>
+                {showRowVelocity && (
                 <input
                   type="range"
                   min={0.3} max={1} step={0.05}
@@ -154,19 +271,20 @@ export function DrumTabGrid({
                   aria-label={row.label + ' velocity'}
                   style={{ width: 40, accentColor: BT.accent, cursor: 'pointer' }}
                 />
+                )}
               </div>
             )
           })}
         </div>
 
         {/* Cells */}
-        <div style={{ flex: 1, overflowX: 'auto' }}>
+        <div ref={cellsRef} onScroll={syncRuler} style={{ flex: 1, minWidth: 0, overflowX: 'auto' }}>
           <div style={{ width: gridW }}>
             {visibleRows.map(row => (
               <div
                 key={row.id}
                 style={{
-                  display: 'flex', gap: CELL_GAP, height: CELL_H + ROW_GAP,
+                  display: 'flex', gap: CELL_GAP, height: rowH,
                   alignItems: 'center', borderBottom: '1px solid ' + alpha('rule', 0.5),
                 }}
               >
@@ -185,7 +303,7 @@ export function DrumTabGrid({
                       aria-label={row.label + ' step ' + (slot + 1)}
                       aria-pressed={on}
                       style={{
-                        width: CELL_W, height: CELL_H, padding: 0, cursor: 'pointer',
+                        width: cellW, height: cellH, padding: 0, cursor: 'pointer',
                         borderRadius: 5,
                         border: isBarStart
                           ? '1px solid ' + alpha('bar', 0.45)
@@ -207,6 +325,7 @@ export function DrumTabGrid({
           </div>
         </div>
       </div>
+    </div>
     </div>
   )
 }

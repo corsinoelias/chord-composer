@@ -23,6 +23,44 @@ export interface DrumSection {
   startBar: number
 }
 
+/**
+ * One kit piece's channel settings — how loud it sits in the kit, and whether
+ * it is heard at all.
+ *
+ * Separate from `DrumHit.velocity` on purpose, because they are different
+ * things wearing the same units. Velocity is how hard *this* stroke was played:
+ * it is what makes a ghost note a ghost note, and it varies stroke to stroke.
+ * Level is where the whole piece sits in the mix, and applies to every stroke
+ * on it. Before this existed the only control was a row slider that rewrote
+ * every hit's velocity at once, which flattened the first to achieve the
+ * second — turning down the hi-hat also erased its ghost notes.
+ *
+ * There is no pan: `drumSynth` plays mono into its own master, and a pan
+ * control that did nothing would be worse than none.
+ */
+export interface DrumChannel {
+  /**
+   * 0-1, multiplied into the strike. 1 = as written, 0 = silent.
+   *
+   * It does not go above 1 because it could not do anything there:
+   * `drumSynth.play` clamps velocity into `[0.1, 1]`, so a "120%" that quietly
+   * became 100% would be a control that lies about what it does.
+   */
+  gain: number
+  mute: boolean
+  solo: boolean
+}
+
+/**
+ * Below this a strike is silent rather than quiet. The synth clamps velocity up
+ * to 0.1, so without this a level dragged to zero would still be audible.
+ */
+const SILENT_BELOW = 0.02
+
+export type DrumMix = Partial<Record<DrumPieceId, DrumChannel>>
+
+export const DEFAULT_CHANNEL: DrumChannel = { gain: 1, mute: false, solo: false }
+
 export interface DrumTrack {
   id: string
   name: string
@@ -32,6 +70,8 @@ export interface DrumTrack {
   kit: DrumKitId
   hits: DrumHit[]
   sections?: DrumSection[]
+  /** Per-piece level and mute/solo. Absent means every piece as written. */
+  mix?: DrumMix
   /**
    * 0-1 swing on the "and" of each beat, same meaning as `StylePattern.swing`:
    * 0 = straight, 1 = full triplet. Applied at playback only — the hits keep
@@ -39,6 +79,34 @@ export interface DrumTrack {
    * not something a chart notates as triplet fractions.
    */
   swing?: number
+}
+
+/** True while any piece is soloed — at which point everything else is silent. */
+export function hasSolo(mix: DrumMix | undefined): boolean {
+  if (!mix) return false
+  for (const key in mix) {
+    if (mix[key as DrumPieceId]?.solo) return true
+  }
+  return false
+}
+
+/**
+ * The velocity a stroke is actually played at, or `null` when the mix silences
+ * it. One function so the transport and the audition button cannot disagree
+ * about whether a muted piece makes a sound.
+ */
+export function mixedVelocity(
+  mix: DrumMix | undefined,
+  pieceId: DrumPieceId,
+  velocity: number,
+  soloActive = hasSolo(mix),
+): number | null {
+  const channel = mix?.[pieceId]
+  if (channel?.mute) return null
+  if (soloActive && !channel?.solo) return null
+  const scaled = velocity * (channel?.gain ?? 1)
+  if (scaled < SILENT_BELOW) return null
+  return Math.min(1, scaled)
 }
 
 /** Extra beats to delay a hit for swing feel. Only the "and" 8th of a beat moves. */
@@ -98,6 +166,19 @@ export function rowIndexOf(pieceId: DrumPieceId): number {
 
 /** Grid resolution. 4 = sixteenth notes, the resolution `styles.ts` is written in. */
 export const STEPS_PER_BEAT = 4
+
+/**
+ * Width of the kit-piece label gutter, shared by the step grid and the
+ * arrangement lane below it. It lives here rather than in either component
+ * because the two only line their bars up while they agree on it, and a pair of
+ * constants that must match is the kind that stops matching.
+ *
+ * Two of them because 152px is 39% of a 390px phone. The narrow one fits the
+ * icon and the short name and nothing else, which is all there is room for —
+ * the player picks one and passes it to both components.
+ */
+export const GRID_LABEL_W = 152
+export const GRID_LABEL_W_NARROW = 92
 
 export type DrumView = 'score' | 'grid' | 'text'
 

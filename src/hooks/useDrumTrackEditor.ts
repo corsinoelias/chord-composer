@@ -136,7 +136,14 @@ export function useDrumTrackEditor(initial: DrumTrack): UseDrumTrackEditorReturn
     commit()
     setTrack(t => {
       const limit = next * t.beatsPerBar
-      return { ...t, totalBars: next, hits: t.hits.filter(h => h.startBeat < limit) }
+      return {
+        ...t,
+        totalBars: next,
+        hits: t.hits.filter(h => h.startBeat < limit),
+        // Sections that started in the bars just dropped would otherwise linger
+        // in the saved track and in share links, pointing at nothing.
+        sections: t.sections?.filter(s => s.startBar < next),
+      }
     })
   }, [commit])
 

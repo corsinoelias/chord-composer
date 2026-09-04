@@ -6,8 +6,13 @@
 // every deploy (wired into netlify.toml's build command, not just available manually).
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const PAGES_DIR = join(import.meta.dirname, '..', 'src', 'pages');
+// Resolved from the module URL, not `import.meta.dirname`: that only exists from
+// Node 20.11, and on anything older it is `undefined` — which made `join()` throw
+// before a single page was scanned. A guard that crashes instead of checking is
+// worse than no guard, because the crash looks like an unrelated tooling problem.
+const PAGES_DIR = fileURLToPath(new URL('../src/pages/', import.meta.url));
 const BANNED_TYPES = ['FAQPage', 'HowTo'];
 
 function walk(dir) {

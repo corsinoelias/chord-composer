@@ -22,9 +22,20 @@ import { BT, alpha, f } from '../../lib/bassTab/theme'
  *
  * Search filters the included rhythms only. Your own tabs are few and you named
  * them yourself, so hiding them behind a query would cost more than it saves.
+ *
+ * Two shapes, one component. `modal` is the original overlay, still what a phone
+ * gets. `rail` is a column pinned to the left of the full-screen editor, where
+ * comparing two grooves is the whole point and a dialog covering the pattern you
+ * are comparing against defeats it. Only the wrapper differs — the list, the
+ * thumbnails and the saved tabs are the same in both, which is the reason this
+ * is a variant rather than a second component.
  */
 
+/** Wide enough for a thumbnail, a name and the BPM line without wrapping. */
+const RAIL_W = 250
+
 interface Props {
+  /** Modal only: whether the dialog is showing. The rail is always mounted. */
   open: boolean
   currentId: string
   /** What is in the editor right now — saved by "Save current tab". */
@@ -32,11 +43,13 @@ interface Props {
   onClose: () => void
   onLoad: (preset: DrumPreset) => void
   onLoadUserTab: (tab: UserTab) => void
+  variant?: 'modal' | 'rail'
 }
 
-export function DrumTabLibrary({
-  open, currentId, currentTrack, onClose, onLoad, onLoadUserTab,
+function DrumTabLibraryImpl({
+  open, currentId, currentTrack, onClose, onLoad, onLoadUserTab, variant = 'modal',
 }: Props) {
+  const rail = variant === 'rail'
   const [query, setQuery] = useState('')
   const [tabs, setTabs] = useState<UserTab[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -45,18 +58,36 @@ export function DrumTabLibrary({
   const inputRef = useRef<HTMLInputElement>(null)
   const renameRef = useRef<HTMLInputElement>(null)
 
-  // Read from storage on open rather than on mount: another tab of the site may
-  // have saved something since, and this is the moment the list is looked at.
+  /**
+   * Read from storage on open rather than on mount: another tab of the site may
+   * have saved something since, and this is the moment the list is looked at.
+   * The rail is always mounted, so for it "on open" means once, on mount.
+   *
+   * `onClose` is deliberately not a dependency. As a rail this component stays
+   * mounted and re-renders with its parent — which, during playback, is every
+   * animation frame — so a caller passing an inline `onClose` would re-run this
+   * on each one, and `setTabs(listUserTabs())` always yields a fresh array, so
+   * each run scheduled the next: an unbounded update loop, and `localStorage`
+   * read 60 times a second. Nothing here uses `onClose`; the listener that does
+   * is its own effect below.
+   */
   useEffect(() => {
-    if (!open) return
+    if (!open && !rail) return
     setTabs(listUserTabs())
     setEditingId(null)
     setConfirmId(null)
-    inputRef.current?.focus()
+    // The rail does not steal focus on page load: it is part of the page, not
+    // something the user opened.
+    if (!rail) inputRef.current?.focus()
+  }, [open, rail])
+
+  // Escape closes the dialog. The rail has nothing to dismiss, so it binds nothing.
+  useEffect(() => {
+    if (rail || !open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open, rail, onClose])
 
   useEffect(() => { if (editingId) renameRef.current?.select() }, [editingId])
 
@@ -96,7 +127,7 @@ export function DrumTabLibrary({
     setEditingId(null)
   }, [editingId, draftName])
 
-  if (!open) return null
+  if (!open && !rail) return null
 
   const pill: React.CSSProperties = {
     borderRadius: 999, padding: '6px 12px', cursor: 'pointer', minHeight: 32,
@@ -104,21 +135,14 @@ export function DrumTabLibrary({
     fontFamily: f('ui'), fontSize: 12, fontWeight: 600,
   }
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Rhythm library"
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 60,
-        background: 'rgba(20, 18, 15, 0.45)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-      }}
-    >
+  const panel = (
       <div
-        onClick={e => e.stopPropagation()}
-        style={{
+        onClick={e => { if (!rail) e.stopPropagation() }}
+        style={rail ? {
+          width: RAIL_W, flexShrink: 0, minHeight: 0,
+          display: 'flex', flexDirection: 'column',
+          background: BT.card, borderRight: '1px solid ' + BT.rule,
+        } : {
           width: 'min(680px, 100%)', maxHeight: '82vh', display: 'flex', flexDirection: 'column',
           background: BT.card, border: '1px solid ' + BT.rule, borderRadius: 14,
           boxShadow: BT.shadowLg, overflow: 'hidden',
@@ -140,21 +164,23 @@ export function DrumTabLibrary({
               color: BT.ink, fontFamily: f('ui'), fontSize: 14,
             }}
           />
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              width: 30, height: 30, borderRadius: 8, cursor: 'pointer', flex: 'none',
-              border: '1px solid ' + BT.rule, background: BT.card, color: BT.muted,
-            }}
-          >
-            <X size={15} />
-          </button>
+          {!rail && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 30, height: 30, borderRadius: 8, cursor: 'pointer', flex: 'none',
+                border: '1px solid ' + BT.rule, background: BT.card, color: BT.muted,
+              }}
+            >
+              <X size={15} />
+            </button>
+          )}
         </div>
 
-        <div style={{ overflowY: 'auto', padding: 14 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 14 }}>
 
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 9,
@@ -346,7 +372,7 @@ export function DrumTabLibrary({
                     <button
                       key={preset.id}
                       type="button"
-                      onClick={() => { onLoad(preset); onClose() }}
+                      onClick={() => { onLoad(preset); if (!rail) onClose() }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
                         padding: '8px 9px', borderRadius: 9, cursor: 'pointer',
@@ -377,15 +403,41 @@ export function DrumTabLibrary({
           ))}
         </div>
 
-        <p style={{
-          margin: 0, padding: '10px 14px', borderTop: '1px solid ' + BT.rule,
-          background: alpha('rule', 0.35), color: BT.soft,
-          fontFamily: f('ui'), fontSize: 11.5,
-        }}>
-          Loading a rhythm replaces what is in the editor. Your own pattern is kept in this
-          browser until you load another one.
-        </p>
+        {!rail && (
+          <p style={{
+            margin: 0, padding: '10px 14px', borderTop: '1px solid ' + BT.rule,
+            background: alpha('rule', 0.35), color: BT.soft,
+            fontFamily: f('ui'), fontSize: 11.5,
+          }}>
+            Loading a rhythm replaces what is in the editor. Your own pattern is kept in this
+            browser until you load another one.
+          </p>
+        )}
       </div>
+  )
+
+  if (rail) return panel
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Rhythm library"
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 60,
+        background: 'rgba(20, 18, 15, 0.45)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+      }}
+    >
+      {panel}
     </div>
   )
 }
+
+/**
+ * Memoised because as a rail it lives inside the player for the whole session
+ * and would otherwise re-render its 30-odd preset thumbnails on every playback
+ * frame. Its props are all stable between edits.
+ */
+export const DrumTabLibrary = React.memo(DrumTabLibraryImpl)
