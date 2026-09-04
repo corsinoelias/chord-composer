@@ -55,6 +55,11 @@ export interface DrumEngine {
   // Current AudioContext clock, for schedulers that look ahead of "now". Creates
   // the context (without unlocking audio) if it doesn't exist yet.
   now(): number
+  // The engine's own AudioContext. Exposed so a scheduler built on top of this
+  // engine (the Drum Tab Player transport) can put its metronome click on the
+  // same clock as the kit — two AudioContexts drift against each other, and a
+  // click that drifts from the drums is worse than no click.
+  context(): AudioContext
   setVolume(v: number): void
   setReverb(v: number): void
 }
@@ -404,6 +409,7 @@ export function createDrumEngine(): DrumEngine {
       if (fn) fn(t, Math.max(0.1, Math.min(1, vel == null ? 1 : vel)))
     },
     now() { ensure(); return ctx!.currentTime },
+    context() { ensure(); return ctx! },
     setVolume(v: number) { vol = v; if (master) master.gain.setTargetAtTime(v, ctx!.currentTime, 0.02) },
     setReverb(v: number) { rev = v; if (wet) wet.gain.setTargetAtTime(v, ctx!.currentTime, 0.02) },
   }

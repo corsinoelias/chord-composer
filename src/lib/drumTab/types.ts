@@ -1,0 +1,115 @@
+import type { DrumKitId, DrumPieceId } from '../virtualDrums/drumSynth'
+
+export type { DrumKitId, DrumPieceId }
+
+/**
+ * One drum stroke, positioned in beats rather than in a 16-step grid cell.
+ *
+ * The 16-step grid is only one way to look at this: modelling a hit by its beat
+ * gets non-4/4 bars, multi-bar loops, swing and triplets for free (all of which
+ * `src/lib/styles.ts` already produces), and it is what the notation view needs
+ * — a staff draws note *values*, not cells. The grid is derived from these hits,
+ * never the other way round.
+ */
+export interface DrumHit {
+  id: string
+  pieceId: DrumPieceId
+  startBeat: number   // float, 0-indexed beats from the top of the track
+  velocity: number    // 0-1 (0.5 reads as a ghost note)
+}
+
+export interface DrumSection {
+  name: string
+  startBar: number
+}
+
+export interface DrumTrack {
+  id: string
+  name: string
+  bpm: number
+  beatsPerBar: number
+  totalBars: number
+  kit: DrumKitId
+  hits: DrumHit[]
+  sections?: DrumSection[]
+  /**
+   * 0-1 swing on the "and" of each beat, same meaning as `StylePattern.swing`:
+   * 0 = straight, 1 = full triplet. Applied at playback only — the hits keep
+   * their straight positions, because "swing 8ths" is a performance direction,
+   * not something a chart notates as triplet fractions.
+   */
+  swing?: number
+}
+
+/** Extra beats to delay a hit for swing feel. Only the "and" 8th of a beat moves. */
+export function swingOffsetBeats(startBeat: number, swing: number | undefined): number {
+  if (!swing || swing <= 0) return 0
+  const slot = Math.round(startBeat * STEPS_PER_BEAT)
+  if (slot % 4 !== 2) return 0
+  return swing * (2 / 3 - 0.5)
+}
+
+/**
+ * The kit pieces the tab exposes, in the order they are stacked — top to bottom
+ * in both the grid and the ASCII tab, which is the order drum notation uses
+ * (cymbals above, drums below, foot pedals last).
+ *
+ * This is the single dictionary shared by the grid rows, the notation mapping
+ * and the text parser. `styleKey` ties each row back to the rhythm arrays in
+ * `src/lib/styles.ts` so the library can seed itself from the chord player's
+ * own styles; `tabLetter` is the standard ASCII drum-tab abbreviation.
+ */
+export interface DrumRow {
+  id: DrumPieceId
+  label: string
+  short: string
+  tabLetter: string
+  /** Key in `StylePattern['rhythm']`, when this piece has one. */
+  styleKey?: 'kick' | 'snare' | 'snareStick' | 'hihat' | 'hihatOpen' | 'hihatFoot'
+    | 'tom1' | 'tom2' | 'floorTom' | 'ride' | 'crash'
+  defaultVel: number
+}
+
+export const DRUM_ROWS: DrumRow[] = [
+  { id: 'crash-edge', label: 'Crash',          short: 'Crash',  tabLetter: 'CC', styleKey: 'crash',      defaultVel: 0.95 },
+  { id: 'ride-body',  label: 'Ride',           short: 'Ride',   tabLetter: 'RD', styleKey: 'ride',       defaultVel: 0.8  },
+  // No style in `styles.ts` writes a bell part, but the kit has one and the
+  // Clave / Afrobeat step presets are built on a cowbell — which is what
+  // `ride-bell` is in the electronic kit, and a ride bell ping in the acoustic one.
+  { id: 'ride-bell',  label: 'Bell',           short: 'Bell',   tabLetter: 'BL',                         defaultVel: 0.8  },
+  { id: 'hh-closed',  label: 'Hi-hat closed',  short: 'HH cl.', tabLetter: 'HH', styleKey: 'hihat',      defaultVel: 0.6  },
+  { id: 'hh-open',    label: 'Hi-hat open',    short: 'HH op.', tabLetter: 'OH', styleKey: 'hihatOpen',  defaultVel: 0.6  },
+  { id: 'snare',      label: 'Snare',          short: 'Snare',  tabLetter: 'SD', styleKey: 'snare',      defaultVel: 0.95 },
+  { id: 'stick',      label: 'Cross stick',    short: 'X-stick',tabLetter: 'CS', styleKey: 'snareStick', defaultVel: 0.85 },
+  { id: 'tom-hi',     label: 'High tom',       short: 'Tom hi', tabLetter: 'HT', styleKey: 'tom1',       defaultVel: 0.9  },
+  { id: 'tom-lo',     label: 'Mid tom',        short: 'Tom lo', tabLetter: 'MT', styleKey: 'tom2',       defaultVel: 0.9  },
+  { id: 'tom-floor',  label: 'Floor tom',      short: 'Floor',  tabLetter: 'FT', styleKey: 'floorTom',   defaultVel: 0.9  },
+  { id: 'kick',       label: 'Kick',           short: 'Kick',   tabLetter: 'BD', styleKey: 'kick',       defaultVel: 1    },
+  { id: 'hh-foot',    label: 'Hi-hat foot',    short: 'HH ft.', tabLetter: 'HF', styleKey: 'hihatFoot',  defaultVel: 0.55 },
+]
+
+export const ROW_BY_PIECE: Record<string, DrumRow> = Object.fromEntries(
+  DRUM_ROWS.map(r => [r.id, r]),
+)
+
+export function rowIndexOf(pieceId: DrumPieceId): number {
+  return DRUM_ROWS.findIndex(r => r.id === pieceId)
+}
+
+/** Grid resolution. 4 = sixteenth notes, the resolution `styles.ts` is written in. */
+export const STEPS_PER_BEAT = 4
+
+export type DrumView = 'score' | 'grid' | 'text'
+
+export interface LoopRange {
+  startBeat: number
+  endBeat: number
+}
+
+export const DRUM_STORAGE_KEY = 'drum-tab-track-v1'
+
+let hitSeq = 0
+export function makeHitId(): string {
+  hitSeq += 1
+  return `h${Date.now().toString(36)}${hitSeq.toString(36)}`
+}

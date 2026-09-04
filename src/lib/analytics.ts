@@ -289,6 +289,14 @@ export const analytics = {
   bassTabPresetLoaded: (presetName: string) => track('bass_tab_preset_loaded', { preset_name: presetName }),
   bassTabShared: () => track('bass_tab_shared'),
 
+  // Drum tab. `view` on the play event tells apart the three ways in — notation,
+  // step grid, or pasted ASCII tab — which is the open question for this tool.
+  drumTabPlay: (view: string) => track('drum_tab_play', { view }),
+  drumTabPresetLoaded: (presetName: string, source: string) =>
+    track('drum_tab_preset_loaded', { preset_name: presetName, source }),
+  drumTabTextApplied: () => track('drum_tab_text_applied'),
+  drumTabShared: () => track('drum_tab_shared'),
+
   // Virtual Piano recording sharing. Login-gated (unlike everything else on the piano),
   // so `entry_point: 'piano_share'` on the resulting sign_up/login events is what
   // distinguishes a piano-driven account creation from the chord editor's
