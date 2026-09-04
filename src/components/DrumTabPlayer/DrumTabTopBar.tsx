@@ -53,7 +53,7 @@ interface Props {
   onClear: () => void
 }
 
-export function DrumTabTopBar({
+function DrumTabTopBarImpl({
   trackName, kit, view, shareLabel, showLibraryButton,
   showMixerToggle, mixerOpen, onMixerToggle, compact, onOpenSheet,
   onNameChange, onKitChange, onViewChange, onOpenLibrary, onShare, onClear,
@@ -143,3 +143,9 @@ export function DrumTabTopBar({
     </div>
   )
 }
+
+/**
+ * Memoised. The player re-renders on every sixteenth to move its position
+ * readout; this band only changes when one of its own props does.
+ */
+export const DrumTabTopBar = React.memo(DrumTabTopBarImpl)

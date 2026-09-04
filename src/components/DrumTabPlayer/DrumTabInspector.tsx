@@ -46,7 +46,7 @@ function channelOf(mix: DrumMix | undefined, piece: DrumPieceId): DrumChannel {
   return mix?.[piece] ?? DEFAULT_CHANNEL
 }
 
-export function DrumTabInspector({
+function DrumTabInspectorImpl({
   selectedPiece, mix, rowVelocity, usedPieces,
   onSelectPiece, onChannelChange, onRowVelocityChange,
   width = PANEL_W, bordered = true,
@@ -295,3 +295,9 @@ function MiniToggle({
     </button>
   )
 }
+
+/**
+ * Memoised. The player re-renders on every sixteenth to move its position
+ * readout; this band only changes when one of its own props does.
+ */
+export const DrumTabInspector = React.memo(DrumTabInspectorImpl)

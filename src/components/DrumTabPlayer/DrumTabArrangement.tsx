@@ -72,10 +72,13 @@ function resolveBlocks(
 
 interface Props {
   totalBars: number
-  beatsPerBar: number
   sections: DrumSection[] | undefined
-  currentBeat: number
-  isPlaying: boolean
+  /**
+   * The bar being played, or -1 when nothing is. A bar rather than a beat so
+   * that the moving playhead re-renders this lane twice a bar instead of sixty
+   * times a second — the block highlight is all it does with the position.
+   */
+  currentBar: number
   onChange: (sections: DrumSection[]) => void
   /** Label gutter width, shared with the grid so the bars line up. */
   labelW?: number
@@ -84,8 +87,8 @@ interface Props {
   onJumpToBar?: (bar: number) => void
 }
 
-export function DrumTabArrangement({
-  totalBars, beatsPerBar, sections, currentBeat, isPlaying, onChange,
+function DrumTabArrangementImpl({
+  totalBars, sections, currentBar, onChange,
   labelW = GRID_LABEL_W, compact = false, onJumpToBar,
 }: Props) {
   const [editing, setEditing] = useState<number | null>(null)
@@ -95,10 +98,6 @@ export function DrumTabArrangement({
   const blocks = useMemo(() => resolveBlocks(sections, totalBars), [sections, totalBars])
 
   useEffect(() => { if (editing !== null) inputRef.current?.select() }, [editing])
-
-  const playingBar = isPlaying
-    ? Math.floor(currentBeat / beatsPerBar)
-    : -1
 
   /** Blocks are for drawing; edits go back out as plain sections. */
   const asSections = useCallback(
@@ -187,7 +186,7 @@ export function DrumTabArrangement({
           </button>
         ) : blocks.map(block => {
           const bars = block.endBar - block.startBar
-          const playingHere = playingBar >= block.startBar && playingBar < block.endBar
+          const playingHere = currentBar >= block.startBar && currentBar < block.endBar
           const isEditing = editing === block.index
           return (
             <React.Fragment key={block.startBar}>
@@ -331,3 +330,6 @@ export function DrumTabArrangement({
   )
 }
 
+
+/** Memoised — see the `currentBar` note above. */
+export const DrumTabArrangement = React.memo(DrumTabArrangementImpl)

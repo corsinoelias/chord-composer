@@ -16,6 +16,13 @@ import { PART_ICON } from './partIcons'
  * the bottom half of the screen empty. So the space the bars need is divided by
  * the space there is, on both axes, clamped to a range where a sixteenth is
  * still a sixteenth and not a tile. Only past the lower clamp does it scroll.
+ *
+ * **The playhead is one moving element, not a state the cells read.** It used to
+ * arrive as a `currentBeat` prop, which re-rendered every cell in the grid on
+ * every animation frame — four bars of sixteenths across twelve rows is ~750
+ * buttons rebuilt sixty times a second, and on a phone that is the frame budget
+ * gone. Now the grid renders when the *pattern* changes, and a single absolutely
+ * positioned column is moved over it from `getBeat()` by its own frame loop.
  */
 
 
@@ -53,7 +60,11 @@ const ALWAYS_VISIBLE: DrumPieceId[] = ['crash-edge', 'hh-closed', 'snare', 'kick
 
 interface Props {
   track: DrumTrack
-  currentBeat: number
+  /**
+   * Reads the live playhead. A getter rather than a number so that the beat
+   * moving does not re-render the grid — see the note above.
+   */
+  getBeat: () => number
   isPlaying: boolean
   /** Bars shown at once; the rest scroll. `null` = all of them. */
   barWindow: { start: number; count: number } | null
@@ -72,8 +83,8 @@ interface Props {
   onSelectRow?: (pieceId: DrumPieceId) => void
 }
 
-export function DrumTabGrid({
-  track, currentBeat, isPlaying, barWindow, selectedPiece, labelW = GRID_LABEL_W, showRowVelocity = true,
+function DrumTabGridImpl({
+  track, getBeat, isPlaying, barWindow, selectedPiece, labelW = GRID_LABEL_W, showRowVelocity = true,
   onToggleCell, onSetRowVelocity, onPreviewRow, onSelectRow,
 }: Props) {
   const slotsPerBar = track.beatsPerBar * STEPS_PER_BEAT
@@ -97,8 +108,7 @@ export function DrumTabGrid({
     const frame = frameRef.current
     // Rounded, and only stored when the whole pixel actually changed.
     // `contentRect` is fractional, so storing it raw re-rendered the grid on
-    // sub-pixel jitter — every frame during playback, since the playhead is
-    // already re-rendering it — for a cell size that never moved.
+    // sub-pixel jitter for a cell size that never moved.
     const ro = new ResizeObserver(entries => {
       for (const entry of entries) {
         if (entry.target === cells) {
@@ -159,8 +169,6 @@ export function DrumTabGrid({
   }, [bodyH, visibleRows.length])
   const cellH = rowH - ROW_GAP
 
-  const playSlot = isPlaying ? Math.floor(currentBeat * STEPS_PER_BEAT + 1e-6) : -1
-
   const handleDown = useCallback((pieceId: DrumPieceId, slot: number, on: boolean) => {
     paintRef.current = { value: !on }
     onToggleCell(pieceId, slot)
@@ -184,6 +192,51 @@ export function DrumTabGrid({
   }, [])
 
   const gridW = totalSlots * (cellW + CELL_GAP)
+
+  // ── The moving playhead ───────────────────────────────────────────────────
+  // Read from a ref so the frame loop below never has to be torn down and
+  // rebuilt when the grid is re-measured.
+  const playheadRef = useRef<HTMLDivElement>(null)
+  const layoutRef   = useRef({ cellW, firstSlot, totalSlots })
+  layoutRef.current = { cellW, firstSlot, totalSlots }
+
+  useEffect(() => {
+    const bar = playheadRef.current
+    if (!bar) return
+    if (!isPlaying) { bar.style.opacity = '0'; return }
+
+    let raf = 0
+    let lastX = -1
+    const paint = () => {
+      const { cellW, firstSlot, totalSlots } = layoutRef.current
+      const index = Math.floor(getBeat() * STEPS_PER_BEAT + 1e-6) - firstSlot
+      if (index < 0 || index >= totalSlots) {
+        // Playing a bar this window is not showing (desktop shows them all, so
+        // this is the phone's one-bar pager between the beat moving and the
+        // page following it).
+        bar.style.opacity = '0'
+      } else {
+        const x = index * (cellW + CELL_GAP)
+        if (x !== lastX) {
+          lastX = x
+          bar.style.transform = `translateX(${x}px)`
+          bar.style.width = cellW + 'px'
+          // Keep the sounding step on screen when the grid is wider than its box.
+          const box = cellsRef.current
+          if (box) {
+            const left = box.scrollLeft
+            const right = left + box.clientWidth
+            if (x < left) box.scrollLeft = Math.max(0, x - cellW)
+            else if (x + cellW > right) box.scrollLeft = x + cellW * 2 - box.clientWidth
+          }
+        }
+        bar.style.opacity = '1'
+      }
+      raf = requestAnimationFrame(paint)
+    }
+    raf = requestAnimationFrame(paint)
+    return () => cancelAnimationFrame(raf)
+  }, [isPlaying, getBeat])
 
   return (
     <div ref={frameRef} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -279,11 +332,26 @@ export function DrumTabGrid({
 
         {/* Cells */}
         <div ref={cellsRef} onScroll={syncRuler} style={{ flex: 1, minWidth: 0, overflowX: 'auto' }}>
-          <div style={{ width: gridW }}>
+          <div style={{ width: gridW, position: 'relative' }}>
+            {/* A translucent wash laid over the column rather than a background
+                set on sixteen cells: at 0.16 alpha a written step still reads
+                as written underneath it, and one element moves instead of a
+                row of them changing colour. */}
+            <div
+              ref={playheadRef}
+              aria-hidden="true"
+              style={{
+                position: 'absolute', top: 0, bottom: 0, left: 0, width: cellW,
+                background: alpha('accent', 0.16),
+                borderRadius: 5, pointerEvents: 'none', opacity: 0, zIndex: 2,
+                willChange: 'transform',
+              }}
+            />
             {visibleRows.map(row => (
               <div
                 key={row.id}
                 style={{
+                  position: 'relative',
                   display: 'flex', gap: CELL_GAP, height: rowH,
                   alignItems: 'center', borderBottom: '1px solid ' + alpha('rule', 0.5),
                 }}
@@ -293,7 +361,6 @@ export function DrumTabGrid({
                   const on          = cells.has(row.id + '@' + slot)
                   const isBarStart  = slot % slotsPerBar === 0
                   const isBeatStart = slot % STEPS_PER_BEAT === 0
-                  const isPlayhead  = slot === playSlot
                   return (
                     <button
                       key={slot}
@@ -310,11 +377,8 @@ export function DrumTabGrid({
                           : '1px solid ' + (on ? 'transparent' : BT.rule),
                         background: on
                           ? BT.accent
-                          : isPlayhead ? BT.accentWash
                           : isBeatStart ? BT.sunken
                           : BT.card,
-                        boxShadow: isPlayhead && !on ? 'inset 0 0 0 2px ' + alpha('accent', 0.5) : 'none',
-                        transition: 'background 60ms linear',
                         touchAction: 'none',
                       }}
                     />
@@ -329,3 +393,10 @@ export function DrumTabGrid({
     </div>
   )
 }
+
+/**
+ * Memoised because the player above re-renders on every sixteenth to move the
+ * position readout, and rebuilding several hundred cells for that is the one
+ * thing this component must not do.
+ */
+export const DrumTabGrid = React.memo(DrumTabGridImpl)

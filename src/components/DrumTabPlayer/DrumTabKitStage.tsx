@@ -17,9 +17,14 @@ import { PART_ICON } from './partIcons'
  * light beams cross the whole strip, so the set dressing comes off and the
  * viewBox widens to fill the band instead of letterboxing the kit in the middle.
  *
- * It renders no audio of its own. Hits are read off `currentBeat`, which the
- * player already receives from the scheduler, so a piece lights up in step with
- * the sound the transport is making rather than in step with a second timer.
+ * It renders no audio of its own. Hits are read off the live playhead the
+ * transport reports, so a piece lights up in step with the sound being made
+ * rather than in step with a second timer of its own.
+ *
+ * It reads that playhead through `getBeat()` in its own frame loop rather than
+ * taking it as a prop: the flash is a DOM animation either way, so a prop
+ * changing sixty times a second would have re-rendered a kit drawing of a few
+ * hundred SVG nodes purely to run an effect.
  *
  * Collapsed it is not a small kit but a row of part icons: shrinking a drawing
  * of a drum kit to 54px produces a smudge, whereas the icons stay legible and
@@ -82,7 +87,8 @@ function toRowPiece(id: DrumPieceId): DrumPieceId | null {
 interface Props {
   kit: DrumKitId
   track: DrumTrack
-  currentBeat: number
+  /** Reads the live playhead, so the beat moving does not re-render the kit. */
+  getBeat: () => number
   isPlaying: boolean
   collapsed: boolean
   onToggleCollapse: () => void
@@ -91,8 +97,8 @@ interface Props {
   onSelectPiece: (piece: DrumPieceId) => void
 }
 
-export function DrumTabKitStage({
-  kit, track, currentBeat, isPlaying, collapsed,
+function DrumTabKitStageImpl({
+  kit, track, getBeat, isPlaying, collapsed,
   onToggleCollapse, selectedPiece, onSelectPiece,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -147,26 +153,42 @@ export function DrumTabKitStage({
     return map
   }, [track.hits])
 
-  // Flash on slot change, not on every `currentBeat` tick: the scheduler reports
-  // beats as a float many times per sixteenth, and re-animating on each one
-  // would keep restarting the cymbal swing from zero.
-  const lastSlotRef = useRef(-1)
+  // Flash on slot change, not on every frame: the playhead is a float that
+  // moves many times per sixteenth, and re-animating on each reading would keep
+  // restarting the cymbal swing from zero.
+  //
+  // `hitsBySlot` reaches the loop through a ref, so editing the pattern
+  // mid-playback does not tear the loop down and build it again — the next
+  // frame simply reads the new map.
+  const hitsRef = useRef(hitsBySlot)
+  hitsRef.current = hitsBySlot
+
   useEffect(() => {
-    if (!isPlaying) { lastSlotRef.current = -1; return }
-    const slot = Math.floor(currentBeat * STEPS_PER_BEAT + 1e-6)
-    if (slot === lastSlotRef.current) return
-    lastSlotRef.current = slot
-    const pieces = hitsBySlot.get(slot)
-    if (!pieces) return
-    for (const piece of pieces) {
-      animateKitHit(hostRef.current, piece)
-      const chip = stripRef.current?.querySelector<HTMLElement>(`[data-part="${piece}"]`)
-      chip?.animate(
-        [{ background: alpha('accent', 0.85), color: '#fff' }, { background: 'transparent', color: BT.muted }],
-        { duration: 240, easing: 'ease-out' },
-      )
+    if (!isPlaying) return
+    let raf = 0
+    let lastSlot = -1
+    const watch = () => {
+      const slot = Math.floor(getBeat() * STEPS_PER_BEAT + 1e-6)
+      if (slot !== lastSlot) {
+        lastSlot = slot
+        const pieces = hitsRef.current.get(slot)
+        if (pieces) {
+          for (const piece of pieces) {
+            animateKitHit(hostRef.current, piece)
+            const chip = stripRef.current?.querySelector<HTMLElement>(`[data-part="${piece}"]`)
+            chip?.animate(
+              [{ background: alpha('accent', 0.85), color: '#fff' }, { background: 'transparent', color: BT.muted }],
+              { duration: 240, easing: 'ease-out' },
+            )
+          }
+        }
+      }
+      raf = requestAnimationFrame(watch)
     }
-  }, [currentBeat, isPlaying, hitsBySlot])
+    raf = requestAnimationFrame(watch)
+    return () => cancelAnimationFrame(raf)
+  }, [isPlaying, getBeat])
+
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const voiced = pieceFromPointer(hostRef.current, e.target, e.clientX, e.clientY)
@@ -270,3 +292,9 @@ export function DrumTabKitStage({
     </section>
   )
 }
+
+/**
+ * Memoised: the player re-renders on every sixteenth to move its position
+ * readout, and rebuilding a few hundred SVG nodes for that is wasted work.
+ */
+export const DrumTabKitStage = React.memo(DrumTabKitStageImpl)

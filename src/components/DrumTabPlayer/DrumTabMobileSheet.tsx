@@ -44,7 +44,7 @@ interface Props {
   onRowVelocityChange: (piece: DrumPieceId, velocity: number) => void
 }
 
-export function DrumTabMobileSheet({
+function DrumTabMobileSheetImpl({
   open, trackName, kit, shareLabel, mix, selectedPiece, rowVelocity, usedPieces,
   onClose, onNameChange, onKitChange, onOpenLibrary, onShare, onClear,
   onSelectPiece, onChannelChange, onRowVelocityChange,
@@ -150,3 +150,9 @@ export function DrumTabMobileSheet({
     </div>
   )
 }
+
+/**
+ * Memoised. The player re-renders on every sixteenth to move its position
+ * readout; this band only changes when one of its own props does.
+ */
+export const DrumTabMobileSheet = React.memo(DrumTabMobileSheetImpl)
