@@ -79,6 +79,32 @@ const ZONE_TO_ROW: Partial<Record<string, DrumPieceId>> = {
 
 const ROW_IDS = new Set<string>(DRUM_ROWS.map(r => r.id))
 
+/**
+ * The chip strip, ordered by how often a piece is actually played rather than
+ * by where it sits on the kit.
+ *
+ * `DRUM_ROWS` is in kit order — cymbals above, drums below, pedals last —
+ * because that is the order the grid stacks its rows in and the order drum
+ * notation uses, and it must stay that way. But the strip is a row of targets
+ * you reach for, not a picture of the kit: in kit order the three pieces that
+ * make up nearly every groove (kick, snare, closed hats) sat 4th, 6th and 11th,
+ * with the kick off the right edge on a phone. Here they come first.
+ *
+ * Fixed rather than derived from the pattern: a strip that reorders itself as
+ * you write moves the chip you were aiming at.
+ */
+const STRIP_ORDER: string[] = [
+  'kick', 'snare', 'hh-closed', 'hh-open', 'crash-edge', 'ride-body',
+  'tom-hi', 'tom-lo', 'tom-floor', 'stick', 'hh-foot', 'ride-bell',
+]
+
+const STRIP_ROWS = [...DRUM_ROWS].sort((a, b) => {
+  // Anything the order forgets keeps its kit position, after the listed ones.
+  const ia = STRIP_ORDER.indexOf(a.id)
+  const ib = STRIP_ORDER.indexOf(b.id)
+  return (ia < 0 ? STRIP_ORDER.length : ia) - (ib < 0 ? STRIP_ORDER.length : ib)
+})
+
 function toRowPiece(id: DrumPieceId): DrumPieceId | null {
   const mapped = ZONE_TO_ROW[id] ?? id
   return ROW_IDS.has(mapped) ? mapped : null
@@ -237,7 +263,7 @@ function DrumTabKitStageImpl({
             marginRight: 74,
           }}
         >
-          {DRUM_ROWS.map(row => {
+          {STRIP_ROWS.map(row => {
             const Icon = PART_ICON[row.id]
             const on = selectedPiece === row.id
             return (

@@ -24,6 +24,7 @@ import { DrumTabMobileSheet } from './DrumTabMobileSheet'
 import { DrumTabScore } from './DrumTabScore'
 import { DrumTabTextEditor } from './DrumTabTextEditor'
 import { DrumTabLibrary } from './DrumTabLibrary'
+import { ConfirmDialog } from './ConfirmDialog'
 import type { UserTab } from '../../lib/drumTab/userTabs'
 
 /**
@@ -152,6 +153,15 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [selectedPiece, setSelectedPiece] = useState<DrumPieceId | null>(null)
   const [mixerOpen, setMixerOpen] = useState(loadMixerOpen)
   const [sheetOpen, setSheetOpen] = useState(false)
+  /**
+   * Things the app did that leave nothing on screen to see — a link on the
+   * clipboard, a file in the downloads folder — say so here. Before this,
+   * Share's only feedback was the tooltip on the button you had just moved
+   * off, which is feedback nobody reads.
+   */
+  const [toast, setToast] = useState<string | null>(null)
+  /** Clearing every hit asks first; it is the one control here that discards work. */
+  const [clearAsk, setClearAsk] = useState(false)
   /** Phone transport: folded to Play/BPM/position until asked to open. */
   const [transportExpanded, setTransportExpanded] = useState(false)
 
@@ -363,36 +373,73 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
    */
   const [exporting, setExporting] = useState(false)
 
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showToast = useCallback((message: string) => {
+    setToast(message)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 2400)
+  }, [])
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
+
   const handleExportMidi = useCallback(() => {
     exportDrumMidi(trackRef.current)
     analytics.drumTabExport('midi')
-  }, [])
+    showToast('MIDI file downloaded')
+  }, [showToast])
 
   const handleExportMidiSplit = useCallback(() => {
     exportDrumMidi(trackRef.current, { splitByPiece: true })
     analytics.drumTabExport('midi')
-  }, [])
+    showToast('MIDI downloaded — one track per piece')
+  }, [showToast])
 
   const handleExportWav = useCallback(async () => {
     setExporting(true)
     try {
       await exportDrumWav(trackRef.current)
       analytics.drumTabExport('wav')
+      showToast('WAV downloaded')
+    } catch {
+      // Rendering can fail where the browser will not open an audio context at
+      // all; saying so beats a button that spins and then does nothing.
+      showToast('Could not render the audio')
     } finally {
       setExporting(false)
     }
-  }, [])
+  }, [showToast])
+
+  /**
+   * Clear is the one control here that throws work away, so it asks. Undo would
+   * bring the pattern back, but only for someone who knows that — and the
+   * button sits next to Share, one icon away from a misfire.
+   */
+  const askClear = useCallback(() => setClearAsk(true), [])
+
+  const confirmClear = useCallback(() => {
+    setClearAsk(false)
+    clearAll()
+    showToast('Pattern cleared — undo brings it back')
+  }, [clearAll, showToast])
+
+  const cancelClear = useCallback(() => setClearAsk(false), [])
 
   const handleShare = useCallback(async () => {
     const hash = encodeTrackToHash(trackRef.current)
-    if (!hash) { setShareLabel('Could not build a link'); return }
+    if (!hash) {
+      setShareLabel('Could not build a link')
+      showToast('This pattern is too big to fit in a link')
+      return
+    }
     const url = window.location.origin + window.location.pathname + hash
     window.history.replaceState(null, '', hash)
     const ok = await copyToClipboard(url)
     setShareLabel(ok ? 'Link copied' : 'Copy failed')
+    showToast(ok
+      ? 'Share link copied — it carries the whole pattern'
+      : 'Could not reach the clipboard. The link is in the address bar.')
     if (ok) analytics.drumTabShared()
     setTimeout(() => setShareLabel('Copy share link'), 2200)
-  }, [])
+  }, [showToast])
 
   const setKit = useCallback((kit: DrumKitId) => {
     setTrack(t => ({ ...t, kit }))
@@ -594,7 +641,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         onExportMidiSplit={handleExportMidiSplit}
         onExportWav={handleExportWav}
         exporting={exporting}
-        onClear={clearAll}
+        onClear={askClear}
       />
 
       <DrumTabKitStage
@@ -679,7 +726,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           onExportMidiSplit={handleExportMidiSplit}
           onExportWav={handleExportWav}
           exporting={exporting}
-          onClear={clearAll}
+          onClear={askClear}
           onSelectPiece={hitPiece}
           onChannelChange={setChannel}
           onRowVelocityChange={setRowVelocity}
@@ -695,6 +742,35 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           onLoad={handleLoadPreset}
           onLoadUserTab={handleLoadUserTab}
         />
+      )}
+
+      <ConfirmDialog
+        open={clearAsk}
+        title="Clear every hit?"
+        body="The kit, the tempo and the bars stay; the pattern goes. Undo brings it back."
+        confirmLabel="Clear pattern"
+        destructive
+        onConfirm={confirmClear}
+        onCancel={cancelClear}
+      />
+
+      {/* Sits above the transport rather than at the bottom of the window: the
+          editor fills the viewport, so `bottom: 40` would put this behind the
+          play button it is reporting on. */}
+      {toast && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed', bottom: 96, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 90, maxWidth: 'calc(100vw - 32px)',
+            background: BT.accentHi, color: '#fff',
+            borderRadius: 10, padding: '9px 18px',
+            fontFamily: f('ui'), fontSize: 13, fontWeight: 500,
+            boxShadow: BT.shadowLg, pointerEvents: 'none', textAlign: 'center',
+          }}
+        >
+          {toast}
+        </div>
       )}
     </div>
   )
