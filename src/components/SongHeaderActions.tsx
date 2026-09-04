@@ -3,6 +3,8 @@ import { Share2, Printer, Image as ImageIcon, Pencil } from 'lucide-react';
 import { parseLyricLine, type Song } from '@/data/songs';
 import { generateSongImage, downloadCanvasAsPng, type ImageSection } from '@/lib/songImage';
 import { analytics } from '@/lib/analytics';
+import { useSongNotation } from '@/hooks/useSongNotation';
+import { displayChord } from '@/lib/songNotation';
 
 // Transpose helpers (same small duplicated set used in ChordAside.tsx / SongChordPlayer.tsx)
 const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -36,6 +38,9 @@ const labelClass = 'hidden sm:inline text-sm font-medium';
 
 export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Props) {
   const [transpose, setTranspose] = useState(0);
+  // The PNG export is a picture of the chart, so it has to be spelled the way the chart on
+  // screen is — otherwise someone reading in numbers downloads an image in letters.
+  const [notation] = useSongNotation();
   const [shareTitle, setShareTitle] = useState('Share');
   const [imageBusy, setImageBusy] = useState(false);
 
@@ -71,7 +76,9 @@ export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Pr
         name: sec.name,
         lines: sec.lines.map(line =>
           parseLyricLine(line).map(tok => ({
-            chord: tok.chord ? transposeChordStr(tok.chord, transpose, useFlats) : '',
+            chord: tok.chord
+              ? displayChord(transposeChordStr(tok.chord, transpose, useFlats), displayKey, notation)
+              : '',
             lyrics: tok.lyrics,
           }))
         ),

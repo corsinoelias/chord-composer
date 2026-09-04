@@ -178,6 +178,12 @@ export const analytics = {
   // actually used, versus being a mockup idea nobody touches.
   songDensityChanged: (songSlug: string, density: 'full' | 'compact' | 'chords') =>
     track('song_density_changed', { song_slug: songSlug, density }),
+  // Which chord spelling someone reads a chart in. Added after a user asked for Nashville
+  // numbers ("say the numbers… so I can add in passing chords"); this is how we find out
+  // whether that's one player's habit or a whole segment reading charts the wrong way round.
+  // Not coalesced, unlike transposing: it's a discrete pick from three buttons, not a stepper.
+  songNotationChanged: (songSlug: string, notation: 'standard' | 'number' | 'fixed') =>
+    track('song_notation_changed', { song_slug: songSlug, notation }),
   // Transposing on a song page — the highest-intent signal these pages have (it means
   // "I'm about to play this, and not in the original key"), and until Aug 2026 it was
   // only tracked from the editor's own transpose control, not this one. Coalesced per
@@ -282,6 +288,18 @@ export const analytics = {
   bassTabExport: (format: string) => track('bass_tab_export', { format }),
   bassTabPresetLoaded: (presetName: string) => track('bass_tab_preset_loaded', { preset_name: presetName }),
   bassTabShared: () => track('bass_tab_shared'),
+
+  // Drum tab. `view` on the play event tells apart the three ways in — notation,
+  // step grid, or pasted ASCII tab — which is the open question for this tool.
+  drumTabPlay: (view: string) => track('drum_tab_play', { view }),
+  drumTabPresetLoaded: (presetName: string, source: string) =>
+    track('drum_tab_preset_loaded', { preset_name: presetName, source }),
+  drumTabTextApplied: () => track('drum_tab_text_applied'),
+  drumTabShared: () => track('drum_tab_shared'),
+  // Saving and reloading your own tab: the signal that the tool is being used
+  // to keep work rather than only to audition the included grooves.
+  drumTabUserTabSaved: () => track('drum_tab_user_tab_saved'),
+  drumTabUserTabLoaded: () => track('drum_tab_user_tab_loaded'),
 
   // Virtual Piano recording sharing. Login-gated (unlike everything else on the piano),
   // so `entry_point: 'piano_share'` on the resulting sign_up/login events is what

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   diatonic, transposeKey, transposeChord, isFlatKey, moveChord, removeChord, lineTokens, replaceLine, playChord,
-  type ChartNotation, KEYS_CHROMATIC,
+  type ChartNotation,
 } from '@/lib/chordSheet/chordSheetCore';
 import type { DiagramInstrument } from '@/lib/chordSheet/chordDiagramLookup';
 import { saveChordSheet, updateChordSheet, getMyChordSheetById, type ChordSheet } from '@/lib/chordSheets';
@@ -640,17 +640,6 @@ export function ChordSheetMaker() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold text-muted-foreground">Base key</span>
-          <select
-            value={doc.baseKey}
-            onChange={(e) => patch({ baseKey: e.target.value, semi: 0 })}
-            className="rounded-md border border-border bg-card px-2 py-1 text-xs outline-none"
-          >
-            {KEYS_CHROMATIC.map((k) => <option key={k} value={k}>{k}</option>)}
-          </select>
-        </div>
-
         <div className="h-9 w-px self-stretch bg-border" />
 
         <StyleControls layout={doc.layout} onChange={(p) => patch({ layout: { ...doc.layout, ...p } })} />
@@ -674,6 +663,9 @@ export function ChordSheetMaker() {
             ref={editorRef}
             value={doc.text}
             onChange={textEdit}
+            semi={doc.semi}
+            chordDisplay={chordName}
+            chordStore={storeChord}
             onBeginChipDrag={beginDrag}
             className="min-h-0 flex-1 overflow-y-auto border-t border-border bg-background px-4 py-3 font-mono text-[13px] leading-relaxed text-foreground outline-none"
           />

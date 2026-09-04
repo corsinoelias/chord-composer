@@ -1,0 +1,309 @@
+---
+export const prerender = true;
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { DrumTabPlayer } from '../../../components/DrumTabPlayer/DrumTabPlayer';
+import RelatedTools from '../../../components/RelatedTools.astro';
+import JsonLd from '../../../components/schema/JsonLd.astro';
+import { buildBreadcrumbSchema, buildWebApplicationSchema } from '../../../components/schema/builders';
+
+const CANONICAL_URL = 'https://chordsequence.com/tools/drum-tab/';
+
+// One indexable URL rather than the editor/landing split the bass tab uses: the
+// editor sits inside this page, so there is no second `client:only` route to be
+// crawled as a thin, link-less duplicate.
+
+const features = [
+  {
+    icon: '🥁',
+    title: 'Opens ready to play',
+    desc: 'No blank canvas. The editor loads a groove already written, tuned and looping — press Play and change it from there.',
+  },
+  {
+    icon: '🎼',
+    title: 'Real drum notation',
+    desc: 'A proper percussion staff: cymbals with cross noteheads above, hands stems-up, feet stems-down. Not just a grid of squares.',
+  },
+  {
+    icon: '⌨️',
+    title: 'Paste any ASCII tab',
+    desc: 'The text view reads the standard drum tab format you find online. Paste one in and it plays; edit anywhere and the text follows.',
+  },
+  {
+    icon: '🎚️',
+    title: 'Step grid with velocity',
+    desc: 'Click or drag across the sixteenth-note grid to build a beat. Each kit piece has its own level, so ghost notes stay ghosts.',
+  },
+  {
+    icon: '🔊',
+    title: 'Two kits',
+    desc: 'An acoustic kit built from real sampled drums and cymbals, or a punchy synthesised electronic kit. Same pattern, different room.',
+  },
+  {
+    icon: '🔗',
+    title: 'Share with a link',
+    desc: 'Your pattern encodes into the URL. Send it and the other side opens exactly what you wrote — no account, no upload.',
+  },
+];
+
+const rhythmGroups = [
+  {
+    title: 'From the chord player',
+    desc: 'The same rhythm styles that drive the Chord Progression Editor, drums and fills included.',
+    items: ['Rock Básico', 'Pop', 'Pop 6/8', 'Hip-Hop / Trap', 'Disco', 'Shuffle Blues', 'Merengue', 'Metal', 'Folk Indie', 'Bossa', 'Soul / R&B', 'Reggae Two-Step', 'Jazz Swing', 'Coritos', 'Reggaetón', 'Funk'],
+  },
+  {
+    title: 'Drum machine presets',
+    desc: 'Classic step-sequencer patterns, ready to edit.',
+    items: ['Basic', 'Techno', 'Hip-Hop', 'Funk', 'Clave', 'House', 'Trap', 'Breakbeat', 'Reggaeton', 'Bossa', 'Disco', 'Afrobeat'],
+  },
+];
+
+const tabLegend = [
+  { letter: 'CC', name: 'Crash cymbal', note: 'Written above the staff with a cross notehead.' },
+  { letter: 'RD', name: 'Ride cymbal', note: 'Top line, cross notehead.' },
+  { letter: 'HH', name: 'Hi-hat (closed)', note: 'Above the top line, cross notehead.' },
+  { letter: 'OH', name: 'Hi-hat (open)', note: 'Same position as HH, marked with a small circle.' },
+  { letter: 'SD', name: 'Snare drum', note: 'Third space — the backbeat.' },
+  { letter: 'CS', name: 'Cross stick', note: 'Snare position, cross notehead.' },
+  { letter: 'HT', name: 'High tom', note: 'Fourth space.' },
+  { letter: 'MT', name: 'Mid tom', note: 'Fourth line.' },
+  { letter: 'FT', name: 'Floor tom', note: 'Second space.' },
+  { letter: 'BD', name: 'Bass drum (kick)', note: 'Bottom space, stem down.' },
+  { letter: 'HF', name: 'Hi-hat foot', note: 'Below the staff, stem down.' },
+];
+
+const faqs = [
+  {
+    q: 'Is this drum tab player free?',
+    a: 'Yes. It runs entirely in your browser, needs no account and no download, and every rhythm and kit is available from the first visit.',
+  },
+  {
+    q: 'How do I read a drum tab?',
+    a: 'Each line is one part of the kit, named by the abbreviation on the left — BD for bass drum, SD for snare, HH for hi-hat, and so on. Read left to right: every column is one subdivision of the bar, usually a sixteenth note. An x or an o means hit that part on that subdivision; a dash means stay silent. The vertical bars mark the end of each measure.',
+  },
+  {
+    q: 'What is the difference between x and o in a drum tab?',
+    a: 'By convention, x is used for anything metal — hi-hat, ride, crash — and o for the drums themselves. Some writers use them interchangeably. In this editor an uppercase X or O is an accent (a louder hit) and a lowercase g is a ghost note (a very quiet one).',
+  },
+  {
+    q: 'Can I paste a drum tab I found online?',
+    a: 'Yes — that is what the Text view is for. Paste the tab, press Apply, and it becomes a playable pattern you can hear and edit. Line labels are matched loosely, so B, BD, Bass and Kick all resolve to the bass drum.',
+  },
+  {
+    q: 'Why does drum notation put the kick below and the cymbals above?',
+    a: 'A drum chart is written as two rhythms on one staff: what your hands play gets stems pointing up, what your feet play gets stems pointing down. Within that, each piece has a fixed position — bass drum in the bottom space, snare in the third space, cymbals at the top with cross noteheads. Once the positions are memorised, a chart can be read at a glance.',
+  },
+  {
+    q: 'Where do the rhythms come from?',
+    a: 'They are the same rhythm styles that power the Chord Progression Editor on this site, plus the step patterns from the Drum Machine. Nothing is a separate copy, so a groove sounds here exactly as it does when you play a song in the editor.',
+  },
+  {
+    q: 'Does it save my pattern?',
+    a: 'Your pattern is kept in this browser, so it is still there when you come back. To keep a copy elsewhere or send it to someone, use the share button — it puts the whole pattern in the URL.',
+  },
+  {
+    q: 'What is a good first beat to learn?',
+    a: 'The standard rock beat: steady eighth notes on the hi-hat, bass drum on beats 1 and 3, snare on 2 and 4. Load Rock Básico from the library, slow the tempo to about 70 BPM, and play along until it is even. Everything else is a variation on that skeleton.',
+  },
+];
+
+const breadcrumbSchema = buildBreadcrumbSchema(CANONICAL_URL, [
+  { name: 'Home', item: 'https://chordsequence.com/' },
+  { name: 'Tools', item: 'https://chordsequence.com/tools/' },
+  { name: 'Drum Tab Player', item: CANONICAL_URL },
+]);
+
+const drumTabAppSchema = buildWebApplicationSchema({
+  url: CANONICAL_URL,
+  name: 'Drum Tab Player',
+  description: 'Free online drum tab player and editor. Percussion notation, a sixteenth-note step grid, and standard ASCII drum tab — all three views editing the same pattern, with 30+ built-in rhythms and two drum kits.',
+  featureList: [
+    'Percussion notation view',
+    'Sixteenth-note step grid with per-piece velocity',
+    'Standard ASCII drum tab, read and written',
+    '30+ built-in rhythms',
+    'Acoustic and electronic kits',
+    'Tempo, loop and metronome',
+    'Undo and redo',
+    'Share via URL',
+  ],
+});
+
+// No FAQPage or HowTo JSON-LD — Google restricted FAQ rich results in Aug 2023 and
+// deprecated HowTo entirely in Sept 2023. The Q&A and the reading guide below stay
+// on-page for readers; they just are not serialized as schema. See CLAUDE.md.
+---
+
+<BaseLayout
+  title="Free Drum Tab Player & Editor — Notation, Grid and ASCII Tab"
+  description="Free online drum tab player. Read percussion notation, build beats on a step grid, or paste an ASCII drum tab — all three edit the same pattern. 30+ rhythms, two kits, no account."
+  canonicalUrl={CANONICAL_URL}
+>
+  <Fragment slot="head">
+    <JsonLd schema={drumTabAppSchema} />
+    <JsonLd schema={breadcrumbSchema} />
+  </Fragment>
+
+  <main>
+
+    <!-- ── HERO ───────────────────────────────────────────────────────────── -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pt-12 pb-6 text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Free Online Tool</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4 leading-tight">
+        Drum Tab Player
+      </h1>
+      <p class="text-lg text-muted-foreground max-w-2xl mx-auto">
+        Read, play and write drum tabs in your browser. It opens with a groove already
+        loaded — press <strong class="text-foreground">Play</strong> and start changing it.
+      </p>
+    </section>
+
+    <!-- ── THE EDITOR ─────────────────────────────────────────────────────── -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-4" aria-label="Drum tab editor">
+      <DrumTabPlayer client:only="react" />
+      <p class="text-xs text-center text-muted-foreground mt-3">
+        Space plays and stops · click the grid to add hits · open the library for 30+ rhythms
+      </p>
+    </section>
+
+    <!-- ── FEATURES ───────────────────────────────────────────────────────── -->
+    <section id="features" class="bg-muted/30 border-y border-border py-16 mt-8">
+      <div class="mx-auto max-w-5xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-2 text-center">Three views, one pattern</h2>
+        <p class="text-muted-foreground text-center mb-10 max-w-2xl mx-auto">
+          Drummers do not all read the same way. Write in notation, build on the grid, or paste
+          the tab you already have — the three views are the same beat seen three ways, and an
+          edit in any one shows up in the other two.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {features.map(f => (
+            <div class="rounded-xl border border-border bg-card p-6">
+              <div class="text-2xl mb-3">{f.icon}</div>
+              <h3 class="font-semibold text-foreground mb-1">{f.title}</h3>
+              <p class="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- ── RHYTHMS ────────────────────────────────────────────────────────── -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 py-16">
+      <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-2">Rhythms included</h2>
+      <p class="text-muted-foreground mb-8 max-w-2xl">
+        Open the library inside the editor and load any of these with one click. They are the
+        site's own rhythms, not a separate list — the same grooves the
+        <a href="/editor/" class="text-primary font-medium hover:text-primary/80 transition-colors">Chord Progression Editor</a>
+        plays behind a song.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {rhythmGroups.map(group => (
+          <div class="rounded-xl border border-border bg-card p-6">
+            <h3 class="font-semibold text-foreground mb-1">{group.title}</h3>
+            <p class="text-sm text-muted-foreground mb-4">{group.desc}</p>
+            <ul class="flex flex-wrap gap-2">
+              {group.items.map(item => (
+                <li class="rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{item}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- ── HOW TO READ A DRUM TAB ─────────────────────────────────────────── -->
+    <section class="bg-muted/30 border-y border-border py-16">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-4">How to read a drum tab</h2>
+        <p class="text-muted-foreground leading-relaxed mb-6">
+          A drum tab is a grid written in text. Each line is one part of the kit; each column is
+          one subdivision of the bar, almost always a sixteenth note. You read it left to right,
+          and everything stacked in the same column is played at the same instant — which is the
+          whole point, because a groove is several limbs at once.
+        </p>
+
+        <pre class="overflow-x-auto rounded-xl border border-border bg-card p-5 text-sm leading-relaxed font-mono text-foreground mb-3"><code>CC|x---------------|----------------|
+HH|x-x-x-x-x-x-x-x-|x-x-x-x-x-x-x-x-|
+SD|----o-------o---|----o-------o---|
+BD|o-------o-------|o-------o-------|</code></pre>
+        <p class="text-sm text-muted-foreground leading-relaxed mb-8">
+          That is the standard rock beat, two bars of it. The hi-hat plays a steady eighth note
+          (every other column), the snare lands on beats 2 and 4, the bass drum on 1 and 3, and a
+          crash opens the first bar. Paste it into the Text view above and you will hear exactly
+          that.
+        </p>
+
+        <h3 class="text-xl font-semibold text-foreground mb-3">What the line labels mean</h3>
+        <p class="text-muted-foreground leading-relaxed mb-5">
+          Abbreviations vary between websites, and this editor accepts the common variants — but
+          these are the ones it writes, along with where each piece sits on a percussion staff.
+        </p>
+        <div class="overflow-x-auto rounded-xl border border-border bg-card mb-8">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border text-left">
+                <th class="px-5 py-3 font-semibold text-foreground">Label</th>
+                <th class="px-5 py-3 font-semibold text-foreground">Kit piece</th>
+                <th class="px-5 py-3 font-semibold text-foreground">On the staff</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tabLegend.map(row => (
+                <tr class="border-b border-border last:border-0">
+                  <td class="px-5 py-3 font-mono font-semibold text-foreground">{row.letter}</td>
+                  <td class="px-5 py-3 text-muted-foreground">{row.name}</td>
+                  <td class="px-5 py-3 text-muted-foreground">{row.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="text-xl font-semibold text-foreground mb-3">Accents and ghost notes</h3>
+        <p class="text-muted-foreground leading-relaxed mb-4">
+          Not every hit is the same weight, and that is most of what makes a groove feel like
+          music rather than a metronome. Three levels cover nearly everything:
+        </p>
+        <ul class="space-y-2 text-muted-foreground leading-relaxed mb-8">
+          <li><strong class="text-foreground font-mono">X</strong> or <strong class="text-foreground font-mono">O</strong> — an accent. Hit hard; this is the note the listener counts on.</li>
+          <li><strong class="text-foreground font-mono">x</strong> or <strong class="text-foreground font-mono">o</strong> — a normal stroke.</li>
+          <li><strong class="text-foreground font-mono">g</strong> — a ghost note. Barely audible, felt more than heard. Funk lives here.</li>
+        </ul>
+
+        <h3 class="text-xl font-semibold text-foreground mb-3">Why the notation view is worth learning</h3>
+        <p class="text-muted-foreground leading-relaxed">
+          A text tab tells you <em>what</em> to hit and <em>when</em>, but not how long a phrase
+          breathes or how the bar is grouped. Standard percussion notation shows the rhythm as
+          beamed figures, so an eighth-note hi-hat pattern <em>looks</em> like an eighth-note
+          pattern. It is also what you will be handed if you ever play from a chart. Switch to
+          the Notation view above and watch the same beat you just built appear on a staff — the
+          fastest way to connect the two.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── FAQ ────────────────────────────────────────────────────────────── -->
+    <section class="mx-auto max-w-4xl px-4 sm:px-6 py-16">
+      <h2 class="text-2xl sm:text-3xl font-bold text-foreground mb-8 text-center">Frequently asked questions</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {faqs.map(f => (
+          <div class="rounded-xl border border-border bg-card p-6">
+            <h3 class="font-semibold text-foreground mb-2">{f.q}</h3>
+            <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- ── RELATED TOOLS ──────────────────────────────────────────────────── -->
+    <RelatedTools tools={[
+      { href: '/drums/', icon: 'drums', label: 'Virtual Drum Kit', desc: 'Play a full kit with your keyboard, mouse or a MIDI controller.' },
+      { href: '/tools/drum-machine/', icon: 'step-grid', label: 'Drum Machine', desc: 'A 16-step sequencer with three synth kits and a dozen presets.' },
+      { href: '/metronome/', icon: 'metronome', label: 'Metronome', desc: 'Practise a groove at a steady tempo. Tap tempo included.' },
+      { href: '/tools/bass-guitar-tab/', icon: 'bass-tab', label: 'Bass Tab Player', desc: 'Write the bassline that goes under your beat, then play them together.' },
+      { href: '/tools/guitar-strumming-patterns/', icon: 'guitar', label: 'Guitar Strumming Patterns', desc: 'Edit and play strumming and arpeggio patterns over any chord.' },
+      { href: '/editor/', icon: 'chords', label: 'Chord Progression Editor', desc: 'Where these rhythms come from — build a full song around one.' },
+    ]} />
+
+  </main>
+</BaseLayout>

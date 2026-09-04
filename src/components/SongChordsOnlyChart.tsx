@@ -2,6 +2,7 @@ import { Play, Square, Repeat } from 'lucide-react';
 import { parseChordString } from '@/lib/chordParser';
 import { playChordPreview } from '@/lib/audioEngine';
 import { analytics } from '@/lib/analytics';
+import { displayChord, type SongNotation } from '@/lib/songNotation';
 
 export interface ChordOnlyRow {
   sectionIndex: number;
@@ -21,6 +22,9 @@ interface SongChordsOnlyChartProps {
   onToggleLoop: (si: number) => void;
   isSectionPlaying: (si: number) => boolean;
   songSlug: string;
+  // Display-only — `c.chord` stays the real transposed name for audio and analytics.
+  notation: SongNotation;
+  displayKey: string;
 }
 
 // The whole arrangement as chord-only rows — one screen, no lyrics, the way a player who
@@ -38,6 +42,8 @@ export function SongChordsOnlyChart({
   onToggleLoop,
   isSectionPlaying,
   songSlug,
+  notation,
+  displayKey,
 }: SongChordsOnlyChartProps) {
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-6">This song has no chords.</p>;
@@ -91,6 +97,7 @@ export function SongChordsOnlyChart({
                   <button
                     key={i}
                     type="button"
+                    title={`Play ${c.chord}`}
                     onClick={() => {
                       const parsed = parseChordString(c.chord);
                       if (parsed[0]) {
@@ -103,7 +110,7 @@ export function SongChordsOnlyChart({
                     `}
                     style={{ fontFamily: 'var(--font-mono, monospace)' }}
                   >
-                    {c.chord}
+                    {displayChord(c.chord, displayKey, notation)}
                   </button>
                 );
               })}

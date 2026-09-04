@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { parseChordString } from '@/lib/chordParser';
 import { playChordPreview } from '@/lib/audioEngine';
 import { analytics } from '@/lib/analytics';
+import { displayChord, type SongNotation } from '@/lib/songNotation';
 
 interface ResolvedToken {
   chord: string;
@@ -35,6 +36,10 @@ interface SongSectionChartProps {
   currentChordIndex: number;
   bpm: number;
   songSlug: string;
+  // Display-only. `token.chord` stays the real, transposed chord name — it's what gets parsed for
+  // audio preview, fed to analytics and shown in the tooltip's "what this actually is" line.
+  notation: SongNotation;
+  displayKey: string;
   compact?: boolean;
   chordRefs: React.MutableRefObject<Map<number, HTMLElement>>;
   openTooltipIdx: number | null;
@@ -68,6 +73,8 @@ export function SongSectionChart({
   currentChordIndex,
   bpm,
   songSlug,
+  notation,
+  displayKey,
   compact = false,
   chordRefs,
   openTooltipIdx,
@@ -181,6 +188,9 @@ export function SongSectionChart({
                           <PopoverTrigger asChild>
                             <button
                               type="button"
+                              // Always the real chord name, so someone reading "6m" can still find
+                              // out it's an Am without opening the tooltip.
+                              title={`Play ${token.chord}`}
                               className={`
                                 relative inline-flex items-center justify-center
                                 min-h-[44px] min-w-[1ch] -mt-[14px] -mb-[12px] px-0.5
@@ -200,7 +210,7 @@ export function SongSectionChart({
                                 }
                               }}
                             >
-                              {token.chord}
+                              {displayChord(token.chord, displayKey, notation)}
                             </button>
                           </PopoverTrigger>
                           <PopoverContent
@@ -209,7 +219,7 @@ export function SongSectionChart({
                             collisionPadding={16}
                             className="p-0 border-none shadow-none bg-transparent overflow-visible w-auto"
                           >
-                            <ChordTooltip chord={token.chord} />
+                            <ChordTooltip chord={token.chord} notation={notation} displayKey={displayKey} />
                           </PopoverContent>
                         </Popover>
                       ) : (

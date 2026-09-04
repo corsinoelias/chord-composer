@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { analytics } from '@/lib/analytics';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -48,41 +48,11 @@ import { MelodicPatternGrid } from '@/components/MelodicPatternGrid';
 import { emptyMelodicData, createVariation, scalePatternIsEmpty, type InstrumentMelodic } from '@/lib/bassScale';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// Custom line-art glyphs per drum part — lucide only ships a generic `Drum`, so these
-// let the player tell a kick from a hi-hat from a crash at a glance. Rendered like a
-// lucide icon (24 viewBox, currentColor stroke; size/color come from className/style).
-type PartIconProps = { className?: string; style?: CSSProperties };
-const makePartIcon = (children: ReactNode) =>
-  function PartIcon({ className, style }: PartIconProps) {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        width="24"
-        height="24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.9}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-        style={style}
-        aria-hidden="true"
-      >
-        {children}
-      </svg>
-    );
-  };
-
-const KickIcon = makePartIcon(<><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="2.3" /></>);
-const SnareIcon = makePartIcon(<><ellipse cx="12" cy="8" rx="7" ry="2.2" /><path d="M5 8v5a7 2.2 0 0 0 14 0V8" /><path d="M5 11h14" /></>);
-const SnareStickIcon = makePartIcon(<><path d="M5 6.5l13 11" /><path d="M19 6.5l-13 11" /></>);
-const HiHatIcon = makePartIcon(<><path d="M4 10.5h16" /><path d="M5.5 12.5h13" /><path d="M12 12.5v5.5" /><path d="M9 19.5h6" /></>);
-const HiHatOpenIcon = makePartIcon(<><path d="M4 8.5h16" /><path d="M4 12.8h16" /><path d="M12 12.8v5" /><path d="M9 19.5h6" /></>);
-const HiHatFootIcon = makePartIcon(<><path d="M5.5 10.5h13" /><path d="M6.5 12.5h11" /><path d="M12 12.5v4.5" /><path d="M7 20l5-2 5 2" /></>);
-const TomIcon = makePartIcon(<><ellipse cx="12" cy="7.5" rx="6.5" ry="2" /><path d="M5.5 7.5v6a6.5 2 0 0 0 13 0v-6" /></>);
-const FloorTomIcon = makePartIcon(<><ellipse cx="12" cy="7" rx="6" ry="1.8" /><path d="M6 7v7a6 1.8 0 0 0 12 0V7" /><path d="M7 15l-1.5 5M17 15l1.5 5" /></>);
-const RideIcon = makePartIcon(<><ellipse cx="12" cy="10" rx="9" ry="2.2" /><circle cx="12" cy="10" r="1" /><path d="M12 12v7" /><path d="M9 20h6" /></>);
-const CrashIcon = makePartIcon(<><ellipse cx="12" cy="11" rx="9" ry="2" transform="rotate(-14 12 11)" /><path d="M12 12.8V19" /><path d="M9 20h6" /></>);
+// Drum-part glyphs — shared with the Drum Tab Player, which uses the same set.
+import {
+  KickIcon, SnareIcon, SnareStickIcon, HiHatIcon, HiHatOpenIcon, HiHatFootIcon,
+  TomIcon, FloorTomIcon, RideIcon, CrashIcon,
+} from '@/components/DrumTabPlayer/partIcons';
 
 // All possible instruments in the editor
 const ALL_INSTRUMENTS = [

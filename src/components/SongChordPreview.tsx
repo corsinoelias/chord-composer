@@ -7,6 +7,8 @@ import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { InstrumentViewSelector } from '@/components/InstrumentViewSelector';
 import { useSyncedChordView } from '@/hooks/useSyncedChordView';
+import { useSongNotation } from '@/hooks/useSongNotation';
+import { displayChord } from '@/lib/songNotation';
 import { DurationDots } from '@/components/DurationDots';
 
 // ── Transpose helpers ─────────────────────────────────────────────────────────
@@ -47,6 +49,7 @@ interface Props {
 // so the card stays compact instead of eating a screenful of vertical space.
 export default function SongChordPreview({ chords, songKey }: Props) {
   const [view, setView] = useSyncedChordView('guitar');
+  const [notation] = useSongNotation();
   const [semitones, setSemitones] = useState(0);
   const [activeChord, setActiveChord] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -122,8 +125,16 @@ export default function SongChordPreview({ chords, songKey }: Props) {
             to center in, and the diagram visibly drifts left/right as chords change. */}
         <div className="flex flex-col items-start gap-1.5 shrink-0 min-w-[110px]">
           <span className="text-2xl sm:text-3xl font-bold font-mono text-foreground tracking-tight leading-none">
-            {nowPlayingItem.chord}
+            {displayChord(nowPlayingItem.chord, displayKey, notation)}
           </span>
+          {/* Only for numbers. A "6m" says nothing about which chord to play, so it needs the
+              name spelled out; "Sol♯m" already IS the name — printing "G#m" under it is the same
+              word twice, and it made the card look like it was showing two different chords. */}
+          {notation === 'number' && (
+            <span className="text-xs font-medium font-mono text-muted-foreground leading-none">
+              {nowPlayingItem.chord}
+            </span>
+          )}
           <span className="text-primary">
             <DurationDots duration={duration} isActive={isPlaying} bpm={bpm} uid="now-playing" rawIndex={rawIndex} size={7} />
           </span>

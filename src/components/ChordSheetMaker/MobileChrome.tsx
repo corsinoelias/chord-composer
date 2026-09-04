@@ -432,6 +432,9 @@ export function MobileChrome({
             ref={sourceEditorRef}
             value={doc.text}
             onChange={onSourceChange}
+            semi={doc.semi}
+            chordDisplay={chordName}
+            chordStore={storeChord}
             className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-3 font-mono text-[13px] leading-relaxed text-foreground outline-none"
           />
         </div>
