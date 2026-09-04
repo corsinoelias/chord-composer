@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { DRUM_ROWS, STEPS_PER_BEAT, type DrumPieceId, type DrumTrack } from '../../lib/drumTab/types'
+import { DRUM_ROWS, GRID_LABEL_W, STEPS_PER_BEAT, type DrumPieceId, type DrumTrack } from '../../lib/drumTab/types'
 import { BT, alpha, f } from '../../lib/bassTab/theme'
 import { PART_ICON } from './partIcons'
 
@@ -18,7 +18,7 @@ import { PART_ICON } from './partIcons'
  * still a sixteenth and not a tile. Only past the lower clamp does it scroll.
  */
 
-const LABEL_W  = 152
+const LABEL_W  = GRID_LABEL_W
 const CELL_GAP = 2
 const ROW_GAP  = 3
 

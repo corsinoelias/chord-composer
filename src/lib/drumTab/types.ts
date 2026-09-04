@@ -99,6 +99,14 @@ export function rowIndexOf(pieceId: DrumPieceId): number {
 /** Grid resolution. 4 = sixteenth notes, the resolution `styles.ts` is written in. */
 export const STEPS_PER_BEAT = 4
 
+/**
+ * Width of the kit-piece label gutter, shared by the step grid and the
+ * arrangement lane below it. It lives here rather than in either component
+ * because the two only line their bars up while they agree on it, and a pair of
+ * constants that must match is the kind that stops matching.
+ */
+export const GRID_LABEL_W = 152
+
 export type DrumView = 'score' | 'grid' | 'text'
 
 export interface LoopRange {

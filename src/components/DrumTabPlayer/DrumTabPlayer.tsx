@@ -15,6 +15,7 @@ import { DrumTabTopBar } from './DrumTabTopBar'
 import { DrumTabTransport } from './DrumTabTransport'
 import { DrumTabKitStage } from './DrumTabKitStage'
 import { DrumTabGrid } from './DrumTabGrid'
+import { DrumTabArrangement } from './DrumTabArrangement'
 import { DrumTabScore } from './DrumTabScore'
 import { DrumTabTextEditor } from './DrumTabTextEditor'
 import { DrumTabLibrary } from './DrumTabLibrary'
@@ -27,9 +28,10 @@ import type { UserTab } from '../../lib/drumTab/userTabs'
  * step to get past): whatever is in the URL hash, else whatever was last edited
  * in this browser, else the chord player's Rock Básico.
  *
- * **It fills the viewport.** Four bands stacked: what the pattern is (top bar),
- * the kit playing it, the pattern itself, and the transport. The one thing that
- * is not a band is the rhythm library, which on a wide screen is a rail down the
+ * **It fills the viewport.** Bands stacked: what the pattern is (top bar), the
+ * kit playing it, the pattern itself, how the bars are grouped (the arrangement
+ * lane), and the transport. The one thing that is not a band is the rhythm
+ * library, which on a wide screen is a rail down the
  * left rather than a dialog — you pick a groove to compare it against the one
  * you have, and a dialog covers exactly the thing being compared. Below `lg` it
  * goes back to being a dialog, because at that width a rail is most of the
@@ -76,7 +78,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const {
     track, setTrack, canUndo, canRedo,
     addHit, deleteHit, replaceHits,
-    setTotalBars, setBpm, loadTrack, clearAll, undo, redo,
+    setTotalBars, setSections, setBpm, loadTrack, clearAll, undo, redo,
   } = useDrumTrackEditor(initialTrack)
 
   const [isPlaying, setIsPlaying]     = useState(false)
@@ -339,6 +341,19 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           <DrumTabTextEditor track={track} onApply={applyText} />
         </div>
+      )}
+
+      {/* Structure belongs to the track, not to a view, so it stays put as you
+          switch between grid, notation and text. A phone has no room for it. */}
+      {!isMobile && (
+        <DrumTabArrangement
+          totalBars={track.totalBars}
+          beatsPerBar={track.beatsPerBar}
+          sections={track.sections}
+          currentBeat={currentBeat}
+          isPlaying={isPlaying}
+          onChange={setSections}
+        />
       )}
     </div>
   )
