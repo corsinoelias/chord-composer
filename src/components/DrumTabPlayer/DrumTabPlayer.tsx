@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  DRUM_STORAGE_KEY, STEPS_PER_BEAT, makeHitId, hitsSignature,
-  type DrumKitId, type DrumPieceId, type DrumTrack, type DrumView, type LoopRange,
+  DEFAULT_CHANNEL, DRUM_STORAGE_KEY, STEPS_PER_BEAT, makeHitId, hitsSignature,
+  type DrumChannel, type DrumKitId, type DrumPieceId, type DrumTrack, type DrumView, type LoopRange,
 } from '../../lib/drumTab/types'
 import { defaultDrumTrack, getDrumPreset, type DrumPreset } from '../../data/drumPresets'
 import { startPlayback, stopPlayback, setMasterVolume, previewHit } from '../../lib/drumTab/drumAudio'
 import { parseDrumTab } from '../../lib/drumTab/drumTabText'
 import { encodeTrackToHash, decodeTrackFromHash, copyToClipboard } from '../../lib/drumTab/exportDrumTab'
 import { useDrumTrackEditor } from '../../hooks/useDrumTrackEditor'
-import { useIsMobile, useIsDesktop } from '../../hooks/use-mobile'
+import { useIsMobile, useIsDesktop, useIsWide } from '../../hooks/use-mobile'
 import { analytics } from '../../lib/analytics'
 import { BT, BT_VARS, f } from '../../lib/bassTab/theme'
 import { DrumTabTopBar } from './DrumTabTopBar'
@@ -16,6 +16,7 @@ import { DrumTabTransport } from './DrumTabTransport'
 import { DrumTabKitStage } from './DrumTabKitStage'
 import { DrumTabGrid } from './DrumTabGrid'
 import { DrumTabArrangement } from './DrumTabArrangement'
+import { DrumTabInspector } from './DrumTabInspector'
 import { DrumTabScore } from './DrumTabScore'
 import { DrumTabTextEditor } from './DrumTabTextEditor'
 import { DrumTabLibrary } from './DrumTabLibrary'
@@ -42,6 +43,7 @@ import type { UserTab } from '../../lib/drumTab/userTabs'
 const NAVBAR_H = 64
 
 const KIT_COLLAPSED_KEY = 'drum-tab-kit-collapsed-v1'
+const MIXER_OPEN_KEY = 'drum-tab-mixer-open-v1'
 
 /** URL hash → last session → the default groove. Same cascade as the bass tab. */
 function loadInitialTrack(presetId?: string): DrumTrack {
@@ -68,9 +70,15 @@ function loadKitCollapsed(): boolean {
   try { return localStorage.getItem(KIT_COLLAPSED_KEY) === '1' } catch { return false }
 }
 
+/** Open by default: an empty third column teaches nobody that it exists. */
+function loadMixerOpen(): boolean {
+  try { return localStorage.getItem(MIXER_OPEN_KEY) !== '0' } catch { return true }
+}
+
 export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}) {
   const isMobile  = useIsMobile()
   const isDesktop = useIsDesktop()
+  const isWide    = useIsWide()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initialTrack = useMemo(() => loadInitialTrack(initialPreset), [])
@@ -93,6 +101,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const [barPage, setBarPage]         = useState(0)
   const [kitCollapsed, setKitCollapsed] = useState(loadKitCollapsed)
   const [selectedPiece, setSelectedPiece] = useState<DrumPieceId | null>(null)
+  const [mixerOpen, setMixerOpen] = useState(loadMixerOpen)
 
   /**
    * The rail has nothing to close. It has to be a stable identity rather than an
@@ -115,6 +124,10 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   useEffect(() => {
     try { localStorage.setItem(KIT_COLLAPSED_KEY, kitCollapsed ? '1' : '0') } catch { /* private mode */ }
   }, [kitCollapsed])
+
+  useEffect(() => {
+    try { localStorage.setItem(MIXER_OPEN_KEY, mixerOpen ? '1' : '0') } catch { /* private mode */ }
+  }, [mixerOpen])
 
   // Keep the page in range when bars are removed.
   useEffect(() => {
@@ -139,6 +152,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       () => loopRef.current,
       () => metroRef.current,
       getLoopRange,
+      () => trackRef.current.mix,
     ).catch(() => { setIsPlaying(false) })
   }, [])
 
@@ -162,6 +176,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
       () => loopRef.current,
       () => metroRef.current,
       () => null,
+      () => trackRef.current.mix,
     ).catch(() => { setIsPlaying(false) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hitCount, track.bpm, track.kit, track.totalBars])
@@ -180,7 +195,7 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
     const sameRow = trackRef.current.hits.find(h => h.pieceId === pieceId)
     const velocity = sameRow?.velocity ?? 0.9
     addHit({ id: makeHitId(), pieceId, startBeat: slot / STEPS_PER_BEAT, velocity })
-    previewHit(trackRef.current.kit, pieceId, velocity)
+    previewHit(trackRef.current.kit, pieceId, velocity, trackRef.current.mix)
   }, [addHit, deleteHit])
 
   const setRowVelocity = useCallback((pieceId: DrumPieceId, velocity: number) => {
@@ -193,8 +208,35 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
   const previewRow = useCallback((pieceId: DrumPieceId) => {
     const t = trackRef.current
     const existing = t.hits.find(h => h.pieceId === pieceId)
-    previewHit(t.kit, pieceId, existing?.velocity ?? 0.9)
+    previewHit(t.kit, pieceId, existing?.velocity ?? 0.9, t.mix)
   }, [])
+
+  /**
+   * Change one piece's channel. Not pushed to undo history: a fader is dragged
+   * dozens of times to find a balance, and filling the 60-step history with
+   * those would bury the pattern edits undo is actually for.
+   */
+  const setChannel = useCallback((pieceId: DrumPieceId, patch: Partial<DrumChannel>) => {
+    setTrack(t => ({
+      ...t,
+      mix: {
+        ...t.mix,
+        [pieceId]: { ...DEFAULT_CHANNEL, ...t.mix?.[pieceId], ...patch },
+      },
+    }))
+  }, [setTrack])
+
+  /** Pieces the pattern uses, for dimming the rest of the mixer. */
+  const usedPieces = useMemo(
+    () => new Set(track.hits.map(h => h.pieceId)),
+    [track.hits],
+  )
+
+  /** The selected row's written velocity, or null when it has no strokes yet. */
+  const selectedRowVelocity = useMemo(() => {
+    if (!selectedPiece) return null
+    return track.hits.find(h => h.pieceId === selectedPiece)?.velocity ?? null
+  }, [track.hits, selectedPiece])
 
   /**
    * Striking a piece on the kit stage: it sounds, and its row becomes the
@@ -373,6 +415,9 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
         view={view}
         shareLabel={shareLabel}
         showLibraryButton={!isDesktop}
+        showMixerToggle={isWide}
+        mixerOpen={mixerOpen}
+        onMixerToggle={() => setMixerOpen(o => !o)}
         onNameChange={setName}
         onKitChange={setKit}
         onViewChange={setView}
@@ -405,6 +450,20 @@ export function DrumTabPlayer({ initialPreset }: { initialPreset?: string } = {}
           />
         )}
         {editorPane}
+        {/* Third column only where there is room for one: below 1440px it would
+            squeeze the sixteenths under the width they need to stay clickable,
+            and the grid would scroll sideways to pay for the panel. */}
+        {isWide && mixerOpen && (
+          <DrumTabInspector
+            selectedPiece={selectedPiece}
+            mix={track.mix}
+            rowVelocity={selectedRowVelocity}
+            usedPieces={usedPieces}
+            onSelectPiece={hitPiece}
+            onChannelChange={setChannel}
+            onRowVelocityChange={setRowVelocity}
+          />
+        )}
       </div>
 
       <DrumTabTransport

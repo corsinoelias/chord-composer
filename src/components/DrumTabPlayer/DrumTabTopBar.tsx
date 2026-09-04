@@ -1,5 +1,5 @@
 import React from 'react'
-import { Library, Share2, Trash2 } from 'lucide-react'
+import { Library, Share2, SlidersHorizontal, Trash2 } from 'lucide-react'
 import type { DrumKitId, DrumView } from '../../lib/drumTab/types'
 import { BT, f } from '../../lib/bassTab/theme'
 import { IconButton, Segmented, TextButton } from './barControls'
@@ -35,6 +35,10 @@ interface Props {
   shareLabel: string
   /** Hidden on desktop, where the library is a permanent rail. */
   showLibraryButton: boolean
+  /** Only offered where the inspector fits at all. */
+  showMixerToggle: boolean
+  mixerOpen: boolean
+  onMixerToggle: () => void
   onNameChange: (name: string) => void
   onKitChange: (kit: DrumKitId) => void
   onViewChange: (view: DrumView) => void
@@ -45,6 +49,7 @@ interface Props {
 
 export function DrumTabTopBar({
   trackName, kit, view, shareLabel, showLibraryButton,
+  showMixerToggle, mixerOpen, onMixerToggle,
   onNameChange, onKitChange, onViewChange, onOpenLibrary, onShare, onClear,
 }: Props) {
   return (
@@ -80,6 +85,19 @@ export function DrumTabTopBar({
       {showLibraryButton && (
         <TextButton tone="light" onClick={onOpenLibrary} title="Rhythm library">
           <Library size={15} /> Library
+        </TextButton>
+      )}
+
+      {/* A third column costs the grid real width, so whether it is worth it
+          stays the user's call rather than the breakpoint's alone. */}
+      {showMixerToggle && (
+        <TextButton
+          tone="light"
+          active={mixerOpen}
+          onClick={onMixerToggle}
+          title={mixerOpen ? 'Hide the kit mixer' : 'Show the kit mixer'}
+        >
+          <SlidersHorizontal size={15} /> Mixer
         </TextButton>
       )}
 

@@ -1,6 +1,6 @@
 import { createDrumEngine, type DrumEngine } from '../virtualDrums/drumSynth'
-import { swingOffsetBeats } from './types'
-import type { DrumTrack, DrumHit, LoopRange, DrumKitId, DrumPieceId } from './types'
+import { hasSolo, mixedVelocity, swingOffsetBeats } from './types'
+import type { DrumTrack, DrumHit, DrumMix, LoopRange, DrumKitId, DrumPieceId } from './types'
 
 /**
  * Transport for the Drum Tab Player.
@@ -45,7 +45,20 @@ export function setMasterVolume(vol: number): void {
 }
 
 /** Fire one piece right now — pad taps, grid clicks, row auditions. */
-export function previewHit(kit: DrumKitId, pieceId: DrumPieceId, velocity = 0.9): void {
+export function previewHit(
+  kit: DrumKitId,
+  pieceId: DrumPieceId,
+  velocity = 0.9,
+  /**
+   * Passed so an audition is the same sound the transport would make: a muted
+   * piece stays silent when you click its row, instead of the mixer saying one
+   * thing and the speakers another.
+   */
+  mix?: DrumMix,
+): void {
+  const mixed = mixedVelocity(mix, pieceId, velocity)
+  if (mixed === null) return
+  velocity = mixed
   const e = ensureEngine()
   const ctx = e.context()
   if (ctx.state === 'running') {
@@ -96,6 +109,12 @@ export async function startPlayback(
   getLoop: () => boolean,
   getMetronome: () => boolean,
   getLoopRange: () => LoopRange | null,
+  /**
+   * Read per tick, like `getLoop` and `getMetronome`, so moving a fader is
+   * heard within the lookahead window instead of needing the transport
+   * restarted — which on a mixer would mean a gap on every drag.
+   */
+  getMix: () => DrumMix | undefined = () => track.mix,
 ): Promise<void> {
   stopPlayback()
   const e = ensureEngine()
@@ -135,6 +154,10 @@ export async function startPlayback(
     const elapsed = now - playStartAudioTime
     const beat    = fromBeat + elapsed / beatDur
     const cutoff  = now + LOOKAHEAD
+    // Once per tick rather than once per hit: solo is a property of the whole
+    // mix, so asking per stroke would walk the object on every scheduled note.
+    const mix        = getMix()
+    const soloActive = hasSolo(mix)
 
     if (clickNodes.length > 60) {
       clickNodes = clickNodes.filter(c => c.stopAt > now - 0.1)
@@ -145,7 +168,8 @@ export async function startPlayback(
       const swung = hit.startBeat + swingOffsetBeats(hit.startBeat, track.swing)
       const t = playStartAudioTime + (swung - fromBeat) * beatDur
       if (t > cutoff) break
-      e.play(kit, hit.pieceId, hit.velocity, t)
+      const vel = mixedVelocity(mix, hit.pieceId, hit.velocity, soloActive)
+      if (vel !== null) e.play(kit, hit.pieceId, vel, t)
       nextHitIdx++
     }
 
@@ -164,7 +188,7 @@ export async function startPlayback(
       if (getLoop()) {
         const range = getLoopRange()
         const nextFrom = range ? range.startBeat : 0
-        startPlayback(track, nextFrom, onBeatUpdate, onEnd, getLoop, getMetronome, getLoopRange)
+        startPlayback(track, nextFrom, onBeatUpdate, onEnd, getLoop, getMetronome, getLoopRange, getMix)
       } else {
         const range = getLoopRange()
         stopPlayback()
