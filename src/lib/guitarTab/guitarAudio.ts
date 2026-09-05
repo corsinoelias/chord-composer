@@ -237,7 +237,7 @@ function scheduleMetronomeClick(ctx: AudioContext, t: number, isDown: boolean) {
   scheduledNodes.push({ node: osc, stopAt: t + 0.15 })
 }
 
-export function previewNote(stringIndex: number, fret: number, sound: GuitarSound, capo = 0): void {
+export function previewNote(stringIndex: number, fret: number, sound: GuitarSound, capo = 0, duration = 1.5): void {
   const ctx = ensureCtx()
   if (!masterGain) return
 
@@ -245,7 +245,7 @@ export function previewNote(stringIndex: number, fret: number, sound: GuitarSoun
     const sfPlayer = sfPlayers.get(sound)
     if (sfPlayer) {
       const midi = STRING_MIDI_BASE[stringIndex] + fret + capo
-      sfPlayer.play(midiToNoteName(midi), ctx.currentTime + 0.01, { duration: 1.5, gain: 0.75 * SF2_GAIN })
+      sfPlayer.play(midiToNoteName(midi), ctx.currentTime + 0.01, { duration, gain: 0.75 * SF2_GAIN })
       return
     }
     // Not loaded yet — start loading and fall through to synth
@@ -254,7 +254,7 @@ export function previewNote(stringIndex: number, fret: number, sound: GuitarSoun
 
   const freq = fretToFrequency(stringIndex, fret, capo)
   const play = () => {
-    scheduleGuitarNote(ctx, masterGain!, freq, ctx.currentTime + 0.01, 0.5, 0.75, sound)
+    scheduleGuitarNote(ctx, masterGain!, freq, ctx.currentTime + 0.01, duration / 3, 0.75, sound)
   }
   if (ctx.state === 'running') play()
   else ctx.resume().then(play).catch(() => {})

@@ -29,6 +29,8 @@ interface Props {
   highlightRows: number[][]
   vibRef: MutableRefObject<Vib[]>
   labelMode: 'notes' | 'frets'
+  /** Mirror the whole neck for a left-handed player. */
+  lefty: boolean
   onPlay: (row: number, fret: number) => void
 }
 
@@ -39,8 +41,12 @@ interface Props {
  * ellipse. The strumming board already splits itself this way for the same reason.
  */
 export function GuitarNeck({
-  geo, fbRef, shapeRows, hasShape, activeRows, highlightRows, vibRef, labelMode, onPlay,
+  geo, fbRef, shapeRows, hasShape, activeRows, highlightRows, vibRef, labelMode, lefty, onPlay,
 }: Props) {
+  // Left-handed mirrors the container, so the text inside has to be mirrored back or it
+  // reads in reverse, and a pointer's x has to be mirrored the other way to land on the
+  // fret the player is actually touching.
+  const flip = lefty ? ' scaleX(-1)' : ''
   const stringRefs = useRef<(SVGPathElement | null)[]>([null, null, null, null, null, null])
   const draggingRef = useRef(false)
   const lastRowRef = useRef(-1)
@@ -48,6 +54,8 @@ export function GuitarNeck({
   const sweptRef = useRef(false)
   const geoRef = useRef(geo)
   geoRef.current = geo
+  const leftyRef = useRef(lefty)
+  leftyRef.current = lefty
   const shapeRef = useRef(shapeRows)
   shapeRef.current = shapeRows
 
@@ -92,8 +100,9 @@ export function GuitarNeck({
   const toViewBox = (e: React.PointerEvent<SVGSVGElement>) => {
     const r = e.currentTarget.getBoundingClientRect()
     const g = geoRef.current
+    const xv = ((e.clientX - r.left) / r.width) * g.width
     return {
-      xv: ((e.clientX - r.left) / r.width) * g.width,
+      xv: leftyRef.current ? g.width - xv : xv,
       yv: ((e.clientY - r.top) / r.height) * g.height,
     }
   }
@@ -177,7 +186,7 @@ export function GuitarNeck({
     position: 'absolute' as const,
     left: `${(cellX(geo, fret) / geo.width) * 100}%`,
     top: `${(geo.ys[row] / geo.height) * 100}%`,
-    transform: 'translate(-50%, -50%)',
+    transform: `translate(-50%, -50%)${flip}`,
     width: geo.dotR * 2,
     height: geo.dotR * 2,
     borderRadius: '50%',
@@ -199,6 +208,7 @@ export function GuitarNeck({
       style={{
         flex: '1 1 auto', minHeight: 190, position: 'relative',
         background: 'hsl(224 26% 11%)', overflow: 'hidden',
+        transform: lefty ? 'scaleX(-1)' : undefined,
       }}
     >
       <div style={{
@@ -254,7 +264,7 @@ export function GuitarNeck({
         {geo.strings.map((s, i) => (
           <span key={`s${i}`} style={{
             position: 'absolute', left: `${s.leftPct}%`, top: `${s.topPct}%`,
-            transform: 'translate(-50%, -50%)',
+            transform: `translate(-50%, -50%)${flip}`,
             fontFamily: "'Space Mono', ui-monospace, monospace", fontWeight: 700,
             lineHeight: 1, fontSize: s.fontSize, color: 'hsl(40 25% 80%)',
           }}>{s.label}</span>
@@ -263,7 +273,7 @@ export function GuitarNeck({
         {geo.fretNumbers.map(f => (
           <span key={`f${f.fret}`} style={{
             position: 'absolute', left: `${f.leftPct}%`, top: `${f.topPct}%`,
-            transform: 'translate(-50%, -50%)',
+            transform: `translate(-50%, -50%)${flip}`,
             fontFamily: "'Space Mono', ui-monospace, monospace",
             fontSize: f.fontSize, color: 'hsl(220 12% 52%)',
           }}>{f.fret}</span>
@@ -307,7 +317,7 @@ export function GuitarNeck({
             position: 'absolute',
             left: `${((openX + (geo.openCol ? geo.openCol.w / 2 : 10)) / geo.width) * 100}%`,
             top: `${(geo.ys[row] / geo.height) * 100}%`,
-            transform: 'translate(-50%, -50%)',
+            transform: `translate(-50%, -50%)${flip}`,
             fontFamily: "'Space Mono', ui-monospace, monospace",
             fontSize: Math.max(11, geo.dotR * 0.9), color: 'hsl(220 12% 50%)', pointerEvents: 'none',
           }}>✕</span>
