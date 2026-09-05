@@ -161,23 +161,15 @@ const webAppSchema = {
             <p class="text-xs text-muted-foreground">Tap a fret above to hear the note</p>
           </div>
         </div>
-        <div style="grid-area: 1 / 1; z-index: 1;">
+        <div id="bass-app" style="grid-area: 1 / 1; z-index: 1;">
           <BassInstrument client:only="react" />
         </div>
       </div>
     </section>
     <script>
-      document.addEventListener(
-        'astro:hydrate',
-        () => {
-          const skeleton = document.getElementById('bass-skeleton')
-          if (!skeleton) return
-          skeleton.style.opacity = '0'
-          skeleton.addEventListener('transitionend', () => skeleton.remove(), { once: true })
-          setTimeout(() => skeleton.remove(), 250) // fallback in case transitionend never fires
-        },
-        { capture: true, once: true },
-      )
+      import { removeSkeletonOnHydrate } from '@/lib/hydrationSkeleton'
+
+      removeSkeletonOnHydrate('bass-skeleton', 'bass-app')
     </script>
 
     <!-- 4 SOUNDS -->

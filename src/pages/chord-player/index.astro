@@ -100,9 +100,9 @@ const webAppSchema = {
       Relying on DOM order alone to cover it was NOT reliable: Chromium can promote the
       animate-pulse element to its own compositing layer and paint it above the later
       sibling despite source order, so the skeleton showed through on top of the loaded
-      app. Explicit z-index fixes the stacking, and the inline script below removes the
-      skeleton outright once EditorApp's astro-island fires "astro:hydrate" (that event
-      doesn't bubble, hence the capture listener), so no stale skeleton lingers.
+      app. Explicit z-index fixes the stacking, and removeSkeletonOnHydrate() below tears
+      the skeleton down once THIS island has painted — not when any island on the page
+      hydrates, which is what used to blank the screen for seconds (see that module).
     -->
     <div style="display: grid;">
       <div id="editor-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out;" class="min-h-screen bg-background">
@@ -189,25 +189,14 @@ const webAppSchema = {
           </div>
         </div>
       </div>
-      <div style="grid-area: 1 / 1; z-index: 1;">
+      <div id="editor-app" style="grid-area: 1 / 1; z-index: 1;">
         <EditorApp client:only="react" />
       </div>
     </div>
     <script>
-      document.addEventListener(
-        'astro:hydrate',
-        () => {
-          // Fade out instead of an instant swap — the skeleton now shows real, readable
-          // text (the "Chord Player" breadcrumb), so an abrupt cut reads as a flicker/glitch
-          // in a way a plain loading shimmer never did.
-          const skeleton = document.getElementById('editor-skeleton');
-          if (!skeleton) return;
-          skeleton.style.opacity = '0';
-          skeleton.addEventListener('transitionend', () => skeleton.remove(), { once: true });
-          setTimeout(() => skeleton.remove(), 250); // fallback in case transitionend never fires
-        },
-        { capture: true, once: true },
-      );
+      import { removeSkeletonOnHydrate } from '@/lib/hydrationSkeleton';
+
+      removeSkeletonOnHydrate('editor-skeleton', 'editor-app');
     </script>
 
     <!--

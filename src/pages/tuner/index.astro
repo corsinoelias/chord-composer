@@ -129,7 +129,7 @@ const webAppSchema = {
       </div>
 
       <div style="position:relative;">
-        <div id="tuner-skeleton" style="display:flex;flex-wrap:wrap;gap:32px;">
+        <div id="tuner-skeleton" style="display:flex;flex-wrap:wrap;gap:32px;transition:opacity 180ms ease-out;">
           <div class="animate-pulse" style="width:280px;max-width:90vw;aspect-ratio:2/3;border-radius:20px;background:#eeeaf6;"></div>
           <div style="display:flex;flex-direction:column;gap:20px;flex:1 1 420px;min-width:0;">
             <div class="animate-pulse" style="height:280px;border-radius:20px;background:#eeeaf6;"></div>
@@ -144,14 +144,9 @@ const webAppSchema = {
     </div>
 
     <script>
-      document.addEventListener(
-        'astro:hydrate',
-        () => {
-          const skeleton = document.getElementById('tuner-skeleton')
-          skeleton?.remove()
-        },
-        { capture: true, once: true },
-      )
+      import { removeSkeletonOnHydrate } from '@/lib/hydrationSkeleton'
+
+      removeSkeletonOnHydrate('tuner-skeleton', 'tuner-app')
     </script>
 
     <!-- ABOUT -->

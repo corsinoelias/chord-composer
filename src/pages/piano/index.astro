@@ -166,21 +166,13 @@ const webAppSchema = {
         </div>
       </section>
     </div>
-    <div style="grid-area: 1 / 1; z-index: 1;">
+    <div id="piano-app" style="grid-area: 1 / 1; z-index: 1;">
       <VirtualPiano client:only="react" />
     </div>
   </div>
   <script>
-    document.addEventListener(
-      'astro:hydrate',
-      () => {
-        const skeleton = document.getElementById('piano-skeleton')
-        if (!skeleton) return
-        skeleton.style.opacity = '0'
-        skeleton.addEventListener('transitionend', () => skeleton.remove(), { once: true })
-        setTimeout(() => skeleton.remove(), 250) // fallback in case transitionend never fires
-      },
-      { capture: true, once: true },
-    )
+    import { removeSkeletonOnHydrate } from '@/lib/hydrationSkeleton'
+
+    removeSkeletonOnHydrate('piano-skeleton', 'piano-app')
   </script>
 </BaseLayout>

@@ -124,22 +124,14 @@ const webAppSchema = {
         </div>
         <div class="vd-skeleton-kit bg-muted animate-pulse" aria-hidden="true" style="width: 100%;"></div>
       </div>
-      <div style="grid-area: 1 / 1; z-index: 1;">
+      <div id="drums-app" style="grid-area: 1 / 1; z-index: 1;">
         <VirtualDrums client:only="react" />
       </div>
     </div>
     <script>
-      document.addEventListener(
-        'astro:hydrate',
-        () => {
-          const skeleton = document.getElementById('drums-skeleton')
-          if (!skeleton) return
-          skeleton.style.opacity = '0'
-          skeleton.addEventListener('transitionend', () => skeleton.remove(), { once: true })
-          setTimeout(() => skeleton.remove(), 250) // fallback in case transitionend never fires
-        },
-        { capture: true, once: true },
-      )
+      import { removeSkeletonOnHydrate } from '@/lib/hydrationSkeleton'
+
+      removeSkeletonOnHydrate('drums-skeleton', 'drums-app')
     </script>
 
     <!-- ============ ABOUT SECTION ============ -->
