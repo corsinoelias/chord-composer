@@ -15,11 +15,21 @@ const sounds = [
   { label: 'Harmonics ★',  desc: 'Natural harmonics — delicate bell-like tones with long sustain. Beautiful for ambient textures and intros.' },
 ]
 
+// Written in the imperative, second person, subject dropped: every line asks for one
+// action and names what you get for it. Keep it that way, and keep it honest — a step
+// telling someone to do something the page cannot do yet is worse than no step at all.
 const howToSteps = [
-  { n: 1, title: 'Choose your sound',      desc: 'Pick from 8 sampled sounds (Steel, Nylon, Clean, Jazz…) or Synth if you want instant playback with no loading.' },
-  { n: 2, title: 'Tap any fret to play',   desc: 'Click or tap any cell on the fretboard. The string vibrates and you hear the note with the selected sound.' },
-  { n: 3, title: 'Read the note name',     desc: 'The display at the bottom shows the full note (e.g., E4), string name, and fret number.' },
-  { n: 4, title: 'Build your own tabs',    desc: 'Ready to compose? Open the full Guitar Tab Editor to draw riffs, set rhythm, export to MIDI or ASCII tab.' },
+  { n: 1,  title: 'Tap any fret to hear it',              desc: 'Press a fret on any string. The string vibrates, the note sounds, and its name appears under the neck.' },
+  { n: 2,  title: 'Drag across the strings to strum',     desc: 'Sweep down the six strings to strum. Sweep back up to strum the other way, or use the arrow keys.' },
+  { n: 3,  title: 'Pick a chord and watch it light up',   desc: 'Choose a root and a chord type. Every finger position lights up on the neck, and Play strums the shape.' },
+  { n: 4,  title: 'Cycle the shapes until one fits',      desc: 'Hit Shape to move through the other ways to play the same chord — open position, barre at the 5th, and higher up the neck.' },
+  { n: 5,  title: 'Mark the notes you want, then play them back', desc: 'Turn on Mark and tap the frets you want to keep. Press Play or the space bar to hear them in order. Leave nothing marked and Play strums all six strings instead.' },
+  { n: 6,  title: 'Send your marks to anyone',            desc: 'Copy the address bar and share it. Whoever opens the link sees the same frets marked and hears the same notes.' },
+  { n: 7,  title: 'Find every place a note lives',        desc: 'Pick a note under Highlight and the neck shows you all of them at once — the fastest way to stop thinking in shapes and start seeing the fretboard.' },
+  { n: 8,  title: 'Play with your computer keyboard',     desc: 'Each keyboard row is a string and the keys across it are frets 0 to 9: the number row is the high e, then QWERTY, ASDF and ZXCV. Hold Shift to reach the two bass strings.' },
+  { n: 9,  title: 'Clamp a capo on, or retune',           desc: 'Move the capo to any fret from 1 to 7 and every note shifts with it. Switch to Drop D, Open G or DADGAD when a song asks for it.' },
+  { n: 10, title: 'Choose your tone',                     desc: 'Start on Steel, then try Nylon, Jazz, Muted or Distorted. Each one loads the first time you pick it — choose Synth for sound with no wait. Short, Medium and Long set how long a note rings.' },
+  { n: 11, title: 'Go full screen, and tune up first',    desc: 'Expand the neck to fill your screen — turn your phone sideways for the most room. Playing along on a real guitar? Open the tuner, get in tune, and come back.' },
 ]
 
 const faqs = [
@@ -28,12 +38,28 @@ const faqs = [
     a: 'A virtual guitar is a browser-based instrument that simulates a real guitar using recorded audio samples. You can play it with your mouse or touchscreen — no physical instrument required.',
   },
   {
+    q: 'Can I play chords on it?',
+    a: 'Yes. Pick a root note and a chord type and the shape lights up on the neck, then press Strum or drag across the strings to hear it. Most chords have several shapes — open position, barre at the 5th, and further up the neck — and the Shape button moves through them.',
+  },
+  {
     q: 'Is this guitar free to use?',
     a: 'Yes, completely free. No account, no download, no install. Open it in any modern browser on desktop or mobile.',
   },
   {
     q: 'What guitar sounds are included?',
     a: 'Eight high-quality sampled sounds: Steel (acoustic), Nylon (classical), Clean (electric), Jazz (hollow-body), Muted (palm-muted), Distorted (high-gain), Overdrive (crunch), and Harmonics. Plus a Synth mode that works instantly without loading.',
+  },
+  {
+    q: 'Can I play it with my computer keyboard?',
+    a: 'Yes. Each keyboard row is a string and the keys across it are frets 0 to 9 — the number row plays the high e, then QWERTY, ASDF and ZXCV work down the neck. Hold Shift to reach the A and low E strings. The arrow keys strum up and down, and the space bar plays whatever you have marked.',
+  },
+  {
+    q: 'How do I share the notes I marked?',
+    a: 'Marks are saved in the page address as you make them, so copy the URL and send it. Whoever opens it sees the same frets marked and can play them with the space bar.',
+  },
+  {
+    q: 'Does it support a capo, alternate tunings or left-handed players?',
+    a: 'All three. Put a capo on any fret from 1 to 7 and every note shifts with it. Switch between Standard, Drop D, Open G and DADGAD. Turn on Lefty to mirror the whole neck. Chord shapes are written for standard tuning, so they sit out while you are retuned.',
   },
   {
     q: 'What is standard guitar tuning?',
@@ -45,7 +71,7 @@ const faqs = [
   },
   {
     q: 'How is this different from the Guitar Tab Editor?',
-    a: 'This page is the instrument home — a quick way to explore the guitar and hear its sounds. The Guitar Tab Editor at /guitar-tab/ is the full-featured tool with chord helper, capo support, MIDI/ASCII export, and all editing tools.',
+    a: 'Play here, write there. This page is the instrument: tap frets, strum chords, and try shapes without setting anything up. The Guitar Tab Editor at /guitar-tab/ is where you write music down — draw notes onto a timeline, set capo and rhythm, then export as ASCII tab or MIDI.',
   },
 ]
 
@@ -66,12 +92,22 @@ const webAppSchema = {
   url: 'https://chordsequence.com/guitar/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Free virtual guitar you can play in the browser. Eight real-sampled sounds: Steel, Nylon, Clean, Jazz, Muted, Distorted, Overdrive, Harmonics. Includes a full tab editor.',
+  description: 'Free virtual guitar you can play in the browser. Pick a chord and the shape lights up on the neck, then strum it. Eight real-sampled sounds: Steel, Nylon, Clean, Jazz, Muted, Distorted, Overdrive, Harmonics.',
   featureList: [
     'Steel, Nylon, Clean, Jazz, Muted, Distorted, Overdrive and Harmonics sample banks',
     '6-string standard tuning (E2 A2 D3 G3 B3 e4)',
     'Real-time audio playback',
-    'Interactive fretboard',
+    'Interactive fretboard with every fret playable',
+    'Chord shapes shown on the neck, with alternate voicings',
+    'Strum by dragging across the strings',
+    'Note names or fret numbers on the neck',
+    'Mark notes, play them back, and share them by URL',
+    'Highlight every position of any note across the neck',
+    'Computer keyboard playing',
+    'Capo on frets 1-7',
+    'Standard, Drop D, Open G and DADGAD tunings',
+    'Left-handed neck',
+    'Full-screen mode',
     'Guitar Tab Editor with chord helper',
     'Capo support (frets 0–7)',
     'MIDI export',
@@ -85,8 +121,8 @@ const webAppSchema = {
 ---
 
 <BaseLayout
-  title="Virtual Guitar — Play Online Free | Chord Sequence"
-  description="Free virtual guitar in your browser. Eight real-sampled sounds: Steel, Nylon, Clean, Jazz, Muted, Distorted, Overdrive, Harmonics. No signup required."
+  title="Virtual Guitar with Chords — Play Online Free"
+  description="Free virtual guitar in your browser. Pick any chord and see the shape on the neck, then strum it. Eight real-sampled sounds, every fret playable. No signup."
   canonicalUrl="https://chordsequence.com/guitar/"
   ogImage="/og/page/guitar/"
   ogImageAlt="Virtual Guitar — Play Online Free | Chord Sequence"
@@ -108,17 +144,24 @@ const webAppSchema = {
       </a>
     </div>
 
-    <!-- HERO -->
-    <section class="mx-auto max-w-5xl px-4 sm:px-6 pt-8 pb-10 text-center">
-      <p class="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Virtual Instrument</p>
-      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4 leading-tight">
+    <!--
+      HERO — deliberately short on a phone. A 664px screen used to be filled entirely by
+      the eyebrow, a four-line paragraph and two buttons, so someone arriving from a
+      "virtual guitar" search met a page of copy before they met a guitar. The eyebrow
+      and the button row are sm+ only (the buttons reappear under the instrument, where
+      they read as "what next" rather than "before you start"), and the paragraph is one
+      line on mobile.
+    -->
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pt-4 sm:pt-8 pb-4 sm:pb-8 text-center">
+      <p class="hidden sm:block text-xs font-semibold uppercase tracking-widest text-primary mb-3">Virtual Instrument</p>
+      <h1 class="text-3xl sm:text-5xl font-bold text-foreground tracking-tight mb-2 sm:mb-4 leading-tight">
         Virtual Guitar
       </h1>
-      <p class="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-        Play a full 6-string guitar in your browser with 8 real sampled tones — acoustic, classical, electric, and more.
-        Free, no install, no account.
+      <p class="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-0 sm:mb-8">
+        Pick a chord, see the shape, strum it. Eight real sampled tones, every fret playable.
+        <span class="hidden sm:inline">Free, no install, no account.</span>
       </p>
-      <div class="flex flex-wrap items-center justify-center gap-3">
+      <div class="hidden sm:flex flex-wrap items-center justify-center gap-3">
         <a
           href="/guitar-tab/"
           class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
@@ -136,47 +179,71 @@ const webAppSchema = {
 
     <!-- INTERACTIVE FRETBOARD -->
     <!--
-      GuitarInstrument uses client:only (it touches window/AudioContext at
-      mount), so nothing paints until the full React bundle loads and
-      hydrates. The static skeleton below renders immediately server-side and
-      sits in the same CSS grid cell as the island — same technique as
-      src/pages/chord-player, /piano, and /drums (see those comments for the
-      stacking-context gotcha this works around). The "Sound" label, the
-      "Tap any fret to play" hint, and the default "Tap a fret above to hear
-      the note" footer text are all real, deterministic copy (kept in sync by
-      hand with GuitarInstrument.tsx); the 9 sound-picker buttons and the
-      fretboard itself are interactive, so they stay as loading shimmer. The
-      fretboard's real height scales down on narrow viewports
-      (GuitarFretboard.tsx: NATURAL_H=308px unscaled, but it measures its
-      container via ResizeObserver and shrinks proportionally once that's
-      under ~424px wide, i.e. viewports under ~456px once this section's
-      32px of horizontal padding is subtracted) — replicated below with a
-      plain clamp() so the skeleton shrinks the same way without needing JS.
+      GuitarInstrument uses client:only (it touches window/AudioContext at mount), so
+      nothing paints until the React bundle loads and hydrates. The skeleton below
+      renders immediately server-side and sits in the same CSS grid cell as the island
+      — same technique as src/pages/chord-player, /piano and /drums (see those comments
+      for the stacking-context gotcha it works around).
+
+      Keep this in sync with GuitarInstrument.tsx by hand. It mirrors the four bands of
+      the real panel: chord row, sound row, neck, readout. The neck's height is the same
+      clamp() the component uses, so the swap does not shift the page; the deterministic
+      copy ("Chord", "Sound", and the idle readout line) is real text, and only the
+      controls and the neck itself are shimmer.
     -->
-    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-6" aria-label="Interactive virtual guitar — tap any fret to play">
+    <section class="mx-auto max-w-5xl px-4 sm:px-6 pb-6" aria-label="Interactive virtual guitar — pick a chord or tap any fret">
       <div style="display: grid; grid-template-columns: minmax(0, 1fr); position: relative;">
         <div id="guitar-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out;" class="rounded-2xl border border-border bg-card overflow-hidden">
-          <div class="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-wrap">
-            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-1">Sound</span>
-            {/* Widths approximate each real button label's rendered width
-                (Steel/Nylon/Clean/Muted ★, Jazz ★ shorter, Distorted/
-                Overdrive/Harmonics ★ longer, Synth shortest) — sized as
-                DIRECT flex-wrap siblings of "Sound"/the hint text, same as
-                GuitarInstrument.tsx's real buttons, so this wraps to the
-                same number of lines instead of drifting on narrow screens. */}
-            {['w-16', 'w-16', 'w-16', 'w-14', 'w-16', 'w-24', 'w-24', 'w-24', 'w-14'].map((w) => (
-              <span aria-hidden="true" class={`h-7 rounded-md bg-muted animate-pulse ${w}`}></span>
-            ))}
-            <span class="ml-auto text-xs text-muted-foreground hidden sm:block">Tap any fret to play</span>
+          <div class="flex items-center gap-2 px-3 sm:px-4 py-2.5 border-b border-border bg-muted/30">
+            <span class="hidden sm:inline text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chord</span>
+            <span aria-hidden="true" class="h-9 w-[72px] rounded-md bg-muted animate-pulse"></span>
+            <span aria-hidden="true" class="h-9 w-[92px] rounded-md bg-muted animate-pulse"></span>
+            <span aria-hidden="true" class="h-9 w-[104px] rounded-md bg-muted animate-pulse ml-auto"></span>
+            <span aria-hidden="true" class="h-9 w-9 rounded-md bg-muted animate-pulse"></span>
           </div>
-          <div style="height: clamp(0px, calc((100vw - 32px) * 0.7264), 308px);" class="bg-muted animate-pulse" aria-hidden="true"></div>
+          <div class="flex items-center gap-2 px-3 sm:px-4 py-2.5 border-b border-border bg-muted/30 overflow-hidden">
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-1">Sound</span>
+            {/* Widths approximate each real label (Steel/Nylon/Clean ★, Jazz ★ shorter,
+                Distorted/Overdrive/Harmonics ★ longer, Synth shortest) so the row ends
+                at the same place instead of drifting. */}
+            {['w-16', 'w-16', 'w-16', 'w-14', 'w-16', 'w-24', 'w-24', 'w-24', 'w-14'].map((w) => (
+              <span aria-hidden="true" class={`h-7 shrink-0 rounded-md bg-muted animate-pulse ${w}`}></span>
+            ))}
+          </div>
+          <div class="flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-border bg-muted/20 overflow-hidden">
+            {['w-16', 'w-32', 'w-20', 'w-24', 'w-32', 'w-28', 'w-14', 'w-24', 'w-16'].map((w) => (
+              <span aria-hidden="true" class={`h-8 shrink-0 rounded-md bg-muted animate-pulse ${w}`}></span>
+            ))}
+          </div>
+          <div style="height: clamp(230px, 42dvh, 380px); background: hsl(224 26% 11%);" aria-hidden="true"></div>
+          <div class="px-4 py-1.5 border-t border-border bg-muted/40 text-center">
+            <span class="text-[11px] text-muted-foreground">Drag across the strings to strum · tap a fret for one note</span>
+          </div>
           <div class="px-4 py-3 border-t border-border bg-muted/20 min-h-[52px] flex items-center gap-4">
-            <p class="text-xs text-muted-foreground">Tap a fret above to hear the note</p>
+            <p class="text-xs text-muted-foreground">Tap a fret to hear it, or pick a chord above</p>
           </div>
         </div>
         <div id="guitar-app" style="grid-area: 1 / 1; z-index: 1;">
           <GuitarInstrument client:only="react" />
         </div>
+      </div>
+
+      <!-- The hero's buttons, for the mobile layout that drops them so the neck can sit
+           in the first screen. Below the instrument they answer "what next" instead of
+           standing between the visitor and the guitar. -->
+      <div class="flex sm:hidden flex-wrap items-center justify-center gap-3 pt-5">
+        <a
+          href="/guitar-tab/"
+          class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground font-semibold rounded-lg"
+        >
+          Open Full Tab Editor →
+        </a>
+        <a
+          href="#how-to-use"
+          class="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-foreground font-medium rounded-lg"
+        >
+          How to use
+        </a>
       </div>
     </section>
     <script>
