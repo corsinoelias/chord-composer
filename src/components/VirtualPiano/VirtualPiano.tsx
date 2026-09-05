@@ -690,7 +690,16 @@ export function VirtualPiano({ sharedRecording = null }: VirtualPianoProps = {})
         .vp-root details > summary::-webkit-details-marker { display: none; }
         .vp-root a { color: #7C3AED; }
         .vp-root a:hover { color: #9A6BF5; }
-        .vp-stage { touch-action: none; }
+        /* Only in faux-fullscreen. The stage is a full 100dvh tall, so a blanket
+           touch-action:none here meant a phone swallowed every scroll gesture that
+           started on it -- which is the whole screen -- and the page below the piano
+           was unreachable. Nothing on the stage needs it at this level: the keys
+           (PianoKeys), the keyboard frame and the transport scrubber each declare
+           touch-action:none on themselves, and that still wins, since a touch takes
+           the most restrictive value between an element and its ancestors. Fullscreen
+           is the one case where eating the gesture is right -- it covers the viewport
+           on purpose and there is nothing to scroll to. */
+        .vp-stage--fs { touch-action: none; }
         .vp-hero-copy { transition: opacity 400ms ease; }
         .vp-tbtn .vp-lbl { }
         @media (hover: none) and (pointer: coarse) {
@@ -714,7 +723,7 @@ export function VirtualPiano({ sharedRecording = null }: VirtualPianoProps = {})
       {/* ---------- Stage: dark full-height hero + visualizer + keyboard ---------- */}
       <section
         ref={stageRef}
-        className="vp-stage"
+        className={`vp-stage${fauxFs ? ' vp-stage--fs' : ''}`}
         style={{
           position: 'relative', minHeight: 'calc(100dvh - 64px)', display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
