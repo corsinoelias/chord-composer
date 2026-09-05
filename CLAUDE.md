@@ -12,7 +12,21 @@ npm run check:schema  # Fails if any page has a banned JSON-LD @type (see note b
 npm run lint          # ESLint
 npx tsc --noEmit      # TypeScript-only type check (faster for catching errors)
 npm run seed          # Seed songs to Supabase (requires .env)
+
+# Search Console (impressions, average position, CTR -- the half GA4 cannot see)
+node scripts/gsc.mjs compare              # this 28d window vs the previous one
+node scripts/gsc.mjs queries --limit 30   # top queries
+node scripts/gsc.mjs pages                # top pages
+node scripts/gsc.mjs page chord-player/   # what one page ranks for
+node scripts/gsc.mjs weekly --days 90     # clicks/impressions/position by week
 ```
+
+Search Console auth reuses the service account the analytics MCP already uses
+(`GOOGLE_APPLICATION_CREDENTIALS` in `.mcp.json`), which holds siteOwner on
+`sc-domain:chordsequence.com` -- nothing needs granting in the Search Console UI.
+Pass a page path WITHOUT a leading slash: Git Bash rewrites `/chord-player/` into a
+Windows path (the script catches this and says so). Data lags ~2 days, so every
+window ends two days ago.
 
 There are no automated tests.
 
