@@ -19,13 +19,17 @@ const sounds = [
 // action and names what you get for it. Keep it that way, and keep it honest — a step
 // telling someone to do something the page cannot do yet is worse than no step at all.
 const howToSteps = [
-  { n: 1, title: 'Tap any fret to hear it',            desc: 'Press a fret on any string. The string vibrates, the note sounds, and its name appears under the neck.' },
-  { n: 2, title: 'Drag across the strings to strum',   desc: 'Sweep down the six strings to strum. Sweep back up to strum the other way, or press the Strum button.' },
-  { n: 3, title: 'Pick a chord and watch it light up', desc: 'Choose a root and a chord type. Every finger position lights up on the neck, and Strum plays the shape.' },
-  { n: 4, title: 'Cycle the shapes until one fits',    desc: 'Hit Shape to move through the other ways to play the same chord — open position, barre at the 5th, and higher up the neck.' },
-  { n: 5, title: 'Switch the dots to fret numbers',    desc: 'Read note names while you learn the neck, then flip to fret numbers when you just want to place your fingers.' },
-  { n: 6, title: 'Choose your tone',                   desc: 'Start on Steel, then try Nylon, Jazz, Muted or Distorted. Each one loads the first time you pick it — choose Synth for sound with no wait.' },
-  { n: 7, title: 'Tune up before you start',           desc: 'Playing along on a real guitar? Open the tuner, get in tune, and come back.' },
+  { n: 1,  title: 'Tap any fret to hear it',              desc: 'Press a fret on any string. The string vibrates, the note sounds, and its name appears under the neck.' },
+  { n: 2,  title: 'Drag across the strings to strum',     desc: 'Sweep down the six strings to strum. Sweep back up to strum the other way, or use the arrow keys.' },
+  { n: 3,  title: 'Pick a chord and watch it light up',   desc: 'Choose a root and a chord type. Every finger position lights up on the neck, and Play strums the shape.' },
+  { n: 4,  title: 'Cycle the shapes until one fits',      desc: 'Hit Shape to move through the other ways to play the same chord — open position, barre at the 5th, and higher up the neck.' },
+  { n: 5,  title: 'Mark the notes you want, then play them back', desc: 'Turn on Mark and tap the frets you want to keep. Press Play or the space bar to hear them in order. Leave nothing marked and Play strums all six strings instead.' },
+  { n: 6,  title: 'Send your marks to anyone',            desc: 'Copy the address bar and share it. Whoever opens the link sees the same frets marked and hears the same notes.' },
+  { n: 7,  title: 'Find every place a note lives',        desc: 'Pick a note under Highlight and the neck shows you all of them at once — the fastest way to stop thinking in shapes and start seeing the fretboard.' },
+  { n: 8,  title: 'Play with your computer keyboard',     desc: 'Each keyboard row is a string and the keys across it are frets 0 to 9: the number row is the high e, then QWERTY, ASDF and ZXCV. Hold Shift to reach the two bass strings.' },
+  { n: 9,  title: 'Clamp a capo on, or retune',           desc: 'Move the capo to any fret from 1 to 7 and every note shifts with it. Switch to Drop D, Open G or DADGAD when a song asks for it.' },
+  { n: 10, title: 'Choose your tone',                     desc: 'Start on Steel, then try Nylon, Jazz, Muted or Distorted. Each one loads the first time you pick it — choose Synth for sound with no wait. Short, Medium and Long set how long a note rings.' },
+  { n: 11, title: 'Go full screen, and tune up first',    desc: 'Expand the neck to fill your screen — turn your phone sideways for the most room. Playing along on a real guitar? Open the tuner, get in tune, and come back.' },
 ]
 
 const faqs = [
@@ -44,6 +48,18 @@ const faqs = [
   {
     q: 'What guitar sounds are included?',
     a: 'Eight high-quality sampled sounds: Steel (acoustic), Nylon (classical), Clean (electric), Jazz (hollow-body), Muted (palm-muted), Distorted (high-gain), Overdrive (crunch), and Harmonics. Plus a Synth mode that works instantly without loading.',
+  },
+  {
+    q: 'Can I play it with my computer keyboard?',
+    a: 'Yes. Each keyboard row is a string and the keys across it are frets 0 to 9 — the number row plays the high e, then QWERTY, ASDF and ZXCV work down the neck. Hold Shift to reach the A and low E strings. The arrow keys strum up and down, and the space bar plays whatever you have marked.',
+  },
+  {
+    q: 'How do I share the notes I marked?',
+    a: 'Marks are saved in the page address as you make them, so copy the URL and send it. Whoever opens it sees the same frets marked and can play them with the space bar.',
+  },
+  {
+    q: 'Does it support a capo, alternate tunings or left-handed players?',
+    a: 'All three. Put a capo on any fret from 1 to 7 and every note shifts with it. Switch between Standard, Drop D, Open G and DADGAD. Turn on Lefty to mirror the whole neck. Chord shapes are written for standard tuning, so they sit out while you are retuned.',
   },
   {
     q: 'What is standard guitar tuning?',
@@ -85,6 +101,13 @@ const webAppSchema = {
     'Chord shapes shown on the neck, with alternate voicings',
     'Strum by dragging across the strings',
     'Note names or fret numbers on the neck',
+    'Mark notes, play them back, and share them by URL',
+    'Highlight every position of any note across the neck',
+    'Computer keyboard playing',
+    'Capo on frets 1-7',
+    'Standard, Drop D, Open G and DADGAD tunings',
+    'Left-handed neck',
+    'Full-screen mode',
     'Guitar Tab Editor with chord helper',
     'Capo support (frets 0–7)',
     'MIDI export',
@@ -185,6 +208,11 @@ const webAppSchema = {
                 at the same place instead of drifting. */}
             {['w-16', 'w-16', 'w-16', 'w-14', 'w-16', 'w-24', 'w-24', 'w-24', 'w-14'].map((w) => (
               <span aria-hidden="true" class={`h-7 shrink-0 rounded-md bg-muted animate-pulse ${w}`}></span>
+            ))}
+          </div>
+          <div class="flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-border bg-muted/20 overflow-hidden">
+            {['w-16', 'w-32', 'w-20', 'w-24', 'w-32', 'w-28', 'w-14', 'w-24', 'w-16'].map((w) => (
+              <span aria-hidden="true" class={`h-8 shrink-0 rounded-md bg-muted animate-pulse ${w}`}></span>
             ))}
           </div>
           <div style="height: clamp(230px, 42dvh, 380px); background: hsl(224 26% 11%);" aria-hidden="true"></div>

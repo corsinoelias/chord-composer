@@ -27,6 +27,8 @@ interface Props {
   activeRows: (number | null)[]
   /** Fret positions to light up across the whole neck, e.g. every C. */
   highlightRows: number[][]
+  /** Frets the player has marked to play back, per row. */
+  markRows: number[][]
   vibRef: MutableRefObject<Vib[]>
   labelMode: 'notes' | 'frets'
   /** Mirror the whole neck for a left-handed player. */
@@ -41,7 +43,7 @@ interface Props {
  * ellipse. The strumming board already splits itself this way for the same reason.
  */
 export function GuitarNeck({
-  geo, fbRef, shapeRows, hasShape, activeRows, highlightRows, vibRef, labelMode, lefty, onPlay,
+  geo, fbRef, shapeRows, hasShape, activeRows, highlightRows, markRows, vibRef, labelMode, lefty, onPlay,
 }: Props) {
   // Left-handed mirrors the container, so the text inside has to be mirrored back or it
   // reads in reverse, and a pointer's x has to be mirrored the other way to land on the
@@ -181,6 +183,11 @@ export function GuitarNeck({
   const highlightDots = highlightRows
     .flatMap((frets, row) => frets.map(fret => ({ row, fret })))
     .filter(d => d.fret >= geo.fretFrom && d.fret <= geo.fretTo)
+  // Marks sit above the chord shape: they are the player's own notes, and a mark landing
+  // on a shape dot has to stay visible or clearing it becomes guesswork.
+  const markDots = markRows
+    .flatMap((frets, row) => frets.map(fret => ({ row, fret })))
+    .filter(d => d.fret >= geo.fretFrom && d.fret <= geo.fretTo)
 
   const dotStyle = (row: number, fret: number) => ({
     position: 'absolute' as const,
@@ -298,6 +305,17 @@ export function GuitarNeck({
             fontSize: geo.dotR * 0.8,
             boxShadow: d.fret === 0 ? 'none' : '0 2px 10px hsl(262 83% 40% / 0.6)',
           }}>{d.fret === 0 ? '' : dotLabel(d.row, d.fret)}</span>
+        ))}
+
+        {markDots.map(d => (
+          <span key={`k${d.row}-${d.fret}`} style={{
+            ...dotStyle(d.row, d.fret),
+            background: 'hsl(168 76% 42%)',
+            border: '1px solid hsl(168 70% 60%)',
+            color: '#04211d',
+            fontSize: geo.dotR * 0.8,
+            boxShadow: '0 2px 10px hsl(168 76% 30% / 0.65)',
+          }}>{dotLabel(d.row, d.fret)}</span>
         ))}
 
         {activeRows.map((fret, row) => fret === null ? null : (
