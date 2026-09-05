@@ -18,6 +18,11 @@ const { genre } = Astro.props;
 const genreCanonicalUrl = `https://chordsequence.com/progressions/${genre.slug}/`;
 const displayTitle = genre.pageTitle ?? `${genre.name} Chord Progression Generator`;
 
+// The H1 and the <title> answer to different readers, so a genre can override the
+// <title> alone. Default stays "<name> ... — Play Free": it is the right promise for
+// the genres whose traffic really is "<genre> chord progression generator" queries.
+const seoTitle = genre.seoTitle ?? `${displayTitle} — Play Free`;
+
 const generatorMetaDescription = genre.metaDescription
   ?? `${genre.name} chord progression generator — ${genre.progressions.length} progressions with real audio, playable in your browser. Customize key, tempo, and rhythm. Free, no account needed.`;
 
@@ -89,7 +94,7 @@ const articleSchema = {
 ---
 
 <BaseLayout
-  title={withBrand(`${displayTitle} — Play Free`)}
+  title={withBrand(seoTitle)}
   description={generatorMetaDescription}
   canonicalUrl={genreCanonicalUrl}
 >
@@ -133,6 +138,10 @@ const articleSchema = {
     <div class="space-y-6">
       {genre.progressions.map((p) => (
         <div id={toAnchorId(p.title)} class="rounded-xl border border-border bg-card p-5">
+          <p class="text-sm font-semibold text-foreground mb-1">
+            {p.chords.split(' ').join(' – ')}
+            <span class="text-muted-foreground font-normal"> · {p.bpm} BPM</span>
+          </p>
           <p class="text-xs text-muted-foreground mb-3 leading-relaxed" set:html={p.description} />
           <ChordEmbedIsland chords={p.chords} bpm={p.bpm} style={p.style} title={p.title} />
           {p.scale && (

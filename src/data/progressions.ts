@@ -27,6 +27,12 @@ export interface Genre {
   metaDescription: string;
   // Overrides the default "{name} Chord Progression Generator" H1/<title> when set
   pageTitle?: string;
+  // Overrides the <title> ONLY, leaving the H1 as pageTitle. The two are read by
+  // different audiences: the H1 names the page for someone already on it, while the
+  // <title> has to win a click against list articles. Set this where the queries a
+  // page actually ranks for are not the "<genre> chord progression generator" ones
+  // the default title chases.
+  seoTitle?: string;
   // Short, direct answer shown under the H1 — bolded lead-in for snippet/AI Overview extraction
   quickAnswer?: string;
   editorialIntro?: string[];
@@ -145,9 +151,16 @@ export const GENRES: Genre[] = [
     slug: 'happy',
     name: 'Happy',
     pageTitle: 'Happy Chord Progressions',
+    // 2,961 impressions at position 8.6 returning 25 clicks (0.8%) -- the page ranks,
+    // the title was the problem. Its whole query cluster is plain "happy chord
+    // progressions" (571 impressions at 8.0), not generator queries, so "Play Free"
+    // promised nothing anyone searched for and lost to listicles. The guitar/piano
+    // cut is real demand: "happy chord progressions guitar" and variants are 174
+    // impressions at ~10 with zero clicks. Promise the one thing only we have.
+    seoTitle: 'Happy Chord Progressions — Hear Them on Guitar or Piano',
     quickAnswer: 'The most common happy progression is C–F–G–C (I–IV–V–I) — bright major chords, momentum, and resolution. Hear it below.',
     description: 'Uplifting, bright, and energetic chord progressions full of joy.',
-    metaDescription: '4 happy, uplifting chord progressions in major keys — hear each one instantly in your browser. Free, no signup, no download.',
+    metaDescription: 'Press play on happy, upbeat chord progressions like C–F–G–C. Real audio in your browser, with guitar and piano chord shapes. Free, no signup.',
     editorialQA: [
       {
         question: 'Why do happy chord progressions always sound bright?',
@@ -232,6 +245,10 @@ export const GENRES: Genre[] = [
     slug: 'worship',
     name: 'Worship',
     pageTitle: 'Worship Chord Progressions',
+    // Same shape as /happy/, smaller: position 7.7 for "worship chord progressions"
+    // at 2.5%, plus 37 impressions for "common worship chord progressions" at 7.8
+    // with no clicks -- hence "Common", which the default title never said.
+    seoTitle: 'Common Worship Chord Progressions — Hear All Four',
     quickAnswer: 'The most common worship progression is G–D–Em–C (I–V–VI–IV) — the exact chords behind 10,000 Reasons. Hear it below.',
     description: 'Soaring, spacious chord progressions used in contemporary worship music.',
     metaDescription: '4 common worship chord progressions — the chords behind Goodness of God, What A Beautiful Name, 10,000 Reasons & Build My Life. Free & instant.',
