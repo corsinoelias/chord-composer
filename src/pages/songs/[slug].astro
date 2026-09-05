@@ -12,6 +12,7 @@ import { SONGS, extractChordsFromSong } from '../../data/songs';
 import type { Song } from '../../data/songs';
 import { getPublicSongBySlug, getRelatedPublicSongs } from '@/lib/publicSongs';
 import { buildSongEditorUrl } from '@/lib/editorLink';
+import { buildKeyVariants } from '@/lib/songKeys';
 import { fetchCoverImage } from '@/lib/coverImage';
 import JsonLd from '../../components/schema/JsonLd.astro';
 import { buildBreadcrumbSchema } from '../../components/schema/builders';
@@ -62,6 +63,12 @@ const canonicalUrl = `https://chordsequence.com/songs/${song.slug}/`;
 const coverImage = await fetchCoverImage(song.slug, song.artist, song.title);
 const allChords = extractChordsFromSong(song);
 const uniqueChords = [...new Set(allChords)];
+// The same chords written out in the keys people search for. Server-rendered on purpose:
+// the transpose control on the chart is React, so until now the only answer to "great are
+// you lord chords key of g" (874 impressions, this site's best-converting query shape)
+// existed after hydration and Google never saw it. See src/lib/songKeys.ts for why these
+// keys and not others.
+const keyVariants = buildKeyVariants(song.key, uniqueChords);
 // Build a rich SEO description using lyrics, chords and song metadata.
 function extractCleanLyrics(s: Song): Array<{ name: string; lines: string[] }> {
   return s.sections.map(section => ({
@@ -546,6 +553,52 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
             <div class="mt-8">
               <ChordAside client:load chords={uniqueChords} songKey={song.key} songSlug={song.slug} />
             </div>
+          )}
+
+          <!--
+            The song in the keys people search for. No client directive anywhere in here —
+            that is the entire point. The chart's own transpose control is React, so the
+            answer to "<song> chords key of g" only existed after hydration; this is the
+            same answer in the served HTML. Each row gets an id so a link (or a Google jump
+            link) can land on one key.
+          -->
+          {keyVariants.length > 1 && (
+            <section class="mt-8 rounded-xl border border-border bg-card p-5 sm:p-6" aria-labelledby="other-keys-heading">
+              <h2 id="other-keys-heading" class="text-base font-semibold text-foreground">
+                {song.title} chords in other keys
+              </h2>
+              <p class="mt-1.5 text-sm text-muted-foreground">
+                The same progression moved to whichever key suits your voice. Every chord below is
+                the transposed chart, not a different arrangement.
+              </p>
+
+              <dl class="mt-5 divide-y divide-border">
+                {keyVariants.map((variant) => (
+                  <div id={`key-of-${variant.key.toLowerCase().replace('#', '-sharp')}`} class="flex flex-col gap-2 py-3 sm:flex-row sm:items-baseline sm:gap-4">
+                    <dt class="flex shrink-0 items-baseline gap-2 sm:w-40">
+                      <span class="text-sm font-semibold text-foreground">Key of {variant.label}</span>
+                      {variant.isOriginal && (
+                        <span class="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          Original
+                        </span>
+                      )}
+                    </dt>
+                    <dd class="flex min-w-0 flex-wrap gap-1.5">
+                      {variant.chords.map((chord) => (
+                        <span class="rounded-md border border-border bg-background px-2 py-1 font-mono text-xs text-foreground">
+                          {chord}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+
+              <p class="mt-4 text-sm text-muted-foreground">
+                Need a key that isn't here? The chart above transposes to any of the twelve, and
+                plays back in whichever you pick.
+              </p>
+            </section>
           )}
 
           <!--
