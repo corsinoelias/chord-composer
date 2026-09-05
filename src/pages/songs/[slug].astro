@@ -109,9 +109,15 @@ function buildSeoExcerpt(s: Song, maxLen = 220): string {
 function buildSeoDescription(s: Song): string {
   const artist = s.artist.trim();
   const excerpt = buildSeoExcerpt(s);
+  // The tail names the instruments rather than saying "play along", and drops "lyrics"
+  // for the same reason the title does (see buildSeoTitle). The fallback branch used to
+  // end on "Key of {s.key}" — the RECORDED key, which is the one thing nobody searches
+  // for: /songs/great-are-you-lord/ is stored in A and earns its clicks from "key of g",
+  // /songs/center-bethel-music/ is stored in A and earns them from "key of c". Promising
+  // any key is both truthful and what the query is actually asking.
   const desc = excerpt
-    ? `${s.title} by ${artist} — ${excerpt}. Free chords & lyrics — play along, transpose to any key.`
-    : `Play ${s.title} by ${artist} chords free — interactive chart with real-time playback. Key of ${s.key}.`;
+    ? `${s.title} by ${artist} — ${excerpt}. Hear it played back in any key — piano, guitar, bass and drums. Free, no signup.`
+    : `Play ${s.title} by ${artist} chords free in any key — interactive chart with real-time piano, guitar, bass and drums.`;
 
   return desc.length > 320 ? desc.slice(0, 317) + '…' : desc;
 }
@@ -122,15 +128,37 @@ function buildSeoDescription(s: Song): string {
 // live SERP for /songs/washed-elevation-rhythm/). Brand is dropped: Google shows it separately
 // via the breadcrumb line above the title, so repeating it here just costs budget. BPM is
 // deliberately excluded — "bpm" queries have 0% CTR sitewide regardless of position.
+//
+// "& Lyrics" is gone, and "in Any Key" replaces it. Both come from the same 28-day
+// Search Console read (Aug 2026):
+//
+//   - Lyric intent does not convert here. Queries containing "lyrics"/"letra" are 8,171
+//     impressions at 1.21% CTR, and by position it is 1.6% at p5, 0.8% at p6, 1.0% at
+//     p7-p8 — Genius and AZLyrics own that SERP below rank 4. Advertising lyrics in the
+//     title bought impressions this page cannot convert and diluted the CTR Google sees.
+//   - Key intent converts about twice as well as anything else at the SAME position:
+//     10.5% vs 4.9% at p4, 7.4% vs 3.5% at p5, 4.6% vs 2.0% at p6.
+//
+// Deliberately NOT "Key of {s.key}": the recorded key is the one key nobody searches for.
+// This site's key queries are for the key the singer wants, not the one on the record —
+// great-are-you-lord is stored in A and earns 9.6% CTR on "key of g", center-bethel is
+// stored in A and earns 13.1% on "key of c". Naming a specific key would put the title in
+// direct contradiction with the query it is trying to match; "in Any Key" is what the page
+// actually offers and still bolds on the word the query shares.
+//
+// Under test as of Sep 2026. Judge it on CLICKS, not impressions — dropping lyric intent
+// should cost impressions on purpose. Baseline: 6,041 clicks / 190,318 impressions / 3.17%
+// sitewide, and the eight song pages were ~490 clicks below their own positions' rate.
+// Reassessment needs 2-3 weeks; `node scripts/gsc.mjs compare` and `... page songs/<slug>/`.
 function buildSeoTitle(s: Song): string {
   const artist = s.artist.trim();
-  const withArtist = `${s.title} Chords & Lyrics — ${artist}`;
-  if (withArtist.length <= 65) return withArtist;
+  const full = `${s.title} Chords in Any Key — ${artist}`;
+  if (full.length <= 65) return full;
 
   const shortArtist = `${s.title} Chords — ${artist}`;
   if (shortArtist.length <= 65) return shortArtist;
 
-  const noArtist = `${s.title} Chords & Lyrics`;
+  const noArtist = `${s.title} Chords in Any Key`;
   if (noArtist.length <= 65) return noArtist;
 
   return `${s.title} Chords`;
