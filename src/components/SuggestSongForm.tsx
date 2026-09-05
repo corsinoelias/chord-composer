@@ -109,7 +109,10 @@ export default function SuggestSongForm() {
         <p className="text-sm font-semibold text-foreground mb-1">Thanks — request logged.</p>
         <p className="text-sm text-muted-foreground">
           Requests are worked through most-asked-for first. In the meantime you can build
-          this one yourself in the <a href="/chord-player/" className="text-primary underline">free editor</a>.
+          {/* Anchor says "chord player", not "free editor": this is the only internal link
+              to the page that was spending its anchor on a word nobody searches for. The
+              homepage cards and the sitewide footer button already use the real name. */}
+          {' '}this one yourself in the <a href="/chord-player/" className="text-primary underline">chord player</a>.
         </p>
         <button
           type="button"
