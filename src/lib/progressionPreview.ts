@@ -175,13 +175,20 @@ export function transposeChordName(chordName: string, semitones: number): string
  * Typographic form of a chord name, for rendering only. Never feed the result back into
  * anything that parses chords -- see transposeChordName.
  *
- * Only the accidental attached to the ROOT is rewritten. The 'b' in an altered quality
- * ("7b5", "7b9") stays ASCII: it reads fine, and touching it would mean re-implementing
+ * Rewrites the accidental attached to the ROOT and, for a slash chord, the one on the
+ * BASS note ("A/C#" -> "A/C♯"): both are note names, so styling one and not the other
+ * looked like a bug on the Oceans card. The 'b' in an altered quality ("7b5", "7b9")
+ * stays ASCII -- it reads fine, and telling those apart would mean re-implementing
  * quality parsing here just to know which 'b' is which.
  */
+const prettyAccidental = (root: string, accidental: string) =>
+  `${root}${accidental === '#' ? '♯' : '♭'}`;
+
 export function displayChordName(chordName: string): string {
-  return chordName.replace(/^([A-G])([#b])/, (_, root: string, accidental: string) =>
-    `${root}${accidental === '#' ? '♯' : '♭'}`);
+  const [chord, bass] = chordName.split('/');
+  const prettyChord = chord.replace(/^([A-G])([#b])/, (_, r: string, a: string) => prettyAccidental(r, a));
+  if (bass === undefined) return prettyChord;
+  return `${prettyChord}/${bass.replace(/^([A-G])([#b])$/, (_, r: string, a: string) => prettyAccidental(r, a))}`;
 }
 
 /** Chords as the `?chords=` deep-link parameter the editor expects. */
