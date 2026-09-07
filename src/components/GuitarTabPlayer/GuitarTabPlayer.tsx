@@ -3,6 +3,8 @@ import type { GuitarNote, GuitarTrack, GuitarSound, GuitarStringIndex, LoopRange
 import { DEFAULT_TRACK } from '../../lib/guitarTab/types'
 import { startPlayback, stopPlayback, setMasterVolume, previewNote, startRecordingMetronome, prepareSoundfont } from '../../lib/guitarTab/guitarAudio'
 import { toAsciiTab, exportMidiFile, copyToClipboard } from '../../lib/guitarTab/exportTab'
+import { StringTabText } from '../tabtext/StringTabText'
+import { stringNotesSignature, type StringNote } from '../../lib/tabtext/adapters/strings'
 import { importMidiFile } from '../../lib/guitarTab/midiImport'
 import { parseGpFile } from '../../lib/guitarTab/gpImport'
 import { useGuitarTrackEditor } from '../../hooks/useGuitarTrackEditor'
@@ -22,6 +24,9 @@ const STORAGE_KEY = 'guitar-tab-track-v1'
 
 const STRING_COLORS = ['#0284c7','#7c3aed','#059669','#d97706','#ea580c','#dc2626']
 const STRING_NAMES  = ['e','B','G','D','A','E']
+
+/** Where the Text view remembers rests, spacing and bars per line. */
+const TEXT_FORMAT_KEY = 'guitar-tab-text-format-v1'
 
 // First-time visitors (nothing saved yet) get a short, recognizable demo loaded instead of a
 // blank grid — hitting Play should immediately show what the editor does, same reasoning as the
@@ -73,7 +78,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   const [ctxMenu, setCtxMenu]         = useState<CtxMenu | null>(null)
   const [showChordHelper, setShowChordHelper] = useState(true)
   const [showFretboard, setShowFretboard]     = useState(true)
-  const [viewMode, setViewMode]       = useState<'tab' | 'grid' | 'notation' | 'fretboard'>('tab')
+  const [viewMode, setViewMode]       = useState<'tab' | 'grid' | 'notation' | 'fretboard' | 'text'>('tab')
   const [toastMsg, setToastMsg]       = useState<string | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [showSongLibrary, setShowSongLibrary] = useState(false)
@@ -308,6 +313,42 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
     }
     reader.readAsArrayBuffer(file)
   }, [setTrack])
+
+  // ── Text view ─────────────────────────────────────────────────────────────
+  /**
+   * The playhead as a getter, so the text view's cursor can run on its own
+   * animation frame instead of re-rendering this component sixty times a
+   * second — the rule the drum tab's grid and score already follow.
+   */
+  const beatRef = useRef(0)
+  beatRef.current = currentBeat
+  const getBeat = useCallback(() => beatRef.current, [])
+
+  /**
+   * Applied on blur or with Apply, and idempotent: a tab describing the notes
+   * already in the track does nothing and records no undo step. That matters
+   * because Apply fires twice for one click — the button blurs the textarea
+   * first — and comparing the music is the only guard a stale closure cannot
+   * slip past.
+   */
+  const applyTabText = useCallback((notes: StringNote[], bars: number) => {
+    const next: GuitarNote[] = notes.map((n, i) => ({
+      id: n.id ?? `txt-${Date.now().toString(36)}-${i}`,
+      stringIndex: n.stringIndex as GuitarStringIndex,
+      fret: n.fret,
+      startBeat: n.startBeat,
+      durationBeats: n.durationBeats,
+      velocity: n.velocity,
+      technique: n.technique as GuitarNote['technique'],
+      muted: n.muted,
+    }))
+    if (
+      bars === track.totalBars &&
+      stringNotesSignature(next) === stringNotesSignature(track.notes)
+    ) return
+    beginEdit()
+    setTrack(t => ({ ...t, notes: next, totalBars: bars }))
+  }, [track.notes, track.totalBars, beginEdit, setTrack])
 
   // ── Export ────────────────────────────────────────────────────────────────
   const handleExportAscii = useCallback(async () => {
@@ -576,6 +617,8 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
           <ViewToggle label="Notation" active={viewMode === 'notation'} onClick={() => setViewMode('notation')} style={{ borderRadius: 0, border: 'none' }} />
           <div style={{ width: 1, background: '#e2e8f0' }} />
           <ViewToggle label="Guitar"   active={viewMode === 'fretboard'} onClick={() => setViewMode('fretboard')} style={{ borderRadius: 0, border: 'none' }} />
+          <div style={{ width: 1, background: '#e2e8f0' }} />
+          <ViewToggle label="Text"     active={viewMode === 'text'}     onClick={() => setViewMode('text')}     style={{ borderRadius: 0, border: 'none' }} />
         </div>
         <ViewToggle label="Fretboard" active={showFretboard}   onClick={() => setShowFretboard(v => !v)} />
         <ViewToggle label="Chords"    active={showChordHelper}  onClick={() => setShowChordHelper(v => !v)} />
@@ -684,6 +727,18 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
             track={track}
             zoom={zoom}
           />
+        ) : viewMode === 'text' ? (
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 12 }}>
+            <StringTabText
+              track={track}
+              labels={STRING_NAMES}
+              storageKey={TEXT_FORMAT_KEY}
+              onApply={applyTabText}
+              getBeat={getBeat}
+              isPlaying={isPlaying}
+              onSeekBeat={setCursorBeat}
+            />
+          </div>
         ) : (
           <GuitarPhotoFretboard
             activeFrets={activeFrets}

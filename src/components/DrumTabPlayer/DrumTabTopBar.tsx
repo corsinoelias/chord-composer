@@ -1,8 +1,9 @@
 import React from 'react'
-import { Library, MoreHorizontal, Share2, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Library, MoreHorizontal, Share2, SlidersHorizontal, Trash2, Upload } from 'lucide-react'
 import type { DrumKitId, DrumView } from '../../lib/drumTab/types'
 import { BT, f } from '../../lib/bassTab/theme'
 import { IconButton, Segmented, TextButton } from './barControls'
+import { DrumTabExportMenu } from './DrumTabExportMenu'
 
 /**
  * What the pattern *is*: its name, its kit, which view you are reading it in.
@@ -51,12 +52,18 @@ interface Props {
   onOpenLibrary: () => void
   onShare: () => void
   onClear: () => void
+  onExportMidi: () => void
+  onExportMidiSplit: () => void
+  onExportWav: () => void
+  onImport: () => void
+  exporting: boolean
 }
 
-export function DrumTabTopBar({
+function DrumTabTopBarImpl({
   trackName, kit, view, shareLabel, showLibraryButton,
   showMixerToggle, mixerOpen, onMixerToggle, compact, onOpenSheet,
   onNameChange, onKitChange, onViewChange, onOpenLibrary, onShare, onClear,
+  onExportMidi, onExportMidiSplit, onExportWav, onImport, exporting,
 }: Props) {
   if (compact) {
     return (
@@ -132,7 +139,17 @@ export function DrumTabTopBar({
         </TextButton>
       )}
 
+      <DrumTabExportMenu
+        onMidi={onExportMidi}
+        onMidiSplit={onExportMidiSplit}
+        onWav={onExportWav}
+        busy={exporting}
+      />
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <IconButton tone="light" onClick={onImport} title="Import a MIDI file">
+          <Upload size={16} />
+        </IconButton>
         <IconButton tone="light" onClick={onShare} title={shareLabel}>
           <Share2 size={16} />
         </IconButton>
@@ -143,3 +160,9 @@ export function DrumTabTopBar({
     </div>
   )
 }
+
+/**
+ * Memoised. The player re-renders on every sixteenth to move its position
+ * readout; this band only changes when one of its own props does.
+ */
+export const DrumTabTopBar = React.memo(DrumTabTopBarImpl)

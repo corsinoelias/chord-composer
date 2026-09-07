@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const MOBILE_BREAKPOINT = 768;
+export const MOBILE_BREAKPOINT = 768;
 const DESKTOP_BREAKPOINT = 1024; // Tailwind `lg`
 
 export function useIsMobile() {

@@ -17,9 +17,14 @@ import { PART_ICON } from './partIcons'
  * light beams cross the whole strip, so the set dressing comes off and the
  * viewBox widens to fill the band instead of letterboxing the kit in the middle.
  *
- * It renders no audio of its own. Hits are read off `currentBeat`, which the
- * player already receives from the scheduler, so a piece lights up in step with
- * the sound the transport is making rather than in step with a second timer.
+ * It renders no audio of its own. Hits are read off the live playhead the
+ * transport reports, so a piece lights up in step with the sound being made
+ * rather than in step with a second timer of its own.
+ *
+ * It reads that playhead through `getBeat()` in its own frame loop rather than
+ * taking it as a prop: the flash is a DOM animation either way, so a prop
+ * changing sixty times a second would have re-rendered a kit drawing of a few
+ * hundred SVG nodes purely to run an effect.
  *
  * Collapsed it is not a small kit but a row of part icons: shrinking a drawing
  * of a drum kit to 54px produces a smudge, whereas the icons stay legible and
@@ -74,6 +79,32 @@ const ZONE_TO_ROW: Partial<Record<string, DrumPieceId>> = {
 
 const ROW_IDS = new Set<string>(DRUM_ROWS.map(r => r.id))
 
+/**
+ * The chip strip, ordered by how often a piece is actually played rather than
+ * by where it sits on the kit.
+ *
+ * `DRUM_ROWS` is in kit order — cymbals above, drums below, pedals last —
+ * because that is the order the grid stacks its rows in and the order drum
+ * notation uses, and it must stay that way. But the strip is a row of targets
+ * you reach for, not a picture of the kit: in kit order the three pieces that
+ * make up nearly every groove (kick, snare, closed hats) sat 4th, 6th and 11th,
+ * with the kick off the right edge on a phone. Here they come first.
+ *
+ * Fixed rather than derived from the pattern: a strip that reorders itself as
+ * you write moves the chip you were aiming at.
+ */
+const STRIP_ORDER: string[] = [
+  'kick', 'snare', 'hh-closed', 'hh-open', 'crash-edge', 'ride-body',
+  'tom-hi', 'tom-lo', 'tom-floor', 'stick', 'hh-foot', 'ride-bell',
+]
+
+const STRIP_ROWS = [...DRUM_ROWS].sort((a, b) => {
+  // Anything the order forgets keeps its kit position, after the listed ones.
+  const ia = STRIP_ORDER.indexOf(a.id)
+  const ib = STRIP_ORDER.indexOf(b.id)
+  return (ia < 0 ? STRIP_ORDER.length : ia) - (ib < 0 ? STRIP_ORDER.length : ib)
+})
+
 function toRowPiece(id: DrumPieceId): DrumPieceId | null {
   const mapped = ZONE_TO_ROW[id] ?? id
   return ROW_IDS.has(mapped) ? mapped : null
@@ -82,7 +113,8 @@ function toRowPiece(id: DrumPieceId): DrumPieceId | null {
 interface Props {
   kit: DrumKitId
   track: DrumTrack
-  currentBeat: number
+  /** Reads the live playhead, so the beat moving does not re-render the kit. */
+  getBeat: () => number
   isPlaying: boolean
   collapsed: boolean
   onToggleCollapse: () => void
@@ -91,8 +123,8 @@ interface Props {
   onSelectPiece: (piece: DrumPieceId) => void
 }
 
-export function DrumTabKitStage({
-  kit, track, currentBeat, isPlaying, collapsed,
+function DrumTabKitStageImpl({
+  kit, track, getBeat, isPlaying, collapsed,
   onToggleCollapse, selectedPiece, onSelectPiece,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -147,26 +179,42 @@ export function DrumTabKitStage({
     return map
   }, [track.hits])
 
-  // Flash on slot change, not on every `currentBeat` tick: the scheduler reports
-  // beats as a float many times per sixteenth, and re-animating on each one
-  // would keep restarting the cymbal swing from zero.
-  const lastSlotRef = useRef(-1)
+  // Flash on slot change, not on every frame: the playhead is a float that
+  // moves many times per sixteenth, and re-animating on each reading would keep
+  // restarting the cymbal swing from zero.
+  //
+  // `hitsBySlot` reaches the loop through a ref, so editing the pattern
+  // mid-playback does not tear the loop down and build it again — the next
+  // frame simply reads the new map.
+  const hitsRef = useRef(hitsBySlot)
+  hitsRef.current = hitsBySlot
+
   useEffect(() => {
-    if (!isPlaying) { lastSlotRef.current = -1; return }
-    const slot = Math.floor(currentBeat * STEPS_PER_BEAT + 1e-6)
-    if (slot === lastSlotRef.current) return
-    lastSlotRef.current = slot
-    const pieces = hitsBySlot.get(slot)
-    if (!pieces) return
-    for (const piece of pieces) {
-      animateKitHit(hostRef.current, piece)
-      const chip = stripRef.current?.querySelector<HTMLElement>(`[data-part="${piece}"]`)
-      chip?.animate(
-        [{ background: alpha('accent', 0.85), color: '#fff' }, { background: 'transparent', color: BT.muted }],
-        { duration: 240, easing: 'ease-out' },
-      )
+    if (!isPlaying) return
+    let raf = 0
+    let lastSlot = -1
+    const watch = () => {
+      const slot = Math.floor(getBeat() * STEPS_PER_BEAT + 1e-6)
+      if (slot !== lastSlot) {
+        lastSlot = slot
+        const pieces = hitsRef.current.get(slot)
+        if (pieces) {
+          for (const piece of pieces) {
+            animateKitHit(hostRef.current, piece)
+            const chip = stripRef.current?.querySelector<HTMLElement>(`[data-part="${piece}"]`)
+            chip?.animate(
+              [{ background: alpha('accent', 0.85), color: '#fff' }, { background: 'transparent', color: BT.muted }],
+              { duration: 240, easing: 'ease-out' },
+            )
+          }
+        }
+      }
+      raf = requestAnimationFrame(watch)
     }
-  }, [currentBeat, isPlaying, hitsBySlot])
+    raf = requestAnimationFrame(watch)
+    return () => cancelAnimationFrame(raf)
+  }, [isPlaying, getBeat])
+
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const voiced = pieceFromPointer(hostRef.current, e.target, e.clientX, e.clientY)
@@ -215,7 +263,7 @@ export function DrumTabKitStage({
             marginRight: 74,
           }}
         >
-          {DRUM_ROWS.map(row => {
+          {STRIP_ROWS.map(row => {
             const Icon = PART_ICON[row.id]
             const on = selectedPiece === row.id
             return (
@@ -270,3 +318,9 @@ export function DrumTabKitStage({
     </section>
   )
 }
+
+/**
+ * Memoised: the player re-renders on every sixteenth to move its position
+ * readout, and rebuilding a few hundred SVG nodes for that is wasted work.
+ */
+export const DrumTabKitStage = React.memo(DrumTabKitStageImpl)

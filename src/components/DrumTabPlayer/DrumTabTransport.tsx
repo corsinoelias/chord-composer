@@ -58,7 +58,7 @@ function positionLabel(currentBeat: number, beatsPerBar: number): string {
   return `${bar}.${beat}.${sub}`
 }
 
-export function DrumTabTransport({
+function DrumTabTransportImpl({
   isPlaying, bpm, loop, metronome, volume, totalBars, beatsPerBar, currentBeat,
   canUndo, canRedo,
   compact = false, onToggleExpand,
@@ -226,3 +226,9 @@ export function DrumTabTransport({
     </div>
   )
 }
+
+/**
+ * Memoised. The player re-renders on every sixteenth to move its position
+ * readout; this band only changes when one of its own props does.
+ */
+export const DrumTabTransport = React.memo(DrumTabTransportImpl)

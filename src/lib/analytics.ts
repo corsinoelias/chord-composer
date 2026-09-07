@@ -296,6 +296,8 @@ export const analytics = {
     track('drum_tab_preset_loaded', { preset_name: presetName, source }),
   drumTabTextApplied: () => track('drum_tab_text_applied'),
   drumTabShared: () => track('drum_tab_shared'),
+  drumTabExport: (format: 'midi' | 'wav') => track('drum_tab_export', { format }),
+  drumTabImport: (format: 'midi') => track('drum_tab_import', { format }),
   // Saving and reloading your own tab: the signal that the tool is being used
   // to keep work rather than only to audition the included grooves.
   drumTabUserTabSaved: () => track('drum_tab_user_tab_saved'),

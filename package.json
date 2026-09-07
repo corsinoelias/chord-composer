@@ -10,6 +10,7 @@
     "check": "astro check",
     "check:schema": "node scripts/check-schema.mjs",
     "lint": "eslint .",
+    "test:tabtext": "tsx tests/tabtext/run-roundtrip.ts",
     "test:audio": "node tests/audio/run-golden.mjs",
     "test:audio:update": "node tests/audio/run-golden.mjs --update",
     "seed": "tsx --env-file=.env scripts/seed-songs.ts",

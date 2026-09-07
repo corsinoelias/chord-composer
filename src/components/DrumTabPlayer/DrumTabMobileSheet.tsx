@@ -1,9 +1,10 @@
 import React from 'react'
-import { Library, Share2, Trash2, X } from 'lucide-react'
+import { Library, Share2, Trash2, Upload, X } from 'lucide-react'
 import type { DrumChannel, DrumKitId, DrumMix, DrumPieceId } from '../../lib/drumTab/types'
 import { BT, f } from '../../lib/bassTab/theme'
 import { Segmented, TextButton } from './barControls'
 import { DrumTabInspector } from './DrumTabInspector'
+import { DrumTabExportMenu } from './DrumTabExportMenu'
 
 /**
  * Everything the phone's top bar cannot hold.
@@ -39,14 +40,20 @@ interface Props {
   onOpenLibrary: () => void
   onShare: () => void
   onClear: () => void
+  onExportMidi: () => void
+  onExportMidiSplit: () => void
+  onExportWav: () => void
+  onImport: () => void
+  exporting: boolean
   onSelectPiece: (piece: DrumPieceId) => void
   onChannelChange: (piece: DrumPieceId, patch: Partial<DrumChannel>) => void
   onRowVelocityChange: (piece: DrumPieceId, velocity: number) => void
 }
 
-export function DrumTabMobileSheet({
+function DrumTabMobileSheetImpl({
   open, trackName, kit, shareLabel, mix, selectedPiece, rowVelocity, usedPieces,
   onClose, onNameChange, onKitChange, onOpenLibrary, onShare, onClear,
+  onExportMidi, onExportMidiSplit, onExportWav, onImport, exporting,
   onSelectPiece, onChannelChange, onRowVelocityChange,
 }: Props) {
   if (!open) return null
@@ -126,9 +133,23 @@ export function DrumTabMobileSheet({
               <TextButton tone="light" onClick={onShare} title={shareLabel}>
                 <Share2 size={15} /> Share
               </TextButton>
+              <TextButton tone="light" onClick={onImport} title="Import a MIDI file">
+                <Upload size={15} /> Import
+              </TextButton>
               <TextButton tone="light" onClick={onClear} title="Clear all hits">
                 <Trash2 size={15} /> Clear
               </TextButton>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={label}>Export</span>
+              <DrumTabExportMenu
+                inline
+                onMidi={onExportMidi}
+                onMidiSplit={onExportMidiSplit}
+                onWav={onExportWav}
+                busy={exporting}
+              />
             </div>
           </div>
 
@@ -150,3 +171,9 @@ export function DrumTabMobileSheet({
     </div>
   )
 }
+
+/**
+ * Memoised. The player re-renders on every sixteenth to move its position
+ * readout; this band only changes when one of its own props does.
+ */
+export const DrumTabMobileSheet = React.memo(DrumTabMobileSheetImpl)
