@@ -41,15 +41,16 @@ const faqs = [
 ];
 
 // Names, descriptions, badges and order come from the landing's MUSIC_TOOLS as written.
-// Only two things are adapted: the landing's absolute chordsequence.com URLs with
-// target="_blank" become plain internal links, and its lucide icon names map onto this
-// repo's own ToolIcon set so the grid stays static HTML instead of a React island.
+// Three things are adapted: the landing's absolute chordsequence.com URLs with
+// target="_blank" become plain internal links, its lucide icon names map onto this repo's
+// own ToolIcon set so the grid stays static HTML instead of a React island, and the first
+// card keeps its "Chord Player" anchor text.
 //
-// Note for whoever revisits SEO here: the old copy deliberately used "Chord Player" as
-// this card's anchor text, to stop the homepage outranking /chord-player/ for its own
-// name. The landing calls it "Chord Progression Generator" and that is what ships now.
+// That anchor text is deliberate and predates the landing: the homepage was outranking
+// /chord-player/ for its own name, and naming the link after the destination is the fix.
+// The landing called this card "Chord Progression Generator", which would undo it.
 const tools = [
-  { title: 'Chord Progression Generator', desc: 'Drag & drop chords from 37 qualities, audition 13+ rhythms, and export clean WAV stems.', href: '/chord-player/', icon: 'piano', badge: 'Core Tool' },
+  { title: 'Chord Player', desc: 'Drag & drop chords from 37 qualities, audition 13+ rhythms, and export clean WAV stems.', href: '/chord-player/', icon: 'piano', badge: 'Core Tool' },
   { title: 'Chord Finder & Voicings', desc: 'Look up notes, inversions, and fingerings for piano and guitar for any chord symbol.', href: '/chord-lookup/', icon: 'chords' },
   { title: 'Interactive Circle of Fifths', desc: 'Visual harmonic wheel to discover related keys, borrowed chords, and seamless modulations.', href: '/tools/circle-of-fifths/', icon: 'circle', badge: 'Interactive' },
   { title: 'Instant Chord Transposer', desc: 'Transpose entire chord charts to any key, capos, or vocal range in a single click.', href: '/tools/chord-transposer/', icon: 'transpose' },
