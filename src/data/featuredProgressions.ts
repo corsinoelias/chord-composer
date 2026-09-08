@@ -21,6 +21,7 @@ export type ProgressionGenre =
   | 'Neo Soul'
   | 'Lo-fi'
   | 'Worship'
+  | 'Gospel'
   | 'Blues'
   | 'Rock'
   | 'R&B'
@@ -125,6 +126,55 @@ export const FEATURED_PROGRESSIONS: FeaturedProgression[] = [
     popularExamples: ['Goodness of God (Bethel)', 'Holy Forever (Chris Tomlin)', 'What A Beautiful Name (Hillsong)'],
     genreSlug: 'worship',
     style: 'pop_1',
+  },
+  // Gospel sits next to Worship on purpose. /songs/ is carried almost entirely by gospel
+  // and worship charts, and until now the home page had no card pointing at that harmony.
+  //
+  // `popularExamples` here names the idiom rather than specific recordings: unlike the
+  // worship rows above, whose songs have chord charts on this site to check against, no
+  // hosted song uses a half-diminished or an altered dominant. Claiming a named track
+  // contains a 7-3-6 without being able to verify it would be inventing a fact.
+  {
+    id: 'gospel-736',
+    name: 'The Gospel 7–3–6 Turnaround',
+    romanNumerals: ['VIIø7', 'III7', 'VI'],
+    defaultKey: 'C',
+    chords: ['Bm7b5', 'E7#9', 'Am11'],
+    genre: 'Gospel',
+    mood: 'Soulful',
+    bpm: 72,
+    description: 'The move that defines the genre. E7♯9 is not in the key of C — which is exactly why it pulls so hard into the VI chord.',
+    popularExamples: ['Kirk Franklin arrangements', 'Fred Hammond turnarounds', 'Sunday-morning organ vamps'],
+    genreSlug: 'gospel',
+    style: 'soul_rnb',
+  },
+  {
+    id: 'gospel-sunday-morning',
+    name: 'Sunday Morning Extensions',
+    romanNumerals: ['Imaj9', 'V9sus', 'VIm11', 'IVmaj7♯11'],
+    defaultKey: 'C',
+    chords: ['Cmaj9', 'G9sus4', 'Am11', 'Fmaj7#11'],
+    genre: 'Gospel',
+    mood: 'Dreamy',
+    bpm: 66,
+    description: 'The same four degrees as a standard worship loop, voiced with 9ths and 11ths. Nothing here resolves, which is the point.',
+    popularExamples: ['Contemporary worship pads', 'Neo-soul Rhodes comping', 'Chapel piano intros'],
+    genreSlug: 'gospel',
+    style: 'soul_rnb',
+  },
+  {
+    id: 'gospel-modal-stepdown',
+    name: 'Modal Stepdown',
+    romanNumerals: ['Imaj7', '♭VIImaj7', '♭VImaj7', 'V7sus'],
+    defaultKey: 'Eb',
+    chords: ['Ebmaj7', 'Dbmaj7', 'Bmaj7', 'Bb7sus4'],
+    genre: 'Gospel',
+    mood: 'Uplifting',
+    bpm: 72,
+    description: 'Steps down through two chords borrowed from E♭ minor into a suspended dominant. Cinematic without a single key change.',
+    popularExamples: ['Praise-break bridges', 'Gospel choir modulations', 'Film-score style vamps'],
+    genreSlug: 'gospel',
+    style: 'soul_rnb',
   },
   {
     id: 'sad-minor-epic',
@@ -314,7 +364,7 @@ export const FEATURED_PROGRESSIONS: FeaturedProgression[] = [
 ];
 
 export const PROGRESSION_GENRES: readonly ('All' | ProgressionGenre)[] = [
-  'All', 'Pop', 'Jazz', 'Neo Soul', 'Lo-fi', 'Worship', 'Blues', 'Rock', 'R&B', 'Classical', 'EDM',
+  'All', 'Pop', 'Jazz', 'Neo Soul', 'Lo-fi', 'Worship', 'Gospel', 'Blues', 'Rock', 'R&B', 'Classical', 'EDM',
 ] as const;
 
 export const PROGRESSION_MOODS: readonly ('All' | ProgressionMood)[] = [

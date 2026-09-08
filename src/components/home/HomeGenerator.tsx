@@ -37,6 +37,14 @@ const HERO_PRESETS: HeroPreset[] = [
     genre: 'Neo Soul', bpm: 78, style: 'soul_rnb',
   },
   {
+    // The gospel 7-3-6, rounded out with the ii it usually leads into. Worship and gospel
+    // chord charts are where most of this site's search traffic lands, and the hero had
+    // no preset that sounded like any of it.
+    name: 'Gospel 7–3–6 (VII–III–VI)', shortLabel: 'Gospel', romanSummary: 'VII–III–VI',
+    chords: ['Bm7b5', 'E7#9', 'Am11', 'Dm9'], roman: ['VIIø7', 'III7', 'VIm11', 'IIm9'],
+    genre: 'Gospel', bpm: 72, style: 'soul_rnb',
+  },
+  {
     name: 'Jazz Cadence (II–V–I)', shortLabel: 'Jazz Cadence', romanSummary: 'II–V–I',
     chords: ['Dm7', 'G7', 'Cmaj7', 'Cmaj7'], roman: ['II7', 'V7', 'Imaj7', 'Imaj7'],
     genre: 'Jazz', bpm: 95, style: 'jazz_light',

@@ -34,6 +34,32 @@ export const ICONIC_SONGS: IconicSong[] = [
     bpm: 72,
     style: 'pop_1',
   },
+  // The two gospel standards, ported from the landing prototype as written there.
+  // Between them they demonstrate the whole palette on /progressions/gospel/: Total
+  // Praise for the passing diminished and the 4-over-5 church resolution, Never Would
+  // Have Made It for the 7-3-6 into a full circle-of-fifths descent.
+  {
+    id: 'total-praise',
+    title: 'Total Praise',
+    artist: 'Richard Smallwood',
+    genre: 'Gospel',
+    key: 'Db',
+    progression: ['Dbmaj7', 'Ab/C', 'Bbm7', 'Db7', 'Gbmaj7', 'Gdim7', 'Db/Ab', 'Ab7'],
+    romanNumerals: ['Imaj7', 'V/3', 'VI7', 'I7', 'IVmaj7', '#IV°7', 'I/5', 'V7'],
+    bpm: 58,
+    style: 'soul_rnb',
+  },
+  {
+    id: 'never-would-have-made-it',
+    title: 'Never Would Have Made It',
+    artist: 'Marvin Sapp',
+    genre: 'Gospel',
+    key: 'Ab',
+    progression: ['Gm7b5', 'C7#9', 'Fm9', 'Bbm9', 'Eb13', 'Abmaj7'],
+    romanNumerals: ['VIIø7', 'III7#9', 'VI9', 'II9', 'V13', 'Imaj7'],
+    bpm: 64,
+    style: 'soul_rnb',
+  },
   {
     id: 'autumn-leaves',
     title: 'Autumn Leaves',
