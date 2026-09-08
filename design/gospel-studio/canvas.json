@@ -1,0 +1,52 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "Diseño" },
+    { "id": "page-2", "name": "Direcciones descartadas" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Paleta gospel · parado", "page": "page-1", "x": 0, "y": 0, "w": 1200, "h": 1160 },
+    { "file": "Playing.dc.html", "title": "Paleta gospel · sonando", "page": "page-1", "x": 1300, "y": 0, "w": 1200, "h": 1160 },
+    { "file": "MobileLedger.dc.html", "title": "Móvil · 390px", "page": "page-1", "x": 2600, "y": 0, "w": 390, "h": 1600 },
+
+    { "file": "HeatLanes.dc.html", "title": "A · Carriles de temperatura", "page": "page-2", "x": 0, "y": 0, "w": 1200, "h": 1010 },
+    { "file": "Workbench.dc.html", "title": "B · Mesa de trabajo", "page": "page-2", "x": 1300, "y": 0, "w": 1200, "h": 900 },
+    { "file": "Orbits.dc.html", "title": "C · Órbitas", "page": "page-2", "x": 2600, "y": 0, "w": 1200, "h": 980 },
+    { "file": "Stage.dc.html", "title": "E · Escenario (oscuro)", "page": "page-2", "x": 3900, "y": 0, "w": 1200, "h": 900 },
+    { "file": "MobileHeatLanes.dc.html", "title": "A · Móvil", "page": "page-2", "x": 5200, "y": 0, "w": 390, "h": 844 }
+  ],
+  "annotations": [
+    {
+      "id": "final-parado",
+      "page": "page-1",
+      "x": 0,
+      "y": -420,
+      "w": 1100,
+      "text": "PALETA ARMÓNICA GOSPEL — DISEÑO FINAL (dirección D)\n\nSe mantiene la espina editorial: display Lora de 48px, filete de 2px, filas con regla, prosa real explicando qué hace cada acorde. Cero tarjetas de colores. Sistema del repo tal cual: Lora / Inter / Space Mono, primary #6a1fea, y los tokens --chord-seventh / --chord-sus / --chord-diminished de src/index.css como puntos de función (casa · tensión · color).\n\nQUÉ HE RESUELTO respecto al boceto, que era su única pega: que no parecía interactiva.\n\n1. Los glifos de play pasan a ser botones circulares de 28px con borde — se leen como control, no como nota al pie. La fila IV va en estado hover para que se vea que la fila entera es el objetivo de clic.\n2. Aparece la línea de ajustes bajo el titular: tono, voicing y sonido maquetados como un pie de imprenta, no como una barra de app. Sin esto no era una herramienta en 12 tonos, era un artículo en Do.\n3. El ejemplo trabajado gana el teclado con el voicing a la derecha, que era la única feature del componente original que a la D le faltaba.\n\nLo que NO he metido, y creo que debería ir después: el rail de modulaciones sugeridas («where can this go next»). Es contenido bueno y muy indexable, pero es material nuevo — dime si lo quieres y lo diseño dentro de este mismo lenguaje."
+    },
+    {
+      "id": "final-sonando",
+      "page": "page-1",
+      "x": 1300,
+      "y": -420,
+      "w": 1100,
+      "text": "ESTADO SONANDO\n\nEl segundo artboard es la respuesta completa a «no parece interactiva»: no hace falta prototipo clicable para verlo.\n\n· El compás activo del ejemplo se subraya en ámbar y los otros tres bajan a #a8adb8. Contador «Bar 2 of 4» arriba a la derecha.\n· El botón pasa a Stop.\n· El teclado cambia al voicing de A7alt — sin quinta, que es justo lo que la prosa explica.\n· La fila de A7alt en el registro se enciende con fondo #fef6ec y filete interior de 3px, y su botón pasa a Stop en ámbar.\n\nEs decir: la tabla y el ejemplo están conectados en las dos direcciones. Eso es lo que hace que se lea como instrumento y no como documento."
+    },
+    {
+      "id": "final-movil",
+      "page": "page-1",
+      "x": 2600,
+      "y": -420,
+      "w": 700,
+      "text": "MÓVIL (390px)\n\nLas dos columnas del registro colapsan a una sola; los tres grupos van seguidos. La fila pasa a dos líneas (acorde arriba, prosa debajo) y el botón sube a 36px dentro de una fila de ~60px, así que el objetivo táctil real está por encima de 44px.\n\nLa línea de ajustes se queda en una sola fila: tono y voicing. Sonido se va al menú del voicing.\n\nEl artboard mide 1600px a propósito: es la página entera, no una pantalla. Vale la pena mirar cuánto scroll es — si te parece demasiado, la salida natural es plegar los grupos Tensión y Color por defecto."
+    },
+    {
+      "id": "descartadas",
+      "page": "page-2",
+      "x": 0,
+      "y": -300,
+      "w": 1400,
+      "text": "DIRECCIONES DESCARTADAS\n\nAquí quedan las otras cuatro por si hay que volver a mirarlas o rescatar una pieza suelta.\n\nDos cosas de aquí que sí me llevaría a la D más adelante:\n\n· De A (carriles), el texto punteado «Where these go» — explicar dónde va cada familia de acordes dentro del propio widget, no en un párrafo aparte.\n· De B (mesa de trabajo), el rail de modulaciones sugeridas, que es la parte de contenido que a la D le falta.\n\nDe C y de E no me llevaría nada: la primera no baja a móvil y la segunda invierte el tema del sitio."
+    }
+  ],
+  "launch": { "view": "canvas", "page": "page-1" }
+}

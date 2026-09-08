@@ -1,0 +1,236 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+    a { color: #6a1fea; text-decoration: none; }
+    a:hover { color: #4f11bb; }
+  </style>
+</helmet>
+
+<div style="box-sizing: border-box; width: 1200px; min-height: 900px; background: #f6f7f9; color: #14181f; padding: 22px 44px 44px 44px;">
+
+  <div style="display: flex; align-items: center; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid #dadce2; margin-bottom: 28px;">
+    <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; background: #6a1fea; color: #ffffff; font-family: 'Space Mono', monospace; font-weight: 700; font-size: 13px;">B</span>
+    <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #606876;">Workbench — palette and canvas</span>
+  </div>
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px;">
+    <div style="display: flex; flex-direction: column; gap: 6px; max-width: 640px;">
+      <p style="margin: 0; font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #6a1fea;">Gospel and neo-soul harmony</p>
+      <h2 style="margin: 0; font-family: 'Lora', Georgia, serif; font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.14;">Build a gospel progression, bar by bar</h2>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 10px; border: 1px solid #dadce2; background: #ffffff; font-size: 13px; font-weight: 600;">C major
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#606876" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 10px; border: 1px solid #dadce2; background: #ffffff; font-size: 13px; font-weight: 600;">Fat 9ths
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#606876" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 10px; border: 1px solid #dadce2; background: #ffffff; font-size: 13px; font-weight: 600;">Worship piano
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#606876" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 316px minmax(0, 1fr); gap: 22px; align-items: start;">
+
+    <div style="display: flex; flex-direction: column; gap: 16px; background: #ffffff; border: 1px solid #dadce2; border-radius: 24px; padding: 20px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid #dadce2;">
+        <span style="font-family: 'Lora', Georgia, serif; font-size: 18px; font-weight: 700;">Palette</span>
+        <span style="font-family: 'Space Mono', monospace; font-size: 11px; color: #606876;">22 chords</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 7px;">
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #2eb88a;"></span>
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #1f8f6a;">Home</span>
+          <span style="font-size: 11px; color: #606876;">diatonic</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #b9e4d3; border-radius: 10px; background: #f0faf6;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #1f8f6a;">I</span><span style="font-size: 13px; font-weight: 600;">Cmaj9</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #b9e4d3; border-radius: 10px; background: #f0faf6;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #1f8f6a;">ii</span><span style="font-size: 13px; font-weight: 600;">Dm9</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #b9e4d3; border-radius: 10px; background: #f0faf6;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #1f8f6a;">iii</span><span style="font-size: 13px; font-weight: 600;">Em11</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #b9e4d3; border-radius: 10px; background: #f0faf6;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #1f8f6a;">IV</span><span style="font-size: 13px; font-weight: 600;">Fmaj9</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #b9e4d3; border-radius: 10px; background: #f0faf6;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #1f8f6a;">V</span><span style="font-size: 13px; font-weight: 600;">G9sus</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #b9e4d3; border-radius: 10px; background: #f0faf6;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #1f8f6a;">vi</span><span style="font-size: 13px; font-weight: 600;">Am11</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #b9e4d3; border-radius: 10px; background: #f0faf6;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #1f8f6a;">vii</span><span style="font-size: 13px; font-weight: 600;">Bm7♭5</span></div>
+          <div style="display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 10px; border: 1px dashed #c4c8d2; border-radius: 10px; background: #fbfbfc; font-size: 11px; color: #606876;">+7 extended</div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 7px;">
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #e68619;"></span>
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #b8660c;">Tension</span>
+          <span style="font-size: 11px; color: #606876;">altered dominants</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #f2cfa0; border-radius: 10px; background: #fef6ec;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #b8660c;">VI</span><span style="font-size: 13px; font-weight: 600;">A7alt</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #f2cfa0; border-radius: 10px; background: #fef6ec;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #b8660c;">III</span><span style="font-size: 13px; font-weight: 600;">E7alt</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #f2cfa0; border-radius: 10px; background: #fef6ec;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #b8660c;">V</span><span style="font-size: 13px; font-weight: 600;">G7alt</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #f2cfa0; border-radius: 10px; background: #fef6ec;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #b8660c;">II</span><span style="font-size: 13px; font-weight: 600;">D7alt</span></div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 7px;">
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #9346b9;"></span>
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #7a35a0;">Colour</span>
+          <span style="font-size: 11px; color: #606876;">borrowed</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #ddc2ea; border-radius: 10px; background: #f9f3fc;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #7a35a0;">♭III</span><span style="font-size: 13px; font-weight: 600;">E♭maj7</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #ddc2ea; border-radius: 10px; background: #f9f3fc;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #7a35a0;">♭VI</span><span style="font-size: 13px; font-weight: 600;">A♭maj7</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #ddc2ea; border-radius: 10px; background: #f9f3fc;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #7a35a0;">♭VII</span><span style="font-size: 13px; font-weight: 600;">B♭maj7</span></div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid #ddc2ea; border-radius: 10px; background: #f9f3fc;"><span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #7a35a0;">♭VIIm</span><span style="font-size: 13px; font-weight: 600;">B♭m7</span></div>
+        </div>
+      </div>
+
+      <p style="margin: 0; padding-top: 12px; border-top: 1px solid #dadce2; font-size: 11.5px; line-height: 1.55; color: #606876;">Drag any chord into a bar on the right, or press <span style="font-family: 'Space Mono', monospace; font-weight: 700; color: #14181f;">1</span>–<span style="font-family: 'Space Mono', monospace; font-weight: 700; color: #14181f;">7</span> to audition it.</p>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+
+      <div style="display: flex; flex-direction: column; gap: 14px; background: #ffffff; border: 1px solid #dadce2; border-radius: 24px; padding: 22px 24px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #14181f;">Canvas</span>
+          <span style="font-family: 'Space Mono', monospace; font-size: 11px; color: #606876;">Bar 2 of 4 playing</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px 16px; border: 1px solid #b9e4d3; border-radius: 18px; background: #f0faf6;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: #606876;">BAR 1</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a8adb8" stroke-width="2" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>
+            </div>
+            <span style="font-family: 'Lora', Georgia, serif; font-size: 26px; font-weight: 700; letter-spacing: -0.015em;">Cmaj9</span>
+            <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; color: #1f8f6a;">I · home</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px 16px; border: 2px solid #6a1fea; border-radius: 18px; background: #fef6ec; box-shadow: 0 0 0 4px rgba(106,31,234,0.10);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: #6a1fea; font-weight: 700;">BAR 2</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a8adb8" stroke-width="2" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>
+            </div>
+            <span style="font-family: 'Lora', Georgia, serif; font-size: 26px; font-weight: 700; letter-spacing: -0.015em;">A7alt</span>
+            <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; color: #b8660c;">VI · tension</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px 16px; border: 1px solid #b9e4d3; border-radius: 18px; background: #f0faf6;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: #606876;">BAR 3</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a8adb8" stroke-width="2" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>
+            </div>
+            <span style="font-family: 'Lora', Georgia, serif; font-size: 26px; font-weight: 700; letter-spacing: -0.015em;">Dm9</span>
+            <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; color: #1f8f6a;">ii · home</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 20px 16px; border: 2px dashed #c4c8d2; border-radius: 18px; background: #fbfbfc;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a8adb8" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            <span style="font-size: 11px; font-weight: 600; color: #606876;">Drop a chord</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 4px;">
+          <span style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 12px; background: #6a1fea; color: #ffffff; font-size: 13px; font-weight: 700;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#ffffff"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+            Stop
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; border: 1px solid #dadce2; background: #ffffff; font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;">74 BPM</span>
+          <span style="display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px; border-radius: 12px; border: 1px solid #dadce2; background: #ffffff; font-size: 12px; font-weight: 600;">Shuffle</span>
+          <span style="display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px; border-radius: 12px; border: 1px solid #dadce2; background: #ffffff; font-size: 12px; font-weight: 600;">MIDI</span>
+          <span style="display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px; border-radius: 12px; border: 1px solid #dadce2; background: #ffffff; font-size: 12px; font-weight: 600;">WAV</span>
+          <a href="#" style="margin-left: auto; font-size: 12px; font-weight: 600;">Open in the chord player →</a>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 22px; align-items: start; background: #ffffff; border: 1px solid #dadce2; border-radius: 24px; padding: 22px 24px;">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
+            <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #14181f;">Voicing</span>
+            <span style="font-family: 'Space Mono', monospace; font-size: 11px; color: #606876;">A7alt</span>
+          </div>
+          <svg width="252" height="72" viewBox="0 0 196 56" style="display: block;">
+            <g>
+              <rect x="0" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="14" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="28" y="0" width="13" height="56" rx="2" fill="#e9dcfb" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="42" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="56" y="0" width="13" height="56" rx="2" fill="#e9dcfb" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="70" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="84" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="98" y="0" width="13" height="56" rx="2" fill="#e9dcfb" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="112" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="126" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="140" y="0" width="13" height="56" rx="2" fill="#e9dcfb" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="154" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="168" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+              <rect x="182" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+            </g>
+            <g fill="#14181f">
+              <rect x="9.5" y="0" width="8" height="34" rx="1.5"/>
+              <rect x="23.5" y="0" width="8" height="34" rx="1.5"/>
+              <rect x="51.5" y="0" width="8" height="34" rx="1.5"/>
+              <rect x="65.5" y="0" width="8" height="34" rx="1.5"/>
+              <rect x="79.5" y="0" width="8" height="34" rx="1.5"/>
+              <rect x="107.5" y="0" width="8" height="34" rx="1.5"/>
+              <rect x="121.5" y="0" width="8" height="34" rx="1.5"/>
+              <rect x="149.5" y="0" width="8" height="34" rx="1.5"/>
+              <rect x="163.5" y="0" width="8" height="34" rx="1.5"/>
+              <rect x="177.5" y="0" width="8" height="34" rx="1.5"/>
+            </g>
+            <g fill="#6a1fea">
+              <circle cx="34.5" cy="48" r="3"/>
+              <circle cx="62.5" cy="48" r="3"/>
+              <circle cx="104.5" cy="48" r="3"/>
+              <circle cx="146.5" cy="48" r="3"/>
+            </g>
+          </svg>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <span style="padding: 4px 9px; border-radius: 8px; background: #efe8fd; color: #4f11bb; font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;">A</span>
+            <span style="padding: 4px 9px; border-radius: 8px; background: #efe8fd; color: #4f11bb; font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;">C♯</span>
+            <span style="padding: 4px 9px; border-radius: 8px; background: #efe8fd; color: #4f11bb; font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;">G</span>
+            <span style="padding: 4px 9px; border-radius: 8px; background: #efe8fd; color: #4f11bb; font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;">B♭</span>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px; padding-left: 22px; border-left: 1px solid #dadce2;">
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #14181f;">Where can this go next</span>
+            <span style="font-size: 11.5px; color: #606876;">Four keys A7alt can pivot into, and the chord that gets you there.</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 3px; padding: 11px 13px; border: 1px solid #dadce2; border-radius: 12px; background: #fbfbfc;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #606876;">TO D MAJOR · V</span>
+              <span style="font-size: 14px; font-weight: 700;">A9sus</span>
+              <span style="font-size: 10.5px; color: #606876;">Dominant pivot</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 3px; padding: 11px 13px; border: 1px solid #dadce2; border-radius: 12px; background: #fbfbfc;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #606876;">TO F MAJOR · III</span>
+              <span style="font-size: 14px; font-weight: 700;">Am11</span>
+              <span style="font-size: 10.5px; color: #606876;">Common-tone slide</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 3px; padding: 11px 13px; border: 1px solid #dadce2; border-radius: 12px; background: #fbfbfc;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #606876;">TO E♭ MAJOR · ♭VI</span>
+              <span style="font-size: 14px; font-weight: 700;">Bmaj7</span>
+              <span style="font-size: 10.5px; color: #606876;">Chromatic mediant</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 3px; padding: 11px 13px; border: 1px solid #dadce2; border-radius: 12px; background: #fbfbfc;">
+              <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #606876;">TO E♭ MAJOR · V</span>
+              <span style="font-size: 14px; font-weight: 700;">B♭7alt</span>
+              <span style="font-size: 10.5px; color: #606876;">Tritone substitution</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

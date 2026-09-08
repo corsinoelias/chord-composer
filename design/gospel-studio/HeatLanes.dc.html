@@ -1,0 +1,289 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+    a { color: #6a1fea; text-decoration: none; }
+    a:hover { color: #4f11bb; }
+  </style>
+</helmet>
+
+<div style="box-sizing: border-box; width: 1200px; min-height: 1010px; background: #f6f7f9; color: #14181f; padding: 22px 44px 48px 44px;">
+
+  <div style="display: flex; align-items: center; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid #dadce2; margin-bottom: 36px;">
+    <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; background: #6a1fea; color: #ffffff; font-family: 'Space Mono', monospace; font-weight: 700; font-size: 13px;">A</span>
+    <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #606876;">Harmonic heat lanes</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px; max-width: 720px; margin-bottom: 28px;">
+    <p style="margin: 0; font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #6a1fea;">Gospel and neo-soul harmony</p>
+    <h2 style="margin: 0; font-family: 'Lora', Georgia, serif; font-size: 38px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.12;">The 22-chord gospel palette</h2>
+    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #606876; text-wrap: pretty;">Every chord a gospel or neo-soul progression needs, in any key, sorted by how far from home it takes you. Click one to hear the voicing, stack four into a progression, export MIDI or WAV.</p>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 22px;">
+    <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #606876;">Key</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 10px; border: 1px solid #dadce2; background: #ffffff; font-size: 13px; font-weight: 600;">C major
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#606876" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+    </span>
+    <span style="width: 1px; height: 22px; background: #dadce2; margin: 0 6px;"></span>
+    <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #606876;">Voicing</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 10px; border: 1px solid #dadce2; background: #ffffff; font-size: 13px; font-weight: 600;">Fat two-handed 9ths
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#606876" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+    </span>
+    <span style="width: 1px; height: 22px; background: #dadce2; margin: 0 6px;"></span>
+    <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #606876;">Sound</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 10px; border: 1px solid #dadce2; background: #ffffff; font-size: 13px; font-weight: 600;">Worship piano
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#606876" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+    </span>
+    <span style="display: inline-flex; align-items: center; gap: 7px; margin-left: auto; padding: 7px 12px; border-radius: 10px; border: 1px solid #cfd9f7; background: #eef2fd; font-size: 12px; font-weight: 600; color: #2c56ab;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3c71dd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="12" rx="2"/><path d="M6 7v6M10 7v6M14 7v6M18 7v6"/></svg>
+      MIDI keyboard connected
+    </span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+
+    <div style="display: grid; grid-template-columns: 224px minmax(0, 1fr); gap: 26px; align-items: start; background: #ffffff; border: 1px solid #dadce2; border-radius: 24px; padding: 20px 24px;">
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="width: 9px; height: 9px; border-radius: 999px; background: #2eb88a;"></span>
+          <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #1f8f6a;">Home</span>
+        </div>
+        <div style="font-family: 'Lora', Georgia, serif; font-size: 20px; font-weight: 700; letter-spacing: -0.01em;">Sounds resolved</div>
+        <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #606876;">The seven diatonic chords of the key, voiced with the 9ths and 11ths gospel players actually use.</p>
+        <div style="height: 4px; border-radius: 999px; background: linear-gradient(90deg, #2eb88a 0%, rgba(46,184,138,0.18) 100%); margin-top: 3px;"></div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #b9e4d3; border-radius: 14px; background: #f0faf6;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #1f8f6a;">I</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Cmaj9</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Home base</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #b9e4d3; border-radius: 14px; background: #f0faf6;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #1f8f6a;">ii</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Dm9</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Soft launch</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #b9e4d3; border-radius: 14px; background: #f0faf6;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #1f8f6a;">iii</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Em11</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Floating tonic</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #b9e4d3; border-radius: 14px; background: #f0faf6;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #1f8f6a;">IV</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Fmaj9♯11</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Lydian lift</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #b9e4d3; border-radius: 14px; background: #f0faf6;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #1f8f6a;">V</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">G9sus</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Suspended pull</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #b9e4d3; border-radius: 14px; background: #f0faf6;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #1f8f6a;">vi</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Am11</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Relative deep</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #b9e4d3; border-radius: 14px; background: #f0faf6;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #1f8f6a;">vii</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Bm7♭5</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Leading edge</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 224px minmax(0, 1fr); gap: 26px; align-items: start; background: #ffffff; border: 1px solid #dadce2; border-radius: 24px; padding: 20px 24px;">
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="width: 9px; height: 9px; border-radius: 999px; background: #e68619;"></span>
+          <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #b8660c;">Tension</span>
+        </div>
+        <div style="font-family: 'Lora', Georgia, serif; font-size: 20px; font-weight: 700; letter-spacing: -0.01em;">Demands to move</div>
+        <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #606876;">Secondary dominants with altered tensions on top. Each one leans hard into the chord a fifth below it.</p>
+        <div style="height: 4px; border-radius: 999px; background: linear-gradient(90deg, #e68619 0%, rgba(230,134,25,0.18) 100%); margin-top: 3px;"></div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #f2cfa0; border-radius: 14px; background: #fef6ec;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #b8660c;">VI7alt</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">A7alt</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Pulls into ii</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #f2cfa0; border-radius: 14px; background: #fef6ec;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #b8660c;">III7alt</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">E7alt</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">The 7-3-6 hinge</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #f2cfa0; border-radius: 14px; background: #fef6ec;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #b8660c;">V7alt</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">G7alt</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Hardest pull home</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #f2cfa0; border-radius: 14px; background: #fef6ec;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #b8660c;">II7alt</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">D7alt</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Pulls into V</span>
+        </div>
+        <div style="grid-column: span 3; display: flex; align-items: center; padding: 13px 16px; border: 1px dashed #dadce2; border-radius: 14px; background: #fbfbfc;">
+          <p style="margin: 0; font-size: 11.5px; line-height: 1.55; color: #606876; text-wrap: pretty;"><strong style="color: #14181f;">Where these go.</strong> Drop one immediately before the chord a fifth below it — A7alt into Dm9, E7alt into Am11. That single move is what separates a worship chart from a gospel one.</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 224px minmax(0, 1fr); gap: 26px; align-items: start; background: #ffffff; border: 1px solid #dadce2; border-radius: 24px; padding: 20px 24px;">
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="width: 9px; height: 9px; border-radius: 999px; background: #9346b9;"></span>
+          <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #7a35a0;">Colour</span>
+        </div>
+        <div style="font-family: 'Lora', Georgia, serif; font-size: 20px; font-weight: 700; letter-spacing: -0.01em;">Borrowed from elsewhere</div>
+        <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #606876;">Chords lifted out of the parallel minor. They belong to no scale degree here, which is exactly why they land.</p>
+        <div style="height: 4px; border-radius: 999px; background: linear-gradient(90deg, #9346b9 0%, rgba(147,70,185,0.18) 100%); margin-top: 3px;"></div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #ddc2ea; border-radius: 14px; background: #f9f3fc;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #7a35a0;">♭III</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">E♭maj7</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Chromatic mediant</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #ddc2ea; border-radius: 14px; background: #f9f3fc;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #7a35a0;">♭VI</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">A♭maj7</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Aeolian borrow</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #ddc2ea; border-radius: 14px; background: #f9f3fc;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #7a35a0;">♭VII</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">B♭maj7</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Mixolydian lift</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; padding: 13px 11px; border: 1px solid #ddc2ea; border-radius: 14px; background: #f9f3fc;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #7a35a0;">♭VIIm</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">B♭m7</span>
+          <span style="font-size: 10px; line-height: 1.35; color: #606876;">Subtonic shadow</span>
+        </div>
+        <div style="grid-column: span 3; display: flex; align-items: center; padding: 13px 16px; border: 1px dashed #dadce2; border-radius: 14px; background: #fbfbfc;">
+          <p style="margin: 0; font-size: 11.5px; line-height: 1.55; color: #606876; text-wrap: pretty;"><strong style="color: #14181f;">Where these go.</strong> Step down through ♭VII and ♭VI on the way back to the tonic, or slide into ♭III to make a bridge sound like it changed key without ever leaving.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) 318px; gap: 26px; background: #ffffff; border: 1px solid #dadce2; border-radius: 24px; padding: 22px 24px; margin-top: 26px;">
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #14181f;">Your progression</span>
+        <span style="font-family: 'Space Mono', monospace; font-size: 11px; color: #606876;">4 bars · C major · 74 BPM</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 14px 12px; border: 1px solid #b9e4d3; border-left: 4px solid #2eb88a; border-radius: 14px; background: #f0faf6;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: #606876;">01</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 19px; font-weight: 700;">Cmaj9</span>
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #1f8f6a;">I</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 14px 12px; border: 1px solid #f2cfa0; border-left: 4px solid #e68619; border-radius: 14px; background: #fef6ec;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: #606876;">02</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 19px; font-weight: 700;">A7alt</span>
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #b8660c;">VI7alt</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 14px 12px; border: 1px solid #b9e4d3; border-left: 4px solid #2eb88a; border-radius: 14px; background: #f0faf6;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: #606876;">03</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 19px; font-weight: 700;">Dm9</span>
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #1f8f6a;">ii</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 14px 12px; border: 1px solid #b9e4d3; border-left: 4px solid #2eb88a; border-radius: 14px; background: #f0faf6;">
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; color: #606876;">04</span>
+          <span style="font-family: 'Lora', Georgia, serif; font-size: 19px; font-weight: 700;">G9sus</span>
+          <span style="font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; color: #1f8f6a;">V</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 14px 12px; border: 1px dashed #c4c8d2; border-radius: 14px; background: #fbfbfc; color: #606876;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#606876" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span style="font-size: 10px; font-weight: 600;">Add chord</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 4px;">
+        <span style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 12px; background: #6a1fea; color: #ffffff; font-size: 13px; font-weight: 700;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#ffffff"><path d="M8 5v14l11-7z"/></svg>
+          Play
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; border: 1px solid #dadce2; background: #ffffff; font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#606876" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14"/></svg>
+          74 BPM
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#606876" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px; border-radius: 12px; border: 1px solid #dadce2; background: #ffffff; font-size: 12px; font-weight: 600;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#14181f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          MIDI
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px; border-radius: 12px; border: 1px solid #dadce2; background: #ffffff; font-size: 12px; font-weight: 600;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#14181f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          WAV
+        </span>
+        <a href="#" style="margin-left: auto; font-size: 12px; font-weight: 600;">Open in the chord player →</a>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding-left: 26px; border-left: 1px solid #dadce2;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
+        <span style="font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #14181f;">Voicing</span>
+        <span style="font-family: 'Space Mono', monospace; font-size: 11px; color: #606876;">Cmaj9</span>
+      </div>
+      <svg width="266" height="76" viewBox="0 0 196 56" style="display: block;">
+        <g>
+          <rect x="0" y="0" width="13" height="56" rx="2" fill="#e9dcfb" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="14" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="28" y="0" width="13" height="56" rx="2" fill="#e9dcfb" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="42" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="56" y="0" width="13" height="56" rx="2" fill="#e9dcfb" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="70" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="84" y="0" width="13" height="56" rx="2" fill="#e9dcfb" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="98" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="112" y="0" width="13" height="56" rx="2" fill="#e9dcfb" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="126" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="140" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="154" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="168" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+          <rect x="182" y="0" width="13" height="56" rx="2" fill="#ffffff" stroke="#c4c8d2" stroke-width="0.6"/>
+        </g>
+        <g fill="#14181f">
+          <rect x="9.5" y="0" width="8" height="34" rx="1.5"/>
+          <rect x="23.5" y="0" width="8" height="34" rx="1.5"/>
+          <rect x="51.5" y="0" width="8" height="34" rx="1.5"/>
+          <rect x="65.5" y="0" width="8" height="34" rx="1.5"/>
+          <rect x="79.5" y="0" width="8" height="34" rx="1.5"/>
+          <rect x="107.5" y="0" width="8" height="34" rx="1.5"/>
+          <rect x="121.5" y="0" width="8" height="34" rx="1.5"/>
+          <rect x="149.5" y="0" width="8" height="34" rx="1.5"/>
+          <rect x="163.5" y="0" width="8" height="34" rx="1.5"/>
+          <rect x="177.5" y="0" width="8" height="34" rx="1.5"/>
+        </g>
+        <g fill="#6a1fea">
+          <circle cx="6.5" cy="48" r="3"/>
+          <circle cx="34.5" cy="48" r="3"/>
+          <circle cx="62.5" cy="48" r="3"/>
+          <circle cx="90.5" cy="48" r="3"/>
+          <circle cx="118.5" cy="48" r="3"/>
+        </g>
+      </svg>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <span style="padding: 4px 9px; border-radius: 8px; background: #efe8fd; color: #4f11bb; font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;">C</span>
+        <span style="padding: 4px 9px; border-radius: 8px; background: #efe8fd; color: #4f11bb; font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;">E</span>
+        <span style="padding: 4px 9px; border-radius: 8px; background: #efe8fd; color: #4f11bb; font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;">G</span>
+        <span style="padding: 4px 9px; border-radius: 8px; background: #efe8fd; color: #4f11bb; font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;">B</span>
+        <span style="padding: 4px 9px; border-radius: 8px; background: #efe8fd; color: #4f11bb; font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;">D</span>
+      </div>
+      <p style="margin: 4px 0 0 0; font-size: 11.5px; line-height: 1.55; color: #606876;">Left hand takes the root and fifth, right hand the 3rd, 7th and 9th. The 9th on top is what makes it read as gospel rather than jazz.</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
