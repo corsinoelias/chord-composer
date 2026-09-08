@@ -2,6 +2,7 @@
 export const prerender = true;
 import BaseLayout from '../layouts/BaseLayout.astro';
 import JsonLd from '../components/schema/JsonLd.astro';
+import { withBrand } from '../lib/seoTitle';
 import ToolIcon from '../components/ToolIcon.astro';
 import type { ToolIconName } from '../components/toolIcons';
 import { FEATURED_PROGRESSIONS } from '../data/featuredProgressions';
@@ -154,8 +155,8 @@ const songListSchema = {
 ---
 
 <BaseLayout
-  title="Chord Progressions — Free Generator, Player & MIDI | Chord Sequence"
-  description="Find, audition and download popular chord progressions instantly. Free chord progression generator with real-time playback, MIDI/WAV export, piano voicings and guitar shapes."
+  title={withBrand('Chord Progressions You Can Hear in Any Key')}
+  description="Hear popular chord progressions played in any key — pop, jazz, neo-soul, gospel and worship. Transpose instantly, see the voicings, export MIDI and WAV. Free."
   canonicalUrl={CANONICAL}
   ogImage="https://chordsequence.com/og/page/home/"
   ogImageAlt="Chord Sequence — free chord progression generator and player"
