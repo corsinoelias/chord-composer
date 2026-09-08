@@ -38,6 +38,10 @@ export interface Genre {
   editorialIntro?: string[];
   editorialQA?: QAItem[];
   progressions: Progression[];
+  // Mounts an extra interactive island above the progression list. Only /gospel/ uses one
+  // today: the 22-chord palette is the whole reason that page exists, and every other
+  // genre is served fine by the ChordEmbed per progression.
+  interactive?: 'gospel-palette';
   learnLink?: { href: string; label: string };
   relatedArticles?: RelatedArticle[];
   learnSectionTitle?: string;
@@ -285,6 +289,62 @@ export const GENRES: Genre[] = [
       { title: 'Anthem Build', chords: 'C G Am F', bpm: 68, style: 'pop_1', description: 'Wide, spacious anthem feel. Works at any tempo — you\'ll recognize it from <a href="/songs/goodness-of-god-bethel-music/" class="underline underline-offset-2 hover:text-foreground transition-colors">Goodness of God</a> by Bethel Music.' },
       { title: 'Slow Worship', chords: 'G Em C D', bpm: 60, style: 'pop_1', description: 'Intimate and reverent. Perfect for ballad verses — the same shape used in <a href="/songs/build-my-life-pat-barrett/" class="underline underline-offset-2 hover:text-foreground transition-colors">Build My Life</a> by Pat Barrett.' },
       { title: 'Triumphant', chords: 'D A Bm G', bpm: 78, style: 'pop_1', description: 'Brighter D major with uplifting resolution — the verse and chorus progression from <a href="/songs/what-a-beautiful-name-hillsong-worship/" class="underline underline-offset-2 hover:text-foreground transition-colors">What A Beautiful Name</a> by Hillsong Worship.' },
+    ],
+  },
+  {
+    // The site's biggest content gap. /songs/ is carried almost entirely by gospel and
+    // worship chord charts -- Center, Washed, Great Are You Lord, No One Like The Lord,
+    // I Want Jesus, Friend of God -- and there was nowhere to send that traffic once
+    // someone wanted the harmony behind those songs rather than one song's chart.
+    slug: 'gospel',
+    name: 'Gospel',
+    pageTitle: 'Gospel Chord Progressions',
+    // Not "... Chord Progression Generator": unlike /neo-soul/ and /jazz/, no "gospel
+    // chord progression generator" query shows up in Search Console at all. What the
+    // audience arriving from the song pages searches is the harmony itself.
+    seoTitle: 'Gospel Chord Progressions — Play All 22 Chords Free',
+    quickAnswer: 'The progression that defines gospel is the 7–3–6 turnaround: VIIm7♭5 → III7 → VIm7, which in C major is Bm7♭5 → E7♯9 → Am11. Play it below, in any of the twelve keys.',
+    description: 'The chords behind gospel and contemporary worship harmony — extended 9ths and 11ths, secondary dominants, and chords borrowed from the parallel minor.',
+    metaDescription: 'Gospel chord progressions and the full 22-chord gospel palette, playable in all 12 keys with real piano audio. Free MIDI and WAV export, no signup.',
+    interactive: 'gospel-palette',
+    editorialQA: [
+      {
+        question: 'What makes a progression sound gospel rather than worship?',
+        answer: 'Three things, and they stack. <strong>Extensions</strong> — the 9ths and 11ths that turn Cmaj7 into Cmaj9 and Am7 into Am11. <strong>Secondary dominants</strong> — an altered chord dropped in just before the chord a fifth below it, like E7♯9 leaning into Am11. And <strong>borrowed chords</strong> from the parallel minor, which is what makes a bridge sound like it changed key without ever leaving.',
+      },
+      {
+        question: 'What is the 7–3–6?',
+        answer: 'It\'s the turnaround gospel players reach for constantly: the <em>VII</em> half-diminished chord, then an altered <em>III</em>, resolving into <em>VI</em> minor. In C that\'s Bm7♭5 → E7♯9 → Am11. It works because the III chord is not in the key — it borrows the note that pulls hardest into the VI chord.',
+      },
+      {
+        question: 'Why is the V chord suspended so often?',
+        answer: 'Because a plain dominant V7 announces an ending, and gospel harmony rarely wants one. <strong>G9sus</strong> pulls home just as strongly but keeps the phrase open, which is why it sits under so many worship choruses that loop rather than resolve.',
+      },
+      {
+        question: 'Do I need to read these as Roman numerals?',
+        answer: 'It helps, because it\'s how the harmony transfers between keys — a 7–3–6 is the same move in every key even though the chord names change completely. The palette above shows both at once: change the key and the numerals stay put while the chord names transpose, spelled the way a chart would write them.',
+      },
+    ],
+    learnLink: { href: '/learn/secondary-dominants/', label: 'Secondary dominants are the core of gospel harmony — start here →' },
+    learnSectionTitle: 'Learn gospel harmony',
+    relatedArticles: [
+      { href: '/learn/secondary-dominants/', label: 'Secondary dominants', description: 'The altered chords behind the 7–3–6 and every gospel turnaround' },
+      { href: '/learn/jazz-chord-progressions/', label: 'Jazz chord progressions', description: 'Gospel and jazz share the same extended harmony — 9ths, 11ths, and the II–V–I' },
+      { href: '/learn/chord-inversions/', label: 'Chord inversions', description: 'How gospel pianists split a voicing between two hands' },
+    ],
+    progressions: [
+      { title: '7–3–6 Turnaround', chords: 'Bm7b5 E7#9 Am11', bpm: 72, style: 'soul_rnb', description: 'The single most recognisable move in the genre. <strong>E7♯9</strong> is not in the key of C — that is exactly why it pulls so hard into Am11.' },
+      { title: 'Gospel Hotline', chords: 'Cmaj9 Fmaj7#11 Bm7b5 E7#9 Am11 Dm9 G9sus4 Cmaj9', bpm: 74, style: 'soul_rnb', description: 'Eight bars that walk the whole palette: tonic, Lydian IV, the 7–3–6, then a 2–5 back home. The <em>♯11</em> on the F is what stops it sounding like a hymn.' },
+      { title: 'Epic Modal Stepdown', chords: 'Ebmaj7 Dbmaj7 Bmaj7 Bb7sus4 Ebmaj7', bpm: 72, style: 'soul_rnb', description: 'Steps down through <strong>♭VII and ♭VI</strong>, both borrowed from E♭ minor, into a suspended dominant. Cinematic without a single key change.' },
+      { title: 'Chromatic Mediant Lift', chords: 'Ebmaj7 Gbmaj7 Abmaj7 Bb7sus4', bpm: 78, style: 'soul_rnb', description: 'The <em>♭III</em> lifts the harmony somewhere unexpected, then slides back into the IV as if nothing happened.' },
+      { title: 'Altered Dominant Chain', chords: 'Ebmaj7 C7#9 Fm7 Bb7#9 Ebmaj7', bpm: 86, style: 'soul_rnb', description: 'Two secondary dominants in a row — <strong>C7♯9</strong> falls into Fm7, which falls through B♭7♯9 straight home.' },
+      { title: 'Sunday Morning Pad', chords: 'Cmaj9 G9sus4 Am11 Fmaj7#11', bpm: 66, style: 'soul_rnb', description: 'The same four degrees as a standard worship loop, voiced with extensions. Nothing here resolves, which is the point.' },
+    ],
+    faq: [
+      { question: 'What key are these progressions in?', answer: '<strong>C major and E♭ major</strong>. E♭ is the traditional gospel key because it sits well for horns and for most choir ranges. The palette above transposes all twenty-two chords to any of the twelve keys.' },
+      { question: 'What does "7♯9" mean?', answer: 'A dominant 7th chord with a raised 9th on top — the tense, gritty chord gospel and funk players use as a secondary dominant. It belongs to the family often written as <em>7alt</em>; the ♯9 is the note doing most of the work.' },
+      { question: 'Can I play these on guitar?', answer: 'Yes, though gospel voicings are written for two hands at a piano. On guitar you usually drop the fifth from an extended chord to fit it under four fingers — most chord charts already do this for you.' },
+      { question: 'Which progression should I try first?', answer: 'The <strong>7–3–6 Turnaround</strong>. It is only three chords, and once your ear knows it you will hear it in almost every gospel and contemporary worship recording.' },
     ],
   },
   {

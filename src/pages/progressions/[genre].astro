@@ -5,6 +5,7 @@ import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
 import { withBrand } from '../../lib/seoTitle';
 import { GENRES, getGenre } from '../../data/progressions';
 import AppCta from '../../components/AppCta.astro';
+import GospelChordPalette from '../../components/GospelChordPalette';
 
 export function getStaticPaths() {
   return GENRES.map((g) => ({
@@ -130,6 +131,19 @@ const articleSchema = {
         </a>
       )}
     </header>
+
+    {genre.interactive === 'gospel-palette' && (
+      /*
+        Breaks out of the article's max-w-3xl so the ledger can run two columns, without
+        the usual `w-screen` full-bleed trick: that one is a hair wider than the viewport
+        whenever a scrollbar is present and produces horizontal scroll. Capping the width
+        at 100vw-4rem and centring with a translate can't overflow, and below lg it simply
+        stays inside the column and the ledger stacks.
+      */
+      <div class="mb-14 lg:relative lg:left-1/2 lg:w-[min(72rem,calc(100vw-4rem))] lg:-translate-x-1/2">
+        <GospelChordPalette client:visible />
+      </div>
+    )}
 
     <h2 class="text-2xl font-bold text-foreground mb-6 tracking-tight">
       {genre.progressions.length} {genre.name} Chord Progressions
