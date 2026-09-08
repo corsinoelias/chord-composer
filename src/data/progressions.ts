@@ -221,7 +221,7 @@ export const GENRES: Genre[] = [
       },
       {
         question: 'What\'s the borrowed minor chord in Gospel Turn?',
-        answer: 'Fmin7 is borrowed from the minor version of the key, just for one chord, before returning home to Cmaj7. It\'s a classic soul and gospel sound.',
+        answer: 'Fmin7 is borrowed from the minor version of the key, just for one chord, before returning home to Cmaj7. It\'s a classic soul sound, and the same borrowing runs right through <a href="/progressions/gospel/" class="underline underline-offset-2 hover:text-foreground transition-colors">gospel chord progressions</a>.',
       },
     ],
     learnLink: { href: '/learn/jazz-chord-progressions/', label: 'Neo soul borrows heavily from jazz — start here →' },
@@ -268,6 +268,10 @@ export const GENRES: Genre[] = [
       {
         question: 'Why does the VI chord (like Em in G) show up so often?',
         answer: 'It\'s a moment of <em>emotional shadow</em>. Em is the VI chord in G major — a minor chord built from the same key, but with a more vulnerable color. Placed between two major chords, it creates a brief dip before the progression lifts back up, mirroring the arc worship songs are built to create.',
+      },
+      {
+        question: 'How do I make these sound less plain without changing the chords?',
+        answer: 'Add notes to the chords you already have. G becomes Gmaj9, Em becomes Em11, and the D that resolves becomes D9sus — same four degrees, a completely different colour. That is the line between contemporary worship and gospel, and it is one voicing decision rather than a new progression. All twenty-two of the chords that move worship harmony in that direction are on the <a href="/progressions/gospel/" class="underline underline-offset-2 hover:text-foreground transition-colors">gospel chord progressions</a> page, playable in any key.',
       },
       {
         question: 'How do I make four chords feel different in a verse vs. a chorus?',

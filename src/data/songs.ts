@@ -124,7 +124,7 @@ export const SONGS: Song[] = [
     description:
       'Holy Forever by Chris Tomlin — chord chart with lyrics. Key of C (capo 1st fret sounds in Db). Play every section with interactive audio.',
     tags: ['worship', 'chris tomlin', 'contemporary christian', 'capo 1'],
-    relatedProgressions: ['worship', 'pop'],
+    relatedProgressions: ['worship', 'gospel', 'pop'],
     sections: [
       {
         name: 'Intro',
@@ -372,7 +372,7 @@ export const SONGS: Song[] = [
     description:
       'Oceans (Where Feet May Fail) by Hillsong United — chord chart with lyrics. Key of D. Play the iconic worship anthem section by section with interactive audio.',
     tags: ['worship', 'hillsong united', 'contemporary christian', 'oceans'],
-    relatedProgressions: ['worship', 'pop'],
+    relatedProgressions: ['worship', 'gospel', 'pop'],
     sections: [
       {
         name: 'Verse 1',
@@ -432,7 +432,7 @@ export const SONGS: Song[] = [
     description:
       'Way Maker by Leeland — chord chart with lyrics. Key of A (I–V–vi–IV). Play every section with interactive audio. Originally written by Sinach.',
     tags: ['worship', 'leeland', 'sinach', 'contemporary christian', 'way maker'],
-    relatedProgressions: ['worship', 'pop'],
+    relatedProgressions: ['worship', 'gospel', 'pop'],
     sections: [
       {
         name: 'Verse 1',
@@ -490,7 +490,7 @@ export const SONGS: Song[] = [
     description:
       'Goodness of God by Bethel Music — chord chart with lyrics. Key of C. Play this beloved worship anthem with interactive audio and full chord-over-lyrics.',
     tags: ['worship', 'bethel music', 'jenn johnson', 'contemporary christian', 'goodness of god'],
-    relatedProgressions: ['worship', 'pop'],
+    relatedProgressions: ['worship', 'gospel', 'pop'],
     sections: [
       {
         name: 'Verse 1',
@@ -552,7 +552,7 @@ export const SONGS: Song[] = [
     description:
       'Reckless Love by Cory Asbury — chord chart with lyrics. Key of C. Play the full worship song with interactive chord audio and complete lyrics.',
     tags: ['worship', 'cory asbury', 'contemporary christian', 'reckless love'],
-    relatedProgressions: ['worship', 'pop'],
+    relatedProgressions: ['worship', 'gospel', 'pop'],
     sections: [
       {
         name: 'Verse 1',
@@ -611,7 +611,7 @@ export const SONGS: Song[] = [
     description:
       '10,000 Reasons (Bless the Lord) by Matt Redman — chord chart with lyrics. Key of G. Grammy-winning worship anthem with full interactive chord audio.',
     tags: ['worship', 'matt redman', 'contemporary christian', '10000 reasons', 'bless the lord'],
-    relatedProgressions: ['worship', 'pop'],
+    relatedProgressions: ['worship', 'gospel', 'pop'],
     sections: [
       {
         name: 'Chorus',
@@ -670,7 +670,7 @@ export const SONGS: Song[] = [
     description:
       'What A Beautiful Name by Hillsong Worship — chord chart with lyrics. Key of D (capo 1st fret sounds in Eb). Play the Grammy-winning anthem with interactive audio.',
     tags: ['worship', 'hillsong worship', 'contemporary christian', 'what a beautiful name'],
-    relatedProgressions: ['worship', 'pop'],
+    relatedProgressions: ['worship', 'gospel', 'pop'],
     sections: [
       {
         name: 'Verse 1',
@@ -737,7 +737,7 @@ export const SONGS: Song[] = [
     description:
       'Build My Life by Pat Barrett — chord chart with lyrics. Key of G. Play this modern worship anthem with interactive audio and full chord-over-lyrics.',
     tags: ['worship', 'pat barrett', 'housefires', 'contemporary christian', 'build my life'],
-    relatedProgressions: ['worship', 'pop'],
+    relatedProgressions: ['worship', 'gospel', 'pop'],
     sections: [
       {
         name: 'Verse 1',
@@ -796,7 +796,7 @@ export const SONGS: Song[] = [
     description:
       'Great Are You Lord by All Sons & Daughters — chord chart with lyrics. Key of G. Play this anthemic worship song with interactive audio and full lyrics.',
     tags: ['worship', 'all sons and daughters', 'contemporary christian', 'great are you lord'],
-    relatedProgressions: ['worship', 'pop'],
+    relatedProgressions: ['worship', 'gospel', 'pop'],
     sections: [
       {
         name: 'Verse',
