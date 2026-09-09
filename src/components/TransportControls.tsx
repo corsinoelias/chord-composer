@@ -12,9 +12,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { StyleSelector } from './StyleSelector';
+import { KeyControl } from './KeyControl';
 import { useIsMobile, useIsDesktop } from '@/hooks/use-mobile';
 
 import { type StylePattern } from '@/lib/styles';
+import { type DetectedKey, type KeyMode } from '@/lib/keyDetect';
 
 /** Metronome glyph — lucide has no metronome/pendulum icon, so this draws one:
  *  a trapezoidal body with a swung pendulum rod. Stroke style matches lucide
@@ -52,6 +54,10 @@ interface TransportControlsProps {
   selectedStyleId: string;
   songTitle: string;
   transposition: number;
+  /** Key reading in force (user pick, else detected), before transposition. */
+  keyBase: DetectedKey | null;
+  onKeyModeChange: (mode: KeyMode) => void;
+  onKeyPick: (semitones: number) => void;
   customStyles?: StylePattern[];
   onPlay: () => void;
   onStop: () => void;
@@ -80,6 +86,9 @@ export const TransportControls = memo(function TransportControls({
   selectedStyleId,
   songTitle,
   transposition,
+  keyBase,
+  onKeyModeChange,
+  onKeyPick,
   customStyles = [],
   onPlay,
   onStop,
@@ -157,11 +166,13 @@ export const TransportControls = memo(function TransportControls({
             <div className="flex flex-wrap items-stretch gap-2">
               <div className="flex-1 flex items-center justify-between gap-1 rounded-lg bg-secondary/50 border border-border/50 px-3 py-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Key</Label>
-                <div className="flex items-center gap-1">
-                  <Button variant="outline" size="sm" onClick={() => onTranspositionChange(transposition - 1)} disabled={transposition <= -12} className="h-7 w-7 p-0 shrink-0" aria-label="Transpose down one semitone">-</Button>
-                  <span className={`w-7 text-center font-mono text-sm font-medium ${transposition !== 0 ? 'text-primary' : ''}`}>{transposition > 0 ? `+${transposition}` : transposition}</span>
-                  <Button variant="outline" size="sm" onClick={() => onTranspositionChange(transposition + 1)} disabled={transposition >= 12} className="h-7 w-7 p-0 shrink-0" aria-label="Transpose up one semitone">+</Button>
-                </div>
+                <KeyControl
+                  base={keyBase}
+                  onModeChange={onKeyModeChange}
+                  transposition={transposition}
+                  onTranspositionChange={onTranspositionChange}
+                  onKeyPick={onKeyPick}
+                />
               </div>
 
               {/* min-w-0: sin esto el label es un flex item con min-width:auto, que se resuelve
@@ -315,22 +326,15 @@ export const TransportControls = memo(function TransportControls({
                 {/* Key */}
                 <div className="flex flex-col justify-center">
                   <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Key</span>
-                  <div className="flex items-center gap-1 -mt-0.5">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="outline" size="sm" onClick={() => onTranspositionChange(transposition - 1)} disabled={transposition <= -12} className="h-6 w-6 p-0" aria-label="Transpose down one semitone">-</Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Transpose down</TooltipContent>
-                    </Tooltip>
-                    <span className={`w-8 text-center font-mono text-sm font-medium ${transposition !== 0 ? 'text-primary' : ''}`}>
-                      {transposition > 0 ? `+${transposition}` : transposition}
-                    </span>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="outline" size="sm" onClick={() => onTranspositionChange(transposition + 1)} disabled={transposition >= 12} className="h-6 w-6 p-0" aria-label="Transpose up one semitone">+</Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Transpose up</TooltipContent>
-                    </Tooltip>
+                  <div className="-mt-0.5">
+                    <KeyControl
+                      base={keyBase}
+                      onModeChange={onKeyModeChange}
+                      transposition={transposition}
+                      onTranspositionChange={onTranspositionChange}
+                      onKeyPick={onKeyPick}
+                      compact
+                    />
                   </div>
                 </div>
 
@@ -663,44 +667,18 @@ export const TransportControls = memo(function TransportControls({
             {/* Transpose Control — its own -/+ buttons already carry borders, so no chip
                 wrapper here (would be border-in-border); just a clear label on mobile. */}
             <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* "Transpose" on wide screens no longer fits what this shows: the middle
+                  names the key you land in, so the label is "Key" at every width. */}
               <Label className="text-xs text-muted-foreground uppercase tracking-wide whitespace-nowrap">
-                <span className="sm:hidden">Key</span><span className="hidden sm:inline">Transpose</span>
+                Key
               </Label>
-              <div className="flex items-center gap-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onTranspositionChange(transposition - 1)}
-                      disabled={transposition <= -12}
-                      className="h-7 sm:h-8 w-7 sm:w-8 p-0"
-                      aria-label="Transpose down one semitone"
-                    >
-                      -
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Transpose down</TooltipContent>
-                </Tooltip>
-                <span className={`w-8 sm:w-10 text-center font-mono text-xs sm:text-sm font-medium ${transposition !== 0 ? 'text-primary' : ''}`}>
-                  {transposition > 0 ? `+${transposition}` : transposition}
-                </span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onTranspositionChange(transposition + 1)}
-                      disabled={transposition >= 12}
-                      className="h-7 sm:h-8 w-7 sm:w-8 p-0"
-                      aria-label="Transpose up one semitone"
-                    >
-                      +
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Transpose up</TooltipContent>
-                </Tooltip>
-              </div>
+              <KeyControl
+                base={keyBase}
+                onModeChange={onKeyModeChange}
+                transposition={transposition}
+                onTranspositionChange={onTranspositionChange}
+                onKeyPick={onKeyPick}
+              />
             </div>
           </div>
         </div>

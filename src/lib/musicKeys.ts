@@ -15,6 +15,14 @@ function noteAt(rootIdx: number, interval: number, useFlats: boolean): string {
   return useFlats && FLAT_ENHARMONICS[note] ? FLAT_ENHARMONICS[note] : note;
 }
 
+/**
+ * Whether a key writes its black keys as flats — the IV of F is Bb, not A#.
+ * Takes the same key spellings as getDiatonicChords ("F", "Bb", "Cm").
+ */
+export function keyPrefersFlats(key: string): boolean {
+  return PREFER_FLATS_KEYS.has(key.trim());
+}
+
 export function getDiatonicChords(key: string): string[] {
   const isMinor = key.endsWith('m') && key.length > 1;
   const root = isMinor ? key.slice(0, -1) : key;

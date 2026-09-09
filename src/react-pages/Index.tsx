@@ -19,6 +19,8 @@ import {
 } from '@dnd-kit/sortable';
 import { type Chord, generateChordId, chordToMidiNotes } from '@/lib/musicTheory';
 import { type Section, createSection, getSectionDisplayName } from '@/lib/sections';
+import { detectKey, keyLabel, relativeTonic, type DetectedKey, type KeyMode } from '@/lib/keyDetect';
+import { keyPrefersFlats } from '@/lib/musicKeys';
 import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { getStyleByIdWithOverrides, resolveActiveStyle, MUSICAL_STYLES, type StylePattern } from '@/lib/styles';
 import { getCustomStyles, getStyleOverride, saveStyleOverride, saveCustomStyle, isCustomStyle, initCustomStylesCache } from '@/lib/customStyles';
@@ -227,6 +229,11 @@ const Index = ({ songId }: IndexProps) => {
     return 'My Song';
   });
   const [transposition, setTransposition] = useState(restoredDraft?.transposition ?? 0);
+  // null = follow whatever detectKey() heard. Set the moment the user picks anything in
+  // the key panel, and from then on their reading wins: detection runs on every edit, so
+  // without this, adding one chord could re-read the song in another key and respell the
+  // whole sheet under them. It is a way of reading the same chords, so it is not persisted.
+  const [keyOverride, setKeyOverride] = useState<DetectedKey | null>(null);
   const [metronomeEnabled, setMetronomeEnabled] = useState(restoredDraft?.metronomeEnabled ?? true);
   const [loopingSectionIndex, setLoopingSectionIndex] = useState<number | null>(null);
   
@@ -279,6 +286,33 @@ const Index = ({ songId }: IndexProps) => {
   // Keep melodicRef in sync so startPlayback always gets the current melodic data
   const melodicRef = useRef(currentStyle.melodic);
   melodicRef.current = currentStyle.melodic;
+
+  // The key the chords are written in, plus the key they actually sound in once
+  // transposed — the transport labels itself with the second one, and both chord modals
+  // use it to offer the seven chords of that key.
+  const detectedKey = useMemo(() => detectKey(sections), [sections]);
+  // The reading in force: the user's pick if they made one, otherwise what was heard.
+  // Its pitchClass is the tonic of the chords as stored, before transposition.
+  const keyBase = keyOverride ?? detectedKey;
+  const soundingKey = keyBase ? keyLabel(keyBase.pitchClass + transposition, keyBase.mode) : undefined;
+
+  const handleKeyModeChange = useCallback((mode: KeyMode) => {
+    setKeyOverride((prev) => {
+      const current = prev ?? detectKey(sectionsRef.current);
+      if (!current) return prev;
+      return { pitchClass: relativeTonic(current.pitchClass, current.mode, mode), mode };
+    });
+  }, []);
+
+  // Choosing a tonic in the panel is a transposition, and it also pins the reading.
+  const handleKeyPick = useCallback((semitones: number) => {
+    setKeyOverride((prev) => prev ?? detectKey(sectionsRef.current));
+    setTransposition(semitones);
+    analytics.transposed(semitones);
+  }, []);
+
+  // Chord names follow the key's signature: in F the IV reads B♭, not A♯.
+  const preferFlats = soundingKey ? keyPrefersFlats(soundingKey) : false;
 
   const bassReferenceChord = useMemo(() => {
     const allChords = sections.flatMap(s => s.chords);
@@ -359,6 +393,8 @@ const Index = ({ songId }: IndexProps) => {
           setBpm(song.bpm);
           setSelectedStyleId(song.styleId);
           setTransposition(song.transposition);
+          // A different song gets its own key read from scratch.
+          setKeyOverride(null);
           setMetronomeEnabled(song.metronomeEnabled);
           setSongTitle(song.title);
           if (song.instrumentSettings.length > 0) {
@@ -1094,13 +1130,13 @@ const Index = ({ songId }: IndexProps) => {
   const [visualizerView, setVisualizerView] = useState<ChordView>('piano');
 
   const activeNotes = useMemo(
-    () => (visualChord ? getChordNotes(visualChord, transposition) : []),
-    [visualChord, transposition],
+    () => (visualChord ? getChordNotes(visualChord, transposition, preferFlats) : []),
+    [visualChord, transposition, preferFlats],
   );
 
   const currentChordDisplayName = useMemo(
-    () => (visualChord ? getTransposedChordName(visualChord, transposition) : ''),
-    [visualChord, transposition],
+    () => (visualChord ? getTransposedChordName(visualChord, transposition, preferFlats) : ''),
+    [visualChord, transposition, preferFlats],
   );
 
   const guitarVoicing = useMemo(
@@ -1382,6 +1418,9 @@ const Index = ({ songId }: IndexProps) => {
           selectedStyleId={selectedStyleId}
           songTitle={songTitle}
           transposition={transposition}
+          keyBase={keyBase}
+          onKeyModeChange={handleKeyModeChange}
+          onKeyPick={handleKeyPick}
           customStyles={customStyles}
           onPlay={handlePlayWithCountdown}
           onStop={stopPlaybackCompletely}
@@ -1506,6 +1545,7 @@ const Index = ({ songId }: IndexProps) => {
                   section={section}
                   sectionIndex={sectionIndex}
                   transposition={transposition}
+                  preferFlats={preferFlats}
                   currentChordIndex={currentChordIndex}
                   globalChordOffset={getGlobalOffset(sectionIndex)}
                   totalSections={sections.length}
@@ -1541,6 +1581,7 @@ const Index = ({ songId }: IndexProps) => {
                   chord={activeChord.chord}
                   isPlaying={false}
                   transposition={transposition}
+                  preferFlats={preferFlats}
                   onDelete={() => {}}
                   onDuplicate={() => {}}
                   isDragging
@@ -1602,7 +1643,9 @@ const Index = ({ songId }: IndexProps) => {
         onDelete={editingChord ? () => handleChordDelete(editingChord.sectionIndex, editingChord.chordIndex) : undefined}
         onDuplicate={editingChord ? () => handleChordDuplicate(editingChord.sectionIndex, editingChord.chordIndex) : undefined}
         onPreview={handleChordPreview}
+        songKey={soundingKey}
         transposition={transposition}
+        preferFlats={preferFlats}
       />
 
       <AddChordModal
@@ -1610,6 +1653,9 @@ const Index = ({ songId }: IndexProps) => {
         sectionName={addChordSection?.name || ''}
         onClose={() => setAddChordSection(null)}
         onAdd={handleAddChord}
+        songKey={soundingKey}
+        transposition={transposition}
+        preferFlats={preferFlats}
       />
 
       <InstrumentsPanel

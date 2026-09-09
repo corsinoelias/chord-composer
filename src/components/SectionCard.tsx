@@ -54,6 +54,7 @@ interface SectionCardProps {
   onMoveDown: (sectionIndex: number) => void;
   onSetProgression: (sectionIndex: number, chords: Chord[]) => void;
   transposition?: number;
+  preferFlats?: boolean;
 }
 
 // Section color palette
@@ -103,6 +104,7 @@ export const SectionCard = memo(function SectionCard({
   onMoveDown,
   onSetProgression,
   transposition = 0,
+  preferFlats = false,
 }: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
@@ -420,6 +422,7 @@ export const SectionCard = memo(function SectionCard({
                       onDelete={() => onChordDelete(sectionIndex, index)}
                       onDuplicate={() => onChordDuplicate(sectionIndex, index)}
                       transposition={transposition}
+                      preferFlats={preferFlats}
                       isOutOfScale={false}
                     />
                   )

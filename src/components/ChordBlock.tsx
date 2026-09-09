@@ -4,8 +4,8 @@ import { getTransposedChordName } from '@/lib/chordNotes';
 import { X, Copy } from 'lucide-react';
 
 /** Split a transposed chord name into [chordPart, bassNotePart | null] */
-function splitChordName(chord: Chord, transposition: number): [string, string | null] {
-  const full = getTransposedChordName(chord, transposition)
+function splitChordName(chord: Chord, transposition: number, preferFlats: boolean): [string, string | null] {
+  const full = getTransposedChordName(chord, transposition, preferFlats)
   const slash = full.indexOf('/')
   if (slash === -1) return [full, null]
   return [full.slice(0, slash), full.slice(slash)]  // bass part keeps the '/'
@@ -20,6 +20,8 @@ interface ChordBlockProps {
   isDragging?: boolean;
   fixedWidth?: boolean;
   transposition?: number;
+  /** Spell black keys as flats — set by the key the song is in. */
+  preferFlats?: boolean;
   isOutOfScale?: boolean;
 }
 
@@ -45,12 +47,15 @@ export const ChordBlock = memo(function ChordBlock({
   isDragging,
   fixedWidth = false,
   transposition = 0,
+  preferFlats = false,
   isOutOfScale = false,
 }: ChordBlockProps) {
   const colorVar = useMemo(() => getChordColorVar(chord.quality), [chord.quality]);
+  // A chord written as a flat keeps reading as one even in a sharp key: someone who
+  // typed Ab should not be shown G#.
   const [chordPart, bassPart] = useMemo(
-    () => splitChordName(chord, transposition),
-    [chord, transposition],
+    () => splitChordName(chord, transposition, preferFlats || chord.accidental === 'b'),
+    [chord, transposition, preferFlats],
   );
 
   return (

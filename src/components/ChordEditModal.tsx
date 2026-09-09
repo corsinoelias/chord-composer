@@ -8,15 +8,7 @@ import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { Trash2, Copy } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
-import { getDiatonicChords } from '@/lib/musicKeys';
-
-// Parse simple diatonic chord strings ("Am", "Bdim", "F#") into component parts
-function parseDiatonic(str: string): { root: RootNote; acc: Accidental; qual: ChordQuality } | null {
-  const m = str.match(/^([A-G])([#b]?)(m|dim)?$/);
-  if (!m) return null;
-  const qual: ChordQuality = m[3] === 'dim' ? 'dim' : m[3] === 'm' ? 'min' : 'maj';
-  return { root: m[1] as RootNote, acc: (m[2] ?? '') as Accidental, qual };
-}
+import { InKeyChordStrip } from '@/components/InKeyChordStrip';
 
 interface ChordEditModalProps {
   chord: Chord | null;
@@ -28,6 +20,7 @@ interface ChordEditModalProps {
   onPreview?: (chord: Partial<Chord>) => void;
   songKey?: string;
   transposition?: number;
+  preferFlats?: boolean;
 }
 
 function parseBassNote(bn?: string): { root: RootNote | null; acc: Accidental } {
@@ -38,7 +31,7 @@ function parseBassNote(bn?: string): { root: RootNote | null; acc: Accidental } 
   return { root: r, acc }
 }
 
-export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDuplicate, onPreview, songKey, transposition = 0 }: ChordEditModalProps) {
+export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDuplicate, onPreview, songKey, transposition = 0, preferFlats = false }: ChordEditModalProps) {
   const [root, setRoot] = useState<RootNote>('C');
   const [accidental, setAccidental] = useState<Accidental>('');
   const [quality, setQuality] = useState<ChordQuality>('maj');
@@ -47,11 +40,6 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
   const [bassAccidental, setBassAccidental] = useState<Accidental>('');
   const [bassExpanded, setBassExpanded] = useState(false);
   const [hoverValue, setHoverValue] = useState<number | null>(null);
-
-  const diatonicChords = useMemo(
-    () => songKey ? getDiatonicChords(songKey) : [],
-    [songKey]
-  );
 
   const triggerPreview = (newRoot: RootNote, newAccidental: Accidental, newQuality: ChordQuality, newBassNote?: string) => {
     onPreview?.({ root: newRoot, accidental: newAccidental, quality: newQuality, bassNote: newBassNote ?? bassNote });
@@ -64,9 +52,12 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
     bassNote: bassRoot ? `${bassRoot}${bassAccidental}` : undefined,
   }), [root, accidental, quality, duration, bassRoot, bassAccidental]);
 
-  const activeNotes = useMemo(() => getChordNotes(previewChord), [previewChord]);
+  // The key decides the spelling, except that picking ♭ by hand is a spelling request too.
+  const flatSpelling = preferFlats || accidental === 'b';
+
+  const activeNotes = useMemo(() => getChordNotes(previewChord, 0, flatSpelling), [previewChord, flatSpelling]);
   const guitarVoicing = useMemo(() => getGuitarVoicing(previewChord), [previewChord]);
-  const chordDisplayName = useMemo(() => getTransposedChordName(previewChord), [previewChord]);
+  const chordDisplayName = useMemo(() => getTransposedChordName(previewChord, 0, flatSpelling), [previewChord, flatSpelling]);
 
   // Sync state when chord changes or modal opens. The stored chord is always
   // untransposed, but a transposed song should show/preview/edit the note the
@@ -136,39 +127,18 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
 
         <div className="space-y-4 py-4 overflow-y-auto flex-1 pr-1">
           {/* In-key quick-pick */}
-          {diatonicChords.length > 0 && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
-              <label className="block text-[11px] font-semibold text-primary/70 uppercase tracking-widest mb-2">
-                In key of {songKey}
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {diatonicChords.map(c => {
-                  const parsed = parseDiatonic(c);
-                  if (!parsed) return null;
-                  const isActive = root === parsed.root && accidental === parsed.acc && quality === parsed.qual;
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => {
-                        setRoot(parsed.root);
-                        setAccidental(parsed.acc);
-                        setQuality(parsed.qual);
-                        triggerPreview(parsed.root, parsed.acc, parsed.qual);
-                      }}
-                      className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition-all
-                        ${isActive
-                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                          : 'bg-background text-foreground border-border hover:border-primary/50 hover:bg-primary/10 hover:text-primary'
-                        }`}
-                    >
-                      {c}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <InKeyChordStrip
+            songKey={songKey}
+            root={root}
+            accidental={accidental}
+            quality={quality}
+            onPick={(newRoot, newAccidental, newQuality) => {
+              setRoot(newRoot);
+              setAccidental(newAccidental);
+              setQuality(newQuality);
+              triggerPreview(newRoot, newAccidental, newQuality);
+            }}
+          />
 
           {/* Root Note */}
           <div>
