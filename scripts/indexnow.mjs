@@ -2,7 +2,10 @@
 // so they crawl the site instead of waiting for the next scheduled visit.
 // Runs as a postbuild step (see netlify.toml) — never fails the build on error.
 const SITE = 'https://chordsequence.com';
-const KEY = '5dfcedacd6ba170de9192bf55e49254d';
+// La clave 5dfced… devuelve UserForbiddedToAccessSite: nunca llegó a verificarse contra
+// api.indexnow.org, así que este postbuild llevaba fallando en silencio en cada deploy
+// (main() traga el error para no romper la build). Ésta sí está verificada.
+const KEY = '38082a18a9a3d2f333f10d258e0b0237';
 const KEY_LOCATION = `${SITE}/${KEY}.txt`;
 const SITEMAPS = [`${SITE}/sitemap-0.xml`, `${SITE}/sitemap-songs.xml`];
 
