@@ -151,6 +151,7 @@ if (!song) return Astro.redirect('/songs/');
       <a
         href={`/chord-sheet-maker/editor/?from=${song.slug}${transpose !== 0 ? `&transpose=${transpose}` : ''}`}
         class="btn-customize"
+        onclick="if(typeof gtag!=='undefined')gtag('event','sheet_cta_clicked',{entry_point:'song_pdf'})"
       >Customize this sheet →</a>
     </div>
     <button class="btn-print" onclick={`if(typeof gtag!=='undefined')gtag('event','song_pdf_exported',{song_slug:'${song.slug}'});window.print()`}>

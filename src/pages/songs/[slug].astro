@@ -641,6 +641,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
                   Or <a
                     href={`/chord-sheet-maker/editor/?from=${song.slug}`}
                     class="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-primary"
+                    onclick="if(typeof gtag!=='undefined')gtag('event','sheet_cta_clicked',{entry_point:'song_page'})"
                   >make your own chord sheet</a> — your key, your section order, ready to print for the band.
                 </p>
               </div>

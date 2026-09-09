@@ -310,4 +310,29 @@ export const analytics = {
   pianoRecordingShared: () => track('piano_recording_shared'),
   pianoRecordingUnshared: () => track('piano_recording_unshared'),
   sharedPianoRecordingOpened: () => track('shared_piano_recording_opened'),
+  // Chord Sheet Maker. Until now this product shipped with zero instrumentation, which
+  // is why questions as basic as "does anyone print one" had no answer. The chain is
+  // tracked end to end because each gap between two links is a different failure:
+  // cta_clicked -> seeded is "the link is broken or the song does not resolve",
+  // seeded -> saved is "the editor lost them", saved -> printed is "the chart was not
+  // worth paper". `entry_point` separates arrivals that are not comparable: a visitor
+  // who came from a song page had a specific song in mind, one who came from the
+  // library was browsing.
+  sheetCtaClicked: (entryPoint: 'song_page' | 'song_pdf') =>
+    track('sheet_cta_clicked', { entry_point: entryPoint }),
+  sheetSeeded: (entryPoint: 'song_link' | 'library_public', songSlug: string) =>
+    track('sheet_seeded', { entry_point: entryPoint, song_slug: songSlug }),
+  // `is_update` tells a first save (a new chart exists now) from a re-save (an edit to
+  // one that already did). Counting them together would report someone tidying one
+  // chart all afternoon as a product with many charts.
+  sheetSaved: (isUpdate: boolean) => track('sheet_saved', { is_update: isUpdate }),
+  // Publishing is the only action that fills the public library, and an empty library
+  // is what the Public tab and the landing page both have to work around today.
+  sheetPublished: () => track('sheet_published'),
+  sheetUnpublished: () => track('sheet_unpublished'),
+  // The act the whole product exists for. Fired on the in-app Print button; a browser
+  // Ctrl+P is not observable here, so this is a floor on printing, not a full count.
+  sheetPrinted: () => track('sheet_printed'),
+  // Copying an existing chart, the library equivalent of shared_song_forked.
+  sheetDuplicated: () => track('sheet_duplicated'),
 };
