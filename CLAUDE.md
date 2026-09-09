@@ -18,6 +18,7 @@ node scripts/gsc.mjs compare              # this 28d window vs the previous one
 node scripts/gsc.mjs queries --limit 30   # top queries
 node scripts/gsc.mjs pages                # top pages
 node scripts/gsc.mjs page chord-player/   # what one page ranks for
+node scripts/gsc.mjs query "chord maker"  # which pages Google serves for one query
 node scripts/gsc.mjs weekly --days 90     # clicks/impressions/position by week
 ```
 
