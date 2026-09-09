@@ -16,6 +16,7 @@
  *   node scripts/gsc.mjs queries [--days 28] [--limit 25]
  *   node scripts/gsc.mjs pages   [--days 28] [--limit 25]
  *   node scripts/gsc.mjs page /chord-player/ [--days 28]   what one page ranks for
+ *   node scripts/gsc.mjs query "chord maker" [--days 28]  which pages serve one query
  *   node scripts/gsc.mjs weekly  [--days 90]               clicks/impressions/position by week
  *   node scripts/gsc.mjs compare [--days 28]               this window vs the one before it
  *   node scripts/gsc.mjs sites                             what this credential can read
@@ -163,6 +164,32 @@ async function main() {
     return;
   }
 
+  // The inverse of `page`: which URLs Google actually serves for one query. A query can
+  // sit on page one in the site-wide report while the page you built for it ranks
+  // nowhere -- the impressions belong to some other URL, and no amount of editing the
+  // intended page moves them. Reading only the query report hides that completely.
+  if (cmd === 'query') {
+    const target = positional[0];
+    if (!target) {
+      console.error('Falta la consulta: node scripts/gsc.mjs query "chord maker"');
+      process.exit(1);
+    }
+    const w = windowOf(days);
+    const rows = await query({
+      ...w,
+      dimensions: ['page'],
+      rowLimit: limit,
+      dimensionFilterGroups: [{
+        filters: [{ dimension: 'query', operator: 'equals', expression: target }],
+      }],
+    });
+    console.log('Paginas para "' + target + '" - ' + w.startDate + ' a ' + w.endDate);
+    console.log(HEAD);
+    if (!rows.length) console.log('  (sin datos -- la consulta se escribe exactamente como en el informe)');
+    for (const r of rows) console.log(line(r) + '  ' + r.keys[0].replace(ORIGIN, ''));
+    return;
+  }
+
   if (cmd === 'compare') {
     const cur = windowOf(days);
     const prev = windowOf(days, days);
@@ -205,7 +232,8 @@ async function main() {
     return;
   }
 
-  console.error('Comando desconocido: ' + cmd + '\nUsa: queries | pages | page <ruta> | weekly | compare | sites');
+  console.error('Comando desconocido: ' + cmd
+    + '\nUsa: queries | pages | page <ruta> | query <consulta> | weekly | compare | sites');
   process.exit(1);
 }
 

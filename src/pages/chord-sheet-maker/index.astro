@@ -11,6 +11,8 @@ import { getPublishedChordSheets } from '@/lib/chordSheets';
 import { getPublishedSongs } from '@/lib/publicSongs';
 import { songToSheetSeed } from '@/lib/chordSheet/songToSheet';
 import { parseSheet, uniqueChords } from '@/lib/chordSheet/chordSheetCore';
+import JsonLd from '@/components/schema/JsonLd.astro';
+import { buildBreadcrumbSchema, buildWebApplicationSchema } from '@/components/schema/builders';
 
 const publishedSheets = await getPublishedChordSheets();
 const featuredSheets = publishedSheets.slice(0, 4);
@@ -60,9 +62,48 @@ const features = [
 ];
 
 const EDITOR_HREF = '/chord-sheet-maker/editor/';
+const PAGE_URL = 'https://chordsequence.com/chord-sheet-maker/';
 
-const title = 'Chord Sheet Maker — Write and Publish Your Own Chord Chart | Chord Sequence';
-const description = "Write lyrics, drop in chords, transpose to any key, and print a clean chart in seconds. Publish it to your Chord Sheet Maker library when it's ready — no account needed to start.";
+// Visible Q&A only. **Never serialize this as FAQPage JSON-LD** — Google restricted FAQ
+// rich results to government/health sites in Aug 2023, this site does not qualify, and
+// FAQPage has already had to be stripped from this codebase twice (see CLAUDE.md). The
+// content earns its place by answering what people actually type; the schema type does
+// nothing but risk a manual action.
+const faqs = [
+  { q: 'What is a chord sheet?', a: 'A chord sheet is a one-page chart with the lyrics of a song and the chord names printed above the exact syllable where each chord changes. It is not sheet music — there is no staff, no rhythm notation and nothing to sight-read. That is the point: a singer or guitarist can follow it at a glance while playing.' },
+  { q: 'How do I make a chord sheet?', a: 'Type or paste your lyrics, then put each chord in square brackets immediately before the syllable it lands on — [C]like this. The chord appears above that syllable on the finished chart. Write a bare line such as Chorus or Verse 2 to start a new section. Then pick a key, set a capo if you use one, and print.' },
+  { q: 'What is ChordPro?', a: 'ChordPro is the plain-text convention for writing chord charts, where chords sit inline in the lyrics between square brackets. It has been the standard format for sharing charts between musicians for decades because it is just text — readable in any editor, and easy to transpose automatically. This is the format the editor reads and writes.' },
+  { q: 'Can I transpose a chord sheet to another key?', a: 'Yes, one semitone at a time, and the whole chart moves together — chord names, chord diagrams and the printed key all update. You can also set a capo position, or switch the whole chart to Nashville numbers so the band can play it in any key without a rewrite.' },
+  { q: 'How do I print a chord sheet that fits on one page?', a: 'Choose a paper size (Letter or A4), scale the type up or down, and switch between one and two columns until the song fits. The preview is the printed page, so what you see is what comes out — no stray page breaks and no chord stranded on its own at the bottom.' },
+  { q: 'Is the Chord Sheet Maker free?', a: 'Yes, and you can write and print a chart without an account. You are only asked to sign in if you want to save a chart to your library so it follows you between devices, or publish it for other people to use.' },
+  { q: 'Can I add guitar chord diagrams?', a: 'Yes. Every distinct chord in the song gets a diagram — guitar, ukulele or piano — placed at the top of the chart or in the margin. They are generated from the chords you wrote, so they stay correct when you transpose.' },
+];
+
+// This landing is the only indexed URL of the product: the editor is a client:only shell
+// that renders no server HTML, and published charts are held back (see the noIndex notes
+// on those pages). So the entity Google is told about lives here, not on the app route.
+const webAppSchema = buildWebApplicationSchema({
+  url: PAGE_URL,
+  name: 'Chord Sheet Maker',
+  description: 'Free online chord sheet maker and chord chart creator. Write lyrics with inline ChordPro chords, transpose to any key, add guitar or ukulele diagrams, and print a clean one-page chart.',
+  featureList: [
+    'ChordPro chord chart editor',
+    'One-click transpose and capo',
+    'Nashville number charts',
+    'Guitar, ukulele and piano chord diagrams',
+    'Letter and A4 print layouts',
+    'Stage mode with auto-scroll',
+    'Publish and share charts',
+  ],
+});
+
+const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
+  { name: 'Home', item: 'https://chordsequence.com/' },
+  { name: 'Chord Sheet Maker', item: PAGE_URL },
+]);
+
+const title = 'Chord Sheet Maker — Free Chord Chart Creator | Chord Sequence';
+const description = "Free chord sheet maker: write lyrics, drop in chords, transpose to any key, add chord diagrams and print a clean one-page chart. No account needed to start.";
 ---
 
 <BaseLayout
@@ -70,6 +111,10 @@ const description = "Write lyrics, drop in chords, transpose to any key, and pri
   description={description}
   canonicalUrl="https://chordsequence.com/chord-sheet-maker/"
 >
+  <Fragment slot="head">
+    <JsonLd schema={webAppSchema} />
+    <JsonLd schema={breadcrumbSchema} />
+  </Fragment>
   <section class="relative overflow-hidden pt-8 pb-12 sm:pt-10 sm:pb-16 lg:pt-12 lg:pb-20 border-b border-border">
     <div class="pointer-events-none absolute inset-0 -z-10">
       <div class="absolute left-1/2 top-1/2 h-[520px] w-[920px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[130px]"></div>
@@ -80,11 +125,19 @@ const description = "Write lyrics, drop in chords, transpose to any key, and pri
           <span class="mb-5 inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-primary">
             ChordPro · write &amp; publish
           </span>
+          {/*
+            The H1 is the query, not the slogan. Both tool pages on this site that rank
+            do this — "Guitar Tab Player" sits at position 4.3, "Bass Tab Creator &
+            Player" at 5.9-8.8 for the same maker/creator/generator word family this
+            page wants. This page led with "Write chord sheets your band can actually
+            read" and sat at 34-96. The slogan is not lost, it just moves one line down
+            where it does the job it is actually good at.
+          */}
           <h1 class="mb-5 font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-[3.3rem]">
-            Write chord sheets your band can actually read.
+            Chord Sheet Maker &amp; Chart Creator
           </h1>
           <p class="mb-8 max-w-xl text-lg leading-relaxed text-muted-foreground">
-            Type lyrics, drop chords where they belong, and get a clean chart in seconds. Transpose to any key, set a capo, print it, and publish it to the public library when it's ready — no formatting fights.
+            Write chord sheets your band can actually read. Type lyrics, drop chords where they belong, and get a clean chart in seconds — transpose to any key, set a capo, print it, and publish it when it's ready.
           </p>
           <div class="flex flex-wrap gap-3.5">
             <a
@@ -144,6 +197,72 @@ const description = "Write lyrics, drop in chords, transpose to any key, and pri
           </span>
         ))}
       </div>
+    </div>
+  </section>
+
+  <!--
+    HOW TO — the section this page was missing. Both tool pages that rank on this site
+    have one ("How to read a guitar tab", the 8-part bass tab tutorial) and it is not a
+    word-count effect: /tools/guitar-tab/ is SHORTER than this page was and ranks at 4.3.
+    What it has is a section that answers the question instead of selling the product.
+    The three rules below are the same three the editor's starter template teaches, so a
+    reader arrives at the editor already knowing what they are looking at.
+  -->
+  <section class="border-t border-border py-14 sm:py-20">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6">
+      <h2 class="mb-5 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">How to write a chord sheet</h2>
+      <p class="mb-8 text-lg leading-relaxed text-muted-foreground">
+        A chord sheet is lyrics with chord names printed above the syllable where each chord changes — no staff, nothing to sight-read. You write it in <strong class="text-foreground">ChordPro</strong>, the plain-text convention musicians have shared charts in for decades: the chord goes in square brackets, right before the syllable it lands on.
+      </p>
+
+      <div class="my-8 overflow-hidden rounded-2xl border border-border shadow-sm">
+        <div class="border-b border-border bg-muted/40 px-5 py-3.5">
+          <p class="text-sm font-semibold text-foreground">What you type</p>
+        </div>
+        <div class="overflow-x-auto bg-card px-5 py-5 font-mono text-sm leading-7 sm:px-8">
+          <div class="text-muted-foreground">Verse 1</div>
+          <div><span class="font-bold text-primary">[C]</span>Put your lyrics here, and write <span class="font-bold text-primary">[F]</span>chords in square brackets</div>
+        </div>
+        <div class="border-t border-border bg-muted/40 px-5 py-3.5">
+          <p class="text-sm font-semibold text-foreground">What prints</p>
+        </div>
+        <div class="overflow-x-auto bg-card px-5 py-5 sm:px-8">
+          <div class="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Verse 1</div>
+          <div class="mt-2 whitespace-pre font-mono text-sm font-bold text-primary">C                               F</div>
+          <div class="whitespace-pre font-mono text-sm text-foreground">Put your lyrics here, and write chords in square brackets</div>
+        </div>
+      </div>
+
+      <div class="space-y-6">
+        <div>
+          <h3 class="mb-1.5 font-semibold text-foreground">1. Put the chord where the change happens</h3>
+          <p class="leading-relaxed text-muted-foreground">
+            <span class="font-mono text-primary">[C]</span> goes immediately before the syllable you change on — no space between. Mid-word is fine and often right: <span class="font-mono text-foreground">a<span class="font-bold text-primary">[G]</span>mazing</span> puts the G over the second syllable, which is where a guitarist actually moves.
+          </p>
+        </div>
+        <div>
+          <h3 class="mb-1.5 font-semibold text-foreground">2. A line on its own becomes a section</h3>
+          <p class="leading-relaxed text-muted-foreground">
+            Write <span class="font-mono text-foreground">Chorus</span>, <span class="font-mono text-foreground">Verse 2</span> or <span class="font-mono text-foreground">Bridge</span> on its own line and it prints as a section heading, so the band can find the second verse without counting lines.
+          </p>
+        </div>
+        <div>
+          <h3 class="mb-1.5 font-semibold text-foreground">3. A line can hold only chords</h3>
+          <p class="leading-relaxed text-muted-foreground">
+            An intro, a turnaround or an instrumental has no words to sit above. Write just the chords, and use <span class="font-mono text-foreground">|</span> to mark the bars: <span class="font-mono text-foreground"><span class="font-bold text-primary">[C]</span> <span class="font-bold text-primary">[F]</span> | <span class="font-bold text-primary">[C]</span> <span class="font-bold text-primary">[G]</span></span>.
+          </p>
+        </div>
+        <div>
+          <h3 class="mb-1.5 font-semibold text-foreground">4. Set the key last, not first</h3>
+          <p class="leading-relaxed text-muted-foreground">
+            Write the song in whatever key you found it in, then transpose the finished chart to fit the singer. Every chord name and diagram moves together, so there is nothing to correct by hand — and Nashville numbers turn it into a chart that works in any key at all.
+          </p>
+        </div>
+      </div>
+
+      <a href={EDITOR_HREF} class="mt-9 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+        Try it — a new sheet starts with this shape →
+      </a>
     </div>
   </section>
 
@@ -254,6 +373,20 @@ const description = "Write lyrics, drop in chords, transpose to any key, and pri
       </div>
     </section>
   )}
+
+  <section class="border-t border-border bg-muted/20 py-14 sm:py-20">
+    <div class="mx-auto max-w-4xl px-4 sm:px-6">
+      <h2 class="mb-8 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Frequently asked questions</h2>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {faqs.map((f) => (
+          <div class="rounded-xl border border-border bg-card p-6">
+            <h3 class="mb-2 font-semibold text-foreground">{f.q}</h3>
+            <p class="text-sm leading-relaxed text-muted-foreground">{f.a}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
 
   <section class="border-t border-border py-16 sm:py-20 text-center">
     <div class="mx-auto max-w-2xl px-4 sm:px-6">
