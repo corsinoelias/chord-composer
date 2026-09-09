@@ -5,9 +5,12 @@ import {
 } from '@/lib/chordSheet/chordSheetCore';
 import type { DiagramInstrument } from '@/lib/chordSheet/chordDiagramLookup';
 import { saveChordSheet, updateChordSheet, getMyChordSheetById, type ChordSheet } from '@/lib/chordSheets';
-import { defaultLayout, resolveStyleLayout, type StyleLayout } from '@/lib/chordSheet/presets';
+import { newSheetLayout, resolveStyleLayout, type StyleLayout } from '@/lib/chordSheet/presets';
+import { songToSheetSeed } from '@/lib/chordSheet/songToSheet';
+import { getPublicSongBySlug } from '@/lib/publicSongs';
 import { ensureAuth } from '@/lib/supabase';
 import { generateSlug } from '@/lib/musicKeys';
+import { readStoredNotation } from '@/lib/songNotation';
 import { AuthModal } from '@/components/AuthModal';
 import { InteractiveSheet } from './InteractiveSheet';
 import { useChordSheetDrag } from './useChordSheetDrag';
@@ -54,12 +57,12 @@ export interface ChordSheetDoc {
 
 const SAMPLE_DOC: ChordSheetDoc = {
   title: 'Amazing Grace', artist: 'Traditional', baseKey: 'G', semi: 0, capo: 0,
-  instrument: 'guitar', chartType: 'standard', text: SAMPLE_TEXT, layout: defaultLayout(),
+  instrument: 'guitar', chartType: 'standard', text: SAMPLE_TEXT, layout: newSheetLayout(),
 };
 
 const BLANK_DOC: ChordSheetDoc = {
   title: '', artist: '', baseKey: 'C', semi: 0, capo: 0,
-  instrument: 'guitar', chartType: 'standard', text: '', layout: defaultLayout(),
+  instrument: 'guitar', chartType: 'standard', text: '', layout: newSheetLayout(),
 };
 
 function loadDraft(): ChordSheetDoc {
@@ -157,6 +160,57 @@ export function ChordSheetMaker() {
       resetHistory();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- resume-on-mount only
+  }, []);
+
+  // `?from=<song-slug>` seeds the editor with a song from the Songs catalogue, converted
+  // to ChordPro by src/lib/chordSheet/songToSheet.ts. Same shape as SongCreator's `?edit=`
+  // handler (src/components/SongCreator/index.tsx): the slug is resolved on the client
+  // against Supabase, with a toast when it doesn't resolve. Deliberately Supabase-only —
+  // scripts/seed-songs.ts publishes the static SONGS array into public_songs, so reaching
+  // for src/data/songs.ts as a fallback would drag 833 lines of lyrics into this bundle to
+  // cover rows that are already there. `?edit=` wins: resuming a saved chart beats seeding.
+  //
+  // Seeding is destructive — the maker has one draft slot (DRAFT_KEY). Untouched sample
+  // text or an empty sheet is replaced silently; real unsaved work asks first. The param
+  // is stripped either way, so a refresh can't re-seed over edits made since.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const slug = params.get('from');
+    if (!slug || params.get('edit')) return;
+    let cancelled = false;
+    getPublicSongBySlug(slug).then((song) => {
+      if (cancelled) return;
+      const url = new URL(window.location.href);
+      url.searchParams.delete('from');
+      url.searchParams.delete('transpose');
+      window.history.replaceState(null, '', url.pathname + url.search);
+      if (!song) { flash("Couldn't find that song"); return; }
+      const current = docRef.current.text.trim();
+      const untouched = !current || current === SAMPLE_TEXT.trim();
+      if (!untouched && !window.confirm(`Replace the sheet you're working on with "${song.title}"?`)) return;
+      // `?transpose=` carries the key the visitor was already reading in (the song page
+      // and /songs/pdf/ both transpose on the fly), so the sheet opens where they left off
+      // rather than snapping back to the recorded key.
+      const semi = Math.max(-11, Math.min(11, parseInt(params.get('transpose') ?? '', 10) || 0));
+      // Chord spelling follows the visitor across the site. `SongNotation` is a strict
+      // subset of `ChartNotation` (see src/lib/songNotation.ts — no mapping table needed),
+      // and readStoredNotation already prefers an explicit `?notation=` over the stored
+      // preference, so a link shared in Nashville numbers opens in Nashville numbers even
+      // for someone whose own default is letters. Applied only here, at seed time: doing it
+      // on every mount would silently overwrite the chart type a saved sheet chose.
+      setDoc({
+        ...BLANK_DOC, ...songToSheetSeed(song), semi,
+        chartType: readStoredNotation(),
+        layout: newSheetLayout(),
+      });
+      setSongId(null);
+      setSongSlug(null);
+      setIsPublished(false);
+      setSaveStatus('idle');
+      resetHistory();
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed-on-mount only
   }, []);
 
   useEffect(() => {

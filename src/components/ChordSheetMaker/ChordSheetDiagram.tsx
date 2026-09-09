@@ -1,8 +1,8 @@
 import { memo, useState } from 'react';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
-import { PianoChordDiagram } from './PianoChordDiagram';
+import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { getChordDiagrams, type DiagramInstrument } from '@/lib/chordSheet/chordDiagramLookup';
-import { playChord } from '@/lib/chordSheet/chordSheetCore';
+import { chordNoteNames, playChord } from '@/lib/chordSheet/chordSheetCore';
 
 interface Props {
   chordName: string;
@@ -27,9 +27,13 @@ export const ChordSheetDiagram = memo(function ChordSheetDiagram({ chordName, in
         type="button"
         onClick={() => playChord(chordName)}
         title={`Play ${chordName}`}
-        className="cursor-pointer rounded transition-transform hover:scale-105 active:scale-95"
+        className="w-full cursor-pointer rounded transition-transform hover:scale-105 active:scale-95"
       >
-        <PianoChordDiagram chordName={chordName} className={className} />
+        {/* The same two-octave keyboard the song pages draw (ChordAside, ChordTooltip),
+            not a private one-octave strip — a C/E on a single octave has nowhere to put
+            the bass note, and two different pictures of "the piano shape for this chord"
+            across one site is a bug in itself. */}
+        <PianoKeyboard activeNotes={chordNoteNames(chordName)} className={className} />
       </button>
     );
   }
@@ -46,12 +50,22 @@ export const ChordSheetDiagram = memo(function ChordSheetDiagram({ chordName, in
         if (voicings.length > 1) setIndex((i) => (i + 1) % voicings.length);
       }}
       title={voicings.length > 1 ? `Play ${chordName} — click for another fingering (${(index % voicings.length) + 1}/${voicings.length})` : `Play ${chordName}`}
-      className="relative cursor-pointer rounded transition-transform hover:scale-105 active:scale-95"
+      className="group relative w-full cursor-pointer rounded transition-transform hover:scale-105 active:scale-95"
     >
-      <GuitarChordDiagram voicing={voicing} chordName={chordName} className={className} />
+      {/* chordName is deliberately NOT passed: GuitarChordDiagram would render its own
+          hard-coded `text-foreground` label, and the callers (SheetFrame, PaginatedPaper)
+          already print the name in the sheet's own preset font and colour. Passing both
+          printed it twice. Piano has no built-in label either, so leaving the caption to
+          the caller keeps all three instruments consistent. */}
+      <GuitarChordDiagram voicing={voicing} className={className} />
+      {/* How many alternate fingerings this chord has — a control, not musical data. It
+          used to render as a bare number in a filled badge, which at this size reads like
+          a fret number or a scale degree sitting on the chord. Now it says what it counts,
+          only shows on hover, and carries `no-print`: it's an editor affordance, and it
+          was previously printing onto the sheet. */}
       {voicings.length > 1 && (
-        <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground">
-          {voicings.length}
+        <span className="no-print pointer-events-none absolute -right-1 -top-1 rounded-full border border-border bg-card px-1 py-px text-[8px] font-semibold leading-none text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+          {voicings.length} shapes
         </span>
       )}
     </button>

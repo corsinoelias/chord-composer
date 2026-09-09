@@ -142,6 +142,25 @@ export function defaultLayout(preset: PresetId = 'classic'): StyleLayout {
   };
 }
 
+/** The Chord Sequence mark, served from public/ rather than inlined as a data URI like a
+ *  user's own upload. It ships with the site, so there's nothing to copy along with a
+ *  forked chart, and 54 KB of base64 in every row's `layout` jsonb would be pure waste. */
+export const BRAND_LOGO = '/chordsequence-mark.png';
+export const BRAND_LOGO_H = 70;
+
+/** Layout for a BRAND-NEW sheet: the house default, plus the Chord Sequence mark.
+ *
+ *  Deliberately separate from defaultLayout(), which is ALSO the merge base in
+ *  resolveStyleLayout below. Branding the merge base would resurrect the logo on every
+ *  load for anyone who deleted it: StyleControls removes it with `{ logo: undefined }`,
+ *  JSON.stringify drops undefined keys on save, and `{ ...base.assets, ...r.assets }`
+ *  would then find no `logo` key to override the base with. A new-sheet default can't
+ *  have that problem — it's applied once, at creation, and lives in the doc from then on. */
+export function newSheetLayout(preset: PresetId = 'classic'): StyleLayout {
+  const l = defaultLayout(preset);
+  return { ...l, assets: { ...l.assets, logo: BRAND_LOGO, logoH: BRAND_LOGO_H } };
+}
+
 // Merges a persisted (possibly partial or pre-Phase-C) layout with preset defaults, so a
 // chart saved before this shipped — or with only {instrument, chartType} — still renders.
 export function resolveStyleLayout(raw: unknown): StyleLayout {

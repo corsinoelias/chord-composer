@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { ChordSheetDiagram } from './ChordSheetDiagram';
+import { DiagramStrip } from './DiagramStrip';
 import type { DiagramInstrument } from '@/lib/chordSheet/chordDiagramLookup';
 import { type StyleLayout } from '@/lib/chordSheet/presets';
+import type { ChartNotation } from '@/lib/chordSheet/chordSheetCore';
 import { makeRoleStyle, presetPaper, presetRule, presetMeta, PAPER_MAX_WIDTH } from './sheetChrome';
 
 // Shared "paper" chrome for both the read-only chart (SheetPaper) and the editor's
@@ -18,24 +19,17 @@ interface Props {
   instrument: DiagramInstrument | 'piano';
   /** Already transposed to the sounding key. */
   diagramChords: string[];
+  /** Spelling for the diagram captions — the body lines are formatted by the caller. */
+  chartType: ChartNotation;
   /** Overrides the preset's page-width cap (Stage mode). */
   maxWidthPx?: number;
   children: ReactNode;
 }
 
-export function SheetFrame({ layout, title, artist, displayKey, capo, instrument, diagramChords, maxWidthPx, children }: Props) {
+export function SheetFrame({ layout, title, artist, displayKey, capo, instrument, diagramChords, chartType, maxWidthPx, children }: Props) {
   const roleStyle = makeRoleStyle(layout);
 
-  const diagramsStrip = diagramChords.length > 0 && (
-    <div className="mb-6 flex flex-wrap gap-4 border-b pb-5" style={{ borderColor: presetRule(layout) }}>
-      {diagramChords.map((c) => (
-        <div key={c} className="flex flex-col items-center gap-1">
-          <ChordSheetDiagram chordName={c} instrument={instrument} className="h-16" />
-          <span style={{ ...roleStyle('chords'), fontSize: '11px' }}>{c}</span>
-        </div>
-      ))}
-    </div>
-  );
+  const diagramsStrip = <DiagramStrip layout={layout} instrument={instrument} chords={diagramChords} chartType={chartType} displayKey={displayKey} />;
 
   return (
     <div

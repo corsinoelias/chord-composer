@@ -4,8 +4,9 @@
 // real, curated guitar/ukulele voicing lookups (getGuitarVoicing/getUkuleleVoicing in
 // src/data/guitarChords.ts / ukuleleChords.ts) plus GuitarChordDiagram.tsx to render
 // them, so diagrams go through those instead of re-deriving shapes from a flat table.
-// Only the piano key-highlight helper (pianoKeys) is kept here, since there's no
-// existing equivalent.
+// Piano goes the same way: the prototype's own one-octave key-highlight helper is gone
+// in favour of PianoKeyboard.tsx, the two-octave keyboard the song pages already use —
+// chordNoteNames() below is the adapter that feeds it.
 
 const SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 const FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'] as const;
@@ -63,7 +64,28 @@ export function diatonic(key: string): string[] {
   return DEG.map((d, n) => (flats ? FLAT : SHARP)[(i + d) % 12] + QUAL[n]);
 }
 
-const SECTION_RE = /^\[?\s*(verse|chorus|bridge|pre.?chorus|intro|outro|instrumental|solo|interlude|refrain|hook|coda|break|tag|ending)[\s\d:.-]*\]?\s*$/i;
+// Deliberately keyword-anchored rather than "any short line": a header has to be one of
+// these words, so an ordinary one-word lyric line ("Hallelujah") stays a lyric. The tail
+// absorbs a number and an optional repeat marker, so "Verse 2" and "Chorus (×2)" are both
+// headers. `section`/`part` are here because songs imported from the Songs catalogue use
+// generic names ("Section 4", "B Section") that the original keyword list swallowed as
+// lyric lines — see isSectionLabel for the single-letter label form.
+const SECTION_RE = /^\[?\s*(verse|chorus|post.?chorus|pre.?chorus|bridge|intro|outro|instrumental|solo|interlude|refrain|hook|coda|break|tag|ending|section|part|vamp|turnaround)[\s\d:.-]*(?:[([]?\s*[x×]\s*\d+\s*[)\]]?)?\s*\]?\s*$/i;
+
+/** Whether a line is a section header rather than a line of the song.
+ *
+ *  Beyond the bare keyword form ("Chorus", "Verse 2", "Tag 2"), this accepts a single
+ *  uppercase letter or digit used as a label in front of it — "A Section", "B Section",
+ *  the shape jazz charts use. The label is matched case-SENSITIVELY and capped at one
+ *  character on purpose: allowing any short word there would promote ordinary lyric lines
+ *  like "a break" or "no tag" to headers, which is a far worse failure than missing an
+ *  unusual header. */
+export function isSectionLabel(line: string): boolean {
+  const t = line.trim();
+  if (SECTION_RE.test(t)) return true;
+  const labelled = /^\[?\s*([A-Z0-9])\s+(.+)$/.exec(t);
+  return !!labelled && SECTION_RE.test(labelled[2]);
+}
 
 export interface SheetSlot {
   chord: string;
@@ -105,7 +127,7 @@ export function parseSheet(text: string): SheetSection[] {
   let cur: SheetSection | null = null;
   for (const raw of (text || '').split('\n')) {
     const t = raw.trim();
-    if (SECTION_RE.test(t)) {
+    if (isSectionLabel(t)) {
       const label = t.replace(/^\[|\]$/g, '').replace(/:$/, '').trim();
       cur = { name: label.charAt(0).toUpperCase() + label.slice(1), lines: [] };
       sections.push(cur);
@@ -219,7 +241,7 @@ export function parseDoc(text: string): DocSection[] {
   let cur: DocSection | null = null;
   lines.forEach((raw, i) => {
     const t = raw.trim();
-    if (SECTION_RE.test(t)) {
+    if (isSectionLabel(t)) {
       const label = t.replace(/^\[|\]$/g, '').replace(/:$/, '').trim();
       cur = { name: label.charAt(0).toUpperCase() + label.slice(1), src: i, lines: [] };
       sections.push(cur);
@@ -381,22 +403,12 @@ export function pitchClasses(name: string): number[] {
   return chordPitches(name).map((p) => ((p % 12) + 12) % 12);
 }
 
-// ── Piano key-highlight — no existing repo equivalent, kept from the prototype ──
-const WHITE = [0, 2, 4, 5, 7, 9, 11];
-const BLACK = [{ pc: 1, left: 10 }, { pc: 3, left: 24 }, { pc: 6, left: 52 }, { pc: 8, left: 66 }, { pc: 10, left: 80 }];
-
-export interface PianoKeys {
-  white: { id: string; on: boolean; root: boolean }[];
-  black: { id: string; left: number; on: boolean; root: boolean }[];
-}
-
-export function pianoKeys(name: string): PianoKeys {
-  const pcs = pitchClasses(name);
-  const rootPc = pcs.length ? pcs[0] : -1;
-  return {
-    white: WHITE.map((pc, i) => ({ id: 'w' + i, on: pcs.includes(pc), root: pc === rootPc })),
-    black: BLACK.map((b, i) => ({ id: 'b' + i, left: b.left, on: pcs.includes(b.pc), root: b.pc === rootPc })),
-  };
+/** The chord's pitch classes as note names, ROOT FIRST — the shape PianoKeyboard's
+ *  `activeNotes` expects (it derives the root from the first entry, then highlights each
+ *  remaining tone once, ascending). Always spelled with sharps: PianoKeyboard normalises
+ *  flats to sharps internally anyway, so a flat spelling here would just be undone. */
+export function chordNoteNames(name: string): string[] {
+  return pitchClasses(name).map((pc) => SHARP[pc]);
 }
 
 // ── Chart notation: Standard / Nashville numbers / Do-Re-Mi fixed & movable ──

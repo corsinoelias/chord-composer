@@ -4,7 +4,7 @@ import type { StyleLayout } from '@/lib/chordSheet/presets';
 import type { DiagramInstrument } from '@/lib/chordSheet/chordDiagramLookup';
 import { PAGE_PX, PAGE_PAD_X, PAGE_PAD_Y, PAGE_GAP } from '@/lib/chordSheet/pagePixels';
 import { makeRoleStyle, presetPaper, presetRule, presetMeta } from './sheetChrome';
-import { ChordSheetDiagram } from './ChordSheetDiagram';
+import { DiagramStrip } from './DiagramStrip';
 import { flattenSections, paginateUnits, groupPageBySection, type PageUnit } from './pagination';
 import { renderStaticLine, type StaticLineCtx } from './staticLine';
 import { useFitScale } from './useFitScale';
@@ -123,16 +123,7 @@ export function PaginatedPaper({ layout, title, artist, displayKey, capo, instru
   const unitRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [pages, setPages] = useState<PageUnit[][]>([[]]);
 
-  const diagramsStrip = diagramChords.length > 0 && (
-    <div className="flex flex-wrap gap-4 border-b pb-5" style={{ borderColor: presetRule(layout) }}>
-      {diagramChords.map((c) => (
-        <div key={c} className="flex flex-col items-center gap-1">
-          <ChordSheetDiagram chordName={c} instrument={instrument} className="h-16" />
-          <span style={{ ...roleStyle('chords'), fontSize: '11px' }}>{c}</span>
-        </div>
-      ))}
-    </div>
-  );
+  const diagramsStrip = <DiagramStrip layout={layout} instrument={instrument} chords={diagramChords} chartType={staticCtx.chartType} displayKey={displayKey} />;
 
   useLayoutEffect(() => {
     const headerH = headerRef.current?.offsetHeight ?? 0;

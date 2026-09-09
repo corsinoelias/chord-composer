@@ -630,6 +630,19 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
                   Open in the Chord Player
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </a>
+                <!--
+                  Secondary on purpose. The two destinations answer different questions —
+                  the Chord Player is "play it differently", the Chord Sheet Maker is
+                  "print my own version" — and only one of them can be the primary action
+                  in a block whose heading already names the player. `?from=` is read on
+                  mount by ChordSheetMaker.tsx, which resolves the slug against Supabase.
+                -->
+                <p class="mt-3 text-sm text-muted-foreground">
+                  Or <a
+                    href={`/chord-sheet-maker/editor/?from=${song.slug}`}
+                    class="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-primary"
+                  >make your own chord sheet</a> — your key, your section order, ready to print for the band.
+                </p>
               </div>
             </div>
           </section>

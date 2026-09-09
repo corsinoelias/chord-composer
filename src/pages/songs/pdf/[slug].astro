@@ -96,6 +96,14 @@ if (!song) return Astro.redirect('/songs/');
     }
     .btn-back:hover { color: #111; }
 
+    /* Sits after the transpose row, so it reads as a step past printing rather than a
+       rival to the Print button on the right. */
+    .btn-customize {
+      font-size: 0.8rem; font-weight: 500; color: #374151; text-decoration: none;
+      border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.3rem 0.7rem; background: #fff;
+    }
+    .btn-customize:hover { background: #f1f5f9; color: #111; }
+
     @media print {
       .print-controls { display: none; }
       body { padding: 0; }
@@ -134,6 +142,16 @@ if (!song) return Astro.redirect('/songs/');
         </span>
         <button class="transpose-btn" id="btn-up">+</button>
       </div>
+      <!--
+        Highest-intent entry point into the Chord Sheet Maker: whoever is on this page has
+        already said they want the song on paper, which is the moment "…but my own version"
+        lands. Lives in .print-controls, which is display:none under @media print, so it
+        costs nothing on the printed sheet. Carries the transposition currently on screen.
+      -->
+      <a
+        href={`/chord-sheet-maker/editor/?from=${song.slug}${transpose !== 0 ? `&transpose=${transpose}` : ''}`}
+        class="btn-customize"
+      >Customize this sheet →</a>
     </div>
     <button class="btn-print" onclick={`if(typeof gtag!=='undefined')gtag('event','song_pdf_exported',{song_slug:'${song.slug}'});window.print()`}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

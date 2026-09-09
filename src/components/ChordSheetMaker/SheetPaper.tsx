@@ -78,6 +78,7 @@ export function SheetPaper({ text, title, artist, baseKey, semi, capo, instrumen
       capo={capo}
       instrument={instrument}
       diagramChords={diagramChords}
+      chartType={chartType}
       maxWidthPx={maxWidthPx}
     >
       {sections.map((section, si) => (
