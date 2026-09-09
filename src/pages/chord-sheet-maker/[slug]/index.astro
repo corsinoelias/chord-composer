@@ -1,7 +1,12 @@
 ---
 // SSR (not prerendered) — reads a live row from Supabase, same reasoning as
-// src/pages/songs/[slug].astro. noIndex for now, same as the rest of Chord Sheet Maker
-// while it's mid-build (see the "Construir Chord Sheet Maker" plan).
+// src/pages/songs/[slug].astro.
+//
+// noIndex is a deliberate hold, not a mid-build leftover. These pages are charts
+// published by users: lyrics somebody else owns, and near-duplicates of what every
+// other chord site already ranks for. Opening them to Google is a decision to make
+// once real charts exist and someone has looked at what is in them — today there are
+// none, so there is nothing to gain and a copyright surface to lose.
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { getChordSheetBySlug } from '@/lib/chordSheets';
 import { ChordSheetView } from '@/components/ChordSheetMaker/ChordSheetView';

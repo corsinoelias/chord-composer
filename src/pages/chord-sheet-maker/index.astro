@@ -8,10 +8,26 @@
 // 20260901_chord_sheets.sql for why that split matters).
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getPublishedChordSheets } from '@/lib/chordSheets';
+import { getPublishedSongs } from '@/lib/publicSongs';
+import { songToSheetSeed } from '@/lib/chordSheet/songToSheet';
 import { parseSheet, uniqueChords } from '@/lib/chordSheet/chordSheetCore';
 
 const publishedSheets = await getPublishedChordSheets();
 const featuredSheets = publishedSheets.slice(0, 4);
+
+// Nobody has published a chart here yet, so this section used to render as nothing at
+// all — the one indexed page of the product quietly dropped a whole block. The Songs
+// catalogue is the honest stand-in: a real starting chart, converted by the same
+// songToSheet.ts the `?from=` links use, so the card shows the chords the visitor
+// would actually land on. Reading full rows is fine here and NOT in the library —
+// this is SSR, so the lyrics never reach the browser, only the four cards do.
+// The moment real charts exist they take the section back over.
+const featuredSongs = featuredSheets.length > 0
+  ? []
+  : (await getPublishedSongs()).slice(0, 4).map((song) => {
+      const seed = songToSheetSeed(song);
+      return { slug: song.slug, title: song.title, artist: song.artist, baseKey: seed.baseKey, text: seed.text };
+    });
 
 // One representative lyric line per card, chords stripped, for the excerpt under the
 // chord chips.
@@ -150,6 +166,48 @@ const description = "Write lyrics, drop in chords, transpose to any key, and pri
       </div>
     </div>
   </section>
+
+  {featuredSongs.length > 0 && (
+    <section class="border-t border-border bg-muted/20">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6 py-14 sm:py-20">
+        <div class="mb-10 text-center">
+          <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Or start from a song we already have</h2>
+          <p class="mx-auto max-w-xl text-lg text-muted-foreground">Open one as your own editable copy — change the key to fit your voice, cut the verses you don't play, print it.</p>
+        </div>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {featuredSongs.map((song) => {
+            const chords = uniqueChords(parseSheet(song.text));
+            const shownChords = chords.slice(0, 4);
+            const extraChords = chords.length - shownChords.length;
+            return (
+              <a
+                href={`/chord-sheet-maker/editor/?from=${song.slug}`}
+                class="group flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-colors hover:border-primary/50"
+              >
+                <div class="border-b border-border bg-gradient-to-br from-primary/10 to-primary/0 p-4">
+                  <div class="flex flex-wrap gap-1.5">
+                    {shownChords.map((c) => (
+                      <span class="rounded-md border border-primary/25 bg-card px-2 py-0.5 font-mono text-xs font-bold text-primary">{c}</span>
+                    ))}
+                    {extraChords > 0 && (
+                      <span class="px-1 py-0.5 font-mono text-xs font-bold text-muted-foreground">+{extraChords}</span>
+                    )}
+                  </div>
+                </div>
+                <div class="flex flex-1 flex-col gap-1 p-4">
+                  <p class="truncate text-sm font-bold text-foreground group-hover:text-primary transition-colors">{song.title}</p>
+                  <p class="truncate text-xs text-muted-foreground">{song.artist}</p>
+                  <div class="mt-2.5 flex flex-wrap gap-1.5">
+                    <span class="rounded-full bg-muted px-2.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-muted-foreground">KEY {song.baseKey}</span>
+                  </div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  )}
 
   {featuredSheets.length > 0 && (
     <section class="border-t border-border bg-muted/20">

@@ -9,6 +9,7 @@ import { newSheetLayout, resolveStyleLayout, type StyleLayout } from '@/lib/chor
 import { songToSheetSeed } from '@/lib/chordSheet/songToSheet';
 import { getPublicSongBySlug } from '@/lib/publicSongs';
 import { ensureAuth } from '@/lib/supabase';
+import { analytics } from '@/lib/analytics';
 import { generateSlug } from '@/lib/musicKeys';
 import { readStoredNotation } from '@/lib/songNotation';
 import { AuthModal } from '@/components/AuthModal';
@@ -173,43 +174,68 @@ export function ChordSheetMaker() {
   // Seeding is destructive — the maker has one draft slot (DRAFT_KEY). Untouched sample
   // text or an empty sheet is replaced silently; real unsaved work asks first. The param
   // is stripped either way, so a refresh can't re-seed over edits made since.
+  // Seeds the editor with a song from the Songs catalogue, converted to ChordPro by
+  // src/lib/chordSheet/songToSheet.ts. Shared by two callers on purpose: the `?from=`
+  // link handled below, and the library's Public tab, which lists the same catalogue.
+  // One function means the Public tab inherits the guardrails the link already had
+  // rather than growing a second, subtly different seed path.
+  //
+  // Seeding is destructive — the maker has one draft slot (DRAFT_KEY). Untouched sample
+  // text or an empty sheet is replaced silently; real unsaved work asks first.
+  const seedFromSongSlug = useCallback(async (
+    slug: string,
+    opts: { entryPoint: 'song_link' | 'library_public'; semi?: number },
+  ) => {
+    const song = await getPublicSongBySlug(slug);
+    if (!song) { flash("Couldn't find that song"); return; }
+    const current = docRef.current.text.trim();
+    const untouched = !current || current === SAMPLE_TEXT.trim();
+    if (!untouched && !window.confirm(`Replace the sheet you're working on with "${song.title}"?`)) return;
+    // Chord spelling follows the visitor across the site. `SongNotation` is a strict
+    // subset of `ChartNotation` (see src/lib/songNotation.ts — no mapping table needed),
+    // and readStoredNotation already prefers an explicit `?notation=` over the stored
+    // preference, so a link shared in Nashville numbers opens in Nashville numbers even
+    // for someone whose own default is letters. Applied only here, at seed time: doing it
+    // on every mount would silently overwrite the chart type a saved sheet chose.
+    setDoc({
+      ...BLANK_DOC, ...songToSheetSeed(song), semi: opts.semi ?? 0,
+      chartType: readStoredNotation(),
+      layout: newSheetLayout(),
+    });
+    setSongId(null);
+    setSongSlug(null);
+    setIsPublished(false);
+    setSaveStatus('idle');
+    setEditParam(null);
+    resetHistory();
+    setScreen('editor');
+    analytics.sheetSeeded(opts.entryPoint, slug);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resetHistory is stable; docRef is a ref
+  }, [flash]);
+
+  // `?from=<song-slug>` seeds from a link. Same shape as SongCreator's `?edit=` handler
+  // (src/components/SongCreator/index.tsx): the slug is resolved on the client against
+  // Supabase, with a toast when it does not resolve. Deliberately Supabase-only —
+  // scripts/seed-songs.ts publishes the static SONGS array into public_songs, so reaching
+  // for src/data/songs.ts as a fallback would drag 833 lines of lyrics into this bundle to
+  // cover rows that are already there. `?edit=` wins: resuming a saved chart beats seeding.
+  //
+  // The params are stripped before the fetch resolves, so a refresh can never re-seed over
+  // edits made since — including when the visitor declines the confirm.
+  //
+  // `?transpose=` carries the key the visitor was already reading in (the song page and
+  // /songs/pdf/ both transpose on the fly), so the sheet opens where they left off rather
+  // than snapping back to the recorded key.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const slug = params.get('from');
     if (!slug || params.get('edit')) return;
-    let cancelled = false;
-    getPublicSongBySlug(slug).then((song) => {
-      if (cancelled) return;
-      const url = new URL(window.location.href);
-      url.searchParams.delete('from');
-      url.searchParams.delete('transpose');
-      window.history.replaceState(null, '', url.pathname + url.search);
-      if (!song) { flash("Couldn't find that song"); return; }
-      const current = docRef.current.text.trim();
-      const untouched = !current || current === SAMPLE_TEXT.trim();
-      if (!untouched && !window.confirm(`Replace the sheet you're working on with "${song.title}"?`)) return;
-      // `?transpose=` carries the key the visitor was already reading in (the song page
-      // and /songs/pdf/ both transpose on the fly), so the sheet opens where they left off
-      // rather than snapping back to the recorded key.
-      const semi = Math.max(-11, Math.min(11, parseInt(params.get('transpose') ?? '', 10) || 0));
-      // Chord spelling follows the visitor across the site. `SongNotation` is a strict
-      // subset of `ChartNotation` (see src/lib/songNotation.ts — no mapping table needed),
-      // and readStoredNotation already prefers an explicit `?notation=` over the stored
-      // preference, so a link shared in Nashville numbers opens in Nashville numbers even
-      // for someone whose own default is letters. Applied only here, at seed time: doing it
-      // on every mount would silently overwrite the chart type a saved sheet chose.
-      setDoc({
-        ...BLANK_DOC, ...songToSheetSeed(song), semi,
-        chartType: readStoredNotation(),
-        layout: newSheetLayout(),
-      });
-      setSongId(null);
-      setSongSlug(null);
-      setIsPublished(false);
-      setSaveStatus('idle');
-      resetHistory();
-    });
-    return () => { cancelled = true; };
+    const semi = Math.max(-11, Math.min(11, parseInt(params.get('transpose') ?? '', 10) || 0));
+    const url = new URL(window.location.href);
+    url.searchParams.delete('from');
+    url.searchParams.delete('transpose');
+    window.history.replaceState(null, '', url.pathname + url.search);
+    void seedFromSongSlug(slug, { entryPoint: 'song_link', semi });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seed-on-mount only
   }, []);
 
@@ -235,8 +261,20 @@ export function ChordSheetMaker() {
     action?.();
   }
 
+  // Publish/unpublish is reported only on an actual transition. The Save button passes
+  // the sheet's current visibility straight through, so firing on `publish` alone would
+  // report a re-publish on every ordinary save of an already-public chart.
+  function trackSaved(isUpdate: boolean, wasPublished: boolean, publish: boolean) {
+    analytics.sheetSaved(isUpdate);
+    if (publish && !wasPublished) analytics.sheetPublished();
+    else if (!publish && wasPublished) analytics.sheetUnpublished();
+  }
+
   async function doSave(publish: boolean) {
     setSaveStatus('saving');
+    // Captured before the write: doSave sets isPublished on success, so reading it
+    // afterwards would compare the new value against itself and never see a change.
+    const wasPublished = isPublished;
     const title = doc.title.trim() || 'Untitled';
     const payload = {
       title,
@@ -250,7 +288,7 @@ export function ChordSheetMaker() {
 
     if (songId) {
       const ok = await updateChordSheet(songId, payload);
-      if (ok) { setIsPublished(publish); setSaveStatus('saved'); setRefreshToken((t) => t + 1); }
+      if (ok) { setIsPublished(publish); setSaveStatus('saved'); setRefreshToken((t) => t + 1); trackSaved(true, wasPublished, publish); }
       else setSaveStatus('error');
       return;
     }
@@ -264,6 +302,7 @@ export function ChordSheetMaker() {
       setSaveStatus('saved');
       setEditParam(saved.id);
       setRefreshToken((t) => t + 1);
+      trackSaved(false, wasPublished, publish);
     } else {
       setSaveStatus('error');
     }
@@ -304,7 +343,7 @@ export function ChordSheetMaker() {
       slug, title, artist: sheet.artist, baseKey: sheet.baseKey, capo: sheet.capo,
       text: sheet.text, layout: sheet.layout, is_published: false,
     });
-    if (saved) setRefreshToken((t) => t + 1);
+    if (saved) { setRefreshToken((t) => t + 1); analytics.sheetDuplicated(); }
   }
 
   const displayKey = transposeKey(doc.baseKey, doc.semi);
@@ -531,7 +570,13 @@ export function ChordSheetMaker() {
   if (screen === 'library') {
     return (
       <>
-        <Library onOpen={handleOpen} onNew={handleNew} onDuplicate={handleDuplicate} refreshToken={refreshToken} />
+        <Library
+          onOpen={handleOpen}
+          onNew={handleNew}
+          onDuplicate={handleDuplicate}
+          onSeedSong={(slug) => void seedFromSongSlug(slug, { entryPoint: 'library_public' })}
+          refreshToken={refreshToken}
+        />
         <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} onSuccess={handleAuthSuccess} entryPoint="chord_sheet_maker_library" />
       </>
     );
@@ -625,7 +670,7 @@ export function ChordSheetMaker() {
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => { analytics.sheetPrinted(); window.print(); }}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold text-foreground hover:bg-accent/40"
           >
             Print / PDF

@@ -92,6 +92,34 @@ export async function getPublishedSongs(): Promise<PublicSong[]> {
   return (data ?? []).map(fromDb);
 }
 
+/** Title/artist/key only, for listing the catalogue somewhere that never renders it.
+ *
+ *  getPublishedSongs() selects `*`, and the heavy column on public_songs is `sections` —
+ *  every lyric line of every song. That is the right trade for /songs/, which renders
+ *  cards from the rows it already has, and the wrong one for the Chord Sheet Maker's
+ *  library, which shows a title and a key and would be pulling the entire catalogue’s
+ *  lyrics into the browser to do it. The full row is fetched on click instead, by
+ *  getPublicSongBySlug below. */
+export interface PublicSongSummary {
+  id: string;
+  slug: string;
+  title: string;
+  artist: string;
+  key: string;
+  capo?: number;
+}
+
+export async function getPublishedSongSummaries(): Promise<PublicSongSummary[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('id, slug, title, artist, key, capo')
+    .eq('is_published', true)
+    .order('title', { ascending: true });
+  if (error) { console.error('getPublishedSongSummaries:', error.message); return []; }
+  return (data ?? []) as PublicSongSummary[];
+}
+
 export async function getPublicSongBySlug(slug: string): Promise<PublicSong | null> {
   if (!supabase) return null;
   const { data, error } = await supabase

@@ -2,10 +2,18 @@
 // client:only app shell — same pattern as src/pages/chord-player/index.astro and
 // src/pages/bass-tab.astro (showNav={false}, no server-rendered app content). All build
 // phases have shipped (style presets, drag & drop of chords onto the preview, Stage mode).
-// noIndex stays on here (and on [slug]/) until the chord_sheets migration is run and
-// save/publish is smoke-tested live — flip both off then. Save/publish/library work
-// against its own table, chord_sheets (see supabase/migrations/20260901_chord_sheets.sql)
-// — fully independent of public_songs/Songs.
+//
+// noIndex here is PERMANENT, not a launch flag. An earlier version of this comment said
+// to flip it off once the migration was run, which was wrong twice over: the migration
+// has been run (chord_sheets exists), and this page renders no server HTML at all — no
+// H1, no headings, no links — so indexing it would ship Google a blank page. /bass-tab/
+// and /guitar-tab/ have the identical shape and are excluded permanently for the same
+// reason. The search destination is the landing at /chord-sheet-maker/, which has real
+// content and has never carried noIndex. astro.config.mjs keeps this route out of the
+// sitemap to match.
+//
+// Save/publish/library work against its own table, chord_sheets (see
+// supabase/migrations/20260901_chord_sheets.sql) — fully independent of public_songs/Songs.
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { ChordSheetMaker } from '../../../components/ChordSheetMaker/ChordSheetMaker';
 ---

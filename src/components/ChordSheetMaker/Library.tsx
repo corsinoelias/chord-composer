@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getMyChordSheets, getPublishedChordSheets, deleteChordSheet, type ChordSheet } from '@/lib/chordSheets';
+import { getPublishedSongSummaries, type PublicSongSummary } from '@/lib/publicSongs';
+import { normalizeForSearch } from '@/lib/searchText';
 import { ensureAuth } from '@/lib/supabase';
 
 type Tab = 'mine' | 'public';
@@ -8,6 +10,9 @@ interface Props {
   onOpen: (sheet: ChordSheet) => void;
   onNew: () => void;
   onDuplicate: (sheet: ChordSheet) => void;
+  /** Forks a song from the Songs catalogue into a new editable sheet. Wired to
+   *  ChordSheetMaker's seedFromSongSlug, the same function `?from=` links use. */
+  onSeedSong: (slug: string) => void;
   /** Bumped by the caller after a save/delete so an already-fetched "mine" list refreshes. */
   refreshToken: number;
 }
@@ -46,9 +51,39 @@ function SheetCard({ sheet, mine, onOpen, onDuplicate, onDelete }: {
   );
 }
 
-export function Library({ onOpen, onNew, onDuplicate, refreshToken }: Props) {
+/** A song from the Songs catalogue, not a chart anyone made here. It deliberately does NOT
+ *  link out to /songs/<slug>/ — clicking it forks the song into the visitor's own sheet,
+ *  which is the only thing this screen is for. The chord count a SheetCard shows is
+ *  missing on purpose: it would mean pulling every song's lyrics down to render a badge
+ *  (see getPublishedSongSummaries). */
+function SongCard({ song, onSeed }: { song: PublicSongSummary; onSeed: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onSeed}
+      className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/50"
+    >
+      <p className="truncate font-serif text-base font-bold text-foreground group-hover:text-primary">{song.title}</p>
+      <p className="truncate text-xs text-muted-foreground">{song.artist || 'Unknown artist'}</p>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        <span className="rounded-full bg-muted px-2.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-muted-foreground">KEY {song.key}</span>
+        {song.capo ? (
+          <span className="rounded-full bg-muted px-2.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-muted-foreground">CAPO {song.capo}</span>
+        ) : null}
+        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-primary">SONG</span>
+      </div>
+      <span className="mt-3 text-xs font-semibold text-primary opacity-0 transition-opacity group-hover:opacity-100">
+        Start my own copy →
+      </span>
+    </button>
+  );
+}
+
+export function Library({ onOpen, onNew, onDuplicate, onSeedSong, refreshToken }: Props) {
   const [tab, setTab] = useState<Tab>('mine');
   const [sheets, setSheets] = useState<ChordSheet[]>([]);
+  const [songs, setSongs] = useState<PublicSongSummary[]>([]);
+  const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
@@ -64,18 +99,30 @@ export function Library({ onOpen, onNew, onDuplicate, refreshToken }: Props) {
         const mine = await getMyChordSheets();
         if (!cancelled) { setSheets(mine); setLoading(false); }
       } else {
-        const pub = await getPublishedChordSheets();
-        if (!cancelled) { setSheets(pub); setLoading(false); }
+        // Both halves of the public shelf, fetched together: charts published here, and
+        // the Songs catalogue. Without the second one this tab reads "Nothing published
+        // yet" against a catalogue of 60+ songs sitting one table away.
+        const [pub, cat] = await Promise.all([getPublishedChordSheets(), getPublishedSongSummaries()]);
+        if (!cancelled) { setSheets(pub); setSongs(cat); setLoading(false); }
       }
     })();
     return () => { cancelled = true; };
   }, [tab, refreshToken]);
+
+  // Same normalisation the songs index uses, so "Dont Stop" finds "Don't Stop" here too.
+  const filteredSongs = useMemo(() => {
+    const q = normalizeForSearch(query.trim());
+    if (!q) return songs;
+    return songs.filter((s) => normalizeForSearch(`${s.title} ${s.artist}`).includes(q));
+  }, [songs, query]);
 
   async function handleDelete(sheet: ChordSheet) {
     if (!window.confirm(`Delete "${sheet.title}"? This can't be undone.`)) return;
     const ok = await deleteChordSheet(sheet.id);
     if (ok) setSheets((prev) => prev.filter((s) => s.id !== sheet.id));
   }
+
+  const gridClass = 'grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background">
@@ -112,32 +159,73 @@ export function Library({ onOpen, onNew, onDuplicate, refreshToken }: Props) {
           </div>
         )}
 
-        {!loading && sheets.length === 0 && (tab === 'public' || signedIn) && (
+        {!loading && tab === 'mine' && signedIn && sheets.length === 0 && (
           <div className="mx-auto max-w-sm py-16 text-center">
-            <p className="text-sm text-muted-foreground">{tab === 'mine' ? "You haven't saved a chart yet." : 'Nothing published yet.'}</p>
+            <p className="text-sm text-muted-foreground">You haven't saved a chart yet.</p>
           </div>
         )}
 
-        {!loading && sheets.length > 0 && (
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {!loading && tab === 'mine' && sheets.length > 0 && (
+          <div className={gridClass}>
             {sheets.map((sheet) => (
-              tab === 'mine'
-                ? (
-                  <SheetCard
-                    key={sheet.id}
-                    sheet={sheet}
-                    mine
-                    onOpen={() => onOpen(sheet)}
-                    onDuplicate={() => onDuplicate(sheet)}
-                    onDelete={() => handleDelete(sheet)}
-                  />
-                )
-                : (
-                  <a key={sheet.id} href={`/chord-sheet-maker/${sheet.slug}/`} className="block">
-                    <SheetCard sheet={sheet} mine={false} onOpen={() => {}} />
-                  </a>
-                )
+              <SheetCard
+                key={sheet.id}
+                sheet={sheet}
+                mine
+                onOpen={() => onOpen(sheet)}
+                onDuplicate={() => onDuplicate(sheet)}
+                onDelete={() => handleDelete(sheet)}
+              />
             ))}
+          </div>
+        )}
+
+        {!loading && tab === 'public' && (
+          <div className="flex flex-col gap-10">
+            {sheets.length > 0 && (
+              <section>
+                <h2 className="mb-1 text-sm font-bold text-foreground">Published charts</h2>
+                <p className="mb-4 text-xs text-muted-foreground">Charts other people wrote here. Open one to read or print it.</p>
+                <div className={gridClass}>
+                  {sheets.map((sheet) => (
+                    <a key={sheet.id} href={`/chord-sheet-maker/${sheet.slug}/`} className="block">
+                      <SheetCard sheet={sheet} mine={false} onOpen={() => {}} />
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <section>
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2 className="mb-1 text-sm font-bold text-foreground">From the song catalogue</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Pick a song and it opens as your own editable copy — change the key, cut the verses you don't play, print it.
+                  </p>
+                </div>
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Filter songs…"
+                  aria-label="Filter the song catalogue"
+                  className="h-9 w-full max-w-[15rem] rounded-lg border border-border bg-background px-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              {filteredSongs.length === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  {songs.length === 0 ? "Couldn't load the song catalogue." : `Nothing matches “${query.trim()}”.`}
+                </p>
+              ) : (
+                <div className={gridClass}>
+                  {filteredSongs.map((song) => (
+                    <SongCard key={song.id} song={song} onSeed={() => onSeedSong(song.slug)} />
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         )}
       </div>

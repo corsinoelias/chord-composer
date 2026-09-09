@@ -37,9 +37,11 @@ const learnLastmodBySlug = new Map(
 //   (no H1, no headings, no internal links). They're the CTA target of the /tools/*
 //   landing pages and canonicalize to them — see the canonicalUrl in each .astro file.
 //   The routes stay live and linked; they're just not search destinations.
-// - /chord-sheet-maker/editor: same client:only shape as /bass-tab, plus it's mid-build
-//   (see the "Construir Chord Sheet Maker" plan) — noIndex on the page covers the meta
-//   tag, this keeps it out of the sitemap file too until both come off together.
+// - /chord-sheet-maker/editor: same client:only shape as /bass-tab — and excluded for
+//   the same permanent reason, not because the product is mid-build. It renders zero
+//   server HTML, so indexing it would hand Google a blank page; the landing at
+//   /chord-sheet-maker/ is the search destination and is indexed normally. The page's
+//   own noIndex and this exclusion stay on together, and neither is waiting on a launch.
 // - /account/, /auth/reset/: noIndex={true} pages that were still shipping to Google in
 //   the sitemap, contradicting their own meta tag (GSC caught it and excluded them, but
 //   fixing the sitemap directly is the correct source of truth) — confirmed 2026-09-02.
