@@ -61,10 +61,44 @@ const SAMPLE_DOC: ChordSheetDoc = {
   instrument: 'guitar', chartType: 'standard', text: SAMPLE_TEXT, layout: newSheetLayout(),
 };
 
+// The empty document. Kept genuinely empty because it is also the spread base in
+// seedFromSongSlug, where any text here would be overwritten anyway and any *other*
+// field would silently leak into a seeded song.
 const BLANK_DOC: ChordSheetDoc = {
   title: '', artist: '', baseKey: 'C', semi: 0, capo: 0,
   instrument: 'guitar', chartType: 'standard', text: '', layout: newSheetLayout(),
 };
+
+// What "+ New song" opens with. It used to open BLANK_DOC — a completely empty textarea
+// with no placeholder, which told a first-time writer nothing: not that chords go in
+// square brackets, not that a bare line like "Chorus" becomes a section heading, not
+// that a line can hold only chords. The sample chart on first load taught all of that,
+// and then the first thing anyone does is click New and lose it.
+//
+// So the starter teaches by being the thing it describes. Every line is both an example
+// of the syntax and an instruction to overwrite, the empty sections below give the shape
+// of a song to fill in, and the whole thing is meant to be typed over rather than read.
+//
+// Written in C to match BLANK_DOC's baseKey. That is not cosmetic: baseKey is what
+// transposition and Nashville numbers are computed against, so a starter in G under a
+// baseKey of C would renumber every chord wrongly the moment someone tried either.
+const STARTER_TEXT = `Intro
+[C] [F] | [C] [G]
+
+Verse 1
+[C]Put your lyrics here, and write [F]chords in square brackets
+[Am]Each chord lands above the [G]syllable it starts on
+
+Chorus
+[F]Rename any of these headings, or [C]delete the ones you [G]don't need
+
+Verse 2
+
+Bridge
+
+Outro`;
+
+const STARTER_DOC: ChordSheetDoc = { ...BLANK_DOC, text: STARTER_TEXT };
 
 function loadDraft(): ChordSheetDoc {
   if (typeof window === 'undefined') return SAMPLE_DOC;
@@ -189,7 +223,9 @@ export function ChordSheetMaker() {
     const song = await getPublicSongBySlug(slug);
     if (!song) { flash("Couldn't find that song"); return; }
     const current = docRef.current.text.trim();
-    const untouched = !current || current === SAMPLE_TEXT.trim();
+    // Neither the first-load sample nor the "+ New song" starter is work worth warning
+    // about — both are text this app wrote, not the visitor.
+    const untouched = !current || current === SAMPLE_TEXT.trim() || current === STARTER_TEXT.trim();
     if (!untouched && !window.confirm(`Replace the sheet you're working on with "${song.title}"?`)) return;
     // Chord spelling follows the visitor across the site. `SongNotation` is a strict
     // subset of `ChartNotation` (see src/lib/songNotation.ts — no mapping table needed),
@@ -313,7 +349,7 @@ export function ChordSheetMaker() {
   }
 
   function handleNew() {
-    setDoc(BLANK_DOC);
+    setDoc(STARTER_DOC);
     setSongId(null);
     setSongSlug(null);
     setIsPublished(false);
