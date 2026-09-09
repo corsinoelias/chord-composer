@@ -100,8 +100,12 @@ export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Pr
         <Share2 className="w-4 h-4 shrink-0" />
         <span className={labelClass}>{shareTitle}</span>
       </button>
+      {/* The href carries the transposition the chart is showing, the same way the PNG
+          export below already does. Without it someone transposes to their key, hits
+          Print, and gets the recorded key back — /songs/pdf/ has always accepted
+          ?transpose=, this link just never passed it. */}
       <a
-        href={`/songs/pdf/${song.slug}/`}
+        href={`/songs/pdf/${song.slug}/${transpose !== 0 ? `?transpose=${transpose}` : ''}`}
         target="_blank"
         rel="noopener"
         title="Download PDF"
