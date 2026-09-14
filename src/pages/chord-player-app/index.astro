@@ -5,14 +5,15 @@ import GooglePlayBadge from '../../components/GooglePlayBadge.astro';
 import JsonLd from '@/components/schema/JsonLd.astro';
 import { buildBreadcrumbSchema, buildMobileApplicationSchema } from '@/components/schema/builders';
 
-// The site's page for the Android app (com.eliascorsino.chord_sequencer). Not /app/: that
-// path is the signed-in song library.
+// The site's page for the Chord Player mobile app (com.eliascorsino.chord_sequencer). The
+// URL names the app rather than the platform because an iOS build is planned; the copy
+// says Android only until that build exists. Not /app/: that path is the signed-in library.
 //
 // Every number and feature on this page is checked against the Flutter source, not
 // against the web editor — the two differ (15 chord types, not 37; 11 styles, not 13), and
 // the Play listing once copied the web's numbers. Change them here only together with the
 // app.
-const PAGE_URL = 'https://chordsequence.com/android-app/';
+const PAGE_URL = 'https://chordsequence.com/chord-player-app/';
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.eliascorsino.chord_sequencer';
 
 const description =
@@ -74,7 +75,7 @@ const appSchema = buildMobileApplicationSchema({
 
 const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
   { name: 'Home', item: 'https://chordsequence.com/' },
-  { name: 'Android app', item: PAGE_URL },
+  { name: 'Chord Player app', item: PAGE_URL },
 ]);
 ---
 

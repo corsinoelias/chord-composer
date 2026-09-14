@@ -70,7 +70,7 @@ ${songLines}
 - [Key Detector](${SITE}/tools/key-detector/): Detect the key of any chord progression.
 - [Bass Tab Player](${SITE}/tools/bass-guitar-tab/): Free online 4-string bass tablature editor. Draw notes on any string and fret, real-time playback, Pick/Synth/Slap sounds, WAV export. No account required.
 - [Guitar Tab Player](${SITE}/tools/guitar-tab/): Free online 6-string guitar tablature editor. Draw and drag notes, Chord Helper for one-click chord insertion, capo support, ASCII/MIDI export. No account required.
-- [Chord Player for Android](${SITE}/android-app/): Free native Android app of the Chord Player. Builds songs section by section, plays them with drums, bass, piano and guitar in 11 styles, works offline without an account, and exports M4A, WAV or MIDI.
+- [Chord Player for Android](${SITE}/chord-player-app/): Free native Android app of the Chord Player. Builds songs section by section, plays them with drums, bass, piano and guitar in 11 styles, works offline without an account, and exports M4A, WAV or MIDI.
 
 ## About
 - [About Chord Sequence](${SITE}/about/): About the tool and its creator.
