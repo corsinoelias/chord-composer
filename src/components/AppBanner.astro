@@ -1,0 +1,81 @@
+---
+// "Chord Player is also an Android app" strip, for pages whose visitors are the app's
+// audience. Opted into per page through BaseLayout's `appBanner` prop, whose value is the
+// placement: it becomes both the GA4 entry_point and the utm_campaign /android/ hands to
+// Play, so each page's installs can be told apart.
+interface Props {
+  placement: string;
+}
+
+const { placement } = Astro.props;
+---
+
+<!-- In the page flow at the very top, not fixed: the bottom of the screen already belongs
+     to the song player bar and the home's sticky CTA, and a fixed strip over content is
+     the intrusive-interstitial pattern Google demotes on mobile. It scrolls away under the
+     sticky navbar/editor header.
+
+     Rendered hidden and revealed by the synchronous script right after it, which runs
+     before first paint, so showing it moves nothing that was already on screen. -->
+<div data-app-banner data-placement={placement} hidden class="border-b border-border bg-card">
+  <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
+    <button
+      type="button"
+      data-app-banner-close
+      aria-label="Dismiss"
+      class="-ml-1 shrink-0 p-1 text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <img
+      src="/images/chord-player-app-icon.png"
+      width="96"
+      height="96"
+      alt=""
+      class="h-10 w-10 shrink-0 rounded-xl border border-border"
+    />
+    <div class="min-w-0 flex-1 leading-tight">
+      <p class="truncate text-sm font-semibold text-foreground">Chord Player for Android</p>
+      <p class="truncate text-xs text-muted-foreground">Free · works offline</p>
+    </div>
+    <a
+      href={`/android/?from=${placement}`}
+      data-app-banner-cta
+      class="shrink-0 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+    >
+      Get
+    </a>
+  </div>
+</div>
+<script is:inline>
+  (function () {
+    var el = document.querySelector('[data-app-banner]');
+    if (!el || !/Android/i.test(navigator.userAgent)) return;
+
+    // A dismissal lasts 30 days, not forever: someone who closed it on a first visit may
+    // be a regular a month later. Unreadable storage just means it shows again.
+    var KEY = 'chordsequence_app_banner_dismissed_at';
+    try {
+      var at = Number(localStorage.getItem(KEY));
+      if (at && Date.now() - at < 30 * 864e5) return;
+    } catch (e) {}
+
+    el.hidden = false;
+
+    var entryPoint = el.getAttribute('data-placement');
+    function track(name) {
+      if (typeof gtag !== 'undefined') gtag('event', name, { entry_point: entryPoint });
+    }
+
+    // Shown is logged so clicks can be read as a rate, not only a count.
+    track('app_banner_shown');
+    el.querySelector('[data-app-banner-cta]').addEventListener('click', function () {
+      track('app_cta_clicked');
+    });
+    el.querySelector('[data-app-banner-close]').addEventListener('click', function () {
+      el.hidden = true;
+      try { localStorage.setItem(KEY, String(Date.now())); } catch (e) {}
+      track('app_banner_dismissed');
+    });
+  })();
+</script>

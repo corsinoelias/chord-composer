@@ -394,6 +394,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
     : `https://chordsequence.com/og/songs/${song.slug}`}
   ogImageAlt={`${song.title} by ${song.artist} — chords in Key of ${song.key}`}
   author="Elías Corsino Saldaña"
+  appBanner="banner_songs"
 >
   <Fragment slot="head">
     <JsonLd schema={musicSchema} />

@@ -2,6 +2,7 @@
 import '../index.css';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
+import AppBanner from '../components/AppBanner.astro';
 import FeedbackModal from '../components/FeedbackModal';
 
 interface Props {
@@ -14,6 +15,8 @@ interface Props {
   author?: string;
   noIndex?: boolean;
   showNav?: boolean;
+  /** Placement id for the Android app strip (see AppBanner.astro); omit for no strip. */
+  appBanner?: string;
 }
 
 const {
@@ -26,6 +29,7 @@ const {
   author = 'Chord Sequence',
   noIndex = false,
   showNav = true,
+  appBanner,
 } = Astro.props;
 
 // Auto-generate OG image from title+description if not explicitly provided
@@ -217,6 +221,7 @@ const orgSchema = {
       })();
     </script>
 
+    {appBanner && <AppBanner placement={appBanner} />}
     {showNav && <Navbar />}
     <div class="flex-1">
       <slot />
