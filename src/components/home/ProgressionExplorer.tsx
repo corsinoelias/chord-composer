@@ -8,6 +8,7 @@ import {
   playProgression, stopProgression, playSingleChord, transposeChordName, displayChordName,
 } from '@/lib/progressionPreview';
 import { downloadProgressionMidi, downloadProgressionWav, editorUrl } from '@/lib/progressionExport';
+import { analytics, type PreviewSurface } from '@/lib/analytics';
 
 const FAVORITES_KEY = 'cs_favorite_progressions';
 
@@ -27,7 +28,26 @@ function readFavorites(): string[] {
   }
 }
 
-export default function ProgressionExplorer() {
+interface ProgressionExplorerProps {
+  /**
+   * Render just these cards, in this order, with no search or filters. The home uses it for
+   * a short "most played" row that plays like the full explorer on /progressions/ without
+   * shipping the browse UI a visitor there does not need.
+   */
+  onlyIds?: string[];
+  surface?: PreviewSurface;
+}
+
+export default function ProgressionExplorer({ onlyIds, surface = 'progressions_explorer' }: ProgressionExplorerProps) {
+  const showFilters = !onlyIds;
+  const source = useMemo(
+    () => (onlyIds
+      ? onlyIds.flatMap((id) => FEATURED_PROGRESSIONS.filter((p) => p.id === id))
+      : FEATURED_PROGRESSIONS),
+    // Callers pass a literal array; joining keeps a new-but-equal array from re-running this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onlyIds?.join(',')],
+  );
   const [search, setSearch] = useState('');
   const [genre, setGenre] = useState<string>('All');
   const [mood, setMood] = useState<string>('All');
@@ -57,7 +77,7 @@ export default function ProgressionExplorer() {
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    return FEATURED_PROGRESSIONS.filter((p) => {
+    return source.filter((p) => {
       if (genre !== 'All' && p.genre !== genre) return false;
       if (mood !== 'All' && p.mood !== mood) return false;
       if (musicKey !== 'All' && p.defaultKey !== musicKey) return false;
@@ -70,7 +90,7 @@ export default function ProgressionExplorer() {
         p.popularExamples.some((e) => e.toLowerCase().includes(needle))
       );
     });
-  }, [search, genre, mood, musicKey]);
+  }, [source, search, genre, mood, musicKey]);
 
   // Every name goes through transposeChordName even at zero semitones, so the spelling
   // never switches style the moment someone presses ♯ — see the note on that function.
@@ -86,14 +106,16 @@ export default function ProgressionExplorer() {
       setActiveStep(null);
       return;
     }
+    analytics.previewPlayed(surface, p.name);
     setPlayingId(p.id);
     setActiveStep(0);
     playProgression(chordsFor(p), p.bpm, { owner: p.id, onStep: setActiveStep });
-  }, [playingId, chordsFor]);
+  }, [playingId, chordsFor, surface]);
 
   const shiftTranspose = useCallback((p: FeaturedProgression, delta: number) => {
     setTranspositions((prev) => {
       const next = { ...prev, [p.id]: (prev[p.id] ?? 0) + delta };
+      analytics.previewTransposed(surface, p.name, next[p.id]);
       if (playingId === p.id) {
         playProgression(
           p.chords.map((c) => transposeChordName(c, next[p.id])),
@@ -103,17 +125,18 @@ export default function ProgressionExplorer() {
       }
       return next;
     });
-  }, [playingId]);
+  }, [playingId, surface]);
 
   const playRandom = useCallback(() => {
     if (filtered.length === 0) return;
     const pick = filtered[Math.floor(Math.random() * filtered.length)];
+    analytics.previewPlayed(surface, pick.name);
     stopProgression();
     setPlayingId(pick.id);
     setActiveStep(0);
     playProgression(chordsFor(pick), pick.bpm, { owner: pick.id, onStep: setActiveStep });
     document.getElementById(`progression-${pick.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [filtered, chordsFor]);
+  }, [filtered, chordsFor, surface]);
 
   const copyChords = useCallback((p: FeaturedProgression) => {
     navigator.clipboard.writeText(chordsFor(p).join(' - ')).then(() => {
@@ -123,19 +146,21 @@ export default function ProgressionExplorer() {
   }, [chordsFor]);
 
   const exportWav = useCallback(async (p: FeaturedProgression) => {
+    analytics.previewExported(surface, 'wav', p.name);
     setExportingId(p.id);
     try {
       await downloadProgressionWav(chordsFor(p), p.name, p.bpm, p.style);
     } finally {
       setExportingId(null);
     }
-  }, [chordsFor]);
+  }, [chordsFor, surface]);
 
   const hasFilters = genre !== 'All' || mood !== 'All' || musicKey !== 'All' || search !== '';
   const resetFilters = () => { setGenre('All'); setMood('All'); setMusicKey('All'); setSearch(''); };
 
   return (
     <div>
+      {showFilters && (<>
       {/* ── Search ───────────────────────────────────────────────────────── */}
       <div className="mx-auto mb-6 max-w-xl">
         <div className="relative">
@@ -247,6 +272,8 @@ export default function ProgressionExplorer() {
         )}
       </div>
 
+      </>)}
+      
       {/* ── Cards ────────────────────────────────────────────────────────── */}
       {filtered.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border bg-muted/30 p-12 text-center">
@@ -386,7 +413,7 @@ export default function ProgressionExplorer() {
                         : <Copy className="h-3 w-3" />}
                     </button>
                     <button
-                      onClick={() => downloadProgressionMidi(chords, p.name, p.bpm)}
+                      onClick={() => { analytics.previewExported(surface, 'midi', p.name); downloadProgressionMidi(chords, p.name, p.bpm); }}
                       title="Download MIDI"
                       className="flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-muted px-2 py-1.5 text-[11px] font-semibold transition-colors hover:bg-secondary"
                     >
@@ -402,6 +429,7 @@ export default function ProgressionExplorer() {
                     </button>
                     <a
                       href={editorUrl(chords, p.bpm, p.style)}
+                      onClick={() => analytics.previewEditorOpened(surface, p.name)}
                       className="ml-auto text-[11px] font-semibold text-primary hover:underline"
                     >
                       Open in editor →

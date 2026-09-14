@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Play, Square, ArrowRight } from 'lucide-react';
 import { playProgression, stopProgression, playSingleChord, displayChordName } from '@/lib/progressionPreview';
 import { editorUrl } from '@/lib/progressionExport';
+import { analytics } from '@/lib/analytics';
+
+const SURFACE = 'progressions_keys';
 
 interface DiatonicKey {
   key: string;
@@ -234,7 +237,10 @@ export default function KeyHarmonyExplorer() {
                       <p className="font-mono text-[11px] text-primary">{f.roman.join(' – ')}</p>
                     </div>
                     <button
-                      onClick={() => toggleFormula(f.chords, idx)}
+                      onClick={() => {
+                        if (!isPlayingThis) analytics.previewPlayed(SURFACE, `${current.key} · ${f.name}`);
+                        toggleFormula(f.chords, idx);
+                      }}
                       aria-label={isPlayingThis ? `Stop ${f.name}` : `Play ${f.name}`}
                       className={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors ${
                         isPlayingThis
@@ -259,6 +265,7 @@ export default function KeyHarmonyExplorer() {
                     ))}
                     <a
                       href={editorUrl(f.chords, FORMULA_BPM, 'pop_1')}
+                      onClick={() => analytics.previewEditorOpened(SURFACE, `${current.key} · ${f.name}`)}
                       className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
                     >
                       Edit <ArrowRight className="h-3 w-3" />

@@ -79,6 +79,15 @@ function trackCoalesced(eventName: string, key: string, params?: Record<string, 
   });
 }
 
+/** Which progression widget an event came from — see the preview events below. */
+export type PreviewSurface =
+  | 'home_hero'
+  | 'home_cards'
+  | 'progressions_generator'
+  | 'progressions_explorer'
+  | 'progressions_keys'
+  | 'progressions_songs';
+
 export const analytics = {
   // Auth — `entry_point` identifies which entry point opened the modal (e.g.
   // 'save_cta', 'export_nudge') so conversion can be compared per entry point.
@@ -207,6 +216,30 @@ export const analytics = {
   // page — read it as noise, or exclude your IP in GA4 so it stops showing up at all.
   songEditorOpened: (songSlug: string, entryPoint: 'player_bar' | 'practice_panel' | 'cta_block' | 'practice_tools') =>
     track('song_editor_opened', { song_slug: songSlug, entry_point: entryPoint }),
+
+  // Progression previews on the marketing pages (home hero, /progressions/). Before Sept 2026
+  // none of these surfaces sent a single event, so a redesign that dropped the home's
+  // engaged sessions from 77% to 61% could only be read from session totals, never from
+  // what people did on the page. `surface` separates the widgets, which are not comparable:
+  // the hero demo is the first thing a visitor sees, the explorer cards are a browse list.
+  // `progression` is the preset/card name, never user input.
+  previewPlayed: (surface: PreviewSurface, progression: string) =>
+    track('preview_played', { surface, progression }),
+  previewFormulaSelected: (surface: PreviewSurface, progression: string) =>
+    track('preview_formula_selected', { surface, progression }),
+  // Coalesced per surface: the ♭/♯ steppers get tapped several times in a row to find a key.
+  previewTransposed: (surface: PreviewSurface, progression: string, semitones: number) =>
+    trackCoalesced('preview_transposed', surface, { surface, progression, semitones }),
+  previewExported: (surface: PreviewSurface, format: 'midi' | 'wav', progression: string) =>
+    track('preview_exported', { surface, format, progression }),
+  // The conversion these pages exist for: a preview handed over to the Chord Player. Fires
+  // on an <a> that navigates away — gtag's sendBeacon survives the unload.
+  previewEditorOpened: (surface: PreviewSurface, progression: string) =>
+    track('preview_editor_opened', { surface, progression }),
+  // Static links on the home (song charts, genre pages, tools, the hero CTA). Fired from an
+  // inline script in index.astro, so the section can stay plain HTML instead of an island.
+  homeLinkClicked: (linkTarget: 'hero_cta' | 'sticky_cta' | 'song' | 'genre' | 'tool' | 'learn' | 'final_cta', label: string) =>
+    track('home_link_clicked', { link_target: linkTarget, label }),
 
   // Editor
   playProgression: (styleId: string) => track('play_progression', { style_id: styleId }),

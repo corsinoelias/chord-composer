@@ -3,8 +3,9 @@ import { Play, Square, Download, FileMusic } from 'lucide-react';
 import { ICONIC_SONGS, type IconicSong } from '@/data/iconicSongs';
 import { playProgression, stopProgression, displayChordName } from '@/lib/progressionPreview';
 import { downloadProgressionMidi, downloadProgressionWav } from '@/lib/progressionExport';
+import { analytics, type PreviewSurface } from '@/lib/analytics';
 
-export default function IconicSongProgressions() {
+export default function IconicSongProgressions({ surface = 'progressions_songs' }: { surface?: PreviewSurface }) {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
@@ -18,19 +19,26 @@ export default function IconicSongProgressions() {
       setActiveStep(null);
       return;
     }
+    analytics.previewPlayed(surface, song.title);
     setPlayingId(song.id);
     setActiveStep(0);
     playProgression(song.progression, song.bpm, { owner: song.id, onStep: setActiveStep });
-  }, [playingId]);
+  }, [playingId, surface]);
+
+  const exportMidi = useCallback((song: IconicSong) => {
+    analytics.previewExported(surface, 'midi', song.title);
+    downloadProgressionMidi(song.progression, song.title, song.bpm);
+  }, [surface]);
 
   const exportWav = useCallback(async (song: IconicSong) => {
+    analytics.previewExported(surface, 'wav', song.title);
     setExportingId(song.id);
     try {
       await downloadProgressionWav(song.progression, song.title, song.bpm, song.style);
     } finally {
       setExportingId(null);
     }
-  }, []);
+  }, [surface]);
 
   return (
     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -79,6 +87,17 @@ export default function IconicSongProgressions() {
                   );
                 })}
               </div>
+
+              {/* The loop is the song's skeleton; the chart page is the song. Linking it keeps
+                  this section feeding the /songs/ pages that rank instead of ending here. */}
+              {song.songSlug && (
+                <a
+                  href={`/songs/${song.songSlug}/`}
+                  className="mb-3 inline-block text-xs font-semibold text-primary hover:underline"
+                >
+                  Full chords &amp; lyrics →
+                </a>
+              )}
             </div>
 
             <div className="mt-2 flex items-center justify-between border-t border-border pt-3">
@@ -97,7 +116,7 @@ export default function IconicSongProgressions() {
 
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => downloadProgressionMidi(song.progression, song.title, song.bpm)}
+                  onClick={() => exportMidi(song)}
                   title="Download standard MIDI file of this song"
                   className="flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-muted px-2.5 py-1 text-[11px] font-semibold transition-colors hover:bg-secondary"
                 >

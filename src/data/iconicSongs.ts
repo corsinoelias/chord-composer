@@ -20,11 +20,18 @@ export interface IconicSong {
   bpm: number;
   /** Rhythm style id from MUSICAL_STYLES, used for the WAV render and the editor link. */
   style: string;
+  /**
+   * Slug of the full chart under /songs/, when the library has one. The card links to it so
+   * this section feeds the song pages that rank instead of being a dead end; the gospel
+   * standards have no hosted chart and simply show no link.
+   */
+  songSlug?: string;
 }
 
 export const ICONIC_SONGS: IconicSong[] = [
   {
     id: 'holy-forever',
+    songSlug: 'holy-forever-chris-tomlin',
     title: 'Holy Forever',
     artist: 'Chris Tomlin / Bethel',
     genre: 'Worship',
@@ -62,6 +69,7 @@ export const ICONIC_SONGS: IconicSong[] = [
   },
   {
     id: 'autumn-leaves',
+    songSlug: 'autumn-leaves-jazz-standard',
     title: 'Autumn Leaves',
     artist: 'Jazz Standard (Joseph Kosma)',
     genre: 'Jazz',
@@ -73,6 +81,7 @@ export const ICONIC_SONGS: IconicSong[] = [
   },
   {
     id: 'hallelujah',
+    songSlug: 'hallelujah-leonard-cohen',
     title: 'Hallelujah',
     artist: 'Leonard Cohen / Jeff Buckley',
     genre: 'Ballad',
@@ -84,6 +93,7 @@ export const ICONIC_SONGS: IconicSong[] = [
   },
   {
     id: 'wonderwall',
+    songSlug: 'wonderwall-oasis',
     title: 'Wonderwall',
     artist: 'Oasis',
     genre: 'Britpop / Rock',
@@ -95,6 +105,7 @@ export const ICONIC_SONGS: IconicSong[] = [
   },
   {
     id: 'goodness-of-god',
+    songSlug: 'goodness-of-god-bethel-music',
     title: 'Goodness of God',
     artist: 'Bethel Music / Jenn Johnson',
     genre: 'Worship',
@@ -106,6 +117,7 @@ export const ICONIC_SONGS: IconicSong[] = [
   },
   {
     id: 'oceans',
+    songSlug: 'oceans-hillsong-united',
     title: 'Oceans (Where Feet May Fail)',
     artist: 'Hillsong United',
     genre: 'Worship',

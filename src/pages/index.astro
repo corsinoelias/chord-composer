@@ -5,459 +5,303 @@ import JsonLd from '../components/schema/JsonLd.astro';
 import { withBrand } from '../lib/seoTitle';
 import ToolIcon from '../components/ToolIcon.astro';
 import type { ToolIconName } from '../components/toolIcons';
-import { FEATURED_PROGRESSIONS } from '../data/featuredProgressions';
-import { ICONIC_SONGS } from '../data/iconicSongs';
-import HomeGenerator from '../components/home/HomeGenerator';
+import HeroDemo from '../components/home/HeroDemo';
 import ProgressionExplorer from '../components/home/ProgressionExplorer';
-import KeyHarmonyExplorer from '../components/home/KeyHarmonyExplorer';
-import IconicSongProgressions from '../components/home/IconicSongProgressions';
+import { GENRES } from '../data/progressions';
 
-// Plain FAQ data for the visible accordion below. Deliberately NOT emitted as FAQPage
-// JSON-LD: Google restricted FAQ rich results to gov/health sites in Aug 2023, and that
-// schema has already had to be stripped from this codebase twice. Visible FAQ copy is
-// fine and useful — it is serializing it into a banned JSON-LD type that check-schema.mjs
-// fails the build on (it scans this file's source, so don't even write the pair as an
-// example in a comment). The same ban covers HowTo.
-const faqs = [
-  {
-    q: 'What is a chord progression?',
-    a: 'A chord progression is a succession of two or more musical chords played in sequence. It forms the foundational harmonic bedrock for melody, bassline, and rhythm across every musical genre, creating emotional movement through patterns of tension and resolution.',
-  },
-  {
-    q: 'What are the most famous and widely used chord progressions?',
-    a: 'The most popular progressions include the Pop Axis progression (I–V–VI–IV, e.g., C–G–Am–F), the fundamental Jazz 2-5-1 cadence (II–V–I, e.g., Dm7–G7–Cmaj7), the 12-bar blues (I7–IV7–V7), the 50s Doo-Wop turnaround (I–VI–IV–V), and the cinematic emotional minor progression (I–VI–III–VII, e.g., Am–F–C–G).',
-  },
-  {
-    q: 'How does Roman numeral analysis work?',
-    a: 'Roman numerals represent the scale degree on which each chord is built (I, II, III, IV, V, VI, VII), regardless of key. Chord qualities and extensions (such as maj7, 7, m9, or diminished °) describe the exact voicing. This universal harmonic framework enables musicians to transpose and analyze harmony across all 12 musical keys effortlessly.',
-  },
-  {
-    q: 'Can I export chord progressions and songs as MIDI and WAV files for my DAW?',
-    a: 'Yes! On Chord Sequence you can export any progression or analyzed song as both standard MIDI (.mid) files compatible with any virtual instrument (VST/AU), and uncompressed studio-grade WAV (.wav) audio stems ready to drag and drop straight into Ableton Live, FL Studio, Logic Pro, Cubase, Studio One, GarageBand, or Reaper.',
-  },
-  {
-    q: 'Why should I sign in and create an account?',
-    a: 'Signing in allows you to save your favorite chord progressions, organize custom chord setlists for songwriting sessions or rehearsals, and synchronize your personal library seamlessly between your desktop and mobile devices.',
-  },
-];
-
-// Names, descriptions, badges and order come from the landing's MUSIC_TOOLS as written.
-// Three things are adapted: the landing's absolute chordsequence.com URLs with
-// target="_blank" become plain internal links, its lucide icon names map onto this repo's
-// own ToolIcon set so the grid stays static HTML instead of a React island, and the first
-// card keeps its "Chord Player" anchor text.
+// The home has one job: sound in one click, the Chord Player in two.
 //
-// That anchor text is deliberate and predates the landing: the homepage was outranking
-// /chord-player/ for its own name, and naming the link after the destination is the fix.
-// The landing called this card "Chord Progression Generator", which would undo it.
+// Sept 2026: the home was rebuilt around a full generator, key explorer and song analysis.
+// Time on the page itself tripled, but engaged sessions from the home fell from 77% to 61%
+// (Tue–Sat, Sept 1–5 vs 8–12), bounce went from 23% to 38%, and visitors who went on to
+// /chord-player/ fell from 184 to 82 — in every channel, so it was the page, not the traffic.
+// Half the home's Google clicks are branded ("chord sequence"), and direct visitors lost the
+// most: people arriving here want the app. That content now lives on /progressions/, where
+// people come to browse progressions, and this page goes back to the hero that worked.
+//
+// SEO split, so pages stop competing with each other: the home keeps generator / player /
+// online (where it already ranks, positions 4–7); "chord progressions" belongs to
+// /learn/what-is-a-chord-progression/, and genre modifiers to /progressions/<genre>/.
+
+// Must equal what HeroDemo builds for its first preset (pop-axis): the CTA is static HTML
+// until the island hydrates, then the island keeps it in sync through the home:formula event.
+// Hardcoded rather than calling editorUrl() so this page's build does not import the audio
+// export chain.
+const DEFAULT_EDITOR_URL = '/chord-player/?chords=C-G-Am-F&bpm=110&style=pop_1';
+
+// Song pages are the site's biggest landing surface after the home; these are the charts
+// with the most landings plus the navbar's own picks. Keys match the navbar and songs.ts.
+const songs = [
+  { slug: 'center-bethel-music', title: 'Center', artist: 'Bethel Music', key: 'A' },
+  { slug: 'washed-elevation-rhythm', title: 'Washed', artist: 'Elevation Rhythm', key: 'B' },
+  { slug: 'holy-forever-chris-tomlin', title: 'Holy Forever', artist: 'Chris Tomlin', key: 'C' },
+  { slug: 'alleluia-elevation-worship', title: 'Alleluia', artist: 'Elevation Worship', key: 'B' },
+  { slug: 'oceans-hillsong-united', title: 'Oceans (Where Feet May Fail)', artist: 'Hillsong United', key: 'D' },
+  { slug: 'goodness-of-god-bethel-music', title: 'Goodness of God', artist: 'Bethel Music', key: 'C' },
+  { slug: 'great-are-you-lord-all-sons-daughters', title: 'Great Are You Lord', artist: 'All Sons & Daughters', key: 'G' },
+  { slug: 'hay-poder-yeshua-averly-morillo', title: 'Hay Poder | Yeshua', artist: 'Averly Morillo', key: 'F#' },
+];
+
+// Genre pages rank on their own (6,193 impressions / 181 clicks in 28 days to Sept 12); the
+// home hands visitors to them instead of re-hosting their content.
+const GENRE_ORDER = ['pop', 'worship', 'gospel', 'jazz', 'neo-soul', 'lo-fi', 'blues', 'rock', 'edm', 'sad', 'happy', '12-bar-blues'];
+const genres = GENRE_ORDER.flatMap((slug) => {
+  const g = GENRES.find((x) => x.slug === slug);
+  return g ? [{ slug, name: g.name, formula: g.progressions[0]?.title.split(' (')[0] ?? '' }] : [];
+});
+
+// Chord Player leads on purpose: the anchor text names the destination, which is the fix for
+// this page outranking /chord-player/ for its own name.
 const tools = [
-  { title: 'Chord Player', desc: 'Drag & drop chords from 37 qualities, audition 13+ rhythms, and export clean WAV stems.', href: '/chord-player/', icon: 'piano', badge: 'Core Tool' },
-  { title: 'Chord Finder & Voicings', desc: 'Look up notes, inversions, and fingerings for piano and guitar for any chord symbol.', href: '/chord-lookup/', icon: 'chords' },
-  { title: 'Interactive Circle of Fifths', desc: 'Visual harmonic wheel to discover related keys, borrowed chords, and seamless modulations.', href: '/tools/circle-of-fifths/', icon: 'circle', badge: 'Interactive' },
-  { title: 'Instant Chord Transposer', desc: 'Transpose entire chord charts to any key, capos, or vocal range in a single click.', href: '/tools/chord-transposer/', icon: 'transpose' },
-  { title: 'Song Key Detector', desc: 'Enter your chords and immediately identify the underlying musical key and scale degrees.', href: '/tools/key-detector/', icon: 'key' },
-  { title: 'Guitar Strumming & Arpeggio', desc: 'Interactive visual strumming patterns with audio playback and picking direction guides.', href: '/tools/guitar-strumming-patterns/', icon: 'guitar' },
-  { title: 'Bass Tab Editor & Player', desc: 'Write, preview, and play interactive 4-string and 5-string bass guitar tablature with audio.', href: '/tools/bass-guitar-tab/', icon: 'bass-tab' },
-  { title: 'Browser Drum Machine', desc: 'Step sequencer with kick, snare, hi-hats, and percussion kits to jam along with your chords.', href: '/tools/drum-machine/', icon: 'step-grid' },
-  { title: 'Chromatic Instrument Tuner', desc: 'Accurate microphone-based pitch detection for guitar, bass, ukulele, and vocals.', href: '/tuner/', icon: 'tuner' },
-  { title: 'Precision Audio Metronome', desc: 'Tap tempo, polyrhythms, and time signatures (3/4, 4/4, 6/8, 7/8) with crisp audio clicks.', href: '/metronome/', icon: 'metronome' },
-] satisfies { title: string; desc: string; href: string; icon: ToolIconName; badge?: string }[];
+  { title: 'Chord Player', desc: 'Play, listen, and practice chord progressions with real instrument sounds — piano, guitar, bass & drums.', href: '/chord-player/', icon: 'piano' },
+  { title: 'Chord Finder', desc: 'Find any chord on guitar, piano, or ukulele — see the fingering and hear it.', href: '/chord-lookup/', icon: 'chords' },
+  { title: 'Chord Transposer', desc: 'Shift any chord or progression to any key instantly.', href: '/tools/chord-transposer/', icon: 'transpose' },
+  { title: 'Circle of Fifths', desc: 'Interactive chart — click any key to see its diatonic chords.', href: '/tools/circle-of-fifths/', icon: 'circle' },
+  { title: 'Guitar Strumming & Arpeggio', desc: 'Edit and play strumming/arpeggio patterns on a live 6-string fretboard.', href: '/tools/guitar-strumming-patterns/', icon: 'guitar' },
+  { title: 'Drum Tab Player', desc: 'Read and write drum tabs — percussion notation, step grid, or pasted ASCII tab.', href: '/tools/drum-tab/', icon: 'step-grid' },
+] satisfies { title: string; desc: string; href: string; icon: ToolIconName }[];
 
-const DAWS = ['Ableton Live', 'FL Studio', 'Logic Pro', 'GarageBand', 'Cubase', 'Studio One', 'Reaper'];
-
-const heroHighlights = [
-  { title: 'Instant MIDI & WAV', desc: 'Drag straight into any DAW' },
-  { title: '37 chord qualities', desc: 'Major, minor, 7ths, 9ths, sus, dim' },
-  { title: 'All 12 keys', desc: 'Transpose without rewriting a thing' },
-  { title: 'Zero-latency audio', desc: 'Real sampled piano in the browser' },
+// Plain data for the visible accordion — never serialized as FAQPage JSON-LD (see CLAUDE.md).
+const faqs = [
+  { q: 'Is Chord Sequence free to use?', a: 'Yes. Chord Sequence is completely free. No subscription and no credit card. Building, playing, transposing and exporting all work without an account.' },
+  { q: 'Do I need to install anything?', a: 'No installation required. Chord Sequence runs entirely in your browser using the Web Audio API. It works on Chrome, Firefox, Safari, and Edge.' },
+  { q: 'Can I export my chord progression as MIDI or WAV?', a: 'Yes. Open any progression in the Chord Player and export it as a MIDI file or a WAV audio file in one click, ready for Ableton, Logic, FL Studio, GarageBand or any other DAW.' },
+  { q: 'Are my saved songs private?', a: 'Yes. Saved songs are private to your account — nobody else can open one until you use the Share button, and you can switch that link off again whenever you want. Saving needs a free account so your library follows you between devices.' },
 ];
-
-const theoryPillars = [
-  {
-    n: '01',
-    label: 'Harmonic function',
-    title: 'Tension and Resolution',
-    body: 'Every chord in a musical key has an acoustic role: <strong>Tonic</strong> (stability and home), <strong>Subdominant</strong> (departure and gentle motion), and <strong>Dominant</strong> (peak harmonic tension pulling strongly back to tonic).',
-  },
-  {
-    n: '02',
-    label: 'Voice leading',
-    title: 'Smooth Transitions',
-    body: 'Pro chord progressions minimize leaps between voices. By preserving common tones and stepping voices by semitones or whole tones, changes feel velvety, organic, and musically polished.',
-  },
-  {
-    n: '03',
-    label: 'Modal interchange',
-    title: 'Borrowed Chords',
-    body: 'Borrowing chords from parallel modes (like the famous minor iv in a major key, or ♭VI and ♭VII) injects instant nostalgia, emotional bittersweetness, and cinematic depth into any track.',
-  },
-];
-
-const CANONICAL = 'https://chordsequence.com/';
 
 const webPageSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebPage',
   '@id': 'https://chordsequence.com/#webpage',
-  url: CANONICAL,
-  name: 'Chord Progressions — Free Generator, Player & MIDI Library',
-  description: 'Audition popular chord progressions with real-time audio, transpose across all 12 keys, and download free MIDI and WAV files for your DAW.',
+  url: 'https://chordsequence.com/',
+  name: 'Chord Progression Generator — Hear It Instantly',
+  description: 'Pick a chord progression, press play, change the key, and open it in the free Chord Player.',
   inLanguage: 'en',
   isPartOf: { '@type': 'WebSite', '@id': 'https://chordsequence.com/#website' },
-  about: {
-    '@type': 'WebApplication',
-    '@id': 'https://chordsequence.com/#app',
-    name: 'Chord Sequence',
-    url: 'https://chordsequence.com',
-  },
-};
-
-const progressionListSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'ItemList',
-  '@id': 'https://chordsequence.com/#progression-list',
-  name: 'Popular chord progressions',
-  url: CANONICAL,
-  numberOfItems: FEATURED_PROGRESSIONS.length,
-  itemListElement: FEATURED_PROGRESSIONS.map((p, i) => ({
-    '@type': 'ListItem',
-    position: i + 1,
-    item: {
-      '@type': 'Thing',
-      name: `${p.name} (${p.romanNumerals.join('–')})`,
-      description: p.description,
-      '@id': `${CANONICAL}#progression-${p.id}`,
-    },
-  })),
-};
-
-// Describes what this page actually shows now: the harmonic analysis of each song, not
-// the /songs/ chart pages. Those have their own ItemList on /songs/, and pointing this
-// one at URLs the homepage no longer links to would be describing a page that isn't here.
-const songListSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'ItemList',
-  '@id': 'https://chordsequence.com/#song-list',
-  name: 'Iconic Song Chord Progressions — Chord Sequence',
-  url: CANONICAL,
-  numberOfItems: ICONIC_SONGS.length,
-  itemListElement: ICONIC_SONGS.map((song, i) => ({
-    '@type': 'ListItem',
-    position: i + 1,
-    item: {
-      '@type': 'Thing',
-      name: `${song.title} — ${song.artist}`,
-      description: `${song.genre} in ${song.key} at ${song.bpm} BPM: ${song.romanNumerals.join('–')} (${song.progression.join(' ')}).`,
-      '@id': `${CANONICAL}#song-${song.id}`,
-    },
-  })),
+  about: { '@type': 'WebApplication', '@id': 'https://chordsequence.com/#app', name: 'Chord Sequence', url: 'https://chordsequence.com' },
 };
 ---
 
 <BaseLayout
   title={withBrand('Chord Progressions You Can Hear in Any Key')}
   description="Hear popular chord progressions played in any key — pop, jazz, neo-soul, gospel and worship. Transpose instantly, see the voicings, export MIDI and WAV. Free."
-  canonicalUrl={CANONICAL}
+  canonicalUrl="https://chordsequence.com/"
   ogImage="https://chordsequence.com/og/page/home/"
   ogImageAlt="Chord Sequence — free chord progression generator and player"
 >
   <Fragment slot="head">
-    <JsonLd schema={[webPageSchema, progressionListSchema, songListSchema]} />
+    <JsonLd schema={webPageSchema} />
   </Fragment>
 
   <main>
-    <!-- ─── HERO ───────────────────────────────────────────────────────── -->
-    <section class="relative overflow-hidden border-b border-border pt-8 pb-14 sm:pt-12 sm:pb-20">
-      <div class="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center">
-        <div class="h-[400px] w-[700px] rounded-full bg-primary/10 blur-[130px]"></div>
+    <!-- ─── HERO ─────────────────────────────────────────────────────────── -->
+    <section data-home-hero class="relative overflow-hidden border-b border-border pt-8 pb-12 sm:pt-10 sm:pb-16 lg:pt-12 lg:pb-20">
+      <div class="pointer-events-none absolute inset-0 -z-10">
+        <div class="absolute left-1/2 top-1/2 h-[520px] w-[920px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[130px]"></div>
       </div>
 
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="mb-5 flex justify-center">
-          <!--
-            The trailing "· Free MIDI & WAV" is dropped below sm: at 390px the badge wraps
-            onto two lines and strands the separator dot on its own. The claim is not lost —
-            it is repeated in the paragraph below and in the highlights row under the card.
-          -->
-          <span class="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3.5 py-1 text-center text-xs font-semibold text-primary">
-            <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
-            <span>Interactive chord progression generator</span>
-            <span class="hidden opacity-40 sm:inline">·</span>
-            <span class="hidden font-bold sm:inline">Free MIDI &amp; WAV</span>
-          </span>
-        </div>
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <!-- minmax(0, …) + min-w-0: without them the demo's chip row sets the column's minimum
+             width, and the card pushed itself past the right edge of a 1440px screen. -->
+        <div class="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
+          <div class="min-w-0 text-center lg:text-left">
+            <h1 class="mb-6 font-serif text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-[3.35rem] xl:text-[4rem]">
+              The chord progression generator.<br />
+              <span class="text-primary">Hear it instantly.</span>
+            </h1>
 
-        <div class="mx-auto mb-9 max-w-4xl text-center">
-          <h1 class="font-serif text-4xl font-bold leading-[1.08] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
-            Chord Progressions
-            <span class="mt-2 block font-sans text-xl font-normal text-primary sm:text-3xl lg:text-4xl">
-              Interactive Audio Generator, Player &amp; Free MIDI Library
-            </span>
-          </h1>
-          <p class="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg">
-            Audition popular <strong class="text-foreground">chord progressions</strong> with real-time audio playback,
-            transpose across all 12 keys, explore interactive piano voicings and guitar tabs, and download
-            <strong class="text-foreground">free MIDI &amp; WAV files</strong> for your DAW.
-          </p>
-        </div>
+            <p class="mx-auto mb-8 max-w-xl text-lg text-muted-foreground sm:text-xl lg:mx-0">
+              Pick a progression, press play, change the key. When you like it, take it into the
+              Chord Player — free, no account needed.
+            </p>
 
-        <HomeGenerator client:load />
+            <div class="flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
+              <a
+                href={DEFAULT_EDITOR_URL}
+                data-home-cta
+                data-home-event="hero_cta"
+                data-home-label="start_playing"
+                class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-colors hover:bg-primary/90"
+              >
+                <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                Start playing
+              </a>
+              <a
+                href="/progressions/"
+                data-home-event="genre"
+                data-home-label="hero_browse"
+                class="inline-flex items-center gap-1.5 whitespace-nowrap text-base font-medium text-primary transition-colors hover:text-primary/80"
+              >
+                Browse progressions by genre →
+              </a>
+            </div>
+          </div>
 
-        <!-- DAW trust strip -->
-        <div class="mt-5 flex flex-wrap items-center justify-center gap-2 text-center text-xs">
-          <span class="font-mono font-medium text-muted-foreground">Compatible with all major DAWs:</span>
-          <div class="flex flex-wrap items-center justify-center gap-1.5 font-mono text-[11px] font-semibold">
-            {DAWS.map((daw) => (
-              <span class="rounded-md border border-border bg-card px-2 py-0.5 text-muted-foreground">{daw}</span>
-            ))}
+          <div class="min-w-0">
+            <HeroDemo client:idle />
           </div>
         </div>
+      </div>
+    </section>
 
-        <div class="mx-auto mt-8 grid max-w-4xl grid-cols-2 gap-3.5 text-center sm:grid-cols-4">
-          {heroHighlights.map((h) => (
-            <div class="rounded-2xl border border-border bg-card p-3.5">
-              <div class="font-mono text-xs font-bold text-primary">{h.title}</div>
-              <div class="mt-0.5 text-xs text-muted-foreground">{h.desc}</div>
-            </div>
+    <!-- ─── SOCIAL PROOF ──────────────────────────────────────────────────── -->
+    <section class="border-b border-border bg-card/50">
+      <div class="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+        <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+          {['100% Free', 'No account needed', '37 chord types', '13+ rhythm styles', 'MIDI & WAV export'].map((item) => (
+            <span class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <svg class="h-3.5 w-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              {item}
+            </span>
           ))}
         </div>
       </div>
     </section>
 
-    <!-- ─── PROGRESSION EXPLORER ───────────────────────────────────────── -->
-    <section id="progressions" class="border-b border-border py-14 sm:py-20">
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="mx-auto mb-10 max-w-3xl text-center">
-          <p class="mb-2 font-mono text-xs font-bold uppercase tracking-wider text-primary">
-            Harmonic Explorer &amp; Downloads
-          </p>
-          <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Popular Chord Progressions Library
+    <!-- ─── SONG CHORD CHARTS ──────────────────────────────────────────── -->
+    <section class="py-14 sm:py-20">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <div class="mb-10 text-center">
+          <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Play along — songs with chords
           </h2>
-          <p class="mt-2 text-sm text-muted-foreground sm:text-base">
-            Browse and play the most popular <strong class="text-foreground">chord progressions</strong> across Pop,
-            Neo-Soul, Jazz, EDM, and Lo-Fi. Audition in real time, transpose instantly, and download free
-            <strong class="text-foreground">MIDI &amp; WAV stems</strong> for your music production.
+          <p class="mx-auto max-w-xl text-lg text-muted-foreground">
+            Chords synced to the lyrics. Press play, transpose to your key, print the chart.
           </p>
         </div>
 
-        <ProgressionExplorer client:visible />
+        <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {songs.map((song) => (
+            <a
+              href={`/songs/${song.slug}/`}
+              data-home-event="song"
+              data-home-label={song.slug}
+              class="group flex flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/50 hover:bg-primary/5 sm:p-5"
+            >
+              <p class="truncate text-sm font-bold text-foreground transition-colors group-hover:text-primary sm:text-base">{song.title}</p>
+              <p class="mb-3 truncate text-xs text-muted-foreground sm:text-sm">{song.artist}</p>
+              <div class="mt-auto flex flex-wrap gap-1.5">
+                <span class="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs text-primary">Key: {song.key}</span>
+              </div>
+            </a>
+          ))}
+        </div>
 
-        <div class="mt-10 text-center">
-          <a href="/progressions/" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
-            Browse every genre — hundreds more progressions →
+        <div class="mt-8 text-center">
+          <a href="/songs/" data-home-event="song" data-home-label="all_songs" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
+            All song charts →
           </a>
         </div>
       </div>
     </section>
 
-    <!-- ─── DIATONIC HARMONY ───────────────────────────────────────────── -->
-    <section id="keys" class="border-b border-border bg-muted/20 py-14 sm:py-20">
+    <!-- ─── PROGRESSIONS BY GENRE ─────────────────────────────────────────── -->
+    <section class="border-y border-border bg-muted/20 py-14 sm:py-20">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="mx-auto mb-10 max-w-3xl text-center">
-          <p class="mb-2 font-mono text-xs font-bold uppercase tracking-wider text-primary">
-            Diatonic Harmony &amp; Tonalities
-          </p>
-          <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Interactive Harmonic Keys &amp; Diatonic Chords
+        <div class="mb-10 text-center">
+          <h2 class="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Chord progressions by genre
           </h2>
-          <p class="mt-2 text-sm text-muted-foreground sm:text-base">
-            Select any key signature to inspect its 7 natural chords, relative minor, and iconic
-            progression formulas with instant audio.
+          <p class="mx-auto max-w-2xl text-lg text-muted-foreground">
+            Every genre page has playable progressions with MIDI and WAV. New to this?
+            <a href="/learn/what-is-a-chord-progression/" data-home-event="learn" data-home-label="what_is" class="font-semibold text-primary hover:text-primary/80">Start with what a chord progression is →</a>
           </p>
         </div>
 
-        <KeyHarmonyExplorer client:visible />
+        <div class="mb-10 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+          {genres.map((g) => (
+            <a
+              href={`/progressions/${g.slug}/`}
+              data-home-event="genre"
+              data-home-label={g.slug}
+              class="group flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-4 py-3.5 transition-colors hover:border-primary/40"
+            >
+              <span class="min-w-0">
+                <span class="block text-sm font-bold text-foreground transition-colors group-hover:text-primary">{g.name}</span>
+                <span class="block truncate font-mono text-[11px] text-primary">{g.formula}</span>
+              </span>
+              <span class="text-muted-foreground transition-colors group-hover:text-primary" aria-hidden="true">→</span>
+            </a>
+          ))}
+        </div>
 
-        <div class="mt-10 text-center">
-          <a href="/tools/circle-of-fifths/" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
-            Open the interactive circle of fifths →
+        <p class="mb-4 text-center font-mono text-xs uppercase tracking-wider text-muted-foreground">Play one now</p>
+        <ProgressionExplorer client:visible onlyIds={['pop-axis', 'worship-elevation', 'gospel-736']} surface="home_cards" />
+
+        <div class="mt-8 text-center">
+          <a href="/progressions/" data-home-event="genre" data-home-label="all_progressions" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
+            Browse all chord progressions →
           </a>
         </div>
       </div>
     </section>
 
-    <!-- ─── ICONIC SONG CHORD PROGRESSIONS ─────────────────────────────── -->
-    <section id="songs" class="border-b border-border py-14 sm:py-20">
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <div>
-            <p class="mb-2 font-mono text-xs font-bold uppercase tracking-wider text-primary">
-              Real-World Song Analysis &amp; Stems
-            </p>
-            <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Iconic Song Chord Progressions
-            </h2>
-            <p class="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-              Listen to and analyze harmonic sequences from internationally famous hits. Audition in
-              your browser or <strong class="text-foreground">download standard MIDI &amp; WAV stems</strong>
-              directly into your DAW project.
-            </p>
-          </div>
+    <!-- ─── TOOLS ────────────────────────────────────────────────────────── -->
+    <section class="py-14 sm:py-20" id="tools">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <h2 class="mb-10 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          More free music tools
+        </h2>
 
-          <a
-            href="/songs/"
-            class="self-start text-xs font-semibold text-primary hover:underline md:self-auto"
-          >
-            View complete song library →
-          </a>
-        </div>
-
-        <IconicSongProgressions client:visible />
-      </div>
-    </section>
-
-    <!-- ─── TOOLS ──────────────────────────────────────────────────────── -->
-    <section id="tools" class="border-y border-border bg-muted/20 py-14 sm:py-20">
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="mx-auto mb-12 max-w-3xl text-center">
-          <p class="mb-2 font-mono text-xs font-bold uppercase tracking-wider text-primary">
-            Musician &amp; Producer Suite
-          </p>
-          <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Tools for Songwriters &amp; Producers
-          </h2>
-          <p class="mt-2 text-sm text-muted-foreground sm:text-base">
-            Everything you need to write chords, transpose keys, practice tempo, and analyze harmony
-            directly in your browser.
-          </p>
-        </div>
-
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tools.map((t) => (
             <a
               href={t.href}
-              class="group flex flex-col justify-between rounded-3xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
+              data-home-event="tool"
+              data-home-label={t.href}
+              class="group flex items-start gap-4 rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
             >
-              <div>
-                <div class="mb-3 flex items-center justify-between">
-                  <div class="rounded-2xl border border-primary/20 bg-primary/10 p-2.5 transition-transform group-hover:scale-105">
-                    <ToolIcon name={t.icon} class="h-5 w-5 text-primary" />
-                  </div>
-                  {t.badge && (
-                    <span class="rounded border border-primary/20 bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-primary">
-                      {t.badge}
-                    </span>
-                  )}
-                </div>
-
-                <h3 class="font-serif text-base font-bold text-foreground transition-colors group-hover:text-primary">
-                  {t.title}
-                </h3>
-                <p class="mt-1.5 text-xs leading-relaxed text-muted-foreground">{t.desc}</p>
+              <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <ToolIcon name={t.icon} class="h-5 w-5 text-primary" />
               </div>
-
-              <div class="mt-4 flex items-center justify-between border-t border-border pt-3 font-mono text-[11px] font-bold text-primary">
-                <span>Launch tool</span>
-                <span>→</span>
+              <div class="min-w-0">
+                <h3 class="mb-1 font-semibold text-foreground transition-colors group-hover:text-primary">{t.title}</h3>
+                <p class="text-sm text-muted-foreground">{t.desc}</p>
               </div>
             </a>
           ))}
         </div>
 
         <div class="mt-10 text-center">
-          <a href="/tools/" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
+          <a href="/tools/" data-home-event="tool" data-home-label="all_tools" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
             View all music tools →
           </a>
         </div>
       </div>
     </section>
 
-    <!-- ─── THEORY + FAQ ───────────────────────────────────────────────── -->
-    <section id="theory" class="py-14 sm:py-20">
-      <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div class="mx-auto mb-12 max-w-3xl text-center">
-          <p class="mb-2 font-mono text-xs font-bold uppercase tracking-wider text-primary">
-            Theory Guide &amp; Harmonic Composition
-          </p>
-          <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Chord Progressions: Music Theory &amp; Formulas Guide
-          </h2>
-          <p class="mt-2 text-sm text-muted-foreground sm:text-base">
-            Practical harmonic theory for songwriters, producers, and beatmakers. Learn how chord
-            progressions create emotion, tension, and resolution.
-          </p>
-        </div>
+    <!-- ─── FAQ ──────────────────────────────────────────────────────────── -->
+    <section class="border-y border-border bg-muted/20 py-14 sm:py-20">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="mb-10 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Frequently asked questions
+        </h2>
 
-        <div class="mb-16 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {theoryPillars.map((p) => (
-            <div class="rounded-3xl border border-border bg-card p-6">
-              <div class="mb-2 font-mono text-xs font-bold uppercase tracking-wider text-primary">
-                {p.n} · {p.label}
-              </div>
-              <h3 class="mb-2 font-serif text-lg font-bold text-foreground">{p.title}</h3>
-              <p class="text-xs leading-relaxed text-muted-foreground" set:html={p.body} />
+        <div class="space-y-3">
+          {faqs.map((faq) => (
+            <div class="overflow-hidden rounded-xl border border-border bg-card">
+              <details class="group">
+                <summary class="flex cursor-pointer select-none list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent/30">
+                  {faq.q}
+                  <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </summary>
+                <div class="border-t border-border px-5 py-4">
+                  <p class="text-sm leading-relaxed text-muted-foreground">{faq.a}</p>
+                </div>
+              </details>
             </div>
           ))}
         </div>
-
-        <div class="mx-auto max-w-3xl">
-          <h3 class="mb-8 text-center font-serif text-2xl font-bold text-foreground">
-            Frequently Asked Questions About Chord Progressions
-          </h3>
-
-          <div class="space-y-3">
-            {faqs.map((faq) => (
-              <div class="overflow-hidden rounded-2xl border border-border bg-card">
-                <details class="group">
-                  <summary class="flex cursor-pointer select-none list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent/30">
-                    {faq.q}
-                    <svg class="h-4 w-4 shrink-0 text-primary transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
-                  </summary>
-                  <div class="border-t border-border px-5 py-4">
-                    <p class="text-sm leading-relaxed text-muted-foreground">{faq.a}</p>
-                  </div>
-                </details>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </section>
 
-    <!-- ─── LEARN ──────────────────────────────────────────────────────── -->
-    <section class="border-y border-border bg-muted/20 py-14 sm:py-20">
-      <div class="mx-auto max-w-5xl px-4 sm:px-6">
-        <div class="mb-10 text-center">
-          <h2 class="mb-3 font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Learn music theory
-          </h2>
-          <p class="text-lg text-muted-foreground">
-            Free guides for songwriters and producers. Every article includes interactive examples.
-          </p>
-        </div>
-
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {[
-            { href: '/learn/what-is-a-chord-progression/', title: 'What is a chord progression?', desc: 'The complete beginner guide to harmonic movement and why progressions work.' },
-            { href: '/learn/chord-progressions-for-beginners/', title: 'Chord progressions for beginners', desc: 'I–V–vi–IV, the 12-bar blues, and the four progressions to learn first.' },
-            { href: '/learn/jazz-chord-progressions/', title: 'Jazz chord progressions', desc: 'ii–V–I, turnarounds, bossa nova, and modal jazz — with interactive players.' },
-            { href: '/learn/circle-of-fifths-explained/', title: 'Circle of fifths explained', desc: 'How key relationships work and how to use them in your songwriting.' },
-            { href: '/best-chord-progression-generators/', title: 'Best chord progression generators', desc: 'Free vs paid tools compared — browser apps and DAW plugins for 2026.' },
-            { href: '/best-guitar-tab-software/', title: 'Best guitar tab software', desc: 'Free vs paid tab editors compared — browser tools, desktop apps, and notation software for 2026.' },
-          ].map((a) => (
-            <a href={a.href} class="group rounded-xl border border-border bg-card p-6 transition-colors hover:border-primary/40">
-              <h3 class="mb-2 text-sm font-semibold text-foreground transition-colors group-hover:text-primary">{a.title}</h3>
-              <p class="text-xs leading-relaxed text-muted-foreground">{a.desc}</p>
-            </a>
-          ))}
-        </div>
-
-        <div class="mt-8 text-center">
-          <a href="/learn/" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
-            View all music theory guides →
-          </a>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── FINAL CTA ──────────────────────────────────────────────────── -->
-    <section class="relative overflow-hidden border-t border-border py-16 sm:py-24">
+    <!-- ─── FINAL CTA ─────────────────────────────────────────────────────── -->
+    <section data-home-final class="relative overflow-hidden py-16 sm:py-24">
       <div class="pointer-events-none absolute inset-0 -z-10">
         <div class="absolute left-1/2 top-1/2 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/[0.08] blur-[100px]"></div>
       </div>
       <div class="mx-auto max-w-3xl px-4 text-center sm:px-6">
-        <h2 class="mb-6 font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+        <h2 class="mb-6 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
           Your next chord progression<br />is one click away.
         </h2>
         <p class="mx-auto mb-10 max-w-xl text-lg text-muted-foreground">
@@ -465,12 +309,77 @@ const songListSchema = {
         </p>
         <a
           href="/chord-player/"
+          data-home-event="final_cta"
+          data-home-label="open_chord_player"
           class="inline-flex items-center gap-2 rounded-xl bg-primary px-10 py-5 text-xl font-bold text-primary-foreground shadow-xl shadow-primary/25 transition-colors hover:bg-primary/90"
         >
           Open Chord Player
-          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
     </section>
   </main>
+
+  <!-- Mobile only: once the hero has scrolled away, the way into the editor stays on screen.
+       Organic mobile was the worst-hit segment of the Sept 2026 redesign (engaged 79% → 52%). -->
+  <div
+    data-home-sticky
+    inert
+    class="fixed inset-x-0 bottom-0 z-40 translate-y-full border-t border-border bg-background/95 px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur transition-transform duration-200 sm:hidden"
+  >
+    <div class="flex items-center gap-3">
+      <div class="min-w-0 flex-1">
+        <p class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Ready to play</p>
+        <p data-home-sticky-label class="truncate text-sm font-semibold text-foreground">Pop Axis · C G Am F</p>
+      </div>
+      <a
+        href={DEFAULT_EDITOR_URL}
+        data-home-cta
+        data-home-event="sticky_cta"
+        data-home-label="start_playing"
+        class="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        Start playing
+      </a>
+    </div>
+  </div>
+
+  <script>
+    import { analytics } from '@/lib/analytics';
+
+    type LinkTarget = Parameters<typeof analytics.homeLinkClicked>[0];
+
+    document.addEventListener('click', (event) => {
+      const link = (event.target as Element | null)?.closest<HTMLElement>('[data-home-event]');
+      if (!link) return;
+      analytics.homeLinkClicked(link.dataset.homeEvent as LinkTarget, link.dataset.homeLabel ?? '');
+    });
+
+    // HeroDemo dispatches this whenever the formula or key changes ('home:formula' is
+    // HOME_FORMULA_EVENT in HeroDemo.tsx), so "Start playing" opens what the visitor just heard.
+    window.addEventListener('home:formula', (event) => {
+      const { href, label } = (event as CustomEvent<{ href: string; label: string }>).detail;
+      document.querySelectorAll<HTMLAnchorElement>('[data-home-cta]').forEach((a) => a.setAttribute('href', href));
+      const stickyLabel = document.querySelector('[data-home-sticky-label]');
+      if (stickyLabel) stickyLabel.textContent = label;
+    });
+
+    // The bar shows between the hero and the final CTA — never over the hero's own button,
+    // and never over the footer, where it would hide the last links on the page.
+    const hero = document.querySelector('[data-home-hero]');
+    const finalCta = document.querySelector('[data-home-final]');
+    const bar = document.querySelector<HTMLElement>('[data-home-sticky]');
+    if (hero && finalCta && bar) {
+      let frame = 0;
+      const update = () => {
+        frame = 0;
+        const show = hero.getBoundingClientRect().bottom < 0 && finalCta.getBoundingClientRect().top > window.innerHeight;
+        bar.classList.toggle('translate-y-full', !show);
+        bar.toggleAttribute('inert', !show);
+      };
+      window.addEventListener('scroll', () => { if (!frame) frame = requestAnimationFrame(update); }, { passive: true });
+      update();
+    }
+  </script>
 </BaseLayout>

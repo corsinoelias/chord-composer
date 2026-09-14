@@ -12,6 +12,9 @@ import {
   playProgression, stopProgression, playSingleChord, transposeChordName, displayChordName,
 } from '@/lib/progressionPreview';
 import { downloadProgressionMidi, downloadProgressionWav, editorUrl } from '@/lib/progressionExport';
+import { analytics } from '@/lib/analytics';
+
+const SURFACE = 'progressions_generator';
 
 interface HeroPreset {
   name: string;
@@ -119,9 +122,13 @@ export default function HomeGenerator() {
   }, []);
 
   const togglePlay = useCallback(() => {
-    if (isPlaying) stop();
-    else start(chords, bpm);
-  }, [isPlaying, stop, start, chords, bpm]);
+    if (isPlaying) {
+      stop();
+      return;
+    }
+    analytics.previewPlayed(SURFACE, preset.name);
+    start(chords, bpm);
+  }, [isPlaying, stop, start, chords, bpm, preset]);
 
   const selectPreset = useCallback((index: number, autoPlay: boolean) => {
     stopProgression();
@@ -146,6 +153,8 @@ export default function HomeGenerator() {
   const shiftTranspose = useCallback((semitones: number) => {
     setTranspose((prev) => {
       const next = prev + semitones;
+      // Coalesced in analytics.ts, so a double-invoked updater still reports once.
+      analytics.previewTransposed(SURFACE, preset.name, next);
       if (isPlaying) {
         start(preset.chords.map((c) => transposeChordName(c, next)), bpm);
       }
@@ -203,6 +212,7 @@ export default function HomeGenerator() {
 
   const exportMidiFile = useCallback(() => {
     setExporting('midi');
+    analytics.previewExported(SURFACE, 'midi', preset.name);
     try {
       downloadProgressionMidi(chords, preset.shortLabel, bpm);
     } finally {
@@ -212,6 +222,7 @@ export default function HomeGenerator() {
 
   const exportWavFile = useCallback(async () => {
     setExporting('wav');
+    analytics.previewExported(SURFACE, 'wav', preset.name);
     try {
       await downloadProgressionWav(chords, preset.shortLabel, bpm, preset.style);
     } finally {
@@ -245,7 +256,10 @@ export default function HomeGenerator() {
             return (
               <button
                 key={p.name}
-                onClick={() => selectPreset(idx, true)}
+                onClick={() => {
+                  if (!selected) analytics.previewFormulaSelected(SURFACE, p.name);
+                  selectPreset(idx, true);
+                }}
                 aria-pressed={selected}
                 className={`flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
                   selected
@@ -399,6 +413,16 @@ export default function HomeGenerator() {
             <span className="hidden font-mono text-xs opacity-70 sm:inline">[Space]</span>
           </button>
 
+          {/* Next to Play, not after Copy/MIDI/WAV: on the Sept 2026 home this link sat fourth
+              in the export row and visitors reaching the Chord Player from it halved. */}
+          <a
+            href={editorUrl(chords, bpm, preset.style)}
+            onClick={() => analytics.previewEditorOpened(SURFACE, preset.name)}
+            className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-primary/30 px-5 py-2.5 text-sm font-bold text-primary transition-colors hover:bg-primary/5"
+          >
+            Open in Chord Player →
+          </a>
+
           <div className="flex min-h-[44px] items-center justify-between gap-1.5 rounded-xl border border-border bg-muted p-1.5 sm:justify-start">
             <span className="px-1 font-mono text-xs font-semibold text-muted-foreground">Transpose:</span>
             <div className="flex items-center gap-1">
@@ -486,13 +510,6 @@ export default function HomeGenerator() {
               <FileMusic className="h-3.5 w-3.5" />
               <span>{exporting === 'wav' ? 'Rendering…' : 'WAV'}</span>
             </button>
-
-            <a
-              href={editorUrl(chords, bpm, preset.style)}
-              className="flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              Open in editor →
-            </a>
           </div>
         </div>
 
