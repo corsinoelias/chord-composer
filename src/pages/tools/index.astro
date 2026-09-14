@@ -2,90 +2,171 @@
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AppCta from '../../components/AppCta.astro';
+import ToolIcon from '../../components/ToolIcon.astro';
+import ToolPreviewArt from '../../components/ToolPreviewArt.astro';
+import type { ToolIconName } from '../../components/toolIcons';
 import { INSTRUMENTS_LIST } from '../../data/instrumentsList';
 
 const SITE = 'https://chordsequence.com'
 
-const tools = [
+interface Tool {
+  title: string
+  /** Full description: the lead card and the ItemList schema. */
+  desc: string
+  /** One line for the compact cards. */
+  short: string
+  href: string
+  icon: ToolIconName
+  /** Only what the tool page itself already claims. */
+  facts: string[]
+}
+
+interface ToolSection {
+  id: string
+  title: string
+  blurb: string
+  icon: ToolIconName
+  /** Drawing for the first tool, which gets the big card. */
+  art: 'tab' | 'chords' | 'steps'
+  tools: Tool[]
+}
+
+// Sections, and the lead tool in each, follow GA4 page views (Aug–Sep 2026): instruments
+// and tab players get several times the visits of the theory tools.
+const sections: ToolSection[] = [
   {
-    title: 'Chord Finder',
-    desc: 'Find any chord on guitar, piano or ukulele. See the exact fingering or keys to press, hear every note, and switch between C-D-E and Do-Re-Mi note names.',
-    href: '/chord-lookup/',
-    keywords: 'chord finder, guitar chord finder, piano chord finder, guitar chords, piano chords, ukulele chords',
+    id: 'tabs',
+    title: 'Guitar & bass tabs',
+    blurb: 'Read, write and play tabs, and see any scale on the fretboard.',
+    // Not 'guitar': its six strings blur into a solid block at the 16px the hero chips use.
+    icon: 'scales',
+    art: 'tab',
+    tools: [
+      {
+        title: 'Guitar Tab Player',
+        desc: 'Play, learn and create 6-string guitar tabs in your browser. Draw notes on any string and fret, chord helper for one-click chords, capo support, and real-time playback.',
+        short: 'Play, learn and create 6-string guitar tabs with real-time playback.',
+        href: '/tools/guitar-tab/',
+        icon: 'guitar',
+        facts: ['6 strings', 'Chord helper', 'Capo'],
+      },
+      {
+        title: 'Bass Guitar Tab Player',
+        desc: 'Play, learn and create 4-string bass tabs in your browser. Real-time playback, drag & resize notes, Tab/Grid/Bass views, and 10+ preset songs including Billie Jean and Beat It.',
+        short: 'Play, learn and write 4-string bass tabs with real-time playback.',
+        href: '/tools/bass-guitar-tab/',
+        icon: 'bass-tab',
+        facts: ['4 strings', '10+ preset songs'],
+      },
+      {
+        title: 'Guitar Strumming & Arpeggio Player',
+        desc: 'Edit and play guitar strumming and arpeggio patterns with a live 6-string fretboard visualizer. Pick any chord, build a progression, and save your own pattern library.',
+        short: 'Build strumming and arpeggio patterns on a live 6-string fretboard.',
+        href: '/tools/guitar-strumming-patterns/',
+        icon: 'guitar',
+        facts: ['Strums & arpeggios', 'Pattern library'],
+      },
+      {
+        title: 'Guitar Scale Chart',
+        desc: 'Visualize any scale on a guitar fretboard. Choose from 277 scales and modes — Major, Pentatonic, Blues, Church Modes, Melodic Minor, and more. Hear the scale with BPM playback and navigate multiple neck positions.',
+        short: 'Any scale or mode on the fretboard, with playback and neck positions.',
+        href: '/tools/scales/',
+        icon: 'scales',
+        facts: ['277 scales & modes', 'BPM playback'],
+      },
+    ],
   },
   {
-    title: 'Chord Sheet Maker',
-    desc: 'Write lyrics, drop chords above the words, transpose to any key, add chord diagrams and print a clean one-page chart.',
-    href: '/chord-sheet-maker/',
-    keywords: 'chord sheet maker, chord chart creator, lyrics with chords, printable chord sheet',
+    id: 'rhythm',
+    title: 'Rhythm, drums & tuning',
+    blurb: 'Build a beat, keep time and tune up.',
+    icon: 'step-grid',
+    art: 'steps',
+    tools: [
+      {
+        title: 'Online Drum Machine',
+        desc: '16-step sequencer with 3 kits and 12 genre presets — house, trap, hip-hop, afrobeat and more. No signup required.',
+        short: '16-step sequencer with 3 kits and 12 genre presets.',
+        href: '/tools/drum-machine/',
+        icon: 'step-grid',
+        facts: ['16 steps', '3 kits', '12 genre presets'],
+      },
+      {
+        title: 'Drum Tab Player',
+        desc: 'Read, play and write drum tabs. Percussion notation, a sixteenth-note step grid and standard ASCII drum tab — all three editing the same beat, with 30+ built-in rhythms and two kits.',
+        short: 'Notation, step grid and ASCII tab, all editing the same beat.',
+        href: '/tools/drum-tab/',
+        icon: 'drum-tab',
+        facts: ['30+ rhythms', 'Two kits'],
+      },
+      {
+        title: 'Online Metronome',
+        desc: 'Tap tempo, beats per measure (1–8), and keyboard shortcuts. Web Audio precision — no drift, no install.',
+        short: 'Tap tempo and Web Audio timing that doesn’t drift.',
+        href: '/metronome/',
+        icon: 'metronome',
+        facts: ['Tap tempo', '1–8 beats per bar'],
+      },
+      {
+        title: 'Online Instrument Tuner',
+        desc: 'Tune by ear or with your microphone, using real instrument sounds — pick bass (4 or 5-string), electric guitar, acoustic guitar, or ukulele, then choose a tuning like Drop D, DADGAD, or BEAD.',
+        short: 'Tune guitar, bass or ukulele by ear or with your microphone.',
+        href: '/tuner/',
+        icon: 'tuner',
+        facts: ['Microphone or by ear', 'Drop D · DADGAD · BEAD'],
+      },
+    ],
   },
   {
-    title: 'Guitar Scale Chart',
-    desc: 'Visualize any scale on a guitar fretboard. Choose from 277 scales and modes — Major, Pentatonic, Blues, Church Modes, Melodic Minor, and more. Hear the scale with BPM playback and navigate multiple neck positions.',
-    href: '/tools/scales/',
-    keywords: 'guitar scale chart, fretboard, scale positions, pentatonic, major scale',
+    id: 'chords',
+    title: 'Chords & harmony',
+    blurb: 'Find chords, change keys and write chord sheets.',
+    icon: 'chords',
+    art: 'chords',
+    tools: [
+      {
+        title: 'Chord Finder',
+        desc: 'Find any chord on guitar, piano or ukulele. See the exact fingering or keys to press, hear every note, and switch between C-D-E and Do-Re-Mi note names.',
+        short: 'Any chord on guitar, piano or ukulele: see it and hear it.',
+        href: '/chord-lookup/',
+        icon: 'chords',
+        facts: ['Guitar', 'Piano', 'Ukulele', 'Do-Re-Mi'],
+      },
+      {
+        title: 'Chord Sheet Maker',
+        desc: 'Write lyrics, drop chords above the words, transpose to any key, add chord diagrams and print a clean one-page chart.',
+        short: 'Lyrics with chords above the words, transposed and ready to print.',
+        href: '/chord-sheet-maker/',
+        icon: 'sheet',
+        facts: ['Transpose', 'Print'],
+      },
+      {
+        title: 'Chord Transposer',
+        desc: 'Shift any chord progression to any key in one click. Perfect for finding the right key for your voice or instrument.',
+        short: 'Move any progression to any key in one click.',
+        href: '/tools/chord-transposer/',
+        icon: 'transpose',
+        facts: ['Any key'],
+      },
+      {
+        title: 'Key Detector',
+        desc: 'Enter a progression and detect the musical key it belongs to. Understand the tonal center of any chord sequence.',
+        short: 'Enter a progression and find the key it belongs to.',
+        href: '/tools/key-detector/',
+        icon: 'key',
+        facts: ['Tonal center'],
+      },
+      {
+        title: 'Circle of Fifths',
+        desc: 'Interactive Circle of Fifths. Click any key to instantly see its diatonic chords, relative minor, and neighbouring key relationships.',
+        short: 'Click a key to see its diatonic chords and relative minor.',
+        href: '/tools/circle-of-fifths/',
+        icon: 'circle',
+        facts: ['Diatonic chords', 'Relative minor'],
+      },
+    ],
   },
-  {
-    title: 'Circle of Fifths',
-    desc: 'Interactive Circle of Fifths. Click any key to instantly see its diatonic chords, relative minor, and neighbouring key relationships.',
-    href: '/tools/circle-of-fifths/',
-    keywords: 'circle of fifths, key relationships, diatonic chords',
-  },
-  {
-    title: 'Chord Transposer',
-    desc: 'Shift any chord progression to any key in one click. Perfect for finding the right key for your voice or instrument.',
-    href: '/tools/chord-transposer/',
-    keywords: 'transpose chords, change key, chord transposition',
-  },
-  {
-    title: 'Key Detector',
-    desc: 'Enter a progression and detect the musical key it belongs to. Understand the tonal center of any chord sequence.',
-    href: '/tools/key-detector/',
-    keywords: 'key detector, find key, musical key',
-  },
-  {
-    title: 'Bass Guitar Tab Player',
-    desc: 'Play, learn and create 4-string bass tabs in your browser. Real-time playback, drag & resize notes, Tab/Grid/Bass views, and 10+ preset songs including Billie Jean and Beat It.',
-    href: '/tools/bass-guitar-tab/',
-    keywords: 'bass tab, bass guitar tablature, bass tab player',
-  },
-  {
-    title: 'Guitar Tab Player',
-    desc: 'Play, learn and create 6-string guitar tabs in your browser. Draw notes on any string and fret, chord helper for one-click chords, capo support, and real-time playback.',
-    href: '/tools/guitar-tab/',
-    keywords: 'guitar tab, guitar tablature, guitar tab editor',
-  },
-  {
-    title: 'Guitar Strumming & Arpeggio Player',
-    desc: 'Edit and play guitar strumming and arpeggio patterns with a live 6-string fretboard visualizer. Pick any chord, build a progression, and save your own pattern library.',
-    href: '/tools/guitar-strumming-patterns/',
-    keywords: 'guitar strumming patterns, guitar arpeggio, strum pattern generator, guitar rhythm',
-  },
-  {
-    title: 'Online Instrument Tuner',
-    desc: 'Tune by ear or with your microphone, using real instrument sounds — pick bass (4 or 5-string), electric guitar, acoustic guitar, or ukulele, then choose a tuning like Drop D, DADGAD, or BEAD.',
-    href: '/tuner/',
-    keywords: 'online tuner, chromatic tuner, guitar tuner, bass tuner, ukulele tuner',
-  },
-  {
-    title: 'Online Metronome',
-    desc: 'Tap tempo, beats per measure (1–8), and keyboard shortcuts. Web Audio precision — no drift, no install.',
-    href: '/metronome/',
-    keywords: 'online metronome, free metronome, tap tempo, BPM tool',
-  },
-  {
-    title: 'Online Drum Machine',
-    desc: '16-step sequencer with 3 kits and 12 genre presets — house, trap, hip-hop, afrobeat and more. No signup required.',
-    href: '/tools/drum-machine/',
-    keywords: 'online drum machine, drum machine, beat maker, 16-step sequencer',
-  },
-  {
-    title: 'Drum Tab Player',
-    desc: 'Read, play and write drum tabs. Percussion notation, a sixteenth-note step grid and standard ASCII drum tab — all three editing the same beat, with 30+ built-in rhythms and two kits.',
-    href: '/tools/drum-tab/',
-    keywords: 'drum tab, drum tablature, drum tab player, drum notation, drum sheet music',
-  },
-];
+]
 
 // Linked one by one rather than through a single /instruments/ card: a direct link
 // with a descriptive anchor helps /piano/ and friends more than a hop via the hub.
@@ -94,11 +175,19 @@ const instruments = INSTRUMENTS_LIST
   .map((inst) => ({
     title: `Virtual ${inst.name}`,
     desc: inst.description,
+    tagline: inst.tagline,
     href: inst.url,
-    keywords: inst.tags.join(' · '),
+    image: inst.image,
+    imageAlt: inst.imageAlt,
+    facts: inst.tags,
   }));
 
-const allTools = [...tools, ...instruments];
+const allTools = [...instruments, ...sections.flatMap((s) => s.tools)];
+
+const jumpLinks: { id: string; title: string; icon: ToolIconName; count: number }[] = [
+  { id: 'instruments', title: 'Instruments', icon: 'piano', count: instruments.length },
+  ...sections.map((s) => ({ id: s.id, title: s.title, icon: s.icon, count: s.tools.length })),
+]
 
 const toolsSchema = {
   '@context': 'https://schema.org',
@@ -121,6 +210,8 @@ const toolsSchema = {
     },
   })),
 }
+
+const arrowPath = 'M5 12h14M12 5l7 7-7 7'
 ---
 
 <BaseLayout
@@ -133,80 +224,187 @@ const toolsSchema = {
   <Fragment slot="head">
     <script is:inline type="application/ld+json" set:html={JSON.stringify(toolsSchema)} />
   </Fragment>
-  <main class="mx-auto max-w-5xl px-4 sm:px-6 py-16 sm:py-24">
-    <div class="mb-14 text-center">
-      <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
-        Free music tools
-      </h1>
-      <p class="text-lg text-muted-foreground max-w-xl mx-auto">
-        Online tools for every stage of the songwriting process. Instant, and no signup required.
-      </p>
-    </div>
-
-    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-      {tools.map((t) => (
-        <a
-          href={t.href}
-          class="group flex flex-col rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-colors"
-        >
-          <div class="flex items-start justify-between gap-3 mb-3">
-            <h2 class="text-lg font-bold text-foreground group-hover:text-primary transition-colors">{t.title}</h2>
-            <svg class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </div>
-          <p class="text-sm text-muted-foreground leading-relaxed flex-1">{t.desc}</p>
-          <p class="mt-4 text-xs text-muted-foreground/60">{t.keywords}</p>
-        </a>
-      ))}
-    </div>
-
-    <div class="mt-16">
-      <div class="mb-6">
-        <h2 class="text-2xl font-bold text-foreground tracking-tight mb-2">
-          <a href="/instruments/" class="hover:text-primary transition-colors">Virtual instruments</a>
-        </h2>
-        <p class="text-sm text-muted-foreground">Play real sampled instruments with your mouse, keyboard, touchscreen or MIDI.</p>
+  <main>
+    <!-- ─── HERO ─────────────────────────────────────────────────────────── -->
+    <section class="relative overflow-hidden border-b border-border">
+      <div class="pointer-events-none absolute inset-0 -z-10">
+        <div class="absolute left-1/2 top-1/2 h-[420px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[130px]"></div>
       </div>
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        {instruments.map((t) => (
-          <a
-            href={t.href}
-            class="group flex flex-col rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-colors"
-          >
-            <div class="flex items-start justify-between gap-3 mb-3">
-              <h3 class="text-lg font-bold text-foreground group-hover:text-primary transition-colors">{t.title}</h3>
-              <svg class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      <div class="mx-auto max-w-5xl px-4 pt-14 pb-12 text-center sm:px-6 sm:pt-20 sm:pb-14">
+        <h1 class="mb-5 font-serif text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
+          Free music tools.<br />
+          <span class="text-primary">Right in your browser.</span>
+        </h1>
+        <p class="mx-auto max-w-xl text-lg text-muted-foreground">
+          Online tools for every stage of the songwriting process. Instant, and no signup required.
+        </p>
+        <nav aria-label="Tool categories" class="mt-8 flex flex-wrap justify-center gap-2">
+          {jumpLinks.map((link) => (
+            <a
+              href={`#${link.id}`}
+              class="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:text-primary"
+            >
+              <ToolIcon name={link.icon} class="h-4 w-4 text-primary" />
+              {link.title}
+              <span class="text-xs text-muted-foreground">{link.count}</span>
+            </a>
+          ))}
+        </nav>
+      </div>
+    </section>
+
+    <!-- ─── CHECKS ───────────────────────────────────────────────────────── -->
+    <section class="border-b border-border bg-card/50">
+      <div class="mx-auto max-w-5xl px-4 py-5 sm:px-6">
+        <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+          {['100% Free', 'No account needed', `${allTools.length} tools & instruments`, 'Nothing to install'].map((item) => (
+            <span class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <svg class="h-3.5 w-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <div class="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
+      <!-- ─── INSTRUMENTS ──────────────────────────────────────────────────── -->
+      <section id="instruments" class="scroll-mt-20">
+        <div class="mb-6 flex items-end justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <ToolIcon name="piano" />
             </div>
-            <p class="text-sm text-muted-foreground leading-relaxed flex-1">{t.desc}</p>
-            <p class="mt-4 text-xs text-muted-foreground/60">{t.keywords}</p>
-          </a>
-        ))}
-      </div>
-    </div>
+            <div>
+              <h2 class="text-2xl font-bold tracking-tight text-foreground">
+                <a href="/instruments/" class="transition-colors hover:text-primary">Virtual instruments</a>
+              </h2>
+              <p class="text-sm text-muted-foreground">Play real sampled instruments with your mouse, keyboard, touchscreen or MIDI.</p>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {instruments.map((inst) => (
+            <a
+              href={inst.href}
+              class="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50"
+            >
+              <div class="aspect-[4/3] overflow-hidden bg-muted/40">
+                {inst.image && (
+                  <img
+                    src={inst.image}
+                    alt={inst.imageAlt}
+                    class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                )}
+              </div>
+              <div class="flex flex-1 flex-col p-4">
+                <h3 class="font-bold text-foreground transition-colors group-hover:text-primary">{inst.title}</h3>
+                <p class="mt-1 hidden flex-1 text-sm leading-relaxed text-muted-foreground sm:block">{inst.tagline}</p>
+                <ul class="mt-3 flex flex-wrap gap-1.5">
+                  {inst.facts.map((fact) => (
+                    <li class="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{fact}</li>
+                  ))}
+                </ul>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
 
-    <!-- Related reading -->
-    <div class="mt-12 pt-10 border-t border-border">
-      <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Related reading</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {[
-          { href: '/learn/how-to-transpose-chords/', title: 'How to transpose chords', desc: 'The theory behind the Transposer — semitones, keys, and practical tips' },
-          { href: '/learn/circle-of-fifths-explained/', title: 'Circle of fifths explained', desc: 'Key signatures, relative minors, and how jazz follows the circle' },
-          { href: '/learn/music-theory-basics-for-songwriters/', title: 'Music theory basics', desc: 'Intervals, scales, diatonic chords — everything you need to know' },
-          { href: '/best-chord-progression-generators/', title: 'Best chord progression generators', desc: '6 free and paid tools compared — browser apps and DAW plugins for 2026' },
-          { href: '/best-guitar-tab-software/', title: 'Best guitar tab software', desc: '6 free and paid tab tools compared — browser editors, desktop apps, and notation software for 2026' },
-          { href: '/best-bass-tab-software/', title: 'Best bass tab software', desc: '5 free and paid bass tab tools compared — library, playback, and editing power for 2026' },
-        ].map((a) => (
-          <a href={a.href} class="group rounded-xl border border-border bg-card p-5 hover:border-primary/40 hover:bg-primary/5 transition-colors">
-            <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors mb-1">{a.title}</p>
-            <p class="text-xs text-muted-foreground leading-relaxed">{a.desc}</p>
-          </a>
-        ))}
-      </div>
-    </div>
+      <!-- ─── TOOL SECTIONS ────────────────────────────────────────────────── -->
+      {sections.map((section) => {
+        const [lead, ...rest] = section.tools
+        return (
+          <section id={section.id} class="mt-16 scroll-mt-20">
+            <div class="mb-6 flex items-center gap-3">
+              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <ToolIcon name={section.icon} />
+              </div>
+              <div>
+                <h2 class="text-2xl font-bold tracking-tight text-foreground">{section.title}</h2>
+                <p class="text-sm text-muted-foreground">{section.blurb}</p>
+              </div>
+            </div>
 
-    <AppCta
-      class="mt-12"
-      heading="Need the full editor?"
-      description="Combine all these tools in the Chord Player — drag chords, pick styles, and export to WAV."
-    />
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <a
+                href={lead.href}
+                class="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50 sm:col-span-2 lg:col-span-1 lg:row-span-2"
+              >
+                <div class="border-b border-border bg-muted/40 px-6 py-6">
+                  <ToolPreviewArt kind={section.art} />
+                </div>
+                <div class="flex flex-1 flex-col p-5">
+                  <div class="mb-2 flex items-start justify-between gap-3">
+                    <h3 class="text-lg font-bold text-foreground transition-colors group-hover:text-primary">{lead.title}</h3>
+                    <svg class="mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d={arrowPath}/></svg>
+                  </div>
+                  <p class="flex-1 text-sm leading-relaxed text-muted-foreground">{lead.desc}</p>
+                  <ul class="mt-4 flex flex-wrap gap-1.5">
+                    {lead.facts.map((fact) => (
+                      <li class="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{fact}</li>
+                    ))}
+                  </ul>
+                </div>
+              </a>
+
+              {rest.map((tool, i) => (
+                <a
+                  href={tool.href}
+                  class:list={[
+                    'group flex items-start gap-4 rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-primary/5',
+                    // An odd count would leave a hole next to the lead card; the last one fills it.
+                    rest.length % 2 === 1 && i === rest.length - 1 && 'sm:col-span-2',
+                  ]}
+                >
+                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <ToolIcon name={tool.icon} />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <h3 class="font-semibold text-foreground transition-colors group-hover:text-primary">{tool.title}</h3>
+                    <p class="mt-1 text-sm leading-relaxed text-muted-foreground">{tool.short}</p>
+                    <ul class="mt-3 flex flex-wrap gap-1.5">
+                      {tool.facts.map((fact) => (
+                        <li class="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{fact}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <svg class="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d={arrowPath}/></svg>
+                </a>
+              ))}
+            </div>
+          </section>
+        )
+      })}
+
+      <!-- Related reading -->
+      <div class="mt-16 border-t border-border pt-10">
+        <h2 class="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Related reading</h2>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { href: '/learn/how-to-transpose-chords/', title: 'How to transpose chords', desc: 'The theory behind the Transposer — semitones, keys, and practical tips' },
+            { href: '/learn/circle-of-fifths-explained/', title: 'Circle of fifths explained', desc: 'Key signatures, relative minors, and how jazz follows the circle' },
+            { href: '/learn/music-theory-basics-for-songwriters/', title: 'Music theory basics', desc: 'Intervals, scales, diatonic chords — everything you need to know' },
+            { href: '/best-chord-progression-generators/', title: 'Best chord progression generators', desc: '6 free and paid tools compared — browser apps and DAW plugins for 2026' },
+            { href: '/best-guitar-tab-software/', title: 'Best guitar tab software', desc: '6 free and paid tab tools compared — browser editors, desktop apps, and notation software for 2026' },
+            { href: '/best-bass-tab-software/', title: 'Best bass tab software', desc: '5 free and paid bass tab tools compared — library, playback, and editing power for 2026' },
+          ].map((a) => (
+            <a href={a.href} class="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-primary/5">
+              <p class="mb-1 text-sm font-semibold text-foreground transition-colors group-hover:text-primary">{a.title}</p>
+              <p class="text-xs leading-relaxed text-muted-foreground">{a.desc}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <AppCta
+        class="mt-12"
+        heading="Need the full editor?"
+        description="Combine all these tools in the Chord Player — drag chords, pick styles, and export to WAV."
+      />
+    </div>
   </main>
 </BaseLayout>

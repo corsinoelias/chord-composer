@@ -1,0 +1,113 @@
+---
+// Static drawings for the lead card of each /tools/ section: what the tool looks like,
+// not a working demo. Colours come from theme tokens, so dark mode needs nothing extra.
+
+interface Props {
+  kind: 'tab' | 'chords' | 'steps'
+}
+
+const { kind } = Astro.props
+
+// ── Guitar tab ────────────────────────────────────────────────────────────────
+const TAB_STRINGS = ['e', 'B', 'G', 'D', 'A', 'E']
+// [x, string index (0 = high e), fret]
+const TAB_NOTES: [number, number, string][] = [
+  [48, 5, '0'], [80, 5, '3'], [112, 4, '2'], [144, 4, '5'],
+  [176, 3, '2'], [208, 3, '4'], [240, 2, '2'], [272, 1, '3'],
+]
+const PLAYHEAD_X = 160
+const tabY = (string: number) => 12 + string * 19
+
+// ── Chord diagrams ────────────────────────────────────────────────────────────
+// Frets from low E to high e; 'x' = muted, 0 = open.
+const CHORDS: { name: string; frets: (number | 'x')[] }[] = [
+  { name: 'C', frets: ['x', 3, 2, 0, 1, 0] },
+  { name: 'G', frets: [3, 2, 0, 0, 0, 3] },
+  { name: 'Am', frets: ['x', 0, 2, 2, 1, 0] },
+]
+const NUT_Y = 32
+const FRET_H = 18
+const STRING_GAP = 12
+
+// ── Step grid ─────────────────────────────────────────────────────────────────
+const STEP_ROWS = [
+  { label: 'Hat', on: [0, 2, 4, 6, 8, 10, 12, 14] },
+  { label: 'Clap', on: [12] },
+  { label: 'Snare', on: [4, 12] },
+  { label: 'Kick', on: [0, 7, 8, 10] },
+]
+// A little extra room every four steps, so the beats read as groups.
+const stepX = (i: number) => 44 + i * 15 + Math.floor(i / 4) * 4
+const rowY = (r: number) => 4 + r * 25
+---
+
+{kind === 'tab' && (
+  <svg viewBox="0 0 300 120" class="mx-auto block h-auto w-full max-w-sm" aria-hidden="true">
+    {TAB_STRINGS.map((name, i) => (
+      <Fragment>
+        <text x="6" y={tabY(i) + 3.5} font-size="10" class="fill-muted-foreground font-mono">{name}</text>
+        <line x1="22" x2="296" y1={tabY(i)} y2={tabY(i)} class="stroke-muted-foreground" stroke-opacity="0.35" />
+      </Fragment>
+    ))}
+    {TAB_NOTES.map(([x, string, fret]) => (
+      <g opacity={x > PLAYHEAD_X ? 0.45 : 1}>
+        <rect x={x - 9} y={tabY(string) - 8} width="18" height="16" rx="4" class="fill-primary" />
+        <text x={x} y={tabY(string) + 4} text-anchor="middle" font-size="11" font-weight="700" class="fill-primary-foreground font-mono">{fret}</text>
+      </g>
+    ))}
+    <line x1={PLAYHEAD_X} x2={PLAYHEAD_X} y1="2" y2="117" class="stroke-primary" stroke-width="2" />
+  </svg>
+)}
+
+{kind === 'chords' && (
+  <svg viewBox="0 0 300 110" class="mx-auto block h-auto w-full max-w-sm" aria-hidden="true">
+    {CHORDS.map((chord, ci) => {
+      const ox = 20 + ci * 100
+      return (
+        <g>
+          <text x={ox + 30} y="12" text-anchor="middle" font-size="13" font-weight="700" class="fill-foreground">{chord.name}</text>
+          {chord.frets.map((fret, s) =>
+            fret === 'x' ? (
+              <text x={ox + s * STRING_GAP} y="27" text-anchor="middle" font-size="10" class="fill-muted-foreground">×</text>
+            ) : fret === 0 ? (
+              <circle cx={ox + s * STRING_GAP} cy="23" r="3" fill="none" stroke-width="1.2" class="stroke-muted-foreground" />
+            ) : null
+          )}
+          {[1, 2, 3, 4].map((k) => (
+            <line x1={ox} x2={ox + 60} y1={NUT_Y + k * FRET_H} y2={NUT_Y + k * FRET_H} class="stroke-muted-foreground" stroke-opacity="0.5" />
+          ))}
+          {[0, 1, 2, 3, 4, 5].map((s) => (
+            <line x1={ox + s * STRING_GAP} x2={ox + s * STRING_GAP} y1={NUT_Y} y2={NUT_Y + 4 * FRET_H} class="stroke-muted-foreground" stroke-opacity="0.5" />
+          ))}
+          <line x1={ox} x2={ox + 60} y1={NUT_Y} y2={NUT_Y} stroke-width="3" class="stroke-foreground" />
+          {chord.frets.map((fret, s) =>
+            typeof fret === 'number' && fret > 0 ? (
+              <circle cx={ox + s * STRING_GAP} cy={NUT_Y + fret * FRET_H - FRET_H / 2} r="5" class="fill-primary" />
+            ) : null
+          )}
+        </g>
+      )
+    })}
+  </svg>
+)}
+
+{kind === 'steps' && (
+  <svg viewBox="0 0 300 104" class="mx-auto block h-auto w-full max-w-sm" aria-hidden="true">
+    {STEP_ROWS.map((row, r) => (
+      <g>
+        <text x="0" y={rowY(r) + 14} font-size="10" class="fill-muted-foreground">{row.label}</text>
+        {Array.from({ length: 16 }, (_, i) => (
+          <rect
+            x={stepX(i)}
+            y={rowY(r)}
+            width="13"
+            height="20"
+            rx="3"
+            class={row.on.includes(i) ? 'fill-primary' : 'fill-muted-foreground'}
+            fill-opacity={row.on.includes(i) ? 1 : 0.15}
+          />
+        ))}
+      </g>
+    ))}
+  </svg>
+)}
