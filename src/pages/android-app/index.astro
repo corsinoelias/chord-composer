@@ -1,0 +1,190 @@
+---
+export const prerender = true;
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import GooglePlayBadge from '../../components/GooglePlayBadge.astro';
+import JsonLd from '@/components/schema/JsonLd.astro';
+import { buildBreadcrumbSchema, buildMobileApplicationSchema } from '@/components/schema/builders';
+
+// The site's page for the Android app (com.eliascorsino.chord_sequencer). Not /app/: that
+// path is the signed-in song library.
+//
+// Every number and feature on this page is checked against the Flutter source, not
+// against the web editor — the two differ (15 chord types, not 37; 11 styles, not 13), and
+// the Play listing once copied the web's numbers. Change them here only together with the
+// app.
+const PAGE_URL = 'https://chordsequence.com/android-app/';
+const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.eliascorsino.chord_sequencer';
+
+const description =
+  'Chord Player for Android: build a song section by section and hear it played by drums, bass, piano and guitar in 11 styles. Free, offline, no account.';
+
+const features = [
+  {
+    title: 'Songs, section by section',
+    text: 'Intro, verse, chorus: each section holds its own chords. 15 chord types, slash bass notes, half-beat lengths, and piano and guitar diagrams for every chord.',
+  },
+  {
+    title: 'A band that plays along',
+    text: 'Drums, bass, piano and guitar in 11 styles, from Reggaeton and Bossa Nova to Jazz Waltz and Slow 6/8, with a metronome and a count-in.',
+  },
+  {
+    title: 'Make the groove yours',
+    text: 'Edit every instrument on a step grid, add swing, and play in 4/4, 3/4, 6/8 or 5/4. Save a pattern once and reuse it in any project.',
+  },
+  {
+    title: 'Mix it',
+    text: 'Volume, pan, EQ, compression and reverb for each instrument, so the band sits the way you want before you export.',
+  },
+  {
+    title: 'Export it',
+    text: 'M4A to share, WAV to keep editing, or MIDI to open the notes in your DAW.',
+  },
+  {
+    title: 'Start from something',
+    text: 'Open one of 11 songs, from Flowers to Easy on Me, or one of 8 classic progressions, and change it instead of starting from a blank page.',
+  },
+];
+
+// Only rows where the answer is certain for both. The web's own strengths are listed as
+// plainly as the app's: this page should send people to the right one, not only to Play.
+const comparison: { label: string; app: string; web: string }[] = [
+  { label: 'Works offline', app: 'Yes', web: 'No' },
+  { label: 'Account', app: 'None, songs stay on your phone', web: 'Free account to save songs' },
+  { label: 'Export', app: 'M4A, WAV, MIDI', web: 'WAV, MIDI' },
+  { label: 'Share a song by link', app: 'No', web: 'Yes' },
+  { label: 'iPhone and computer', app: 'No', web: 'Yes' },
+];
+
+const appSchema = buildMobileApplicationSchema({
+  url: PAGE_URL,
+  name: 'Chord Player',
+  description,
+  installUrl: PLAY_URL,
+  operatingSystem: 'Android 8.0 or later',
+  featureList: [
+    'Song sections with 15 chord types',
+    'Drums, bass, piano and guitar in 11 styles',
+    'Step-grid rhythm editor with swing',
+    '4/4, 3/4, 6/8 and 5/4',
+    'Per-instrument mixer with EQ, compression and reverb',
+    'M4A, WAV and MIDI export',
+    'Works offline, no account',
+  ],
+});
+
+const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
+  { name: 'Home', item: 'https://chordsequence.com/' },
+  { name: 'Android app', item: PAGE_URL },
+]);
+---
+
+<BaseLayout
+  title="Chord Player for Android — Free Chord Progression App"
+  description={description}
+  canonicalUrl={PAGE_URL}
+>
+  <Fragment slot="head">
+    <JsonLd schema={appSchema} />
+    <JsonLd schema={breadcrumbSchema} />
+  </Fragment>
+
+  <main>
+    <!-- ─── HERO ─────────────────────────────────────────────────────────── -->
+    <section class="relative overflow-hidden border-b border-border">
+      <div class="pointer-events-none absolute inset-0 -z-10">
+        <div class="absolute left-1/2 top-1/2 h-[420px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[130px]"></div>
+      </div>
+      <div class="mx-auto max-w-5xl px-4 pt-14 pb-12 text-center sm:px-6 sm:pt-20 sm:pb-14">
+        <img
+          src="/images/chord-player-app-icon.png"
+          width="96"
+          height="96"
+          alt="Chord Player app icon"
+          class="mx-auto mb-6 h-20 w-20 rounded-2xl border border-border shadow-sm"
+        />
+        <h1 class="mb-5 font-serif text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
+          Chord Player for Android.<br />
+          <span class="text-primary">Build a song. Hear the band.</span>
+        </h1>
+        <p class="mx-auto max-w-xl text-lg text-muted-foreground">
+          Write chord progressions on your phone and hear them played by drums, bass, piano and
+          guitar, even with no connection.
+        </p>
+        <div class="mt-8 flex flex-col items-center gap-3">
+          <GooglePlayBadge from="landing" />
+          <a href="/chord-player/" class="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
+            On iPhone or a computer? Use Chord Player in your browser →
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── CHECKS ───────────────────────────────────────────────────────── -->
+    <section class="border-b border-border bg-card/50">
+      <div class="mx-auto max-w-5xl px-4 py-5 sm:px-6">
+        <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+          {['Free', 'No account needed', 'Works offline', 'Android 8.0 or later'].map((item) => (
+            <span class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <svg class="h-3.5 w-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <div class="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
+      <!-- ─── FEATURES ─────────────────────────────────────────────────────── -->
+      <section>
+        <h2 class="mb-6 text-2xl font-bold tracking-tight text-foreground">What the app does</h2>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map((feature) => (
+            <div class="rounded-xl border border-border bg-card p-6">
+              <h3 class="mb-2 font-semibold text-foreground">{feature.title}</h3>
+              <p class="text-sm leading-relaxed text-muted-foreground">{feature.text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- ─── APP OR BROWSER ───────────────────────────────────────────────── -->
+      <section class="mt-16">
+        <h2 class="mb-2 text-2xl font-bold tracking-tight text-foreground">App or browser?</h2>
+        <p class="mb-6 text-muted-foreground">
+          Same idea, two places to use it. Pick whichever fits where you play.
+        </p>
+        <div class="overflow-x-auto rounded-xl border border-border bg-card">
+          <table class="w-full min-w-[480px] text-left text-sm">
+            <thead class="border-b border-border text-foreground">
+              <tr>
+                <th class="px-5 py-3 font-semibold"></th>
+                <th class="px-5 py-3 font-semibold">Android app</th>
+                <th class="px-5 py-3 font-semibold">
+                  <a href="/chord-player/" class="hover:text-primary">Chord Player online</a>
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border text-muted-foreground">
+              {comparison.map((row) => (
+                <tr>
+                  <th scope="row" class="px-5 py-3 font-medium text-foreground">{row.label}</th>
+                  <td class="px-5 py-3">{row.app}</td>
+                  <td class="px-5 py-3">{row.web}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─── CTA ──────────────────────────────────────────────────────────── -->
+      <section class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
+        <h2 class="mb-2 text-xl font-semibold text-foreground">Take your songs with you</h2>
+        <p class="mb-5 text-sm text-muted-foreground">Free on Google Play. No account, no connection needed.</p>
+        <div class="flex justify-center">
+          <GooglePlayBadge from="landing" />
+        </div>
+      </section>
+    </div>
+  </main>
+</BaseLayout>

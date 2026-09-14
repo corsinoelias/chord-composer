@@ -1,4 +1,6 @@
 ---
+import GooglePlayBadge from './GooglePlayBadge.astro';
+
 const currentYear = new Date().getFullYear();
 
 const columns = [
@@ -10,6 +12,7 @@ const columns = [
       { label: 'Chord Player', href: '/chord-player/' },
       { label: 'Song charts', href: '/songs/' },
       { label: 'Chord Sheet Maker', href: '/chord-sheet-maker/' },
+      { label: 'Android app', href: '/android-app/' },
     ],
   },
   {
@@ -81,24 +84,9 @@ const columns = [
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
           Open Chord Player
         </a>
-        <!-- Through /android/, never straight to Play: that endpoint owns the store URL and
-             its campaign tags. Shown on every device, not just Android — Play's web listing
-             can send the install to a phone. The badge is Google's own and must not be
-             redrawn or recoloured; the PNG carries its own transparent margin. -->
-        <a
-          href="/android/?from=footer"
-          class="block w-fit mt-1 -ml-2"
-          onclick="if(typeof gtag!=='undefined')gtag('event','app_cta_clicked',{entry_point:'footer'})"
-        >
-          <img
-            src="/images/google-play-badge.png"
-            width="646"
-            height="250"
-            alt="Get it on Google Play"
-            loading="lazy"
-            class="h-14 w-auto"
-          />
-        </a>
+        <!-- Shown on every device, not just Android: Play's web listing can send the
+             install to a phone. -->
+        <GooglePlayBadge from="footer" class="mt-1 -ml-2" />
       </div>
 
       <!-- Link columns -->

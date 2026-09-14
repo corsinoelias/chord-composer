@@ -1,0 +1,29 @@
+---
+// Google's official "Get it on Google Play" badge, linking through /android/ (never straight
+// to Play): that endpoint owns the store URL and its campaign tags, and `from` becomes the
+// utm_campaign Play Console reports installs under. The badge must not be redrawn or
+// recoloured. The PNG carries its own transparent margin (~9px at this height): a
+// left-aligned placement offsets it with -ml-2 through `class`, a centred one needs nothing.
+interface Props {
+  /** Placement id: the utm_campaign, and the GA4 entry_point of the click. */
+  from: string;
+  class?: string;
+}
+
+const { from, class: className } = Astro.props;
+---
+
+<a
+  href={`/android/?from=${from}`}
+  class:list={['block w-fit', className]}
+  onclick={`if(typeof gtag!=='undefined')gtag('event','app_cta_clicked',{entry_point:'${from}'})`}
+>
+  <img
+    src="/images/google-play-badge.png"
+    width="646"
+    height="250"
+    alt="Get it on Google Play"
+    loading="lazy"
+    class="h-14 w-auto"
+  />
+</a>

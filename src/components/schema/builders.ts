@@ -52,3 +52,37 @@ export function buildWebApplicationSchema(input: WebApplicationSchemaInput) {
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   };
 }
+
+export interface MobileApplicationSchemaInput {
+  /** The page that describes the app on this site. */
+  url: string;
+  name: string;
+  description: string;
+  featureList: string[];
+  /** The store listing: both where it installs from and the same entity elsewhere. */
+  installUrl: string;
+  operatingSystem: string;
+}
+
+// A native app, as opposed to the WebApplication entities above. Deliberately carries no
+// aggregateRating: Google only shows a SoftwareApplication rich result with ratings, but
+// a rating in markup has to be real and visible on the page, and until the store listing
+// has reviews there is none to state. The entity still ties the app to the organization.
+export function buildMobileApplicationSchema(input: MobileApplicationSchemaInput) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'MobileApplication',
+    '@id': `${input.url}#app`,
+    name: input.name,
+    url: input.url,
+    applicationCategory: 'MusicApplication',
+    operatingSystem: input.operatingSystem,
+    description: input.description,
+    featureList: input.featureList,
+    installUrl: input.installUrl,
+    downloadUrl: input.installUrl,
+    sameAs: [input.installUrl],
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    publisher: { '@id': 'https://chordsequence.com/#organization' },
+  };
+}
