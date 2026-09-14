@@ -2,6 +2,7 @@
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AppCta from '../../components/AppCta.astro';
+import { INSTRUMENTS_LIST } from '../../data/instrumentsList';
 
 const SITE = 'https://chordsequence.com'
 
@@ -11,6 +12,12 @@ const tools = [
     desc: 'Find any chord on guitar, piano or ukulele. See the exact fingering or keys to press, hear every note, and switch between C-D-E and Do-Re-Mi note names.',
     href: '/chord-lookup/',
     keywords: 'chord finder, guitar chord finder, piano chord finder, guitar chords, piano chords, ukulele chords',
+  },
+  {
+    title: 'Chord Sheet Maker',
+    desc: 'Write lyrics, drop chords above the words, transpose to any key, add chord diagrams and print a clean one-page chart.',
+    href: '/chord-sheet-maker/',
+    keywords: 'chord sheet maker, chord chart creator, lyrics with chords, printable chord sheet',
   },
   {
     title: 'Guitar Scale Chart',
@@ -80,14 +87,27 @@ const tools = [
   },
 ];
 
+// Linked one by one rather than through a single /instruments/ card: a direct link
+// with a descriptive anchor helps /piano/ and friends more than a hop via the hub.
+const instruments = INSTRUMENTS_LIST
+  .filter((inst) => inst.status === 'available')
+  .map((inst) => ({
+    title: `Virtual ${inst.name}`,
+    desc: inst.description,
+    href: inst.url,
+    keywords: inst.tags.join(' · '),
+  }));
+
+const allTools = [...tools, ...instruments];
+
 const toolsSchema = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
-  name: 'Free Music Theory Tools',
+  name: 'Free Music Tools',
   description: 'Free online music tools for songwriters and musicians.',
   url: `${SITE}/tools/`,
-  numberOfItems: tools.length,
-  itemListElement: tools.map((t, i) => ({
+  numberOfItems: allTools.length,
+  itemListElement: allTools.map((t, i) => ({
     '@type': 'ListItem',
     position: i + 1,
     item: {
@@ -104,8 +124,8 @@ const toolsSchema = {
 ---
 
 <BaseLayout
-  title="Free Music Theory Tools — Transposer, Key Detector & More"
-  description="Free online music tools for songwriters and musicians. Chord transposer, chord finder, key detector, chord generator, and Roman numeral analyzer."
+  title="Free Music Tools — Chord Sheet Maker, Tuner, Tab Players & More"
+  description="Free music tools in your browser: chord finder, chord sheet maker, transposer, key detector, tab players, tuner, metronome and virtual instruments."
   canonicalUrl="https://chordsequence.com/tools/"
   ogImage="/og/page/tools/"
   ogImageAlt="Free Music Tools | Chord Sequence"
@@ -116,7 +136,7 @@ const toolsSchema = {
   <main class="mx-auto max-w-5xl px-4 sm:px-6 py-16 sm:py-24">
     <div class="mb-14 text-center">
       <h1 class="text-4xl sm:text-5xl font-bold text-foreground tracking-tight mb-4">
-        Free music theory tools
+        Free music tools
       </h1>
       <p class="text-lg text-muted-foreground max-w-xl mx-auto">
         Online tools for every stage of the songwriting process. Instant, and no signup required.
@@ -137,6 +157,30 @@ const toolsSchema = {
           <p class="mt-4 text-xs text-muted-foreground/60">{t.keywords}</p>
         </a>
       ))}
+    </div>
+
+    <div class="mt-16">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-foreground tracking-tight mb-2">
+          <a href="/instruments/" class="hover:text-primary transition-colors">Virtual instruments</a>
+        </h2>
+        <p class="text-sm text-muted-foreground">Play real sampled instruments with your mouse, keyboard, touchscreen or MIDI.</p>
+      </div>
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        {instruments.map((t) => (
+          <a
+            href={t.href}
+            class="group flex flex-col rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-colors"
+          >
+            <div class="flex items-start justify-between gap-3 mb-3">
+              <h3 class="text-lg font-bold text-foreground group-hover:text-primary transition-colors">{t.title}</h3>
+              <svg class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+            <p class="text-sm text-muted-foreground leading-relaxed flex-1">{t.desc}</p>
+            <p class="mt-4 text-xs text-muted-foreground/60">{t.keywords}</p>
+          </a>
+        ))}
+      </div>
     </div>
 
     <!-- Related reading -->
