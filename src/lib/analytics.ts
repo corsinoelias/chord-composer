@@ -130,11 +130,15 @@ export const analytics = {
   // Latency from click to first sound, bucketed rather than raw milliseconds so it reads
   // as a GA4 dimension without a numeric-range report: '<1s' feels instant, '1-3s' is a
   // beat, '>3s' is long enough that someone plausibly gave up and left before it started.
-  // `latency_ms` is the raw rounded figure behind the bucket — register it as a GA4
-  // custom metric so the tail (how far past 3s the slow ones really are) is legible;
-  // `latency_bucket` still goes out so existing dimension breakdowns keep working.
-  songAudioReady: (songSlug: string, latencyBucket: '<1s' | '1-3s' | '>3s', latencyMs: number) =>
-    track('song_audio_ready', { song_slug: songSlug, latency_bucket: latencyBucket, latency_ms: Math.round(latencyMs) }),
+  // The raw rounded figure goes out twice because GA4 lets one parameter be a dimension
+  // or a metric, never both. `latency_ms` is registered as a custom DIMENSION: individual
+  // values, which is the only way to read the slowest plays (GA4 metrics sum, they have
+  // no max). `latency_ms_value` is registered as a custom METRIC (milliseconds, Sept 2026):
+  // sum ÷ event count gives the average latency per song. It has no data before then.
+  songAudioReady: (songSlug: string, latencyBucket: '<1s' | '1-3s' | '>3s', latencyMs: number) => {
+    const ms = Math.round(latencyMs);
+    track('song_audio_ready', { song_slug: songSlug, latency_bucket: latencyBucket, latency_ms: ms, latency_ms_value: ms });
+  },
   // `stage` is deliberately a single free label today ('play') rather than a granular
   // union — PlaybackContext.play() swallows its own errors (see the try/catch around
   // startPlayback there) and this only observes "isPlaying never went true after we
