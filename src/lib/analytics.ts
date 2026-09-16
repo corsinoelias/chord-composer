@@ -103,6 +103,11 @@ export const analytics = {
   passwordResetCompleted: () => track('password_reset_completed'),
   exportNudgeShown: () => track('export_nudge_shown'),
   exportNudgeClicked: () => track('export_nudge_clicked'),
+  // Same nudge, earlier moment: an anonymous visitor who has added several chords by hand
+  // has built something worth keeping but, in Aug–Sep 2026, only 22% of them ever pressed
+  // Save. Sign-ups from it arrive as sign_up with entry_point 'build_nudge'.
+  buildNudgeShown: () => track('build_nudge_shown'),
+  buildNudgeClicked: () => track('build_nudge_clicked'),
 
   // Song sharing. A share link is where brand-new people enter the editor, so the
   // funnel is tracked end to end and separately from the organic one: opened (a

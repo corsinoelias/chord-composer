@@ -90,6 +90,19 @@ const EXPORT_NUDGE_DELAY_MS = 1600;
 // place instead of piling up.
 const EXPORT_TOAST_ID = 'chord-player-export';
 
+// Build → save nudge. Of the anonymous visitors who add chords by hand, only ~22% ever
+// press Save (Aug–Sep 2026: 652 added chords, 142 clicked Save), so the rest walk away
+// from a progression they built. This asks while they're still building, after enough
+// chords that there is something to lose. Once per session, and it shares a flag with
+// the export nudge so nobody gets both — see SAVE_NUDGE_SHOWN_KEY.
+const BUILD_NUDGE_AFTER_CHORDS = 4;
+const BUILD_NUDGE_DELAY_MS = 1600; // lets the "Added X" toast have its moment first
+const BUILD_NUDGE_DURATION_MS = 12000;
+const SAVE_NUDGE_SHOWN_KEY = 'chord-player-build-nudge-shown';
+// One id for every "Added X" toast, so quick successive adds replace each other in place
+// instead of piling up, and the build nudge can clear the last one before it appears.
+const CHORD_ADDED_TOAST_ID = 'chord-player-chord-added';
+
 // The fields that constitute "the visitor changed this song", used to spot the first
 // real edit on a copy opened from a share link. Instruments are deliberately left out:
 // loading a song applies its style, and useStyleInstruments then rewrites instrument
@@ -750,12 +763,50 @@ const Index = ({ songId }: IndexProps) => {
   }, []);
 
 
+  // Chords added by hand this visit — the build nudge's trigger. A ref, not state: nothing
+  // renders from it.
+  const chordsAddedRef = useRef(0);
+
+  const maybeShowBuildSaveNudge = () => {
+    if (isLoggedIn) return;
+    // A forked shared song already got its own "Save" prompt (see the fork effect above).
+    if (sharedSong || forkedFromId) return;
+    if (chordsAddedRef.current < BUILD_NUDGE_AFTER_CHORDS) return;
+    if (sessionStorage.getItem(SAVE_NUDGE_SHOWN_KEY)) return;
+    if (Number(sessionStorage.getItem(EXPORT_NUDGE_SESSION_KEY)) > 0) return;
+    // Claimed before the delay so a fast fifth chord can't schedule a second one.
+    sessionStorage.setItem(SAVE_NUDGE_SHOWN_KEY, '1');
+
+    window.setTimeout(() => {
+      analytics.buildNudgeShown();
+      // Same reasoning as the export nudge: arrive alone, not stacked on "Added X".
+      toast.dismiss(CHORD_ADDED_TOAST_ID);
+      toast('Your progression isn’t saved yet', {
+        description: 'Save it free to your account and pick it up on any device.',
+        duration: BUILD_NUDGE_DURATION_MS,
+        closeButton: true,
+        action: {
+          label: 'Save it',
+          onClick: () => {
+            analytics.buildNudgeClicked();
+            // Signing up from here saves the song too — same path as the Save button.
+            pendingSaveRef.current = true;
+            setAuthModalEntryPoint('build_nudge');
+            setAccountPromptOpen(true);
+          },
+        },
+      });
+    }, BUILD_NUDGE_DELAY_MS);
+  };
+
   // Chord handlers
   const handleAddChord = (chord: Chord) => {
     if (addChordSection === null) return;
     setSections(prev => prev.map((s, i) => i === addChordSection.index ? { ...s, chords: [...s.chords, chord] } : s));
-    toast.success(`Added ${chord.root}${chord.accidental}${chord.quality} to ${addChordSection.name}`);
+    toast.success(`Added ${chord.root}${chord.accidental}${chord.quality} to ${addChordSection.name}`, { id: CHORD_ADDED_TOAST_ID });
     analytics.chordAdded();
+    chordsAddedRef.current += 1;
+    maybeShowBuildSaveNudge();
   };
 
   const handleChordClick = useCallback((sectionIndex: number, chordIndex: number) => {
@@ -1010,6 +1061,8 @@ const Index = ({ songId }: IndexProps) => {
   // their export.
   const showExportSaveNudge = useCallback(() => {
     if (isLoggedIn) return;
+    // Already asked while building this session — one save nudge per session is enough.
+    if (sessionStorage.getItem(SAVE_NUDGE_SHOWN_KEY)) return;
     const shownSoFar = Number(sessionStorage.getItem(EXPORT_NUDGE_SESSION_KEY)) || 0;
     if (shownSoFar >= EXPORT_NUDGE_MAX_PER_SESSION) return;
 
