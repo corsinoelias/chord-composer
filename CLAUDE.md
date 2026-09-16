@@ -20,7 +20,16 @@ node scripts/gsc.mjs pages                # top pages
 node scripts/gsc.mjs page chord-player/   # what one page ranks for
 node scripts/gsc.mjs query "chord maker"  # which pages Google serves for one query
 node scripts/gsc.mjs weekly --days 90     # clicks/impressions/position by week
+
+# Keyword search volume (Google Ads Keyword Planner) -- use this, not DataForSEO
+node scripts/kw-volume.mjs "holy forever chords" "firm foundation chords"
+node scripts/kw-volume.mjs --geo 2840 --file kws.txt   # 2840 = US; default worldwide, --lang 1000 (en)
 ```
+
+Keyword volumes come from the Google Ads API credentials in the sibling
+`../../Google Ads/.env` (override with `ADS_ENV`); read-only, it never touches that
+account's campaigns. On `invalid_grant` the refresh token expired: run
+`node get_refresh_token.mjs` in that folder (browser consent; Python is not installed).
 
 Search Console auth reuses the service account the analytics MCP already uses
 (`GOOGLE_APPLICATION_CREDENTIALS` in `.mcp.json`), which holds siteOwner on
