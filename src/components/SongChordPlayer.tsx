@@ -183,10 +183,12 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
       if (stopDebounceRef.current) { clearTimeout(stopDebounceRef.current); stopDebounceRef.current = null; }
       playSegmentStartRef.current = performance.now();
     } else {
-      if (playSegmentStartRef.current !== null) {
-        playedMsRef.current += performance.now() - playSegmentStartRef.current;
-        playSegmentStartRef.current = null;
-      }
+      // No open play segment means nothing was playing: this is the mount-time run (or a
+      // repeat false), not a stop. Without this guard every song page view reported a
+      // song_play_stopped 400ms after load — 1,687 "stops" vs 276 plays in Aug–Sep 2026.
+      if (playSegmentStartRef.current === null) return;
+      playedMsRef.current += performance.now() - playSegmentStartRef.current;
+      playSegmentStartRef.current = null;
       stopDebounceRef.current = setTimeout(() => {
         stopDebounceRef.current = null;
         analytics.songPlayStopped(song.slug, stopReasonRef.current);
