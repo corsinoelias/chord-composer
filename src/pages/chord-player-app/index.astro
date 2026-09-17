@@ -10,14 +10,14 @@ import { buildBreadcrumbSchema, buildMobileApplicationSchema } from '@/component
 // says Android only until that build exists. Not /app/: that path is the signed-in library.
 //
 // Every number and feature on this page is checked against the Flutter source, not
-// against the web editor — the two differ (15 chord types, not 37; 11 styles, not 13), and
+// against the web editor — the two differ (15 chord types, not 37; 17 styles, not 13), and
 // the Play listing once copied the web's numbers. Change them here only together with the
 // app.
 const PAGE_URL = 'https://chordsequence.com/chord-player-app/';
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.eliascorsino.chord_sequencer';
 
 const description =
-  'Chord Player for Android: build a song section by section and hear it played by drums, bass, piano and guitar in 11 styles. Free, offline, no account.';
+  'Chord Player for Android: build a song section by section and hear it played by drums, bass, piano and guitar in 17 styles. Free, offline, no account.';
 
 const features = [
   {
@@ -26,11 +26,11 @@ const features = [
   },
   {
     title: 'A band that plays along',
-    text: 'Drums, bass, piano and guitar in 11 styles, from Reggaeton and Bossa Nova to Jazz Waltz and Slow 6/8, with a metronome and a count-in.',
+    text: 'Drums, bass, piano and guitar in 17 styles, from Reggaeton and Bossa Nova to Jazz Waltz and Slow 6/8, with a metronome and a count-in.',
   },
   {
     title: 'Make the groove yours',
-    text: 'Edit every instrument on a step grid, add swing, and play in 4/4, 3/4, 6/8 or 5/4. Save a pattern once and reuse it in any project.',
+    text: 'Edit every instrument on a step grid, add swing, and play in 4/4, 3/4, 6/8 or 5/4. Nine drum kits, and a pattern you save once can be reused in any song.',
   },
   {
     title: 'Mix it',
@@ -43,6 +43,41 @@ const features = [
   {
     title: 'Start from something',
     text: 'Open one of 11 songs, from Flowers to Easy on Me, or one of 8 classic progressions, and change it instead of starting from a blank page.',
+  },
+];
+
+// The screens, in the order someone meets them. Files live in
+// /images/chord-player-app/ and are 2x phone mockups (760x1600) of the real app.
+const shots = [
+  {
+    src: 'song',
+    alt: 'The song screen of Chord Player, with Intro, Verse and Chorus sections and the sounding chord lit up',
+    caption: 'Your song, section by section. The chord that is playing lights up as it goes.',
+  },
+  {
+    src: 'chord-editor',
+    alt: 'The chord editor, showing the chords of the key, the length of the chord and its bass note',
+    caption: 'Pick a chord from the key, from outside it, or spell it yourself.',
+  },
+  {
+    src: 'rhythm-editor',
+    alt: 'The rhythm editor, with a step grid for kick, snare, hi-hat and ride and a drawing of the kit',
+    caption: 'Edit the groove step by step, one instrument at a time.',
+  },
+  {
+    src: 'mixer',
+    alt: 'The mixer, with a fader and level meter per instrument, pan knobs and an EQ curve',
+    caption: 'Level, pan, EQ, compression and reverb, per instrument.',
+  },
+  {
+    src: 'my-songs',
+    alt: 'The song library, with search, filters and songs to start from',
+    caption: 'Your songs, plus 11 to start from and 8 classic progressions.',
+  },
+  {
+    src: 'chord-diagram',
+    alt: 'A chord shown as a guitar shape and as keys on a piano',
+    caption: 'Every chord as a guitar shape and on the piano.',
   },
 ];
 
@@ -64,12 +99,13 @@ const appSchema = buildMobileApplicationSchema({
   operatingSystem: 'Android 8.0 or later',
   featureList: [
     'Song sections with 15 chord types',
-    'Drums, bass, piano and guitar in 11 styles',
+    'Drums, bass, piano and guitar in 17 styles',
     'Step-grid rhythm editor with swing',
     '4/4, 3/4, 6/8 and 5/4',
     'Per-instrument mixer with EQ, compression and reverb',
     'M4A, WAV and MIDI export',
     'Works offline, no account',
+    'English and Spanish',
   ],
 });
 
@@ -95,28 +131,40 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
       <div class="pointer-events-none absolute inset-0 -z-10">
         <div class="absolute left-1/2 top-1/2 h-[420px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[130px]"></div>
       </div>
-      <div class="mx-auto max-w-5xl px-4 pt-14 pb-12 text-center sm:px-6 sm:pt-20 sm:pb-14">
-        <img
-          src="/images/chord-player-app-icon.png"
-          width="96"
-          height="96"
-          alt="Chord Player app icon"
-          class="mx-auto mb-6 h-20 w-20 rounded-2xl border border-border shadow-sm"
-        />
-        <h1 class="mb-5 font-serif text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
-          Chord Player for Android.<br />
-          <span class="text-primary">Build a song. Hear the band.</span>
-        </h1>
-        <p class="mx-auto max-w-xl text-lg text-muted-foreground">
-          Write chord progressions on your phone and hear them played by drums, bass, piano and
-          guitar, even with no connection.
-        </p>
-        <div class="mt-8 flex flex-col items-center gap-3">
-          <GooglePlayBadge from="landing" />
-          <a href="/chord-player/" class="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-            On iPhone or a computer? Use Chord Player in your browser →
-          </a>
+      <!-- The phone sits beside the words from lg up, and under them on a phone, where a
+           screenshot above the fold would push the download button off it. -->
+      <div class="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-14 pb-12 sm:px-6 sm:pt-20 sm:pb-14 lg:grid-cols-[1fr_auto] lg:gap-16">
+        <div class="text-center lg:text-left">
+          <img
+            src="/images/chord-player-app-icon.png"
+            width="96"
+            height="96"
+            alt="Chord Player app icon"
+            class="mx-auto mb-6 h-20 w-20 rounded-2xl border border-border shadow-sm lg:mx-0"
+          />
+          <h1 class="mb-5 font-serif text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
+            Chord Player for Android.<br />
+            <span class="text-primary">Build a song. Hear the band.</span>
+          </h1>
+          <p class="mx-auto max-w-xl text-lg text-muted-foreground lg:mx-0">
+            Write chord progressions on your phone and hear them played by drums, bass, piano and
+            guitar, even with no connection.
+          </p>
+          <div class="mt-8 flex flex-col items-center gap-3 lg:items-start">
+            <GooglePlayBadge from="landing" />
+            <a href="/chord-player/" class="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
+              On iPhone or a computer? Use Chord Player in your browser →
+            </a>
+          </div>
         </div>
+        <img
+          src="/images/chord-player-app/song.webp"
+          width="760"
+          height="1600"
+          alt="Chord Player playing a song: Intro, Verse and Chorus, with the sounding chord lit up"
+          fetchpriority="high"
+          class="mx-auto w-[220px] drop-shadow-2xl sm:w-[260px] lg:w-[300px]"
+        />
       </div>
     </section>
 
@@ -148,6 +196,81 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
         </div>
       </section>
 
+      <!-- ─── SCREENS ──────────────────────────────────────────────────────── -->
+      <!-- Real screenshots, not drawings: what the app looks like is most of what someone
+           wants to know before installing it. A grid at every width rather than a strip
+           that scrolls sideways — a half-cut phone at the edge reads as a broken image,
+           not as an invitation to swipe. -->
+      <section class="mt-16">
+        <h2 class="mb-2 text-2xl font-bold tracking-tight text-foreground">What it looks like</h2>
+        <p class="mb-6 text-muted-foreground">Six screens from the app, on a phone.</p>
+        <ul class="grid grid-cols-2 gap-x-5 gap-y-8 sm:gap-x-8 lg:grid-cols-3">
+          {shots.map((shot, i) => (
+            <li>
+              <img
+                src={`/images/chord-player-app/${shot.src}.webp`}
+                width="760"
+                height="1600"
+                alt={shot.alt}
+                loading={i === 0 ? 'eager' : 'lazy'}
+                class="mx-auto w-full max-w-[260px] drop-shadow-xl"
+              />
+              <p class="mx-auto mt-3 max-w-[260px] text-center text-sm leading-relaxed text-muted-foreground">
+                {shot.caption}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <!-- ─── HEAR IT ──────────────────────────────────────────────────────── -->
+      <!-- The one claim on this page nobody can check by reading: that the band sounds
+           like a band. This is the song in the screenshots above, exported from the app
+           itself with its own M4A export. `preload="none"` keeps its 2.4 MB off every
+           page load — it is fetched when somebody presses play. -->
+      <section class="mt-16 rounded-xl border border-border bg-card p-6 sm:p-8">
+        <h2 class="mb-2 text-2xl font-bold tracking-tight text-foreground">Hear the band</h2>
+        <p class="mb-5 text-muted-foreground">
+          "Golden Hour" — the song in the screenshots, three sections in a pop ballad,
+          exported straight from the app. Nothing was added afterwards.
+        </p>
+        <audio
+          controls
+          preload="none"
+          src="/audio/chord-player-app-demo.m4a"
+          class="w-full"
+          onplay="if(typeof gtag!=='undefined')gtag('event','app_demo_played',{entry_point:'landing'})"
+        >
+          Your browser cannot play audio.
+        </audio>
+        <p class="mt-3 text-xs text-muted-foreground">
+          Drums, bass, piano and guitar, played from the chords in the app. 1:43 · M4A.
+        </p>
+      </section>
+
+      <!-- ─── HOW IT GOES ──────────────────────────────────────────────────── -->
+      <section class="mt-16">
+        <h2 class="mb-6 text-2xl font-bold tracking-tight text-foreground">How a song goes</h2>
+        <ol class="grid gap-4 sm:grid-cols-3">
+          {[
+            ['Write the chords', 'Add a section, tap to add chords, and set how long each one lasts. The app names the degree, so you can see the shape of what you wrote.'],
+            ['Pick how it plays', 'Choose a style and the band plays your chords in it. Any section can keep a groove of its own.'],
+            ['Shape it and take it', 'Edit the pattern step by step, mix the four instruments, and export M4A, WAV or MIDI.'],
+          ].map(([title, text], i) => (
+            <li class="rounded-xl border border-border bg-card p-6">
+              <span class="mb-3 flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                {i + 1}
+              </span>
+              <h3 class="mb-2 font-semibold text-foreground">{title}</h3>
+              <p class="text-sm leading-relaxed text-muted-foreground">{text}</p>
+            </li>
+          ))}
+        </ol>
+        <p class="mt-4 text-sm text-muted-foreground">
+          The app speaks English and Spanish, and follows whatever your phone is set to.
+        </p>
+      </section>
+
       <!-- ─── APP OR BROWSER ───────────────────────────────────────────────── -->
       <section class="mt-16">
         <h2 class="mb-2 text-2xl font-bold tracking-tight text-foreground">App or browser?</h2>
@@ -175,6 +298,28 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <!-- ─── QUESTIONS ────────────────────────────────────────────────────── -->
+      <!-- Visible questions and answers only. This site must never serialize them as
+           FAQPage JSON-LD — see the note in CLAUDE.md and scripts/check-schema.mjs. -->
+      <section class="mt-16">
+        <h2 class="mb-6 text-2xl font-bold tracking-tight text-foreground">Questions</h2>
+        <div class="divide-y divide-border rounded-xl border border-border bg-card">
+          {[
+            ['Is it free?', 'Yes, the whole app. There is nothing to buy inside it and no account to make.'],
+            ['Does it work without a connection?', 'Yes. The sounds are on your phone, so writing a song and hearing the band work in a basement or on a plane.'],
+            ['Is there an iPhone version?', 'Not yet. On an iPhone or a computer, Chord Player runs in the browser instead.'],
+            ['What can it export?', 'M4A to send to someone, WAV to keep editing, and MIDI to open the notes in a DAW.'],
+            ['Which languages does it speak?', 'English and Spanish. It follows your phone, and Android lets you set the app to one or the other on its own.'],
+            ['Where do my songs live?', 'On your phone. Nothing is uploaded, and deleting the app deletes them with it.'],
+          ].map(([question, answer]) => (
+            <div class="p-5">
+              <h3 class="mb-1 font-semibold text-foreground">{question}</h3>
+              <p class="text-sm leading-relaxed text-muted-foreground">{answer}</p>
+            </div>
+          ))}
         </div>
       </section>
 
