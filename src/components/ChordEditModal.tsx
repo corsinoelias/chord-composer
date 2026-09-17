@@ -21,6 +21,8 @@ interface ChordEditModalProps {
   songKey?: string;
   transposition?: number;
   preferFlats?: boolean;
+  /** Beats a brand-new chord starts with — one bar of the song's time signature. */
+  defaultDuration?: number;
 }
 
 function parseBassNote(bn?: string): { root: RootNote | null; acc: Accidental } {
@@ -31,7 +33,7 @@ function parseBassNote(bn?: string): { root: RootNote | null; acc: Accidental } 
   return { root: r, acc }
 }
 
-export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDuplicate, onPreview, songKey, transposition = 0, preferFlats = false }: ChordEditModalProps) {
+export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDuplicate, onPreview, songKey, transposition = 0, preferFlats = false, defaultDuration = 4 }: ChordEditModalProps) {
   const [root, setRoot] = useState<RootNote>('C');
   const [accidental, setAccidental] = useState<Accidental>('');
   const [quality, setQuality] = useState<ChordQuality>('maj');
@@ -85,12 +87,12 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
       setRoot('C');
       setAccidental('');
       setQuality('maj');
-      setDuration(4);
+      setDuration(defaultDuration);
       setBassRoot(null);
       setBassAccidental('');
       setBassExpanded(false);
     }
-  }, [chord, open, transposition]);
+  }, [chord, open, transposition, defaultDuration]);
 
   const bassNote = bassRoot ? `${bassRoot}${bassAccidental}` : undefined;
 

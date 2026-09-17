@@ -25,6 +25,7 @@ import type { Song } from '@/data/songs';
 import { ALL_KEYS, SONG_GENRES } from '@/lib/musicKeys';
 import { parseChordString, serializeChords } from '@/lib/chordParser';
 import type { Chord } from '@/lib/musicTheory';
+import { getStyleById, getSlotsPerBar } from '@/lib/styles';
 import { uploadSongAudio, deleteSongAudio, type SongAudioUploadResult, type SongAudioUploadError } from '@/lib/songAudio';
 import AudioRangeEditor from './AudioRangeEditor';
 import { seedSectionRanges, estimatesAreStale, wholeRangeMismatch, tempoDrift, type SeedReport } from './audioSeeding';
@@ -72,6 +73,25 @@ function transposeSections(secs: EditorSection[], s: number, flats: boolean): Ed
     ...sec,
     lines: sec.lines.map(l => ({
       ...l, tokens: l.tokens.map(t => ({ ...t, chord: transposeChordStr(t.chord, s, flats) })),
+    })),
+  }));
+}
+
+// ── Time signature helpers ────────────────────────────────────────────────────
+// Chord durations are quarter-note beats, so one bar is 4 in 4/4 but 3 in 6/8
+// (getSlotsPerBar: 12 sixteenths). Unknown style ids fall back to 4/4.
+function beatsPerBar(styleId: string): number {
+  const style = getStyleById(styleId);
+  return style ? getSlotsPerBar(style) / 4 : 4;
+}
+// Scales every chord by the same ratio so a chart written bar-by-bar stays bar-by-bar
+// in the new meter (4 → 3, 2 → 1.5, 8 → 6), snapped to the half-beat grid the modal uses.
+function rescaleDurations(secs: EditorSection[], ratio: number): EditorSection[] {
+  return secs.map(sec => ({
+    ...sec,
+    lines: sec.lines.map(l => ({
+      ...l,
+      tokens: l.tokens.map(t => t.chord ? { ...t, duration: Math.max(0.5, Math.round(t.duration * ratio * 2) / 2) } : t),
     })),
   }));
 }
@@ -162,8 +182,32 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
 
   useEffect(() => { if (editingLineId) lineEditRef.current?.focus(); }, [editingLineId]);
 
+  // ── Style / time signature ────────────────────────────────────────────────────
+  const barBeats = beatsPerBar(meta.style);
+  // Last automatic rescale, kept so it can be undone. Only offered while the chart is
+  // exactly what the rescale produced — any later edit makes "undo" ambiguous.
+  const [rescaleUndo, setRescaleUndo] = useState<{ before: EditorSection[]; after: EditorSection[]; style: string; from: number; to: number } | null>(null);
+
+  const handleStyleChange = (style: string) => {
+    const from = barBeats, to = beatsPerBar(style);
+    if (from !== to && sections.some(s => s.lines.some(l => l.tokens.some(t => t.chord)))) {
+      const after = rescaleDurations(sections, to / from);
+      setRescaleUndo({ before: sections, after, style: meta.style, from, to });
+      setSections(after);
+    } else {
+      setRescaleUndo(null);
+    }
+    onMetaChange({ ...meta, style });
+  };
+  const undoRescale = () => {
+    if (!rescaleUndo) return;
+    setSections(rescaleUndo.before);
+    onMetaChange({ ...meta, style: rescaleUndo.style });
+    setRescaleUndo(null);
+  };
+
   // ── Section ops ───────────────────────────────────────────────────────────────
-  const addSection    = () => setSections(p => [...p, makeNewSection(`Section ${p.length + 1}`)]);
+  const addSection   = () => setSections(p => [...p, makeNewSection(`Section ${p.length + 1}`)]);
   const deleteSection = (id: string) => setSections(p => p.filter(s => s.id !== id));
   const renameSect    = (id: string, name: string) => setSections(p => p.map(s => s.id === id ? { ...s, name } : s));
   const changeRepeat  = (id: string, repeatCount: number) => setSections(p => p.map(s => s.id === id ? { ...s, repeatCount: Math.max(1, repeatCount) } : s));
@@ -258,7 +302,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
         ...sec,
         lines: sec.lines.map(l => ({
           ...l,
-          tokens: l.tokens.map(t => t.id === dstId ? { ...t, chord, duration: 4 } : t),
+          tokens: l.tokens.map(t => t.id === dstId ? { ...t, chord, duration: barBeats } : t),
         })),
       })));
     } else if (a.data.current?.type === 'chord' && o.data.current?.type === 'chord-target') {
@@ -294,7 +338,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
       // Drop on an empty line — add a new chord token
       const chord = a.data.current.chord as string;
       // Moving an existing chord keeps its duration; a fresh palette chord starts at the default.
-      const duration = a.data.current?.type === 'chord' ? (a.data.current.duration as number) : 4;
+      const duration = a.data.current?.type === 'chord' ? (a.data.current.duration as number) : barBeats;
       const srcTokenId = a.data.current?.tokenId as string | undefined;
       const { lineId: dstLine } = o.data.current as { lineId: string };
 
@@ -579,10 +623,16 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
           <div><label className="block text-xs font-medium text-muted-foreground mb-2">Style</label>
             <StyleSelector
               selectedStyleId={meta.style}
-              onStyleChange={style => onMetaChange({ ...meta, style })}
+              onStyleChange={handleStyleChange}
               showCustom={false}
               triggerClassName="w-full h-9 bg-background border-border rounded-lg px-2 py-2 text-sm"
             />
+            {rescaleUndo && rescaleUndo.after === sections && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Chord lengths adapted to the new time signature (1 bar: {rescaleUndo.from} → {rescaleUndo.to} beats).{' '}
+                <button onClick={undoRescale} className="text-primary hover:underline">Undo</button>
+              </p>
+            )}
           </div>
           <div><label className="block text-xs font-medium text-muted-foreground mb-2">Referencia vocal (toda la canción)</label>
             <button
@@ -763,6 +813,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
         onSave={handleChordSave}
         onDelete={editingChord?.chord ? handleChordDelete : undefined}
         songKey={meta.key}
+        defaultDuration={barBeats}
         onPreview={partial => {
           const c = { root: 'C', accidental: '', quality: 'maj', duration: 4, id: 'preview', ...partial } as import('@/lib/musicTheory').Chord;
           playChordPreview(c);
@@ -1094,6 +1145,7 @@ function SortableSection({ section, canDelete, isPlaying, isDraggingChord, ...pr
                             rawIndex={props.rawIndex}
                             onOpenModal={() => props.onOpenChordModal(section.id, line.id, token.id, token.chord, token.duration)}
                             onRemove={() => props.onUpdateToken(section.id, line.id, token.id, { chord: '', duration: 4 })}
+                            onDurationChange={d => props.onUpdateToken(section.id, line.id, token.id, { duration: d })}
                             onPreview={() => props.onPreviewChord(token.chord)}
                             onDuplicate={() => props.onDuplicateChord(section.id, line.id, token.id)}
                           />
@@ -1145,9 +1197,61 @@ interface ChipProps {
   onRemove: () => void;
   onPreview: () => void;
   onDuplicate: () => void;
+  onDurationChange: (duration: number) => void;
 }
 
-function TokenChip({ token, sectionId, lineId, isDraggingChord, isActive, bpm, rawIndex, onOpenModal, onRemove, onPreview, onDuplicate }: ChipProps) {
+// Hover strip above a chord badge: same dot semantics as ChordEditModal's duration row
+// (left half of a dot = n − ½, right half = n), so the length can be set without
+// opening the modal. Pointer-down is stopped so dnd-kit never starts a drag from it.
+function DurationHoverEditor({ duration, onChange }: { duration: number; onChange: (d: number) => void }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const shown = hover ?? duration;
+  const count = Math.max(8, Math.ceil(duration));
+  const valueAt = (e: React.MouseEvent<HTMLButtonElement>, n: number) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return Math.max(e.clientX - rect.left < rect.width / 2 ? n - 0.5 : n, 0.5);
+  };
+  const f = Math.floor(shown), h = shown % 1 >= 0.5;
+  const label = `${f > 0 ? (h ? `${f}½` : f) : '½'}`;
+
+  return (
+    <span
+      className="absolute bottom-full left-0 z-30 pb-1 hidden group-hover/dur:block"
+      onPointerDown={e => e.stopPropagation()}
+    >
+      <span
+        className="flex items-center rounded-lg border border-border bg-card shadow-md px-1 py-0.5 whitespace-nowrap"
+        onMouseLeave={() => setHover(null)}
+      >
+        {Array.from({ length: count }, (_, i) => {
+          const n = i + 1;
+          const state = n <= f ? 'full' : n === f + 1 && h ? 'half' : 'empty';
+          return (
+            <button
+              key={n}
+              type="button"
+              onMouseMove={e => setHover(valueAt(e, n))}
+              onClick={e => { e.stopPropagation(); onChange(valueAt(e, n)); }}
+              className={`p-[2px] ${state === 'empty' ? 'text-muted-foreground/40' : hover !== null ? 'text-primary/60' : 'text-primary'}`}
+            >
+              <svg width="11" height="11" viewBox="0 0 20 20">
+                {state === 'full' && <circle cx="10" cy="10" r="10" fill="currentColor" />}
+                {state === 'half' && <>
+                  <circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
+                  <path d="M10,1 A9,9 0 0,0 10,19 Z" fill="currentColor" />
+                </>}
+                {state === 'empty' && <circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" strokeWidth="2" />}
+              </svg>
+            </button>
+          );
+        })}
+        <span className="ml-1 pr-0.5 text-[10px] font-medium text-muted-foreground tabular-nums">{label}</span>
+      </span>
+    </span>
+  );
+}
+
+function TokenChip({ token, sectionId, lineId, isDraggingChord, isActive, bpm, rawIndex, onOpenModal, onRemove, onPreview, onDuplicate, onDurationChange }: ChipProps) {
   if (token.isSpace) return <span className="text-sm select-none">{token.text}</span>;
 
   const hasChord = !!token.chord;
@@ -1179,9 +1283,12 @@ function TokenChip({ token, sectionId, lineId, isDraggingChord, isActive, bpm, r
       style={{ fontFamily: 'var(--font-mono, monospace)' }}
     >
       {/* Chord area */}
-      <span className="flex items-center gap-0.5 min-h-[1.75em] mb-0.5">
+      <span className="group/dur relative flex items-center gap-0.5 min-h-[1.75em] mb-0.5">
         {hasChord ? (
           <>
+            {!isDraggingChord && !isDragging && (
+              <DurationHoverEditor duration={token.duration} onChange={onDurationChange} />
+            )}
             {/* Chord badge — draggable + click opens modal */}
             <button
               ref={setDragRef}
