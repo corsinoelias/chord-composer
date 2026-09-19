@@ -17,35 +17,57 @@ const { placement } = Astro.props;
 
      Rendered hidden and revealed by the synchronous script right after it, which runs
      before first paint, so showing it moves nothing that was already on screen. -->
-<div data-app-banner data-placement={placement} hidden class="border-b border-border bg-card">
-  <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
-    <button
-      type="button"
-      data-app-banner-close
-      aria-label="Dismiss"
-      class="-ml-1 shrink-0 p-1 text-muted-foreground transition-colors hover:text-foreground"
-    >
-      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button>
-    <img
-      src="/images/chord-player-app-icon.png"
-      width="96"
-      height="96"
-      alt=""
-      class="h-10 w-10 shrink-0 rounded-xl border border-border"
-    />
-    <div class="min-w-0 flex-1 leading-tight">
-      <p class="truncate text-sm font-semibold text-foreground">Chord Player for Android</p>
-      <p class="truncate text-xs text-muted-foreground">Free · works offline</p>
+<div data-app-banner data-placement={placement} hidden class="relative overflow-hidden border-b border-border bg-card">
+  <!-- Decoration only: a faint primary glow and a screenshot of the real app peeking in
+       from the right, cut by the bottom edge. The screenshot is lazy, so on every
+       non-Android visit (where the strip stays hidden) it is never fetched. -->
+  <div aria-hidden="true" class="pointer-events-none absolute -left-16 -top-20 h-48 w-80 rounded-full bg-primary/15 blur-3xl"></div>
+  <img
+    src="/images/chord-player-app/song.webp"
+    width="760"
+    height="1600"
+    alt=""
+    loading="lazy"
+    aria-hidden="true"
+    class="pointer-events-none absolute right-3 top-9 w-[92px] rotate-[4deg] drop-shadow-xl sm:right-10 sm:w-[104px]"
+  />
+  <div class="relative mx-auto max-w-7xl py-4 pl-4 pr-[112px] sm:pr-[160px]">
+    <div class="flex items-center gap-3">
+      <img
+        src="/images/chord-player-app-icon.png"
+        width="96"
+        height="96"
+        alt=""
+        class="h-12 w-12 shrink-0 rounded-[14px] border border-border shadow-sm"
+      />
+      <div class="min-w-0 leading-tight">
+        <p class="text-base font-semibold text-foreground">Chord Player</p>
+        <p class="mt-0.5 whitespace-nowrap text-sm text-muted-foreground">Chords with a full band.</p>
+      </div>
     </div>
-    <a
-      href={`/android/?from=${placement}`}
-      data-app-banner-cta
-      class="shrink-0 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-    >
-      Get
+    <p class="mt-2.5 whitespace-nowrap text-xs text-muted-foreground">Free · Works offline · No account</p>
+    <!-- Google's official badge rather than a button of our own: it is what people expect
+         to tap on Android. Inlined instead of GooglePlayBadge.astro because that component
+         logs its own app_cta_clicked, which the script below already does with this
+         placement. The PNG's transparent margin is offset with -ml-1.5. -->
+    <a href={`/android/?from=${placement}`} data-app-banner-cta class="-ml-1.5 mt-1.5 block w-fit">
+      <img
+        src="/images/google-play-badge.png"
+        width="646"
+        height="250"
+        alt="Get it on Google Play"
+        class="h-12 w-auto"
+      />
     </a>
   </div>
+  <button
+    type="button"
+    data-app-banner-close
+    aria-label="Dismiss"
+    class="absolute right-1.5 top-1.5 z-10 rounded-full bg-card/80 p-1.5 text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
+  >
+    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+  </button>
 </div>
 <script is:inline>
   (function () {
