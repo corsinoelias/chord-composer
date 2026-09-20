@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://chordsequence.com/schema/song-doc-v5.json",
+  "title": "SongDoc v5",
+  "description": "A song as stored in progressions.data and read and written by both the web (src/lib/songs.ts) and the Flutter app (lib/core/data/song_doc.dart). Unknown fields are allowed everywhere and MUST be carried through untouched by any client that saves the song. See docs/plan-paridad-web-app.md.",
+  "type": "object",
+  "required": ["id", "title", "sections", "bpm", "styleId"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "type": "integer", "description": "5. Absent = 4. A reader that meets a higher value opens read-only." },
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "createdAt": { "type": "string" },
+    "updatedAt": { "type": "string" },
+    "bpm": { "type": "number", "minimum": 20, "maximum": 300 },
+    "styleId": { "type": "string", "description": "A style id from shared/catalog/styles.json, a user style ('custom_…', in user_settings), or an alias from aliases.json." },
+    "transposition": { "type": "integer", "minimum": -12, "maximum": 12 },
+    "metronomeEnabled": { "type": "boolean" },
+    "instrumentSettings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "soundTypeId"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "enum": ["piano", "bass", "drums", "guitar"] },
+          "muted": { "type": "boolean" },
+          "solo": { "type": "boolean" },
+          "volume": { "type": "number", "minimum": 0, "maximum": 1 },
+          "soundTypeId": { "type": "string", "description": "An id from shared/catalog/sounds.json." }
+        }
+      }
+    },
+    "melodic": { "type": "object", "description": "Legacy (v1→v2). Migrated into the style on open." },
+    "app": {
+      "type": "object",
+      "description": "What only the Flutter app models today (key, meter, mixer beyond volume, voicings, note lengths, per-section timbre/register overrides). The web keeps it untouched.",
+      "additionalProperties": true
+    },
+    "sections": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/section" }
+    }
+  },
+  "definitions": {
+    "track": { "enum": ["drums", "bass", "piano", "guitar"] },
+    "chord": {
+      "type": "object",
+      "required": ["root", "accidental", "quality", "duration"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "root": { "enum": ["C", "D", "E", "F", "G", "A", "B"] },
+        "accidental": { "enum": ["", "#", "b"] },
+        "quality": { "type": "string", "description": "A key of shared/catalog/chords.json qualities." },
+        "duration": { "type": "number", "exclusiveMinimum": 0, "description": "Beats, in halves." },
+        "bassNote": { "type": "string", "description": "Slash bass: 'E', 'Bb', 'F#'." }
+      }
+    },
+    "trackPattern": {
+      "type": "object",
+      "description": "A groove edited by hand for one section, in the StylePattern vocabulary: rhythm rows (0–1 velocity per 16th), arpeggio cells, a melodic variation (scale degrees 1–8), a fill.",
+      "additionalProperties": true,
+      "properties": {
+        "rhythm": { "type": "object" },
+        "arpeggios": { "type": "array" },
+        "melodic": { "type": "object" },
+        "fill": { "type": "object" },
+        "loopBars": { "enum": [1, 2, 4] }
+      }
+    },
+    "section": {
+      "type": "object",
+      "required": ["id", "name", "chords", "repeatCount"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "chords": { "type": "array", "items": { "$ref": "#/definitions/chord" } },
+        "repeatCount": { "type": "integer", "minimum": 1 },
+        "bassVariationId": { "type": "string" },
+        "pianoVariationId": { "type": "string" },
+        "guitarVariationId": { "type": "string" },
+        "styleId": { "type": "string" },
+        "trackStyles": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "string" } },
+        "patterns": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "$ref": "#/definitions/trackPattern" } },
+        "silenced": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "boolean" } },
+        "sounds": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "string" } }
+      }
+    }
+  }
+}

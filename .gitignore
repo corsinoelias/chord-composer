@@ -45,3 +45,6 @@ drive-diag.mjs
 drive-diag2.mjs
 drive-tmp2.mjs
 drive-tmp3.mjs
+
+# Real-song corpus for the audio regression test (user data, never committed)
+tests/corpus/data/

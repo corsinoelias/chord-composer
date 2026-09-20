@@ -1,0 +1,20 @@
+{
+ "schemaVersion": 5, "id": "fixture_edited_groove", "title": "Edited groove", "createdAt": "2026-09-18T00:00:00.000Z", "updatedAt": "2026-09-18T00:00:00.000Z",
+ "bpm": 120, "styleId": "rock_basic", "transposition": 0, "metronomeEnabled": true, "instrumentSettings": [],
+ "sections": [
+  {"id": "s1", "name": "Verse", "repeatCount": 1,
+   "patterns": {
+    "drums": {"loopBars": 1, "rhythm": {
+     "kick":  [1,0,0,0, 0,0,0,0, 1,0,1,0, 0,0,0,0],
+     "snare": [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+     "hihat": [0.7,0,0.5,0, 0.7,0,0.5,0, 0.7,0,0.5,0, 0.7,0,0.5,0]}},
+    "bass": {"loopBars": 1, "melodic": {"id": "v_edit", "name": "Edited", "loopBars": 1,
+     "pattern": {"1": [1,0,0,0, 0,0,0,0, 0.8,0,0,0, 0,0,0,0], "5": [0,0,0,0, 0,0,0,0, 0,0,0,0, 0.8,0,0,0], "8": [0,0,0,0, 0.8,0,0,0, 0,0,0,0, 0,0,0,0]},
+     "octaveOffsets": {"8": 0}}}
+   },
+   "chords": [
+    {"id": "c1", "root": "E", "accidental": "", "quality": "min", "duration": 4},
+    {"id": "c2", "root": "C", "accidental": "", "quality": "maj", "duration": 4}
+   ]}
+ ]
+}

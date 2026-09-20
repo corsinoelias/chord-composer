@@ -1,0 +1,333 @@
+{
+ "piano": {
+  "default": "sampled",
+  "sounds": [
+   {
+    "id": "sampled",
+    "name": "Grand Piano (Sampled)",
+    "source": "samples",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 0
+    }
+   },
+   {
+    "id": "acoustic",
+    "name": "Acoustic Grand",
+    "source": "synth",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 0
+    }
+   },
+   {
+    "id": "bright",
+    "name": "Bright Piano",
+    "source": "synth",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 1
+    }
+   },
+   {
+    "id": "electric",
+    "name": "Electric Piano",
+    "source": "synth",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 4
+    }
+   },
+   {
+    "id": "soft",
+    "name": "Soft Piano",
+    "source": "synth",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 0
+    }
+   },
+   {
+    "id": "upright",
+    "name": "Upright Piano",
+    "source": "synth",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 0
+    }
+   },
+   {
+    "id": "honkytonk",
+    "name": "Honky Tonk",
+    "source": "synth",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 3
+    }
+   }
+  ],
+  "legacy": {}
+ },
+ "bass": {
+  "default": "fender",
+  "sounds": [
+   {
+    "id": "fender",
+    "name": "Fender (Pick)",
+    "source": "samples",
+    "samplePath": "bass/modo",
+    "octaveOffset": -1,
+    "app": {
+     "timbre": 13,
+     "program": 34
+    }
+   },
+   {
+    "id": "finger",
+    "name": "Finger",
+    "source": "samples",
+    "samplePath": "bass/finger",
+    "octaveOffset": -1,
+    "app": {
+     "timbre": 13,
+     "program": 33
+    }
+   },
+   {
+    "id": "slap",
+    "name": "Slap",
+    "source": "samples",
+    "samplePath": "bass/slap",
+    "octaveOffset": -1,
+    "app": {
+     "timbre": 13,
+     "program": 36
+    }
+   },
+   {
+    "id": "muted",
+    "name": "Muted",
+    "source": "samples",
+    "samplePath": "bass/muted",
+    "octaveOffset": -1,
+    "app": {
+     "timbre": 13,
+     "program": 33
+    }
+   },
+   {
+    "id": "synth",
+    "name": "Synth Bass",
+    "source": "synth",
+    "octaveOffset": -2,
+    "app": {
+     "timbre": 12
+    }
+   },
+   {
+    "id": "sub",
+    "name": "Deep Sub",
+    "source": "synth",
+    "octaveOffset": -3,
+    "app": {
+     "timbre": 10
+    }
+   }
+  ],
+  "legacy": {
+   "electric": {
+    "timbre": 12
+   },
+   "picked": {
+    "timbre": 13,
+    "program": 34
+   }
+  }
+ },
+ "drums": {
+  "default": "standard",
+  "sounds": [
+   {
+    "id": "standard",
+    "name": "Acoustic Kit",
+    "source": "synth",
+    "octaveOffset": 0,
+    "app": {
+     "kit": 9
+    }
+   },
+   {
+    "id": "analog",
+    "name": "Analog",
+    "source": "synth",
+    "octaveOffset": 0,
+    "app": {
+     "kit": 0
+    }
+   },
+   {
+    "id": "punch",
+    "name": "Punch",
+    "source": "synth",
+    "octaveOffset": 0,
+    "app": {
+     "kit": 1
+    }
+   },
+   {
+    "id": "lofi",
+    "name": "Lo-Fi",
+    "source": "synth",
+    "octaveOffset": 0,
+    "app": {
+     "kit": 0
+    }
+   }
+  ],
+  "legacy": {
+   "rock": {
+    "kit": 9
+   },
+   "jazz": {
+    "kit": 9
+   },
+   "electronic": {
+    "kit": 4
+   }
+  }
+ },
+ "guitar": {
+  "default": "sf2-steel",
+  "sounds": [
+   {
+    "id": "acoustic",
+    "name": "Acoustic Steel",
+    "source": "samples",
+    "samplePath": "guitar/acoustic",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 25
+    }
+   },
+   {
+    "id": "electric",
+    "name": "Electric Clean",
+    "source": "samples",
+    "samplePath": "guitar/electric",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 27
+    }
+   },
+   {
+    "id": "nylon",
+    "name": "Classical Nylon",
+    "source": "samples",
+    "samplePath": "guitar/nylon",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 24
+    }
+   },
+   {
+    "id": "sf2-steel",
+    "name": "Steel ★",
+    "source": "soundfont",
+    "sf2Instrument": "acoustic_guitar_steel",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 25
+    }
+   },
+   {
+    "id": "sf2-nylon",
+    "name": "Nylon ★",
+    "source": "soundfont",
+    "sf2Instrument": "acoustic_guitar_nylon",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 24
+    }
+   },
+   {
+    "id": "sf2-clean",
+    "name": "Clean ★",
+    "source": "soundfont",
+    "sf2Instrument": "electric_guitar_clean",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 27
+    }
+   },
+   {
+    "id": "sf2-jazz",
+    "name": "Jazz ★",
+    "source": "soundfont",
+    "sf2Instrument": "electric_guitar_jazz",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 26
+    }
+   },
+   {
+    "id": "sf2-muted",
+    "name": "Muted ★",
+    "source": "soundfont",
+    "sf2Instrument": "electric_guitar_muted",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 28
+    }
+   },
+   {
+    "id": "sf2-distortion",
+    "name": "Distorted ★",
+    "source": "soundfont",
+    "sf2Instrument": "distortion_guitar",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 30
+    }
+   },
+   {
+    "id": "sf2-overdrive",
+    "name": "Overdrive ★",
+    "source": "soundfont",
+    "sf2Instrument": "overdriven_guitar",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 29
+    }
+   },
+   {
+    "id": "sf2-harmonics",
+    "name": "Harmonics ★",
+    "source": "soundfont",
+    "sf2Instrument": "guitar_harmonics",
+    "octaveOffset": 0,
+    "app": {
+     "timbre": 13,
+     "program": 31
+    }
+   }
+  ],
+  "legacy": {}
+ }
+}

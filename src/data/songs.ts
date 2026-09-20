@@ -1,3 +1,5 @@
+import type { Section as EditorSection } from '../lib/sections';
+
 export interface SongToken {
   chord: string;    // e.g. "C", "Am7", "" if no chord on this syllable
   lyrics: string;   // text that goes under this chord
@@ -19,6 +21,24 @@ export interface SongSection {
   repeatCount?: number; // how many times the section plays back-to-back. Default 1 (no repeat).
   // Which slice of the song's shared audioTrack (if any) plays under this section.
   audioRange?: AudioRange;
+  // Per-section arrangement, the same optional fields as the editor's Section (see
+  // src/lib/sections.ts). A section without them plays exactly as it always did.
+  styleId?: string;
+  trackStyles?: EditorSection['trackStyles'];
+  patterns?: EditorSection['patterns'];
+  silenced?: EditorSection['silenced'];
+  sounds?: EditorSection['sounds'];
+}
+
+/** The arrangement fields of a song section, to copy onto a playback Section. */
+export function sectionArrangement(section: Pick<EditorSection, 'styleId' | 'trackStyles' | 'patterns' | 'silenced' | 'sounds'>): Partial<EditorSection> {
+  const out: Partial<EditorSection> = {};
+  if (section.styleId) out.styleId = section.styleId;
+  if (section.trackStyles) out.trackStyles = section.trackStyles;
+  if (section.patterns) out.patterns = section.patterns;
+  if (section.silenced) out.silenced = section.silenced;
+  if (section.sounds) out.sounds = section.sounds;
+  return out;
 }
 
 export interface Song {

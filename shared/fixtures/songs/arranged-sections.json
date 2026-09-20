@@ -1,0 +1,20 @@
+{
+ "schemaVersion": 5, "id": "fixture_arranged", "title": "Per-section arrangement", "createdAt": "2026-09-18T00:00:00.000Z", "updatedAt": "2026-09-18T00:00:00.000Z",
+ "bpm": 92, "styleId": "pop_1", "transposition": -2, "metronomeEnabled": false,
+ "instrumentSettings": [],
+ "sections": [
+  {"id": "intro", "name": "Intro", "repeatCount": 1, "silenced": {"drums": true, "bass": true}, "chords": [
+   {"id": "c1", "root": "B", "accidental": "b", "quality": "maj7", "duration": 4},
+   {"id": "c2", "root": "F", "accidental": "", "quality": "sus2", "duration": 4}
+  ]},
+  {"id": "verse", "name": "Verse", "repeatCount": 2, "sounds": {"guitar": "sf2-nylon"}, "chords": [
+   {"id": "c3", "root": "C", "accidental": "", "quality": "maj", "duration": 2, "bassNote": "E"},
+   {"id": "c4", "root": "F", "accidental": "#", "quality": "m7b5", "duration": 2},
+   {"id": "c5", "root": "D", "accidental": "", "quality": "min9", "duration": 4}
+  ]},
+  {"id": "chorus", "name": "Chorus", "repeatCount": 1, "styleId": "reggaeton", "trackStyles": {"bass": "rock_basic"}, "chords": [
+   {"id": "c6", "root": "G", "accidental": "", "quality": "7#9", "duration": 4},
+   {"id": "c7", "root": "A", "accidental": "", "quality": "5", "duration": 4}
+  ]}
+ ]
+}

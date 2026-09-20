@@ -86,6 +86,11 @@ interface RhythmEditorProps {
   onDelete?: (styleId: string) => void;
   referenceRootMidi?: number;
   referenceQuality?: string;
+  /**
+   * Section mode: Save hands the edited rhythm back for one section of the song instead of
+   * storing it as a style (see Index.tsx and sectionPlayback.ts's sectionPatternsFromStyle).
+   */
+  onSaveSection?: (style: StylePattern) => void;
 }
 
 // Migrate rhythm.bass/piano/guitar into melodic variations so they appear in their own tabs
@@ -240,6 +245,7 @@ export function RhythmEditor({
   onDelete,
   referenceRootMidi = 60,
   referenceQuality = 'maj',
+  onSaveSection,
 }: RhythmEditorProps) {
   // Use centralized playback state
   const { state: playbackState, stop: stopMainPlayback } = usePlayback();
@@ -425,10 +431,18 @@ export function RhythmEditor({
   }, []);
 
   // Only handles unmount — start/stop happen imperatively in startLocalPlayback/stopLocalPlayback.
+  // Unmounting while the local loop runs (Index remounts this editor per section, so saving
+  // a section's rhythm unmounts it before the !open effect ever runs) must stop that loop
+  // too: left alone it kept sounding, and pressing the main Play then played two at once.
   useEffect(() => {
     return () => {
       if (stepAnimationRef.current) {
         cancelAnimationFrame(stepAnimationRef.current);
+      }
+      if (playbackRef.current) {
+        playbackRef.current.cancel();
+        playbackRef.current = null;
+        stopPlayback();
       }
     };
   }, []);
@@ -706,6 +720,15 @@ export function RhythmEditor({
 
   // Handle save - always show dialog for built-in styles
   const handleSaveClick = () => {
+    if (onSaveSection) {
+      stopLocalPlayback();
+      stopPreview();
+      onSaveSection(editedStyle);
+      setHasUnsavedChanges(false);
+      originalStyleRef.current = JSON.stringify(editedStyle);
+      onClose();
+      return;
+    }
     if (isEditingBuiltIn) {
       // Always show options for built-in styles
       setSaveDialogOpen(true);

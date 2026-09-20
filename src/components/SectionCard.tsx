@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Repeat, Pencil, Music, Piano, Guitar, Check } from 'lucide-react';
 import { SortableChord } from './SortableChord';
+import { SectionArrangementMenu, type SectionArrangement } from './SectionArrangementMenu';
 import { ChordSuggestions } from './ChordSuggestions';
 
 const VARIATION_INSTRUMENTS = [
@@ -55,6 +56,12 @@ interface SectionCardProps {
   onSetProgression: (sectionIndex: number, chords: Chord[]) => void;
   transposition?: number;
   preferFlats?: boolean;
+  /** Per-section arrangement (rhythm, tracks, sounds). The menu only shows when given. */
+  onArrangementChange?: (sectionIndex: number, next: SectionArrangement) => void;
+  /** Styles a section may pick; with the song's style, needed for the menu. */
+  availableStyles?: StylePattern[];
+  songStyle?: StylePattern;
+  onEditSectionRhythm?: (sectionIndex: number) => void;
 }
 
 // Section color palette
@@ -105,6 +112,10 @@ export const SectionCard = memo(function SectionCard({
   onSetProgression,
   transposition = 0,
   preferFlats = false,
+  onArrangementChange,
+  availableStyles,
+  songStyle,
+  onEditSectionRhythm,
 }: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
@@ -273,6 +284,23 @@ export const SectionCard = memo(function SectionCard({
                 <span className="truncate">{section.name}</span>
                 <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50 transition-opacity shrink-0" />
               </button>
+            )}
+
+            {onArrangementChange && availableStyles && (songStyle ?? style) && (
+              <SectionArrangementMenu
+                arrangement={{
+                  styleId: section.styleId,
+                  trackStyles: section.trackStyles,
+                  patterns: section.patterns,
+                  silenced: section.silenced,
+                  sounds: section.sounds,
+                }}
+                onChange={(next) => onArrangementChange(sectionIndex, next)}
+                songStyle={(songStyle ?? style)!}
+                styles={availableStyles}
+                sectionName={section.name}
+                onEditRhythm={onEditSectionRhythm ? () => onEditSectionRhythm(sectionIndex) : undefined}
+              />
             )}
 
             {/* Per-section melodic variation pickers (bass/piano/guitar) — only

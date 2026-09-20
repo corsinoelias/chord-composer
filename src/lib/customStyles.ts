@@ -1,5 +1,6 @@
 import type { StylePattern } from './styles';
-import { getUserSettings, saveUserSettings } from './userSettings';
+import { getUserSettings, saveUserSettings, syncUserSettings } from './userSettings';
+import { supabase } from './supabase';
 
 // In-memory cache — loaded once via initCustomStylesCache()
 let _customStyles: StylePattern[] = [];
@@ -27,6 +28,23 @@ export async function initCustomStylesCache(): Promise<{
   });
 
   return { customStyles: _customStyles, styleOverrides: _styleOverrides };
+}
+
+// Cloud sync (userSettings.ts) can bring styles saved on another device. When it does, the
+// cache takes them and the editor hears about it through the event it already listens to.
+function adoptSynced(settings: { customStyles: StylePattern[]; styleOverrides: Record<string, StylePattern> }) {
+  _customStyles = settings.customStyles;
+  _styleOverrides = settings.styleOverrides;
+  window.dispatchEvent(new Event('customStylesChanged'));
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('userSettingsSynced', (e) => adoptSynced((e as CustomEvent).detail));
+  // Logging in mid-session: merge this browser's rhythms with the account's right away.
+  supabase?.auth.onAuthStateChange((event) => {
+    if (event !== 'SIGNED_IN') return;
+    void syncUserSettings().then((merged) => { if (merged) adoptSynced(merged); });
+  });
 }
 
 // ==================== CUSTOM STYLES ====================

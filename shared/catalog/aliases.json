@@ -1,0 +1,20 @@
+{
+ "styles": {
+  "pop_basic": "pop_1",
+  "folk_strum": "pop_1",
+  "pop": "pop_1",
+  "rock": "rock_basic",
+  "blues": "shuffle_blues",
+  "jazz": "jazz_light",
+  "rnb": "soul_rnb",
+  "reggae": "Reggae_twostep",
+  "hiphop": "hiphop_trap",
+  "folk": "folk_indie",
+  "sixeight": "pop_6_8",
+  "bossa": "bossa_light"
+ },
+ "qualities": {
+  "m9": "min9",
+  "m11": "min11"
+ }
+}

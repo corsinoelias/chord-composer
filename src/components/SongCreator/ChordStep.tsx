@@ -21,11 +21,12 @@ import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
 import { createSection, type Section } from '@/lib/sections';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
 import { playChordPreview } from '@/lib/audioEngine';
-import type { Song } from '@/data/songs';
+import { sectionArrangement, type Song } from '@/data/songs';
+import { SectionArrangementMenu, type SectionArrangement } from '@/components/SectionArrangementMenu';
 import { ALL_KEYS, SONG_GENRES } from '@/lib/musicKeys';
 import { parseChordString, serializeChords } from '@/lib/chordParser';
 import type { Chord } from '@/lib/musicTheory';
-import { getStyleById, getSlotsPerBar } from '@/lib/styles';
+import { getStyleById, getSlotsPerBar, MUSICAL_STYLES, type StylePattern } from '@/lib/styles';
 import { uploadSongAudio, deleteSongAudio, type SongAudioUploadResult, type SongAudioUploadError } from '@/lib/songAudio';
 import AudioRangeEditor from './AudioRangeEditor';
 import { seedSectionRanges, estimatesAreStale, wholeRangeMismatch, tempoDrift, type SeedReport } from './audioSeeding';
@@ -111,7 +112,7 @@ let _n = 9999;
 const nid = () => String(++_n);
 
 function cloneSection(s: EditorSection, suffix = ' (2)'): EditorSection {
-  return { id: nid(), name: s.name + suffix, lines: s.lines.map(l => ({ id: nid(), tokens: l.tokens.map(t => ({ ...t, id: nid() })) })), repeatCount: s.repeatCount, audioRange: s.audioRange };
+  return { ...s, id: nid(), name: s.name + suffix, lines: s.lines.map(l => ({ id: nid(), tokens: l.tokens.map(t => ({ ...t, id: nid() })) })), repeatCount: s.repeatCount, audioRange: s.audioRange };
 }
 function cloneLine(l: EditorSection['lines'][number]) {
   return { id: nid(), tokens: l.tokens.map(t => ({ ...t, id: nid() })) };
@@ -211,6 +212,11 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
   const deleteSection = (id: string) => setSections(p => p.filter(s => s.id !== id));
   const renameSect    = (id: string, name: string) => setSections(p => p.map(s => s.id === id ? { ...s, name } : s));
   const changeRepeat  = (id: string, repeatCount: number) => setSections(p => p.map(s => s.id === id ? { ...s, repeatCount: Math.max(1, repeatCount) } : s));
+  const changeArrangement = (id: string, next: SectionArrangement) => setSections(p => p.map(s => {
+    if (s.id !== id) return s;
+    const { styleId: _a, trackStyles: _b, patterns: _c, silenced: _d, sounds: _e, ...rest } = s;
+    return { ...rest, ...next };
+  }));
   const duplicateSection = (id: string) => setSections(p => {
     const i = p.findIndex(s => s.id === id);
     const next = [...p]; next.splice(i + 1, 0, cloneSection(p[i])); return next;
@@ -448,7 +454,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
 
     if (!chords.length) return;
     setPlayingSectionId(section.id);
-    await play([{ ...createSection(section.name), chords, repeatCount: section.repeatCount }], {
+    await play([{ ...createSection(section.name), chords, repeatCount: section.repeatCount, ...sectionArrangement(section) }], {
       ...playbackOpts(),
       // createSection() above mints a fresh Section.id, so section-keyed sectionRanges
       // wouldn't match here — since this call only ever plays one section at a time,
@@ -468,7 +474,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
       const chords = section.lines.flatMap(l => l.tokens)
         .filter(t => t.chord && !t.isSpace)
         .flatMap(t => parseChordString(t.chord).map(c => ({ ...c, duration: t.duration })));
-      return { ...createSection(section.name), chords, repeatCount: section.repeatCount };
+      return { ...createSection(section.name), chords, repeatCount: section.repeatCount, ...sectionArrangement(section) };
     });
   }, [sections]);
 
@@ -705,6 +711,8 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
                     onDelete={deleteSection}
                     onDuplicate={duplicateSection}
                     onRepeatChange={changeRepeat}
+                    onArrangementChange={changeArrangement}
+                    songStyle={getStyleById(meta.style) ?? MUSICAL_STYLES[0]}
                     onPlaySection={handlePlaySection}
                     onOpenAudioModal={setAudioModalTarget}
                     wholeSongAudioActive={!!meta.audioWholeRange}
@@ -974,6 +982,8 @@ interface SortableSectionProps {
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onRepeatChange: (id: string, repeatCount: number) => void;
+  onArrangementChange: (id: string, next: SectionArrangement) => void;
+  songStyle: StylePattern;
   onPlaySection: (section: EditorSection) => void;
   onOpenAudioModal: (sectionId: string) => void;
   wholeSongAudioActive: boolean;
@@ -1066,6 +1076,15 @@ function SortableSection({ section, canDelete, isPlaying, isDraggingChord, ...pr
           >
             <AudioLines className="w-3.5 h-3.5" />
           </button>
+          {/* How this section sounds: rhythm, tracks, sounds. Built-in styles only —
+              a public song must sound the same for every visitor. */}
+          <SectionArrangementMenu
+            arrangement={{ styleId: section.styleId, trackStyles: section.trackStyles, patterns: section.patterns, silenced: section.silenced, sounds: section.sounds }}
+            onChange={(next) => props.onArrangementChange(section.id, next)}
+            songStyle={props.songStyle}
+            styles={MUSICAL_STYLES}
+            sectionName={section.name}
+          />
           {/* Repeat count */}
           <div className="relative">
             <button

@@ -13,6 +13,10 @@
     "test:tabtext": "tsx tests/tabtext/run-roundtrip.ts",
     "test:audio": "node tests/audio/run-golden.mjs",
     "test:audio:update": "node tests/audio/run-golden.mjs --update",
+    "corpus:fetch": "node --env-file=.env tests/corpus/fetch-corpus.mjs",
+    "corpus:inventory": "tsx tests/corpus/inventory.ts",
+    "test:corpus": "node tests/corpus/run-corpus.mjs",
+    "corpus:update": "node tests/corpus/run-corpus.mjs --update",
     "seed": "tsx --env-file=.env scripts/seed-songs.ts",
     "import:chart": "tsx scripts/import-chart.ts",
     "fetch-soundfonts": "node scripts/fetch-soundfonts.mjs",
@@ -20,7 +24,9 @@
     "indexnow": "node scripts/indexnow.mjs",
     "test:transport": "node tests/audio/run-transport.mjs",
     "test:jank": "node tests/audio/run-jank.mjs",
-    "test:timing": "node tests/audio/run-timing.mjs"
+    "test:timing": "node tests/audio/run-timing.mjs",
+    "shared:export": "tsx scripts/export-shared.ts",
+    "test:shared": "tsx tests/shared/roundtrip.ts"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",

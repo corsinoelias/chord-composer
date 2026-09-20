@@ -10,6 +10,7 @@ import { type InstrumentState, getDefaultInstrumentStates, getSoundType } from '
 import { type StylePattern, MUSICAL_STYLES, resolveActiveStyle } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
 import { type MelodicData, resolveVariation } from '@/lib/bassScale';
+import { makeStyleLookup, resolveSectionPlayback } from '@/lib/sectionPlayback';
 import { preloadSampleDirForMidis } from '@/lib/bassTab/sampleEngine';
 import { collectMidiNotes } from '@/lib/engine/preloadPlan';
 import {
@@ -444,6 +445,32 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       console.warn('[AUDIO] Piano note preload timed out — proceeding with synth fallback');
     }
 
+    // Sounds a section swaps in (Section.sounds) load like the song's own: the SF2 guitar and
+    // the sampled bass would otherwise start late the first time that section plays. Only
+    // runs for songs that have any, so every other song takes exactly the path above.
+    const sectionSounds = sections.flatMap(s => Object.entries(s.sounds ?? {}));
+    for (const [track, soundId] of sectionSounds) {
+      const def = getSoundType(track as 'bass' | 'guitar', soundId as string);
+      try {
+        if (track === 'guitar' && def?.sf2Instrument) {
+          await Promise.race([
+            ensureGuitarSoundfontLoaded(soundId as string, def.sf2Instrument),
+            new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 4000)),
+          ]);
+        } else if (track === 'bass' && def?.useSamples && def.samplePath) {
+          const midis = collectMidiNotes('bass', {
+            sections, style, melodic: options.melodic, transposition: options.transposition, octaveOffset: def.octaveOffset,
+          });
+          await Promise.race([
+            preloadSampleDirForMidis(getAudioContext(), def.samplePath, midis),
+            new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2500)),
+          ]);
+        }
+      } catch {
+        console.warn(`[AUDIO] Section sound preload "${track}:${soundId}" timed out — proceeding`);
+      }
+    }
+
     // Vocal reference audio: decode once per URL (cached across replays within the
     // session), regardless of the current transposition — only the audible gain depends
     // on transposition (see audioEngine.ts), so returning to key 0 mid-session doesn't
@@ -524,6 +551,16 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       getSections: () => {
         const opts = optionsRef.current;
         return opts?.sections ?? sectionsRef.current;
+      },
+      // Per-section arrangement. Re-reads the live sections and styles every chord, like
+      // the variation getters above, so a section's rhythm can change mid-playback.
+      resolveSection: (sectionId: string, songStyle: StylePattern) => {
+        const opts = optionsRef.current;
+        const liveSections = opts?.sections ?? sectionsRef.current;
+        const sec = liveSections.find(s => s.id === sectionId);
+        if (!sec) return null;
+        const lookup = makeStyleLookup(opts?.customStyles ?? getCustomStyles(), getStyleOverride, opts?.liveEditedStyle);
+        return resolveSectionPlayback(sec, songStyle, lookup);
       },
       getLoopingSectionId: () => {
         const opts = optionsRef.current;

@@ -25,11 +25,13 @@ import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instrume
 import { getStyleByIdWithOverrides, resolveActiveStyle, MUSICAL_STYLES, type StylePattern } from '@/lib/styles';
 import { getCustomStyles, getStyleOverride, saveStyleOverride, saveCustomStyle, isCustomStyle, initCustomStylesCache } from '@/lib/customStyles';
 import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAudio } from '@/lib/audioEngine';
+import { makeOfflineSectionResolver, makeStyleLookup, effectiveSectionStyle, sectionPatternsFromStyle } from '@/lib/sectionPlayback';
+import { type SectionArrangement } from '@/components/SectionArrangementMenu';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { exportMidi } from '@/lib/midiExporter';
 import { usePlayback, useCurrentStep } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
-import { type Song, createSong } from '@/lib/songs';
+import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat } from '@/lib/songs';
 import { parseChordString } from '@/lib/chordParser';
 import { decodeEditorSections, editorSectionsToSections } from '@/lib/editorLink';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
@@ -260,6 +262,12 @@ const Index = ({ songId }: IndexProps) => {
   const [addChordSection, setAddChordSection] = useState<{ index: number; name: string } | null>(null);
   const [instrumentsPanelOpen, setInstrumentsPanelOpen] = useState(false);
   const [rhythmEditorOpen, setRhythmEditorOpen] = useState(false);
+  // What the loaded song carries that this editor does not model (the app's key, meter,
+  // mixer…). Written back untouched on every save — see unknownSongFields.
+  const songExtrasRef = useRef<Record<string, unknown>>({});
+  const newerFormatRef = useRef(false);
+  // Set while the Rhythm Editor is editing one section's groove rather than a style.
+  const [sectionRhythmEdit, setSectionRhythmEdit] = useState<{ index: number; base: StylePattern } | null>(null);
   const [createRhythmModalOpen, setCreateRhythmModalOpen] = useState(false);
   const [editingNewStyle, setEditingNewStyle] = useState<StylePattern | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -399,6 +407,11 @@ const Index = ({ songId }: IndexProps) => {
           song.sections.forEach((s, i) => {
             console.log(`[SONG]   section[${i}] "${s.name}" — bassVar: ${s.bassVariationId ?? 'none'}, pianoVar: ${s.pianoVariationId ?? 'none'}, guitarVar: ${s.guitarVariationId ?? 'none'}`);
           });
+          songExtrasRef.current = unknownSongFields(song);
+          newerFormatRef.current = isNewerSongFormat(song);
+          if (newerFormatRef.current) {
+            toast.warning('This song was saved by a newer version of Chord Player. It opens read-only here; update to edit it.');
+          }
           setSections(song.sections.length > 0 ? song.sections : [{
             ...createSection('Section A'),
             chords: defaultChords
@@ -464,7 +477,13 @@ const Index = ({ songId }: IndexProps) => {
 
     // Debounce save by 1.5 seconds, then await write before marking saved
     saveTimeoutRef.current = setTimeout(async () => {
+      if (newerFormatRef.current) {
+        setIsSaving(false);
+        return;
+      }
       const song: Song = {
+        ...songExtrasRef.current,
+        schemaVersion: SONG_SCHEMA_VERSION,
         id: currentSongId,
         title: songTitle,
         createdAt: songCreatedAt || new Date().toISOString(),
@@ -498,7 +517,9 @@ const Index = ({ songId }: IndexProps) => {
   // Explicit save — turns the current in-progress work into a persisted song.
   // Never fires automatically: /chord-player/ stays a stable, stateless URL until the user asks to save.
   const handleSaveNewSong = useCallback(async () => {
-    const newSong = createSong(songTitle);
+    // A first save (or a visitor's fork) keeps whatever the opened song carried that this
+    // editor does not model, like every later autosave does.
+    const newSong: Song = { ...songExtrasRef.current, ...createSong(songTitle) };
     newSong.sections = sections;
     newSong.bpm = bpm;
     newSong.styleId = selectedStyleId;
@@ -1110,7 +1131,8 @@ const Index = ({ songId }: IndexProps) => {
 
     try {
       const style = resolveActiveStyle(selectedStyleId, liveEditedStyle, customStyles, getStyleOverride);
-      const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition);
+      const sectionResolver = makeOfflineSectionResolver(makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle));
+      const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition, undefined, sectionResolver);
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
       await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
       // Short: it's confirming something the browser is already showing a download for,
@@ -1246,6 +1268,33 @@ const Index = ({ songId }: IndexProps) => {
   const handleSetProgression = useCallback((sectionIndex: number, chords: Chord[]) => {
     setSections(prev => prev.map((s, i) => i === sectionIndex ? { ...s, chords } : s));
   }, []);
+
+  // Per-section arrangement. Changing a section's rhythm drops the melodic variations it had
+  // picked: they belonged to the previous rhythm (docs/ritmo-por-seccion.md, rule 4).
+  const handleSectionArrangementChange = useCallback((sectionIndex: number, next: SectionArrangement) => {
+    setSections(prev => prev.map((s, i) => {
+      if (i !== sectionIndex) return s;
+      const { styleId: _s, trackStyles: _t, patterns: _p, silenced: _m, sounds: _n, ...rest } = s;
+      const rhythmChanged = s.styleId !== next.styleId || JSON.stringify(s.trackStyles ?? {}) !== JSON.stringify(next.trackStyles ?? {});
+      return rhythmChanged
+        ? { ...rest, ...next, bassVariationId: undefined, pianoVariationId: undefined, guitarVariationId: undefined }
+        : { ...rest, ...next };
+    }));
+    analytics.sectionArrangementChanged(next);
+  }, []);
+
+  const sectionStyleLookup = useMemo(
+    () => makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle),
+    [customStyles, liveEditedStyle],
+  );
+  const availableSectionStyles = useMemo(() => [...customStyles, ...MUSICAL_STYLES], [customStyles]);
+
+  const handleEditSectionRhythm = useCallback((sectionIndex: number) => {
+    const section = sections[sectionIndex];
+    if (!section) return;
+    setSectionRhythmEdit({ index: sectionIndex, base: effectiveSectionStyle(section, currentStyle, sectionStyleLookup) });
+    setRhythmEditorOpen(true);
+  }, [sections, currentStyle, sectionStyleLookup]);
 
   const handleSectionVariationChange = useCallback((sectionIndex: number, instrument: 'bass' | 'piano' | 'guitar', variationId: string) => {
     setSections(prev => prev.map((s, i) => i !== sectionIndex ? s : {
@@ -1604,7 +1653,7 @@ const Index = ({ songId }: IndexProps) => {
                   totalSections={sections.length}
                   isLooping={loopingSectionIndex === sectionIndex}
                   styleId={selectedStyleId}
-                  style={currentStyle}
+                  style={effectiveSectionStyle(section, currentStyle, sectionStyleLookup)}
                   swapAnimation={animatingSections.find(a => a.index === sectionIndex)?.direction || null}
                   selectedChordIds={selectedChordIds}
                   onVariationChange={handleSectionVariationChange}
@@ -1621,6 +1670,10 @@ const Index = ({ songId }: IndexProps) => {
                   onMoveUp={handleMoveSectionUp}
                   onMoveDown={handleMoveSectionDown}
                   onSetProgression={handleSetProgression}
+                  onArrangementChange={handleSectionArrangementChange}
+                  availableStyles={availableSectionStyles}
+                  songStyle={currentStyle}
+                  onEditSectionRhythm={handleEditSectionRhythm}
                 />
               ))}
             </div>
@@ -1720,16 +1773,26 @@ const Index = ({ songId }: IndexProps) => {
       />
 
       <RhythmEditor
+        key={sectionRhythmEdit ? `section-${sectionRhythmEdit.index}` : 'song'}
         open={rhythmEditorOpen}
         onClose={() => {
           setRhythmEditorOpen(false);
           setEditingNewStyle(null);
           setLiveEditedStyle(null);
+          setSectionRhythmEdit(null);
         }}
-        style={editingNewStyle || currentStyle}
+        style={sectionRhythmEdit?.base ?? (editingNewStyle || currentStyle)}
         allStyles={[...customStyles, ...MUSICAL_STYLES]}
         isNewStyle={!!editingNewStyle}
-        onStyleChange={setLiveEditedStyle}
+        // In section mode the edit stays inside the editor until saved: previewing it live
+        // would make the whole song play the section's groove.
+        onStyleChange={sectionRhythmEdit ? undefined : setLiveEditedStyle}
+        onSaveSection={sectionRhythmEdit ? (edited) => {
+          const { index, base } = sectionRhythmEdit;
+          setSections(prev => prev.map((s, i) => i === index ? { ...s, patterns: sectionPatternsFromStyle(edited, base, s) } : s));
+          setSectionRhythmEdit(null);
+          toast.success('Section rhythm saved');
+        } : undefined}
         onStyleSelect={(styleId) => {
           setSelectedStyleId(styleId);
           setEditingNewStyle(null);

@@ -8,7 +8,19 @@ import type { Section } from './sections';
 import type { InstrumentState } from './instruments';
 import type { MelodicData, DegreePattern } from './bassScale';
 
+/**
+ * The shared song document (docs/plan-paridad-web-app.md, "SongDoc"): this shape, stored as
+ * is in progressions.data and read and written by both the web and the Flutter app.
+ *
+ * Bumped only for changes an older reader cannot absorb. A reader that meets a higher
+ * version opens the song read-only and never writes it back; everything else it does not
+ * know is carried through untouched (see unknownSongFields).
+ */
+export const SONG_SCHEMA_VERSION = 5;
+
 export interface Song {
+  /** Absent in every song saved before the app could open them: reads as 4. */
+  schemaVersion?: number;
   id: string;
   title: string;
   createdAt: string;
@@ -22,12 +34,33 @@ export interface Song {
   melodic?: MelodicData;
 }
 
+const KNOWN_SONG_KEYS = new Set([
+  'schemaVersion', 'id', 'title', 'createdAt', 'updatedAt', 'sections', 'bpm', 'styleId',
+  'transposition', 'instrumentSettings', 'metronomeEnabled', 'melodic',
+]);
+
+/**
+ * Everything in a saved song this build does not model — written by the Flutter app (key,
+ * meter, mixer, voicings…) or by a newer web. The editor keeps it aside on load and puts it
+ * back on save, so an edit here never deletes what the other client wrote.
+ */
+export function unknownSongFields(raw: unknown): Record<string, unknown> {
+  if (!raw || typeof raw !== 'object') return {};
+  return Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter(([k]) => !KNOWN_SONG_KEYS.has(k)));
+}
+
+/** A song written by a newer format than this build understands: open it, never save it. */
+export function isNewerSongFormat(song: Pick<Song, 'schemaVersion'>): boolean {
+  return (song.schemaVersion ?? 4) > SONG_SCHEMA_VERSION;
+}
+
 export function generateSongId(): string {
   return `song_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 export function createSong(title: string = 'Untitled Song'): Song {
   return {
+    schemaVersion: SONG_SCHEMA_VERSION,
     id: generateSongId(),
     title,
     createdAt: new Date().toISOString(),

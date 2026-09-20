@@ -14,13 +14,14 @@ import { NotationSelector } from '@/components/NotationSelector';
 import { SongPlayingPill } from '@/components/SongPlayingPill';
 import { SongSectionChart } from '@/components/SongSectionChart';
 import { SongChordsOnlyChart, type ChordOnlyRow } from '@/components/SongChordsOnlyChart';
-import { parseLyricLine, extractChordsWithDuration, type Song } from '@/data/songs';
+import { parseLyricLine, extractChordsWithDuration, sectionArrangement, type Song } from '@/data/songs';
 import { renderProgressionOffline } from '@/lib/audioEngine';
+import { makeOfflineSectionResolver, makeStyleLookup } from '@/lib/sectionPlayback';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { exportMidi } from '@/lib/midiExporter';
 import { MUSICAL_STYLES } from '@/lib/styles';
 import { analytics } from '@/lib/analytics';
-import { buildSongEditorUrl, type EditorLinkSection } from '@/lib/editorLink';
+import { buildSongEditorUrl, linkArrangement, type EditorLinkSection } from '@/lib/editorLink';
 import { useSongNotation } from '@/hooks/useSongNotation';
 import type { SongNotation } from '@/lib/songNotation';
 
@@ -356,6 +357,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
         chords: section.lines.flatMap(line =>
           line.filter(t => t.chord).map(t => ({ c: t.chord, d: t.duration }))
         ),
+        ...(song.sections[si] ? linkArrangement(song.sections[si]) : {}),
       }))
       .filter(s => s.chords.length > 0);
   }, [displayedSections, song.sections]);
@@ -373,9 +375,10 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   // (rather than flattening the whole song into one Section) so the audio engine's
   // own per-section repeat loop handles repeats instead of duplicating chord data here.
   const buildFullSongSections = useCallback(() => {
-    return song.sections.map((section, si) =>
-      buildPlayback(sectionStartIndices[si], sectionChordCounts[si], section.name, section.repeatCount ?? 1)
-    );
+    return song.sections.map((section, si) => ({
+      ...buildPlayback(sectionStartIndices[si], sectionChordCounts[si], section.name, section.repeatCount ?? 1),
+      ...sectionArrangement(section),
+    }));
   }, [song.sections, sectionStartIndices, sectionChordCounts, buildPlayback]);
 
   // ── Vocal reference audio track for a full-song play() call — buildPlayback() mints a
@@ -648,7 +651,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
       setIsLoading(true);
       try {
       const sectionAudioRange = song.sections[si]?.audioRange;
-      const sectionPlayPromise = play([buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name, song.sections[si].repeatCount ?? 1)], {
+      const sectionPlayPromise = play([{ ...buildPlayback(sectionStartIndices[si], sectionChordCounts[si], song.sections[si].name, song.sections[si].repeatCount ?? 1), ...sectionArrangement(song.sections[si]) }], {
         // Soloing one section plays it once, then — like reaching that point during full-song
         // playback — carries on into whatever comes next (see onEnded), rather than just going
         // quiet. The Loop button is what makes it stick on one section instead; handled live via
@@ -780,7 +783,9 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
     setIsExportingWav(true);
     try {
       const sections = buildFullSongSections();
-      const buffer = await renderProgressionOffline(sections, bpm, instruments, resolvedStyle, transpose);
+      // Built-in styles only for public songs ("Mis ritmos" belong to the editor).
+      const sectionResolver = makeOfflineSectionResolver(makeStyleLookup([], () => null));
+      const buffer = await renderProgressionOffline(sections, bpm, instruments, resolvedStyle, transpose, undefined, sectionResolver);
       await encodeAndDownloadMp3(buffer, `${song.title} - ${song.artist}.wav`);
     } finally {
       setIsExportingWav(false);

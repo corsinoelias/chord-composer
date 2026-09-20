@@ -1,3 +1,5 @@
+import type { Section } from '@/lib/sections';
+
 // ── Legacy token model (used only by LyricsStep parser internals) ─────────────
 export interface WordToken {
   id: string;
@@ -27,6 +29,12 @@ export interface EditorSection {
   repeatCount: number; // how many times the section plays back-to-back. Default 1 (no repeat).
   // Which slice of the song's shared audioTrack (if any) plays under this section.
   audioRange?: AudioRange;
+  // Per-section arrangement — same optional fields as the chord editor's Section.
+  styleId?: string;
+  trackStyles?: Section['trackStyles'];
+  patterns?: Section['patterns'];
+  silenced?: Section['silenced'];
+  sounds?: Section['sounds'];
 }
 
 // ── Primary editing model ─────────────────────────────────────────────────────

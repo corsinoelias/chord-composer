@@ -129,6 +129,7 @@ import { setLiveContext, trackVoice, stopAllVoices, activeVoiceCount } from './e
 import { startClock } from './engine/clock';
 import { type MusicalEvent } from './engine/types';
 import { resolveVariation } from './bassScale';
+import { type SectionPlayback } from './sectionPlayback';
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
@@ -1760,6 +1761,9 @@ export interface PlaybackOptions {
   getGuitarScale?: (sectionId: string) => import('./bassScale').BassScaleData | null;
   getSections?: () => Section[];
   getLoopingSectionId?: () => string | null;
+  // Per-section arrangement (style, silenced tracks, sounds). Returns null for a section
+  // that changes nothing, which keeps it on exactly the pre-existing path.
+  resolveSection?: (sectionId: string, songStyle: StylePattern) => SectionPlayback | null;
   // Vocal/reference audio track — a single decoded buffer sliced per section (keyed by
   // Section.id) or as one continuous span for the whole song. Muted (not started) while
   // the key is transposed, since it can't follow the pitch shift (local-only prototype —
@@ -1803,6 +1807,7 @@ export function scheduleProgression(
     getGuitarScale,
     getSections,
     getLoopingSectionId,
+    resolveSection,
     audioTrack,
     getVocalMuted,
     getVocalVolume,
@@ -1979,6 +1984,7 @@ export function scheduleProgression(
     drumsSound: SoundType | null; guitarSound: SoundType | null;
     pianoAudible: boolean; bassAudible: boolean; drumsAudible: boolean; guitarAudible: boolean;
     pianoBus: AudioNode; bassBus: AudioNode; drumsBus: AudioNode; guitarBus: AudioNode;
+    sectionMelodic: SectionPlayback['melodic'];
   } | null = null;
   let slotInSegment = 0;
   let nextSegmentTime = 0;
@@ -2077,9 +2083,12 @@ export function scheduleProgression(
     const segment = chordSegments[currentSegmentIndex];
     const { chord, slotCount, globalChordIndex, sectionId } = segment;
     
-    // Get current style and dynamic parameters
-    const currentStyle = getStyle ? getStyle() : style;
-    const slotsPerBar = getSlotsPerBar(currentStyle);
+    // Get current style and dynamic parameters. A section with its own rhythm swaps the
+    // pattern source; the meter, the mixer and the sounds stay the song's.
+    const songStyle = getStyle ? getStyle() : style;
+    const sectionPlayback = resolveSection ? resolveSection(sectionId, songStyle) : null;
+    const currentStyle = sectionPlayback?.style ?? songStyle;
+    const slotsPerBar = getSlotsPerBar(songStyle);
     // Re-read BPM each segment so live changes take effect on the next chord
     const slotDuration = (60 / getCurrentBpm()) / 4;
     if (currentSegmentIndex === 0) {
@@ -2128,10 +2137,11 @@ export function scheduleProgression(
     
     // Use instrument panel state as the single source of truth.
     // Style sounds are applied to instrument state when the style changes (useStyleInstruments hook).
-    const pianoSoundId = pianoState?.soundTypeId ?? 'sampled';
-    const bassSoundId = bassState?.soundTypeId ?? 'fender';
-    const drumsSoundId = drumsState?.soundTypeId ?? 'standard';
-    const guitarSoundId = guitarState?.soundTypeId ?? 'electric';
+    const sectionSounds = sectionPlayback?.sounds;
+    const pianoSoundId = sectionSounds?.piano ?? pianoState?.soundTypeId ?? 'sampled';
+    const bassSoundId = sectionSounds?.bass ?? bassState?.soundTypeId ?? 'fender';
+    const drumsSoundId = sectionSounds?.drums ?? drumsState?.soundTypeId ?? 'standard';
+    const guitarSoundId = sectionSounds?.guitar ?? guitarState?.soundTypeId ?? 'electric';
     
     const pianoSound = getSoundType('piano', pianoSoundId);
     const bassSound = getSoundType('bass', bassSoundId);
@@ -2151,12 +2161,13 @@ export function scheduleProgression(
     // Web Audio nodes nobody will hear. The cost of that pairing is that UNmuting still
     // waits for the next segment — same as before this change, since the notes were never
     // scheduled. Phase 4's voice manager is what makes instant unmute cheap.
-    const pianoAudible = !!pianoState && isInstrumentAudible(pianoState, instruments);
-    const bassAudible = !!bassState && isInstrumentAudible(bassState, instruments);
-    const drumsAudible = !!drumsState && isInstrumentAudible(drumsState, instruments);
-    const guitarAudible = !!guitarState && isInstrumentAudible(guitarState, instruments);
+    const silenced = sectionPlayback?.silenced;
+    const pianoAudible = !!pianoState && isInstrumentAudible(pianoState, instruments) && !silenced?.piano;
+    const bassAudible = !!bassState && isInstrumentAudible(bassState, instruments) && !silenced?.bass;
+    const drumsAudible = !!drumsState && isInstrumentAudible(drumsState, instruments) && !silenced?.drums;
+    const guitarAudible = !!guitarState && isInstrumentAudible(guitarState, instruments) && !silenced?.guitar;
 
-    applyMixerLevels(instruments, currentStyle);
+    applyMixerLevels(instruments, songStyle);
 
     // A null bus means the mixer belongs to a different (stale) context — same failure the
     // masterGain guard above catches, so bail rather than connect across contexts.
@@ -2204,6 +2215,7 @@ export function scheduleProgression(
       pianoSound, bassSound, drumsSound, guitarSound,
       pianoAudible, bassAudible, drumsAudible, guitarAudible,
       pianoBus, bassBus, drumsBus, guitarBus,
+      sectionMelodic: sectionPlayback?.melodic,
     };
     return true;
   };
@@ -2215,7 +2227,7 @@ export function scheduleProgression(
       metronomeOn, midiNotes, sectionId, chord, getPatternForBar,
       pianoSound, bassSound, drumsSound, guitarSound,
       pianoAudible, bassAudible, drumsAudible, guitarAudible,
-      pianoBus, bassBus, drumsBus, guitarBus,
+      pianoBus, bassBus, drumsBus, guitarBus, sectionMelodic,
     } = active!;
     {
       // CRITICAL: patternSlot is based on GLOBAL position, not chord position
@@ -2268,7 +2280,7 @@ export function scheduleProgression(
         chordQuality: chord.quality,
         pattern,
         style: currentStyle,
-        melodic: {
+        melodic: sectionMelodic ?? {
           piano: getPianoScale?.(sectionId) ?? null,
           bass: getBassScale?.(sectionId) ?? null,
           guitar: getGuitarScale?.(sectionId) ?? null,
@@ -2348,7 +2360,10 @@ export async function renderProgressionOffline(
   instruments: InstrumentState[],
   style: StylePattern,
   transposition: number = 0,
-  sampleRate: number = 44100
+  sampleRate: number = 44100,
+  // Per-section arrangement, same resolver the live scheduler gets. Sections it returns
+  // null for render exactly as before it existed.
+  resolveSection?: (section: Section, songStyle: StylePattern) => SectionPlayback | null,
 ): Promise<AudioBuffer> {
   // Ensure samples are loaded
   await ensureSamplesLoaded();
@@ -2430,6 +2445,21 @@ export async function renderProgressionOffline(
     ensureGuitarSampleType(guitarSound.samplePath)
   }
 
+  // Sounds a section swaps in need the same loading as the song's own.
+  const sectionPlaybacks = new Map<Section, SectionPlayback>();
+  if (resolveSection) {
+    for (const section of sections) {
+      const sp = resolveSection(section, style);
+      if (!sp) continue;
+      sectionPlaybacks.set(section, sp);
+      const sb = sp.sounds.bass ? getSoundType('bass', sp.sounds.bass) : null;
+      if (sb?.useSamples && sb.samplePath) await preloadSampleDir(offlineCtx, sb.samplePath);
+      const sg = sp.sounds.guitar ? getSoundType('guitar', sp.sounds.guitar) : null;
+      if (sg?.sf2Instrument) await ensureGuitarSoundfontLoaded(sp.sounds.guitar!, sg.sf2Instrument);
+      if (sg?.useSamples && sg.samplePath) ensureGuitarSampleType(sg.samplePath);
+    }
+  }
+
   const offlineBassPromises: Promise<void>[] = [];
   
   const slotDuration = beatDuration / 4;
@@ -2439,12 +2469,15 @@ export async function renderProgressionOffline(
   const offlineTotalBars = Math.floor((totalBeats * 4) / slotsPerBar);
   const offlinePhraseLength = offlineTotalBars >= 8 ? 8 : 4;
 
-  // Cache for patterns by bar number
-  const patternCache: Map<number, ReturnType<typeof generateBarPattern>> = new Map();
+  // Cache for patterns by bar number, one cache per style in play (a section can have
+  // its own).
+  const patternCaches = new Map<StylePattern, Map<number, ReturnType<typeof generateBarPattern>>>();
 
-  const getPatternForBar = (barNum: number) => {
+  const getPatternForBar = (barNum: number, from: StylePattern = style) => {
+    let patternCache = patternCaches.get(from);
+    if (!patternCache) patternCaches.set(from, (patternCache = new Map()));
     if (!patternCache.has(barNum)) {
-      patternCache.set(barNum, generateBarPattern(style, barNum, offlinePhraseLength, false));
+      patternCache.set(barNum, generateBarPattern(from, barNum, offlinePhraseLength, false));
     }
     return patternCache.get(barNum)!;
   };
@@ -2477,9 +2510,25 @@ export async function renderProgressionOffline(
     : 0;
 
   sections.forEach(section => {
-    const melodicBass   = style.melodic ? resolveVariation(style.melodic.bass,   section.bassVariationId)   : null;
-    const melodicPiano  = style.melodic ? resolveVariation(style.melodic.piano,  section.pianoVariationId)  : null;
-    const melodicGuitar = style.melodic ? resolveVariation(style.melodic.guitar, section.guitarVariationId) : null;
+    const sp = sectionPlaybacks.get(section);
+    const sectionStyle = sp?.style ?? style;
+    const melodicBass   = sp?.melodic ? sp.melodic.bass   : style.melodic ? resolveVariation(style.melodic.bass,   section.bassVariationId)   : null;
+    const melodicPiano  = sp?.melodic ? sp.melodic.piano  : style.melodic ? resolveVariation(style.melodic.piano,  section.pianoVariationId)  : null;
+    const melodicGuitar = sp?.melodic ? sp.melodic.guitar : style.melodic ? resolveVariation(style.melodic.guitar, section.guitarVariationId) : null;
+    const sectionAudible = sp
+      ? {
+          piano: audible.piano && !sp.silenced.piano,
+          bass: audible.bass && !sp.silenced.bass,
+          drums: audible.drums && !sp.silenced.drums,
+          guitar: audible.guitar && !sp.silenced.guitar,
+        }
+      : audible;
+    const sectionSounds = {
+      piano: sp?.sounds.piano ? getSoundType('piano', sp.sounds.piano) ?? pianoSound : pianoSound,
+      bass: sp?.sounds.bass ? getSoundType('bass', sp.sounds.bass) ?? bassSound : bassSound,
+      drums: sp?.sounds.drums ? getSoundType('drums', sp.sounds.drums) ?? drumsSound : drumsSound,
+      guitar: sp?.sounds.guitar ? getSoundType('guitar', sp.sounds.guitar) ?? guitarSound : guitarSound,
+    };
 
     for (let repeat = 0; repeat < section.repeatCount; repeat++) {
       section.chords.forEach(chord => {
@@ -2492,9 +2541,9 @@ export async function renderProgressionOffline(
           // pattern runs continuously regardless of chord changes.
           const currentGlobalSlot = globalSlotIndex + i;
           const patternSlot = currentGlobalSlot % slotsPerBar;
-          const slotTime = chordStartTime + (i * slotDuration) + getSwingOffset(style, patternSlot, slotDuration);
+          const slotTime = chordStartTime + (i * slotDuration) + getSwingOffset(sectionStyle, patternSlot, slotDuration);
           const barNumber = Math.floor(currentGlobalSlot / slotsPerBar) + 1;
-          const pattern = getPatternForBar(barNumber);
+          const pattern = getPatternForBar(barNumber, sectionStyle);
 
           // Mismas dos llamadas que el scheduler en vivo: construir y despachar.
           const events = buildSlotEvents({
@@ -2506,13 +2555,13 @@ export async function renderProgressionOffline(
             midiNotes,
             chordQuality: chord.quality,
             pattern,
-            style,
+            style: sectionStyle,
             melodic: { piano: melodicPiano, bass: melodicBass, guitar: melodicGuitar },
-            audible,
+            audible: sectionAudible,
           });
           dispatchEvents(offlineCtx, events, {
             buses: offlineBuses,
-            sounds: { piano: pianoSound, bass: bassSound, drums: drumsSound, guitar: guitarSound },
+            sounds: sectionSounds,
             kit: offlineKit,
             pending: offlineBassPromises,
           });

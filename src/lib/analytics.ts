@@ -271,6 +271,16 @@ export const analytics = {
   transposed: (semitones: number) => track('transposed', { semitones }),
   metronomeToggled: (enabled: boolean) => track('metronome_toggled', { enabled }),
   variationChanged: (instrument: string) => track('variation_changed', { instrument }),
+  // Per-section arrangement (docs/plan-paridad-web-app.md). Flags only, never style ids of
+  // other users' rhythms.
+  sectionArrangementChanged: (a: { styleId?: string; trackStyles?: object; patterns?: object; silenced?: object; sounds?: object }) =>
+    track('section_arrangement_changed', {
+      has_style: !!a.styleId,
+      has_track_styles: !!a.trackStyles,
+      has_patterns: !!a.patterns,
+      silenced: Object.entries(a.silenced ?? {}).filter(([, v]) => v).map(([k]) => k).join(',') || 'none',
+      has_sounds: !!a.sounds,
+    }),
   // Coalesced per effect — see trackCoalesced. Callers fire this on commit (fader released,
   // switch toggled), never per value change.
   effectChanged: (effect: 'eq' | 'reverb' | 'compressor') =>

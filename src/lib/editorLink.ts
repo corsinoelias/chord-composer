@@ -8,7 +8,7 @@ import { type Chord } from './musicTheory';
 import { parseChordString } from './chordParser';
 import { createSection, type Section } from './sections';
 import { MUSICAL_STYLES } from './styles';
-import { parseLyricLine, type Song } from '../data/songs';
+import { parseLyricLine, sectionArrangement, type Song, type SongSection } from '../data/songs';
 
 export interface EditorLinkChord {
   c: string; // chord string, e.g. "Gb", "Abm", "C/E"
@@ -19,6 +19,26 @@ export interface EditorLinkSection {
   name: string;
   repeatCount: number;
   chords: EditorLinkChord[];
+  /** Per-section arrangement (style, silenced tracks, sounds…), only when there is one. */
+  a?: Partial<Section>;
+}
+
+/** The arrangement of a song section as the link carries it, or nothing. */
+export function linkArrangement(section: SongSection): { a?: Partial<Section> } {
+  const a = sectionArrangement(section);
+  return Object.keys(a).length > 0 ? { a } : {};
+}
+
+/** Only the known arrangement fields survive a link: it is user-editable text. */
+function readArrangement(a: unknown): Partial<Section> {
+  if (!a || typeof a !== 'object') return {};
+  const src = a as Record<string, unknown>;
+  const out: Partial<Section> = {};
+  if (typeof src.styleId === 'string') out.styleId = src.styleId;
+  for (const key of ['trackStyles', 'patterns', 'silenced', 'sounds'] as const) {
+    if (src[key] && typeof src[key] === 'object') (out as Record<string, unknown>)[key] = src[key];
+  }
+  return out;
 }
 
 // Binary-safe base64url (no padding) — keeps the URL short and free of characters
@@ -67,6 +87,7 @@ export function songToEditorSections(song: Song): EditorLinkSection[] {
           .filter(t => t.chord)
           .map(t => ({ c: t.chord, d: t.duration })),
       ),
+      ...linkArrangement(section),
     }))
     .filter(s => s.chords.length > 0);
 }
@@ -111,6 +132,7 @@ export function editorSectionsToSections(data: EditorLinkSection[]): Section[] {
         ...createSection(s.name || 'Section A'),
         repeatCount: s.repeatCount > 0 ? s.repeatCount : 1,
         chords,
+        ...readArrangement(s.a),
       };
     })
     .filter(s => s.chords.length > 0);

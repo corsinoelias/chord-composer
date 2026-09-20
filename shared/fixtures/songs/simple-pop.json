@@ -1,0 +1,18 @@
+{
+ "schemaVersion": 5, "id": "fixture_simple_pop", "title": "Simple pop", "createdAt": "2026-09-18T00:00:00.000Z", "updatedAt": "2026-09-18T00:00:00.000Z",
+ "bpm": 100, "styleId": "pop_1", "transposition": 0, "metronomeEnabled": true,
+ "instrumentSettings": [
+  {"id": "piano", "muted": false, "solo": false, "volume": 0.7, "soundTypeId": "sampled"},
+  {"id": "bass", "muted": false, "solo": false, "volume": 0.7, "soundTypeId": "fender"},
+  {"id": "drums", "muted": false, "solo": false, "volume": 0.7, "soundTypeId": "standard"},
+  {"id": "guitar", "muted": false, "solo": false, "volume": 0.7, "soundTypeId": "sf2-steel"}
+ ],
+ "sections": [
+  {"id": "s1", "name": "Verse", "repeatCount": 2, "chords": [
+   {"id": "c1", "root": "C", "accidental": "", "quality": "maj", "duration": 4},
+   {"id": "c2", "root": "G", "accidental": "", "quality": "maj", "duration": 4},
+   {"id": "c3", "root": "A", "accidental": "", "quality": "min", "duration": 4},
+   {"id": "c4", "root": "F", "accidental": "", "quality": "maj", "duration": 4}
+  ]}
+ ]
+}

@@ -49,7 +49,7 @@ export function parseLyricsToSections(raw: string): EditorSection[] {
   return sections;
 }
 
-import type { SongSection } from '@/data/songs';
+import { sectionArrangement, type SongSection } from '@/data/songs';
 
 export function sectionsToSongFormat(sections: EditorSection[]): SongSection[] {
   return sections.map(s => ({
@@ -69,6 +69,7 @@ export function sectionsToSongFormat(sections: EditorSection[]): SongSection[] {
     }).filter(l => l.trim() !== ''),
     ...(s.repeatCount > 1 ? { repeatCount: s.repeatCount } : {}),
     ...(s.audioRange ? { audioRange: s.audioRange } : {}),
+    ...sectionArrangement(s),
   }));
 }
 
@@ -135,5 +136,6 @@ export function songSectionsToEditorSections(sections: SongSection[]): EditorSec
     })),
     repeatCount: s.repeatCount ?? 1,
     audioRange: s.audioRange,
+    ...sectionArrangement(s),
   }));
 }
