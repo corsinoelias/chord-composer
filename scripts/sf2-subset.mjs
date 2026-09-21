@@ -2,14 +2,21 @@
 // their presets, the instruments those use, and the samples those use — with every index
 // renumbered and the sample data packed again. The rest of the file is left out.
 //
-//   node sf2subset.mjs <in.sf2> <out.sf2> 0,25,33
+//   node sf2subset.mjs <in.sf2> <out.sf2> 0,25,33 [releaseSeconds]
+//
+// With releaseSeconds, no note takes longer than that to die away once it is let go
+// (releaseVolEnv, generator 38, capped on every instrument zone; a preset's offset to it is
+// never allowed to lengthen it).
 //
 // Why: the app's GeneralUser.sf2 is 30.8 MB, and the three programs a song starts with need
 // 2.6 MB of it. The web downloads the subset.
 import fs from 'node:fs';
 
-const [, , inPath, outPath, list] = process.argv;
+const [, , inPath, outPath, list, releaseArg] = process.argv;
 const programs = list.split(',').map(Number);
+// In timecents, as the file keeps it: 1200 * log2(seconds).
+const releaseCap = releaseArg ? Math.round(1200 * Math.log2(Number(releaseArg))) : null;
+const RELEASE_VOL_ENV = 38;
 const b = fs.readFileSync(inPath);
 
 const chunks = {};
@@ -100,6 +107,7 @@ for (const p of presets) {
     for (let g = u16(pbag[bg], 0); g < u16(pbag[bg + 1], 0); g++) {
       const gen = Buffer.from(pgen[g]);
       if (u16(gen, 0) === 41) gen.writeUInt16LE(instIndex.get(u16(gen, 2)), 2);
+      if (releaseCap !== null && u16(gen, 0) === RELEASE_VOL_ENV) gen.writeInt16LE(Math.min(gen.readInt16LE(2), 0), 2);
       out.pgen.push(gen);
     }
   }
@@ -117,6 +125,7 @@ for (const i of instList) {
     for (let g = u16(ibag[bg], 0); g < u16(ibag[bg + 1], 0); g++) {
       const gen = Buffer.from(igen[g]);
       if (u16(gen, 0) === 53) gen.writeUInt16LE(sampleIndex.get(u16(gen, 2)), 2);
+      if (releaseCap !== null && u16(gen, 0) === RELEASE_VOL_ENV) gen.writeInt16LE(Math.min(gen.readInt16LE(2), releaseCap), 2);
       out.igen.push(gen);
     }
   }

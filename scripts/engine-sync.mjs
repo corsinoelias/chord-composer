@@ -38,6 +38,13 @@ const PROGRAMS = [...new Set(['piano', 'guitar', 'bass'].flatMap((track) => [
   ...Object.values(catalog[track]?.legacy ?? {}).map((app) => app?.program),
 ]).filter((program) => Number.isInteger(program)))].sort((a, b) => a - b);
 /**
+ * The longest a web note takes to die away once let go, in seconds. The app's SoundFont lets
+ * go slowly (its grand piano 1.5-8.6 s, clean guitar 0.8, pick bass 0.5); the web's own
+ * sounds stop within 0.04-0.3 s of a note's end, and with the app's tails every track rang on
+ * under the next chord (2026-09-22). Only the web's copy is cut; the app keeps its own.
+ */
+const RELEASE_SECONDS = 0.12;
+/**
  * WASI calls the engine may make. clock_time_get is its load meter; the file ones are
  * exportWav writing its WAV, which only ever runs in the export Worker (an in-memory file
  * system); the worklet answers them with ENOSYS.
@@ -87,7 +94,7 @@ if (unexpected.length) fail(`engine.wasm imports ${unexpected.join(', ')}, which
 // 3. Sounds.
 execFileSync(process.execPath, [
   path.join(root, 'scripts/sf2-subset.mjs'), path.join(app, 'assets/sf2/GeneralUser.sf2'),
-  path.join(out, 'sounds.sf2'), PROGRAMS.join(','),
+  path.join(out, 'sounds.sf2'), PROGRAMS.join(','), String(RELEASE_SECONDS),
 ], { stdio: 'inherit' });
 // The kit: which recording sits in which of the engine's sample slots, and how loud. Read
 // from the app's Dart, where the app's own loader reads it (audio_engine.dart), so the two
@@ -117,6 +124,7 @@ const manifest = {
   app: { commit, dirtyEngine: dirty },
   syncedAt: new Date().toISOString(),
   programs: PROGRAMS,
+  releaseSeconds: RELEASE_SECONDS,
   drums: DRUMS,
   files: Object.fromEntries(ENGINE_FILES(DRUMS).map((f) => [f, hashFile(path.join(root, f))])),
 };
