@@ -11,7 +11,8 @@
 import { AppEngine, type EngineState } from './host';
 import { songToEngine, type EngineSong, type SongInput } from './fromSong';
 import { type EngineCommand } from './commands';
-import { type StylePattern } from '../styles';
+import { type StylePattern, getSlotsPerBar } from '../styles';
+import { createSection, type Section } from '../sections';
 import { type StyleLookup } from '../sectionPlayback';
 
 const STORAGE_KEY = 'chordplayer:engine';
@@ -45,6 +46,9 @@ export interface AppSong {
   style: StylePattern;
   lookup: StyleLookup;
   loopingSectionIndex?: number | null;
+  /** Play the song through once, then stop and call onEnded (the web engine's loop: false). */
+  once?: boolean;
+  onEnded?: () => void;
 }
 
 /**
@@ -78,6 +82,8 @@ export class AppPlayback {
   private sectionStart: number[] = [];
   /** The song part of what was last sent (everything but the mixer), to spot a mix-only change. */
   private sentSong = '';
+  /** In a single pass, the silent section after the song: reaching it is the end. */
+  private tailIndex = -1;
 
   static preload(): void {
     AppEngine.preload().catch(() => { /* play() tries again */ });
@@ -97,7 +103,14 @@ export class AppPlayback {
     this.sentSong = songPart(this.built.commands, input);
     e.send([['loopOnly', input.loopingSectionIndex ?? -1]]);
     this.unsubscribe?.();
-    this.unsubscribe = e.subscribe((state) => { this.latest = state; });
+    this.unsubscribe = e.subscribe((state) => {
+      this.latest = state;
+      if (this.current?.once && state.playing && state.section === this.tailIndex) {
+        const ended = this.current.onEnded;
+        this.stop();
+        ended?.();
+      }
+    });
     await e.play();
   }
 
@@ -120,6 +133,8 @@ export class AppPlayback {
    */
   async update(input: AppSong): Promise<void> {
     if (!this.current) return;
+    // How it plays (once, and what to do after) is the play() call's, not the options'.
+    input = { ...input, once: this.current.once, onEnded: this.current.onEnded };
     const e = await getEngine();
     this.current = input;
     this.built = this.build(input, e);
@@ -144,6 +159,8 @@ export class AppPlayback {
   /** Only the mix changed (a fader, mute or solo): the levels alone, so nothing is cut short. */
   async updateMix(input: AppSong): Promise<void> {
     if (!this.current) return;
+    // How it plays (once, and what to do after) is the play() call's, not the options'.
+    input = { ...input, once: this.current.once, onEnded: this.current.onEnded };
     const e = await getEngine();
     this.current = input;
     const mix = this.build(input, e).commands.filter((c) => c[0] === 'mixer');
@@ -175,7 +192,12 @@ export class AppPlayback {
   }
 
   private build(input: AppSong, e: AppEngine): EngineSong {
-    const built = songToEngine(input.song, input.style, input.lookup, e.kits);
+    // The engine always goes round again, so a single pass ends on a bar of silence: the
+    // state reaches the page ~30 times a second, and by the time it says the song is over
+    // the next thing sounding must be nothing, not the top of the song.
+    this.tailIndex = input.once ? input.song.sections.length : -1;
+    const song = input.once ? { ...input.song, sections: [...input.song.sections, silentBar(input.style)] } : input.song;
+    const built = songToEngine(song, input.style, input.lookup, e.kits);
     let start = 0;
     this.sectionStart = input.song.sections.map((s) => {
       const at = start;
@@ -189,4 +211,13 @@ export class AppPlayback {
 /** Everything [commands] say about the song itself, as text: what a mix change leaves alone. */
 function songPart(commands: EngineCommand[], input: AppSong): string {
   return JSON.stringify([commands.filter((c) => c[0] !== 'mixer'), input.loopingSectionIndex ?? -1]);
+}
+
+/** One bar with every track silenced: where a single pass ends. */
+function silentBar(style: StylePattern): Section {
+  return {
+    ...createSection('End'),
+    chords: [{ id: 'end', root: 'C', accidental: '', quality: 'maj', duration: getSlotsPerBar(style) / 4 }],
+    silenced: { drums: true, piano: true, guitar: true, bass: true },
+  };
 }

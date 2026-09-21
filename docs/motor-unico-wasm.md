@@ -144,8 +144,9 @@ llama Flutter por JNI), también hay que añadirla en `engine/web_glue.cpp`.
   notas; cualquier otro cambio (acordes, ritmo, tono) reenvía la canción entera, que el motor toma
   en el siguiente paso sin parar. La posición (acorde con repeticiones, fracción, paso) se
   calcula igual que la del motor web para que el resaltado y la barra funcionen.
-- Siguen en el motor web: una sola pasada (`loop: false`, p. ej. tocar una sección en las
-  páginas de canción) y las canciones con pista de voz. La cuenta atrás visual sigue haciendo
+- Una sola pasada (`loop: false`, p. ej. tocar una sección en las páginas de canción): la
+  canción termina en un compás de silencio añadido; al llegar a él el reproductor para y
+  encadena lo siguiente, como el motor web. Siguen en el motor web las canciones con pista de voz. La cuenta atrás visual sigue haciendo
   sus clics con el motor web; mientras cuenta, el motor de la app ya arranca.
 - Medido en el Pixel con el reproductor real: 0 ms de cortes con la página atascada 20 s; el
   cambio de tono entra en marcha.

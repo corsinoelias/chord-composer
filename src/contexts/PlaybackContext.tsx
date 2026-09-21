@@ -392,10 +392,14 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       detail: { instanceId: instanceIdRef.current },
     }));
 
-    // The app's engine plays songs that loop. A single pass that hands over to something
-    // else, and the vocal reference track, stay on the web's engine for now.
-    if (useAppEngine.current && (options.loop ?? true) && !options.audioTrack) {
-      await appRef.current.play(appSong());
+    // The vocal reference track stays on the web's engine for now.
+    if (useAppEngine.current && !options.audioTrack) {
+      const once = !(options.loop ?? true);
+      await appRef.current.play({
+        ...appSong(),
+        once,
+        onEnded: once ? () => (options.onEnded ?? stop)() : undefined,
+      });
       setState(prev => ({
         ...prev,
         isPlaying: true,
@@ -654,7 +658,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   // Preloads everything play() awaits, without starting playback — used to overlap
   // loading with the countdown so the first play doesn't freeze after the count hits 0.
   const warmup = useCallback(async (options: PlayOptions) => {
-    if (useAppEngine.current && (options.loop ?? true) && !options.audioTrack) {
+    if (useAppEngine.current && !options.audioTrack) {
       AppPlayback.warmup();
       return;
     }

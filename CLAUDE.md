@@ -53,8 +53,8 @@ JNI and the output stream's lock and reconnect thread. The lab page is `/lab/app
 `netlify.toml` blocks). Decided 2026-09-21: the app's engine and sounds are the reference —
 existing web songs will change sound. Arpeggios were dropped (no built-in style uses them).
 The real player switches to it with `?engine=app` (remembered per browser; `?engine=web` undoes
-it): `src/lib/appEngine/player.ts`, wired in `PlaybackContext.tsx`; single passes and the vocal
-track still use the web engine.
+it): `src/lib/appEngine/player.ts`, wired in `PlaybackContext.tsx`; a single pass (`loop: false`) ends
+on a silent bar appended to the song; only the vocal track still uses the web engine.
 
 **Never add FAQPage or HowTo schema.** Google restricted FAQ rich results to government/health
 sites in Aug 2023 — this site doesn't qualify. HowTo was deprecated entirely in Sept 2023.
