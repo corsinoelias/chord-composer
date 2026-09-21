@@ -20,7 +20,6 @@ import { ChevronDown, Copy, GripVertical, LayoutGrid, Minus, MoreVertical, Plus,
 import { SortableChord } from './SortableChord';
 import { SectionArrangementMenu, arrangementSummary, type SectionArrangement } from './SectionArrangementMenu';
 import { ChordSuggestions } from './ChordSuggestions';
-import { sectionColorVar } from '@/lib/sectionColors';
 
 const VARIATION_LABELS = { bass: 'Bass', piano: 'Piano', guitar: 'Guitar' } as const;
 
@@ -31,6 +30,8 @@ interface SectionCardProps {
   globalChordOffset: number;
   totalSections: number;
   isLooping?: boolean;
+  /** This section's own colour — see sectionColorMap. */
+  color: string;
   /** Something is playing somewhere — sections that aren't it are held back. */
   isPlaying?: boolean;
   /** Tempo, so each chord's beat dots can fill themselves as it sounds. */
@@ -68,6 +69,7 @@ export const SectionCard = memo(function SectionCard({
   currentChordIndex,
   globalChordOffset,
   isLooping,
+  color,
   isPlaying = false,
   bpm,
   styleId,
@@ -97,7 +99,7 @@ export const SectionCard = memo(function SectionCard({
   const [editName, setEditName] = useState(section.name);
   const [optionsOpen, setOptionsOpen] = useState(false);
 
-  const colorVar = sectionColorVar(sectionIndex);
+  const colorVar = color;
 
   // Dragging the card itself reorders sections; the grip is the only handle, so a
   // pointer-down anywhere else in the header still edits the name or presses a button.

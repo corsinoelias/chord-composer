@@ -17,7 +17,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Plus, Repeat } from 'lucide-react';
 import { type Section, sectionHasArrangement } from '@/lib/sections';
-import { SECTION_COLOR_VARS } from '@/lib/sectionColors';
+import { sectionColorMap } from '@/lib/sectionColors';
 
 const BEATS_PER_BAR = 4;
 
@@ -117,6 +117,7 @@ export const StructureBar = memo(function StructureBar({
       }
     }
 
+    const colors = sectionColorMap(sections);
     let bars = 0;
     let beatsBefore = 0;
     let elapsedBeats = 0;
@@ -136,7 +137,7 @@ export const StructureBar = memo(function StructureBar({
         index,
         bars: passBars,
         totalBars: total,
-        colorVar: SECTION_COLOR_VARS[index % SECTION_COLOR_VARS.length],
+        colorVar: colors.get(section.id)!,
         fill: isActive ? activeFraction : index < activeIndex && loopingSectionIndex === null ? 1 : null,
         isActive,
         differs: sectionHasArrangement(section),

@@ -53,6 +53,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { StructureBar } from '@/components/StructureBar';
 import { ChordPreviewCard } from '@/components/ChordPreviewCard';
 import { SoundCard } from '@/components/SoundCard';
+import { sectionColorMap } from '@/lib/sectionColors';
 import { GuidedTour } from '@/components/GuidedTour';
 import { CountdownOverlay } from '@/components/CountdownOverlay';
 import { ProgressionTemplatesModal } from '@/components/ProgressionTemplatesModal';
@@ -1450,6 +1451,9 @@ const Index = ({ songId }: IndexProps) => {
     [instruments],
   );
 
+  /** One colour per section, stable when they are reordered. */
+  const sectionColors = useMemo(() => sectionColorMap(sections), [sections]);
+
   /** How many sections play something other than the song — drives the Sound card's note. */
   const sectionsWithOwnRhythm = useMemo(
     () => sections.filter(sectionHasArrangement).length,
@@ -1779,6 +1783,7 @@ const Index = ({ songId }: IndexProps) => {
                       globalChordOffset={getGlobalOffset(sectionIndex)}
                       totalSections={sections.length}
                       isLooping={loopingSectionIndex === sectionIndex}
+                      color={sectionColors.get(section.id)!}
                       isPlaying={isPlaying}
                       bpm={bpm}
                       styleId={selectedStyleId}

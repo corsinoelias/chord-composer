@@ -555,8 +555,8 @@ input.cp-rg:disabled {
   height: 54px;
   min-width: 72px;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--cp-c) 38%, transparent);
-  background: color-mix(in srgb, var(--cp-c) 14%, var(--cp-s1));
+  border: 1px solid color-mix(in srgb, var(--cp-c) 50%, transparent);
+  background: color-mix(in srgb, var(--cp-c) 20%, var(--cp-s1));
   padding: 0 10px 0 6px;
   display: flex;
   align-items: center;
