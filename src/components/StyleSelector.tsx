@@ -137,9 +137,7 @@ export const StyleSelector = memo(function StyleSelector({
           {isCard ? (
             <SelectTrigger
               aria-label="Rhythm style and tempo"
-              // line-clamp-none undoes SelectTrigger's own `[&>span]:line-clamp-1`, which
-              // would turn the name/meta stack into a -webkit-box and flatten it to one line.
-              className="h-14 w-full justify-start gap-3 rounded-xl border px-3.5 pl-2.5 text-left [&>span]:line-clamp-none [&>svg]:opacity-100"
+              className="h-14 w-full justify-start gap-3 rounded-xl border px-3.5 pl-2.5 text-left [&>svg]:opacity-100"
               style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln2)', color: 'var(--cp-tx)' }}
             >
               <span
@@ -149,12 +147,14 @@ export const StyleSelector = memo(function StyleSelector({
               >
                 <Music className="h-[18px] w-[18px]" />
               </span>
-              <span className="flex min-w-0 flex-grow flex-col gap-0.5">
+              {/* A div, not a span: SelectTrigger clamps its direct <span> children to one
+                  line, which would flatten the name/meta stack. */}
+              <div className="flex min-w-0 flex-grow flex-col gap-0.5">
                 <span className="truncate text-sm font-bold">{selectedStyle?.name ?? 'Pick a rhythm'}</span>
                 <span className="truncate text-xs" style={{ color: 'var(--cp-mu)' }}>
                   {selectedStyle ? `${selectedStyle.category} · ${selectedStyle.bpm} BPM` : 'Rhythm style'}
                 </span>
-              </span>
+              </div>
             </SelectTrigger>
           ) : (
             <SelectTrigger aria-label="Rhythm style and tempo" className={triggerClassName}>

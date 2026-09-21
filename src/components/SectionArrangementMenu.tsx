@@ -9,11 +9,10 @@
  * changes (docs/ritmo-por-seccion.md, rule 6).
  */
 
-import { useMemo } from 'react';
-import { SlidersHorizontal, RotateCcw } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, Guitar, Music, Piano, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Switch } from '@/components/ui/switch';
 import { type Section, type TrackId, TRACK_IDS, sectionHasArrangement } from '@/lib/sections';
 import { type StylePattern, getSlotsPerBar } from '@/lib/styles';
 import { INSTRUMENTS } from '@/lib/instruments';
@@ -27,6 +26,33 @@ const TRACK_LABELS: Record<TrackId, string> = {
   piano: 'Piano',
   guitar: 'Guitar',
 };
+
+/** Each track keeps the colour it has in the canvas's arrangement view. */
+const TRACK_COLORS: Record<TrackId, string> = {
+  drums: 'var(--cp-sus)',
+  bass: 'var(--cp-sev)',
+  piano: 'var(--cp-min)',
+  guitar: 'var(--cp-ac)',
+};
+
+function DrumIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+    >
+      <ellipse cx="12" cy="8" rx="8" ry="3" />
+      <path d="M4 8v8c0 1.7 3.6 3 8 3s8-1.3 8-3V8M9 4 6 1M15 4l3-3" />
+    </svg>
+  );
+}
+
+function TrackIcon({ track, size = 16 }: { track: TrackId; size?: number }) {
+  if (track === 'drums') return <DrumIcon size={size} />;
+  if (track === 'bass') return <Music size={size} aria-hidden="true" />;
+  if (track === 'piano') return <Piano size={size} aria-hidden="true" />;
+  return <Guitar size={size} aria-hidden="true" />;
+}
 
 interface Props {
   arrangement: SectionArrangement;
@@ -58,6 +84,8 @@ interface Props {
     activeId: string;
   }>;
   onVariationChange?: (instrument: 'bass' | 'piano' | 'guitar', variationId: string) => void;
+  /** What the song plays on each track, so an inherited row can name it. */
+  songSounds?: Partial<Record<TrackId, string>>;
 }
 
 /** Drops empty maps and false/empty values, so "nothing different" is stored as nothing. */
@@ -105,6 +133,7 @@ export function SectionArrangementMenu({
   onOpenChange,
   variationPickers,
   onVariationChange,
+  songSounds,
 }: Props) {
   const slotsPerBar = getSlotsPerBar(songStyle);
   // One meter per song: only styles whose bar has the same length can play a section.
@@ -115,8 +144,21 @@ export function SectionArrangementMenu({
   const summary = arrangementSummary(arrangement, styles);
   const set = (patch: Partial<SectionArrangement>) => onChange(clean({ ...arrangement, ...patch }));
 
+  // Only one track's detail is open at a time — the panel is tall enough as it is.
+  const [expanded, setExpanded] = useState<TrackId | null>(null);
+
+  const sectionStyle = arrangement.styleId
+    ? styles.find((s) => s.id === arrangement.styleId)
+    : undefined;
+  const rhythm = sectionStyle ?? songStyle;
+
   const selectClass =
-    'h-8 w-full rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring';
+    'h-9 w-full rounded-lg border px-2.5 text-[13px] font-semibold focus:outline-none focus:ring-1 focus:ring-ring';
+  const selectStyle = {
+    background: 'var(--cp-s1)',
+    borderColor: 'var(--cp-ln2)',
+    color: 'var(--cp-tx)',
+  } as const;
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -134,120 +176,265 @@ export function SectionArrangementMenu({
           </Button>
         )}
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 space-y-3 p-3">
-        <div className="text-xs font-semibold">{sectionName}: section options</div>
 
-        <label className="block space-y-1">
-          <span className="text-[11px] text-muted-foreground">Rhythm</span>
-          <select
-            className={selectClass}
-            value={arrangement.styleId ?? ''}
-            onChange={(e) => set({ styleId: e.target.value || undefined })}
+      <PopoverContent
+        align="end"
+        className="cp-pop flex w-[470px] max-w-[calc(100vw-1.5rem)] flex-col gap-[18px] p-[18px] text-left"
+        style={{ color: 'var(--cp-tx)' }}
+      >
+        <div className="flex items-center gap-2.5">
+          <span
+            style={{ width: 12, height: 12, borderRadius: 4, background: 'var(--cp-ac)' }}
+            aria-hidden="true"
+          />
+          <span className="flex-grow text-sm font-bold">{sectionName} options</span>
+          <button
+            className="cp-btn cp-ib cp-gh"
+            style={{ width: 32, height: 32 }}
+            onClick={() => onOpenChange?.(false)}
+            aria-label="Close"
           >
-            <option value="">Same as the song ({songStyle.name})</option>
-            {compatible.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </label>
-
-        <details className="text-xs" open={!!arrangement.trackStyles && Object.keys(arrangement.trackStyles).length > 0}>
-          <summary className="cursor-pointer text-[11px] text-muted-foreground">Rhythm per instrument</summary>
-          <div className="mt-2 space-y-1.5">
-            {TRACK_IDS.map((t) => (
-              <label key={t} className="flex items-center gap-2">
-                <span className="w-12 shrink-0 text-[11px]">{TRACK_LABELS[t]}</span>
-                <select
-                  className={selectClass}
-                  value={arrangement.trackStyles?.[t] ?? ''}
-                  onChange={(e) => set({ trackStyles: { ...arrangement.trackStyles, [t]: e.target.value || undefined } })}
-                >
-                  <option value="">Section rhythm</option>
-                  {compatible.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-        </details>
-
-        {arrangement.patterns && Object.keys(arrangement.patterns).length > 0 && (
-          <div className="flex items-center justify-between rounded-md bg-muted/50 px-2 py-1.5 text-[11px]">
-            <span>Edited groove: {Object.keys(arrangement.patterns).map((t) => TRACK_LABELS[t as TrackId]).join(', ')}</span>
-            <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[11px]" onClick={() => set({ patterns: undefined })}>
-              Back to style
-            </Button>
-          </div>
-        )}
-
-        {onEditRhythm && (
-          <Button variant="outline" size="sm" className="h-7 w-full text-xs" onClick={onEditRhythm}>
-            Edit this section's rhythm…
-          </Button>
-        )}
-
-        <div className="space-y-1.5">
-          <span className="text-[11px] text-muted-foreground">Tracks that play</span>
-          {TRACK_IDS.map((t) => (
-            <label key={t} className="flex items-center justify-between text-xs">
-              {TRACK_LABELS[t]}
-              <Switch
-                checked={!arrangement.silenced?.[t]}
-                onCheckedChange={(on) => set({ silenced: { ...arrangement.silenced, [t]: !on } })}
-                aria-label={`${TRACK_LABELS[t]} plays in ${sectionName}`}
-              />
-            </label>
-          ))}
+            <X size={16} />
+          </button>
         </div>
 
-        <div className="space-y-1.5">
-          <span className="text-[11px] text-muted-foreground">Sound in this section</span>
-          {TRACK_IDS.map((t) => {
-            const config = INSTRUMENTS.find((i) => i.id === t);
+        {/* ── Rhythm ──────────────────────────────────────────────────────────── */}
+        <div className="flex flex-col gap-2.5">
+          <span className="cp-lbl">Rhythm for this section</span>
+
+          {/* The real <select> sits invisible over the slab, so the whole card is the
+              control — keyboard and screen readers get a plain native select. */}
+          <label
+            className="relative flex h-14 cursor-pointer items-center gap-3 rounded-xl px-3.5 pl-2.5"
+            style={{
+              background: 'var(--cp-s2)',
+              border: `1px solid ${arrangement.styleId ? 'color-mix(in srgb, var(--cp-ac) 55%, transparent)' : 'var(--cp-ln2)'}`,
+            }}
+          >
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+              style={{ background: 'color-mix(in srgb, var(--cp-ac) 16%, transparent)', color: 'var(--cp-act)' }}
+              aria-hidden="true"
+            >
+              <Music size={18} />
+            </span>
+            <span className="flex min-w-0 flex-grow flex-col gap-0.5">
+              <span className="truncate text-sm font-bold">{rhythm.name}</span>
+              <span className="truncate text-xs" style={{ color: 'var(--cp-mu)' }}>
+                {arrangement.styleId ? `${rhythm.category} · own rhythm` : `${rhythm.category} · same as the song`}
+              </span>
+            </span>
+            <ChevronDown size={18} style={{ color: 'var(--cp-mu)' }} aria-hidden="true" />
+            <select
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              value={arrangement.styleId ?? ''}
+              onChange={(e) => set({ styleId: e.target.value || undefined })}
+              aria-label="Rhythm for this section"
+            >
+              <option value="">Same as the song ({songStyle.name})</option>
+              {compatible.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className="flex gap-2">
+            {onEditRhythm && (
+              <button
+                className="cp-btn flex-1"
+                style={{ height: 36, fontSize: 12.5 }}
+                onClick={onEditRhythm}
+              >
+                <SlidersHorizontal size={16} style={{ color: 'var(--cp-act)' }} />
+                Edit this rhythm
+              </button>
+            )}
+            <button
+              className="cp-btn cp-gh flex-1"
+              style={{ height: 36, fontSize: 12.5, borderColor: 'var(--cp-ln)' }}
+              onClick={() => set({ styleId: undefined, trackStyles: undefined, patterns: undefined })}
+              disabled={!arrangement.styleId && !arrangement.trackStyles && !arrangement.patterns}
+            >
+              Use song's · {songStyle.name}
+            </button>
+          </div>
+
+          <span className="text-[11.5px] leading-[1.45]" style={{ color: 'var(--cp-mu)' }}>
+            Only rhythms in the same meter as the song are listed.
+          </span>
+        </div>
+
+        {/* ── Tracks ──────────────────────────────────────────────────────────── */}
+        <div className="flex flex-col gap-2">
+          <span className="cp-lbl">Tracks that play</span>
+
+          {TRACK_IDS.map((track) => {
+            const config = INSTRUMENTS.find((i) => i.id === track);
+            const off = !!arrangement.silenced?.[track];
+            const ownSound = arrangement.sounds?.[track];
+            const variation = variationPickers?.find((v) => v.key === track);
+            const isOpen = expanded === track;
+            const differs = !!ownSound || !!arrangement.trackStyles?.[track] || !!arrangement.patterns?.[track];
+            const soundName = (id: string | undefined) =>
+              config?.soundTypes.find((s) => s.id === id)?.name;
+            const canExpand = !off && (!!config?.soundTypes.length || !!variation);
+
             return (
-              <label key={t} className="flex items-center gap-2">
-                <span className="w-12 shrink-0 text-[11px]">{TRACK_LABELS[t]}</span>
-                <select
-                  className={selectClass}
-                  value={arrangement.sounds?.[t] ?? ''}
-                  onChange={(e) => set({ sounds: { ...arrangement.sounds, [t]: e.target.value || undefined } })}
-                >
-                  <option value="">Same as the song</option>
-                  {config?.soundTypes.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </label>
+              <div
+                key={track}
+                className="rounded-xl"
+                style={{
+                  background: 'var(--cp-s2)',
+                  border: `1px solid ${differs ? 'color-mix(in srgb, var(--cp-ac) 40%, transparent)' : 'var(--cp-ln)'}`,
+                }}
+              >
+                <div className="flex h-[52px] items-center gap-3 px-3">
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
+                    style={{
+                      background: `color-mix(in srgb, ${TRACK_COLORS[track]} 16%, transparent)`,
+                      color: TRACK_COLORS[track],
+                      opacity: off ? 0.55 : 1,
+                    }}
+                  >
+                    <TrackIcon track={track} />
+                  </span>
+
+                  <span
+                    className="flex min-w-0 flex-grow flex-col gap-[3px]"
+                    style={{ opacity: off ? 0.55 : 1 }}
+                  >
+                    <span className="text-[13.5px] font-semibold">{TRACK_LABELS[track]}</span>
+                    <span
+                      className="flex items-center gap-1.5 truncate text-[11.5px]"
+                      style={{ color: 'var(--cp-mu)' }}
+                    >
+                      {differs && (
+                        <i
+                          className="shrink-0"
+                          style={{ width: 7, height: 7, borderRadius: 2, background: 'var(--cp-ac)', transform: 'rotate(45deg)' }}
+                          aria-hidden="true"
+                        />
+                      )}
+                      {off
+                        ? 'Muted in this section'
+                        : [soundName(ownSound ?? songSounds?.[track] ?? config?.defaultSoundType), variation && variation.variations.find(v => v.id === variation.activeId)?.name]
+                            .filter(Boolean)
+                            .join(' · ')}
+                    </span>
+                  </span>
+
+                  {canExpand && (
+                    <button
+                      className="cp-btn cp-ib cp-gh"
+                      style={{ width: 28, height: 28 }}
+                      onClick={() => setExpanded(isOpen ? null : track)}
+                      aria-expanded={isOpen}
+                      aria-label={`${TRACK_LABELS[track]} sound and variation`}
+                    >
+                      <ChevronDown
+                        size={16}
+                        style={{ color: 'var(--cp-mu)', transform: isOpen ? 'rotate(180deg)' : undefined }}
+                      />
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={!off}
+                    aria-label={`${TRACK_LABELS[track]} plays in ${sectionName}`}
+                    onClick={() => set({ silenced: { ...arrangement.silenced, [track]: off ? undefined : true } })}
+                    className={`cp-sw ${off ? '' : 'cp-on'}`}
+                  />
+                </div>
+
+                {isOpen && canExpand && (
+                  <div className="flex flex-col gap-3 px-3 pb-3.5 pt-0.5">
+                    <div className="flex gap-2.5">
+                      <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <span className="flex items-baseline justify-between gap-1.5">
+                          <span className="cp-lbl" style={{ fontSize: 10 }}>Sound</span>
+                          {songSounds?.[track] && (
+                            <span className="truncate text-[11px]" style={{ color: 'var(--cp-mu)' }}>
+                              Song: {soundName(songSounds[track])}
+                            </span>
+                          )}
+                        </span>
+                        <select
+                          className={selectClass}
+                          style={selectStyle}
+                          value={ownSound ?? ''}
+                          onChange={(e) => set({ sounds: { ...arrangement.sounds, [track]: e.target.value || undefined } })}
+                        >
+                          <option value="">Same as the song</option>
+                          {config?.soundTypes.map((s) => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                      </label>
+
+                      {variation && onVariationChange && (
+                        <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+                          <span className="cp-lbl" style={{ fontSize: 10 }}>Variation</span>
+                          <select
+                            className={selectClass}
+                            style={selectStyle}
+                            value={variation.activeId}
+                            onChange={(e) => onVariationChange(variation.key, e.target.value)}
+                          >
+                            {variation.variations.map((v) => (
+                              <option key={v.id} value={v.id}>{v.name}</option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                    </div>
+
+                    <label className="flex flex-col gap-1.5">
+                      <span className="cp-lbl" style={{ fontSize: 10 }}>Rhythm for this track</span>
+                      <select
+                        className={selectClass}
+                        style={selectStyle}
+                        value={arrangement.trackStyles?.[track] ?? ''}
+                        onChange={(e) => set({ trackStyles: { ...arrangement.trackStyles, [track]: e.target.value || undefined } })}
+                      >
+                        <option value="">Section rhythm ({rhythm.name})</option>
+                        {compatible.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {arrangement.patterns?.[track] && (
+                      <div className="flex items-center justify-between gap-2 text-[11.5px]" style={{ color: 'var(--cp-mu)' }}>
+                        <span>This track's groove was edited by hand.</span>
+                        <button
+                          className="cp-btn cp-gh"
+                          style={{ height: 26, padding: '0 8px', fontSize: 11.5, color: 'var(--cp-act)' }}
+                          onClick={() => set({ patterns: { ...arrangement.patterns, [track]: undefined } })}
+                        >
+                          Back to the rhythm
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
 
-        {variationPickers && variationPickers.length > 0 && onVariationChange && (
-          <div className="space-y-1.5">
-            <span className="text-[11px] text-muted-foreground">Variation in this section</span>
-            {variationPickers.map(({ key, label, variations, activeId }) => (
-              <label key={key} className="flex items-center gap-2">
-                <span className="w-12 shrink-0 text-[11px]">{label}</span>
-                <select
-                  className={selectClass}
-                  value={activeId}
-                  onChange={(e) => onVariationChange(key, e.target.value)}
-                >
-                  {variations.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-        )}
+        <div style={{ borderTop: '1px solid var(--cp-ln)', margin: '0 -18px' }} />
 
-        {summary && (
-          <Button variant="ghost" size="sm" className="h-7 w-full gap-1 text-xs" onClick={() => onChange({})}>
-            <RotateCcw className="h-3 w-3" /> Play like the rest of the song
-          </Button>
-        )}
+        <button
+          className="cp-btn cp-gh self-start"
+          style={{ height: 36, margin: '-6px 0 -4px -8px', color: 'var(--cp-tx2)', fontSize: 12.5 }}
+          onClick={() => onChange({})}
+          disabled={!summary}
+        >
+          Reset section to song defaults
+        </button>
       </PopoverContent>
     </Popover>
   );

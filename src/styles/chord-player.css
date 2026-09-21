@@ -10,6 +10,10 @@
  * or with the shadcn components that live inside the same tree.
  */
 
+/* Declared on :root as well as `.cp` because every Radix overlay — popovers, dialogs,
+   dropdowns, selects — renders through a portal on <body>, outside the `.cp` subtree.
+   This file is imported by the chord player page alone, so nothing else sees them. */
+:root,
 .cp {
   /* Surfaces */
   --cp-bg: #F2F3F7;

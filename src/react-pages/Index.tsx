@@ -1425,6 +1425,12 @@ const Index = ({ songId }: IndexProps) => {
     setRhythmEditorOpen(true);
   }, []);
 
+  /** The sound each track plays for the song, so a section can be told what it inherits. */
+  const songSounds = useMemo(
+    () => Object.fromEntries(instruments.map(i => [i.id, i.soundTypeId])) as Partial<Record<'drums' | 'bass' | 'piano' | 'guitar', string>>,
+    [instruments],
+  );
+
   /** How many sections play something other than the song — drives the Sound card's note. */
   const sectionsWithOwnRhythm = useMemo(
     () => sections.filter(sectionHasArrangement).length,
@@ -1772,6 +1778,7 @@ const Index = ({ songId }: IndexProps) => {
                       onArrangementChange={handleSectionArrangementChange}
                       availableStyles={availableSectionStyles}
                       songStyle={currentStyle}
+                      songSounds={songSounds}
                       onEditSectionRhythm={handleEditSectionRhythm}
                     />
                   </div>

@@ -56,6 +56,8 @@ interface SectionCardProps {
   availableStyles?: StylePattern[];
   songStyle?: StylePattern;
   onEditSectionRhythm?: (sectionIndex: number) => void;
+  /** What the song plays on each track, so an inherited row in the options panel names it. */
+  songSounds?: Partial<Record<'drums' | 'bass' | 'piano' | 'guitar', string>>;
 }
 
 export const SectionCard = memo(function SectionCard({
@@ -85,6 +87,7 @@ export const SectionCard = memo(function SectionCard({
   availableStyles,
   songStyle,
   onEditSectionRhythm,
+  songSounds,
 }: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
@@ -317,6 +320,7 @@ export const SectionCard = memo(function SectionCard({
             styles={availableStyles!}
             sectionName={section.name}
             onEditRhythm={onEditSectionRhythm ? () => onEditSectionRhythm(sectionIndex) : undefined}
+            songSounds={songSounds}
             open={optionsOpen}
             onOpenChange={setOptionsOpen}
             variationPickers={variationPickers}
