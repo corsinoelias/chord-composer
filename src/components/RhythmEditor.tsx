@@ -23,8 +23,9 @@ import {
   Piano,
   Guitar,
   Music,
-  RotateCw
-} from 'lucide-react';
+  RotateCw, X } from 'lucide-react';
+// The chord player's tokens and primitives (the dialog renders in a portal).
+import '@/styles/chord-player.css';
 import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar, getStyleTotalSlots, getPulseInterval } from '@/lib/styles';
 import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback, previewDrumHit, ensureGuitarSoundfont, ensureGuitarSampleType } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates, INSTRUMENTS, type InstrumentType } from '@/lib/instruments';
@@ -189,15 +190,22 @@ function InstrumentMixControl({
   const currentVolume = editedStyle.volumes[instType] ?? editedStyle.volumes.piano;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-      <div className="flex items-center gap-1 sm:gap-2">
-        <Volume2 className="w-4 h-4 text-muted-foreground hidden sm:block" />
-        <span className="text-xs text-muted-foreground">{config.name}</span>
-        <Slider
-          value={[currentVolume * 100]}
-          onValueChange={([v]) => onChange(prev => ({ ...prev, volumes: { ...prev.volumes, [instType]: v / 100 } }))}
-          className="w-16 sm:w-20"
+    <div className="flex flex-wrap items-center gap-3 sm:gap-6">
+      <div className="flex items-center gap-3">
+        <Volume2 className="hidden h-[18px] w-[18px] sm:block" style={{ color: 'var(--cp-mu)' }} />
+        <span className="cp-lbl">{config.name}</span>
+        <input
+          className="cp-rg w-20 sm:w-[130px]"
+          type="range"
+          min={0}
           max={100}
+          value={Math.round(currentVolume * 100)}
+          onChange={e => {
+            const v = parseInt(e.target.value, 10);
+            onChange(prev => ({ ...prev, volumes: { ...prev.volumes, [instType]: v / 100 } }));
+          }}
+          aria-label={`${config.name} volume`}
+          style={{ ['--cp-p' as string]: `${Math.round(currentVolume * 100)}%` }}
         />
       </div>
       <Select
@@ -218,7 +226,10 @@ function InstrumentMixControl({
           onSoundTypeChange?.();
         }}
       >
-        <SelectTrigger className="h-7 w-28 sm:w-32 text-[10px] sm:text-xs px-1.5">
+        <SelectTrigger
+          className="h-10 w-36 rounded-[10px] text-[13px] font-semibold sm:w-[170px]"
+          style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln2)', color: 'var(--cp-tx)' }}
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -920,155 +931,159 @@ export function RhythmEditor({
           // Don't auto-focus the Name field on open (pops the mobile keyboard and pulls
           // attention off the grid). Let the user land on the sequencer instead.
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="flex flex-col w-screen h-[100dvh] max-w-none rounded-none p-0 gap-0 overflow-hidden select-none sm:w-[95vw] sm:max-w-5xl sm:h-auto sm:max-h-[90vh] sm:rounded-lg"
+          className="cp-dlg flex flex-col w-screen h-[100dvh] max-w-none rounded-none p-0 gap-0 overflow-hidden select-none sm:w-[95vw] sm:max-w-[1120px] sm:h-auto sm:max-h-[90vh] sm:rounded-[20px]"
         >
-          <DialogHeader className="p-4 pb-2 border-b border-border shrink-0">
-            <DialogTitle className="flex items-center gap-3">
-              <Drum className="w-5 h-5" />
-              
-              {/* Rhythm name — fixed for the lifetime of this modal session. Rename via
-                  the "Name" field in the toolbar below; to edit a different rhythm,
-                  close this modal (unsaved changes are still guarded) and reopen it. */}
-              <span className="gap-1 min-w-[200px] truncate flex items-center font-semibold">
-                {hasOverride && <span className="text-primary">★</span>}
-                {originalStyleName}
+          {/* Header band, as drawn: what you are editing on the left, its tempo and
+              category in the middle, the actions on the right. On a phone the actions
+              move to the sticky bar at the bottom. */}
+          <div
+            className="flex shrink-0 flex-wrap items-center gap-x-[22px] gap-y-2 px-3 py-3 sm:min-h-[76px] sm:flex-nowrap sm:py-0 sm:pl-7 sm:pr-5"
+            style={{ borderBottom: '1px solid var(--cp-ln)' }}
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                style={{ background: 'color-mix(in srgb, var(--cp-ac) 18%, transparent)', color: 'var(--cp-act)' }}
+                aria-hidden="true"
+              >
+                <Drum className="h-[18px] w-[18px]" />
               </span>
-
-              {(isPlaying || isMainPlaying) && (
-                <span className="text-xs font-normal text-primary animate-pulse">
-                  ● {showFill ? 'FILL PREVIEW' : isSyncedWithMain ? 'SYNCED' : 'LIVE'}
-                </span>
-              )}
-              
-              {previewingStyleId && (
-                <span className="text-xs font-normal text-chart-4 animate-pulse">
-                  🔊 Previewing...
-                </span>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="flex flex-col flex-1 min-h-0">
-            {/* Top Controls */}
-            <div className="p-2 sm:p-4 border-b border-border bg-card/50 flex flex-wrap items-center gap-2 sm:gap-4 shrink-0">
-              {/* Style Name (editable) */}
-              <div className="flex items-center gap-2">
-                <Label className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">Name:</Label>
-                <Input
+              <div className="flex min-w-0 flex-col gap-[3px]">
+                <DialogTitle className="cp-lbl m-0 flex items-center gap-1.5 text-[10.5px] font-bold leading-normal tracking-[0.09em]">
+                  Edit rhythm
+                  {hasOverride && <span style={{ color: 'var(--cp-act)' }} title="Customised built-in rhythm">★</span>}
+                  {(isPlaying || isMainPlaying) && (
+                    <span className="animate-pulse normal-case tracking-normal" style={{ color: 'var(--cp-act)' }}>
+                      ● {showFill ? 'fill preview' : isSyncedWithMain ? 'synced' : 'live'}
+                    </span>
+                  )}
+                  {previewingStyleId && (
+                    <span className="animate-pulse normal-case tracking-normal" style={{ color: 'var(--cp-act)' }}>
+                      previewing…
+                    </span>
+                  )}
+                </DialogTitle>
+                {/* Renaming happens here; to edit a different rhythm, close and reopen
+                    (unsaved changes are still guarded). */}
+                <input
                   value={editedStyle.name}
                   onChange={e => setEditedStyle(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-28 sm:w-40 h-8 text-sm select-text"
-                  placeholder="Name"
+                  aria-label="Rhythm name"
+                  placeholder={originalStyleName || 'Name'}
+                  className="h-[30px] w-[190px] max-w-full select-text rounded-lg border border-transparent bg-transparent px-2 -ml-2 text-[15px] font-bold outline-none hover:border-[var(--cp-ln2)] focus:border-[var(--cp-ln2)]"
+                  style={{ color: 'var(--cp-tx)' }}
                 />
-              </div>
-              
-              {/* BPM Slider */}
-              <div className="flex items-center gap-2 min-w-[140px] sm:min-w-[180px]">
-                <Label className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-                  <span className="hidden sm:inline">BPM: </span>{editedStyle.bpm}
-                </Label>
-                <input
-                  type="range"
-                  min={40}
-                  max={200}
-                  value={editedStyle.bpm}
-                  onChange={e => handleBpmChange(parseInt(e.target.value))}
-                  className="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
-                />
-              </div>
-              
-              {/* Category - hidden on mobile */}
-              <div className="hidden sm:flex items-center gap-2">
-                <Label className="text-sm text-muted-foreground">Category:</Label>
-                <Select 
-                  value={editedStyle.category} 
-                  onValueChange={(value: StylePattern['category']) => setEditedStyle(prev => ({ ...prev, category: value }))}
-                >
-                  <SelectTrigger className="w-28 h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['Rock', 'Funk', 'Pop', 'Reggae', 'HipHop', 'Disco', 'Blues', 'Latin', 'Metal', 'Folk', 'Country', 'Jazz', 'Soul', 'Indie', 'LoFi', 'Gospel'].map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Playback & Save Controls — desktop only; on mobile these live in the
-                  sticky bottom action bar so they're always reachable & finger-sized. */}
-              <div className="hidden sm:flex items-center gap-1 sm:gap-2 ml-auto">
-                {/* Reset to default (only for built-in styles with a saved override) */}
-                {hasOverride && !hasUnsavedChanges && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      deleteStyleOverride(style.id);
-                      const original = MUSICAL_STYLES.find(s => s.id === style.id);
-                      if (original) {
-                        const cloned = cloneStyle(original);
-                        setEditedStyle(cloned);
-                        editedStyleRef.current = cloned;
-                        originalStyleRef.current = JSON.stringify(cloned);
-                        setHasUnsavedChanges(false);
-                        onStyleChange?.(cloned);
-                      }
-                      toast.success('Reset to default');
-                    }}
-                    className="gap-1 px-2 sm:px-3"
-                    title="Remove customizations and restore the original built-in style"
-                  >
-                    <RotateCw className="w-4 h-4" />
-                    <span className="hidden sm:inline">Reset</span>
-                  </Button>
-                )}
-
-                {/* Discard Changes button (only when there are unsaved changes) */}
-                {hasUnsavedChanges && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setResetDialogOpen(true)}
-                    className="gap-1 px-2 sm:px-3"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    <span className="hidden sm:inline">Discard</span>
-                  </Button>
-                )}
-                
-                <Button
-                  variant={(isLocalPlaying || isMainPlaying) ? 'destructive' : 'default'}
-                  size="sm"
-                  onClick={togglePlayback}
-                  className="px-2 sm:px-3"
-                >
-                  {(isLocalPlaying || isMainPlaying) ? <Square className="w-4 h-4 sm:mr-1" /> : <Play className="w-4 h-4 sm:mr-1" />}
-                  <span className="hidden sm:inline">{(isLocalPlaying || isMainPlaying) ? 'Stop' : (showFill ? 'Preview Fill' : 'Play')}</span>
-                </Button>
-                
-                {/* Delete button - only for custom styles */}
-                {isCustomStyle(editedStyle.id) && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteStyle(editedStyle)}
-                    className="px-2 sm:px-3"
-                  >
-                    <Trash2 className="w-4 h-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Delete</span>
-                  </Button>
-                )}
-                
-                <Button variant="outline" size="sm" onClick={handleSaveClick} className="px-2 sm:px-3">
-                  <Save className="w-4 h-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Save</span>
-                </Button>
               </div>
             </div>
 
+            <div className="cp-dv hidden sm:block" />
+
+            <div className="flex items-center gap-3">
+              <span className="cp-lbl">BPM</span>
+              <span className="cp-mono w-[30px] text-lg font-bold">{editedStyle.bpm}</span>
+              <input
+                className="cp-rg w-28 sm:w-[140px]"
+                type="range"
+                min={40}
+                max={200}
+                value={editedStyle.bpm}
+                onChange={e => handleBpmChange(parseInt(e.target.value))}
+                aria-label="Rhythm tempo"
+                style={{ ['--cp-p' as string]: `${((editedStyle.bpm - 40) / 160) * 100}%` }}
+              />
+            </div>
+
+            <div className="hidden items-center gap-2.5 sm:flex">
+              <span className="cp-lbl">Category</span>
+              <Select
+                value={editedStyle.category}
+                onValueChange={(value: StylePattern['category']) => setEditedStyle(prev => ({ ...prev, category: value }))}
+              >
+                <SelectTrigger
+                  className="h-10 w-[130px] rounded-[10px] text-[13px] font-semibold"
+                  style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln2)', color: 'var(--cp-tx)' }}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {['Rock', 'Funk', 'Pop', 'Reggae', 'HipHop', 'Disco', 'Blues', 'Latin', 'Metal', 'Folk', 'Country', 'Jazz', 'Soul', 'Indie', 'LoFi', 'Gospel'].map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="hidden flex-grow sm:block" />
+
+            {/* Playback & save — desktop only; on mobile they live in the sticky bottom bar */}
+            <div className="hidden items-center gap-2 sm:flex">
+              {/* Reset to default (only for built-in styles with a saved override) */}
+              {hasOverride && !hasUnsavedChanges && (
+                <button
+                  className="cp-btn"
+                  onClick={() => {
+                    deleteStyleOverride(style.id);
+                    const original = MUSICAL_STYLES.find(s => s.id === style.id);
+                    if (original) {
+                      const cloned = cloneStyle(original);
+                      setEditedStyle(cloned);
+                      editedStyleRef.current = cloned;
+                      originalStyleRef.current = JSON.stringify(cloned);
+                      setHasUnsavedChanges(false);
+                      onStyleChange?.(cloned);
+                    }
+                    toast.success('Reset to default');
+                  }}
+                  title="Remove customizations and restore the original built-in style"
+                >
+                  <RotateCw className="h-4 w-4" />
+                  Reset
+                </button>
+              )}
+
+              {/* Discard Changes (only when there are unsaved changes) */}
+              {hasUnsavedChanges && (
+                <button className="cp-btn" onClick={() => setResetDialogOpen(true)}>
+                  <RotateCcw className="h-4 w-4" />
+                  Discard
+                </button>
+              )}
+
+              <button className="cp-btn" onClick={togglePlayback}>
+                {(isLocalPlaying || isMainPlaying) ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                {(isLocalPlaying || isMainPlaying) ? 'Stop' : (showFill ? 'Preview Fill' : 'Play')}
+              </button>
+
+              {/* Delete — only for custom styles */}
+              {isCustomStyle(editedStyle.id) && (
+                <button
+                  className="cp-btn cp-ib"
+                  style={{ color: 'var(--cp-dg)', borderColor: 'color-mix(in srgb, var(--cp-dg) 40%, transparent)' }}
+                  onClick={() => handleDeleteStyle(editedStyle)}
+                  aria-label="Delete rhythm"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+
+              <button className="cp-btn cp-pri" onClick={handleSaveClick}>
+                <Save className="h-4 w-4" />
+                Save
+              </button>
+            </div>
+
+            <button
+              className="cp-btn cp-ib cp-gh ml-auto sm:ml-0"
+              onClick={handleCloseAttempt}
+              aria-label="Close"
+            >
+              <X className="h-[18px] w-[18px]" />
+            </button>
+          </div>
+
+          <div className="flex flex-col flex-1 min-h-0">
           {/* Tab Navigation — labels always visible; full-width even split on mobile */}
-          <div className="px-2 sm:px-4 border-b border-border flex gap-0 shrink-0">
+          <div className="flex h-12 shrink-0 items-end gap-0 px-3 sm:gap-[22px] sm:px-7" style={{ borderBottom: '1px solid var(--cp-ln)' }} role="tablist">
             {([
               { key: 'drums', label: 'Drums', Icon: Drum },
               { key: 'piano', label: 'Piano', Icon: Piano },
@@ -1077,15 +1092,16 @@ export function RhythmEditor({
             ] as const).map(tab => (
               <button
                 key={tab.key}
+                role="tab"
+                aria-selected={activeTab === tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={cn(
-                  'flex-1 sm:flex-none justify-center px-3 py-3 sm:py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5',
-                  activeTab === tab.key
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground',
-                )}
+                className="flex h-12 flex-1 items-center justify-center gap-2 border-0 border-b-2 bg-transparent px-1 text-sm font-semibold sm:flex-none"
+                style={{
+                  borderBottomColor: activeTab === tab.key ? 'var(--cp-ac)' : 'transparent',
+                  color: activeTab === tab.key ? 'var(--cp-tx)' : 'var(--cp-mu)',
+                }}
               >
-                <tab.Icon className="w-3.5 h-3.5" />
+                <tab.Icon className="h-[18px] w-[18px]" style={activeTab === tab.key ? { color: 'var(--cp-act)' } : undefined} />
                 <span>{tab.label}</span>
               </button>
             ))}
@@ -1094,28 +1110,32 @@ export function RhythmEditor({
           {activeTab === 'drums' ? (
           <>
           {/* Main/Fill Toggle */}
-          <div className="p-2 sm:p-3 border-b border-border bg-muted/30 flex flex-wrap items-center gap-2 sm:gap-4">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={showFill}
-                onCheckedChange={handleFillToggle}
-                id="fill-toggle"
+          <div className="flex shrink-0 flex-wrap items-center gap-x-[22px] gap-y-2 px-3 py-2.5 sm:min-h-16 sm:px-7">
+            <label className="flex cursor-pointer items-center gap-2.5 text-[13px] font-semibold">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showFill}
+                aria-label="Edit the fill instead of the main groove"
+                className={`cp-sw ${showFill ? 'cp-on' : ''}`}
+                onClick={() => handleFillToggle(!showFill)}
               />
-              <Label htmlFor="fill-toggle" className="text-xs sm:text-sm cursor-pointer">
-                {showFill ? 'Fill' : 'Main'}
-              </Label>
-            </div>
+              {showFill ? 'Fill' : 'Main'}
+            </label>
 
             {/* Loop bars — lets bar 2 (and beyond) differ from bar 1 instead of
                 just repeating a single bar forever. Growing copies bar 1 into
                 the new bars so there's something to start editing from. */}
             <div className="flex items-center gap-2">
-              <Label className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">Loop:</Label>
+              <span className="cp-lbl hidden sm:inline">Loop</span>
               <Select
                 value={loopBars.toString()}
                 onValueChange={v => handleLoopBarsChange(Number(v) as 1 | 2)}
               >
-                <SelectTrigger className="w-24 sm:w-28 h-8 text-xs sm:text-sm">
+                <SelectTrigger
+                  className="h-10 w-24 rounded-[10px] text-[13px] font-semibold sm:w-[120px]"
+                  style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln2)', color: 'var(--cp-tx)' }}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1175,11 +1195,12 @@ export function RhythmEditor({
                         <PopoverTrigger asChild>
                           <button
                             title={instrument.label}
-                            className="w-14 h-10 shrink-0 rounded-lg border flex flex-col items-center justify-center gap-0.5 px-1 transition-transform active:scale-95"
-                            style={{ color: instColor, backgroundColor: hexToRgba(instColor, 0.14), borderColor: hexToRgba(instColor, 0.32) }}
+                            className="flex h-11 w-14 shrink-0 items-center justify-center gap-2.5 rounded-[10px] border px-2 text-[13px] font-semibold transition-transform active:scale-95 sm:w-[132px] sm:justify-start sm:px-3"
+                            style={{ color: 'var(--cp-tx)', backgroundColor: `color-mix(in srgb, ${instColor} 12%, var(--cp-s1))`, borderColor: hexToRgba(instColor, 0.4) }}
                           >
-                            <Icon className="w-3.5 h-3.5 shrink-0" />
-                            <span className="text-[8px] leading-none font-medium max-w-full truncate text-foreground">{instrument.label}</span>
+                            <i className="hidden h-2.5 w-2.5 shrink-0 rounded-[3px] sm:block" style={{ background: instColor }} />
+                            <Icon className="h-4 w-4 shrink-0 sm:hidden" style={{ color: instColor }} />
+                            <span className="hidden truncate sm:inline">{instrument.label}</span>
                           </button>
                         </PopoverTrigger>
                         <PopoverContent side="right" align="start" className="w-44 p-1">
@@ -1260,12 +1281,12 @@ export function RhythmEditor({
                                       style={value > 0 ? {
                                         backgroundColor: hexToRgba(instColor, 0.25 + value * 0.6),
                                         borderColor: hexToRgba(instColor, 0.65),
-                                      } : undefined}
+                                      } : isInactiveInFill || isActiveInFill ? undefined : {
+                                        backgroundColor: 'var(--cp-s2)',
+                                        borderColor: isDownbeat ? 'var(--cp-ln2)' : 'var(--cp-ln)',
+                                      }}
                                       className={cn(
-                                        "aspect-square rounded-md border transition-all relative select-none cursor-pointer",
-                                        // Off cells: neutral surface + downbeat-emphasized border
-                                        value === 0 && !isInactiveInFill && "bg-secondary",
-                                        value === 0 && (isDownbeat ? "border-border" : "border-border/40"),
+                                        "h-11 rounded-lg border transition-all relative select-none cursor-pointer",
                                         // Fill mode: locked zone gets muted background
                                         isInactiveInFill && "opacity-40 cursor-not-allowed bg-muted/50 border-border/40",
                                         // Fill mode: active but empty zone gets a faint tint
@@ -1326,7 +1347,8 @@ export function RhythmEditor({
                   <button
                     title="Add instrument"
                     onClick={() => setAddSheetOpen(true)}
-                    className="w-14 h-10 shrink-0 rounded-lg grid place-items-center border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
+                    className="grid h-11 w-14 shrink-0 place-items-center rounded-[10px] transition-colors sm:w-[132px]"
+                    style={{ border: '1.5px dashed var(--cp-ln2)', color: 'var(--cp-tx2)' }}
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -1338,11 +1360,14 @@ export function RhythmEditor({
                         <div
                           key={step}
                           className={cn(
-                            "h-5 flex items-center justify-center text-[10px] tabular-nums",
-                            isDb ? "text-foreground font-semibold" : "text-muted-foreground/40",
+                            "cp-mono h-5 flex items-center justify-center tabular-nums",
+                            isDb ? "text-[13px] font-bold" : "text-[11px]",
                           )}
+                          style={{ color: isDb ? 'var(--cp-tx)' : 'var(--cp-mu)' }}
                         >
-                          {isDb ? slotInBar / slotsPerBeatGroup + 1 : '·'}
+                          {isDb
+                            ? slotInBar / slotsPerBeatGroup + 1
+                            : slotsPerBeatGroup === 4 ? ['', 'e', '&', 'a'][slotInBar % 4] : '·'}
                         </div>
                       );
                     })}
@@ -1377,20 +1402,23 @@ export function RhythmEditor({
           )}
           
           {/* Footer / Legend — explains the new gesture model at a glance */}
-          <div className="p-2 sm:p-3 border-t border-border bg-muted/30 flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1.5 text-[10px] sm:text-xs text-muted-foreground">
-            <span><span className="text-foreground font-medium">Tap</span> to add or remove</span>
-            <Separator orientation="vertical" className="h-4 hidden sm:block" />
-            <span><span className="text-foreground font-medium">Hold</span> a pad for velocity</span>
-            <Separator orientation="vertical" className="h-4 hidden sm:block" />
-            <div className="flex items-center gap-1.5">
+          <div
+            className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-1.5 px-3 py-2.5 text-xs sm:min-h-14 sm:px-7"
+            style={{ borderTop: '1px solid var(--cp-ln)', color: 'var(--cp-mu)' }}
+          >
+            <span><strong className="font-semibold" style={{ color: 'var(--cp-tx2)' }}>Tap</strong> to add or remove</span>
+            <span><strong className="font-semibold" style={{ color: 'var(--cp-tx2)' }}>Hold</strong> a pad for velocity</span>
+            <div className="flex items-center gap-2">
               <span>Soft</span>
-              {[0.3, 0.5, 0.7, 1].map(v => (
-                <div
-                  key={v}
-                  className="w-3.5 h-3.5 rounded-sm border border-border/40"
-                  style={{ backgroundColor: hexToRgba(DEFAULT_INSTRUMENT_COLOR, 0.25 + v * 0.6) }}
-                />
-              ))}
+              <div className="flex gap-1">
+                {[25, 50, 75, 100].map(v => (
+                  <i
+                    key={v}
+                    className="h-[18px] w-[18px] rounded-[5px]"
+                    style={{ background: `color-mix(in srgb, var(--cp-act) ${v}%, var(--cp-s2))` }}
+                  />
+                ))}
+              </div>
               <span>Hard</span>
             </div>
           </div>
@@ -1398,7 +1426,7 @@ export function RhythmEditor({
           ) : (
           <div className="flex-1 overflow-auto">
             {/* This instrument's own volume + sound selector — scoped to this tab only */}
-            <div className="p-2 sm:p-3 border-b border-border bg-muted/30">
+            <div className="flex min-h-16 items-center px-3 py-2.5 sm:px-7">
               <InstrumentMixControl
                 instType={activeTab as InstrumentType}
                 editedStyle={editedStyle}
@@ -1448,7 +1476,7 @@ export function RhythmEditor({
 
           {/* Mobile sticky action bar — the primary actions (moved out of the cramped top
               toolbar) always visible & finger-sized. Desktop keeps them in the toolbar. */}
-          <div className="sm:hidden shrink-0 border-t border-border bg-background p-3 flex items-center gap-2">
+          <div className="sm:hidden shrink-0 p-3 flex items-center gap-2" style={{ borderTop: '1px solid var(--cp-ln)', background: 'var(--cp-bar)' }}>
             {hasUnsavedChanges ? (
               <Button variant="outline" onClick={() => setResetDialogOpen(true)} className="gap-1.5 shrink-0">
                 <RotateCcw className="w-4 h-4" /> Discard
@@ -1492,9 +1520,9 @@ export function RhythmEditor({
               </Button>
             )}
 
-            <Button variant="outline" onClick={handleSaveClick} className="gap-1.5 shrink-0">
+            <button className="cp-btn cp-pri shrink-0" onClick={handleSaveClick}>
               <Save className="w-4 h-4" /> Save
-            </Button>
+            </button>
           </div>
         </div>
       </DialogContent>
