@@ -1,14 +1,9 @@
 import { memo, useCallback, useMemo } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { type InstrumentState, INSTRUMENTS, getInstrumentConfig, type InstrumentType } from '@/lib/instruments';
+import { type InstrumentState, getInstrumentConfig } from '@/lib/instruments';
 import { type StylePattern, type InstrumentSounds } from '@/lib/styles';
-import { Piano, Guitar, Drum, Music } from 'lucide-react';
+import { Piano, Guitar, Drum, Music, X } from 'lucide-react';
 
 interface InstrumentsPanelProps {
   open: boolean;
@@ -38,89 +33,80 @@ const InstrumentCard = memo(function InstrumentCard({
   onUpdate: (id: string, updates: Partial<InstrumentState>) => void;
 }) {
   const config = getInstrumentConfig(inst.id);
-  if (!config) return null;
 
-  const Icon = instrumentIcons[inst.id] || Music;
-  const isUsingStyleSound = styleSoundId && inst.soundTypeId === styleSoundId;
-
-  const handleMuteChange = useCallback((muted: boolean) => {
-    onUpdate(inst.id, { muted });
-  }, [inst.id, onUpdate]);
-
-  const handleVolumeChange = useCallback(([value]: number[]) => {
-    onUpdate(inst.id, { volume: value / 100 });
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onUpdate(inst.id, { volume: parseInt(e.target.value, 10) / 100 });
   }, [inst.id, onUpdate]);
 
   const handleSoundTypeChange = useCallback((soundTypeId: string) => {
     onUpdate(inst.id, { soundTypeId });
   }, [inst.id, onUpdate]);
 
+  if (!config) return null;
+
+  const Icon = instrumentIcons[inst.id] || Music;
+  const isUsingStyleSound = styleSoundId && inst.soundTypeId === styleSoundId;
+  const volumePct = Math.round(inst.volume * 100);
+  const volumeDiffers = styleVolume !== undefined && Math.abs(inst.volume - styleVolume) > 0.01;
+
   return (
-    <div className="p-4 rounded-lg bg-secondary/50 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon className="w-5 h-5 text-primary" />
-          <span className="font-medium text-foreground">{config.name}</span>
-          {isUsingStyleSound && (
-            <Badge variant="secondary" className="text-xs">
-              Style
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Label htmlFor={`mute-${inst.id}`} className="text-xs text-muted-foreground">
-            Mute
-          </Label>
-          <Switch
-            id={`mute-${inst.id}`}
-            checked={inst.muted}
-            onCheckedChange={handleMuteChange}
+    <section className="cp-ic" aria-label={config.name} style={inst.muted ? { opacity: 0.7 } : undefined}>
+      <div className="flex items-center gap-3">
+        <span className="cp-it"><Icon size={18} aria-hidden="true" /></span>
+        <span className="text-[15px] font-bold">{config.name}</span>
+        {isUsingStyleSound && <span className="cp-tag">Style</span>}
+        <div className="flex-grow" />
+        <label className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--cp-tx2)' }}>
+          Mute
+          <button
+            type="button"
+            role="switch"
+            aria-checked={inst.muted}
+            aria-label={`Mute ${config.name.toLowerCase()}`}
+            className={`cp-sw ${inst.muted ? 'cp-on' : ''}`}
+            onClick={() => onUpdate(inst.id, { muted: !inst.muted })}
           />
-        </div>
+        </label>
       </div>
 
-      {/* Volume */}
-      <div className="space-y-2">
-        <div className="flex justify-between">
-          <Label className="text-xs text-muted-foreground">
+      <div className="flex flex-col gap-2">
+        <div className="cp-ft">
+          <span>
             Volume
-            {styleVolume !== undefined && Math.abs(inst.volume - styleVolume) > 0.01 && (
-              <span className="ml-1 text-muted-foreground/60">
-                (style: {Math.round(styleVolume * 100)}%)
-              </span>
-            )}
-          </Label>
-          <span className="text-xs text-muted-foreground">{Math.round(inst.volume * 100)}%</span>
+            {volumeDiffers && <span className="opacity-80"> (style: {Math.round(styleVolume! * 100)}%)</span>}
+          </span>
+          <b className="cp-mono">{volumePct}%</b>
         </div>
-        <Slider
-          value={[inst.volume * 100]}
-          onValueChange={handleVolumeChange}
+        <input
+          className="cp-rg w-full"
+          type="range"
+          min={0}
           max={100}
           step={1}
+          value={volumePct}
+          onChange={handleVolumeChange}
           disabled={inst.muted}
-          className="w-full"
+          aria-label={`${config.name} volume`}
+          style={{ ['--cp-p' as string]: `${volumePct}%` }}
         />
       </div>
 
-      {/* Sound Type */}
-      <div className="space-y-2">
-        <div className="flex justify-between">
-          <Label className="text-xs text-muted-foreground">Sound Type</Label>
+      <div className="flex flex-col gap-2">
+        <div className="cp-ft">
+          <span>Sound type</span>
           {styleSoundId && styleSoundId !== inst.soundTypeId && (
-            <span className="text-xs text-muted-foreground/60">
-              style: {config.soundTypes.find(s => s.id === styleSoundId)?.name || styleSoundId}
-            </span>
+            <span>style: {config.soundTypes.find(s => s.id === styleSoundId)?.name || styleSoundId}</span>
           )}
         </div>
-        <Select
-          value={inst.soundTypeId}
-          onValueChange={handleSoundTypeChange}
-          disabled={inst.muted}
-        >
-          <SelectTrigger className="w-full bg-background border-border">
+        <Select value={inst.soundTypeId} onValueChange={handleSoundTypeChange} disabled={inst.muted}>
+          <SelectTrigger
+            className="h-10 w-full rounded-[10px] px-3 text-[13px] font-semibold [&>svg]:opacity-100"
+            style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln2)', color: 'var(--cp-tx)' }}
+            aria-label={`${config.name} sound`}
+          >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-popover border-border z-50">
+          <SelectContent className="z-50">
             {config.soundTypes.map(sound => (
               <SelectItem key={sound.id} value={sound.id}>
                 {sound.name}
@@ -130,14 +116,14 @@ const InstrumentCard = memo(function InstrumentCard({
           </SelectContent>
         </Select>
       </div>
-    </div>
+    </section>
   );
 });
 
-export const InstrumentsPanel = memo(function InstrumentsPanel({ 
-  open, 
-  onClose, 
-  instruments, 
+export const InstrumentsPanel = memo(function InstrumentsPanel({
+  open,
+  onClose,
+  instruments,
   onInstrumentChange,
   currentStyle,
 }: InstrumentsPanelProps) {
@@ -165,31 +151,32 @@ export const InstrumentsPanel = memo(function InstrumentsPanel({
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent className="w-80 bg-card border-border flex flex-col">
-        <SheetHeader>
-          <SheetTitle className="text-foreground">
-            Instruments
-            {currentStyle && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                — {currentStyle.name}
-              </span>
-            )}
-          </SheetTitle>
-        </SheetHeader>
-
-        <ScrollArea className="flex-1 mt-6 -mx-6 px-6">
-          <div className="space-y-6 pb-6">
-            {instruments.map(inst => (
-              <InstrumentCard
-                key={inst.id}
-                inst={inst}
-                styleSoundId={styleSounds[inst.id as keyof InstrumentSounds]}
-                styleVolume={styleVolumes[inst.id as keyof typeof styleVolumes]}
-                onUpdate={updateInstrument}
-              />
-            ))}
+      <SheetContent className="cp-sheet flex w-full flex-col p-0 sm:max-w-[480px]">
+        <div className="cp-sheet-head">
+          <div className="flex flex-col gap-[3px]">
+            <SheetTitle className="m-0 text-xl font-extrabold tracking-tight" style={{ color: 'var(--cp-tx)' }}>
+              Instruments
+            </SheetTitle>
+            <SheetDescription className="m-0 text-xs" style={{ color: 'var(--cp-mu)' }}>
+              {currentStyle ? `Style · ${currentStyle.name}` : 'Sound and level for each track'}
+            </SheetDescription>
           </div>
-        </ScrollArea>
+          <button className="cp-btn cp-ib cp-gh" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+          {instruments.map(inst => (
+            <InstrumentCard
+              key={inst.id}
+              inst={inst}
+              styleSoundId={styleSounds[inst.id as keyof InstrumentSounds]}
+              styleVolume={styleVolumes[inst.id as keyof typeof styleVolumes]}
+              onUpdate={updateInstrument}
+            />
+          ))}
+        </div>
       </SheetContent>
     </Sheet>
   );

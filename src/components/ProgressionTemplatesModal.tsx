@@ -6,19 +6,12 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { type Chord, generateChordId, formatChord } from '@/lib/musicTheory';
 import { GENRE_PROGRESSIONS, progressionToChords } from '@/lib/chordProgressions';
 import { playChordPreview } from '@/lib/audioEngine';
-import { Music2, Play, Square, Check, Headphones } from 'lucide-react';
+import { FileMusic, Music, Play, Square, Check, X } from 'lucide-react';
+import { qualityClass } from './ChordBlock';
 
 interface ProgressionTemplatesModalProps {
   open: boolean;
@@ -102,131 +95,107 @@ export function ProgressionTemplatesModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] p-0 gap-0 overflow-hidden">
-        <DialogHeader className="p-4 pb-3 border-b border-border">
-          <DialogTitle className="flex items-center gap-2">
-            <Music2 className="h-5 w-5 text-primary" />
-            Progression Templates
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="cp-dlg flex max-h-[88vh] w-[calc(100vw-1.5rem)] max-w-[680px] flex-col gap-0 rounded-[20px] p-0 sm:rounded-[20px]">
+        <div className="flex h-[72px] shrink-0 items-center justify-between pl-6 pr-4">
+          <div className="flex items-center gap-3">
+            <span
+              className="flex h-[38px] w-[38px] items-center justify-center rounded-[11px]"
+              style={{ background: 'color-mix(in srgb, var(--cp-ac) 16%, transparent)', color: 'var(--cp-act)' }}
+              aria-hidden="true"
+            >
+              <FileMusic size={18} />
+            </span>
+            <DialogTitle className="m-0 text-xl font-extrabold tracking-tight" style={{ color: 'var(--cp-tx)' }}>
+              Progression Templates
+            </DialogTitle>
+          </div>
+          <button className="cp-btn cp-ib cp-gh" onClick={() => handleOpenChange(false)} aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
 
         {/* Genre tabs */}
-        <div className="border-b border-border px-4 py-2 overflow-x-auto">
-          <div className="flex gap-1 min-w-max">
-            {GENRE_PROGRESSIONS.map((genre) => (
-              <Button
-                key={genre.id}
-                variant={selectedGenre === genre.id ? 'default' : 'ghost'}
-                size="sm"
-                className="h-7 text-xs px-3 shrink-0"
-                onClick={() => setSelectedGenre(genre.id)}
-              >
-                {genre.name}
-              </Button>
-            ))}
-          </div>
+        <div
+          className="flex shrink-0 gap-1.5 overflow-x-auto px-6 pb-4"
+          style={{ borderBottom: '1px solid var(--cp-ln)' }}
+          role="tablist"
+          aria-label="Genres"
+        >
+          {GENRE_PROGRESSIONS.map((genre) => (
+            <button
+              key={genre.id}
+              role="tab"
+              aria-selected={selectedGenre === genre.id}
+              className={`cp-tg ${selectedGenre === genre.id ? 'cp-on' : ''}`}
+              onClick={() => setSelectedGenre(genre.id)}
+            >
+              {genre.name}
+            </button>
+          ))}
         </div>
 
         {/* Progressions list */}
-        <ScrollArea className="flex-1 max-h-[55vh]">
-          <div className="p-3 space-y-2">
-            {currentGenre.progressions.map((prog, idx) => {
-              const id = `${currentGenre.id}-${idx}`;
-              const isPreviewing = previewingId === id;
-              const isApplied = appliedId === id;
-              
-              return (
-                <div
-                  key={idx}
-                  className={`p-3 rounded-lg border transition-all duration-100 cursor-pointer group ${
-                    isApplied
-                      ? 'border-[hsl(var(--success))] bg-[hsl(var(--success)/0.08)]'
-                      : 'border-border hover:border-primary/40 hover:bg-accent/50'
-                  }`}
+        <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-6 py-4">
+          {currentGenre.progressions.map((prog, idx) => {
+            const id = `${currentGenre.id}-${idx}`;
+            const isPreviewing = previewingId === id;
+            const isApplied = appliedId === id;
+
+            return (
+              <div
+                key={idx}
+                className="cp-rw"
+                style={isApplied ? { borderColor: 'var(--cp-sev)', background: 'color-mix(in srgb, var(--cp-sev) 8%, var(--cp-s2))' } : undefined}
+              >
+                <div className="flex min-w-0 flex-grow flex-col gap-[9px]">
+                  <span className="text-[15px] font-bold tracking-tight">{prog.name}</span>
+                  <div className="flex flex-wrap gap-[5px]">
+                    {prog.chords.slice(0, 8).map((chord, i) => (
+                      <span key={i} className={`cp-cc ${qualityClass(chord.quality)}`}>
+                        {chord.root}
+                        {chord.accidental === '#' ? '♯' : chord.accidental === 'b' ? '♭' : ''}
+                        {chord.quality === 'maj' ? '' : chord.quality}
+                      </span>
+                    ))}
+                    {prog.chords.length > 8 && (
+                      <span className="self-center text-xs" style={{ color: 'var(--cp-mu)' }}>
+                        +{prog.chords.length - 8}
+                      </span>
+                    )}
+                  </div>
+                  {prog.examples && prog.examples.length > 0 && (
+                    <span className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--cp-mu)' }}>
+                      <Music size={14} className="shrink-0" aria-hidden="true" />
+                      <span className="truncate">{prog.examples.join(' · ')}</span>
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  className="cp-btn cp-ib shrink-0"
+                  onClick={() => handlePreview(currentGenre.id, idx)}
+                  aria-label={isPreviewing ? `Stop preview of ${prog.name}` : `Preview ${prog.name}`}
+                >
+                  {isPreviewing ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+                </button>
+                <button
+                  className="cp-btn cp-pri shrink-0"
+                  style={{ padding: '0 20px', ...(isApplied ? { background: 'var(--cp-sev)', borderColor: 'var(--cp-sev)' } : {}) }}
                   onClick={() => handleSelect(currentGenre.id, idx)}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <h3 className="font-semibold text-sm text-foreground">
-                          {prog.name}
-                        </h3>
-                      </div>
-                      
-                      {/* Chord preview chips */}
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {prog.chords.slice(0, 8).map((chord, i) => (
-                          <span
-                            key={i}
-                            className="px-1.5 py-0.5 rounded text-xs font-mono bg-secondary text-secondary-foreground"
-                          >
-                            {chord.root}
-                            {chord.accidental === '#' ? '♯' : chord.accidental === 'b' ? '♭' : ''}
-                            {chord.quality === 'maj' ? '' : chord.quality}
-                          </span>
-                        ))}
-                        {prog.chords.length > 8 && (
-                          <span className="text-xs text-muted-foreground self-center">
-                            +{prog.chords.length - 8}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Song examples */}
-                      {prog.examples && prog.examples.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          🎵 {prog.examples.join(' · ')}
-                        </p>
-                      )}
-                    </div>
+                  {isApplied ? <><Check size={16} />Applied</> : 'Use'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {/* Preview button */}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePreview(currentGenre.id, idx);
-                        }}
-                      >
-                        {isPreviewing ? (
-                          <Square className="h-4 w-4" />
-                        ) : (
-                          <Play className="h-4 w-4" />
-                        )}
-                      </Button>
-                      
-                      {/* Apply button */}
-                      <Button
-                        size="sm"
-                        variant={isApplied ? 'default' : 'secondary'}
-                        className={`h-8 text-xs ${isApplied ? 'bg-[hsl(var(--success))]' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSelect(currentGenre.id, idx);
-                        }}
-                      >
-                        {isApplied ? (
-                          <><Check className="h-3 w-3 mr-1" /> Applied</>
-                        ) : (
-                          'Use'
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </ScrollArea>
-
-        <div className="p-2 border-t border-border bg-muted/50">
-          <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
-            <Headphones className="h-3 w-3" />
-            ▶ preview · click to apply
-          </p>
+        <div
+          className="flex h-[52px] shrink-0 items-center justify-center gap-2 text-xs"
+          style={{ borderTop: '1px solid var(--cp-ln)', color: 'var(--cp-mu)' }}
+        >
+          <Play size={14} aria-hidden="true" />
+          <span>Preview a progression, then press Use to apply it</span>
         </div>
       </DialogContent>
     </Dialog>

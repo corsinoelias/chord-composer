@@ -17,6 +17,8 @@ interface InKeyChordStripProps {
   accidental: Accidental;
   quality: ChordQuality;
   onPick: (root: RootNote, accidental: Accidental, quality: ChordQuality) => void;
+  /** `player` is the chord player's edit dialog: pill chips on an accent-tinted panel. */
+  variant?: 'default' | 'player';
 }
 
 /**
@@ -26,10 +28,42 @@ interface InKeyChordStripProps {
  * The chords are named in sounding pitch, so callers that edit in "display space" (a
  * transposed song) can pass their state straight through.
  */
-export function InKeyChordStrip({ songKey, root, accidental, quality, onPick }: InKeyChordStripProps) {
+export function InKeyChordStrip({ songKey, root, accidental, quality, onPick, variant = 'default' }: InKeyChordStripProps) {
   const diatonicChords = useMemo(() => (songKey ? getDiatonicChords(songKey) : []), [songKey]);
 
   if (diatonicChords.length === 0) return null;
+
+  if (variant === 'player') {
+    return (
+      <div
+        className="flex flex-col gap-2.5 rounded-[14px] px-4 py-3.5"
+        style={{
+          background: 'color-mix(in srgb, var(--cp-ac) 9%, var(--cp-s1))',
+          border: '1px solid color-mix(in srgb, var(--cp-ac) 25%, transparent)',
+        }}
+      >
+        <span className="cp-lbl" style={{ color: 'var(--cp-act)' }}>In key of {songKey}</span>
+        <div className="flex flex-wrap gap-1.5">
+          {diatonicChords.map((c) => {
+            const parsed = parseDiatonic(c);
+            if (!parsed) return null;
+            const isActive = root === parsed.root && accidental === parsed.acc && quality === parsed.qual;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => onPick(parsed.root, parsed.acc, parsed.qual)}
+                className={`cp-ik ${isActive ? 'cp-on' : ''}`}
+                aria-pressed={isActive}
+              >
+                {c}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">

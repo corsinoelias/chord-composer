@@ -765,3 +765,248 @@ input.cp-rg:disabled {
   border-radius: 16px;
   box-shadow: 0 24px 60px rgba(18, 22, 31, 0.16);
 }
+
+/* ──────────────────────────────── Dialogs ──────────────────────────────── */
+
+/* Shell for the player's dialogs: shadcn's DialogContent supplies placement and focus
+   handling, this supplies the canvas's surface — 20px radius, header/footer bands. */
+.cp-dlg {
+  background: var(--cp-s1);
+  border: 1px solid var(--cp-ln2);
+  border-radius: 20px;
+  box-shadow: 0 40px 100px rgba(18, 22, 31, 0.22);
+  color: var(--cp-tx);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* shadcn's built-in close cross: the canvas draws its own in the header band */
+.cp-dlg > button[class*="absolute"][class*="right-4"] {
+  display: none;
+}
+
+.cp-dlg-head {
+  min-height: 68px;
+  padding: 0 20px 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--cp-ln);
+  flex-shrink: 0;
+}
+
+.cp-dlg-foot {
+  min-height: 76px;
+  padding: 12px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px solid var(--cp-ln);
+  flex-shrink: 0;
+}
+
+@media (max-width: 639px) {
+  .cp-dlg-head { padding: 0 12px 0 18px; }
+  .cp-dlg-foot { padding: 12px 18px; }
+}
+
+/* Mono chips for chord qualities */
+.cp-chip {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--cp-ln);
+  background: var(--cp-s2);
+  color: var(--cp-tx2);
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cp-chip:hover { border-color: var(--cp-ln2); color: var(--cp-tx); }
+.cp-chip.cp-on { background: var(--cp-ac); border-color: var(--cp-ac); color: #FFFFFF; }
+
+/* Square note keys: C D E … and ♮ ♯ ♭ */
+.cp-key {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--cp-ln);
+  background: var(--cp-s2);
+  color: var(--cp-tx);
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cp-key:hover { border-color: var(--cp-ln2); }
+.cp-key.cp-on { background: var(--cp-ac); border-color: var(--cp-ac); color: #FFFFFF; }
+
+@media (max-width: 639px) {
+  .cp-key { width: 40px; height: 40px; }
+}
+
+/* Pill chords in the "In key of" strip */
+.cp-ik {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--cp-ln);
+  background: var(--cp-s1);
+  color: var(--cp-tx);
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cp-ik:hover { border-color: var(--cp-ln2); }
+.cp-ik.cp-on { background: var(--cp-ac); border-color: var(--cp-ac); color: #FFFFFF; }
+
+/* Duration beats: filled / half / empty */
+.cp-beat {
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  border: 2px solid var(--cp-ln2);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.cp-beat.cp-f { background: var(--cp-ac); border-color: var(--cp-ac); }
+.cp-beat.cp-h { border-color: var(--cp-ac); background: linear-gradient(90deg, var(--cp-ac) 50%, transparent 50%); }
+.cp-beat.cp-p { opacity: 0.5; }
+
+/* Genre tabs, template rows and mini chord chips (Progression Templates) */
+.cp-tg {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--cp-ln);
+  background: transparent;
+  color: var(--cp-tx2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.cp-tg:hover { border-color: var(--cp-ln2); }
+.cp-tg.cp-on { background: var(--cp-ac); border-color: var(--cp-ac); color: #FFFFFF; }
+
+.cp-rw {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--cp-ln);
+  background: var(--cp-s2);
+}
+
+.cp-rw:hover { border-color: var(--cp-ln2); }
+
+.cp-cc {
+  --cp-h: var(--cp-maj);
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cp-tx);
+  background: color-mix(in srgb, var(--cp-h) 13%, var(--cp-s1));
+  border: 1px solid color-mix(in srgb, var(--cp-h) 34%, transparent);
+}
+
+.cp-cc.cp-min { --cp-h: var(--cp-min); }
+.cp-cc.cp-sev { --cp-h: var(--cp-sev); }
+.cp-cc.cp-sus { --cp-h: var(--cp-sus); }
+.cp-cc.cp-dim { --cp-h: var(--cp-dim); }
+.cp-cc.cp-aug { --cp-h: var(--cp-aug); }
+
+/* Side sheets (Instruments, Mixer): a 480px rail with a header band */
+.cp-sheet {
+  background: var(--cp-bg);
+  border-left: 1px solid var(--cp-ln2);
+  color: var(--cp-tx);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  padding: 0;
+  gap: 0;
+}
+
+.cp-sheet > button[class*="absolute"][class*="right-4"] {
+  display: none;
+}
+
+.cp-sheet-head {
+  height: 76px;
+  padding: 0 16px 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--cp-ln);
+  background: var(--cp-bar);
+  flex-shrink: 0;
+}
+
+/* Instrument card */
+.cp-ic {
+  background: var(--cp-s1);
+  border: 1px solid var(--cp-ln);
+  border-radius: 16px;
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cp-it {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cp-ac) 16%, transparent);
+  color: var(--cp-act);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cp-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cp-act);
+  background: color-mix(in srgb, var(--cp-ac) 14%, transparent);
+  border-radius: 6px;
+  padding: 3px 7px;
+}
+
+.cp-ft {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--cp-mu);
+  font-weight: 500;
+}
+
+.cp-ft b {
+  color: var(--cp-tx);
+  font-weight: 600;
+}

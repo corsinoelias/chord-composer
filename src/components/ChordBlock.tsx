@@ -27,8 +27,8 @@ interface ChordBlockProps {
   fixedWidth?: boolean;
 }
 
-/** Maps a chord quality onto the colour family it is drawn in. */
-function qualityClass(quality: string): string {
+/** Maps a chord quality onto the colour family it is drawn in (`cp-min`, `cp-sev`, …). */
+export function qualityClass(quality: string): string {
   const q = quality.toLowerCase();
   if (q.includes('dim')) return 'cp-dim';
   if (q.includes('aug')) return 'cp-aug';

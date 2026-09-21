@@ -7,15 +7,10 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import * as SliderPrimitive from '@radix-ui/react-slider';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { analytics } from '@/lib/analytics';
-import { Sliders, RotateCcw, Volume2 } from 'lucide-react';
+import { Sliders, RotateCcw, X } from 'lucide-react';
 import {
   type EffectsState,
   DEFAULT_EFFECTS_STATE,
@@ -51,11 +46,12 @@ function EQBand({
   const isCut = value < 0;
 
   return (
-    <div className="flex flex-col items-center gap-2 flex-1">
+    <div className="flex flex-1 flex-col items-center gap-2.5">
       {/* Gain value */}
-      <span className={`text-xs font-mono tabular-nums ${
-        isBoost ? 'text-[hsl(var(--success))]' : isCut ? 'text-destructive' : 'text-muted-foreground'
-      }`}>
+      <span
+        className="cp-mono text-[13px] font-bold tabular-nums"
+        style={{ color: isBoost ? 'var(--cp-sevt)' : isCut ? 'var(--cp-dg)' : 'var(--cp-tx)' }}
+      >
         {value > 0 ? '+' : ''}{value.toFixed(1)}
       </span>
 
@@ -75,32 +71,29 @@ function EQBand({
         aria-label={`${label} EQ gain`}
         className="relative flex flex-col items-center justify-center w-10 h-32 touch-none select-none"
       >
-        <SliderPrimitive.Track className="relative w-1.5 h-full rounded-full bg-secondary overflow-hidden">
+        <SliderPrimitive.Track className="relative h-full w-1 overflow-hidden rounded-full" style={{ background: 'var(--cp-s3)' }}>
           {/* Bipolar fill from center: green up when boosting, red down when cutting */}
           <div
             className="absolute w-full transition-all duration-75"
             style={{
-              backgroundColor: isBoost
-                ? 'hsl(var(--success))'
-                : isCut
-                  ? 'hsl(var(--destructive))'
-                  : 'hsl(var(--primary))',
+              backgroundColor: isBoost ? 'var(--cp-sev)' : isCut ? 'var(--cp-dg)' : 'var(--cp-ac)',
               top: isBoost ? `${100 - percentage}%` : '50%',
               bottom: isCut ? `${percentage}%` : '50%',
             }}
           />
           {/* Center (0 dB) line */}
-          <div className="absolute w-full h-px bg-muted-foreground/40 top-1/2" />
+          <div className="absolute top-1/2 h-px w-full" style={{ background: 'var(--cp-ln2)' }} />
         </SliderPrimitive.Track>
         <SliderPrimitive.Thumb
-          className="block w-6 h-3 rounded-sm bg-foreground/90 border border-border shadow-sm cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="block h-3.5 w-7 cursor-grab rounded-[5px] active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          style={{ background: 'var(--cp-tx)', boxShadow: '0 0 0 2px var(--cp-ac), 0 3px 8px rgba(18,22,31,.25)' }}
         />
       </SliderPrimitive.Root>
 
       {/* Labels */}
       <div className="text-center">
-        <div className="text-xs font-medium text-foreground">{label}</div>
-        <div className="text-[10px] text-muted-foreground">{freq}</div>
+        <div className="text-[13px] font-bold">{label}</div>
+        <div className="text-[11px]" style={{ color: 'var(--cp-mu)' }}>{freq}</div>
       </div>
     </div>
   );
@@ -113,35 +106,39 @@ function EffectSection({
   onToggle, 
   children,
   badge,
+  aside,
 }: { 
   title: string; 
   enabled?: boolean; 
   onToggle?: (v: boolean) => void; 
   children: React.ReactNode;
   badge?: string;
+  /** Right-hand note in the header, e.g. the EQ's dB range. */
+  aside?: React.ReactNode;
 }) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          {badge && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-              {badge}
-            </Badge>
-          )}
-        </div>
+    <section className="cp-ic" aria-label={title}>
+      <div className="flex items-center justify-between gap-2.5">
+        <span className="flex items-center gap-2.5 text-[15px] font-bold">
+          {title}
+          {badge && <span className="cp-tag">{badge}</span>}
+        </span>
+        {aside}
         {onToggle !== undefined && enabled !== undefined && (
-          <Switch
-            checked={enabled}
-            onCheckedChange={onToggle}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            aria-label={title}
+            className={`cp-sw ${enabled ? 'cp-on' : ''}`}
+            onClick={() => onToggle(!enabled)}
           />
         )}
       </div>
-      <div className={onToggle !== undefined && !enabled ? 'opacity-40 pointer-events-none' : ''}>
+      <div className={onToggle !== undefined && !enabled ? 'pointer-events-none opacity-45' : ''}>
         {children}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -167,10 +164,10 @@ function EffectSlider({
   onCommit: () => void;
 }) {
   return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="text-foreground font-mono tabular-nums">{format(value)}</span>
+    <div className="flex flex-col gap-[9px]">
+      <div className="flex items-baseline justify-between text-xs font-medium" style={{ color: 'var(--cp-tx2)' }}>
+        <span>{label}</span>
+        <b className="cp-mono font-bold tabular-nums" style={{ color: 'var(--cp-tx)' }}>{format(value)}</b>
       </div>
       <Slider
         value={[value]}
@@ -246,29 +243,36 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
-        <div className="p-4 border-b border-border shrink-0">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
-                <Sliders className="h-4 w-4 text-primary" />
-              </div>
-              Mixing Console
-              {isModified && (
-                <Badge variant="secondary" className="text-[10px] ml-auto">Modified</Badge>
-              )}
-            </SheetTitle>
-            <SheetDescription className="text-xs">
-              Master audio processing — EQ, reverb & compression
-            </SheetDescription>
-          </SheetHeader>
+      <SheetContent side="right" className="cp-sheet flex w-full flex-col p-0 sm:max-w-[480px]">
+        <div className="cp-sheet-head">
+          <div className="flex items-center gap-3.5">
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+              style={{ background: 'color-mix(in srgb, var(--cp-ac) 16%, transparent)', color: 'var(--cp-act)' }}
+              aria-hidden="true"
+            >
+              <Sliders size={18} />
+            </span>
+            <div className="flex flex-col gap-[3px]">
+              <SheetTitle className="m-0 flex items-center gap-2 text-xl font-extrabold tracking-tight" style={{ color: 'var(--cp-tx)' }}>
+                Mixing Console
+                {isModified && <span className="cp-tag">Modified</span>}
+              </SheetTitle>
+              <SheetDescription className="m-0 text-xs" style={{ color: 'var(--cp-mu)' }}>
+                Master audio processing — EQ, reverb &amp; compression
+              </SheetDescription>
+            </div>
+          </div>
+          <button className="cp-btn cp-ib cp-gh" onClick={() => onOpenChange(false)} aria-label="Close">
+            <X size={18} />
+          </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
           {/* ─── EQUALIZER ─── */}
-          <EffectSection title="Equalizer" badge="3-Band">
-            <div className="bg-secondary/30 rounded-lg p-4">
-              <div className="flex items-end justify-center gap-4">
+          <EffectSection title="Equalizer" badge="3-Band" aside={<span className="cp-lbl">−12 / +12 dB</span>}>
+            <div className="pb-0.5 pt-1">
+              <div className="grid grid-cols-3">
                 <EQBand
                   label="Low"
                   freq="100 Hz"
@@ -292,16 +296,8 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
                 />
               </div>
               
-              {/* dB scale labels */}
-              <div className="flex justify-between mt-2 px-2">
-                <span className="text-[10px] text-muted-foreground">-12 dB</span>
-                <span className="text-[10px] text-muted-foreground">0 dB</span>
-                <span className="text-[10px] text-muted-foreground">+12 dB</span>
-              </div>
             </div>
           </EffectSection>
-
-          <Separator />
 
           {/* ─── REVERB ─── */}
           <EffectSection 
@@ -312,9 +308,9 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
               trackReverb();
             }}
           >
-            <div className="space-y-4">
+            <div className="flex flex-col gap-3.5">
               <EffectSlider
-                label="Decay Time"
+                label="Decay time"
                 value={effects.reverb.decay}
                 min={0.1}
                 max={5}
@@ -336,8 +332,6 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
             </div>
           </EffectSection>
 
-          <Separator />
-
           {/* ─── COMPRESSOR ─── */}
           <EffectSection 
             title="Compressor" 
@@ -347,7 +341,7 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
               trackCompressor();
             }}
           >
-            <div className="space-y-4">
+            <div className="flex flex-col gap-3.5">
               <EffectSlider
                 label="Threshold"
                 value={effects.compressor.threshold}
@@ -394,16 +388,16 @@ export function MixingConsole({ open, onOpenChange }: MixingConsoleProps) {
         </div>
 
         {/* Sticky footer — Reset stays reachable without scrolling to the bottom */}
-        <div className="shrink-0 border-t border-border bg-background p-4">
-          <Button
-            variant="outline"
-            className="w-full"
+        <div className="shrink-0 px-4 pb-4 pt-3.5" style={{ borderTop: '1px solid var(--cp-ln)', background: 'var(--cp-bar)' }}>
+          <button
+            className="cp-btn w-full justify-center"
+            style={{ height: 44, color: 'var(--cp-tx2)' }}
             onClick={handleReset}
             disabled={!isModified}
           >
-            <RotateCcw className="h-4 w-4 mr-2" />
+            <RotateCcw size={18} />
             Reset All Effects
-          </Button>
+          </button>
         </div>
       </SheetContent>
     </Sheet>
