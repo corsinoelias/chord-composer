@@ -9,6 +9,8 @@
     "preview": "astro preview",
     "check": "astro check",
     "check:schema": "node scripts/check-schema.mjs",
+    "check:engine": "node scripts/check-engine.mjs",
+    "engine:sync": "node scripts/engine-sync.mjs",
     "lint": "eslint .",
     "test:tabtext": "tsx tests/tabtext/run-roundtrip.ts",
     "test:audio": "node tests/audio/run-golden.mjs",

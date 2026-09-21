@@ -1,0 +1,4 @@
+# The web copy of the app audio engine: never let git rewrite these (see scripts/engine-sync.mjs).
+*.wasm binary
+*.sf2 binary
+*.pcm binary

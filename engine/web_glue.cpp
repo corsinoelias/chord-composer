@@ -1,15 +1,16 @@
-// The Android app's audio engine (chord_sequencer/android/app/src/main/cpp/native_audio.cpp)
-// built for a browser AudioWorklet. The engine itself is included unchanged — see build.sh
-// for the handful of platform lines swapped on the way in — and this file is its web
-// counterpart of the JNI bridge at the bottom of native_audio.cpp.
+// The Android app's audio engine, built for a browser AudioWorklet: the web's counterpart
+// of the JNI bridge at the bottom of native_audio.cpp.
+//
+// vendor/native_audio.cpp is the app's file, copied unchanged by `npm run engine:sync`
+// (never edit it here — the app owns it). Built with CHORD_AUDIO_WEB, it leaves out JNI and
+// the stream's lock and reconnect thread, and takes AAudio from shim/, which hands the
+// engine's data callback to the worklet.
 //
 // Everything here runs on the audio rendering thread: the worklet calls these between
 // quanta, so the engine's "platform thread" and "callback" are the same thread and none
 // of its atomics are ever contended.
 #include <cstdlib>
-struct spike_guard {};
-#include "engine_core.inc"
-}  // closes the engine's anonymous namespace
+#include "native_audio.cpp"
 
 namespace {
 const char* kTracks[4] = {"drums", "piano", "guitar", "bass"};

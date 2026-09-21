@@ -1,6 +1,6 @@
 # Estudio: usar en la web el motor de audio de la app
 
-Escrito el 2026-09-21. Estado: **fase 1 hecha** (laboratorio en `/lab/app-engine/`, probado por
+Escrito el 2026-09-21. Estado: **fases 1 y 2 hechas** (laboratorio en `/lab/app-engine/`, probado por
 el usuario: suena bien); decisión de sonido tomada (A, sección 5). La prueba es reproducible en `docs/motor-unico-spike/`.
 
 Pregunta: ¿puede la web sonar con el mismo motor que la app de Android, es viable y vale la
@@ -75,6 +75,25 @@ p99,9 0,2-0,4 ms). Un medidor por bloque con `Date.now()` dio 23 %: el hilo de a
 reloj más fino que el milisegundo, así que ese número no sirve y se quitó del laboratorio.
 
 Requisito encontrado: la CSP debe incluir `'wasm-unsafe-eval'` en `script-src`.
+
+## 2c. Fase 2 hecha: un solo motor, dos plataformas
+
+- En la app, `native_audio.cpp` marca con `#ifndef CHORD_AUDIO_WEB` lo que es de Android: JNI, el
+  log, y el candado y el hilo de reconexión de la salida (34 líneas añadidas, 3 cambiadas).
+  **Comprobado:** el código máquina que genera para las cuatro ABI de Android (arm64, armv7,
+  x86_64, x86) es idéntico byte a byte al de antes. La app no cambia.
+- En la web, `npm run engine:sync` copia ese archivo y `tsf.h` a `engine/vendor/` sin tocarlos,
+  compila `engine/web_glue.cpp` a `public/engine/engine.wasm`, recorta el SoundFont, copia la
+  batería y apunta todo en `engine/source.json` (commit de la app y hash de cada archivo).
+- `npm run check:engine`, en el build de Netlify, falla si algo difiere de `source.json`; en un
+  ordenador con el repo de la app, además avisa si el motor de la app cambió desde la última
+  sincronización.
+- Verificado en el Pixel 8 Pro con el motor sincronizado: 0 ms de cortes con la interfaz
+  atascada, la pantalla apagada y Chrome en segundo plano; carga 5,8 %.
+
+**Si mañana cambia el motor en la app:** `npm run engine:sync` → probar en el móvil → commit de
+`engine/` y `public/engine/`. Si el cambio añade o cambia una función del puente (lo que hoy
+llama Flutter por JNI), también hay que añadirla en `engine/web_glue.cpp`.
 
 ## 3. Peso de los sonidos
 

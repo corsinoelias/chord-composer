@@ -4,7 +4,7 @@ const page = await browser.contexts()[0].newPage();
 page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
 await page.goto(`${process.argv[3] || 'http://localhost:4322'}/lab/app-engine/`, { waitUntil: 'load' });
 const result = await page.evaluate(async () => {
-  const get = (u) => fetch(`/lab/app-engine/${u}`).then((r) => r.arrayBuffer());
+  const get = (u) => fetch(`/engine/${u}`).then((r) => r.arrayBuffer());
   const run = async (style) => {
     const [wasm, sf2, ...d] = await Promise.all([get('engine.wasm'), get('core.sf2'),
       ...['kick', 'snare', 'stick', 'hat', 'hatopen', 'crash'].map((n) => get(`drums/${n}.pcm`).then((b) => [n, b]))]);

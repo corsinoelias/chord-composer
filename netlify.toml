@@ -1,5 +1,5 @@
 [build]
-  command = "npm run check:schema && npm run build && npm run indexnow"
+  command = "npm run check:schema && npm run check:engine && npm run build && npm run indexnow"
   publish = "dist"
 
 [build.environment]

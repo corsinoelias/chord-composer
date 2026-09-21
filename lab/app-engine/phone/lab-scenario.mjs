@@ -13,6 +13,8 @@ const page = await context.newPage();
 page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) log('CONSOLE', m.type(), m.text().slice(0, 200)); });
 page.on('pageerror', (e) => log('PAGEERROR', e.message));
 await page.goto('http://localhost:4322/lab/app-engine/', { waitUntil: 'load' });
+// The dev toolbar floats over the page's lower buttons under `astro dev`.
+await page.addStyleTag({ content: 'astro-dev-toolbar{display:none!important}' });
 await page.bringToFront();
 await page.click('#load');
 await page.waitForSelector('#player:not([hidden])', { timeout: 60000 });
@@ -32,10 +34,13 @@ const summary = (h, from, to, label) => {
   log(`${label}: DROPOUT silence ${silentMs.toFixed(0)} ms total, longest ${longestMs.toFixed(0)} ms, windows with a gap >=10ms ${dropouts} | wall ${wall.toFixed(1)} s, audio clock ${audio.toFixed(1)} s, records ${rows.length}, longest gap ${maxGap} ms, near-silent quarters ${silent}, distinct bars ${bars}, peak range ${Math.min(...rows.map(r=>r[2]))}-${Math.max(...rows.map(r=>r[2]))}`);
 };
 
+await page.click('#measure');
+await wait(1500);
+log('engine load (measured on the audio thread):', await page.textContent('#loadPct'));
 await page.click('#play');
 const t0 = Date.now();
 await wait(20000);
-log('20 s playing: load', await page.textContent('#loadPct'), '| late', await page.textContent('#late'), '| glitches', await page.textContent('#glitches'), '|', await page.textContent('#where'));
+log('20 s playing: drops', await page.textContent('#drops'), '|', await page.textContent('#where'));
 await page.screenshot({ path: `${out}/phone-playing.png` });
 
 // Main thread jammed 400 ms of every second.
@@ -44,7 +49,7 @@ const t1 = Date.now();
 await wait(15000);
 await page.click('#stress');
 const t2 = Date.now();
-log('after stress: load', await page.textContent('#loadPct'), '| late', await page.textContent('#late'));
+log('after stress: drops', await page.textContent('#drops'));
 
 // Screen off for 20 s.
 adb('shell', 'input', 'keyevent', '26');
@@ -68,7 +73,7 @@ summary(history, t0, t1, 'normal');
 summary(history, t1, t2, 'UI jammed');
 summary(history, t3, t4, 'screen OFF');
 summary(history, t5, t6, 'HOME (Chrome in background)');
-log('final: load', await page.textContent('#loadPct'), '| late', await page.textContent('#late'), '| glitches', await page.textContent('#glitches'));
+log('final: drops', await page.textContent('#drops'));
 await page.screenshot({ path: `${out}/phone-after.png` });
 await page.click('#play'); // stop
 await wait(500);

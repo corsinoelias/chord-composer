@@ -12,6 +12,8 @@ npm run check:schema  # Fails if any page has a banned JSON-LD @type (see note b
 npm run lint          # ESLint
 npx tsc --noEmit      # TypeScript-only type check (faster for catching errors)
 npm run seed          # Seed songs to Supabase (requires .env)
+npm run engine:sync   # Copy the Android app's audio engine into engine/vendor/ and build public/engine/ (needs wasi-sdk)
+npm run check:engine  # Fails if engine/ or public/engine/ differ from engine/source.json; wired into netlify.toml's build
 
 # Search Console (impressions, average position, CTR -- the half GA4 cannot see)
 node scripts/gsc.mjs compare              # this 28d window vs the previous one
@@ -39,6 +41,17 @@ Windows path (the script catches this and says so). Data lags ~2 days, so every
 window ends two days ago.
 
 There are no automated tests.
+
+**The app's audio engine on the web** (`docs/motor-unico-wasm.md`). The Android app's C++ engine
+(`chord_sequencer/android/app/src/main/cpp/native_audio.cpp`) is being brought to the web as
+WebAssembly running in an AudioWorklet. The app owns it: never edit `engine/vendor/` — change the
+engine in the app, then `npm run engine:sync`, test on a phone (`lab/app-engine/phone/README.md`)
+and commit `engine/` and `public/engine/` together. `engine/web_glue.cpp` is the web's
+counterpart of the app's JNI bridge; the file builds with `-DCHORD_AUDIO_WEB`, which only drops
+JNI and the output stream's lock and reconnect thread. The lab page is `/lab/app-engine/`
+(noindex). WebAssembly needs `'wasm-unsafe-eval'` in the CSP (`src/middleware.ts` and the three
+`netlify.toml` blocks). Decided 2026-09-21: the app's engine and sounds are the reference —
+existing web songs will change sound (arpeggios get added to the C++ first).
 
 **Never add FAQPage or HowTo schema.** Google restricted FAQ rich results to government/health
 sites in Aug 2023 — this site doesn't qualify. HowTo was deprecated entirely in Sept 2023.

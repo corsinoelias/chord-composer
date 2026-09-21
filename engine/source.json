@@ -1,0 +1,35 @@
+{
+  "note": "Written by npm run engine:sync; checked by npm run check:engine. Do not edit by hand.",
+  "app": {
+    "commit": "ed2309dbfec01b0702f021bebfce66da3ded7aa0",
+    "dirtyEngine": true
+  },
+  "syncedAt": "2026-09-21T21:18:18.270Z",
+  "programs": [
+    0,
+    25,
+    33
+  ],
+  "drums": [
+    "kick",
+    "snare",
+    "stick",
+    "hat",
+    "hatopen",
+    "crash"
+  ],
+  "files": {
+    "engine/vendor/native_audio.cpp": "ca3ecc26661d14168de5d3ee36522c0eb4bf1aad808c6184c846ee3829eb93d7",
+    "engine/vendor/tsf.h": "b1a65f3e44624a720db0906a4c3d75c0d7a03f408f50bc4bfd92d9008ac84e93",
+    "engine/web_glue.cpp": "2b158693657c313b150691465bb92bc222da0bde544df7b6ed4424002bf04df0",
+    "engine/shim/aaudio/AAudio.h": "e05c86b807d44199f67776d9db135f20d0d0142f5a2c0ffc0b4807eaf6ee859d",
+    "public/engine/engine.wasm": "f88dc3d61931a371e31b3a425d7be13933b60ebb49beedc95d25ceacc1038f9d",
+    "public/engine/core.sf2": "d6bdc04394a021e6d6b4abaca6aa758aee549b79e1293ac5952768b8ea9141a0",
+    "public/engine/drums/kick.pcm": "43c665669d8a8d5d56bd65b17aebf816154d47ed06fc1040ffe37b18036d8950",
+    "public/engine/drums/snare.pcm": "aa569669c427eb841a5b4189592de5aec42b603043d93b0f6db7acf09809c372",
+    "public/engine/drums/stick.pcm": "8993f18dab1b76822da89629f724f3a6cd3a630bc00112320ac877f546eeb7aa",
+    "public/engine/drums/hat.pcm": "3e10dec27b9c2add72e6dfbe6d46179516554c6d45b43b352dcedbaf3b7c4676",
+    "public/engine/drums/hatopen.pcm": "67aa727f062897e61f9f420cd5c5cd5ec955b713107bc206a41f59a6d660a227",
+    "public/engine/drums/crash.pcm": "3357f9ce646ecece6fa3ab2178ba8db5e027bda5692e234a794534d41f6c9293"
+  }
+}
