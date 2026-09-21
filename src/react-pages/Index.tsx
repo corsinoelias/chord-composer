@@ -25,7 +25,7 @@ import { keyPrefersFlats } from '@/lib/musicKeys';
 import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { getStyleByIdWithOverrides, resolveActiveStyle, MUSICAL_STYLES, type StylePattern } from '@/lib/styles';
 import { getCustomStyles, getStyleOverride, saveStyleOverride, saveCustomStyle, isCustomStyle, initCustomStylesCache } from '@/lib/customStyles';
-import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAudio } from '@/lib/audioEngine';
+import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAudio, preloadInstrumentSound } from '@/lib/audioEngine';
 import { makeOfflineSectionResolver, makeStyleLookup, effectiveSectionStyle, sectionPatternsFromStyle } from '@/lib/sectionPlayback';
 import { type SectionArrangement } from '@/components/SectionArrangementMenu';
 import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
@@ -1314,7 +1314,26 @@ const Index = ({ songId }: IndexProps) => {
 
   // Per-section arrangement. Changing a section's rhythm drops the melodic variations it had
   // picked: they belonged to the previous rhythm (docs/ritmo-por-seccion.md, rule 4).
+  /** Picking a new bass or guitar sound starts loading it right away — see preloadInstrumentSound. */
+  const handleInstrumentsChange = useCallback((next: InstrumentState[]) => {
+    for (const inst of next) {
+      const prev = instrumentsRef.current.find(i => i.id === inst.id);
+      if (prev && prev.soundTypeId !== inst.soundTypeId) {
+        preloadInstrumentSound(inst.id, inst.soundTypeId, { sections: sectionsRef.current, style: currentStyle, transposition });
+      }
+    }
+    setInstruments(next);
+  }, [currentStyle, transposition]);
+
   const handleSectionArrangementChange = useCallback((sectionIndex: number, next: SectionArrangement) => {
+    // Same for a sound a section swaps in.
+    const section = sectionsRef.current[sectionIndex];
+    for (const track of ['bass', 'guitar'] as const) {
+      const sound = next.sounds?.[track];
+      if (sound && sound !== section?.sounds?.[track]) {
+        preloadInstrumentSound(track, sound, { sections: sectionsRef.current, style: currentStyle, transposition });
+      }
+    }
     setSections(prev => prev.map((s, i) => {
       if (i !== sectionIndex) return s;
       const { styleId: _s, trackStyles: _t, patterns: _p, silenced: _m, sounds: _n, ...rest } = s;
@@ -1324,7 +1343,7 @@ const Index = ({ songId }: IndexProps) => {
         : { ...rest, ...next };
     }));
     analytics.sectionArrangementChanged(next);
-  }, []);
+  }, [currentStyle, transposition]);
 
   const sectionStyleLookup = useMemo(
     () => makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle),
@@ -1954,7 +1973,7 @@ const Index = ({ songId }: IndexProps) => {
         open={instrumentsPanelOpen}
         onClose={() => setInstrumentsPanelOpen(false)}
         instruments={instruments}
-        onInstrumentChange={setInstruments}
+        onInstrumentChange={handleInstrumentsChange}
         currentStyle={currentStyle}
       />
 

@@ -117,7 +117,7 @@ export async function ensureGuitarSoundfontLoaded(soundTypeId: string, instrumen
 }
 // ─────────────────────────────────────────────────────────────────────────────
 import { type InstrumentState, type InstrumentType, getSoundType, type SoundType, isInstrumentAudible } from './instruments';
-import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir, stopAllSampledNodes, isSampleDirUnavailable } from './bassTab/sampleEngine';
+import { scheduleSampledNoteByDir, scheduleSampledNoteByDirAsync, preloadSampleDir, preloadSampleDirForMidis, stopAllSampledNodes, isSampleDirUnavailable } from './bassTab/sampleEngine';
 import { type StylePattern, generateBarPattern, getSlotsPerBar, getMetronomeClickInterval, getSwingOffset } from './styles';
 import { type Section } from './sections';
 import { buildEffectsChain } from './audioEffects';
@@ -505,6 +505,37 @@ export function getAudioContext(): AudioContext {
   }
 
   return audioContext;
+}
+
+/**
+ * Starts loading a bass or guitar sound the moment someone picks it.
+ *
+ * Until now the samples were only requested by the first note that needed them, and
+ * every note played before they arrived fell back to the synth — so switching sound
+ * mid-song, or right before pressing Play, sounded like "Synth Bass" for a bar or two.
+ * Fire-and-forget: playback still handles a sound that isn't ready yet.
+ *
+ * For the bass, `song` narrows the load to the notes this song plays (a whole bank is
+ * ~20 MB — see PlaybackContext's warmup); without it nothing is fetched.
+ */
+export function preloadInstrumentSound(
+  instrument: InstrumentType,
+  soundTypeId: string,
+  song?: { sections: Section[]; style: StylePattern; transposition?: number },
+): void {
+  if (instrument !== 'bass' && instrument !== 'guitar') return;
+  const sound = getSoundType(instrument, soundTypeId);
+  if (!sound) return;
+  const ctx = getAudioContext();
+  if (instrument === 'bass') {
+    if (sound.useSamples && sound.samplePath && song) {
+      const midis = collectMidiNotes('bass', { ...song, octaveOffset: sound.octaveOffset });
+      preloadSampleDirForMidis(ctx, sound.samplePath, midis).catch(() => {});
+    }
+    return;
+  }
+  if (sound.sf2Instrument) ensureGuitarSoundfont(soundTypeId, sound.sf2Instrument);
+  else if (sound.useSamples && sound.samplePath) ensureGuitarSampleType(sound.samplePath);
 }
 
 /**
