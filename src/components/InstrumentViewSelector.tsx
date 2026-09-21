@@ -10,13 +10,33 @@ interface Props {
   value: ChordView;
   onChange: (v: ChordView) => void;
   className?: string;
+  /** `seg` is the chord player's segmented control; `default` is the tiny shared chip row. */
+  variant?: 'default' | 'seg';
 }
 
 // Single shared control for both ChordAside ("Chords used") and SongChordPreview ("Now
 // playing") — they used to each hand-roll their own version of this with slightly different
 // labels/sizing, which read as two different UIs for the same choice. Kept intentionally tiny
 // (both hosts are compact header bars) but now byte-for-byte identical between the two.
-export function InstrumentViewSelector({ value, onChange, className = '' }: Props) {
+export function InstrumentViewSelector({ value, onChange, className = '', variant = 'default' }: Props) {
+  if (variant === 'seg') {
+    return (
+      <div className={`cp-seg shrink-0 ${className}`}>
+        {VIEWS.map(v => (
+          <button
+            key={v.id}
+            type="button"
+            onClick={() => onChange(v.id)}
+            aria-pressed={value === v.id}
+            className={value === v.id ? 'cp-on' : ''}
+          >
+            {v.label.charAt(0).toUpperCase() + v.label.slice(1)}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className={`inline-flex rounded-md border border-border overflow-hidden shrink-0 ${className}`}>
       {VIEWS.map(v => (

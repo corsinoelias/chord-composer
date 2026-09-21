@@ -1,5 +1,8 @@
 ---
 export const prerender = true;
+// The player's own design tokens and primitives, all scoped under `.cp` — see
+// src/styles/chord-player.css. Imported here so they ship with this page only.
+import '../../styles/chord-player.css';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import EditorApp from '../../components/EditorApp';
 import UiButtonChip from '../../components/UiButtonChip.astro';
@@ -105,7 +108,10 @@ const webAppSchema = {
       the skeleton down once THIS island has painted — not when any island on the page
       hydrates, which is what used to blank the screen for seconds (see that module).
     -->
-    <div style="display: grid;">
+    <!-- grid-template-columns: minmax(0, 1fr) — without it the single implicit column is
+         sized to its items' min-content, and the editor (a full-bleed two-column layout
+         now) drags the whole page ~45px wider than the viewport on a phone. -->
+    <div style="display: grid; grid-template-columns: minmax(0, 1fr);">
       <div id="editor-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out;" class="min-h-screen bg-background">
         <!--
           The logo + breadcrumb row below is real, permanent content (not aria-hidden). A

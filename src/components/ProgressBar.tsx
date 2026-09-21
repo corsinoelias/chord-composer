@@ -1,6 +1,5 @@
-import { memo, useMemo, useEffect, useState } from 'react';
+import { memo, useMemo } from 'react';
 import { type Section } from '@/lib/sections';
-import { formatChord } from '@/lib/musicTheory';
 
 interface ProgressBarProps {
   sections: Section[];
@@ -9,99 +8,47 @@ interface ProgressBarProps {
   loopingSectionIndex: number | null;
 }
 
+/**
+ * The hairline that sits along the bottom edge of the player header.
+ *
+ * It used to be a card of its own above the transport, repeating the section and chord
+ * names; the structure bar now carries all of that — where you are, how far in, what is
+ * looping — so this is only the thin bleed of progress under the toolbar.
+ */
 export const ProgressBar = memo(function ProgressBar({
   sections,
   currentChordIndex,
   isPlaying,
   loopingSectionIndex,
 }: ProgressBarProps) {
-  // Smooth progress animation
-  const [displayProgress, setDisplayProgress] = useState(0);
+  const progress = useMemo(() => {
+    if (!isPlaying || currentChordIndex < 0) return 0;
 
-  // Calculate total chords and current position
-  const { totalChords, currentSection, currentChord, targetProgress } = useMemo(() => {
-    let total = 0;
-    let currentSec = '';
-    let currentCh = '';
-    
-    // Calculate based on looping or full play
     if (loopingSectionIndex !== null) {
       const section = sections[loopingSectionIndex];
-      if (section) {
-        total = section.chords.length * section.repeatCount;
-        currentSec = section.name;
-        const localIndex = currentChordIndex >= 0 ? currentChordIndex % section.chords.length : -1;
-        if (localIndex >= 0 && section.chords[localIndex]) {
-          currentCh = formatChord(section.chords[localIndex]);
-        }
+      if (!section || section.chords.length === 0) return 0;
+      const span = section.chords.length * section.repeatCount;
+      let offset = 0;
+      for (let i = 0; i < loopingSectionIndex; i++) {
+        offset += sections[i].chords.length * sections[i].repeatCount;
       }
-    } else {
-      for (const section of sections) {
-        total += section.chords.length * section.repeatCount;
-      }
-      
-      // Find current section and chord
-      if (currentChordIndex >= 0) {
-        let offset = 0;
-        for (const section of sections) {
-          const sectionTotal = section.chords.length * section.repeatCount;
-          if (currentChordIndex < offset + sectionTotal) {
-            currentSec = section.name;
-            const localIndex = (currentChordIndex - offset) % section.chords.length;
-            if (section.chords[localIndex]) {
-              currentCh = formatChord(section.chords[localIndex]);
-            }
-            break;
-          }
-          offset += sectionTotal;
-        }
-      }
+      return ((((currentChordIndex - offset) % span) + span) % span + 1) / span;
     }
-    
-    const prog = total > 0 && currentChordIndex >= 0 
-      ? ((currentChordIndex + 1) / total) * 100 
-      : 0;
-    
-    return { 
-      totalChords: total, 
-      currentSection: currentSec, 
-      currentChord: currentCh,
-      targetProgress: prog,
-    };
-  }, [sections, currentChordIndex, loopingSectionIndex]);
 
-  // Animate progress smoothly
-  useEffect(() => {
-    setDisplayProgress(targetProgress);
-  }, [targetProgress]);
-
-  if (!isPlaying) return null;
+    const total = sections.reduce((sum, s) => sum + s.chords.length * s.repeatCount, 0);
+    return total > 0 ? (currentChordIndex + 1) / total : 0;
+  }, [sections, currentChordIndex, isPlaying, loopingSectionIndex]);
 
   return (
-    <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg px-3 py-2 animate-in fade-in duration-200">
-      <div className="flex items-center justify-between text-xs sm:text-sm mb-1.5">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {currentSection && (
-            <span className="font-medium text-muted-foreground truncate">{currentSection}</span>
-          )}
-          {currentChord && (
-            <>
-              <span className="text-muted-foreground">•</span>
-              <span className="font-mono font-semibold text-foreground">{currentChord}</span>
-            </>
-          )}
-        </div>
-        <span className="text-muted-foreground/70 tabular-nums text-xs ml-2">
-          {currentChordIndex + 1} / {totalChords}
-        </span>
-      </div>
-      
-      <div className="h-1 bg-secondary/50 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-primary/80 rounded-full transition-[width] duration-200 ease-out"
-          style={{ width: `${displayProgress}%` }}
-        />
-      </div>
+    <div
+      className="absolute inset-x-0 -bottom-px h-[3px]"
+      style={{ background: 'var(--cp-s3)' }}
+      aria-hidden="true"
+    >
+      <div
+        className="h-[3px] transition-[width] duration-200 ease-out"
+        style={{ width: `${Math.min(100, progress * 100)}%`, background: 'var(--cp-ac)' }}
+      />
     </div>
   );
 });

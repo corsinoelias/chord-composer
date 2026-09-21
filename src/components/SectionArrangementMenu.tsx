@@ -38,6 +38,26 @@ interface Props {
   sectionName: string;
   /** Edit the section's rhythm grid (opens the Rhythm Editor on its style). Editor only. */
   onEditRhythm?: () => void;
+  /**
+   * The chord player supplies its own "Options" button and, beside it, a chip that has to
+   * open the same panel — hence the controlled `open` as well: one Popover, two ways in.
+   * Left out, the built-in chip trigger is used and the panel manages its own state.
+   */
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /**
+   * Melodic variations for this section, one entry per track whose style offers more
+   * than one. They used to be three icon buttons in the section header; the redesign
+   * moves them in here, next to the track they belong to.
+   */
+  variationPickers?: Array<{
+    key: 'bass' | 'piano' | 'guitar';
+    label: string;
+    variations: Array<{ id: string; name: string }>;
+    activeId: string;
+  }>;
+  onVariationChange?: (instrument: 'bass' | 'piano' | 'guitar', variationId: string) => void;
 }
 
 /** Drops empty maps and false/empty values, so "nothing different" is stored as nothing. */
@@ -73,7 +93,19 @@ export function arrangementSummary(a: SectionArrangement, styles: StylePattern[]
   return parts.join(' · ');
 }
 
-export function SectionArrangementMenu({ arrangement, onChange, songStyle, styles, sectionName, onEditRhythm }: Props) {
+export function SectionArrangementMenu({
+  arrangement,
+  onChange,
+  songStyle,
+  styles,
+  sectionName,
+  onEditRhythm,
+  trigger,
+  open,
+  onOpenChange,
+  variationPickers,
+  onVariationChange,
+}: Props) {
   const slotsPerBar = getSlotsPerBar(songStyle);
   // One meter per song: only styles whose bar has the same length can play a section.
   const compatible = useMemo(
@@ -87,18 +119,20 @@ export function SectionArrangementMenu({ arrangement, onChange, songStyle, style
     'h-8 w-full rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring';
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button
-          variant={summary ? 'secondary' : 'ghost'}
-          size="sm"
-          className={`h-6 gap-1 px-1.5 text-[11px] max-w-[11rem] ${summary ? '' : 'opacity-60 hover:opacity-100'}`}
-          aria-label={`Section options for ${sectionName}`}
-          title={summary ?? 'Section options: rhythm, tracks and sounds'}
-        >
-          <SlidersHorizontal className="h-3 w-3 shrink-0" />
-          {summary && <span className="truncate">{summary}</span>}
-        </Button>
+        {trigger ?? (
+          <Button
+            variant={summary ? 'secondary' : 'ghost'}
+            size="sm"
+            className={`h-6 gap-1 px-1.5 text-[11px] max-w-[11rem] ${summary ? '' : 'opacity-60 hover:opacity-100'}`}
+            aria-label={`Section options for ${sectionName}`}
+            title={summary ?? 'Section options: rhythm, tracks and sounds'}
+          >
+            <SlidersHorizontal className="h-3 w-3 shrink-0" />
+            {summary && <span className="truncate">{summary}</span>}
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 space-y-3 p-3">
         <div className="text-xs font-semibold">{sectionName}: section options</div>
@@ -188,6 +222,26 @@ export function SectionArrangementMenu({ arrangement, onChange, songStyle, style
             );
           })}
         </div>
+
+        {variationPickers && variationPickers.length > 0 && onVariationChange && (
+          <div className="space-y-1.5">
+            <span className="text-[11px] text-muted-foreground">Variation in this section</span>
+            {variationPickers.map(({ key, label, variations, activeId }) => (
+              <label key={key} className="flex items-center gap-2">
+                <span className="w-12 shrink-0 text-[11px]">{label}</span>
+                <select
+                  className={selectClass}
+                  value={activeId}
+                  onChange={(e) => onVariationChange(key, e.target.value)}
+                >
+                  {variations.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        )}
 
         {summary && (
           <Button variant="ghost" size="sm" className="h-7 w-full gap-1 text-xs" onClick={() => onChange({})}>

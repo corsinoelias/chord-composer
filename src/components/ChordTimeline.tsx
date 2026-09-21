@@ -111,7 +111,6 @@ export function ChordTimeline({ chords, currentChordIndex, onReorder, onDelete, 
             <ChordBlock
               chord={chord}
               isPlaying={currentChordIndex === index}
-              onDelete={() => onDelete(index)}
               isDragging={draggedIndex === index}
               fixedWidth
             />

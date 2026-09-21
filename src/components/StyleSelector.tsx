@@ -17,6 +17,11 @@ interface StyleSelectorProps {
    * offer the built-in rhythms everyone can hear/use, e.g. the public song creator. */
   showCustom?: boolean;
   triggerClassName?: string;
+  /**
+   * `card` is the chord player's Sound card trigger: a 56px slab with the rhythm's icon,
+   * its name and its category · tempo. `default` is the plain labelled select.
+   */
+  variant?: 'default' | 'card';
 }
 
 // Group styles by category for the dropdown
@@ -81,6 +86,7 @@ export const StyleSelector = memo(function StyleSelector({
   customStyles = [],
   showCustom = true,
   triggerClassName = 'w-[180px] h-9 bg-secondary border-border',
+  variant = 'default',
 }: StyleSelectorProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [styleToDelete, setStyleToDelete] = useState<string | null>(null);
@@ -122,13 +128,39 @@ export const StyleSelector = memo(function StyleSelector({
     setDeleteDialogOpen(false);
     setStyleToDelete(null);
   }, [styleToDelete, selectedStyleId, onStyleChange]);
+  const isCard = variant === 'card';
+
   return <>
-      <div className="flex items-center gap-2">
-        <Music className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+      <div className={isCard ? '' : 'flex items-center gap-2'}>
+        {!isCard && <Music className="w-4 h-4 text-muted-foreground" aria-hidden="true" />}
         <Select value={selectedStyleId} onValueChange={onStyleChange}>
-          <SelectTrigger aria-label="Rhythm style and tempo" className={triggerClassName}>
-            <SelectValue placeholder="Seleccionar estilo" />
-          </SelectTrigger>
+          {isCard ? (
+            <SelectTrigger
+              aria-label="Rhythm style and tempo"
+              // line-clamp-none undoes SelectTrigger's own `[&>span]:line-clamp-1`, which
+              // would turn the name/meta stack into a -webkit-box and flatten it to one line.
+              className="h-14 w-full justify-start gap-3 rounded-xl border px-3.5 pl-2.5 text-left [&>span]:line-clamp-none [&>svg]:opacity-100"
+              style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln2)', color: 'var(--cp-tx)' }}
+            >
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+                style={{ background: 'color-mix(in srgb, var(--cp-ac) 14%, transparent)', color: 'var(--cp-act)' }}
+                aria-hidden="true"
+              >
+                <Music className="h-[18px] w-[18px]" />
+              </span>
+              <span className="flex min-w-0 flex-grow flex-col gap-0.5">
+                <span className="truncate text-sm font-bold">{selectedStyle?.name ?? 'Pick a rhythm'}</span>
+                <span className="truncate text-xs" style={{ color: 'var(--cp-mu)' }}>
+                  {selectedStyle ? `${selectedStyle.category} · ${selectedStyle.bpm} BPM` : 'Rhythm style'}
+                </span>
+              </span>
+            </SelectTrigger>
+          ) : (
+            <SelectTrigger aria-label="Rhythm style and tempo" className={triggerClassName}>
+              <SelectValue placeholder="Seleccionar estilo" />
+            </SelectTrigger>
+          )}
           <SelectContent className="bg-popover border-border z-50 max-h-[400px]">
             {categories.map(category => {
             // For custom category, use customStyles prop; for built-in, apply overrides

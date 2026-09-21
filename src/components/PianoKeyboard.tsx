@@ -4,7 +4,22 @@ interface PianoKeyboardProps {
   activeNotes: string[];   // pitch classes, root first
   chordName?: string;
   className?: string;
+  /**
+   * `player` is the chord player's keyboard: separated, rounded keys, the chord's white
+   * keys tinted in the accent rather than only dotted. `default` is the shared one every
+   * other surface uses.
+   */
+  variant?: 'default' | 'player';
 }
+
+// ── Player variant geometry, straight off the redesign canvas ──────────────────────────
+const P_W = 336;
+const P_H = 100;
+const P_WW = 23;        // white key width; they sit on a 24px pitch, so 1px of air between
+const P_BW = 14;
+const P_BH = 60;
+const P_BLACK_X_IN_OCT = [17, 41, 89, 113, 137];
+const P_OCT_W = 168;
 
 const WW = 28;
 const WH = 78;
@@ -93,11 +108,58 @@ const WHITE_KEY_FILL = '#f4f4f5'; // zinc-100 — just enough off-white to read 
 const KEY_LINE = '#71717a';       // zinc-500 — one clean line per key boundary, no doubling
 const BLACK_KEY_FILL = '#3f3f46'; // zinc-700 — dark but not ink-heavy
 
-export function PianoKeyboard({ activeNotes, chordName, className = '' }: PianoKeyboardProps) {
+export function PianoKeyboard({ activeNotes, chordName, className = '', variant = 'default' }: PianoKeyboardProps) {
   const { white: wHighlight, black: bHighlight } = useMemo(
     () => computeHighlights(activeNotes),
     [activeNotes],
   );
+
+  if (variant === 'player') {
+    return (
+      <svg
+        viewBox={`0 0 ${P_W} ${P_H}`}
+        width="100%"
+        className={`block rounded-md ${className}`}
+        aria-label={chordName ? `Piano keys for ${chordName}` : 'Piano keys'}
+      >
+        {WHITE_NOTES.map((_, i) => (
+          <rect
+            key={`w-${i}`}
+            className={wHighlight.has(i) ? 'cp-ka' : 'cp-kw'}
+            x={i * (P_WW + 1)} y={0} width={P_WW} height={P_H} rx={3}
+          />
+        ))}
+
+        {[0, 1].flatMap(oct =>
+          P_BLACK_X_IN_OCT.map((xOff, ki) => (
+            <rect
+              key={`b-${oct}-${ki}`}
+              className={bHighlight.has(oct * 5 + ki) ? 'cp-kd' : 'cp-kb'}
+              x={oct * P_OCT_W + xOff} y={0} width={P_BW} height={P_BH} rx={2}
+            />
+          )),
+        )}
+
+        {/* Markers: a solid disc low on a tinted white key, a light disc on a black one. */}
+        {WHITE_NOTES.map((_, i) =>
+          wHighlight.has(i) ? (
+            <circle key={`wd-${i}`} className="cp-kd" cx={i * (P_WW + 1) + P_WW / 2} cy={86} r={6} />
+          ) : null,
+        )}
+        {[0, 1].flatMap(oct =>
+          P_BLACK_X_IN_OCT.map((xOff, ki) =>
+            bHighlight.has(oct * 5 + ki) ? (
+              <circle
+                key={`bd-${oct}-${ki}`}
+                cx={oct * P_OCT_W + xOff + P_BW / 2} cy={46} r={5}
+                fill="#FFFFFF"
+              />
+            ) : null,
+          ),
+        )}
+      </svg>
+    );
+  }
 
   return (
     <div className={`flex flex-col items-center gap-2 ${className}`}>

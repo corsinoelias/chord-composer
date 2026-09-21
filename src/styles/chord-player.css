@@ -1,0 +1,763 @@
+/*
+ * Chord Player — design tokens and primitives.
+ *
+ * Transcribed from the "Chord Player web — rediseño" canvas (Opción A), using the
+ * `data-theme="light"` token set each artboard carries. Everything is scoped under
+ * `.cp` so it can't leak into the rest of the site, which keeps its own palette.
+ *
+ * The class names mirror the artboards' (`.card` → `.cp-card`, `.btn` → `.cp-btn`,
+ * `.ch` → `.cp-ch`, `.sc` → `.cp-sc`), prefixed so nothing collides with Tailwind
+ * or with the shadcn components that live inside the same tree.
+ */
+
+.cp {
+  /* Surfaces */
+  --cp-bg: #F2F3F7;
+  --cp-bar: #FFFFFF;
+  --cp-s1: #FFFFFF;
+  --cp-s2: #F0F1F5;
+  --cp-s3: #E4E6ED;
+  --cp-ln: #E0E3EA;
+  --cp-ln2: #C9CEDA;
+
+  /* Text */
+  --cp-tx: #12161F;
+  --cp-tx2: #384052;
+  --cp-mu: #586175;
+
+  /* Accent */
+  --cp-ac: #6D28D9;
+  --cp-act: #6D28D9;
+
+  /* Chord qualities. maj/min/sev/sus come from the artboards; dim/aug extend the
+     same family for the qualities the editor supports but the mockups never drew. */
+  --cp-maj: #E5A20A;
+  --cp-majt: #85560A;
+  --cp-min: #3B63D0;
+  --cp-mint: #2A4CB5;
+  --cp-sev: #12A578;
+  --cp-sevt: #0A7454;
+  --cp-sus: #E0731F;
+  --cp-sust: #9A4A0B;
+  --cp-dim: #8B5CF6;
+  --cp-dimt: #5B21B6;
+  --cp-aug: #C93B6C;
+  --cp-augt: #9D1D4C;
+
+  /* Piano keys */
+  --cp-kw: #FFFFFF;
+  --cp-kb: #1B1F2A;
+
+  /* Destructive */
+  --cp-dg: #C0262D;
+
+  /* Section colours, cycled in order down the song */
+  --cp-s-a: #12988A;
+  --cp-s-b: #C93B6C;
+  --cp-s-c: #6D28D9;
+}
+
+.cp,
+.cp * {
+  box-sizing: border-box;
+}
+
+/* The editor sits in a grid cell (see chord-player/index.astro): without this its
+   min-content would set the track's width and push the page past the viewport. */
+.cp {
+  min-width: 0;
+}
+
+.cp {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: var(--cp-tx);
+  background: var(--cp-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+.cp-mono {
+  font-family: 'Space Mono', ui-monospace, monospace;
+}
+
+/* ─────────────────────────────── Typography ─────────────────────────────── */
+
+.cp-lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--cp-mu);
+}
+
+/* ───────────────────────────────── Buttons ───────────────────────────────── */
+
+.cp-btn {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--cp-ln2);
+  background: transparent;
+  color: var(--cp-tx);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.cp-btn:hover:not(:disabled) {
+  background: var(--cp-s2);
+}
+
+.cp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cp-btn.cp-ib {
+  width: 40px;
+  padding: 0;
+  justify-content: center;
+}
+
+.cp-btn.cp-gh {
+  border-color: transparent;
+  color: var(--cp-tx2);
+}
+
+/* Icon-only while space is tight, labelled once the rail layout kicks in. Lives here
+   rather than as `lg:w-auto` utilities because `.cp-btn.cp-ib` outranks a single class. */
+@media (min-width: 1024px) {
+  .cp-btn.cp-ib.cp-wide-lg {
+    width: auto;
+    padding: 0 14px;
+  }
+}
+
+.cp-btn.cp-pri {
+  background: var(--cp-ac);
+  border-color: var(--cp-ac);
+  color: #FFFFFF;
+}
+
+.cp-btn.cp-pri:hover:not(:disabled) {
+  background: var(--cp-ac);
+  filter: brightness(1.1);
+}
+
+.cp-btn.cp-acc {
+  border-color: color-mix(in srgb, var(--cp-ac) 55%, transparent);
+  color: var(--cp-act);
+}
+
+.cp-btn.cp-dash {
+  border: 1.5px dashed var(--cp-ln2);
+  color: var(--cp-tx2);
+}
+
+.cp-btn.cp-dash:hover:not(:disabled) {
+  border-color: var(--cp-ac);
+  color: var(--cp-act);
+  background: transparent;
+}
+
+/* ─────────────────────────────── Containers ─────────────────────────────── */
+
+.cp-card {
+  background: var(--cp-s1);
+  border: 1px solid var(--cp-ln);
+  border-radius: 16px;
+}
+
+.cp-dv {
+  width: 1px;
+  height: 32px;
+  background: var(--cp-ln);
+  flex-shrink: 0;
+}
+
+.cp-kbd {
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cp-tx2);
+  background: var(--cp-s2);
+  border: 1px solid var(--cp-ln2);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+/* ──────────────────────────────── Controls ──────────────────────────────── */
+
+.cp-sw {
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--cp-ln2);
+  position: relative;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 140ms ease;
+}
+
+.cp-sw::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: left 140ms ease;
+}
+
+.cp-sw.cp-on {
+  background: var(--cp-ac);
+}
+
+.cp-sw.cp-on::after {
+  left: 21px;
+}
+
+input.cp-rg {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--cp-ac) var(--cp-p), var(--cp-s3) var(--cp-p));
+  outline: none;
+  margin: 0;
+  cursor: pointer;
+}
+
+input.cp-rg::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 2px var(--cp-ac), 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+input.cp-rg::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 2px var(--cp-ac);
+}
+
+input.cp-rg:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Key pill: −  Em  + */
+.cp-pill {
+  height: 36px;
+  border-radius: 10px;
+  background: var(--cp-s2);
+  border: 1px solid var(--cp-ln);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 3px;
+}
+
+.cp-pill button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cp-tx2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.cp-pill button:hover:not(:disabled) {
+  background: var(--cp-s3);
+}
+
+/* Metronome: a tappable slab on a phone, a bare icon + switch pair once the transport
+   row has room for its own label above it. */
+.cp-metro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--cp-s2);
+  border: 1px solid var(--cp-ln);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (min-width: 1024px) {
+  .cp-metro {
+    height: 36px;
+    padding: 0;
+    background: transparent;
+    border-color: transparent;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+}
+
+/* Segmented control: Guitar | Piano | Ukulele */
+.cp-seg {
+  display: inline-flex;
+  border-radius: 10px;
+  background: var(--cp-s2);
+  border: 1px solid var(--cp-ln);
+  padding: 3px;
+  gap: 2px;
+}
+
+.cp-seg button {
+  height: 28px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cp-mu);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-seg button.cp-on {
+  background: var(--cp-ac);
+  color: #FFFFFF;
+}
+
+/* Repeat stepper: −  ×2  + */
+.cp-step {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--cp-s2);
+  border: 1px solid var(--cp-ln);
+}
+
+.cp-step button {
+  width: 28px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--cp-mu);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.cp-step button:hover:not(:disabled) {
+  background: var(--cp-s3);
+  color: var(--cp-tx);
+}
+
+.cp-step button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Drag grip */
+.cp-gr {
+  width: 24px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--cp-mu);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.cp-gr:hover {
+  background: var(--cp-s2);
+  color: var(--cp-tx);
+}
+
+/* "Rock Basic · no piano" chip on a section that differs from the song */
+.cp-rc {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--cp-ac) 45%, transparent);
+  background: color-mix(in srgb, var(--cp-ac) 12%, transparent);
+  color: var(--cp-act);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.cp-rc .cp-sub {
+  color: var(--cp-tx2);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Section "Options" button, with a dot when the section differs from the song */
+.cp-opt {
+  height: 36px;
+  padding: 0 10px 0 12px;
+  font-size: 12.5px;
+  position: relative;
+}
+
+.cp-opt .cp-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 5px;
+  background: var(--cp-ac);
+  border: 2px solid var(--cp-s1);
+}
+
+/* ───────────────────────────── Chord blocks ───────────────────────────── */
+
+.cp-ch {
+  --cp-h: var(--cp-maj);
+  --cp-t: var(--cp-majt);
+  position: relative;
+  height: 88px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  border: 1px solid color-mix(in srgb, var(--cp-h) 34%, transparent);
+  background: color-mix(in srgb, var(--cp-h) 11%, var(--cp-s1));
+  color: var(--cp-t);
+  cursor: grab;
+  text-align: left;
+  font: inherit;
+  width: 100%;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.cp-ch:active {
+  cursor: grabbing;
+}
+
+.cp-ch.cp-min { --cp-h: var(--cp-min); --cp-t: var(--cp-mint); }
+.cp-ch.cp-sev { --cp-h: var(--cp-sev); --cp-t: var(--cp-sevt); }
+.cp-ch.cp-sus { --cp-h: var(--cp-sus); --cp-t: var(--cp-sust); }
+.cp-ch.cp-dim { --cp-h: var(--cp-dim); --cp-t: var(--cp-dimt); }
+.cp-ch.cp-aug { --cp-h: var(--cp-aug); --cp-t: var(--cp-augt); }
+
+.cp-ch .cp-cn {
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 25px;
+  line-height: 1;
+  color: var(--cp-tx);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.cp-ch .cp-cb {
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--cp-mu);
+}
+
+/* Playing */
+.cp-ch.cp-on {
+  border-color: var(--cp-h);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cp-h) 20%, transparent);
+  background: color-mix(in srgb, var(--cp-h) 18%, var(--cp-s1));
+}
+
+/* Multi-selected */
+.cp-ch.cp-sel {
+  border-color: var(--cp-ac);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cp-ac) 22%, transparent);
+}
+
+.cp-ch.cp-drag {
+  opacity: 0.45;
+}
+
+/* Beat dots along the bottom of a chord */
+.cp-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.cp-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.cp-dots i.cp-f {
+  opacity: 1;
+}
+
+/* ──────────────────────────── Structure bar ──────────────────────────── */
+
+.cp-trk {
+  display: flex;
+  gap: 6px;
+  position: relative;
+}
+
+.cp-sc {
+  --cp-c: var(--cp-s-a);
+  position: relative;
+  height: 54px;
+  min-width: 72px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--cp-c) 38%, transparent);
+  background: color-mix(in srgb, var(--cp-c) 14%, var(--cp-s1));
+  padding: 0 10px 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  cursor: grab;
+  color: var(--cp-tx);
+  font: inherit;
+  text-align: left;
+}
+
+.cp-sc .cp-t {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  position: relative;
+  flex-grow: 1;
+}
+
+.cp-sc .cp-n {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.1;
+}
+
+.cp-sc .cp-m {
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--cp-mu);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.cp-sc .cp-x {
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cp-c);
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Filled portion = already played */
+.cp-sc .cp-fl {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--cp-c) 32%, transparent);
+  pointer-events: none;
+}
+
+/* Dashed divider marking where a repeat starts */
+.cp-sc .cp-rp {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  border-left: 1.5px dashed color-mix(in srgb, var(--cp-c) 60%, transparent);
+  pointer-events: none;
+}
+
+/* Diamond: this section differs from the song */
+.cp-sc .cp-rm {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--cp-ac);
+  transform: rotate(45deg);
+}
+
+.cp-sc.cp-on {
+  border-color: var(--cp-c);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cp-c) 22%, transparent);
+}
+
+.cp-sc.cp-dim-seg {
+  opacity: 0.55;
+}
+
+.cp-sc.cp-ad {
+  flex: 0 0 48px;
+  min-width: 48px;
+  justify-content: center;
+  padding: 0;
+  border: 1.5px dashed var(--cp-ln2);
+  background: transparent;
+  color: var(--cp-mu);
+  cursor: pointer;
+}
+
+.cp-sc.cp-ad:hover {
+  border-color: var(--cp-ac);
+  color: var(--cp-act);
+}
+
+/* Playhead */
+.cp-ph {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--cp-tx);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.cp-ph::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -4px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--cp-tx);
+}
+
+/* Drop placeholder left behind while a segment is dragged */
+.cp-sc-ghost {
+  height: 54px;
+  border-radius: 12px;
+  border: 1.5px dashed color-mix(in srgb, var(--cp-c) 60%, transparent);
+  background: color-mix(in srgb, var(--cp-c) 8%, transparent);
+}
+
+/* ──────────────────────────── Playing state ──────────────────────────── */
+
+@keyframes cp-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cp-ac) 55%, transparent); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+
+.cp-pd {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--cp-ac);
+  animation: cp-pulse 1.4s ease-out infinite;
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-pd { animation: none; }
+}
+
+/* Header waveform */
+.cp-wf {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+}
+
+.cp-wf i {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--cp-ac);
+}
+
+/* Beat indicator */
+.cp-bt {
+  display: flex;
+  gap: 5px;
+}
+
+.cp-bt i {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--cp-s3);
+}
+
+.cp-bt i.cp-f {
+  background: var(--cp-ac);
+}
+
+/* ───────────────────────────── Piano keys ───────────────────────────── */
+
+/* White keys are #FFFFFF on a white card here, so unlike the canvas (drawn dark) they
+   need an outline and a plate behind them for the gaps between keys to read at all. */
+.cp-kw { fill: var(--cp-kw); stroke: var(--cp-ln2); stroke-width: 0.8; }
+.cp-kb { fill: var(--cp-kb); }
+.cp-ka { fill: color-mix(in srgb, var(--cp-ac) 38%, var(--cp-kw)); stroke: var(--cp-ln2); stroke-width: 0.8; }
+.cp-kd { fill: var(--cp-ac); }
+
+.cp-keys {
+  background: var(--cp-s2);
+  border: 1px solid var(--cp-ln);
+  border-radius: 10px;
+  padding: 5px;
+}
+
+/* ──────────────────────────────── Popovers ──────────────────────────────── */
+
+.cp-pop {
+  background: var(--cp-s1);
+  border: 1px solid var(--cp-ln2);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(18, 22, 31, 0.16);
+}

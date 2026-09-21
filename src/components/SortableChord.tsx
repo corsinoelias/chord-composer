@@ -11,28 +11,28 @@ interface SortableChordProps {
   isSelected: boolean;
   hasSelection: boolean;
   onClick: () => void;
-  onDelete: () => void;
-  onDuplicate: () => void;
   onSelectToggle: (ctrl: boolean) => void;
   transposition?: number;
   preferFlats?: boolean;
   isOutOfScale?: boolean;
+  /** Tempo and playback index, so the beat dots fill themselves while the chord sounds. */
+  bpm?: number;
+  rawIndex?: number | string;
 }
 
 export function SortableChord({
   chord,
   chordId,
-  index,
   isPlaying,
   isSelected,
   hasSelection,
   onClick,
-  onDelete,
-  onDuplicate,
   onSelectToggle,
   transposition = 0,
   preferFlats = false,
   isOutOfScale = false,
+  bpm = 120,
+  rawIndex = 0,
 }: SortableChordProps) {
   const {
     attributes,
@@ -46,7 +46,6 @@ export function SortableChord({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.3 : 1,
     zIndex: isDragging ? 10 : 'auto' as const,
   };
 
@@ -63,26 +62,27 @@ export function SortableChord({
   };
 
   return (
-    <div
+    <button
       ref={setNodeRef}
+      type="button"
       style={style}
       {...attributes}
       {...listeners}
       onClick={handleClick}
-      className="cursor-pointer touch-none select-none"
+      className="block w-full touch-none select-none border-0 bg-transparent p-0 text-left"
+      aria-label={`Edit chord`}
     >
       <ChordBlock
         chord={chord}
         isPlaying={isPlaying}
         isSelected={isSelected}
-        onDelete={onDelete}
-        onDuplicate={onDuplicate}
         isDragging={isDragging}
-        fixedWidth
         transposition={transposition}
         preferFlats={preferFlats}
         isOutOfScale={isOutOfScale}
+        bpm={bpm}
+        rawIndex={rawIndex}
       />
-    </div>
+    </button>
   );
 }

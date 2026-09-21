@@ -16,9 +16,10 @@ import {
 import {
   SortableContext,
   rectSortingStrategy,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { type Chord, generateChordId, chordToMidiNotes } from '@/lib/musicTheory';
-import { type Section, createSection, getSectionDisplayName } from '@/lib/sections';
+import { type Section, createSection, getSectionDisplayName, sectionHasArrangement } from '@/lib/sections';
 import { detectKey, keyLabel, relativeTonic, type DetectedKey, type KeyMode } from '@/lib/keyDetect';
 import { keyPrefersFlats } from '@/lib/musicKeys';
 import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
@@ -49,23 +50,30 @@ import { CreateRhythmModal } from '@/components/CreateRhythmModal';
 import { InstrumentsPanel } from '@/components/InstrumentsPanel';
 import { ChordBlock } from '@/components/ChordBlock';
 import { ProgressBar } from '@/components/ProgressBar';
+import { StructureBar } from '@/components/StructureBar';
+import { ChordPreviewCard } from '@/components/ChordPreviewCard';
+import { SoundCard } from '@/components/SoundCard';
 import { GuidedTour } from '@/components/GuidedTour';
-import { BeatIndicator } from '@/components/BeatIndicator';
 import { CountdownOverlay } from '@/components/CountdownOverlay';
 import { ProgressionTemplatesModal } from '@/components/ProgressionTemplatesModal';
 import { ShortcutsHelp } from '@/components/ShortcutsHelp';
 import { WaveformVisualizer } from '@/components/WaveformVisualizer';
-import { PianoKeyboard } from '@/components/PianoKeyboard';
-import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
-import { DurationDots } from '@/components/DurationDots';
-import { InstrumentViewSelector } from '@/components/InstrumentViewSelector';
+import { StyleSelector } from '@/components/StyleSelector';
 import type { ChordView } from '@/hooks/useSyncedChordView';
 import { MixingConsole } from '@/components/MixingConsole';
 import { AuthModal } from '@/components/AuthModal';
 import { AccountPromptModal } from '@/components/AccountPromptModal';
 import { AccountMenu, AccountAvatarButton } from '@/components/AccountMenu';
-import { Button } from '@/components/ui/button';
-import { Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders, Share2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Music2, Plus, ArrowLeft, Check, Loader2, FileMusic, Sliders, Share2,
+  ChevronDown, Download, LayoutGrid, Pencil, Save, SlidersHorizontal,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -119,11 +127,25 @@ const editorSignature = (s: {
   metronomeEnabled: boolean;
 }) => JSON.stringify([s.title, s.sections, s.bpm, s.styleId, s.transposition, s.metronomeEnabled]);
 
-// Isolated subscriber to the 16th-note playhead: the only thing that re-renders on
+// Isolated subscribers to the 16th-note playhead: the only things that re-render on
 // every step, keeping those ~6.7x/sec updates out of the big editor tree.
-const PlayheadBeatIndicator = ({ isPlaying }: { isPlaying: boolean }) => {
-  const currentStep = useCurrentStep();
-  return <BeatIndicator currentStep={currentStep} isPlaying={isPlaying} />;
+const PlayheadBeatDots = () => {
+  const beat = Math.floor((useCurrentStep() % 16) / 4);
+  return (
+    <div className="cp-bt" aria-label={`Beat ${beat + 1} of 4`}>
+      {[0, 1, 2, 3].map(b => <i key={b} className={b === beat ? 'cp-f' : ''} />)}
+    </div>
+  );
+};
+
+const PlayheadBeatCount = () => {
+  const beat = Math.floor((useCurrentStep() % 16) / 4);
+  return (
+    <span className="cp-mono text-xl font-bold" style={{ color: 'var(--cp-act)' }}>
+      {beat + 1}
+      <span style={{ color: 'var(--cp-mu)', fontWeight: 400 }}> / 4</span>
+    </span>
+  );
 };
 
 const Index = ({ songId }: IndexProps) => {
@@ -133,7 +155,7 @@ const Index = ({ songId }: IndexProps) => {
   // `currentStep` is intentionally NOT read here — it changes ~6.7x/sec and reading it
   // at this top level would re-render the entire editor tree every 16th note (the cause
   // of the audio crackle). The beat playhead subscribes to it in isolation via
-  // <PlayheadBeatIndicator> (see below), which uses useCurrentStep().
+  // <PlayheadBeatDots>/<PlayheadBeatCount> (see below), which use useCurrentStep().
 
   // Song loading state
   const [currentSongId, setCurrentSongId] = useState<string | null>(null);
@@ -276,7 +298,6 @@ const Index = ({ songId }: IndexProps) => {
   const [showCountdown, setShowCountdown] = useState(false);
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
   const [mixingConsoleOpen, setMixingConsoleOpen] = useState(false);
-  const [animatingSections, setAnimatingSections] = useState<{ index: number; direction: 'up' | 'down' }[]>([]);
   // Refs for current values (used in callbacks)
   const sectionsRef = useRef<Section[]>(sections);
   const bpmRef = useRef(bpm);
@@ -1065,8 +1086,13 @@ const Index = ({ songId }: IndexProps) => {
       }
       return;
     }
-    
-    // Section drag is no longer handled here (using buttons instead)
+
+    // Section drag: the card grips are sortable now that the up/down arrows are gone.
+    if (activeId !== overId) {
+      const from = sections.findIndex(s => s.id === activeId);
+      const to = sections.findIndex(s => s.id === overId);
+      if (from >= 0 && to >= 0) reorderSections(from, to);
+    }
   };
 
   // Stop playback when all chords are removed; sections sync is handled by the consolidated effect above
@@ -1233,14 +1259,13 @@ const Index = ({ songId }: IndexProps) => {
     return offset;
   };
 
-  const handleMoveSection = useCallback((fromIndex: number, direction: 'up' | 'down') => {
-    const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
-    if (toIndex < 0 || toIndex >= sectionsRef.current.length) return;
-    setAnimatingSections([
-      { index: fromIndex, direction },
-      { index: toIndex, direction: direction === 'up' ? 'down' : 'up' }
-    ]);
-    setTimeout(() => setAnimatingSections([]), 350);
+  /**
+   * Move a section anywhere in the running order. Reordering used to be a pair of
+   * up/down arrows on every card; it is now a drag — from the structure bar, or from the
+   * grip on the card — so this takes an arbitrary destination rather than a direction.
+   */
+  const reorderSections = useCallback((fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= sectionsRef.current.length || fromIndex === toIndex) return;
     setSections(prev => {
       const newSections = [...prev];
       const [removed] = newSections.splice(fromIndex, 1);
@@ -1257,8 +1282,26 @@ const Index = ({ songId }: IndexProps) => {
     analytics.sectionMoved();
   }, []);
 
-  const handleMoveSectionUp = useCallback((si: number) => handleMoveSection(si, 'up'), [handleMoveSection]);
-  const handleMoveSectionDown = useCallback((si: number) => handleMoveSection(si, 'down'), [handleMoveSection]);
+  /**
+   * Clicking a segment of the structure bar brings that section's card into view. The
+   * canvas also promises it jumps playback mid-song; the engine has no seek yet, so that
+   * half is not wired up — see scheduleProgression in src/lib/audioEngine.ts.
+   */
+  const handleJumpToSection = useCallback((sectionIndex: number) => {
+    const section = sectionsRef.current[sectionIndex];
+    if (!section) return;
+    document
+      .getElementById(`section-card-${section.id}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
+
+  /** "Apply to all" in the Sound card: every section goes back to the song's rhythm. */
+  const handleApplyRhythmToAll = useCallback(() => {
+    setSections(prev => prev.map(({
+      styleId: _s, trackStyles: _t, patterns: _p, silenced: _m, sounds: _n, ...rest
+    }) => rest));
+    toast.success('Every section now plays the song\'s rhythm');
+  }, []);
 
   const handleSectionAddChord = useCallback((sectionIndex: number) => {
     const section = sectionsRef.current[sectionIndex];
@@ -1351,9 +1394,62 @@ const Index = ({ songId }: IndexProps) => {
   }, []);
 
   // Generate chord IDs for all sections (for DndContext)
-  const allChordIds = sections.flatMap((section, sectionIndex) => 
+  const allChordIds = sections.flatMap((section, sectionIndex) =>
     section.chords.map(c => `chord-${sectionIndex}-${c.id}`)
   );
+
+  // ── Bits the new header and right rail read ─────────────────────────────────────────
+
+  const showSaveCta = hasChords && !(isLoggedIn && lastSavedAt);
+
+  const handleSaveCta = useCallback(() => {
+    analytics.saveCtaClicked();
+    if (isLoggedIn) {
+      handleSaveNewSong();
+    } else {
+      pendingSaveRef.current = true;
+      setAuthModalEntryPoint('save_cta');
+      setAccountPromptOpen(true);
+    }
+  }, [isLoggedIn, handleSaveNewSong]);
+
+  const handleStyleChange = useCallback((id: string) => {
+    setSelectedStyleId(id);
+    setLiveEditedStyle(null);
+    analytics.styleChanged(id);
+  }, []);
+
+  const handleOpenRhythmEditor = useCallback(() => {
+    setLiveEditedStyle(null);
+    setEditingNewStyle(null);
+    setRhythmEditorOpen(true);
+  }, []);
+
+  /** How many sections play something other than the song — drives the Sound card's note. */
+  const sectionsWithOwnRhythm = useMemo(
+    () => sections.filter(sectionHasArrangement).length,
+    [sections],
+  );
+
+  /** The header's "Now" readout: which section and chord the playhead is on. */
+  const nowPlaying = useMemo(() => {
+    if (!isPlaying || currentChordIndex < 0) return { sectionName: null, chordName: null };
+    if (loopingSectionIndex !== null) {
+      return {
+        sectionName: sections[loopingSectionIndex]?.name ?? null,
+        chordName: currentChordDisplayName || null,
+      };
+    }
+    let remaining = currentChordIndex;
+    for (const section of sections) {
+      const span = section.chords.length * section.repeatCount;
+      if (span > 0 && remaining < span) {
+        return { sectionName: section.name, chordName: currentChordDisplayName || null };
+      }
+      remaining -= span;
+    }
+    return { sectionName: null, chordName: currentChordDisplayName || null };
+  }, [isPlaying, currentChordIndex, loopingSectionIndex, sections, currentChordDisplayName]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -1379,260 +1475,265 @@ const Index = ({ songId }: IndexProps) => {
   }, [songTitle, currentSongId, songId]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card sticky top-0 z-40">
-        <div className="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
-          <div className="flex items-center justify-between gap-2">
-            {/* Left: Logo + breadcrumb + title */}
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              {/* Logo — goes home */}
-              <a href="/" className="shrink-0 w-8 h-8 rounded-lg bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors" aria-label="ChordSequence home">
-                <Music2 className="w-4 h-4 text-primary-foreground" />
-              </a>
+    <div className="cp flex min-h-screen flex-col">
+      <header
+        className="sticky top-0 z-40"
+        style={{ background: 'var(--cp-bar)', borderBottom: '1px solid var(--cp-ln)' }}
+      >
+        {/* Row 1 — where you are, and the tools that open over the page */}
+        <div
+          className="flex h-[56px] items-center justify-between gap-1 px-2 lg:h-[60px] lg:gap-2 lg:px-8"
+          style={{ borderBottom: '1px solid var(--cp-ln)' }}
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none lg:gap-3.5">
+            {/* Mobile leads with the way back; desktop leads with the logo. */}
+            <button
+              className="cp-btn cp-ib cp-gh shrink-0 lg:hidden"
+              onClick={handleBackToSongs}
+              aria-label="Back to library"
+            >
+              <ArrowLeft size={18} />
+            </button>
 
-              {/* Breadcrumb. Deliberately NOT an h1: this whole row is "hidden sm:flex", so on
-                  mobile it never rendered and the page was left without a heading — bad for the
-                  one page that has to rank for "chord player". The H1 now lives in the "About
-                  the chord player" section of chord-player/index.astro, which sits outside
-                  #editor-skeleton and so is present before and after hydration. Keep this a
-                  span; promoting it back would give the page two competing h1s. */}
-              <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground min-w-0">
-                <a href="/app/" className="hover:text-foreground transition-colors shrink-0">My library</a>
-                <span className="opacity-30 mx-0.5">/</span>
-                <span className="text-foreground font-medium truncate max-w-[160px] md:max-w-xs m-0 inline text-xs">
-                  {currentSongId || songId ? songTitle || 'New progression' : 'Chord Player'}
-                </span>
-              </div>
+            <a
+              href="/"
+              className="hidden h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] text-white lg:flex"
+              style={{ background: 'var(--cp-ac)' }}
+              aria-label="ChordSequence home"
+            >
+              <Music2 size={18} />
+            </a>
 
-              {/* Opened from someone else's link — say so, so the first edit forking the
-                  song into a copy reads as expected rather than as a glitch. */}
-              {sharedSong && (
-                <span className="hidden md:inline-flex items-center gap-1 shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-                  Shared song · editing makes your own copy
-                </span>
-              )}
+            {/* Breadcrumb. Deliberately NOT an h1: the page's H1 lives in the "About the
+                chord player" section of chord-player/index.astro, outside #editor-skeleton,
+                so it is there before and after hydration. Promoting this back would give
+                the page two competing h1s. */}
+            <nav className="hidden items-center gap-2.5 text-[13px] lg:flex" aria-label="Breadcrumb">
+              <a href="/app/" className="shrink-0 font-medium" style={{ color: 'var(--cp-mu)' }}>My library</a>
+              <span style={{ color: 'var(--cp-ln2)' }}>/</span>
+              <span className="m-0 inline max-w-[160px] truncate text-[13px] font-bold md:max-w-xs">
+                {currentSongId || songId ? songTitle || 'New progression' : 'Chord Player'}
+              </span>
+            </nav>
 
-              {/* Mobile: back button only */}
-              <Button variant="ghost" size="icon" onClick={handleBackToSongs} className="sm:hidden shrink-0 h-8 w-8" aria-label="Back to library">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            {/* Right: Actions */}
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {/* Waveform Visualizer - hidden on mobile */}
-              {isPlaying && (
-                <div className="h-6 w-16 hidden lg:block">
+            {/* Mobile keeps the title editable right here — there is no room for the big
+                one the desktop layout puts above the structure bar. */}
+            <input
+              value={songTitle}
+              onChange={(e) => setSongTitle(e.target.value)}
+              aria-label="Song title"
+              placeholder="My Song"
+              className="h-10 min-w-0 flex-grow border-0 bg-transparent px-1 text-lg font-extrabold tracking-tight outline-none lg:hidden"
+              style={{ color: 'var(--cp-tx)' }}
+            />
+
+            {/* Opened from someone else's link — say so, so the first edit forking the
+                song into a copy reads as expected rather than as a glitch. */}
+            {sharedSong && (
+              <span
+                className="hidden shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] xl:inline-flex"
+                style={{ border: '1px solid var(--cp-ln)', color: 'var(--cp-mu)' }}
+              >
+                Shared song · editing makes your own copy
+              </span>
+            )}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1 lg:gap-2">
+            {isPlaying && (
+              <>
+                <div className="mr-2 hidden h-6 w-16 lg:block">
                   <WaveformVisualizer isPlaying={isPlaying} barCount={12} />
                 </div>
-              )}
-              
-              {/* Beat indicator - only on desktop. Wrapped in its own subscriber so the
-                  ~6.7x/sec step updates re-render ONLY this indicator, not the editor. */}
-              {isPlaying && (
-                <div className="hidden md:block">
-                  <PlayheadBeatIndicator isPlaying={isPlaying} />
+                {/* Its own subscriber, so the ~6.7x/sec step updates re-render only
+                    these four dots and not the editor. */}
+                <div className="mr-3 hidden lg:block">
+                  <PlayheadBeatDots />
                 </div>
-              )}
-              
-              {/* Share button — only for a saved song you own; there's no link to hand
-                  out until the song has a row of its own. */}
-              {currentSongId && isLoggedIn && (
-                <Button
-                  variant={isPublic ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={handleShare}
-                  disabled={isSharing}
-                  className="gap-1 h-8 px-2"
-                  aria-label={isPublic ? 'Copy share link' : 'Share this song'}
-                >
-                  {isSharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
-                  <span className="hidden sm:inline text-xs">{isPublic ? 'Shared' : 'Share'}</span>
-                </Button>
-              )}
+              </>
+            )}
 
-              {/* Mixing Console button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setMixingConsoleOpen(true)}
-                className="gap-1 h-8 px-2"
-                aria-label="Open mixing console"
+            {/* Share — only for a saved song you own; there's no link to hand out until
+                the song has a row of its own. */}
+            {currentSongId && isLoggedIn && (
+              <button
+                className={`cp-btn ${isPublic ? 'cp-acc' : ''}`}
+                style={{ height: 36 }}
+                onClick={handleShare}
+                disabled={isSharing}
+                aria-label={isPublic ? 'Copy share link' : 'Share this song'}
               >
-                <Sliders className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline text-xs">Mix</span>
-              </Button>
-              
-              {/* Templates button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTemplatesModalOpen(true)}
-                className="gap-1 h-8 px-2"
-                aria-label="Open progression templates"
-              >
-                <FileMusic className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline text-xs">Templates</span>
-              </Button>
-              
-              {/* Shortcuts help - hidden on mobile */}
-              <div className="hidden md:block">
-                <ShortcutsHelp />
-              </div>
+                {isSharing ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
+                <span className="hidden sm:inline">{isPublic ? 'Shared' : 'Share'}</span>
+              </button>
+            )}
 
-              {/* Save status — purely informational now; the account menu below is
-                  always visible once logged in, independent of save state. The
-                  actual Save call-to-action lives next to Play in TransportControls. */}
-              <div className="flex items-center gap-2">
-                {isSaving ? (
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  </span>
-                ) : lastSavedAt ? (
-                  <span className="hidden xs:flex items-center gap-1 text-xs text-[hsl(var(--success))]">
-                    <Check className="h-3 w-3" />
-                    Saved
-                  </span>
-                ) : null}
-                {isLoggedIn && (
-                  <AccountMenu displayName={displayName} trigger={<AccountAvatarButton displayName={displayName} />} />
-                )}
-              </div>
+            <button
+              className="cp-btn cp-ib cp-gh cp-wide-lg"
+              style={{ height: 36 }}
+              onClick={() => setMixingConsoleOpen(true)}
+              aria-label="Open mixing console"
+            >
+              <Sliders size={18} />
+              <span className="hidden lg:inline">Mix</span>
+            </button>
+
+            <button
+              className="cp-btn cp-ib cp-gh cp-wide-lg"
+              style={{ height: 36 }}
+              onClick={() => setTemplatesModalOpen(true)}
+              aria-label="Open progression templates"
+            >
+              <FileMusic size={18} />
+              <span className="hidden lg:inline">Templates</span>
+            </button>
+
+            <div className="hidden lg:block">
+              <ShortcutsHelp />
+            </div>
+
+            {/* Save status — purely informational; the Save call to action lives in the
+                transport row, and on mobile in the bottom bar. */}
+            <div className="flex items-center gap-2">
+              {isSaving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: 'var(--cp-mu)' }} />
+              ) : lastSavedAt ? (
+                <span className="hidden items-center gap-1 text-xs xs:flex" style={{ color: 'var(--cp-sevt)' }}>
+                  <Check className="h-3 w-3" />
+                  Saved
+                </span>
+              ) : null}
+              {isLoggedIn && (
+                <AccountMenu displayName={displayName} trigger={<AccountAvatarButton displayName={displayName} />} />
+              )}
             </div>
           </div>
         </div>
-      </header>
-      
-      <main className="container max-w-6xl mx-auto px-2 sm:px-4 py-3 sm:py-6 space-y-3 sm:space-y-4">
-        {/* Progress bar when playing */}
+
+        {/* Row 2 — transport */}
+        <TransportControls
+          isPlaying={isPlaying}
+          isExporting={isExporting}
+          bpm={bpm}
+          metronomeEnabled={metronomeEnabled}
+          transposition={transposition}
+          keyBase={keyBase}
+          onKeyModeChange={handleKeyModeChange}
+          onKeyPick={handleKeyPick}
+          onPlay={handlePlayWithCountdown}
+          onStop={stopPlaybackCompletely}
+          onExport={handleExport}
+          onExportMidi={handleExportMidi}
+          onBpmChange={setBpm}
+          onMetronomeToggle={(enabled) => {
+            setMetronomeEnabled(enabled);
+            analytics.metronomeToggled(enabled);
+          }}
+          onTranspositionChange={(semitones: number) => {
+            setTransposition(semitones);
+            analytics.transposed(semitones);
+          }}
+          hasChords={hasChords}
+          showSaveCta={showSaveCta}
+          onSaveCtaClick={handleSaveCta}
+          nowSectionName={nowPlaying.sectionName}
+          nowChordName={nowPlaying.chordName}
+          beatSlot={<PlayheadBeatCount />}
+        />
+
+        {/* Mobile only: the Sound card's controls, which on desktop live in the rail */}
+        <div className="flex items-center gap-2 px-4 pb-3.5 lg:hidden">
+          <div className="min-w-0 flex-grow" data-tour="style-selector">
+            <StyleSelector
+              selectedStyleId={selectedStyleId}
+              onStyleChange={handleStyleChange}
+              customStyles={customStyles}
+              onCreateNew={() => setCreateRhythmModalOpen(true)}
+              variant="card"
+            />
+          </div>
+          <button
+            className="cp-btn cp-ib"
+            style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln)', color: 'var(--cp-act)' }}
+            onClick={() => setInstrumentsPanelOpen(true)}
+            aria-label="Instruments"
+          >
+            <SlidersHorizontal size={18} />
+          </button>
+          <button
+            className="cp-btn cp-ib"
+            style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln)', color: 'var(--cp-act)' }}
+            onClick={handleOpenRhythmEditor}
+            aria-label="Edit rhythm"
+          >
+            <LayoutGrid size={18} />
+          </button>
+          <button
+            className="cp-btn cp-ib"
+            style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln)', color: 'var(--cp-act)' }}
+            onClick={() => setCreateRhythmModalOpen(true)}
+            aria-label="New rhythm"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
+
+        {/* Mobile only: the structure strip rides in the header, as drawn */}
+        {sections.length > 0 && (
+          <div className="px-4 pb-3 lg:hidden" style={{ borderTop: '1px solid var(--cp-ln)' }}>
+            <StructureBar
+              sections={sections}
+              currentChordIndex={currentChordIndex}
+              isPlaying={isPlaying}
+              loopingSectionIndex={loopingSectionIndex}
+              bpm={bpm}
+              onJumpToSection={handleJumpToSection}
+              onReorder={reorderSections}
+              onAddSection={handleAddSection}
+              bare
+            />
+          </div>
+        )}
+
         <ProgressBar
           sections={sections}
           currentChordIndex={currentChordIndex}
           isPlaying={isPlaying}
           loopingSectionIndex={loopingSectionIndex}
         />
-
-        <TransportControls
-          isPlaying={isPlaying}
-          isExporting={isExporting}
-          bpm={bpm}
-          metronomeEnabled={metronomeEnabled}
-          selectedStyleId={selectedStyleId}
-          songTitle={songTitle}
-          transposition={transposition}
-          keyBase={keyBase}
-          onKeyModeChange={handleKeyModeChange}
-          onKeyPick={handleKeyPick}
-          customStyles={customStyles}
-          onPlay={handlePlayWithCountdown}
-          onStop={stopPlaybackCompletely}
-          onReset={() => { stopPlaybackCompletely(); }}
-          onExport={handleExport}
-          onExportMidi={handleExportMidi}
-          onBpmChange={(newBpm) => {
-            setBpm(newBpm);
-          }}
-          onMetronomeToggle={(enabled) => {
-            setMetronomeEnabled(enabled);
-            analytics.metronomeToggled(enabled);
-          }}
-          onStyleChange={(id) => {
-            setSelectedStyleId(id);
-            setLiveEditedStyle(null);
-            analytics.styleChanged(id);
-          }}
-          onSongTitleChange={setSongTitle}
-          onTranspositionChange={(semitones: number) => {
-            setTransposition(semitones);
-            analytics.transposed(semitones);
-          }}
-          onOpenInstruments={() => setInstrumentsPanelOpen(true)}
-          onOpenRhythmEditor={() => {
-            const currentStyle = [...customStyles, ...MUSICAL_STYLES].find(s => s.id === selectedStyleId);
-            if (currentStyle) {
-              setLiveEditedStyle(null);
-              setEditingNewStyle(null);
-              setRhythmEditorOpen(true);
-            }
-          }}
-          onCreateNewRhythm={() => setCreateRhythmModalOpen(true)}
-          hasChords={hasChords}
-          showSaveCta={hasChords && !(isLoggedIn && lastSavedAt)}
-          onSaveCtaClick={() => {
-            analytics.saveCtaClicked();
-            if (isLoggedIn) {
-              handleSaveNewSong();
-            } else {
-              pendingSaveRef.current = true;
-              setAuthModalEntryPoint('save_cta');
-              setAccountPromptOpen(true);
-            }
-          }}
-        />
-
-        {/* Chord visualizer — always visible when chords exist. Same card language as the
-            song pages' "Now playing" (pulse dot + gradient header, primary accent while
-            live) — was a plain centered label before, now reads as the same component
-            family instead of a one-off. */}
-        {hasChords && (
-          <div
-            className={`rounded-2xl border bg-card overflow-hidden transition-colors
-              ${isPlaying ? 'border-primary/30 shadow-sm shadow-primary/10' : 'border-border'}
-            `}
-          >
-            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-gradient-to-r from-primary/[0.06] to-transparent">
-              <span
-                className={`w-1.5 h-1.5 rounded-full shrink-0 ${isPlaying ? 'bg-primary animate-pulse' : 'bg-muted-foreground/40'}`}
-                aria-hidden="true"
-              />
-              <p className={`text-[10px] font-bold uppercase tracking-widest ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`}>
-                {isPlaying ? 'Now playing' : 'Chord preview'}
-              </p>
-              {visualChord && (
-                <span className="text-primary">
-                  <DurationDots
-                    duration={visualChord.duration ?? 4}
-                    isActive={isPlaying}
-                    bpm={bpm}
-                    uid="editor-now-playing"
-                    rawIndex={currentChordIndex}
-                    size={7}
-                  />
-                </span>
-              )}
-              <InstrumentViewSelector value={visualizerView} onChange={setVisualizerView} className="ml-auto" />
-            </div>
-            <div className="flex items-center justify-center px-4 py-4">
-              {visualizerView === 'piano' ? (
-                <PianoKeyboard
-                  activeNotes={activeNotes}
-                  chordName={currentChordDisplayName}
-                  className="w-full max-w-xs sm:max-w-sm"
-                />
-              ) : visualizerView === 'ukulele' ? (
-                ukuleleVoicing ? (
-                  <GuitarChordDiagram
-                    voicing={ukuleleVoicing}
-                    chordName={currentChordDisplayName}
-                    className="w-28 sm:w-32 flex-shrink-0"
-                  />
-                ) : (
-                  <p className="text-xs text-muted-foreground py-2">No ukulele voicing available</p>
-                )
-              ) : guitarVoicing ? (
-                <GuitarChordDiagram
-                  voicing={guitarVoicing}
-                  chordName={currentChordDisplayName}
-                  className="w-28 sm:w-32 flex-shrink-0"
-                />
-              ) : (
-                <p className="text-xs text-muted-foreground py-2">No guitar voicing available</p>
-              )}
-            </div>
+      </header>
+      
+      <div className="mx-auto grid w-full max-w-[1440px] items-start gap-4 px-4 pb-28 pt-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-7 lg:px-8 lg:pb-8 lg:pt-7">
+        <main className="flex min-w-0 flex-col gap-4">
+          {/* The song's name, editable in place. Mobile carries it in the header bar. */}
+          <div className="hidden h-11 items-center gap-2.5 lg:flex">
+            <input
+              value={songTitle}
+              onChange={(e) => setSongTitle(e.target.value)}
+              aria-label="Song title"
+              placeholder="My Song"
+              className="w-60 border-0 bg-transparent p-0 text-[30px] font-extrabold tracking-[-0.02em] outline-none"
+              style={{ color: 'var(--cp-tx)' }}
+            />
+            <Pencil size={18} style={{ color: 'var(--cp-mu)' }} aria-hidden="true" />
           </div>
-        )}
 
-        {/* Sections - DndContext only for chord drag & drop */}
+          {sections.length > 0 && (
+            <div className="hidden lg:block">
+              <StructureBar
+                sections={sections}
+                currentChordIndex={currentChordIndex}
+                isPlaying={isPlaying}
+                loopingSectionIndex={loopingSectionIndex}
+                bpm={bpm}
+                onJumpToSection={handleJumpToSection}
+                onReorder={reorderSections}
+                onAddSection={handleAddSection}
+              />
+            </div>
+          )}
+
+        {/* Sections — one DndContext for both chord moves and section reordering */}
         <DndContext
           sensors={sensors}
           collisionDetection={collisionDetectionStrategy}
@@ -1640,45 +1741,45 @@ const Index = ({ songId }: IndexProps) => {
           onDragEnd={handleDragEnd}
         >
           <SortableContext items={allChordIds} strategy={rectSortingStrategy}>
-            <div className="space-y-3" data-tour="chords-section">
-              {sections.map((section, sectionIndex) => (
-                <SectionCard
-                  key={section.id}
-                  section={section}
-                  sectionIndex={sectionIndex}
-                  transposition={transposition}
-                  preferFlats={preferFlats}
-                  currentChordIndex={currentChordIndex}
-                  globalChordOffset={getGlobalOffset(sectionIndex)}
-                  totalSections={sections.length}
-                  isLooping={loopingSectionIndex === sectionIndex}
-                  styleId={selectedStyleId}
-                  style={effectiveSectionStyle(section, currentStyle, sectionStyleLookup)}
-                  swapAnimation={animatingSections.find(a => a.index === sectionIndex)?.direction || null}
-                  selectedChordIds={selectedChordIds}
-                  onVariationChange={handleSectionVariationChange}
-                  onAddChord={handleSectionAddChord}
-                  onChordClick={handleChordClick}
-                  onChordSelect={handleChordSelect}
-                  onChordDelete={handleChordDelete}
-                  onChordDuplicate={handleChordDuplicate}
-                  onRepeatChange={handleRepeatChange}
-                  onNameChange={handleSectionNameChange}
-                  onDelete={handleDeleteSection}
-                  onDuplicate={handleDuplicateSection}
-                  onToggleLoop={handleToggleSectionLoop}
-                  onMoveUp={handleMoveSectionUp}
-                  onMoveDown={handleMoveSectionDown}
-                  onSetProgression={handleSetProgression}
-                  onArrangementChange={handleSectionArrangementChange}
-                  availableStyles={availableSectionStyles}
-                  songStyle={currentStyle}
-                  onEditSectionRhythm={handleEditSectionRhythm}
-                />
-              ))}
-            </div>
+            <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
+              <div className="flex flex-col gap-4" data-tour="chords-section">
+                {sections.map((section, sectionIndex) => (
+                  <div key={section.id} id={`section-card-${section.id}`}>
+                    <SectionCard
+                      section={section}
+                      sectionIndex={sectionIndex}
+                      transposition={transposition}
+                      preferFlats={preferFlats}
+                      currentChordIndex={currentChordIndex}
+                      globalChordOffset={getGlobalOffset(sectionIndex)}
+                      totalSections={sections.length}
+                      isLooping={loopingSectionIndex === sectionIndex}
+                      isPlaying={isPlaying}
+                      bpm={bpm}
+                      styleId={selectedStyleId}
+                      style={effectiveSectionStyle(section, currentStyle, sectionStyleLookup)}
+                      selectedChordIds={selectedChordIds}
+                      onVariationChange={handleSectionVariationChange}
+                      onAddChord={handleSectionAddChord}
+                      onChordClick={handleChordClick}
+                      onChordSelect={handleChordSelect}
+                      onRepeatChange={handleRepeatChange}
+                      onNameChange={handleSectionNameChange}
+                      onDelete={handleDeleteSection}
+                      onDuplicate={handleDuplicateSection}
+                      onToggleLoop={handleToggleSectionLoop}
+                      onSetProgression={handleSetProgression}
+                      onArrangementChange={handleSectionArrangementChange}
+                      availableStyles={availableSectionStyles}
+                      songStyle={currentStyle}
+                      onEditSectionRhythm={handleEditSectionRhythm}
+                    />
+                  </div>
+                ))}
+              </div>
+            </SortableContext>
           </SortableContext>
-          
+
           {/* Drag overlay for chord being dragged */}
           <DragOverlay>
             {activeChord && (
@@ -1688,8 +1789,6 @@ const Index = ({ songId }: IndexProps) => {
                   isPlaying={false}
                   transposition={transposition}
                   preferFlats={preferFlats}
-                  onDelete={() => {}}
-                  onDuplicate={() => {}}
                   isDragging
                   fixedWidth
                 />
@@ -1698,12 +1797,92 @@ const Index = ({ songId }: IndexProps) => {
           </DragOverlay>
         </DndContext>
 
-        <Button variant="outline" onClick={handleAddSection} className="w-full hover:border-primary/40 h-9">
-          <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
-          Add Section
-        </Button>
+          <button
+            className="cp-btn cp-dash w-full justify-center"
+            style={{ height: 48, borderRadius: 14, fontSize: 14 }}
+            onClick={handleAddSection}
+          >
+            <Plus size={18} aria-hidden="true" />
+            Add Section
+          </button>
+        </main>
 
-      </main>
+        {/* Right rail. On mobile it comes first: the chord you are on matters more than
+            the cards below it, and the Sound controls have already moved to the header. */}
+        <aside className="order-first flex flex-col gap-4 lg:order-none lg:sticky lg:top-[164px]">
+          {hasChords && (
+            <ChordPreviewCard
+              isPlaying={isPlaying}
+              chordName={currentChordDisplayName}
+              duration={visualChord?.duration ?? 4}
+              bpm={bpm}
+              rawIndex={currentChordIndex}
+              activeNotes={activeNotes}
+              guitarVoicing={guitarVoicing}
+              ukuleleVoicing={ukuleleVoicing}
+              view={visualizerView}
+              onViewChange={setVisualizerView}
+            />
+          )}
+
+          <SoundCard
+            className="hidden lg:flex"
+            selectedStyleId={selectedStyleId}
+            customStyles={customStyles}
+            onStyleChange={handleStyleChange}
+            onOpenInstruments={() => setInstrumentsPanelOpen(true)}
+            onOpenRhythmEditor={handleOpenRhythmEditor}
+            onCreateNewRhythm={() => setCreateRhythmModalOpen(true)}
+            sectionsWithOwnRhythm={sectionsWithOwnRhythm}
+            onApplyToAll={handleApplyRhythmToAll}
+          />
+        </aside>
+      </div>
+
+      {/* Mobile only: Save and export, always within thumb reach */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 flex gap-2.5 px-4 py-3 lg:hidden"
+        style={{ background: 'var(--cp-bar)', borderTop: '1px solid var(--cp-ln)' }}
+      >
+        {showSaveCta && (
+          <button className="cp-btn cp-acc flex-1 justify-center" onClick={handleSaveCta}>
+            <Save size={18} />
+            Save
+          </button>
+        )}
+        <div className="flex flex-[1.3]">
+          <button
+            className="cp-btn cp-pri flex-1 justify-center"
+            style={{ borderRadius: '12px 0 0 12px' }}
+            onClick={handleExport}
+            disabled={!hasChords || isPlaying || isExporting}
+          >
+            {isExporting
+              ? <><Loader2 size={18} className="animate-spin" />Exporting…</>
+              : <><Download size={18} />WAV</>}
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="cp-btn cp-pri cp-ib"
+                style={{ borderRadius: '0 12px 12px 0', borderLeft: '1px solid rgba(255,255,255,.28)' }}
+                disabled={!hasChords || isPlaying || isExporting}
+                aria-label="More export options"
+              >
+                <ChevronDown size={18} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport} disabled={isExporting}>
+                <Download size={14} className="mr-2" />Export WAV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportMidi}>
+                <Download size={14} className="mr-2" />Export MIDI
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
 
       {/* Guided tour for first-time users — skipped for shared-link visitors, see above */}
       {showOnboarding && !hasDeepLinkedProgression && <GuidedTour onDismiss={dismissOnboarding} />}

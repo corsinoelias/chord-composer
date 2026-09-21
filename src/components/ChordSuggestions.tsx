@@ -143,14 +143,13 @@ export const ChordSuggestions = memo(function ChordSuggestions({
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className={`gap-1.5 ${className}`}
+        <button
+          className={`cp-btn cp-gh ${className}`}
+          style={{ height: 36, color: 'var(--cp-act)' }}
         >
           <Sparkles className="h-4 w-4" />
           <span className="hidden sm:inline">Suggest</span>
-        </Button>
+        </button>
       </PopoverTrigger>
       <PopoverContent className="w-96 p-0" align="end">
         <div className="p-3 border-b flex items-center gap-2">
