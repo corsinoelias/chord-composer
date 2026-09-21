@@ -1,4 +1,5 @@
 import { type Chord, chordToMidiNotes } from './musicTheory';
+import { chordSuffix } from './keyPalette';
 
 const MIDI_SHARP_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const MIDI_FLAT_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -30,13 +31,19 @@ export function getChordNotes(chord: Chord, transposition: number = 0, preferFla
   return [...new Set([...names, bassName])];
 }
 
-/** See getChordNotes() for what `preferFlats` does and why it defaults to off. */
-export function getTransposedChordName(chord: Chord, transposition: number = 0, preferFlats: boolean = false): string {
+/**
+ * See getChordNotes() for what `preferFlats` does and why it defaults to off.
+ *
+ * `short` writes the type the way the chord player and the Android app do (Am, Bm7, C#°)
+ * instead of the stored name (Amin, Bmin7, C#dim). Off by default: song pages and the
+ * preview parser read the stored spelling.
+ */
+export function getTransposedChordName(chord: Chord, transposition: number = 0, preferFlats: boolean = false, short: boolean = false): string {
   const NAMES = preferFlats ? MIDI_FLAT_DISPLAY_NAMES : MIDI_DISPLAY_NAMES;
   // For slash chords use the original root notes (first interval = root), not the bass note
   const rootMidiNotes = chordToMidiNotes({ ...chord, bassNote: undefined });
   const rootName = NAMES[midiClass(rootMidiNotes[0], transposition)];
-  const qualityDisplay = chord.quality === 'maj' ? '' : chord.quality;
+  const qualityDisplay = short ? chordSuffix(chord.quality) : chord.quality === 'maj' ? '' : chord.quality;
   const base = `${rootName}${qualityDisplay}`;
   if (!chord.bassNote) return base;
   // Transpose the bass note name too

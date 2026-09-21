@@ -152,7 +152,7 @@ export function KeyControl({
               disabled={!base}
               aria-label={base ? `Key of ${label}. Change key` : 'Add chords to set a key'}
               className="cp-mono flex h-[30px] min-w-[40px] items-center justify-center gap-0.5 rounded-lg border-0 bg-transparent px-1 text-sm font-bold tabular-nums disabled:opacity-50"
-              style={{ color: transposition !== 0 ? 'var(--cp-act)' : 'var(--cp-tx)' }}
+              style={{ color: 'var(--cp-act)' }}
             >
               {label}
               {transposition !== 0 && (

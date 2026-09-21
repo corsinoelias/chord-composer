@@ -15,45 +15,56 @@
    This file is imported by the chord player page alone, so nothing else sees them. */
 :root,
 .cp {
-  /* Surfaces */
-  --cp-bg: #F2F3F7;
+  /* The Android app's light theme (chord_sequencer, lib/theme/app_theme.dart), value for
+     value, so the two read as one product. */
+
+  /* Surfaces: page ground, bars and cards, muted fills, borders */
+  --cp-bg: #F6F7F9;
   --cp-bar: #FFFFFF;
   --cp-s1: #FFFFFF;
-  --cp-s2: #F0F1F5;
-  --cp-s3: #E4E6ED;
-  --cp-ln: #E0E3EA;
-  --cp-ln2: #C9CEDA;
+  --cp-s2: #E8EAED;
+  --cp-s3: #DADCE2;
+  --cp-ln: #DADCE2;
+  --cp-ln2: #C3C7D0;
 
-  /* Text */
-  --cp-tx: #12161F;
-  --cp-tx2: #384052;
-  --cp-mu: #586175;
+  /* Text: foreground, secondary, soft (app textSoft) and faint (app textFaint) */
+  --cp-tx: #14181F;
+  --cp-tx2: #3A414E;
+  --cp-mu: #606876;
+  --cp-fa: #7E8695;
 
-  /* Accent */
-  --cp-ac: #6D28D9;
-  --cp-act: #6D28D9;
+  /* Accent and its soft fill */
+  --cp-ac: #6A1FEA;
+  --cp-act: #6A1FEA;
+  --cp-acs: #EFE8FD;
 
-  /* Chord qualities. maj/min/sev/sus come from the artboards; dim/aug extend the
-     same family for the qualities the editor supports but the mockups never drew. */
-  --cp-maj: #E5A20A;
-  --cp-majt: #85560A;
-  --cp-min: #3B63D0;
-  --cp-mint: #2A4CB5;
-  --cp-sev: #12A578;
-  --cp-sevt: #0A7454;
-  --cp-sus: #E0731F;
-  --cp-sust: #9A4A0B;
-  --cp-dim: #8B5CF6;
-  --cp-dimt: #5B21B6;
-  --cp-aug: #C93B6C;
-  --cp-augt: #9D1D4C;
+  /* Chord families: the hue, the hue as text on its own tint (app ChordSwatch.ink, 42%
+     toward black) and text on the hue filled solid (onSolid, 82% toward black). */
+  --cp-maj: #FBBD23;
+  --cp-majt: #926E14;
+  --cp-majo: #2D2206;
+  --cp-min: #3C71DD;
+  --cp-mint: #234180;
+  --cp-mino: #0B1428;
+  --cp-sev: #2EB88A;
+  --cp-sevt: #1B6B50;
+  --cp-sevo: #082119;
+  --cp-sus: #E68619;
+  --cp-sust: #854E0F;
+  --cp-suso: #291805;
+  --cp-dim: #9346B9;
+  --cp-dimt: #55296B;
+  --cp-dimo: #1A0D21;
+  --cp-aug: #DD3C71;
+  --cp-augt: #802342;
+  --cp-augo: #280B14;
 
   /* Piano keys */
   --cp-kw: #FFFFFF;
   --cp-kb: #1B1F2A;
 
   /* Destructive */
-  --cp-dg: #C0262D;
+  --cp-dg: #DC2828;
 
   /* Section colours, cycled in order down the song */
   --cp-s-a: #12988A;
@@ -453,43 +464,49 @@ input.cp-rg:disabled {
   border: 2px solid var(--cp-s1);
 }
 
-/* ───────────────────────────── Chord blocks ───────────────────────────── */
+/* ───────────────────────────── Chord blocks ─────────────────────────────
+   The Android app's home-screen chord block (ChordSwatch.block): tinted by family at
+   rest, filled solid while it sounds, ringed in the accent while selected. The name is
+   ordinary text at rest — only the one sounding takes its colour. */
 
 .cp-ch {
   --cp-h: var(--cp-maj);
   --cp-t: var(--cp-majt);
+  --cp-o: var(--cp-majo);
   position: relative;
-  height: 88px;
+  min-height: 64px;
+  height: 100%;
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 8px 10px 7px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-start;
-  border: 1px solid color-mix(in srgb, var(--cp-h) 34%, transparent);
-  background: color-mix(in srgb, var(--cp-h) 11%, var(--cp-s1));
+  gap: 3px;
+  border: 1px solid color-mix(in srgb, var(--cp-h) 45%, transparent);
+  background: color-mix(in srgb, var(--cp-h) 16%, var(--cp-s1));
   color: var(--cp-t);
   cursor: grab;
   text-align: left;
   font: inherit;
   width: 100%;
-  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease, transform 120ms ease;
 }
 
 .cp-ch:active {
   cursor: grabbing;
 }
 
-.cp-ch.cp-min { --cp-h: var(--cp-min); --cp-t: var(--cp-mint); }
-.cp-ch.cp-sev { --cp-h: var(--cp-sev); --cp-t: var(--cp-sevt); }
-.cp-ch.cp-sus { --cp-h: var(--cp-sus); --cp-t: var(--cp-sust); }
-.cp-ch.cp-dim { --cp-h: var(--cp-dim); --cp-t: var(--cp-dimt); }
-.cp-ch.cp-aug { --cp-h: var(--cp-aug); --cp-t: var(--cp-augt); }
+.cp-ch.cp-min { --cp-h: var(--cp-min); --cp-t: var(--cp-mint); --cp-o: var(--cp-mino); }
+.cp-ch.cp-sev { --cp-h: var(--cp-sev); --cp-t: var(--cp-sevt); --cp-o: var(--cp-sevo); }
+.cp-ch.cp-sus { --cp-h: var(--cp-sus); --cp-t: var(--cp-sust); --cp-o: var(--cp-suso); }
+.cp-ch.cp-dim { --cp-h: var(--cp-dim); --cp-t: var(--cp-dimt); --cp-o: var(--cp-dimo); }
+.cp-ch.cp-aug { --cp-h: var(--cp-aug); --cp-t: var(--cp-augt); --cp-o: var(--cp-augo); }
 
 .cp-ch .cp-cn {
   font-family: 'Space Mono', ui-monospace, monospace;
   font-weight: 700;
-  font-size: 25px;
+  font-size: 20px;
   line-height: 1;
   color: var(--cp-tx);
   white-space: nowrap;
@@ -501,43 +518,57 @@ input.cp-rg:disabled {
 .cp-ch .cp-cb {
   font-family: 'Space Mono', ui-monospace, monospace;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
   color: var(--cp-mu);
 }
 
-/* Playing */
+.cp-ch .cp-dots { margin-top: auto; }
+
+/* Sounding: filled solid in its family colour, lifted, near-black text of the same hue */
 .cp-ch.cp-on {
+  background: var(--cp-h);
   border-color: var(--cp-h);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cp-h) 20%, transparent);
-  background: color-mix(in srgb, var(--cp-h) 18%, var(--cp-s1));
+  color: var(--cp-o);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--cp-h) 38%, transparent);
+  transform: translateY(-2px);
 }
+.cp-ch.cp-on .cp-cn,
+.cp-ch.cp-on .cp-cb { color: var(--cp-o); }
 
 /* Multi-selected */
 .cp-ch.cp-sel {
-  border-color: var(--cp-ac);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cp-ac) 22%, transparent);
+  border: 2px solid var(--cp-ac);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--cp-ac) 50%, transparent);
 }
 
 .cp-ch.cp-drag {
   opacity: 0.45;
 }
 
+@media (min-width: 1024px) {
+  .cp-ch { min-height: 76px; padding: 10px 12px 9px; }
+  .cp-ch .cp-cn { font-size: 23px; }
+}
+
 /* Beat dots along the bottom of a chord */
 .cp-dots {
   display: flex;
-  gap: 4px;
+  gap: 3px;
 }
 
 .cp-dots i {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 3px;
   background: currentColor;
   opacity: 0.55;
 }
 
-.cp-dots i.cp-f {
+.cp-ch.cp-on .cp-dots i { opacity: 0.25; }
+
+.cp-dots i.cp-f,
+.cp-ch.cp-on .cp-dots i.cp-f {
   opacity: 1;
 }
 
@@ -1186,10 +1217,549 @@ input.cp-rg:disabled {
     margin-left: -4px;
     margin-right: -6px;
   }
-
-  /* Slightly shorter chords so a typical song's sections fit without scrolling. */
-  .cp-ch {
-    height: 76px;
-    padding: 11px 13px;
-  }
 }
+
+/* ═══════════════ Android app standard (chord_sequencer + "Chord Player — rediseño") ═══════════════
+   Every component below is the app's, measured from its Flutter source and the design
+   canvas. Only the wide-screen arrangement (song left, chord rail right) is the web's own. */
+
+/* ── Header ── */
+
+.cp-hd {
+  background: var(--cp-s1);
+  border-bottom: 1px solid var(--cp-ln);
+}
+
+.cp-ttl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.cp-ttl input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 4px 2px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--cp-tx);
+  outline: none;
+  text-overflow: ellipsis;
+}
+.cp-ttl input:focus { box-shadow: inset 0 -2px 0 var(--cp-ac); }
+
+/* Plain icon button, 40x40 tap target */
+.cp-icb {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--cp-mu);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.cp-icb:hover:not(:disabled) { background: var(--cp-s2); color: var(--cp-tx); }
+.cp-icb:disabled { opacity: 0.4; cursor: default; }
+
+/* The play button: 56 round, accent, a ring while it plays */
+.cp-play {
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  border: 0;
+  background: var(--cp-ac);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--cp-ac) 32%, transparent);
+  transition: box-shadow 160ms ease;
+}
+.cp-play.cp-on {
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--cp-ac) 16%, transparent), 0 8px 24px color-mix(in srgb, var(--cp-ac) 45%, transparent);
+}
+.cp-play:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Meter and swing chips on the tempo label line */
+.cp-mini {
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  border: 1px solid var(--cp-ln);
+  background: var(--cp-s2);
+  color: var(--cp-tx2);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 18px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Capsules on the controls row: key, Click, style */
+.cp-cap {
+  height: 36px;
+  border-radius: 999px;
+  background: var(--cp-s2);
+  border: 1px solid var(--cp-ln);
+  color: var(--cp-tx);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 0;
+}
+.cp-cap:hover { border-color: var(--cp-ln2); }
+.cp-cap.cp-on {
+  background: var(--cp-acs);
+  border-color: color-mix(in srgb, var(--cp-ac) 55%, transparent);
+  color: var(--cp-act);
+}
+.cp-cap .cp-dt { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; }
+
+/* The key capsule: minus, key, plus */
+.cp-pill {
+  height: 36px;
+  border-radius: 999px;
+  background: var(--cp-s2);
+  border: 1px solid var(--cp-ln);
+  padding: 0 3px;
+}
+.cp-pill button { border-radius: 999px; }
+
+/* Song map: a segment per section, filling in its colour as it plays */
+.cp-map {
+  display: flex;
+  gap: 3px;
+  height: 6px;
+}
+.cp-map button {
+  position: relative;
+  height: 6px;
+  min-width: 6px;
+  border: 0;
+  padding: 0;
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--cp-sc) 55%, transparent);
+}
+.cp-map button.cp-next { background: color-mix(in srgb, var(--cp-sc) 30%, transparent); }
+.cp-map button i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  background: var(--cp-sc);
+}
+
+/* ── Section card ── */
+
+.cp-sec {
+  background: var(--cp-s1);
+  border: 1px solid var(--cp-ln);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(20, 24, 31, 0.05);
+  transition: border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+.cp-sec.cp-live {
+  border: 1.5px solid color-mix(in srgb, var(--cp-sc) 75%, transparent);
+  box-shadow: 0 0 10px 3px color-mix(in srgb, var(--cp-sc) 22%, transparent);
+}
+
+/* Header tinted in the section's own colour, fading left to right */
+.cp-sh {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 2px 2px 8px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cp-sc) 18%, transparent), transparent);
+}
+.cp-live .cp-sh {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cp-sc) 34%, transparent), transparent);
+}
+.cp-sh.cp-drop {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cp-ac) 24%, transparent), transparent);
+  box-shadow: inset 0 -2px 0 var(--cp-ac);
+}
+
+.cp-sdot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--cp-sc);
+  flex-shrink: 0;
+  transition: border-radius 180ms ease, box-shadow 180ms ease;
+}
+.cp-live .cp-sdot {
+  border-radius: 5px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--cp-sc) 35%, transparent);
+}
+
+.cp-sname {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 6px 2px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--cp-tx);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  cursor: text;
+}
+
+/* A section playing its own rhythm says which, in its colour */
+.cp-stag {
+  min-width: 0;
+  max-width: 160px;
+  border: 0;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--cp-sc) 16%, transparent);
+  color: color-mix(in srgb, var(--cp-sc) 58%, #000000);
+  font: inherit;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+/* Repeats: tap to go round 1 to 8; while it plays, which time round it is */
+.cp-rep {
+  height: 40px;
+  min-width: 36px;
+  border: 0;
+  background: transparent;
+  padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.cp-rep span {
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: var(--cp-s2);
+  color: var(--cp-tx);
+}
+.cp-live .cp-rep span {
+  background: color-mix(in srgb, var(--cp-sc) 18%, transparent);
+  color: color-mix(in srgb, var(--cp-sc) 70%, #000000);
+}
+
+/* Loop-forever toggle */
+.cp-loop {
+  height: 40px;
+  width: 34px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--cp-fa);
+}
+.cp-loop span {
+  width: 28px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cp-loop.cp-on span { background: var(--cp-ac); color: #FFFFFF; }
+
+.cp-sgrip {
+  width: 20px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--cp-fa);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+}
+
+/* Chords: four columns; a chord spans one column per bar it lasts */
+.cp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px 10px 10px;
+}
+@media (min-width: 1024px) {
+  .cp-grid { gap: 8px; padding: 8px 12px 12px; }
+}
+
+/* Degree under the chord name: "vi", "bVII". A borrowed chord says so by being quieter. */
+.cp-ch .cp-deg {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--cp-mu);
+  white-space: nowrap;
+}
+.cp-ch .cp-deg.cp-bor { font-style: italic; opacity: 0.8; }
+.cp-ch.cp-on .cp-deg { color: var(--cp-o); opacity: 0.8; }
+
+/* "+ Chord" / "Suggest": dashed, where the next chord would go */
+.cp-tile {
+  width: 100%;
+  min-height: 29px;
+  border-radius: 12px;
+  border: 1.5px dashed var(--cp-ln2);
+  background: transparent;
+  color: var(--cp-mu);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.cp-tile.cp-v { flex-direction: column; gap: 3px; height: 100%; min-height: 64px; }
+.cp-tile:hover { border-color: var(--cp-ac); color: var(--cp-act); }
+@media (min-width: 1024px) {
+  .cp-tile.cp-v { min-height: 76px; }
+}
+
+.cp-empty {
+  min-height: 64px;
+  border-radius: 12px;
+  border: 1.5px dashed var(--cp-ln);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--cp-fa);
+}
+
+/* Quick delete/duplicate on a chord: a pointer's hover affordance only. On touch the
+   chord editor carries both, as in the app. */
+@media (hover: none) {
+  .cp-cha { display: none !important; }
+}
+
+/* ── Chord editor ── */
+
+.cp-grab {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--cp-ln2);
+  margin: 0 auto 2px;
+}
+
+.cp-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--cp-s2);
+  border: 1px solid var(--cp-ln);
+}
+.cp-tabs button {
+  flex: 1 1 0;
+  height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--cp-mu);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 6px;
+}
+.cp-tabs button.cp-on {
+  background: var(--cp-s1);
+  color: var(--cp-tx);
+  box-shadow: 0 1px 3px rgba(20, 24, 31, 0.12);
+}
+
+.cp-seg.cp-seg-sm { padding: 2px; border-radius: 9px; }
+.cp-seg.cp-seg-sm button { height: 28px; padding: 0 10px; font-size: 12px; }
+
+/* One chord of the palette: its name in its family ink, what it does underneath */
+.cp-pk {
+  --cp-t: var(--cp-majt);
+  min-height: 48px;
+  border-radius: 10px;
+  border: 1px solid var(--cp-ln);
+  background: var(--cp-s2);
+  color: var(--cp-t);
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 4px;
+  cursor: pointer;
+  min-width: 0;
+}
+.cp-pk.cp-min { --cp-t: var(--cp-mint); }
+.cp-pk.cp-sev { --cp-t: var(--cp-sevt); }
+.cp-pk.cp-sus { --cp-t: var(--cp-sust); }
+.cp-pk.cp-dim { --cp-t: var(--cp-dimt); }
+.cp-pk.cp-aug { --cp-t: var(--cp-augt); }
+.cp-pk small {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cp-mu);
+  max-width: 100%;
+  line-height: 1.25;
+  text-align: center;
+}
+.cp-pk small + small { color: var(--cp-act); }
+.cp-pk:hover { border-color: var(--cp-ln2); }
+.cp-pk.cp-on {
+  background: var(--cp-acs);
+  border: 2px solid var(--cp-ac);
+}
+
+/* Manual: letters and accidentals as equal rows, qualities in labelled groups */
+.cp-note {
+  flex: 1 1 0;
+  height: 40px;
+  border-radius: 9px;
+  border: 1px solid var(--cp-ln);
+  background: var(--cp-s2);
+  color: var(--cp-tx);
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  min-width: 0;
+}
+.cp-note.cp-on { background: var(--cp-ac); border-color: var(--cp-ac); color: #FFFFFF; }
+.cp-grp {
+  width: 56px;
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--cp-fa);
+  padding-top: 9px;
+}
+.cp-q {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--cp-ln);
+  background: var(--cp-s2);
+  color: var(--cp-tx);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cp-q.cp-on { background: var(--cp-ac); border-color: var(--cp-ac); color: #FFFFFF; }
+
+/* Small square buttons: half a beat less/more, move, delete, duplicate */
+.cp-sq {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--cp-ln);
+  background: var(--cp-s2);
+  color: var(--cp-tx);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.cp-sq:disabled { opacity: 0.4; cursor: default; }
+
+/* Duration dots: full, half, empty */
+.cp-bd {
+  height: 40px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.cp-bd span {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  border: 2px solid var(--cp-ln2);
+}
+.cp-bd.cp-f span { background: var(--cp-ac); border-color: var(--cp-ac); }
+.cp-bd.cp-h span {
+  border-color: var(--cp-ac);
+  background: linear-gradient(90deg, var(--cp-ac) 50%, transparent 50%);
+}
+
+/* The little keyboard in the editor's header */
+.cp-mkeys { position: relative; display: block; }
+.cp-mkeys .cp-w {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  gap: 1px;
+  height: 100%;
+}
+.cp-mkeys .cp-w span { border-radius: 0 0 3px 3px; background: #EDEEF0; box-shadow: inset 0 0 0 1px var(--cp-ln); }
+.cp-mkeys .cp-w span.cp-on { background: var(--cp-min); box-shadow: none; }
+.cp-mkeys .cp-b {
+  position: absolute;
+  top: 0;
+  width: 4.6%;
+  margin-left: -2.3%;
+  height: 60%;
+  border-radius: 0 0 2px 2px;
+  background: #1B1E26;
+}
+.cp-mkeys .cp-b.cp-on { background: var(--cp-min); }

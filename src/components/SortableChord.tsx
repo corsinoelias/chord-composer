@@ -21,6 +21,10 @@ interface SortableChordProps {
   /** Tempo and playback index, so the beat dots fill themselves while the chord sounds. */
   bpm?: number;
   rawIndex?: number | string;
+  /** The chord's numeral in the song's key, shown under its name. */
+  degree?: { numeral: string; borrowed: boolean } | null;
+  /** Grid columns the chord takes: one per bar it lasts. */
+  span?: number;
 }
 
 export function SortableChord({
@@ -38,6 +42,8 @@ export function SortableChord({
   isOutOfScale = false,
   bpm = 120,
   rawIndex = 0,
+  degree = null,
+  span = 1,
 }: SortableChordProps) {
   const {
     attributes,
@@ -52,6 +58,7 @@ export function SortableChord({
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : 'auto' as const,
+    gridColumn: span > 1 ? `span ${span}` : undefined,
   };
 
   const handleClick = (e: React.MouseEvent) => {
@@ -89,7 +96,7 @@ export function SortableChord({
         {...listeners}
         onClick={handleClick}
         onKeyDown={(e) => { handleKeyDown(e); listeners?.onKeyDown?.(e); }}
-        className="block w-full touch-none select-none border-0 bg-transparent p-0 text-left"
+        className="block h-full w-full touch-none select-none border-0 bg-transparent p-0 text-left"
         aria-label="Edit chord"
         aria-keyshortcuts="Delete Control+D"
       >
@@ -103,6 +110,7 @@ export function SortableChord({
           isOutOfScale={isOutOfScale}
           bpm={bpm}
           rawIndex={rawIndex}
+          degree={degree}
         />
       </button>
 

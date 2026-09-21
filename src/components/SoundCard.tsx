@@ -15,6 +15,8 @@ interface SoundCardProps {
   /** Clears every section's own rhythm so the whole song plays the one above. */
   onApplyToAll: () => void;
   className?: string;
+  /** Off where the style capsule already sits in the header, as in the Android app. */
+  showStyleSelector?: boolean;
 }
 
 /**
@@ -31,6 +33,7 @@ export const SoundCard = memo(function SoundCard({
   sectionsWithOwnRhythm,
   onApplyToAll,
   className = '',
+  showStyleSelector = true,
 }: SoundCardProps) {
   const tile = 'cp-btn flex-col justify-center gap-2 text-xs';
   const tileStyle = {
@@ -46,6 +49,7 @@ export const SoundCard = memo(function SoundCard({
     >
       <span className="cp-lbl">Sound</span>
 
+      {showStyleSelector && (
       <div data-tour="style-selector">
         <StyleSelector
           selectedStyleId={selectedStyleId}
@@ -55,6 +59,7 @@ export const SoundCard = memo(function SoundCard({
           variant="card"
         />
       </div>
+      )}
 
       {/* Only appears once a section actually diverges — otherwise there is nothing to
           apply and the row would just be noise. */}

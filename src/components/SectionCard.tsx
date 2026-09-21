@@ -8,20 +8,24 @@ import {
 } from '@dnd-kit/sortable';
 import { type Section } from '@/lib/sections';
 import { type Chord } from '@/lib/musicTheory';
+import { type DetectedKey } from '@/lib/keyDetect';
+import { chordDegree } from '@/lib/keyPalette';
 import { type StylePattern } from '@/lib/styles';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, Copy, GripVertical, LayoutGrid, Minus, MoreVertical, Plus, Repeat, Trash2 } from 'lucide-react';
+import { Copy, GripVertical, LayoutGrid, MoreHorizontal, Plus, Repeat, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { SortableChord } from './SortableChord';
 import { SectionArrangementMenu, arrangementSummary, type SectionArrangement } from './SectionArrangementMenu';
 import { ChordSuggestions } from './ChordSuggestions';
 
 const VARIATION_LABELS = { bass: 'Bass', piano: 'Piano', guitar: 'Guitar' } as const;
+
+/** Repeats go round 1…8 on a tap, as in the Android app. */
+const MAX_REPEATS = 8;
 
 interface SectionCardProps {
   section: Section;
@@ -32,7 +36,7 @@ interface SectionCardProps {
   isLooping?: boolean;
   /** This section's own colour — see sectionColorMap. */
   color: string;
-  /** Something is playing somewhere — sections that aren't it are held back. */
+  /** Something is playing somewhere. */
   isPlaying?: boolean;
   /** Tempo, so each chord's beat dots can fill themselves as it sounds. */
   bpm: number;
@@ -61,8 +65,19 @@ interface SectionCardProps {
   onEditSectionRhythm?: (sectionIndex: number) => void;
   /** What the song plays on each track, so an inherited row in the options panel names it. */
   songSounds?: Partial<Record<'drums' | 'bass' | 'piano' | 'guitar', string>>;
+  /** The song's key as the chords are stored (untransposed), for each chord's numeral. */
+  songKey?: DetectedKey | null;
+  /** Beats in a bar: a chord takes one grid column per bar it lasts. */
+  beatsPerBar?: number;
 }
 
+/**
+ * One section of the song, as the Android app draws it (lib/features/arrangement/
+ * section_card.dart): a header washed in the section's colour — its name, the rhythm it
+ * plays if that is its own, how many times it goes round (which time round, while it
+ * plays), loop, its rhythm and a menu — over a four-column grid of chords, each as wide
+ * as the bars it lasts, with "+ Chord" and "Suggest" waiting where the next chord would go.
+ */
 export const SectionCard = memo(function SectionCard({
   section,
   sectionIndex,
@@ -94,15 +109,13 @@ export const SectionCard = memo(function SectionCard({
   songStyle,
   onEditSectionRhythm,
   songSounds,
+  songKey = null,
+  beatsPerBar = 4,
 }: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
   const [optionsOpen, setOptionsOpen] = useState(false);
 
-  const colorVar = color;
-
-  // Dragging the card itself reorders sections; the grip is the only handle, so a
-  // pointer-down anywhere else in the header still edits the name or presses a button.
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: section.id,
   });
@@ -121,29 +134,19 @@ export const SectionCard = memo(function SectionCard({
     setIsEditingName(false);
   };
 
-  // Calculate which chord in this section is playing
-  const getLocalPlayingIndex = (): number => {
-    if (currentChordIndex < 0) return -1;
-    const localIndex = currentChordIndex - globalChordOffset;
-    const sectionLength = section.chords.length;
-    if (sectionLength === 0) return -1;
-    const adjustedIndex = localIndex % sectionLength;
-    if (localIndex >= 0 && localIndex < sectionLength * section.repeatCount) {
-      return adjustedIndex;
-    }
-    return -1;
-  };
-
-  const localPlayingIndex = getLocalPlayingIndex();
+  // Which chord of this section is playing, and which time round the section is on
+  const chordCount = section.chords.length;
+  const localIndex = currentChordIndex - globalChordOffset;
+  const inSection =
+    currentChordIndex >= 0 && chordCount > 0 && localIndex >= 0 && localIndex < chordCount * section.repeatCount;
+  const localPlayingIndex = inSection ? localIndex % chordCount : -1;
   const isLive = isPlaying && localPlayingIndex >= 0;
+  const currentRepeat = isLive ? Math.floor(localIndex / chordCount) + 1 : 0;
 
-  // Generate unique chord IDs that include section index
   const chordIds = section.chords.map(c => `chord-${sectionIndex}-${c.id}`);
 
-  // Per-instrument melodic variations for the active style — only worth showing a picker
-  // when there's more than one to choose from (e.g. Merengue's 9 bass variations). These
-  // moved out of the header into the section options panel, beside the track they belong
-  // to. Falls back to the first variation, matching resolveVariation().
+  // Per-instrument melodic variations for the active style — only worth a picker when
+  // there's more than one. They live in the section options panel, beside their track.
   const sectionVariationIdKey = {
     bass: 'bassVariationId',
     piano: 'pianoVariationId',
@@ -167,51 +170,54 @@ export const SectionCard = memo(function SectionCard({
   const summary = availableStyles ? arrangementSummary(arrangement, availableStyles) : null;
   const canOpenOptions = !!onArrangementChange && !!availableStyles && !!(songStyle ?? style);
 
-  const iconBtn = 'cp-btn cp-ib cp-gh';
+  // A chord takes a column per bar it lasts; "+ Chord" and "Suggest" fill what is left of
+  // the last row, the way the app lays them out.
+  const spanOf = (chord: Chord) => Math.min(4, Math.max(1, Math.ceil((chord.duration ?? beatsPerBar) / beatsPerBar)));
+  const used = chordCount === 0
+    ? 2
+    : section.chords.reduce((cells, chord) => {
+        const span = spanOf(chord);
+        const start = (cells % 4) + span > 4 ? Math.ceil(cells / 4) * 4 : cells;
+        return start + span;
+      }, 0) % 4;
+  const free = used === 0 ? 0 : 4 - used;
+
+  const addTile = (className: string) => (
+    <button className={`cp-tile ${className}`} onClick={() => onAddChord(sectionIndex)} aria-label={`Add chord to ${section.name}`}>
+      <Plus size={16} />
+      Chord
+    </button>
+  );
+  const suggestTile = (className: string) => (
+    <ChordSuggestions
+      styleId={styleId}
+      variant="tile"
+      className={className}
+      onSetProgression={(chords) => onSetProgression(sectionIndex, chords)}
+    />
+  );
 
   return (
     <section
       ref={setNodeRef}
-      className="cp-card"
+      className={`cp-sec ${isLive ? 'cp-live' : ''}`}
       aria-label={section.name}
       style={{
+        ['--cp-sc' as string]: color,
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 5 : undefined,
-        opacity: isDragging ? 0.5 : isPlaying && !isLive ? 0.62 : undefined,
-        borderColor: isLive || isOver ? `color-mix(in srgb, ${isOver ? 'var(--cp-ac)' : colorVar} 60%, transparent)` : undefined,
-        boxShadow: isLive
-          ? `0 0 0 4px color-mix(in srgb, ${colorVar} 12%, transparent)`
-          : isOver
-            ? '0 0 0 4px color-mix(in srgb, var(--cp-ac) 12%, transparent)'
-            : undefined,
+        opacity: isDragging ? 0.5 : undefined,
       }}
     >
-      {/* Header */}
-      <div className="flex items-center gap-2 px-1.5 pb-1.5 pt-2.5 lg:gap-2.5 lg:pr-3">
-        <button
-          className="cp-gr hidden lg:flex"
-          aria-label={`Drag to reorder ${section.name}`}
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical size={16} />
+      <div className={`cp-sh ${isOver && chordCount > 0 ? 'cp-drop' : ''}`}>
+        <button className="cp-sgrip" aria-label={`Drag to reorder ${section.name}`} {...attributes} {...listeners}>
+          <GripVertical size={14} />
         </button>
-
-        <span
-          className="shrink-0"
-          style={{
-            width: 12,
-            height: 12,
-            borderRadius: isLive ? 6 : 4,
-            background: colorVar,
-            boxShadow: isLive ? `0 0 0 4px color-mix(in srgb, ${colorVar} 28%, transparent)` : undefined,
-          }}
-          aria-hidden="true"
-        />
+        <span className="cp-sdot" aria-hidden="true" />
 
         {isEditingName ? (
-          <Input
+          <input
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
             onBlur={handleNameSubmit}
@@ -222,13 +228,14 @@ export const SectionCard = memo(function SectionCard({
                 setIsEditingName(false);
               }
             }}
-            className="h-7 w-32 text-sm font-bold"
+            className="cp-sname ml-1 w-36 rounded-md"
+            style={{ background: 'var(--cp-s1)', boxShadow: 'inset 0 0 0 1.5px var(--cp-ac)', padding: '4px 6px' }}
+            aria-label="Section name"
             autoFocus
           />
         ) : (
           <button
-            className="min-w-0 truncate border-0 bg-transparent p-0 text-[15px] font-bold tracking-tight"
-            style={{ color: 'var(--cp-tx)' }}
+            className="cp-sname ml-1"
             onClick={() => {
               setEditName(section.name);
               setIsEditingName(true);
@@ -239,74 +246,68 @@ export const SectionCard = memo(function SectionCard({
           </button>
         )}
 
-        {/* Only shown when the section actually differs from the song. Opens the same
-            panel as Options, which is why that Popover is controlled from here. On a
-            phone it moves to its own row under the header — see below. */}
+        {/* The rhythm this section plays when it isn't the song's, in its colour */}
         {canOpenOptions && summary && (
           <button
-            className="cp-rc hidden min-w-0 lg:inline-flex"
+            className="cp-stag hidden sm:inline-block"
             onClick={() => setOptionsOpen(true)}
             aria-label={`${section.name} plays ${summary}. Open section options.`}
           >
-            <LayoutGrid size={14} className="shrink-0" />
-            <span className="cp-sub">{summary}</span>
+            {summary}
           </button>
         )}
 
         <div className="flex-grow" />
 
         <button
-          className={isLooping ? 'cp-btn cp-ib' : iconBtn}
-          style={{
-            width: 36,
-            height: 36,
-            ...(isLooping
-              ? {
-                  background: `color-mix(in srgb, ${colorVar} 22%, transparent)`,
-                  borderColor: colorVar,
-                  color: colorVar,
-                }
-              : {}),
-          }}
+          className="cp-rep"
+          onClick={() => onRepeatChange(sectionIndex, section.repeatCount >= MAX_REPEATS ? 1 : section.repeatCount + 1)}
+          aria-label={
+            isLive
+              ? `Time ${Math.min(currentRepeat, section.repeatCount)} of ${section.repeatCount}. Tap for more repeats`
+              : `Plays ${section.repeatCount} time${section.repeatCount === 1 ? '' : 's'}. Tap for more`
+          }
+          title="Repeats"
+        >
+          <span>
+            {isLive && section.repeatCount > 1
+              ? `${Math.min(currentRepeat, section.repeatCount)} / ${section.repeatCount}`
+              : `×${section.repeatCount}`}
+          </span>
+        </button>
+
+        <button
+          className={`cp-loop ${isLooping ? 'cp-on' : ''}`}
           onClick={() => onToggleLoop(sectionIndex)}
           aria-pressed={!!isLooping}
           aria-label={isLooping ? `Stop looping ${section.name}` : `Loop ${section.name}`}
+          title={isLooping ? 'Stop looping' : 'Loop this section'}
         >
-          <Repeat size={18} />
+          <span><Repeat size={15} /></span>
         </button>
 
-        <div className="cp-step">
+        {onEditSectionRhythm && (
           <button
-            onClick={() => onRepeatChange(sectionIndex, section.repeatCount - 1)}
-            disabled={section.repeatCount <= 1}
-            aria-label="Fewer repeats"
+            className="cp-icb"
+            style={{ width: 34 }}
+            onClick={() => onEditSectionRhythm(sectionIndex)}
+            aria-label={`Edit the rhythm of ${section.name}`}
+            title="Edit this section's rhythm"
           >
-            <Minus size={14} />
+            <LayoutGrid size={17} />
           </button>
-          <span className="cp-mono min-w-[26px] text-center text-xs font-bold">×{section.repeatCount}</span>
-          <button
-            onClick={() => onRepeatChange(sectionIndex, section.repeatCount + 1)}
-            aria-label="More repeats"
-          >
-            <Plus size={14} />
-          </button>
-        </div>
+        )}
 
-        {/* Phone: one overflow menu instead of Options + duplicate + delete, as drawn. */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
-              className="cp-btn cp-ib cp-gh lg:hidden"
-              style={{ width: 40, height: 40 }}
-              aria-label={`${section.name} options`}
-            >
-              <MoreVertical size={18} />
+            <button className="cp-icb" style={{ width: 34 }} aria-label={`${section.name} options`}>
+              <MoreHorizontal size={18} />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {canOpenOptions && (
               <DropdownMenuItem onClick={() => setOptionsOpen(true)}>
-                <LayoutGrid size={14} className="mr-2" />Section options…
+                <SlidersHorizontal size={14} className="mr-2" />Section options…
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={() => onDuplicate(sectionIndex)}>
@@ -333,114 +334,72 @@ export const SectionCard = memo(function SectionCard({
             onVariationChange={
               onVariationChange ? (instrument, id) => onVariationChange(sectionIndex, instrument, id) : undefined
             }
-            trigger={
-              <button
-                className="cp-btn cp-opt hidden lg:inline-flex"
-                aria-haspopup="menu"
-                aria-expanded={optionsOpen}
-                aria-label={`${section.name} options`}
-              >
-                Options
-                <ChevronDown size={16} />
-                {summary && <b className="cp-dot" />}
-              </button>
-            }
+            // Opened from the tag or the menu; this only anchors the panel.
+            trigger={<span className="block h-0 w-0" aria-hidden="true" />}
           />
         )}
-
-        <div className="cp-dv mx-0.5 hidden lg:block" style={{ height: 20 }} />
-
-        <button
-          className={`${iconBtn} hidden lg:inline-flex`}
-          style={{ width: 36, height: 36 }}
-          onClick={() => onDuplicate(sectionIndex)}
-          aria-label={`Duplicate ${section.name}`}
-        >
-          <Copy size={18} />
-        </button>
-        <button
-          className={`${iconBtn} hidden lg:inline-flex`}
-          style={{ width: 36, height: 36 }}
-          onClick={() => onDelete(sectionIndex)}
-          aria-label={`Delete ${section.name}`}
-        >
-          <Trash2 size={18} />
-        </button>
       </div>
-
-      {/* Phone: the "differs from the song" chip gets its own full-width row */}
-      {canOpenOptions && summary && (
-        <div className="px-3 pb-1 lg:hidden">
-          <button
-            className="cp-rc w-full justify-start"
-            style={{ height: 36, fontSize: 13 }}
-            onClick={() => setOptionsOpen(true)}
-            aria-label={`${section.name} plays ${summary}. Open section options.`}
-          >
-            <LayoutGrid size={14} className="shrink-0" />
-            <span className="cp-sub">{summary}</span>
-          </button>
-        </div>
-      )}
 
       {/* Chords */}
       <div ref={setDroppableRef}>
-        {section.chords.length === 0 ? (
-          <div
-            className="mx-4 flex h-20 items-center justify-center rounded-xl text-xs"
-            style={{
-              border: `1.5px dashed ${isOver ? 'var(--cp-ac)' : 'var(--cp-ln2)'}`,
-              color: isOver ? 'var(--cp-act)' : 'var(--cp-mu)',
-              background: isOver ? 'color-mix(in srgb, var(--cp-ac) 6%, transparent)' : undefined,
-            }}
-          >
-            {isOver ? 'Drop chord here' : 'No chords yet'}
+        <SortableContext items={chordIds} strategy={rectSortingStrategy}>
+          <div className="cp-grid">
+            {chordCount === 0 && (
+              <div
+                className="cp-empty"
+                style={{
+                  gridColumn: 'span 2',
+                  ...(isOver ? { borderColor: 'var(--cp-ac)', color: 'var(--cp-act)' } : {}),
+                }}
+              >
+                {isOver ? 'Drop chord here' : 'No chords yet'}
+              </div>
+            )}
+
+            {section.chords.map((chord, index) => {
+              const compoundId = `chord-${sectionIndex}-${chord.id}`;
+              return (
+                <SortableChord
+                  key={chord.id}
+                  chord={chord}
+                  chordId={compoundId}
+                  index={index}
+                  span={spanOf(chord)}
+                  isPlaying={localPlayingIndex === index && isPlaying}
+                  bpm={bpm}
+                  rawIndex={currentChordIndex}
+                  isSelected={selectedChordIds.has(compoundId)}
+                  hasSelection={selectedChordIds.size > 0}
+                  onClick={() => onChordClick(sectionIndex, index)}
+                  onSelectToggle={(ctrl) => onChordSelect(sectionIndex, index, ctrl)}
+                  onDelete={() => onChordDelete(sectionIndex, index)}
+                  onDuplicate={() => onChordDuplicate(sectionIndex, index)}
+                  transposition={transposition}
+                  preferFlats={preferFlats}
+                  isOutOfScale={false}
+                  degree={chordDegree(chord, songKey)}
+                />
+              );
+            })}
+
+            {free >= 2 ? (
+              <>
+                {addTile('cp-v')}
+                {suggestTile('cp-v')}
+              </>
+            ) : free === 1 ? (
+              <div className="flex flex-col gap-1.5">
+                {addTile('flex-1')}
+                {suggestTile('flex-1')}
+              </div>
+            ) : (
+              <>
+                <div style={{ gridColumn: 'span 2' }}>{addTile('h-10')}</div>
+                <div style={{ gridColumn: 'span 2' }}>{suggestTile('h-10')}</div>
+              </>
+            )}
           </div>
-        ) : (
-          <SortableContext items={chordIds} strategy={rectSortingStrategy}>
-            <div className="grid grid-cols-2 gap-2 px-3 pt-1.5 sm:grid-cols-3 lg:grid-cols-4 lg:gap-3 lg:px-4 lg:pt-2">
-              {section.chords.map((chord, index) => {
-                const compoundId = `chord-${sectionIndex}-${chord.id}`;
-                return (
-                  <SortableChord
-                    key={chord.id}
-                    chord={chord}
-                    chordId={compoundId}
-                    index={index}
-                    isPlaying={localPlayingIndex === index && isPlaying}
-                    bpm={bpm}
-                    rawIndex={currentChordIndex}
-                    isSelected={selectedChordIds.has(compoundId)}
-                    hasSelection={selectedChordIds.size > 0}
-                    onClick={() => onChordClick(sectionIndex, index)}
-                    onSelectToggle={(ctrl) => onChordSelect(sectionIndex, index, ctrl)}
-                    onDelete={() => onChordDelete(sectionIndex, index)}
-                    onDuplicate={() => onChordDuplicate(sectionIndex, index)}
-                    transposition={transposition}
-                    preferFlats={preferFlats}
-                    isOutOfScale={false}
-                  />
-                );
-              })}
-            </div>
-          </SortableContext>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2 px-3 pb-4 pt-3 lg:px-4">
-          <button
-            className="cp-btn cp-dash"
-            style={{ height: 36 }}
-            onClick={() => onAddChord(sectionIndex)}
-          >
-            <Plus size={16} />
-            Add Chord
-          </button>
-
-          <ChordSuggestions
-            styleId={styleId}
-            onSetProgression={(chords) => onSetProgression(sectionIndex, chords)}
-          />
-        </div>
+        </SortableContext>
       </div>
     </section>
   );

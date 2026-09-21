@@ -20,12 +20,15 @@ interface ChordSuggestionsProps {
   styleId: string;
   onSetProgression: (chords: Chord[]) => void;
   className?: string;
+  /** `tile` sits in the chord grid beside the chords, as in the Android app. */
+  variant?: 'button' | 'tile';
 }
 
 export const ChordSuggestions = memo(function ChordSuggestions({
   styleId,
   onSetProgression,
   className = '',
+  variant = 'button',
 }: ChordSuggestionsProps) {
   const { generateProgression } = useChordSuggestions();
   const [generatedProgression, setGeneratedProgression] = useState<ProgressionSuggestion | null>(null);
@@ -143,13 +146,20 @@ export const ChordSuggestions = memo(function ChordSuggestions({
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <button
-          className={`cp-btn cp-gh ${className}`}
-          style={{ height: 36, color: 'var(--cp-act)' }}
-        >
-          <Sparkles className="h-4 w-4" />
-          <span className="hidden sm:inline">Suggest</span>
-        </button>
+        {variant === 'tile' ? (
+          <button className={`cp-tile ${className}`} style={{ color: 'var(--cp-act)' }}>
+            <Sparkles className="h-4 w-4" />
+            Suggest
+          </button>
+        ) : (
+          <button
+            className={`cp-btn cp-gh ${className}`}
+            style={{ height: 36, color: 'var(--cp-act)' }}
+          >
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">Suggest</span>
+          </button>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-96 p-0" align="end">
         <div className="p-3 border-b flex items-center gap-2">

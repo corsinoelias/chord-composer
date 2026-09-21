@@ -2,10 +2,22 @@ import { useState, memo, useMemo, useCallback } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { MUSICAL_STYLES, type StylePattern } from '@/lib/styles';
+import { SECTION_COLORS } from '@/lib/sectionColors';
 import { getCustomStyles, deleteCustomStyle, getStyleOverride } from '@/lib/customStyles';
 import { Music, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
+/**
+ * The dot that tells rhythms apart at a glance — one of the section colours, picked by a
+ * hash of the id so a rhythm keeps its colour everywhere. Same hash as the Android app's
+ * AppColors.sectionColor.
+ */
+function styleDotColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  return SECTION_COLORS[Math.abs(hash) % SECTION_COLORS.length];
+}
 
 interface StyleSelectorProps {
   selectedStyleId: string;
@@ -21,7 +33,8 @@ interface StyleSelectorProps {
    * `card` is the chord player's Sound card trigger: a 56px slab with the rhythm's icon,
    * its name and its category · tempo. `default` is the plain labelled select.
    */
-  variant?: 'default' | 'card';
+  /** `pill`: the Android app's style capsule — a colour dot, the name, a chevron. */
+  variant?: 'default' | 'card' | 'pill';
 }
 
 // Group styles by category for the dropdown
@@ -129,12 +142,26 @@ export const StyleSelector = memo(function StyleSelector({
     setStyleToDelete(null);
   }, [styleToDelete, selectedStyleId, onStyleChange]);
   const isCard = variant === 'card';
+  const isPill = variant === 'pill';
 
   return <>
-      <div className={isCard ? '' : 'flex items-center gap-2'}>
-        {!isCard && <Music className="w-4 h-4 text-muted-foreground" aria-hidden="true" />}
+      <div className={isCard || isPill ? '' : 'flex items-center gap-2'}>
+        {!isCard && !isPill && <Music className="w-4 h-4 text-muted-foreground" aria-hidden="true" />}
         <Select value={selectedStyleId} onValueChange={onStyleChange}>
-          {isCard ? (
+          {isPill ? (
+            <SelectTrigger
+              aria-label="Rhythm style"
+              className="cp-cap h-9 w-full justify-between gap-2 rounded-full px-3 text-left shadow-none focus:ring-0 focus:ring-offset-0 [&>svg]:opacity-60"
+              style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }}
+            >
+              {/* A div, not a span: SelectTrigger clamps its direct <span> children to one
+                  line, which would collapse the dot. */}
+              <div className="flex min-w-0 items-center gap-[7px]">
+                <span className="cp-dt" style={{ background: styleDotColor(selectedStyleId) }} aria-hidden="true" />
+                <span className="truncate">{selectedStyle?.name ?? 'Pick a rhythm'}</span>
+              </div>
+            </SelectTrigger>
+          ) : isCard ? (
             <SelectTrigger
               aria-label="Rhythm style and tempo"
               className="h-14 w-full justify-start gap-3 rounded-xl border px-3.5 pl-2.5 text-left [&>svg]:opacity-100"

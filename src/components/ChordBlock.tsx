@@ -6,7 +6,7 @@ import { qualityClass } from '@/lib/chordColors';
 
 /** Split a transposed chord name into [chordPart, bassNotePart | null] */
 function splitChordName(chord: Chord, transposition: number, preferFlats: boolean): [string, string | null] {
-  const full = getTransposedChordName(chord, transposition, preferFlats)
+  const full = getTransposedChordName(chord, transposition, preferFlats, true)
   const slash = full.indexOf('/')
   if (slash === -1) return [full, null]
   return [full.slice(0, slash), full.slice(slash)]  // bass part keeps the '/'
@@ -26,6 +26,11 @@ interface ChordBlockProps {
   rawIndex?: number | string;
   /** The drag overlay renders at a fixed size instead of filling its grid cell. */
   fixedWidth?: boolean;
+  /**
+   * Where the chord sits in the song's key ("vi", "♭VII"), as the Android app shows it
+   * under every chord. Borrowed chords read the same, only quieter.
+   */
+  degree?: { numeral: string; borrowed: boolean } | null;
 }
 
 export const ChordBlock = memo(function ChordBlock({
@@ -39,6 +44,7 @@ export const ChordBlock = memo(function ChordBlock({
   bpm = 120,
   rawIndex = 0,
   fixedWidth = false,
+  degree = null,
 }: ChordBlockProps) {
   const quality = useMemo(() => qualityClass(chord.quality), [chord.quality]);
   // A chord written as a flat keeps reading as one even in a sharp key: someone who
@@ -62,6 +68,9 @@ export const ChordBlock = memo(function ChordBlock({
         <span className="cp-cn">{chordPart}</span>
         {bassPart && <span className="cp-cb">{bassPart}</span>}
       </span>
+      {degree && (
+        <span className={`cp-deg ${degree.borrowed ? 'cp-bor' : ''}`}>{degree.numeral}</span>
+      )}
       <BeatDots
         duration={chord.duration ?? 4}
         isActive={isPlaying}
