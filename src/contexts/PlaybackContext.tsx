@@ -29,6 +29,7 @@ import {
   ensurePianoNotes,
   clearChordSchedule,
 } from '@/lib/audioEngine';
+import { AppPlayback, appEngineEnabled, type AppSong } from '@/lib/appEngine/player';
 
 interface PlaybackState {
   isPlaying: boolean;
@@ -193,6 +194,10 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   const rafRef = useRef<number>();
   const optionsRef = useRef<PlayOptions | null>(null);
   const sectionsRef = useRef<Section[]>([]);
+  // The app's engine (?engine=app, docs/motor-unico-wasm.md phase 6). Only one of the two
+  // engines plays at a time; appRef.current.active says whether it is this one.
+  const useAppEngine = useRef(appEngineEnabled());
+  const appRef = useRef(new AppPlayback());
 
   // The style currently in effect, resolved from the live options. Shared by the scheduler's
   // per-bar getStyle and by updatePlaybackOptions, which needs it to compute mixer levels.
@@ -206,6 +211,24 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       getStyleOverride,
     );
   }, []);
+  // The song as the app's engine takes it, from the live options.
+  const appSong = useCallback((): AppSong => {
+    const opts = optionsRef.current!;
+    const style = resolveCurrentStyle();
+    return {
+      song: {
+        sections: opts.sections ?? sectionsRef.current,
+        bpm: opts.bpm,
+        transposition: opts.transposition,
+        instrumentSettings: opts.instruments,
+        metronomeEnabled: opts.metronome,
+      },
+      style: opts.melodic ? { ...style, melodic: opts.melodic } : style,
+      lookup: makeStyleLookup(opts.customStyles ?? getCustomStyles(), getStyleOverride, opts.liveEditedStyle),
+      loopingSectionIndex: opts.loopingSectionIndex,
+    };
+  }, [resolveCurrentStyle]);
+
   // Caches the decoded vocal-reference buffer by URL so replaying/looping the same
   // song doesn't re-fetch+decode on every play() call within the session.
   const audioTrackBufferRef = useRef<{ url: string; buffer: AudioBuffer } | null>(null);
@@ -242,7 +265,8 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     const triggerPreload = () => {
       if (!audioPreloaded.current) {
         audioPreloaded.current = true;
-        preloadAudio().catch(console.warn);
+        if (useAppEngine.current) AppPlayback.preload();
+        else preloadAudio().catch(console.warn);
         window.removeEventListener('click', triggerPreload);
         window.removeEventListener('touchstart', triggerPreload);
         window.removeEventListener('keydown', triggerPreload);
@@ -283,6 +307,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   }, [state.isPlaying]);
 
   const stop = useCallback((opts?: { keepContext?: boolean }) => {
+    if (appRef.current.active) appRef.current.stop();
     if (cancelRef.current) {
       cancelRef.current();
       cancelRef.current = null;
@@ -360,6 +385,22 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     window.dispatchEvent(new CustomEvent('chordplayer:playback-started', {
       detail: { instanceId: instanceIdRef.current },
     }));
+
+    // The app's engine plays songs that loop. A single pass that hands over to something
+    // else, and the vocal reference track, stay on the web's engine for now.
+    if (useAppEngine.current && (options.loop ?? true) && !options.audioTrack) {
+      await appRef.current.play(appSong());
+      setState(prev => ({
+        ...prev,
+        isPlaying: true,
+        currentChordIndex: 0,
+        bpm: options.bpm,
+        metronomeEnabled: options.metronome,
+      }));
+      setupMediaSession('Chord Progression');
+      return;
+    }
+    if (appRef.current.active) appRef.current.stop();
 
     try {
       await ensureSamplesLoaded();
@@ -572,7 +613,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     });
 
     cancelRef.current = cancel;
-  }, [stop, setupMediaSession, resolveCurrentStyle]);
+  }, [stop, setupMediaSession, resolveCurrentStyle, appSong]);
 
   const play = useCallback(async (sections: Section[], options: PlayOptions) => {
     // Acquire mutex to prevent multiple instances
@@ -606,6 +647,10 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   // Preloads everything play() awaits, without starting playback — used to overlap
   // loading with the countdown so the first play doesn't freeze after the count hits 0.
   const warmup = useCallback(async (options: PlayOptions) => {
+    if (useAppEngine.current && (options.loop ?? true) && !options.audioTrack) {
+      AppPlayback.warmup();
+      return;
+    }
     try {
       await ensureSamplesLoaded();
     } catch { /* proceed — play() will retry/await as needed */ }
@@ -651,18 +696,30 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     if (optionsRef.current) {
       optionsRef.current.bpm = bpm;
     }
+    appRef.current.send([['setBpm', bpm]]);
   }, []);
 
   const setMetronomeEnabled = useCallback((enabled: boolean) => {
     setState(prev => ({ ...prev, metronomeEnabled: enabled }));
     if (optionsRef.current) {
       optionsRef.current.metronome = enabled;
+      if (appRef.current.active) void appRef.current.update(appSong());
     }
-  }, []);
+  }, [appSong]);
 
   const updatePlaybackOptions = useCallback((updates: Partial<PlayOptions>) => {
     if (optionsRef.current) {
       optionsRef.current = { ...optionsRef.current, ...updates };
+      if (appRef.current.active) {
+        // Only the mixer moved: send the levels and nothing else, so no note is cut short.
+        const keys = Object.keys(updates);
+        if (keys.every(k => k === 'instruments' || k === 'vocalMuted' || k === 'vocalVolume')) {
+          void appRef.current.updateMix(appSong());
+        } else {
+          void appRef.current.update(appSong());
+        }
+        return;
+      }
       // Faders, mute and solo live on the mixer buses now, so push them straight through
       // instead of waiting for the scheduler to re-read them at the next chord. Everything
       // else in `updates` is still picked up per segment by the dynamic getters.
@@ -670,14 +727,16 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
         applyMixerLevels(optionsRef.current.instruments, resolveCurrentStyle());
       }
     }
-  }, [resolveCurrentStyle]);
+  }, [resolveCurrentStyle, appSong]);
 
   // Cleanup on unmount
   useEffect(() => {
+    const app = appRef.current;
     return () => {
       if (cancelRef.current) {
         cancelRef.current();
       }
+      if (app.active) app.stop();
       stopAudioPlayback();
     };
   }, []);
@@ -701,6 +760,16 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       return null;
     };
     const loop = () => {
+      if (appRef.current.active) {
+        const at = appRef.current.position();
+        if (at) {
+          setStep(at.step);
+          setState(prev => prev.currentChordIndex === at.chordIndex ? prev : { ...prev, currentChordIndex: at.chordIndex });
+          setPlaybackPosition(at.position);
+        }
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
       try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;

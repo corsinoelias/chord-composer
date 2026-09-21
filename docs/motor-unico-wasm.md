@@ -1,6 +1,6 @@
 # Estudio: usar en la web el motor de audio de la app
 
-Escrito el 2026-09-21. Estado: **fases 1 a 4 hechas; los arpegios de la fase 5, descartados** (laboratorio en `/lab/app-engine/`, probado por
+Escrito el 2026-09-21. Estado: **fases 1 a 4 hechas; arpegios descartados; fase 6 en marcha (`?engine=app`)** (laboratorio en `/lab/app-engine/`, probado por
 el usuario: suena bien); decisión de sonido tomada (A, sección 5). La prueba es reproducible en `docs/motor-unico-spike/`.
 
 Pregunta: ¿puede la web sonar con el mismo motor que la app de Android, es viable y vale la
@@ -134,6 +134,23 @@ llama Flutter por JNI), también hay que añadirla en `engine/web_glue.cpp`.
   1,9 %, 268 s exportados en 4,9 s). Pico hasta 0,977 con pop_1: al borde de saturar.
 - Sigue sonando distinto: los arpegios suenan en bloque (el laboratorio lo avisa), un paso con más de dos notas se queda con las dos más graves, y un golpe de acorde y
   un grado en el mismo paso de una variación se quedan en el acorde.
+
+## 2f. Fase 6 empezada: el reproductor real, con interruptor
+
+- `?engine=app` en cualquier página del reproductor lo activa en ese navegador (se recuerda);
+  `?engine=web` lo quita. Sin él, todo sigue como siempre.
+- `src/lib/appEngine/player.ts` (`AppPlayback`), enchufado en `PlaybackContext`: la interfaz no
+  cambia. Tempo y clic van solos; la mezcla (faders, mute, solo) solo manda niveles, sin cortar
+  notas; cualquier otro cambio (acordes, ritmo, tono) reenvía la canción entera, que el motor toma
+  en el siguiente paso sin parar. La posición (acorde con repeticiones, fracción, paso) se
+  calcula igual que la del motor web para que el resaltado y la barra funcionen.
+- Siguen en el motor web: una sola pasada (`loop: false`, p. ej. tocar una sección en las
+  páginas de canción) y las canciones con pista de voz. La cuenta atrás visual sigue haciendo
+  sus clics con el motor web; mientras cuenta, el motor de la app ya arranca.
+- Medido en el Pixel con el reproductor real: 0 ms de cortes con la página atascada 20 s; el
+  cambio de tono entra en marcha.
+- Falta: una pasada y voz en el motor de la app, caché permanente de recursos, y comparar con
+  tus canciones antes de hacerlo el motor por defecto.
 
 ## 3. Peso de los sonidos
 

@@ -165,6 +165,11 @@ export class AppEngine {
     return engine;
   }
 
+  /** Fetches the engine and its sounds ahead of a first play, without opening any audio. */
+  static preload(): Promise<void> {
+    return loadAssets().then(() => undefined);
+  }
+
   /** Loads more of the kit's recordings (slot numbers from kit.json), once each. */
   async ensureSlots(slots: number[]): Promise<void> {
     const missing = this.kit.filter((k) => slots.includes(k.slot) && !this.loadedSlots.has(k.slot));

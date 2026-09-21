@@ -74,6 +74,8 @@ export interface EngineSong {
   commands: EngineCommand[];
   /** Sixteenths the song lasts, for a file export. */
   steps: number;
+  /** How many steps each chord of each section lasts in the engine, for the playhead. */
+  chordSteps: number[][];
   /** Kit recordings the song plays (slots in kit.json): load them before playing. */
   drumSlots: number[];
   /** What could not be carried across, for the lab to show. */
@@ -132,12 +134,15 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   c.push(['setSwing', p / (1 - p)]);
 
   let steps = 0;
+  const chordSteps: number[][] = [];
   c.push(['beginArrangement', sections.length]);
   sections.forEach((section, s) => {
     const chords: Chord[] = section.chords.slice(0, MAX_CHORDS);
     if (section.chords.length > MAX_CHORDS) notes.push(`${section.name}: ${section.chords.length - MAX_CHORDS} chords past ${MAX_CHORDS} left out`);
     c.push(['section', s, Math.max(1, section.repeatCount), false, chords.length]);
     let sectionSteps = 0;
+    const lengths: number[] = [];
+    chordSteps.push(lengths);
     chords.forEach((chord, i) => {
       const root = NOTE_NAMES[mod12(pitchClass(chord.root, chord.accidental) + transposition)];
       const bass = bassPitchClass(chord.bassNote);
@@ -145,7 +150,9 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
       // 4/4 and 3/4, an eighth in 6/8 — and the web counts it in quarters.
       const halfBeats = Math.max(1, Math.round((chord.duration * 8) / stepsPerBeat));
       c.push(['chord', s, i, root, ENGINE_QUALITY[chord.quality] ?? chord.quality, halfBeats, bass < 0 ? -1 : mod12(bass + transposition)]);
-      sectionSteps += Math.max(1, Math.floor((halfBeats * stepsPerBeat) / 2));
+      const length = Math.max(1, Math.floor((halfBeats * stepsPerBeat) / 2));
+      lengths.push(length);
+      sectionSteps += length;
     });
     steps += sectionSteps * Math.max(1, section.repeatCount);
   });
@@ -242,7 +249,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   }
   c.push(['metronome', !!song.metronomeEnabled, 0.7, sampledDrum(STICK_SLOT), true, 1]);
 
-  return { commands: c, steps, drumSlots: [...drumSlots].sort((a, b) => a - b), notes: [...noted] };
+  return { commands: c, steps, chordSteps, drumSlots: [...drumSlots].sort((a, b) => a - b), notes: [...noted] };
 }
 
 /**
