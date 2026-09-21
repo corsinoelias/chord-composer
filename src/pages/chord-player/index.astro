@@ -5,12 +5,10 @@ export const prerender = true;
 import '../../styles/chord-player.css';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import EditorApp from '../../components/EditorApp';
-import UiButtonChip from '../../components/UiButtonChip.astro';
 import {
   Plus,
   Sparkles,
   Shuffle,
-  FileMusic,
   Repeat,
   Settings2,
   Sliders,
@@ -112,7 +110,7 @@ const webAppSchema = {
          sized to its items' min-content, and the editor (a full-bleed two-column layout
          now) drags the whole page ~45px wider than the viewport on a phone. -->
     <div style="display: grid; grid-template-columns: minmax(0, 1fr);">
-      <div id="editor-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out;" class="min-h-screen bg-background">
+      <div id="editor-skeleton" style="grid-area: 1 / 1; z-index: 0; transition: opacity 180ms ease-out;" class="min-h-screen">
         <!--
           The logo + breadcrumb row below is real, permanent content (not aria-hidden). A
           crawler never has a saved song in its (nonexistent) localStorage, so it always sees
@@ -126,72 +124,48 @@ const webAppSchema = {
           heading at all. The H1 now lives in the "About the chord player" section below the
           editor, which is outside #editor-skeleton and therefore survives hydration.
         -->
-        <div class="border-b border-border bg-card">
-          <div class="container max-w-6xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
-            <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-2 sm:gap-3">
-                <div class="w-8 h-8 rounded-lg bg-primary/20"></div>
-                <div class="hidden sm:flex items-center gap-1 text-xs text-muted-foreground min-w-0">
-                  <span class="shrink-0">My library</span>
-                  <span class="opacity-30 mx-0.5">/</span>
-                  <span class="text-foreground font-medium truncate max-w-[160px] md:max-w-xs m-0 inline text-xs">Chord Player</span>
+        <div class="cp" style="background: var(--cp-bg);">
+          <div style="background: var(--cp-bar); border-bottom: 1px solid var(--cp-ln);">
+            <div class="flex h-[56px] items-center justify-between gap-2 px-2 lg:h-[60px] lg:px-8" style="border-bottom: 1px solid var(--cp-ln);">
+              <div class="flex items-center gap-3.5">
+                <div class="hidden h-[34px] w-[34px] rounded-[10px] lg:block" style="background: color-mix(in srgb, var(--cp-ac) 25%, transparent);"></div>
+                <div class="hidden items-center gap-2.5 text-[13px] lg:flex">
+                  <span class="shrink-0 font-medium" style="color: var(--cp-mu);">My library</span>
+                  <span style="color: var(--cp-ln2);">/</span>
+                  <span class="m-0 inline max-w-[160px] truncate text-[13px] font-bold md:max-w-xs">Chord Player</span>
                 </div>
               </div>
-              <div class="flex items-center gap-1.5 sm:gap-2" aria-hidden="true">
-                <div class="h-8 w-14 rounded-md bg-muted animate-pulse"></div>
-                <div class="hidden sm:block h-8 w-24 rounded-md bg-muted animate-pulse"></div>
-                <div class="h-8 w-16 rounded-md bg-muted animate-pulse"></div>
+              <div class="flex items-center gap-2" aria-hidden="true">
+                <div class="h-9 w-9 rounded-[10px] animate-pulse lg:w-20" style="background: var(--cp-s2);"></div>
+                <div class="h-9 w-9 rounded-[10px] animate-pulse lg:w-28" style="background: var(--cp-s2);"></div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <div class="container max-w-6xl mx-auto px-2 sm:px-4 py-3 sm:py-6 space-y-3 sm:space-y-4" aria-hidden="true">
-          <!-- transport card: play button, tempo, title, style/instruments/rhythm toolbar -->
-          <div class="bg-card border border-border rounded-2xl shadow-lg p-3 sm:p-4 md:p-5 space-y-4">
-            <div class="flex items-center gap-3 sm:gap-4">
-              <div class="h-11 w-11 sm:h-12 sm:w-12 rounded-full bg-muted animate-pulse shrink-0"></div>
-              <div class="hidden sm:block h-6 w-14 rounded bg-muted animate-pulse shrink-0"></div>
-              <div class="h-2 w-20 sm:w-28 md:w-32 rounded-full bg-muted animate-pulse shrink-0"></div>
-              <div class="h-9 w-full max-w-xs rounded-md bg-muted animate-pulse"></div>
-              <div class="ml-auto flex items-center gap-2 shrink-0">
-                <div class="hidden sm:block h-8 w-16 rounded-md bg-muted animate-pulse"></div>
-                <div class="h-8 w-20 rounded-md bg-muted animate-pulse"></div>
-              </div>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <div class="h-8 w-28 rounded-lg bg-muted animate-pulse"></div>
-              <div class="h-8 w-24 rounded-lg bg-muted animate-pulse"></div>
-              <div class="h-8 w-20 rounded-lg bg-muted animate-pulse"></div>
-              <div class="h-8 w-16 rounded-lg bg-muted animate-pulse"></div>
+            <div class="flex items-center gap-5 px-4 py-3 lg:h-[84px] lg:gap-7 lg:px-8 lg:py-0" aria-hidden="true">
+              <div class="h-[52px] w-[52px] shrink-0 rounded-full lg:h-14 lg:w-14" style="background: color-mix(in srgb, var(--cp-ac) 30%, transparent);"></div>
+              <div class="h-4 w-full max-w-[250px] rounded animate-pulse" style="background: var(--cp-s2);"></div>
+              <div class="hidden h-9 w-28 rounded-[10px] animate-pulse lg:block" style="background: var(--cp-s2);"></div>
+              <div class="hidden h-9 w-16 rounded-[10px] animate-pulse lg:block" style="background: var(--cp-s2);"></div>
+              <div class="ml-auto hidden h-10 w-44 rounded-[10px] animate-pulse lg:block" style="background: var(--cp-s2);"></div>
             </div>
           </div>
 
-          <!-- chord preview card: fretboard/piano -->
-          <div class="bg-card border border-border rounded-2xl shadow-lg p-4 sm:p-6 space-y-4">
-            <div class="h-3 w-28 rounded bg-muted animate-pulse mx-auto"></div>
-            <div class="h-28 sm:h-40 w-full rounded-xl bg-muted animate-pulse"></div>
-          </div>
-
-          <!-- section card: name/icons row + chord chips + add buttons -->
-          <div class="bg-card border border-border border-l-4 border-l-primary/30 rounded-2xl shadow-lg p-4 sm:p-5 space-y-4">
-            <div class="flex items-center justify-between">
-              <div class="h-4 w-20 rounded bg-muted animate-pulse"></div>
-              <div class="flex items-center gap-2">
-                <div class="h-5 w-5 rounded bg-muted animate-pulse"></div>
-                <div class="h-5 w-5 rounded bg-muted animate-pulse"></div>
-                <div class="h-5 w-5 rounded bg-muted animate-pulse"></div>
+          <div class="mx-auto grid w-full max-w-[1440px] items-start gap-4 px-4 pt-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-7 lg:px-8 lg:pt-7" aria-hidden="true">
+            <div class="flex min-w-0 flex-col gap-4">
+              <div class="hidden h-11 w-60 rounded-lg animate-pulse lg:block" style="background: var(--cp-s2);"></div>
+              <div class="cp-card hidden h-[122px] lg:block"></div>
+              <div class="cp-card flex flex-col gap-3 p-4">
+                <div class="h-5 w-28 rounded animate-pulse" style="background: var(--cp-s2);"></div>
+                <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 lg:gap-3">
+                  <div class="h-[88px] rounded-xl animate-pulse" style="background: var(--cp-s2);"></div>
+                  <div class="h-[88px] rounded-xl animate-pulse" style="background: var(--cp-s2);"></div>
+                  <div class="hidden h-[88px] rounded-xl animate-pulse sm:block" style="background: var(--cp-s2);"></div>
+                  <div class="hidden h-[88px] rounded-xl animate-pulse lg:block" style="background: var(--cp-s2);"></div>
+                </div>
               </div>
             </div>
-            <div class="flex flex-wrap gap-2">
-              <div class="h-14 w-16 rounded-lg bg-muted animate-pulse"></div>
-              <div class="h-14 w-16 rounded-lg bg-muted animate-pulse"></div>
-              <div class="h-14 w-16 rounded-lg bg-muted animate-pulse"></div>
-              <div class="h-14 w-16 rounded-lg bg-muted animate-pulse"></div>
-            </div>
-            <div class="flex gap-2">
-              <div class="h-8 w-24 rounded-md bg-muted animate-pulse"></div>
-              <div class="h-8 w-24 rounded-md bg-muted animate-pulse"></div>
+            <div class="order-first flex flex-col gap-4 lg:order-none">
+              <div class="cp-card h-[260px] lg:h-[290px]"></div>
+              <div class="cp-card hidden h-[210px] lg:block"></div>
             </div>
           </div>
         </div>
@@ -210,26 +184,29 @@ const webAppSchema = {
       Fully visible on scroll, not gated behind a click — real content beats a closed
       accordion for both SEO (no reliance on Google expanding anything) and honesty with
       real visitors. It only shows up once someone scrolls past "Add Section" though, so
-      it never competes with the tool itself for attention on load. Each group sits on its
-      own white card (bg-card) rather than the bare page background — that's what separates
-      one group from the next, not a colored rail.
-    -->
-    <section aria-labelledby="chord-player-heading" class="mx-auto max-w-6xl mt-4 mb-16 px-4 sm:px-6">
-      <div class="border-t border-border pt-8 space-y-10 text-sm">
-        <!--
-          The page's only H1. It lives here rather than above the editor on purpose: this page
-          is the tool, and a hero band would push the app down for every returning visitor. Here
-          it is server-rendered, visible at every breakpoint, and outside #editor-skeleton, so
-          it is present both before and after hydration.
-        -->
-        <h1 id="chord-player-heading" class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-          Online Chord Player
-        </h1>
+      it never competes with the tool itself for attention on load.
 
-        <!-- WHAT IS IT — plain-language definition, written for a total beginner -->
-        <div class="max-w-2xl rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.07] to-transparent p-5 sm:p-6">
-          <h2 class="font-semibold text-foreground text-[1.3em] mb-2">What is a chord player?</h2>
-          <p class="text-muted-foreground leading-relaxed">
+      Laid out as the redesign canvas draws it: no cards, an editorial column — eyebrow,
+      heading, then the content — with a hairline rule between groups. Same copy as before.
+    -->
+    <div class="cp">
+    <section aria-labelledby="chord-player-heading" class="cp-content mx-auto flex max-w-[1440px] flex-col gap-14 px-4 pb-16 pt-16 sm:px-8 lg:gap-[72px] lg:px-[120px] lg:pt-24">
+      <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-[72px]">
+        <div class="flex flex-col gap-4">
+          <span class="cp-eyebrow">The chord player</span>
+          <!--
+            The page's only H1. It lives here rather than above the editor on purpose: this page
+            is the tool, and a hero band would push the app down for every returning visitor. Here
+            it is server-rendered, visible at every breakpoint, and outside #editor-skeleton, so
+            it is present both before and after hydration.
+          -->
+          <h1 id="chord-player-heading" class="text-[40px] font-extrabold leading-[1.02] tracking-[-0.03em] lg:text-[56px]">
+            Online Chord Player
+          </h1>
+        </div>
+        <div class="flex flex-col gap-3.5 lg:pt-2">
+          <h2 class="text-[22px] font-extrabold tracking-[-0.01em]">What is a chord player?</h2>
+          <p class="cp-lead">
             A chord is a group of notes played at the same time — like pressing a few piano keys
             together so they ring out as one sound. A chord player lets you pick a sequence of
             chords, choose a speed and a style, and hear them played back with real piano, guitar,
@@ -237,130 +214,125 @@ const webAppSchema = {
             and no instrument needed — just click and listen.
           </p>
         </div>
+      </div>
 
-        <!-- BUILDING YOUR PROGRESSION — this part is a real sequence, so numbering earns its keep -->
-        <div class="rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-6">
-          <p class="text-[0.7em] font-bold uppercase tracking-wider text-primary mb-1">Step by step</p>
-          <h2 class="font-semibold text-foreground text-[1.3em] mb-4">Building your progression</h2>
-          <ol class="grid sm:grid-cols-2 gap-3">
-            <li class="flex gap-3 rounded-xl border border-border bg-background p-4">
-              <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">1</span>
-              <p class="text-muted-foreground"><strong class="text-foreground font-medium">Pick a speed and a style.</strong> Try pop, rock, hip-hop, or reggae — each comes with its own drumbeat, so the same chords feel completely different.</p>
-            </li>
-            <li class="flex gap-3 rounded-xl border border-border bg-background p-4">
-              <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">2</span>
-              <p class="text-muted-foreground"><strong class="text-foreground font-medium">Add your chords.</strong> <UiButtonChip icon={Plus} label="Add Chord" /> one at a time, <UiButtonChip icon={Sparkles} label="Suggest" /> for progressions real songs use, or hit <UiButtonChip icon={Shuffle} label="Random" /> and let the tool surprise you.</p>
-            </li>
-            <li class="flex gap-3 rounded-xl border border-border bg-background p-4">
-              <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">3</span>
-              <p class="text-muted-foreground"><strong class="text-foreground font-medium">Arrange them.</strong> Drag any chord to reorder or remove it. Group them into parts with <UiButtonChip icon={Plus} label="Add Section" /> — like a verse and a chorus.</p>
-            </li>
-            <li class="flex gap-3 rounded-xl border border-border bg-background p-4">
-              <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">4</span>
-              <p class="text-muted-foreground"><strong class="text-foreground font-medium">Loop a section.</strong> Hit <UiButtonChip icon={Repeat} label="Loop" /> on any section to keep just that part playing while you work on it.</p>
-            </li>
-          </ol>
+      <!-- BUILDING YOUR PROGRESSION — a real sequence, so numbering earns its keep -->
+      <div class="cp-rule flex flex-col gap-8 pt-10">
+        <div class="flex flex-col gap-2.5">
+          <span class="cp-eyebrow">Step by step</span>
+          <h2 class="cp-h2">Building your progression</h2>
         </div>
+        <ol class="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          <li class="flex flex-col gap-3.5">
+            <span class="cp-num">01</span>
+            <p class="cp-body"><b>Pick a speed and a style.</b> Try pop, rock, hip-hop, or reggae — each comes with its own drumbeat, so the same chords feel completely different.</p>
+          </li>
+          <li class="flex flex-col gap-3.5">
+            <span class="cp-num">02</span>
+            <p class="cp-body"><b>Add your chords.</b> <span class="cp-uc"><Plus className="cp-uc-i" />Add Chord</span> one at a time, <span class="cp-uc"><Sparkles className="cp-uc-i" />Suggest</span> for progressions real songs use, or hit <span class="cp-uc"><Shuffle className="cp-uc-i" />Random</span> and let the tool surprise you.</p>
+          </li>
+          <li class="flex flex-col gap-3.5">
+            <span class="cp-num">03</span>
+            <p class="cp-body"><b>Arrange them.</b> Drag any chord to reorder or remove it. Group them into parts with <span class="cp-uc"><Plus className="cp-uc-i" />Add Section</span> — like a verse and a chorus.</p>
+          </li>
+          <li class="flex flex-col gap-3.5">
+            <span class="cp-num">04</span>
+            <p class="cp-body"><b>Loop a section.</b> Hit <span class="cp-uc"><Repeat className="cp-uc-i" />Loop</span> on any section to keep just that part playing while you work on it.</p>
+          </li>
+        </ol>
+      </div>
 
-        <!-- SHAPING THE SOUND — independent tools, not a sequence, so a plain grid instead of numbers -->
-        <div class="rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-6">
-          <p class="text-[0.7em] font-bold uppercase tracking-wider text-primary mb-1">Sound tools</p>
-          <h2 class="font-semibold text-foreground text-[1.3em] mb-4">Shaping the sound</h2>
-          <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div class="rounded-xl border border-border bg-background p-4">
-              <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                <Settings2 className="h-4 w-4 text-primary" />
-              </div>
-              <p class="font-medium text-foreground mb-1">Instruments</p>
-              <p class="text-muted-foreground">Mute a track or drag its volume up or down. Piano, guitar, bass, and drums each get their own controls.</p>
+      <!-- SHAPING THE SOUND — independent tools, not a sequence, so a plain grid -->
+      <div class="cp-rule flex flex-col gap-8 pt-10">
+        <div class="flex flex-col gap-2.5">
+          <span class="cp-eyebrow">Sound tools</span>
+          <h2 class="cp-h2">Shaping the sound</h2>
+        </div>
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+          <div class="flex flex-col gap-3">
+            <span class="cp-tl"><Settings2 className="h-[18px] w-[18px]" /></span>
+            <h3 class="text-base font-bold">Instruments</h3>
+            <p class="cp-body text-[13.5px]">Mute a track or drag its volume up or down. Piano, guitar, bass, and drums each get their own controls.</p>
+          </div>
+          <div class="flex flex-col gap-3">
+            <span class="cp-tl"><Sliders className="h-[18px] w-[18px]" /></span>
+            <h3 class="text-base font-bold">Mix</h3>
+            <p class="cp-body text-[13.5px]">A real console: 3-band EQ, reverb, and compression for the whole mix.</p>
+          </div>
+          <div class="flex flex-col gap-3">
+            <span class="cp-tl"><Music2 className="h-[18px] w-[18px]" /></span>
+            <h3 class="text-base font-bold">Section variations</h3>
+            <p class="cp-body text-[13.5px]">Each section's Options panel gives its piano, bass, or guitar its own melodic pattern.</p>
+          </div>
+          <div class="flex flex-col gap-3">
+            <span class="cp-tl"><Grid3X3 className="h-[18px] w-[18px]" /></span>
+            <h3 class="text-base font-bold">Edit Rhythm</h3>
+            <p class="cp-body text-[13.5px]">Edit the current drum pattern, or <span class="cp-uc"><Plus className="cp-uc-i" />New</span> to build one from scratch.</p>
+          </div>
+          <div class="flex flex-col gap-3">
+            <span class="cp-tl"><ArrowUpDown className="h-[18px] w-[18px]" /></span>
+            <h3 class="text-base font-bold">Transpose</h3>
+            <p class="cp-body text-[13.5px]">Shift every chord up or down at once, no retyping.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SAVING & SHARING + USE CASES -->
+      <div class="cp-rule grid gap-14 pt-10 lg:grid-cols-2 lg:gap-[72px]">
+        <div class="flex flex-col gap-6">
+          <div class="flex flex-col gap-2.5">
+            <span class="cp-eyebrow">Wrap up</span>
+            <h2 class="cp-h2">Saving &amp; sharing</h2>
+          </div>
+          <div class="flex flex-col gap-[18px]">
+            <div class="flex items-start gap-4">
+              <span class="cp-tl"><Save className="h-[18px] w-[18px]" /></span>
+              <div class="flex flex-col gap-1"><h3 class="text-base font-bold">Save</h3><p class="cp-body">Keeps your pattern in your library. Free account required.</p></div>
             </div>
-            <div class="rounded-xl border border-border bg-background p-4">
-              <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                <Sliders className="h-4 w-4 text-primary" />
-              </div>
-              <p class="font-medium text-foreground mb-1">Mix</p>
-              <p class="text-muted-foreground">A real console: 3-band EQ, reverb, and compression for the whole mix.</p>
-            </div>
-            <div class="rounded-xl border border-border bg-background p-4">
-              <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                <Music2 className="h-4 w-4 text-primary" />
-              </div>
-              <p class="font-medium text-foreground mb-1">Section variations</p>
-              <p class="text-muted-foreground">The small piano, bass, or guitar icon next to a section's name gives it its own melodic pattern.</p>
-            </div>
-            <div class="rounded-xl border border-border bg-background p-4">
-              <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                <Grid3X3 className="h-4 w-4 text-primary" />
-              </div>
-              <p class="font-medium text-foreground mb-1">Edit Rhythm</p>
-              <p class="text-muted-foreground">Edit the current drum pattern, or <UiButtonChip icon={Plus} label="New" /> to build one from scratch.</p>
-            </div>
-            <div class="rounded-xl border border-border bg-background p-4">
-              <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                <ArrowUpDown className="h-4 w-4 text-primary" />
-              </div>
-              <p class="font-medium text-foreground mb-1">Transpose</p>
-              <p class="text-muted-foreground">Shift every chord up or down at once, no retyping.</p>
+            <div class="flex items-start gap-4">
+              <span class="cp-tl"><Download className="h-[18px] w-[18px]" /></span>
+              <div class="flex flex-col gap-1"><h3 class="text-base font-bold">WAV export</h3><p class="cp-body">A real audio file of your pattern, ready to use anywhere.</p></div>
             </div>
           </div>
         </div>
-
-        <!-- SAVING & SHARING -->
-        <div class="rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-6">
-          <p class="text-[0.7em] font-bold uppercase tracking-wider text-primary mb-1">Wrap up</p>
-          <h2 class="font-semibold text-foreground text-[1.3em] mb-4">Saving &amp; sharing</h2>
-          <div class="grid sm:grid-cols-2 gap-3 max-w-2xl">
-            <div class="rounded-xl border border-border bg-background p-4">
-              <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                <Save className="h-4 w-4 text-primary" />
-              </div>
-              <p class="font-medium text-foreground mb-1">Save</p>
-              <p class="text-muted-foreground">Keeps your pattern in your library. Free account required.</p>
-            </div>
-            <div class="rounded-xl border border-border bg-background p-4">
-              <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                <Download className="h-4 w-4 text-primary" />
-              </div>
-              <p class="font-medium text-foreground mb-1">WAV export</p>
-              <p class="text-muted-foreground">A real audio file of your pattern, ready to use anywhere.</p>
-            </div>
+        <div class="flex flex-col gap-6">
+          <div class="flex flex-col gap-2.5">
+            <span class="cp-eyebrow">Use cases</span>
+            <h2 class="cp-h2">What it's for</h2>
           </div>
-        </div>
-
-        <!-- USE CASES -->
-        <div class="max-w-2xl rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-6">
-          <p class="text-[0.7em] font-bold uppercase tracking-wider text-primary mb-1">Use cases</p>
-          <h2 class="font-semibold text-foreground text-[1.3em] mb-2">What it's for</h2>
-          <p class="text-muted-foreground leading-relaxed">
+          <p class="cp-lead">
             Use it to find a new chord pattern for a song you're writing, make a backing track to
             sing or play along with, or just try the same chords in a different style — like turning
             a slow pop song into a fast rock one — before deciding which version you like best.
           </p>
         </div>
-
-        <!-- FAQ — individual accordions, closed by default: a reader scans 4 questions in
-             seconds instead of 4 paragraphs sitting open whether they're relevant or not.
-             Content stays in the DOM either way, so nothing is lost for crawlers. -->
-        <div class="max-w-2xl rounded-2xl border border-border bg-card shadow-sm p-5 sm:p-6">
-          <p class="text-[0.7em] font-bold uppercase tracking-wider text-primary mb-1">Questions</p>
-          <h2 class="font-semibold text-foreground text-[1.3em] mb-3">FAQ</h2>
-          <div class="divide-y divide-border">
-            {faqs.map((f) => (
-              <details class="group py-3">
-                <summary class="cursor-pointer select-none list-none flex items-center justify-between gap-3 font-medium text-foreground">
-                  {f.q}
-                  <svg class="h-4 w-4 text-muted-foreground shrink-0 transition-transform group-open:rotate-45" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                </summary>
-                <p class="text-muted-foreground mt-2">{f.a}</p>
-              </details>
-            ))}
-          </div>
-        </div>
-
-        <p class="text-muted-foreground max-w-2xl">
-          Need inspiration? <a href="/progressions/" class="text-primary font-medium hover:underline">Browse chord progressions by genre →</a>
-        </p>
       </div>
+
+      <!-- FAQ — individual accordions, closed by default: a reader scans 4 questions in
+           seconds instead of 4 paragraphs sitting open whether they're relevant or not.
+           Content stays in the DOM either way, so nothing is lost for crawlers. -->
+      <div class="cp-rule grid items-start gap-6 pt-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-[72px]">
+        <div class="flex flex-col gap-2.5">
+          <span class="cp-eyebrow">Questions</span>
+          <h2 class="cp-h2">FAQ</h2>
+        </div>
+        <div style="border-top: 1px solid var(--cp-ln);">
+          {faqs.map((f) => (
+            <details class="cp-faq group">
+              <summary>
+                {f.q}
+                <svg class="h-[18px] w-[18px] shrink-0 transition-transform group-open:rotate-45" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              </summary>
+              <p class="cp-body">{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+
+      <p class="cp-body text-[15px]">
+        Need inspiration? <a href="/progressions/" class="font-bold no-underline hover:underline" style="color: var(--cp-act);">Browse chord progressions by genre →</a>
+      </p>
     </section>
+    </div>
   </div>
 </BaseLayout>

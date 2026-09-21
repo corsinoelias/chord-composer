@@ -1010,3 +1010,121 @@ input.cp-rg:disabled {
   color: var(--cp-tx);
   font-weight: 600;
 }
+
+/* ─────────────────────── Content under the player ─────────────────────── */
+
+.cp-content h1,
+.cp-content h2,
+.cp-content h3,
+.cp-content p {
+  margin: 0;
+  color: var(--cp-tx);
+}
+
+.cp-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cp-act);
+}
+
+.cp-h2 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+@media (min-width: 1024px) {
+  .cp-h2 { font-size: 30px; }
+}
+
+.cp-content p.cp-lead {
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--cp-tx2);
+}
+
+.cp-content p.cp-body,
+.cp-content .cp-body {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--cp-tx2);
+}
+
+.cp-body b {
+  color: var(--cp-tx);
+  font-weight: 700;
+}
+
+.cp-num {
+  font-family: 'Space Mono', ui-monospace, monospace;
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--cp-act);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.cp-rule {
+  border-top: 1px solid var(--cp-ln);
+}
+
+.cp-tl {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--cp-ac) 14%, transparent);
+  color: var(--cp-act);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Inline "button" chips inside running text */
+.cp-uc {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 1px solid var(--cp-ln2);
+  background: var(--cp-s2);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cp-tx);
+  vertical-align: middle;
+  margin: 0 1px;
+  white-space: nowrap;
+}
+
+.cp-uc .cp-uc-i {
+  width: 12px;
+  height: 12px;
+  color: var(--cp-act);
+}
+
+.cp-faq {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--cp-ln);
+}
+
+.cp-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  color: var(--cp-tx);
+}
+
+.cp-faq summary::-webkit-details-marker { display: none; }
+.cp-faq summary svg { color: var(--cp-mu); }
+.cp-faq[open] summary svg { color: var(--cp-act); }
+.cp-content .cp-faq p { margin-top: 12px; max-width: 640px; }
