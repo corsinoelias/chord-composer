@@ -29,11 +29,11 @@ async function load() {
   try {
     ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
     const [, wasm, sf2, ...drums] = await Promise.all([
-      ctx.audioWorklet.addModule('./worklet.js'),
-      fetch('./engine.wasm').then((r) => r.arrayBuffer()),
-      fetch('./core.sf2').then((r) => r.arrayBuffer()),
+      ctx.audioWorklet.addModule('/lab/app-engine/worklet.js'),
+      fetch('/lab/app-engine/engine.wasm').then((r) => r.arrayBuffer()),
+      fetch('/lab/app-engine/core.sf2').then((r) => r.arrayBuffer()),
       ...['kick', 'snare', 'stick', 'hat', 'hatopen', 'crash'].map((n) =>
-        fetch(`./drums/${n}.pcm`).then((r) => r.arrayBuffer()).then((b) => [n, b])),
+        fetch(`/lab/app-engine/drums/${n}.pcm`).then((r) => r.arrayBuffer()).then((b) => [n, b])),
     ]);
     node = new AudioWorkletNode(ctx, 'app-engine', { numberOfInputs: 0, outputChannelCount: [2] });
     node.connect(ctx.destination);

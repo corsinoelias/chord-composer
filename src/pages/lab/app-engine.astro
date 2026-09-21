@@ -1,3 +1,9 @@
+---
+// The app-engine lab (docs/motor-unico-wasm.md, phase 1). A page rather than a static
+// public/…/index.html so /lab/app-engine/ resolves under `astro dev` as well as on
+// Netlify. The engine, the worklet and the sounds stay in public/lab/app-engine/.
+export const prerender = true;
+---
 <!doctype html>
 <html lang="es">
 <head>
@@ -7,7 +13,7 @@
 <title>Motor de la app · laboratorio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Space+Mono:wght@700&display=swap">
-<style>
+<style is:inline>
   :root {
     --bg: #F6F7F9; --card: #FFFFFF; --muted: #E8EAED; --line: #DADCE2; --tx: #14181F; --soft: #606876;
     --faint: #7E8695; --ac: #6A1FEA; --acs: #EFE8FD; --ok: #1B6B50; --warn: #926E14; --bad: #DC2828;
@@ -130,6 +136,6 @@
     <button class="cap" id="resetStats" style="align-self: flex-start;">Reiniciar medidas</button>
   </div>
 </main>
-<script type="module" src="./app.js"></script>
+<script type="module" src="/lab/app-engine/app.js" is:inline></script>
 </body>
 </html>
