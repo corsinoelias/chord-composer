@@ -1,5 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Copy, X } from 'lucide-react';
 import { type Chord } from '@/lib/musicTheory';
 import { ChordBlock } from './ChordBlock';
 
@@ -12,6 +13,8 @@ interface SortableChordProps {
   hasSelection: boolean;
   onClick: () => void;
   onSelectToggle: (ctrl: boolean) => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
   transposition?: number;
   preferFlats?: boolean;
   isOutOfScale?: boolean;
@@ -28,6 +31,8 @@ export function SortableChord({
   hasSelection,
   onClick,
   onSelectToggle,
+  onDelete,
+  onDuplicate,
   transposition = 0,
   preferFlats = false,
   isOutOfScale = false,
@@ -61,28 +66,67 @@ export function SortableChord({
     }
   };
 
+  // Delete / Ctrl+D on a focused chord, so the quick actions work without a pointer too.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      onDelete();
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+      e.preventDefault();
+      onDuplicate();
+    }
+  };
+
+  // The quick actions sit outside the drag handle's reach: a pointer-down on them must
+  // not start a drag, nor bubble up into the chord's own click (which opens the editor).
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+
   return (
-    <button
-      ref={setNodeRef}
-      type="button"
-      style={style}
-      {...attributes}
-      {...listeners}
-      onClick={handleClick}
-      className="block w-full touch-none select-none border-0 bg-transparent p-0 text-left"
-      aria-label={`Edit chord`}
-    >
-      <ChordBlock
-        chord={chord}
-        isPlaying={isPlaying}
-        isSelected={isSelected}
-        isDragging={isDragging}
-        transposition={transposition}
-        preferFlats={preferFlats}
-        isOutOfScale={isOutOfScale}
-        bpm={bpm}
-        rawIndex={rawIndex}
-      />
-    </button>
+    <div ref={setNodeRef} style={style} className="cp-chw relative">
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        onClick={handleClick}
+        onKeyDown={(e) => { handleKeyDown(e); listeners?.onKeyDown?.(e); }}
+        className="block w-full touch-none select-none border-0 bg-transparent p-0 text-left"
+        aria-label="Edit chord"
+        aria-keyshortcuts="Delete Control+D"
+      >
+        <ChordBlock
+          chord={chord}
+          isPlaying={isPlaying}
+          isSelected={isSelected}
+          isDragging={isDragging}
+          transposition={transposition}
+          preferFlats={preferFlats}
+          isOutOfScale={isOutOfScale}
+          bpm={bpm}
+          rawIndex={rawIndex}
+        />
+      </button>
+
+      {!isDragging && (
+        <div className="cp-cha" onPointerDown={stop}>
+          <button
+            type="button"
+            onClick={(e) => { stop(e); onDuplicate(); }}
+            aria-label="Duplicate chord"
+            title="Duplicate (Ctrl+D)"
+          >
+            <Copy size={13} />
+          </button>
+          <button
+            type="button"
+            className="cp-cha-del"
+            onClick={(e) => { stop(e); onDelete(); }}
+            aria-label="Delete chord"
+            title="Delete (Del)"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -1128,3 +1128,49 @@ input.cp-rg:disabled {
 .cp-faq summary svg { color: var(--cp-mu); }
 .cp-faq[open] summary svg { color: var(--cp-act); }
 .cp-content .cp-faq p { margin-top: 12px; max-width: 640px; }
+
+/* Quick actions on a chord: duplicate / delete. Shown on hover or keyboard focus with a
+   mouse; always visible (smaller, quieter) on touch screens, which have no hover. */
+.cp-cha {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.cp-chw:hover .cp-cha,
+.cp-chw:focus-within .cp-cha {
+  opacity: 1;
+}
+
+.cp-cha button {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--cp-ln2);
+  background: var(--cp-s1);
+  color: var(--cp-tx2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.cp-cha button:hover {
+  color: var(--cp-tx);
+  border-color: var(--cp-tx2);
+}
+
+.cp-cha button.cp-cha-del:hover {
+  color: var(--cp-dg);
+  border-color: color-mix(in srgb, var(--cp-dg) 50%, transparent);
+}
+
+@media (hover: none) {
+  .cp-cha { opacity: 1; top: 6px; right: 6px; }
+  .cp-cha button { width: 30px; height: 30px; background: color-mix(in srgb, var(--cp-s1) 85%, transparent); }
+}

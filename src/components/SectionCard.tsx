@@ -42,6 +42,8 @@ interface SectionCardProps {
   onAddChord: (sectionIndex: number) => void;
   onChordClick: (sectionIndex: number, chordIndex: number) => void;
   onChordSelect: (sectionIndex: number, chordIndex: number, ctrl: boolean) => void;
+  onChordDelete: (sectionIndex: number, chordIndex: number) => void;
+  onChordDuplicate: (sectionIndex: number, chordIndex: number) => void;
   onRepeatChange: (sectionIndex: number, repeatCount: number) => void;
   onNameChange: (sectionIndex: number, name: string) => void;
   onDelete: (sectionIndex: number) => void;
@@ -75,6 +77,8 @@ export const SectionCard = memo(function SectionCard({
   onAddChord,
   onChordClick,
   onChordSelect,
+  onChordDelete,
+  onChordDuplicate,
   onRepeatChange,
   onNameChange,
   onDelete,
@@ -408,6 +412,8 @@ export const SectionCard = memo(function SectionCard({
                     hasSelection={selectedChordIds.size > 0}
                     onClick={() => onChordClick(sectionIndex, index)}
                     onSelectToggle={(ctrl) => onChordSelect(sectionIndex, index, ctrl)}
+                    onDelete={() => onChordDelete(sectionIndex, index)}
+                    onDuplicate={() => onChordDuplicate(sectionIndex, index)}
                     transposition={transposition}
                     preferFlats={preferFlats}
                     isOutOfScale={false}

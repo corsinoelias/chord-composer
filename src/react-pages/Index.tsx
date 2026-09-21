@@ -1788,6 +1788,8 @@ const Index = ({ songId }: IndexProps) => {
                       onAddChord={handleSectionAddChord}
                       onChordClick={handleChordClick}
                       onChordSelect={handleChordSelect}
+                      onChordDelete={handleChordDelete}
+                      onChordDuplicate={handleChordDuplicate}
                       onRepeatChange={handleRepeatChange}
                       onNameChange={handleSectionNameChange}
                       onDelete={handleDeleteSection}
