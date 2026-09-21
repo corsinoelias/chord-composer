@@ -21,7 +21,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     // away. style-src needs it too: GIS loads its own stylesheet
     // (accounts.google.com/gsi/style) for the button — without it the button renders
     // unstyled/broken, a CSP violation easy to miss since it doesn't block the script.
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' blob: https://*.supabase.co; connect-src 'self' blob: https://*.supabase.co https://cdn.jsdelivr.net https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com https://accounts.google.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://accounts.google.com; frame-ancestors 'none';",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' blob: https://*.supabase.co; connect-src 'self' blob: https://*.supabase.co https://cdn.jsdelivr.net https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com https://accounts.google.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://accounts.google.com; frame-ancestors 'none';",
 };
 
 export const onRequest = defineMiddleware(async (context, next) => {
