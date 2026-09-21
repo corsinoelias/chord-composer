@@ -11,7 +11,7 @@ import { type Chord, generateChordId, formatChord } from '@/lib/musicTheory';
 import { GENRE_PROGRESSIONS, progressionToChords } from '@/lib/chordProgressions';
 import { playChordPreview } from '@/lib/audioEngine';
 import { FileMusic, Music, Play, Square, Check, X } from 'lucide-react';
-import { qualityClass } from './ChordBlock';
+import { qualityClass } from '@/lib/chordColors';
 
 interface ProgressionTemplatesModalProps {
   open: boolean;

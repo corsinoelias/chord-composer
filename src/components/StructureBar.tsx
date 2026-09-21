@@ -2,7 +2,8 @@ import { memo, useMemo } from 'react';
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -77,14 +78,17 @@ export const StructureBar = memo(function StructureBar({
   bare = false,
 }: StructureBarProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // Mouse drags after a few pixels; touch needs a hold, so a swipe still scrolls the
+    // strip sideways on a phone instead of grabbing a segment.
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
     useSensor(KeyboardSensor),
   );
 
   const { segments, totalBars, elapsedSeconds, totalSeconds } = useMemo(() => {
     // Where the playhead is, as an index into the flattened chord list — the same
     // numbering `currentChordIndex` uses.
-    let playedChords = currentChordIndex >= 0 ? currentChordIndex : -1;
+    const playedChords = currentChordIndex >= 0 ? currentChordIndex : -1;
     let activeIndex = -1;
     let activeFraction = 0;
 
@@ -170,7 +174,9 @@ export const StructureBar = memo(function StructureBar({
         </span>
         <div className="flex-grow" />
         <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--cp-mu)' }}>
-          {isPlaying && activeSegment ? (
+          {bare ? (
+            'Hold & drag to reorder'
+          ) : isPlaying && activeSegment ? (
             <>
               <span className="cp-pd" style={{ width: 6, height: 6 }} />
               {loopingSectionIndex !== null
@@ -298,6 +304,11 @@ function StructureSegment({ segment, isLooping, totalSections, onJump, onReorder
         )}
         {differs && <i className="cp-rm" title="Has its own rhythm, sounds or tracks" />}
       </div>
+      {/* The playhead sits on the wrapper, not inside the segment, so it can overhang the
+          segment's rounded, clipped box top and bottom as drawn. */}
+      {isActive && fill !== null && (
+        <div className="cp-ph" style={{ left: `${fill * 100}%` }} aria-hidden="true" />
+      )}
     </div>
   );
 }

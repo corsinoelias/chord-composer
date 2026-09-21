@@ -12,7 +12,12 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, Guitar, Music, Piano, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
+// Tokens for the overlay, which portals outside the player (and is also used by the song creator).
+import '@/styles/chord-player.css';
 import { type Section, type TrackId, TRACK_IDS, sectionHasArrangement } from '@/lib/sections';
 import { type StylePattern, getSlotsPerBar } from '@/lib/styles';
 import { INSTRUMENTS } from '@/lib/instruments';
@@ -146,6 +151,7 @@ export function SectionArrangementMenu({
 
   // Only one track's detail is open at a time — the panel is tall enough as it is.
   const [expanded, setExpanded] = useState<TrackId | null>(null);
+  const isMobile = useIsMobile();
 
   const sectionStyle = arrangement.styleId
     ? styles.find((s) => s.id === arrangement.styleId)
@@ -160,10 +166,7 @@ export function SectionArrangementMenu({
     color: 'var(--cp-tx)',
   } as const;
 
-  return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        {trigger ?? (
+  const triggerEl = trigger ?? (
           <Button
             variant={summary ? 'secondary' : 'ghost'}
             size="sm"
@@ -174,28 +177,35 @@ export function SectionArrangementMenu({
             <SlidersHorizontal className="h-3 w-3 shrink-0" />
             {summary && <span className="truncate">{summary}</span>}
           </Button>
-        )}
-      </PopoverTrigger>
+  );
 
-      <PopoverContent
-        align="end"
-        className="cp-pop flex w-[470px] max-w-[calc(100vw-1.5rem)] flex-col gap-[18px] p-[18px] text-left"
-        style={{ color: 'var(--cp-tx)' }}
-      >
+  // The close cross has to work whether or not the caller controls `open` (the song
+  // creator doesn't), so it is the overlay's own Close primitive rather than a setter.
+  const CloseWrap = isMobile ? SheetClose : PopoverPrimitive.Close;
+
+  const body = (
+      <>
         <div className="flex items-center gap-2.5">
           <span
             style={{ width: 12, height: 12, borderRadius: 4, background: 'var(--cp-ac)' }}
             aria-hidden="true"
           />
-          <span className="flex-grow text-sm font-bold">{sectionName} options</span>
-          <button
-            className="cp-btn cp-ib cp-gh"
-            style={{ width: 32, height: 32 }}
-            onClick={() => onOpenChange?.(false)}
-            aria-label="Close"
-          >
-            <X size={16} />
-          </button>
+          {isMobile ? (
+            <SheetTitle className="m-0 flex-grow text-base font-bold" style={{ color: 'var(--cp-tx)' }}>
+              {sectionName} options
+            </SheetTitle>
+          ) : (
+            <span className="flex-grow text-sm font-bold">{sectionName} options</span>
+          )}
+          <CloseWrap asChild>
+            <button
+              className="cp-btn cp-ib cp-gh"
+              style={{ width: 32, height: 32 }}
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
+          </CloseWrap>
         </div>
 
         {/* ── Rhythm ──────────────────────────────────────────────────────────── */}
@@ -435,6 +445,38 @@ export function SectionArrangementMenu({
         >
           Reset section to song defaults
         </button>
+      </>
+  );
+
+  // A phone gets the canvas's bottom sheet: the panel is too tall for a popover there.
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetTrigger asChild>{triggerEl}</SheetTrigger>
+        <SheetContent
+          side="bottom"
+          className="cp-sheet flex max-h-[calc(100dvh-56px)] flex-col gap-[18px] overflow-y-auto rounded-t-[24px] px-5 pb-6 pt-2 text-left"
+          style={{ background: 'var(--cp-s1)', borderTop: '1px solid var(--cp-ln2)', borderLeft: 0 }}
+        >
+          <div className="flex h-3 shrink-0 items-center justify-center" aria-hidden="true">
+            <span style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--cp-ln2)' }} />
+          </div>
+          <SheetDescription className="sr-only">Rhythm, tracks and sounds for this section</SheetDescription>
+          {body}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>{triggerEl}</PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="cp-pop flex w-[470px] max-w-[calc(100vw-1.5rem)] flex-col gap-[18px] p-[18px] text-left"
+        style={{ color: 'var(--cp-tx)' }}
+      >
+        {body}
       </PopoverContent>
     </Popover>
   );
