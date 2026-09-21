@@ -30,6 +30,7 @@ import {
   clearChordSchedule,
 } from '@/lib/audioEngine';
 import { AppPlayback, appEngineEnabled, type AppSong } from '@/lib/appEngine/player';
+import { type NoteLengths } from '@/lib/engine/eventBuilder';
 
 interface PlaybackState {
   isPlaying: boolean;
@@ -103,6 +104,8 @@ interface PlayOptions {
   loopingSectionIndex?: number | null;
   melodic?: MelodicData;
   sections?: Section[];
+  // How long each track's notes ring (the app's note length, saved as app.noteLengths).
+  noteLengths?: NoteLengths;
   // Vocal/reference audio — a single file, sliced per section (keyed by Section.id) or
   // as one continuous span for the whole song. Decoded once per URL (see
   // audioTrackBufferRef) and muted while transposition !== 0 (local-only prototype).
@@ -222,6 +225,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
         transposition: opts.transposition,
         instrumentSettings: opts.instruments,
         metronomeEnabled: opts.metronome,
+        noteLengths: opts.noteLengths,
       },
       style: opts.melodic ? { ...style, melodic: opts.melodic } : style,
       lookup: makeStyleLookup(opts.customStyles ?? getCustomStyles(), getStyleOverride, opts.liveEditedStyle),
@@ -603,6 +607,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
         const lookup = makeStyleLookup(opts?.customStyles ?? getCustomStyles(), getStyleOverride, opts?.liveEditedStyle);
         return resolveSectionPlayback(sec, songStyle, lookup);
       },
+      getNoteLengths: () => optionsRef.current?.noteLengths,
       getLoopingSectionId: () => {
         const opts = optionsRef.current;
         const loopIdx = opts?.loopingSectionIndex;

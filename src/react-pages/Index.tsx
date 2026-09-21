@@ -32,7 +32,8 @@ import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
 import { exportMidi } from '@/lib/midiExporter';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
-import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat } from '@/lib/songs';
+import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat, songNoteLengths, withNoteLengths } from '@/lib/songs';
+import { type NoteLengths } from '@/lib/engine/eventBuilder';
 import { parseChordString } from '@/lib/chordParser';
 import { decodeEditorSections, editorSectionsToSections } from '@/lib/editorLink';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
@@ -239,6 +240,9 @@ const Index = ({ songId }: IndexProps) => {
   const [keyOverride, setKeyOverride] = useState<DetectedKey | null>(null);
   const [metronomeEnabled, setMetronomeEnabled] = useState(restoredDraft?.metronomeEnabled ?? true);
   const [loopingSectionIndex, setLoopingSectionIndex] = useState<number | null>(null);
+  // How long each track's notes ring — the Android app's note length, saved where the app
+  // keeps it (app.noteLengths). Empty: every track plays the web's own length.
+  const [noteLengths, setNoteLengths] = useState<NoteLengths>({});
   
   // Live edited style (for rhythm editor live mode)
   const [liveEditedStyle, setLiveEditedStyle] = useState<StylePattern | null>(null);
@@ -268,6 +272,7 @@ const Index = ({ songId }: IndexProps) => {
   const sectionsRef = useRef<Section[]>(sections);
   const bpmRef = useRef(bpm);
   const metronomeRef = useRef(metronomeEnabled);
+  const noteLengthsRef = useRef<NoteLengths>(noteLengths);
   const instrumentsRef = useRef<InstrumentState[]>(instruments);
   const transpositionRef = useRef(transposition);
   const styleRef = useRef(selectedStyleId);
@@ -279,6 +284,7 @@ const Index = ({ songId }: IndexProps) => {
   sectionsRef.current = sections;
   bpmRef.current = bpm;
   metronomeRef.current = metronomeEnabled;
+  noteLengthsRef.current = noteLengths;
   instrumentsRef.current = instruments;
   styleRef.current = selectedStyleId;
   loopingSectionRef.current = loopingSectionIndex;
@@ -375,12 +381,12 @@ const Index = ({ songId }: IndexProps) => {
       bpm, styleId: selectedStyleId, customStyles, liveEditedStyle,
       melodic: currentStyle.melodic, instruments, transposition,
       metronome: metronomeEnabled, loopingSectionIndex,
-      sections,
+      sections, noteLengths,
     });
   }, [
     isPlaying, bpm, selectedStyleId, customStyles, liveEditedStyle,
     currentStyle.melodic, instruments, transposition, metronomeEnabled,
-    loopingSectionIndex, updatePlaybackOptions, sections,
+    loopingSectionIndex, updatePlaybackOptions, sections, noteLengths,
   ]);
 
   // Load song from URL param
@@ -409,6 +415,7 @@ const Index = ({ songId }: IndexProps) => {
           // A different song gets its own key read from scratch.
           setKeyOverride(null);
           setMetronomeEnabled(song.metronomeEnabled);
+          setNoteLengths(songNoteLengths(song));
           setSongTitle(song.title);
           if (song.instrumentSettings.length > 0) {
             setInstruments(song.instrumentSettings);
@@ -469,7 +476,7 @@ const Index = ({ songId }: IndexProps) => {
         return;
       }
       const song: Song = {
-        ...songExtrasRef.current,
+        ...withNoteLengths(songExtrasRef.current, noteLengths),
         schemaVersion: SONG_SCHEMA_VERSION,
         id: currentSongId,
         title: songTitle,
@@ -499,14 +506,14 @@ const Index = ({ songId }: IndexProps) => {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [isLoggedIn, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, songCreatedAt]);
+  }, [isLoggedIn, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, noteLengths, songCreatedAt]);
 
   // Explicit save — turns the current in-progress work into a persisted song.
   // Never fires automatically: /chord-player/ stays a stable, stateless URL until the user asks to save.
   const handleSaveNewSong = useCallback(async () => {
     // A first save (or a visitor's fork) keeps whatever the opened song carried that this
     // editor does not model, like every later autosave does.
-    const newSong: Song = { ...songExtrasRef.current, ...createSong(songTitle) };
+    const newSong: Song = { ...withNoteLengths(songExtrasRef.current, noteLengths), ...createSong(songTitle) };
     newSong.sections = sections;
     newSong.bpm = bpm;
     newSong.styleId = selectedStyleId;
@@ -528,7 +535,7 @@ const Index = ({ songId }: IndexProps) => {
       sharedBaselineRef.current = null;
     }
     setIsPublic(false);
-  }, [songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, instruments, sharedSong]);
+  }, [songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, instruments, noteLengths, sharedSong]);
 
   // Share — flips the song's is_public flag and hands back the link. Opt-in and
   // reversible; a saved song stays private until this runs.
@@ -712,6 +719,7 @@ const Index = ({ songId }: IndexProps) => {
       customStyles: customStylesRef.current,
       loopingSectionIndex: loopIdx,
       melodic: melodicRef.current,
+      noteLengths: noteLengthsRef.current,
     });
   }, [play]);
 
@@ -1144,7 +1152,7 @@ const Index = ({ songId }: IndexProps) => {
     try {
       const style = resolveActiveStyle(selectedStyleId, liveEditedStyle, customStyles, getStyleOverride);
       const sectionResolver = makeOfflineSectionResolver(makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle));
-      const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition, undefined, sectionResolver);
+      const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition, undefined, sectionResolver, noteLengths);
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
       await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
       // Short: it's confirming something the browser is already showing a download for,
@@ -1158,7 +1166,7 @@ const Index = ({ songId }: IndexProps) => {
     } finally {
       setIsExporting(false);
     }
-  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, showExportSaveNudge]);
+  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, noteLengths, showExportSaveNudge]);
 
   const handleExportMidi = useCallback(() => {
     const hasChords = sections.some(s => s.chords.length > 0);
@@ -1385,6 +1393,7 @@ const Index = ({ songId }: IndexProps) => {
       customStyles: customStylesRef.current,
       loopingSectionIndex: loopingSectionRef.current,
       melodic: melodicRef.current,
+      noteLengths: noteLengthsRef.current,
     }).catch(() => {});
     setShowCountdown(true);
   }, [hasChords, isExporting, selectedStyleId, warmup]);
@@ -1804,6 +1813,8 @@ const Index = ({ songId }: IndexProps) => {
         instruments={instruments}
         onInstrumentChange={handleInstrumentsChange}
         currentStyle={currentStyle}
+        noteLengths={noteLengths}
+        onNoteLengthsChange={setNoteLengths}
       />
 
       <RhythmEditor

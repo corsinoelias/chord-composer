@@ -139,6 +139,8 @@ Defined in `src/lib/bassTab/bassTheory.ts`. Index 0 = G2 (thinnest), index 3 = E
 - `instrumentSounds`: default sound type IDs per instrument for this style
 - `volumes`: per-instrument volume defaults
 
+**Note lengths** — how long each melodic track's notes ring, the Android app's setting (Instruments panel: Normal, Short, 1/16, 1/8, 1/4, Held). Stored where the app keeps it, `app.noteLengths` in the song (`songNoteLengths` / `withNoteLengths` in `songs.ts`), in steps, 0 = held until the track strikes again or the chord changes. A track left out plays the web's own length (3 slots, 2 for a plain root bass): `noteSeconds` in `engine/eventBuilder.ts`, `setNoteLength` in the app engine. Per-section overrides (`app.overrides.noteLengths` in the app) are not modelled yet.
+
 **Custom styles and overrides** flow: Supabase `user_settings` table → `getUserSettings()` → `initCustomStylesCache()` (called at app init) → in-memory cache in `customStyles.ts` (`getCustomStyles()` / `getStyleOverride()`). Both are then passed into `PlayOptions` and read by `getStyle()` each bar.
 
 **Default style** — a brand-new song (no `?style=` param, no song id in the URL) defaults to `'reggaeton'`, set in `getInitialStyleId()` in `Index.tsx`. This is independent of `MUSICAL_STYLES[0]` (`'pop_1'`), which several components (`ChordEmbed`, `SongChordPlayer`, `resolveActiveStyle`) fall back to when a given style id isn't found — e.g. any content still using the stale, non-existent `style="pop_basic"` id silently resolves to `pop_1` via that fallback, not to the reggaeton default.

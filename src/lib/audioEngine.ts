@@ -1792,6 +1792,8 @@ export interface PlaybackOptions {
   getGuitarScale?: (sectionId: string) => import('./bassScale').BassScaleData | null;
   getSections?: () => Section[];
   getLoopingSectionId?: () => string | null;
+  // How long each track's notes ring (eventBuilder NoteLengths), read every slot.
+  getNoteLengths?: () => import('./engine/eventBuilder').NoteLengths | undefined;
   // Per-section arrangement (style, silenced tracks, sounds). Returns null for a section
   // that changes nothing, which keeps it on exactly the pre-existing path.
   resolveSection?: (sectionId: string, songStyle: StylePattern) => SectionPlayback | null;
@@ -1838,6 +1840,7 @@ export function scheduleProgression(
     getGuitarScale,
     getSections,
     getLoopingSectionId,
+    getNoteLengths,
     resolveSection,
     audioTrack,
     getVocalMuted,
@@ -2316,6 +2319,8 @@ export function scheduleProgression(
           bass: getBassScale?.(sectionId) ?? null,
           guitar: getGuitarScale?.(sectionId) ?? null,
         },
+        noteLengths: getNoteLengths?.(),
+        slotsLeftInChord: active!.slotCount - i,
         audible: { piano: pianoAudible, bass: bassAudible, drums: drumsAudible, guitar: guitarAudible },
       });
       dispatchEvents(ctx, events, {
@@ -2395,6 +2400,7 @@ export async function renderProgressionOffline(
   // Per-section arrangement, same resolver the live scheduler gets. Sections it returns
   // null for render exactly as before it existed.
   resolveSection?: (section: Section, songStyle: StylePattern) => SectionPlayback | null,
+  noteLengths?: import('./engine/eventBuilder').NoteLengths,
 ): Promise<AudioBuffer> {
   // Ensure samples are loaded
   await ensureSamplesLoaded();
@@ -2588,6 +2594,8 @@ export async function renderProgressionOffline(
             pattern,
             style: sectionStyle,
             melodic: { piano: melodicPiano, bass: melodicBass, guitar: melodicGuitar },
+            noteLengths,
+            slotsLeftInChord: slotCount - i,
             audible: sectionAudible,
           });
           dispatchEvents(offlineCtx, events, {

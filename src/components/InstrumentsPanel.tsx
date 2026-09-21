@@ -4,6 +4,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { type InstrumentState, getInstrumentConfig } from '@/lib/instruments';
 import { type StylePattern, type InstrumentSounds } from '@/lib/styles';
 import { Piano, Guitar, Drum, Music, X } from 'lucide-react';
+import { type NoteLengths } from '@/lib/engine/eventBuilder';
+
+type MelodicId = keyof NoteLengths;
+
+/**
+ * How long each note rings, the Android app's choices (constants.dart noteLengths) plus the
+ * web's own length, which is what every song had before and stays the default. In steps.
+ */
+const NOTE_LENGTHS: { steps: number | undefined; label: string; title: string }[] = [
+  { steps: undefined, label: 'Normal', title: 'The style’s own length' },
+  { steps: 0.5, label: 'Short', title: 'Half a sixteenth' },
+  { steps: 1, label: '1/16', title: 'A sixteenth' },
+  { steps: 2, label: '1/8', title: 'An eighth' },
+  { steps: 4, label: '1/4', title: 'A quarter' },
+  { steps: 0, label: 'Held', title: 'Until the next note or chord' },
+];
 
 interface InstrumentsPanelProps {
   open: boolean;
@@ -11,6 +27,8 @@ interface InstrumentsPanelProps {
   instruments: InstrumentState[];
   onInstrumentChange: (instruments: InstrumentState[]) => void;
   currentStyle?: StylePattern | null;
+  noteLengths?: NoteLengths;
+  onNoteLengthsChange?: (lengths: NoteLengths) => void;
 }
 
 const instrumentIcons: Record<string, typeof Piano> = {
@@ -26,11 +44,15 @@ const InstrumentCard = memo(function InstrumentCard({
   styleSoundId,
   styleVolume,
   onUpdate,
+  noteLength,
+  onNoteLength,
 }: {
   inst: InstrumentState;
   styleSoundId?: string;
   styleVolume?: number;
   onUpdate: (id: string, updates: Partial<InstrumentState>) => void;
+  noteLength?: number;
+  onNoteLength?: (id: MelodicId, steps: number | undefined) => void;
 }) {
   const config = getInstrumentConfig(inst.id);
 
@@ -116,6 +138,28 @@ const InstrumentCard = memo(function InstrumentCard({
           </SelectContent>
         </Select>
       </div>
+
+      {inst.id !== 'drums' && onNoteLength && (
+        <div className="flex flex-col gap-2">
+          <div className="cp-ft"><span>Each note rings for</span></div>
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={`${config.name} note length`}>
+            {NOTE_LENGTHS.map(option => (
+              <button
+                key={option.label}
+                type="button"
+                role="radio"
+                aria-checked={noteLength === option.steps}
+                title={option.title}
+                className={`cp-chip ${noteLength === option.steps ? 'cp-on' : ''}`}
+                onClick={() => onNoteLength(inst.id as MelodicId, option.steps)}
+                disabled={inst.muted}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 });
@@ -126,7 +170,17 @@ export const InstrumentsPanel = memo(function InstrumentsPanel({
   instruments,
   onInstrumentChange,
   currentStyle,
+  noteLengths,
+  onNoteLengthsChange,
 }: InstrumentsPanelProps) {
+  const setNoteLength = useCallback((id: MelodicId, steps: number | undefined) => {
+    if (!onNoteLengthsChange) return;
+    const next = { ...(noteLengths ?? {}) };
+    if (steps === undefined) delete next[id];
+    else next[id] = steps;
+    onNoteLengthsChange(next);
+  }, [noteLengths, onNoteLengthsChange]);
+
   // Memoize the update handler
   const updateInstrument = useCallback((id: string, updates: Partial<InstrumentState>) => {
     onInstrumentChange(
@@ -174,6 +228,8 @@ export const InstrumentsPanel = memo(function InstrumentsPanel({
               styleSoundId={styleSounds[inst.id as keyof InstrumentSounds]}
               styleVolume={styleVolumes[inst.id as keyof typeof styleVolumes]}
               onUpdate={updateInstrument}
+              noteLength={noteLengths?.[inst.id as MelodicId]}
+              onNoteLength={onNoteLengthsChange ? setNoteLength : undefined}
             />
           ))}
         </div>

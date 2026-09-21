@@ -36,6 +36,7 @@ import {
   type MelodicTrack,
 } from './commands';
 import { type DrumKit } from './host';
+import { type NoteLengths } from '../engine/eventBuilder';
 
 /** The first of the engine's scale-degree step values (enum Degree, kScale1). */
 const SCALE_DEGREE_1 = 8;
@@ -77,6 +78,8 @@ export interface SongInput {
   transposition?: number;
   instrumentSettings?: InstrumentState[];
   metronomeEnabled?: boolean;
+  /** How long each track's notes ring, in steps (0 holds); absent, the web's own length. */
+  noteLengths?: NoteLengths;
 }
 
 export interface EngineSong {
@@ -199,9 +202,9 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
           ? resolveVariation(songStyle.melodic[track], section[`${track}VariationId` as const])
           : null;
       if (variation) {
-        writeVariation(c, s, track, variation, slotsPerBar);
+        writeVariation(c, s, track, variation, slotsPerBar, song.noteLengths?.[track] ?? 3);
       } else {
-        c.push(['setPatternBars', s, track, loopBars], ['setNoteLength', s, track, track === 'bass' ? 2 : 3]);
+        c.push(['setPatternBars', s, track, loopBars], ['setNoteLength', s, track, song.noteLengths?.[track] ?? (track === 'bass' ? 2 : 3)]);
         bars.forEach((bar, b) => {
           const lane = (bar as unknown as Record<string, number[] | undefined>)[track];
           lane?.forEach((v, i) => {
@@ -276,10 +279,10 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
  * plays them (bassScale.getScale). The engine holds two tones per step, so a slot the web
  * writes with more keeps the lowest two; a chord hit (every tone of the chord) wins.
  */
-function writeVariation(c: EngineCommand[], s: number, track: MelodicTrack, variation: BassScaleData, slotsPerBar: number) {
+function writeVariation(c: EngineCommand[], s: number, track: MelodicTrack, variation: BassScaleData, slotsPerBar: number, noteLength: number) {
   const loop = engineBars(variation.loopBars ?? 1);
   const length = loop * slotsPerBar;
-  c.push(['setPatternBars', s, track, loop], ['setNoteLength', s, track, 3]);
+  c.push(['setPatternBars', s, track, loop], ['setNoteLength', s, track, noteLength]);
   const degrees = Object.keys(variation.pattern).map(Number).filter((d) => d >= 1 && d <= 8).sort((a, b) => a - b);
   const octave = (d: number) => variation.octaveOffsets?.[d as 1] ?? 0;
   for (let i = 0; i < length; i++) {

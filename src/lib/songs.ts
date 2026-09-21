@@ -7,6 +7,7 @@
 import type { Section } from './sections';
 import type { InstrumentState } from './instruments';
 import type { MelodicData, DegreePattern } from './bassScale';
+import { type NoteLengths } from './engine/eventBuilder';
 
 /**
  * The shared song document (docs/plan-paridad-web-app.md, "SongDoc"): this shape, stored as
@@ -48,6 +49,36 @@ export function unknownSongFields(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== 'object') return {};
   return Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter(([k]) => !KNOWN_SONG_KEYS.has(k)));
 }
+
+/**
+ * The note lengths a song carries, where the Android app keeps them: app.noteLengths, steps
+ * per track, 0 for held. Values the app does not offer are left out, so they play the web's
+ * own length rather than something neither client can show.
+ */
+export function songNoteLengths(song: unknown): NoteLengths {
+  const raw = (song as { app?: { noteLengths?: Record<string, unknown> } })?.app?.noteLengths;
+  const out: NoteLengths = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const track of ['piano', 'guitar', 'bass'] as const) {
+    const steps = raw[track];
+    if (typeof steps === 'number' && NOTE_LENGTH_STEPS.includes(steps)) out[track] = steps;
+  }
+  return out;
+}
+
+/** [extras] (what the editor does not model) with [lengths] written into its app block. */
+export function withNoteLengths(extras: Record<string, unknown>, lengths: NoteLengths): Record<string, unknown> {
+  const app = { ...((extras.app as Record<string, unknown> | undefined) ?? {}) };
+  if (Object.keys(lengths).length) app.noteLengths = { ...lengths };
+  else delete app.noteLengths;
+  const next = { ...extras };
+  if (Object.keys(app).length) next.app = app;
+  else delete next.app;
+  return next;
+}
+
+/** The lengths the app offers (lib/core/music/constants.dart noteLengths): Short, 16th, 8th, 1/4, Hold. */
+export const NOTE_LENGTH_STEPS = [0.5, 1, 2, 4, 0];
 
 /** A song written by a newer format than this build understands: open it, never save it. */
 export function isNewerSongFormat(song: Pick<Song, 'schemaVersion'>): boolean {
