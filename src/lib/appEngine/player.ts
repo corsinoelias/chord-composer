@@ -76,6 +76,8 @@ export class AppPlayback {
   private latest: EngineState | null = null;
   /** First chord of each section, repeats counted, for chordIndex. */
   private sectionStart: number[] = [];
+  /** The song part of what was last sent (everything but the mixer), to spot a mix-only change. */
+  private sentSong = '';
 
   static preload(): void {
     AppEngine.preload().catch(() => { /* play() tries again */ });
@@ -92,6 +94,7 @@ export class AppPlayback {
     this.built = this.build(input, e);
     await e.ensureSlots(this.built.drumSlots);
     e.load(this.built.commands);
+    this.sentSong = songPart(this.built.commands, input);
     e.send([['loopOnly', input.loopingSectionIndex ?? -1]]);
     this.unsubscribe?.();
     this.unsubscribe = e.subscribe((state) => { this.latest = state; });
@@ -110,14 +113,32 @@ export class AppPlayback {
     return this.current !== null;
   }
 
-  /** The song changed while playing: sent again, heard from the engine's next step. */
+  /**
+   * Something changed while playing. Only what did is sent: the player reports every change
+   * as a whole new set of options (a mute included), and a song sent again clears every
+   * track — which is right for an edit and wrong for a fader.
+   */
   async update(input: AppSong): Promise<void> {
     if (!this.current) return;
     const e = await getEngine();
     this.current = input;
     this.built = this.build(input, e);
+    const mix = this.built.commands.filter((c) => c[0] === 'mixer');
+    const song = songPart(this.built.commands, input);
+    if (song === this.sentSong) {
+      e.send(mix);
+      return;
+    }
+    this.sentSong = song;
     await e.ensureSlots(this.built.drumSlots);
-    e.send([...this.built.commands, ['loopOnly', input.loopingSectionIndex ?? -1]]);
+    // Clearing a track drops its voices without telling the SoundFont, whose notes then ring
+    // on to their natural end — seconds, for the grand piano: a second piano under the
+    // first. Letting them go first ends them the way a new chord would.
+    e.send([
+      ['previewOff', 'piano'], ['previewOff', 'guitar'], ['previewOff', 'bass'],
+      ...this.built.commands,
+      ['loopOnly', input.loopingSectionIndex ?? -1],
+    ]);
   }
 
   /** Only the mix changed (a fader, mute or solo): the levels alone, so nothing is cut short. */
@@ -163,4 +184,9 @@ export class AppPlayback {
     });
     return built;
   }
+}
+
+/** Everything [commands] say about the song itself, as text: what a mix change leaves alone. */
+function songPart(commands: EngineCommand[], input: AppSong): string {
+  return JSON.stringify([commands.filter((c) => c[0] !== 'mixer'), input.loopingSectionIndex ?? -1]);
 }
