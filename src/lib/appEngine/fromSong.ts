@@ -56,6 +56,15 @@ const WEB_DRUMS: [web: string, row: DrumRow][] = [
   ['kick', 'kick'], ['snare', 'snare'], ['snareStick', 'rim'], ['hihat', 'hihat'], ['hihatOpen', 'hihatOpen'],
   ['hihatFoot', 'hihatFoot'], ['tom1', 'tom1'], ['tom2', 'tom2'], ['floorTom', 'floorTom'], ['ride', 'ride'], ['crash', 'crash'],
 ];
+/**
+ * The web's balance between instruments, kept. The same song through both engines, one
+ * instrument at a time (reggaeton, default sounds, 2026-09-22), came out on the app's at
+ * drums -0.5 dB, piano -4.5, guitar -2.9 and bass +2.3 against the web's: the guitar
+ * disappeared under the kit. A fader stops at 1, so the loud ones come down to the piano
+ * and the master makes up the difference (its default is 0.7).
+ */
+const MIX_TRIM: Record<TrackId, number> = { drums: 0.6, piano: 1, guitar: 0.83, bass: 0.46 };
+const MASTER = 1;
 const MELODIC: MelodicTrack[] = ['piano', 'guitar', 'bass'];
 const TRACKS: TrackId[] = ['drums', 'piano', 'guitar', 'bass'];
 
@@ -232,7 +241,13 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
       // The web writes every chord with its root in the octave from C4, then moves the
       // sound by its octaveOffset (a bass sits one to three octaves down). The engine puts
       // the root at the bottom of the track's window, so the window starts there.
-      const low = 60 + 12 * octaveOffsetOf(track, soundId);
+      //
+      // Except that the web's recorded basses (public/audio/bass/*) sound an octave below
+      // the note their files are named for — "A2" is an A1, its partials at 110 and 165 Hz
+      // — so every sampled bass on the web has always played an octave under its MIDI note,
+      // and that is the bass people know. The app's basses are in tune, so they go down one.
+      const recordedBass = track === 'bass' && !!getSoundType('bass', soundId)?.useSamples;
+      const low = 60 + 12 * octaveOffsetOf(track, soundId) - (recordedBass ? 12 : 0);
       c.push(['voicing', s, track, low, low + 23]);
     }
   });
@@ -243,11 +258,15 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   for (const track of TRACKS) {
     const setting = instruments.find((inst) => inst.id === track);
     const styleVolume = volumes[track] ?? (track === 'guitar' ? volumes.piano : undefined) ?? 1;
-    const volume = Math.max(0, Math.min(1, (setting?.volume ?? 1) * styleVolume));
+    const volume = Math.max(0, Math.min(1, (setting?.volume ?? 1) * styleVolume * MIX_TRIM[track]));
     const audible = setting ? isInstrumentAudible(setting, instruments) : true;
     c.push(['mixer', track, volume, !audible]);
   }
+  c.push(['mixer', 'master', MASTER, false]);
   c.push(['metronome', !!song.metronomeEnabled, 0.7, sampledDrum(STICK_SLOT), true, 1]);
+  // The web plays dry (audioEffects.ts has its reverb off), and the engine's own is a large
+  // room: left on, every note rang on for half a second after the web's would have ended.
+  c.push(['reverb', 0.7, 0]);
 
   return { commands: c, steps, chordSteps, drumSlots: [...drumSlots].sort((a, b) => a - b), notes: [...noted] };
 }
