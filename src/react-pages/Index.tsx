@@ -1504,9 +1504,12 @@ const Index = ({ songId }: IndexProps) => {
   }, [songTitle, currentSongId, songId]);
 
   return (
-    <div className="cp flex min-h-screen flex-col">
+    <div className="cp flex min-h-screen flex-col lg:h-[100dvh] lg:min-h-0">
+      {/* On desktop the editor is exactly one screen tall: header fixed, the chord rail always
+          in view, and only the section list scrolls. The page's own content follows below.
+          A phone cannot fit it all, so there the page scrolls as a whole. */}
       <header
-        className="sticky top-0 z-40"
+        className="sticky top-0 z-40 shrink-0 lg:static"
         style={{ background: 'var(--cp-bar)', borderBottom: '1px solid var(--cp-ln)' }}
       >
         {/* Row 1 — where you are, and the tools that open over the page */}
@@ -1733,8 +1736,8 @@ const Index = ({ songId }: IndexProps) => {
         />
       </header>
       
-      <div className="mx-auto grid w-full max-w-[1440px] items-start gap-4 px-4 pb-28 pt-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-7 lg:px-8 lg:pb-8 lg:pt-7">
-        <main className="flex min-w-0 flex-col gap-4">
+      <div className="mx-auto grid w-full max-w-[1440px] items-start gap-4 px-4 pb-28 pt-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-stretch lg:gap-7 lg:px-8 lg:py-0">
+        <main className="cp-scroll flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pb-8 lg:pt-6">
           {/* The song's name, editable in place. Mobile carries it in the header bar. */}
           <div className="hidden h-11 items-center gap-2.5 lg:flex">
             <input
@@ -1843,7 +1846,7 @@ const Index = ({ songId }: IndexProps) => {
 
         {/* Right rail. On mobile it comes first: the chord you are on matters more than
             the cards below it, and the Sound controls have already moved to the header. */}
-        <aside className="order-first flex flex-col gap-4 lg:order-none lg:sticky lg:top-[164px]">
+        <aside className="cp-scroll order-first flex flex-col gap-4 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:pb-8 lg:pt-6">
           {hasChords && (
             <ChordPreviewCard
               isPlaying={isPlaying}

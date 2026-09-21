@@ -1174,3 +1174,22 @@ input.cp-rg:disabled {
   .cp-cha { opacity: 1; top: 6px; right: 6px; }
   .cp-cha button { width: 30px; height: 30px; background: color-mix(in srgb, var(--cp-s1) 85%, transparent); }
 }
+
+/* The two columns that scroll inside the one-screen desktop layout: a thin, quiet
+   scrollbar, and room so focus rings and the live section's glow are not clipped. */
+@media (min-width: 1024px) {
+  .cp-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cp-ln2) transparent;
+    padding-left: 4px;
+    padding-right: 6px;
+    margin-left: -4px;
+    margin-right: -6px;
+  }
+
+  /* Slightly shorter chords so a typical song's sections fit without scrolling. */
+  .cp-ch {
+    height: 76px;
+    padding: 11px 13px;
+  }
+}
