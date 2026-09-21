@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { type Chord, ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, transposeNote, type RootNote, type Accidental, type ChordQuality } from '@/lib/musicTheory';
+import { type Chord, ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, COMMON_CHORD_QUALITIES, QUALITY_LABELS, transposeNote, type RootNote, type Accidental, type ChordQuality } from '@/lib/musicTheory';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
@@ -43,6 +43,7 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
   const [bassAccidental, setBassAccidental] = useState<Accidental>('');
   const [bassExpanded, setBassExpanded] = useState(false);
   const [hoverValue, setHoverValue] = useState<number | null>(null);
+  const [showAllQualities, setShowAllQualities] = useState(false);
 
   const triggerPreview = (newRoot: RootNote, newAccidental: Accidental, newQuality: ChordQuality, newBassNote?: string) => {
     onPreview?.({ root: newRoot, accidental: newAccidental, quality: newQuality, bassNote: newBassNote ?? bassNote });
@@ -93,6 +94,8 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
       setBassAccidental('');
       setBassExpanded(false);
     }
+    // An uncommon quality already in use must be visible, so the list opens for it.
+    setShowAllQualities(!!chord && !COMMON_CHORD_QUALITIES.includes(chord.quality));
   }, [chord, open, transposition, defaultDuration]);
 
   const bassNote = bassRoot ? `${bassRoot}${bassAccidental}` : undefined;
@@ -206,7 +209,7 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
             <div className="flex flex-col gap-2.5">
               <span className="cp-lbl">Quality</span>
               <div className="flex flex-wrap gap-1.5">
-                {CHORD_QUALITIES.map(q => (
+                {(showAllQualities ? CHORD_QUALITIES : COMMON_CHORD_QUALITIES).map(q => (
                   <button
                     key={q}
                     type="button"
@@ -217,6 +220,15 @@ export function ChordEditModal({ chord, open, onClose, onSave, onDelete, onDupli
                     {QUALITY_LABELS[q]}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className="cp-chip"
+                  style={{ fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--cp-act)', borderStyle: 'dashed' }}
+                  onClick={() => setShowAllQualities(v => !v)}
+                  aria-expanded={showAllQualities}
+                >
+                  {showAllQualities ? 'Fewer' : `More qualities (${CHORD_QUALITIES.length - COMMON_CHORD_QUALITIES.length})`}
+                </button>
               </div>
             </div>
 

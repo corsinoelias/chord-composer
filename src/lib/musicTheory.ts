@@ -46,6 +46,15 @@ export const CHORD_QUALITIES = [
 ] as const;
 export type ChordQuality = typeof CHORD_QUALITIES[number];
 
+/**
+ * The qualities the chord pickers show before "More qualities": the ones that cover
+ * almost every song. The rest stay one tap away, and a picker opens that list by itself
+ * when the chord being edited already uses one of them.
+ */
+export const COMMON_CHORD_QUALITIES: ChordQuality[] = [
+  'maj', 'min', '7', 'maj7', 'min7', 'sus2', 'sus4', 'dim', 'aug', 'add9',
+];
+
 // Chord data structure
 export interface Chord {
   id: string;

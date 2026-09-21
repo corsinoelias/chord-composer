@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, QUALITY_LABELS, transposeNote, type RootNote, type Accidental, type ChordQuality, createChord, type Chord } from '@/lib/musicTheory';
+import { ROOT_NOTES, ACCIDENTALS, CHORD_QUALITIES, COMMON_CHORD_QUALITIES, QUALITY_LABELS, transposeNote, type RootNote, type Accidental, type ChordQuality, createChord, type Chord } from '@/lib/musicTheory';
 import { InKeyChordStrip } from '@/components/InKeyChordStrip';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
@@ -24,6 +24,7 @@ interface AddChordModalProps {
 export function AddChordModal({ open, sectionName, onClose, onAdd, songKey, transposition = 0, preferFlats = false }: AddChordModalProps) {
   const [root, setRoot] = useState<RootNote>('C');
   const [accidental, setAccidental] = useState<Accidental>('');
+  const [showAllQualities, setShowAllQualities] = useState(false);
   const [quality, setQuality] = useState<ChordQuality>('maj');
   const [duration, setDuration] = useState(2);
   const [bassRoot, setBassRoot] = useState<RootNote | null>(null);
@@ -160,7 +161,7 @@ export function AddChordModal({ open, sectionName, onClose, onAdd, songKey, tran
           <div>
             <label className="block text-xs text-muted-foreground mb-2">Quality</label>
             <div className="flex flex-wrap gap-1">
-              {CHORD_QUALITIES.map(q => (
+              {(showAllQualities || !COMMON_CHORD_QUALITIES.includes(quality) ? CHORD_QUALITIES : COMMON_CHORD_QUALITIES).map(q => (
                 <button
                   key={q}
                   onClick={() => handleQualityChange(q)}
@@ -176,6 +177,14 @@ export function AddChordModal({ open, sectionName, onClose, onAdd, songKey, tran
                   {QUALITY_LABELS[q]}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setShowAllQualities(v => !v)}
+                aria-expanded={showAllQualities}
+                className="px-2 h-8 rounded-md text-xs border border-dashed border-primary/40 text-primary hover:bg-primary/5"
+              >
+                {showAllQualities ? 'Fewer' : `More qualities (${CHORD_QUALITIES.length - COMMON_CHORD_QUALITIES.length})`}
+              </button>
             </div>
           </div>
 
