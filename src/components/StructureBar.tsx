@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -18,6 +18,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Plus, Repeat } from 'lucide-react';
 import { type Section, sectionHasArrangement } from '@/lib/sections';
 import { sectionColorMap } from '@/lib/sectionColors';
+import { chordPosition, useGlide } from '@/lib/playbackPosition';
 
 const BEATS_PER_BAR = 4;
 
@@ -39,8 +40,10 @@ interface Segment {
   /** Bars across every repeat: what sets the segment's share of the strip. */
   totalBars: number;
   colorVar: string;
-  /** 0–1 of this segment already played, or null when it is not the live one. */
+  /** 1 for sections already played; null for the rest, including the live one. */
   fill: number | null;
+  /** The live segment glides through its current chord — see useGlide. */
+  glide: { key: number; from: number; to: number; ms: number } | null;
   isActive: boolean;
   differs: boolean;
 }
@@ -86,36 +89,9 @@ export const StructureBar = memo(function StructureBar({
   );
 
   const { segments, totalBars, elapsedSeconds, totalSeconds } = useMemo(() => {
-    // Where the playhead is, as an index into the flattened chord list — the same
-    // numbering `currentChordIndex` uses.
-    const playedChords = currentChordIndex >= 0 ? currentChordIndex : -1;
-    let activeIndex = -1;
-    let activeFraction = 0;
-
-    if (playedChords >= 0) {
-      if (loopingSectionIndex !== null) {
-        // While looping, playback still counts from the section's global offset.
-        let offset = 0;
-        for (let i = 0; i < loopingSectionIndex; i++) {
-          offset += sections[i].chords.length * sections[i].repeatCount;
-        }
-        const sec = sections[loopingSectionIndex];
-        const span = Math.max(1, sec.chords.length * sec.repeatCount);
-        activeIndex = loopingSectionIndex;
-        activeFraction = (((playedChords - offset) % span) + span) % span / span;
-      } else {
-        let remaining = playedChords;
-        for (let i = 0; i < sections.length; i++) {
-          const span = sections[i].chords.length * sections[i].repeatCount;
-          if (span > 0 && remaining < span) {
-            activeIndex = i;
-            activeFraction = remaining / span;
-            break;
-          }
-          remaining -= span;
-        }
-      }
-    }
+    // Where the playhead is, in beats — see chordPosition.
+    const pos = isPlaying ? chordPosition(sections, currentChordIndex, loopingSectionIndex) : null;
+    const activeIndex = pos?.sectionIndex ?? -1;
 
     const colors = sectionColorMap(sections);
     let bars = 0;
@@ -129,7 +105,7 @@ export const StructureBar = memo(function StructureBar({
       bars += total;
 
       const isActive = isPlaying && index === activeIndex;
-      if (isActive) elapsedBeats = beatsBefore + beats * section.repeatCount * activeFraction;
+      if (isActive && pos) elapsedBeats = beatsBefore + pos.chordStartInSection;
       beatsBefore += beats * section.repeatCount;
 
       return {
@@ -138,7 +114,15 @@ export const StructureBar = memo(function StructureBar({
         bars: passBars,
         totalBars: total,
         colorVar: colors.get(section.id)!,
-        fill: isActive ? activeFraction : index < activeIndex && loopingSectionIndex === null ? 1 : null,
+        fill: !isActive && index < activeIndex && loopingSectionIndex === null ? 1 : null,
+        glide: isActive && pos && pos.sectionBeats > 0
+          ? {
+              key: currentChordIndex,
+              from: pos.chordStartInSection / pos.sectionBeats,
+              to: (pos.chordStartInSection + pos.chordBeats) / pos.sectionBeats,
+              ms: (pos.chordBeats * 60000) / bpm,
+            }
+          : null,
         isActive,
         differs: sectionHasArrangement(section),
       };
@@ -231,7 +215,14 @@ interface StructureSegmentProps {
 }
 
 function StructureSegment({ segment, isLooping, totalSections, onJump, onReorder }: StructureSegmentProps) {
-  const { section, index, bars, totalBars, colorVar, fill, isActive, differs } = segment;
+  const { section, index, bars, totalBars, colorVar, fill, glide, isActive, differs } = segment;
+  const fillRef = useRef<HTMLSpanElement>(null);
+  const headRef = useRef<HTMLDivElement>(null);
+  useGlide(glide, (v) => {
+    const pct = `${Math.min(100, v * 100)}%`;
+    if (fillRef.current) fillRef.current.style.width = pct;
+    if (headRef.current) headRef.current.style.left = pct;
+  });
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: section.id,
   });
@@ -293,6 +284,7 @@ function StructureSegment({ segment, isLooping, totalSections, onJump, onReorder
         {...listeners}
       >
         {fill !== null && <span className="cp-fl" style={{ width: `${fill * 100}%` }} />}
+        {glide && <span ref={fillRef} className="cp-fl" style={{ width: `${glide.from * 100}%` }} />}
         {repeatDividers}
         <GripVertical size={16} className="relative shrink-0" style={{ color: 'var(--cp-mu)' }} aria-hidden="true" />
         <span className="cp-t">
@@ -307,8 +299,8 @@ function StructureSegment({ segment, isLooping, totalSections, onJump, onReorder
       </div>
       {/* The playhead sits on the wrapper, not inside the segment, so it can overhang the
           segment's rounded, clipped box top and bottom as drawn. */}
-      {isActive && fill !== null && (
-        <div className="cp-ph" style={{ left: `${fill * 100}%` }} aria-hidden="true" />
+      {glide && (
+        <div ref={headRef} className="cp-ph" style={{ left: `${glide.from * 100}%` }} aria-hidden="true" />
       )}
     </div>
   );

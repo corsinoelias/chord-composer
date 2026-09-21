@@ -1729,6 +1729,7 @@ const Index = ({ songId }: IndexProps) => {
           currentChordIndex={currentChordIndex}
           isPlaying={isPlaying}
           loopingSectionIndex={loopingSectionIndex}
+          bpm={bpm}
         />
       </header>
       

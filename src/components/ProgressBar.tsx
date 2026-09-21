@@ -1,43 +1,49 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { type Section } from '@/lib/sections';
+import { chordPosition, useGlide } from '@/lib/playbackPosition';
 
 interface ProgressBarProps {
   sections: Section[];
   currentChordIndex: number;
   isPlaying: boolean;
   loopingSectionIndex: number | null;
+  bpm: number;
 }
 
 /**
  * The hairline that sits along the bottom edge of the player header.
  *
- * It used to be a card of its own above the transport, repeating the section and chord
- * names; the structure bar now carries all of that — where you are, how far in, what is
- * looping — so this is only the thin bleed of progress under the toolbar.
+ * It glides through each chord in time with the music instead of stepping once per chord:
+ * each chord change sets where the bar is and where it will be when the chord ends, and
+ * the frames in between are drawn straight onto the element (see useGlide).
  */
 export const ProgressBar = memo(function ProgressBar({
   sections,
   currentChordIndex,
   isPlaying,
   loopingSectionIndex,
+  bpm,
 }: ProgressBarProps) {
-  const progress = useMemo(() => {
-    if (!isPlaying || currentChordIndex < 0) return 0;
+  const fillRef = useRef<HTMLDivElement>(null);
 
-    if (loopingSectionIndex !== null) {
-      const section = sections[loopingSectionIndex];
-      if (!section || section.chords.length === 0) return 0;
-      const span = section.chords.length * section.repeatCount;
-      let offset = 0;
-      for (let i = 0; i < loopingSectionIndex; i++) {
-        offset += sections[i].chords.length * sections[i].repeatCount;
-      }
-      return ((((currentChordIndex - offset) % span) + span) % span + 1) / span;
-    }
-
-    const total = sections.reduce((sum, s) => sum + s.chords.length * s.repeatCount, 0);
-    return total > 0 ? (currentChordIndex + 1) / total : 0;
+  const tween = useMemo(() => {
+    if (!isPlaying) return null;
+    const pos = chordPosition(sections, currentChordIndex, loopingSectionIndex);
+    if (!pos || pos.totalBeats <= 0) return null;
+    const start = pos.sectionStartInSong + pos.chordStartInSection;
+    return {
+      key: currentChordIndex,
+      from: start / pos.totalBeats,
+      to: (start + pos.chordBeats) / pos.totalBeats,
+      ms: (pos.chordBeats * 60000) / bpm,
+    };
+    // bpm is read when a chord starts; a tempo change mid-chord takes effect on the next.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sections, currentChordIndex, isPlaying, loopingSectionIndex]);
+
+  useGlide(tween, (v) => {
+    if (fillRef.current) fillRef.current.style.width = `${Math.min(100, v * 100)}%`;
+  });
 
   return (
     <div
@@ -45,10 +51,7 @@ export const ProgressBar = memo(function ProgressBar({
       style={{ background: 'var(--cp-s3)' }}
       aria-hidden="true"
     >
-      <div
-        className="h-[3px] transition-[width] duration-200 ease-out"
-        style={{ width: `${Math.min(100, progress * 100)}%`, background: 'var(--cp-ac)' }}
-      />
+      <div ref={fillRef} className="h-[3px]" style={{ width: 0, background: 'var(--cp-ac)' }} />
     </div>
   );
 });
