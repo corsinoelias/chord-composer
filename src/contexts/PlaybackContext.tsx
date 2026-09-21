@@ -311,7 +311,9 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   }, [state.isPlaying]);
 
   const stop = useCallback((opts?: { keepContext?: boolean }) => {
-    if (appRef.current.active) appRef.current.stop();
+    // Always, not only when this provider started it: the page has one engine, and a Stop
+    // must silence it whoever set it going.
+    if (useAppEngine.current) appRef.current.stop();
     if (cancelRef.current) {
       cancelRef.current();
       cancelRef.current = null;

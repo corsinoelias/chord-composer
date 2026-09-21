@@ -47,23 +47,27 @@ export interface AppSong {
   loopingSectionIndex?: number | null;
 }
 
-let engine: Promise<AppEngine> | null = null;
-/** The same engine once it has started, for reading its clock from an animation frame. */
-let started: AppEngine | null = null;
+/**
+ * The one engine for the page, kept on window rather than in this module: when the dev
+ * server swaps this module in place (any edit under npm run dev), a module-level engine was
+ * forgotten while its worklet went on playing, the next Play started a second one, and Stop
+ * reached only the new one — two pianos, one of them never stopping (2026-09-22).
+ */
+const shared = (typeof window === 'undefined' ? {} : window) as unknown as { __appEnginePromise?: Promise<AppEngine> | null; __appEngine?: AppEngine };
 
-/** The one engine for the page. Its AudioContext opens on the first call: make it from a tap. */
+/** Its AudioContext opens on the first call: make it from a tap. */
 function getEngine(): Promise<AppEngine> {
-  engine ??= AppEngine.start().then((e) => {
-    started = e;
-    // For the phone measurements in lab/app-engine/phone/, as the lab exposes __lab.
-    (window as unknown as { __appEngine: AppEngine }).__appEngine = e;
+  shared.__appEnginePromise ??= AppEngine.start().then((e) => {
+    // Also what the phone measurements in lab/app-engine/phone/ read, as the lab's __lab.
+    shared.__appEngine = e;
     return e;
   }).catch((error) => {
-    engine = null;
+    shared.__appEnginePromise = null;
     throw error;
   });
-  return engine;
+  return shared.__appEnginePromise;
 }
+const engine = () => shared.__appEnginePromise ?? null;
 
 export class AppPlayback {
   private built: EngineSong | null = null;
@@ -99,7 +103,7 @@ export class AppPlayback {
     this.unsubscribe = null;
     this.latest = null;
     this.current = null;
-    engine?.then((e) => e.stop()).catch(() => {});
+    engine()?.then((e) => e.stop()).catch(() => {});
   }
 
   get active(): boolean {
@@ -126,7 +130,7 @@ export class AppPlayback {
   }
 
   send(commands: EngineCommand[]): void {
-    if (this.current) engine?.then((e) => e.send(commands)).catch(() => {});
+    if (this.current) engine()?.then((e) => e.send(commands)).catch(() => {});
   }
 
   /** Where the song is now, or null before the engine has said. */
@@ -140,7 +144,7 @@ export class AppPlayback {
     if (!lengths || !chords) return null;
     const chordIndex = (this.sectionStart[state.section] ?? 0) + state.round * chords + Math.min(state.chord, chords - 1);
     // The state comes ~30 times a second; between two, the clock carries the playhead on.
-    const now = started?.ctx.currentTime ?? null;
+    const now = shared.__appEngine?.ctx.currentTime ?? null;
     const bpm = this.current?.song.bpm ?? 120;
     const stepSeconds = 60 / bpm / 4;
     const ahead = now !== null ? Math.max(0, Math.min(1, (now - state.time) / stepSeconds)) : 0;
