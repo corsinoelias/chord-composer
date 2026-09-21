@@ -1,6 +1,6 @@
 # Estudio: usar en la web el motor de audio de la app
 
-Escrito el 2026-09-21. Estado: **fases 1, 2 y 3 hechas** (laboratorio en `/lab/app-engine/`, probado por
+Escrito el 2026-09-21. Estado: **fases 1 a 4 hechas; los arpegios de la fase 5, descartados** (laboratorio en `/lab/app-engine/`, probado por
 el usuario: suena bien); decisión de sonido tomada (A, sección 5). La prueba es reproducible en `docs/motor-unico-spike/`.
 
 Pregunta: ¿puede la web sonar con el mismo motor que la app de Android, es viable y vale la
@@ -132,8 +132,7 @@ llama Flutter por JNI), también hay que añadirla en `engine/web_glue.cpp`.
 - Laboratorio: elige cualquiera de las canciones públicas y cualquiera de los 20 ritmos.
 - Medido: escritorio y Pixel con 0 ms de cortes (Pixel con la interfaz atascada 20 s, carga
   1,9 %, 268 s exportados en 4,9 s). Pico hasta 0,977 con pop_1: al borde de saturar.
-- Sigue sonando distinto (hasta la fase 5): los arpegios suenan en bloque (el laboratorio lo
-  avisa), un paso con más de dos notas se queda con las dos más graves, y un golpe de acorde y
+- Sigue sonando distinto: los arpegios suenan en bloque (el laboratorio lo avisa), un paso con más de dos notas se queda con las dos más graves, y un golpe de acorde y
   un grado en el mismo paso de una variación se quedan en el acorde.
 
 ## 3. Peso de los sonidos
@@ -180,8 +179,9 @@ del 18 de septiembre («la web es la referencia sonora»). Hay tres salidas:
 Mi recomendación era **B si el piano de la web es parte de la identidad del sitio; si no, A.**
 
 **Decidido el 2026-09-21: A.** El motor y los sonidos de la app son la referencia; las canciones
-de la web cambian de sonido. Antes de cambiarlas, el C++ gana arpegios (§4.1) para que ningún
-estilo pierda su carácter. Esto sustituye a la regla del 18 de septiembre («la web es la
+de la web cambian de sonido. **Arpegios descartados (2026-09-22):** ningún ritmo integrado de la
+web los usa (solo podría un ritmo propio de «Mis ritmos»), así que el C++ no los necesita y esos
+ritmos sonarán en bloque. Esto sustituye a la regla del 18 de septiembre («la web es la
 referencia sonora»).
 
 ## 6. Plan por fases
@@ -192,7 +192,7 @@ referencia sonora»).
 | 2 | Separar en la app el **núcleo** (`engine_core`) de la **plataforma** (AAudio/JNI). La app debe quedar idéntica; tú la pruebas con sus métricas de carga | 2-3 días | Medio: toca la app (ojo con la caída de rendimiento del 18 sep) |
 | 3 | **Host web:** worklet con la misma API que el JNI; posición y notas que suenan hacia la interfaz por mensajes; carga y caché del SoundFont y la batería; exportación WAV en un Worker con el mismo `.wasm` | 4-6 días | Medio: Safari iOS (AudioWorklet existe desde 14.5); frecuencia de muestreo a 48 kHz |
 | 4 | **Traductor canción web → motor** en TypeScript: estilos, variaciones melódicas, fills, swing, compás, secciones con arreglo propio, «Mis ritmos». Hay una versión en Dart ya escrita en el stash de la app (`web_catalog.dart`, `song_doc.dart`) | 5-8 días | Medio-alto: es donde vive la fidelidad |
-| 5 | Cerrar §4 en el C++ (arpegios primero) | 3-6 días | Medio: cambia la app también |
+| 5 | Cerrar §4 en el C++ (**arpegios descartados el 2026-09-22**: ningún ritmo integrado los usa) | 3-6 días | Medio: cambia la app también |
 | 6 | **Lanzamiento con interruptor:** `?engine=app` primero, comparación con el corpus real (`tests/corpus`), luego por defecto, con el motor viejo como respaldo una versión | 3-5 días | Bajo |
 
 Total aproximado: **4-6 semanas** de trabajo más tus pruebas. Las fases 1 y 2 se pueden

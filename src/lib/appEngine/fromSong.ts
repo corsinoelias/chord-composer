@@ -229,7 +229,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
       c.push(['voicing', s, track, low, low + 23]);
     }
   });
-  if (arpeggioTracks.size) notes.push(`arpeggios on ${[...arpeggioTracks].join(' and ')} play as block chords until the engine has arpeggios (phase 5)`);
+  if (arpeggioTracks.size) notes.push(`arpeggios on ${[...arpeggioTracks].join(' and ')} play as block chords (no built-in style arpeggiates; only a custom one can)`);
 
   // ── The mix ──
   const volumes = songStyle.volumes as Record<string, number | undefined>;
