@@ -114,6 +114,28 @@ llama Flutter por JNI), también hay que añadirla en `engine/web_glue.cpp`.
   reales de la app el pico llega a 0,94-0,95 (antes 0,76): vigilar que no sature.
 - Pendiente para la fase 6: caché permanente de los recursos (hoy el navegador revalida).
 
+## 2e. Fase 4 hecha: las canciones de la web, en el motor de la app
+
+- `src/lib/appEngine/fromSong.ts` (`songToEngine`): una canción web (secciones, acordes, BPM,
+  transposición, instrumentos) + su estilo resuelto → órdenes del motor. Lo que la canción *es*
+  lo decide el código de la web de siempre (`generateBarPattern` compás a compás,
+  `resolveSectionPlayback` para las secciones con arreglo propio, `resolveVariation` para las
+  líneas melódicas); el traductor solo lo escribe en pasos del motor. Compás, swing (0-1 → la
+  proporción de la app), fills (la regla de cuándo suenan es la de la app), sonidos por el
+  catálogo compartido, registro (octaveOffset → ventana de voicing) y mezcla.
+- Cambios en el C++ de la app (sin commit en su repo): las 24 calidades de acorde de la web que
+  la app no tenía y los grados de escala 1-8 (`kScale1..kScale8`), contados desde el bajo como
+  hace la web. Efecto en la app: los acordes de 5 notas con bajo distinto ahora suman ese bajo.
+- `engine:sync` trae los 15 programas del catálogo (`sounds.sf2`, 6,3 MB) y los kits de la app
+  (`kit.json`). El kit «standard» de la web apunta a un kit que la app no tiene; suena el
+  acústico por defecto de la app, que es el mismo.
+- Laboratorio: elige cualquiera de las canciones públicas y cualquiera de los 20 ritmos.
+- Medido: escritorio y Pixel con 0 ms de cortes (Pixel con la interfaz atascada 20 s, carga
+  1,9 %, 268 s exportados en 4,9 s). Pico hasta 0,977 con pop_1: al borde de saturar.
+- Sigue sonando distinto (hasta la fase 5): los arpegios suenan en bloque (el laboratorio lo
+  avisa), un paso con más de dos notas se queda con las dos más graves, y un golpe de acorde y
+  un grado en el mismo paso de una variación se quedan en el acorde.
+
 ## 3. Peso de los sonidos
 
 La app usa `GeneralUser.sf2` (30,8 MB): demasiado para la web. Pero solo hacen falta los

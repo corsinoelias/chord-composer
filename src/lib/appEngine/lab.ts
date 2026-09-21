@@ -3,13 +3,30 @@
  * will use, with the measures that tell whether it is healthy on a given device.
  */
 import { AppEngine, type EngineState } from './host';
-import { demoSong, type DemoSong } from './demoSongs';
-import { sampledDrum } from './commands';
+import { demoSong } from './demoSongs';
+import { sampledDrum, type EngineCommand } from './commands';
+import { songToEngine } from './fromSong';
+import { SONGS } from '@/data/songs';
+import { MUSICAL_STYLES, getStyleById } from '../styles';
+import { editorSectionsToSections, songToEditorSections } from '../editorLink';
+import { formatChord } from '../musicTheory';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
 let engine: AppEngine | null = null;
-let song: DemoSong = demoSong(0);
+/** What the lab plays: one of its two test songs, or a web song through fromSong. */
+interface LabSong {
+  name: string;
+  bpm: number;
+  commands: EngineCommand[];
+  sections: { name: string; chords: string[]; rounds: number }[];
+  steps: number;
+  drumSlots: number[];
+  notes: string[];
+}
+
+let song: LabSong | null = null;
+let reverb = 0.22;
 let playing = false;
 let stressTimer: number | null = null;
 const muted = [false, false, false, false];
@@ -38,8 +55,8 @@ function onState(s: EngineState) {
     $('where').textContent = `Cuenta atrás · ${s.countInBeats}`;
     return;
   }
-  const section = song.sections[s.section];
-  $('where').textContent = `${section?.name ?? '—'} · vuelta ${s.round + 1} de 2 · compás ${s.bar + 1}`;
+  const section = song?.sections[s.section];
+  $('where').textContent = `${section?.name ?? '—'} · vuelta ${s.round + 1} de ${section?.rounds ?? 1} · compás ${s.bar + 1}`;
   $('chord').textContent = section?.chords[s.chord] ?? '—';
   const beat = Math.floor((s.step % 16) / 4);
   Array.from($('dots').children).forEach((d, i) => d.classList.toggle('on', i === beat));
@@ -55,8 +72,7 @@ async function load() {
   try {
     engine = await AppEngine.start();
     engine.subscribe(onState);
-    engine.load(song.commands);
-    engine.send([['metronome', false, 0.7, STICK, true, 1]]);
+    await selectSong();
     $('startup').textContent = `${Math.round(performance.now() - began)} ms`;
     $('rate').textContent = `${(engine.rate / 1000).toFixed(1)} kHz`;
     if (engine.rate !== 48000) showError(`El navegador abrió el audio a ${engine.rate} Hz, no a 48 kHz: la batería puede sonar desafinada.`);
@@ -71,14 +87,77 @@ async function load() {
   }
 }
 
-function selectSong(style: 0 | 1) {
+function buildSong(choice: string, styleId: string): LabSong {
+  if (choice.startsWith('demo:')) {
+    const demo = demoSong(Number(choice.slice(5)) as 0 | 1);
+    return { ...demo, sections: demo.sections.map((x) => ({ ...x, rounds: 2 })), drumSlots: [], notes: [] };
+  }
+  const web = SONGS[Number(choice.slice(5))];
+  const style = getStyleById(styleId) ?? MUSICAL_STYLES[0];
+  const sections = editorSectionsToSections(songToEditorSections(web));
+  const result = songToEngine({ sections, bpm: web.bpm }, style, (id) => getStyleById(id), engine!.kits);
+  return {
+    name: web.title,
+    bpm: web.bpm,
+    commands: result.commands,
+    sections: sections.map((x) => ({ name: x.name, chords: x.chords.map(formatChord), rounds: Math.max(1, x.repeatCount) })),
+    steps: result.steps,
+    drumSlots: result.drumSlots,
+    notes: result.notes,
+  };
+}
+
+async function selectSong() {
   if (!engine) return;
   const wasPlaying = playing;
-  song = demoSong(style);
+  const choice = ($('song') as HTMLSelectElement).value;
+  ($('style') as HTMLSelectElement).disabled = choice.startsWith('demo:');
+  song = buildSong(choice, ($('style') as HTMLSelectElement).value);
+  if (wasPlaying) engine.stop();
+  await engine.ensureSlots(song.drumSlots);
   engine.load(song.commands);
+  const metro = $('metro').classList.contains('on');
+  engine.send([['reverb', 0.5, reverb], ['metronome', metro, 0.7, STICK, true, 1]]);
+  muted.fill(false);
+  document.querySelectorAll('[data-mute]').forEach((x) => x.classList.remove('on'));
   ($('bpm') as HTMLInputElement).value = String(song.bpm);
   $('bpmLabel').textContent = String(song.bpm);
+  $('songNotes').hidden = !song.notes.length;
+  $('songNotes').textContent = song.notes.join(' · ');
+  renderLoops();
+  (window as unknown as { __song: unknown }).__song = song;
   if (wasPlaying) engine.play();
+}
+
+function renderLoops() {
+  const row = $('loops');
+  row.querySelectorAll('button').forEach((b) => b.remove());
+  const add = (label: string, index: number) => {
+    const b = document.createElement('button');
+    b.className = `cap${index < 0 ? ' on' : ''}`;
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      row.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+      engine?.send([['loopOnly', index]]);
+    });
+    row.appendChild(b);
+  };
+  add('Todo', -1);
+  song?.sections.forEach((x, i) => add(x.name, i));
+}
+
+function fillPickers() {
+  const songs = $('song') as HTMLSelectElement;
+  const web = document.createElement('optgroup');
+  web.label = 'Canciones de la web';
+  SONGS.forEach((x, i) => web.appendChild(new Option(`${x.title} · ${x.artist}`, `song:${i}`)));
+  const demos = document.createElement('optgroup');
+  demos.label = 'Pruebas del laboratorio';
+  demos.append(new Option('Pop (a mano)', 'demo:0'), new Option('Reggaeton (a mano)', 'demo:1'));
+  songs.append(web, demos);
+  const styles = $('style') as HTMLSelectElement;
+  MUSICAL_STYLES.forEach((x) => styles.appendChild(new Option(x.name, x.id)));
+  styles.value = 'reggaeton';
 }
 
 async function exportWav() {
@@ -88,6 +167,7 @@ async function exportWav() {
   $('exportInfo').textContent = 'Renderizando…';
   try {
     const began = performance.now();
+    if (!song) return;
     const result = await engine.exportWav(song.steps, 3);
     const total = performance.now() - began;
     const seconds = result.frames / 48000;
@@ -95,7 +175,7 @@ async function exportWav() {
     const link = $('download') as HTMLAnchorElement;
     if (link.href) URL.revokeObjectURL(link.href);
     link.href = URL.createObjectURL(result.blob);
-    link.download = `motor-app-${song.name.toLowerCase()}.wav`;
+    link.download = `motor-app-${song.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.wav`;
     link.hidden = false;
     (window as unknown as { __lastExport: unknown }).__lastExport = { ...result, size: result.blob.size, total };
   } catch (error) {
@@ -116,21 +196,19 @@ $('bpm').addEventListener('input', (e) => {
   $('bpmLabel').textContent = String(value);
   engine?.send([['setBpm', value]]);
 });
-$('reverb').addEventListener('input', (e) => engine?.send([['reverb', 0.5, Number((e.target as HTMLInputElement).value) / 100]]));
+$('reverb').addEventListener('input', (e) => {
+  reverb = Number((e.target as HTMLInputElement).value) / 100;
+  engine?.send([['reverb', 0.5, reverb]]);
+});
 $('metro').addEventListener('click', (e) => {
   const button = e.currentTarget as HTMLElement;
   const on = !button.classList.contains('on');
   button.classList.toggle('on', on);
   engine?.send([['metronome', on, 0.7, STICK, true, 1]]);
 });
-document.querySelectorAll<HTMLElement>('[data-song]').forEach((b) => b.addEventListener('click', () => {
-  document.querySelectorAll('[data-song]').forEach((x) => x.classList.toggle('on', x === b));
-  selectSong(Number(b.dataset.song) as 0 | 1);
-}));
-document.querySelectorAll<HTMLElement>('[data-loop]').forEach((b) => b.addEventListener('click', () => {
-  document.querySelectorAll('[data-loop]').forEach((x) => x.classList.toggle('on', x === b));
-  engine?.send([['loopOnly', Number(b.dataset.loop)]]);
-}));
+fillPickers();
+$('song').addEventListener('change', () => void selectSong());
+$('style').addEventListener('change', () => void selectSong());
 document.querySelectorAll<HTMLElement>('[data-mute]').forEach((b) => b.addEventListener('click', () => {
   const track = Number(b.dataset.mute);
   muted[track] = !muted[track];

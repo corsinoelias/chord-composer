@@ -112,7 +112,11 @@ constexpr int kClearEverything = 0b1111;
 // chord came out as a block with all its notes stacked on the same instant. Saying
 // which chord tone to sound is the difference between spelling harmony and playing it.
 // Must stay in sync with the degree ids in lib/core/music/constants.dart.
-enum Degree { kRest = 0, kChordAll, kRoot, kThird, kFifth, kSeventh, kExtension, kOctave, kDegreeCount };
+enum Degree { kRest = 0, kChordAll, kRoot, kThird, kFifth, kSeventh, kExtension, kOctave,
+              // Degrees 1–8 of the chord's scale, the website's melodic language: its bass
+              // lines walk through the 2nd, 4th and 6th, which no chord tone names. kScale1 + n
+              // - 1 is degree n; the four bits a step keeps for a degree hold all of them.
+              kScale1, kScale2, kScale3, kScale4, kScale5, kScale6, kScale7, kScale8, kDegreeCount };
 
 // A step is packed into one int32 so the grid stays a single atomic store per cell and
 // the callback keeps its lock-free read.
@@ -139,7 +143,8 @@ int drumRowIndex(const char* row) {
   return -1;
 }
 
-constexpr int kMaxChordVoices = 5;
+// Six: the website's elevenths and thirteenths have six tones.
+constexpr int kMaxChordVoices = 6;
 
 // Interval formulas, mirroring _chordFormulas in lib/core/music/chord_theory.dart.
 // Keep both lists in step: the UI offers these names and the engine must spell them.
@@ -163,7 +168,49 @@ constexpr ChordType kChordTypes[] = {
   {"add9", 4, {0, 4, 7, 14}},
   {"m7b5", 4, {0, 3, 6, 10}},
   {"m11",  5, {0, 3, 7, 10, 17}},
+  // The website's other qualities (chord-composer's musicTheory.ts), under its names, so a
+  // song made there is spelled here as written. Nothing in this app offers them yet.
+  {"5",       2, {0, 7}},
+  {"11",      6, {0, 4, 7, 10, 14, 17}},
+  {"13",      6, {0, 4, 7, 10, 14, 21}},
+  {"maj9",    5, {0, 4, 7, 11, 14}},
+  {"maj13",   6, {0, 4, 7, 11, 14, 21}},
+  {"min6",    4, {0, 3, 7, 9}},
+  {"min13",   6, {0, 3, 7, 10, 14, 21}},
+  {"minMaj7", 4, {0, 3, 7, 11}},
+  {"6/9",     5, {0, 4, 7, 9, 14}},
+  {"7sus4",   4, {0, 5, 7, 10}},
+  {"7b5",     4, {0, 4, 6, 10}},
+  {"7b9",     5, {0, 4, 7, 10, 13}},
+  {"9sus4",   5, {0, 5, 7, 10, 14}},
+  {"aug9",    5, {0, 4, 8, 10, 14}},
+  {"dim7",    4, {0, 3, 6, 9}},
+  {"aug7",    4, {0, 4, 8, 10}},
+  {"7#9",     5, {0, 4, 7, 10, 15}},
+  {"7#5",     4, {0, 4, 8, 10}},
+  {"9b5",     5, {0, 4, 6, 10, 14}},
+  {"9#5",     5, {0, 4, 8, 10, 14}},
+  {"maj7#11", 5, {0, 4, 7, 11, 18}},
+  {"add11",   4, {0, 4, 7, 17}},
+  {"maj11",   6, {0, 4, 7, 11, 14, 17}},
+  {"minadd9", 4, {0, 3, 7, 14}},
 };
+
+// The scale a chord's melodic degrees are counted in: the website's bassScale.getScale.
+// Minor for anything minor, mixolydian for a dominant seventh, its own for dim and aug,
+// major for the rest — the half-diminished included, as the website does.
+const int* scaleOf(const char* name) {
+  static const int kMajor[8] = {0, 2, 4, 5, 7, 9, 11, 12};
+  static const int kMinor[8] = {0, 2, 3, 5, 7, 8, 10, 12};
+  static const int kDominant[8] = {0, 2, 4, 5, 7, 9, 10, 12};
+  static const int kDiminished[8] = {0, 2, 3, 5, 6, 8, 9, 12};
+  static const int kAugmented[8] = {0, 2, 4, 5, 8, 9, 11, 12};
+  if (strncmp(name, "min", 3) == 0 || strcmp(name, "m9") == 0 || strcmp(name, "m11") == 0) return kMinor;
+  if (strcmp(name, "7") == 0) return kDominant;
+  if (strcmp(name, "dim") == 0) return kDiminished;
+  if (strcmp(name, "aug") == 0) return kAugmented;
+  return kMajor;
+}
 constexpr int kChordTypeCount = sizeof(kChordTypes) / sizeof(kChordTypes[0]);
 
 int chordTypeIndex(const char* name) {
@@ -1748,7 +1795,13 @@ class Engine {
     // a seventh under its own root is not the note the pattern asked for.
     const int rootNote = window.low + ((rootClass - window.low) % 12 + 12) % 12;
     int note = rootNote;
-    if (degree == kOctave) {
+    if (degree >= kScale1) {
+      // A scale degree counts from the lowest note the website plays: the slash bass when
+      // there is one, on every track, as its chordToMidiNotes orders the chord.
+      const int scaleClass = chord.bass >= 0 ? chord.bass % 12 : chord.root % 12;
+      const int scaleRoot = window.low + ((scaleClass - window.low) % 12 + 12) % 12;
+      note = scaleRoot + scaleOf(type.name)[std::min(degree - kScale1, 7)];
+    } else if (degree == kOctave) {
       // Two octaves of room means the octave above the root is simply in the range now,
       // rather than the one degree that had to be let out of it.
       note = rootNote + 12;

@@ -16,7 +16,7 @@ export const ENGINE_FILES = (drums) => [
   'engine/web_glue.cpp',
   'engine/shim/aaudio/AAudio.h',
   'public/engine/engine.wasm',
-  'public/engine/core.sf2',
+  'public/engine/sounds.sf2',
   'public/engine/kit.json',
   ...drums.map((d) => `public/engine/drums/${d}.pcm`),
 ];

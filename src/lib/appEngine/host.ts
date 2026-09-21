@@ -21,6 +21,9 @@ const QUANTUM = 128;
 const ENGINE_RATE = 48000; // the recordings' rate; the context runs at it so drums keep pitch
 
 export interface KitEntry { slot: number; name: string; gain: number }
+/** One of the app's kits: the drum sound id each piece plays (drumKits in constants.dart). */
+export interface DrumKit { name: string; rows: Record<string, number> }
+interface KitFile { samples: KitEntry[]; kits: DrumKit[] }
 
 export interface EngineState {
   /** AudioContext time the state was taken at. */
@@ -67,7 +70,7 @@ function notesOf(words: Int32Array | number[], track: number): number[] {
   return notes;
 }
 
-let assetCache: Promise<{ wasm: ArrayBuffer; sf2: ArrayBuffer; kit: KitEntry[] }> | null = null;
+let assetCache: Promise<{ wasm: ArrayBuffer; sf2: ArrayBuffer; kit: KitEntry[]; kits: DrumKit[] }> | null = null;
 const pcmCache = new Map<number, Promise<ArrayBuffer>>();
 
 function loadAssets() {
@@ -79,10 +82,10 @@ function loadAssets() {
     };
     const [wasm, sf2, kitText] = await Promise.all([
       get('public/engine/engine.wasm'),
-      get('public/engine/core.sf2'),
-      fetch(url('public/engine/kit.json')).then((r) => r.json() as Promise<KitEntry[]>),
+      get('public/engine/sounds.sf2'),
+      fetch(url('public/engine/kit.json')).then((r) => r.json() as Promise<KitFile>),
     ]);
-    return { wasm, sf2, kit: kitText };
+    return { wasm, sf2, kit: kitText.samples, kits: kitText.kits };
   })();
   return assetCache;
 }
@@ -107,6 +110,8 @@ export class AppEngine {
   readonly node: AudioWorkletNode;
   readonly rate: number;
   state: EngineState | null = null;
+  /** The app's drum kits (kit.json), by the index the sound catalog names them with. */
+  readonly kits: DrumKit[];
   private readonly kit: KitEntry[];
   private readonly loadedSlots = new Set<number>();
   private readonly listeners = new Set<(state: EngineState) => void>();
@@ -117,10 +122,11 @@ export class AppEngine {
   /** Everything that describes the song and the mix, in order: what an export replays. */
   private journal: EngineCommand[] = [];
 
-  private constructor(ctx: AudioContext, node: AudioWorkletNode, kit: KitEntry[], rate: number) {
+  private constructor(ctx: AudioContext, node: AudioWorkletNode, kit: KitEntry[], kits: DrumKit[], rate: number) {
     this.ctx = ctx;
     this.node = node;
     this.kit = kit;
+    this.kits = kits;
     this.rate = rate;
     node.port.onmessage = ({ data }) => this.receive(data);
   }
@@ -154,7 +160,7 @@ export class AppEngine {
     node.port.postMessage({ type: 'init', wasm, sf2, kit }, [wasm, sf2, ...kit.map((k) => k.pcm)]);
     const info = await ready;
     if (!info.fontOk) throw new Error('the engine could not read its SoundFont');
-    const engine = new AppEngine(context, node, assets.kit, info.rate);
+    const engine = new AppEngine(context, node, assets.kit, assets.kits, info.rate);
     entries.forEach((k) => engine.loadedSlots.add(k.slot));
     return engine;
   }

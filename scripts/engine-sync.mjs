@@ -28,8 +28,15 @@ const app = process.env.CHORD_APP || 'C:/Users/Eliascorsino/Projects/chord_seque
 const wasiSdk = process.env.WASI_SDK
   || path.join(process.env.LOCALAPPDATA || '', 'wasi-sdk-25.0-x86_64-windows');
 
-/** General MIDI programs (bank 0) the web ships: the three every song starts with. */
-const PROGRAMS = [0, 25, 33];
+/**
+ * General MIDI programs (bank 0) the web ships: every program a web sound plays through
+ * (shared/catalog/sounds.json, its `app` field), so any song made on the web has its sounds.
+ */
+const catalog = JSON.parse(fs.readFileSync(path.join(root, 'shared/catalog/sounds.json'), 'utf8'));
+const PROGRAMS = [...new Set(['piano', 'guitar', 'bass'].flatMap((track) => [
+  ...(catalog[track]?.sounds ?? []).map((sound) => sound.app?.program),
+  ...Object.values(catalog[track]?.legacy ?? {}).map((app) => app?.program),
+]).filter((program) => Number.isInteger(program)))].sort((a, b) => a - b);
 /**
  * WASI calls the engine may make. clock_time_get is its load meter; the file ones are
  * exportWav writing its WAV, which only ever runs in the export Worker (an in-memory file
@@ -80,7 +87,7 @@ if (unexpected.length) fail(`engine.wasm imports ${unexpected.join(', ')}, which
 // 3. Sounds.
 execFileSync(process.execPath, [
   path.join(root, 'scripts/sf2-subset.mjs'), path.join(app, 'assets/sf2/GeneralUser.sf2'),
-  path.join(out, 'core.sf2'), PROGRAMS.join(','),
+  path.join(out, 'sounds.sf2'), PROGRAMS.join(','),
 ], { stdio: 'inherit' });
 // The kit: which recording sits in which of the engine's sample slots, and how loud. Read
 // from the app's Dart, where the app's own loader reads it (audio_engine.dart), so the two
@@ -92,8 +99,17 @@ if (!assetList || !gainMap) fail('could not read sampledDrumAssets / sampledDrum
 const DRUMS = [...assetList[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
 const gains = Object.fromEntries([...gainMap[1].matchAll(/'([^']+)':\s*([0-9.]+)/g)].map((m) => [m[1], Number(m[2])]));
 for (const name of DRUMS) fs.copyFileSync(path.join(app, 'assets/drums', `${name}.pcm`), path.join(out, 'drums', `${name}.pcm`));
-const kit = DRUMS.map((name, slot) => ({ slot, name, gain: gains[name] ?? 1.0 }));
-fs.writeFileSync(path.join(out, 'kit.json'), `${JSON.stringify(kit)}\n`);
+// And the kits: which drum sound each piece plays in each of the app's kits (drumKits in
+// constants.dart), by the index the web's catalog names them with.
+const kitsSource = dart('lib/core/music/constants.dart').match(/const drumKits = <DrumKit>\[([\s\S]*?)\n\];/);
+if (!kitsSource) fail('could not read drumKits from the app');
+const kits = [...kitsSource[1].matchAll(/DrumKit\('([^']+)',\s*\{([^}]*)\}/g)].map((m) => ({
+  name: m[1],
+  rows: Object.fromEntries([...m[2].matchAll(/'([A-Za-z0-9]+)':\s*(\d+)/g)].map((r) => [r[1], Number(r[2])])),
+}));
+if (!kits.length) fail('drumKits had no kits');
+const samples = DRUMS.map((name, slot) => ({ slot, name, gain: gains[name] ?? 1.0 }));
+fs.writeFileSync(path.join(out, 'kit.json'), `${JSON.stringify({ samples, kits })}\n`);
 
 // 4. Record where it all came from.
 const manifest = {

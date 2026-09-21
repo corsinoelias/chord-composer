@@ -4,11 +4,23 @@
     "commit": "ed2309dbfec01b0702f021bebfce66da3ded7aa0",
     "dirtyEngine": true
   },
-  "syncedAt": "2026-09-21T21:27:24.823Z",
+  "syncedAt": "2026-09-21T21:48:31.157Z",
   "programs": [
     0,
+    1,
+    3,
+    4,
+    24,
     25,
-    33
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    33,
+    34,
+    36
   ],
   "drums": [
     "kick",
@@ -59,13 +71,13 @@
     "floortom_phat"
   ],
   "files": {
-    "engine/vendor/native_audio.cpp": "ca3ecc26661d14168de5d3ee36522c0eb4bf1aad808c6184c846ee3829eb93d7",
+    "engine/vendor/native_audio.cpp": "a64121ae1bf3acb13db5483cded65c5fe818c864512a9887c0a28a55c8aabecd",
     "engine/vendor/tsf.h": "b1a65f3e44624a720db0906a4c3d75c0d7a03f408f50bc4bfd92d9008ac84e93",
     "engine/web_glue.cpp": "e811899458f171a4006fcb834f7bfb42b50d203518dbbd384f7020a465f2118d",
     "engine/shim/aaudio/AAudio.h": "e05c86b807d44199f67776d9db135f20d0d0142f5a2c0ffc0b4807eaf6ee859d",
-    "public/engine/engine.wasm": "a20cb679be7c88ad6242c830f350f7a8b0ced1c6ccf4845f805e855e391a8e50",
-    "public/engine/core.sf2": "d6bdc04394a021e6d6b4abaca6aa758aee549b79e1293ac5952768b8ea9141a0",
-    "public/engine/kit.json": "319e8ba9c2693c8c6f724f8e1a31330299bc46eaf48a56c859cf5787896b13e6",
+    "public/engine/engine.wasm": "eae18ceff7b6a8b0fa1e4b87fa7cc26300d194e6df45a1cfce7e453c91422d5f",
+    "public/engine/sounds.sf2": "bc280aa6a776ae9360516c6c135e33d9ebbe59f3342b094c502b55d24382dace",
+    "public/engine/kit.json": "0e2f507feb6dce72916a314a5c2ec1c0c01e9e361b75fbd6835299499afb73fc",
     "public/engine/drums/kick.pcm": "43c665669d8a8d5d56bd65b17aebf816154d47ed06fc1040ffe37b18036d8950",
     "public/engine/drums/snare.pcm": "aa569669c427eb841a5b4189592de5aec42b603043d93b0f6db7acf09809c372",
     "public/engine/drums/stick.pcm": "8993f18dab1b76822da89629f724f3a6cd3a630bc00112320ac877f546eeb7aa",
