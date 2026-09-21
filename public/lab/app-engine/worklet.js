@@ -17,8 +17,20 @@ class AppEngineProcessor extends AudioWorkletProcessor {
     super();
     this.ready = false;
     this.blocks = 0;
-    this.workMs = 0;
     this.statusEvery = Math.round(sampleRate / QUANTUM / 20); // ~20 status messages a second
+    // Flight recorder: every quarter second, the loudest sample and where the song was.
+    // Kept here on the audio thread, so it records while the page is frozen or hidden.
+    this.recordEvery = Math.round(sampleRate / QUANTUM / 4);
+    this.history = [];
+    this.peak = 0;
+    this.silentBlocks = 0;
+    this.run = 0;
+    this.longestRun = 0;
+    // Dropouts heard while the song plays: blocks of true silence after its first beat.
+    this.playedBlocks = 0;
+    this.dropMs = 0;
+    this.dropRun = 0;
+    this.dropLongestMs = 0;
     this.port.onmessage = (event) => this.onMessage(event.data).catch((error) => {
       this.port.postMessage({ type: 'error', message: String(error && error.message || error) });
     });
@@ -43,7 +55,24 @@ class AppEngineProcessor extends AudioWorkletProcessor {
       case 'metronome': e.wg_metronome(msg.value ? 1 : 0); break;
       case 'mute': e.wg_mixer(msg.track, msg.volume ?? 0.9, msg.value ? 1 : 0); break;
       case 'reverb': e.wg_reverb(0.5, msg.value); break;
-      case 'resetLoad': this.blocks = 0; this.workMs = 0; e.wg_reset_load(); break;
+      case 'resetLoad': this.dropMs = 0; this.dropLongestMs = 0; break;
+      case 'dump': this.port.postMessage({ type: 'history', history: this.history }); break;
+      case 'clearHistory': this.history = []; break;
+      case 'bench': {
+        // Renders blocks back to back on this thread (the audio thread's own core), timing
+        // the whole run — long enough that Date.now()'s millisecond steps stop mattering.
+        const hasPerf = typeof performance !== 'undefined' && typeof performance.now === 'function';
+        const now = hasPerf ? () => performance.now() : () => Date.now();
+        const scratch = e.wg_alloc(QUANTUM * 2 * 4);
+        const wasPlaying = e.wg_playing();
+        if (!wasPlaying) e.wg_start(0);
+        const began = now();
+        for (let i = 0; i < msg.blocks; i++) e.wg_render(scratch, QUANTUM);
+        const ms = now() - began;
+        if (!wasPlaying) e.wg_stop();
+        this.port.postMessage({ type: 'bench', hasPerf, blocks: msg.blocks, ms, perBlockMs: ms / msg.blocks });
+        break;
+      }
     }
   }
 
@@ -92,17 +121,40 @@ class AppEngineProcessor extends AudioWorkletProcessor {
     if (!this.ready) return true;
     const left = outputs[0][0];
     const right = outputs[0][1] || left;
-    const started = Date.now();
+    // No per-block timing here: the worklet's only clock is Date.now(), in whole
+    // milliseconds against a 2.67 ms block, and it read 10x too high on a Pixel 8 Pro.
+    // The 'bench' message measures the real cost instead.
     this.exports.wg_render(this.out, QUANTUM);
-    this.workMs += Date.now() - started;
     // Memory can grow (a SoundFont loading); a view over the old buffer would be empty.
     if (!this.view || this.view.buffer !== this.memory.buffer) {
       this.view = new Float32Array(this.memory.buffer, this.out, QUANTUM * 2);
     }
     const v = this.view;
+    let block = 0;
     for (let i = 0; i < QUANTUM; i++) {
       left[i] = v[2 * i];
       right[i] = v[2 * i + 1];
+      const a = left[i] < 0 ? -left[i] : left[i];
+      if (a > block) block = a;
+    }
+    if (block > this.peak) this.peak = block;
+    // A block in true silence while the song plays is the signature of a dropout.
+    if (block < 0.0005) { this.silentBlocks++; this.run++; if (this.run > this.longestRun) this.longestRun = this.run; } else this.run = 0;
+    const blockMs = (QUANTUM / sampleRate) * 1000;
+    if (this.exports.wg_playing()) {
+      // The first half second is the song starting, not a dropout.
+      if (++this.playedBlocks > sampleRate / QUANTUM / 2 && block < 0.0005) {
+        this.dropMs += blockMs;
+        this.dropRun += blockMs;
+        if (this.dropRun > this.dropLongestMs) this.dropLongestMs = this.dropRun;
+      } else this.dropRun = 0;
+    } else {
+      this.playedBlocks = 0;
+      this.dropRun = 0;
+    }
+    if (this.blocks % this.recordEvery === 0) {
+      if (this.history.length < 4800) this.history.push([Date.now(), Math.round(currentTime * 100) / 100, Math.round(this.peak * 100) / 100, this.exports.wg_position(), this.silentBlocks, this.longestRun]);
+      this.peak = 0; this.silentBlocks = 0; this.longestRun = this.run;
     }
     if (++this.blocks % this.statusEvery === 0) {
       const e = this.exports;
@@ -111,8 +163,8 @@ class AppEngineProcessor extends AudioWorkletProcessor {
         position: e.wg_position(),
         playing: !!e.wg_playing(),
         // Share of each block's deadline the engine used, averaged since the last reset.
-        load: this.workMs / (this.blocks * (QUANTUM / sampleRate) * 1000),
-        engineLate: e.wg_late_blocks(),
+        dropMs: this.dropMs,
+        dropLongestMs: this.dropLongestMs,
         blocks: this.blocks,
       });
     }

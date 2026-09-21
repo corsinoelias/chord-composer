@@ -126,14 +126,17 @@ export const prerender = true;
     <span class="lbl">Medidas</span>
     <div class="stats">
       <div class="stat"><span class="lbl">Carga del motor</span><b id="loadPct">—</b></div>
-      <div class="stat"><span class="lbl">Bloques tarde (motor)</span><b id="late">0</b></div>
+      <div class="stat"><span class="lbl">Cortes al sonar</span><b id="drops">0 ms</b></div>
       <div class="stat"><span class="lbl">Frecuencia</span><b id="rate">—</b></div>
       <div class="stat"><span class="lbl">Latencia salida</span><b id="latency">—</b></div>
       <div class="stat"><span class="lbl">Cortes (Chrome)</span><b id="glitches">—</b></div>
       <div class="stat"><span class="lbl">Carga inicial</span><b id="startup">—</b></div>
     </div>
-    <p class="note">Carga del motor = parte del tiempo de cada bloque de audio que usa el motor (por debajo del 100 % no hay cortes). «Cortes» solo lo informa Chrome.</p>
-    <button class="cap" id="resetStats" style="align-self: flex-start;">Reiniciar medidas</button>
+    <p class="note">Carga del motor: parte de los 2,67 ms de cada bloque de audio que necesita el motor, medida en el propio hilo de audio (solo con la música parada). Cortes al sonar: silencio total mientras la canción suena, con el más largo entre paréntesis.</p>
+    <div class="row">
+      <button class="cap" id="measure">Medir carga</button>
+      <button class="cap" id="resetStats">Reiniciar cortes</button>
+    </div>
   </div>
 </main>
 <script type="module" src="/lab/app-engine/app.js" is:inline></script>

@@ -1,7 +1,7 @@
 # Estudio: usar en la web el motor de audio de la app
 
-Escrito el 2026-09-21. Estado: **estudio y prueba técnica hechos; nada implementado ni en la
-web ni en la app.** La prueba es reproducible en `docs/motor-unico-spike/`.
+Escrito el 2026-09-21. Estado: **fase 1 hecha** (laboratorio en `/lab/app-engine/`, probado por
+el usuario: suena bien); decisión de sonido tomada (A, sección 5). La prueba es reproducible en `docs/motor-unico-spike/`.
 
 Pregunta: ¿puede la web sonar con el mismo motor que la app de Android, es viable y vale la
 pena?
@@ -53,6 +53,29 @@ motor de WebAssembly que Chrome en Android).
 Lo que la prueba **no** mide todavía: el motor corriendo en vivo dentro de un AudioWorklet en
 un móvil real, con la interfaz a la vez. Es el siguiente paso (fase 1).
 
+## 2b. Medido en un móvil real (fase 1, 2026-09-21)
+
+Pixel 8 Pro, Chrome 153, controlado por USB (DevTools + `adb`). Mismo escenario para los dos
+motores; cada salida se mide en el hilo de audio (bloques de 2,67 ms en silencio total).
+Scripts en `lab/app-engine/phone/`.
+
+| Prueba | Motor de la app (laboratorio) | Reproductor web actual |
+|---|---|---|
+| Interfaz atascada 400 ms de cada segundo, 15 s | **0 ms** de silencio | 363 ms en 8 cortes (máx. 117 ms) |
+| Pantalla apagada, 20 s | **0 ms** | 515 ms en 17 cortes (máx. 120 ms); 23,1 s de audio en 19,8 s reales |
+| Chrome en segundo plano, 20 s | **0 ms** | 445 ms en 18 cortes; 27,1 s de audio en 20,5 s reales |
+| Pico de salida | 0,76 | **1,59: satura** |
+
+El usuario lo escuchó durante la prueba: la web «sonó fatal» y con la pantalla apagada «se
+perdía el tiempo, iba a trompicones»; el motor C++ «tiene buena pinta».
+
+Coste del motor en ese móvil: 2,0-2,5 % de cada bloque, medido dentro del hilo de audio
+(3.000 bloques seguidos) y en un Worker con reloj de alta resolución (40-44× tiempo real;
+p99,9 0,2-0,4 ms). Un medidor por bloque con `Date.now()` dio 23 %: el hilo de audio no tiene
+reloj más fino que el milisegundo, así que ese número no sirve y se quitó del laboratorio.
+
+Requisito encontrado: la CSP debe incluir `'wasm-unsafe-eval'` en `script-src`.
+
 ## 3. Peso de los sonidos
 
 La app usa `GeneralUser.sf2` (30,8 MB): demasiado para la web. Pero solo hacen falta los
@@ -94,7 +117,12 @@ del 18 de septiembre («la web es la referencia sonora»). Hay tres salidas:
 - **C. Motor nuevo solo para canciones nuevas.** Descartado: dos motores otra vez, que es el
   problema que queremos quitar.
 
-Mi recomendación es **B si el piano de la web es parte de la identidad del sitio; si no, A.**
+Mi recomendación era **B si el piano de la web es parte de la identidad del sitio; si no, A.**
+
+**Decidido el 2026-09-21: A.** El motor y los sonidos de la app son la referencia; las canciones
+de la web cambian de sonido. Antes de cambiarlas, el C++ gana arpegios (§4.1) para que ningún
+estilo pierda su carácter. Esto sustituye a la regla del 18 de septiembre («la web es la
+referencia sonora»).
 
 ## 6. Plan por fases
 

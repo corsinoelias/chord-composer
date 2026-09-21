@@ -67,8 +67,8 @@ function onStatus(s) {
     playing = s.playing;
     $('playIcon').innerHTML = playing ? '<rect x="6" y="6" width="12" height="12" rx="2"/>' : '<path d="M8 5v14l11-7z"/>';
   }
-  $('loadPct').textContent = `${(s.load * 100).toFixed(1)} %`;
-  $('late').textContent = String(s.engineLate);
+  $('drops').textContent = s.dropMs > 0 ? `${Math.round(s.dropMs)} ms (${Math.round(s.dropLongestMs)})` : '0 ms';
+  $('measure').disabled = playing;
   const stats = ctx && ctx.playoutStats;
   if (stats && 'fallbackFramesEvents' in stats) $('glitches').textContent = String(stats.fallbackFramesEvents);
   if (!playing) {
@@ -148,6 +148,33 @@ $('stress').addEventListener('click', (e) => {
   button.textContent = 'Parar';
 });
 $('resetStats').addEventListener('click', () => send({ type: 'resetLoad' }));
+// 3000 blocks rendered back to back on the audio thread, timed as a whole — the only way
+// to measure the engine there, where the clock ticks in whole milliseconds.
+$('measure').addEventListener('click', () => {
+  if (playing) return;
+  const previous = node.port.onmessage;
+  node.port.onmessage = (event) => {
+    if (event.data.type !== 'bench') return previous && previous(event);
+    node.port.onmessage = previous;
+    const budgetMs = (128 / ctx.sampleRate) * 1000;
+    $('loadPct').textContent = `${((event.data.perBlockMs / budgetMs) * 100).toFixed(1)} %`;
+  };
+  $('loadPct').textContent = 'midiendo…';
+  send({ type: 'bench', blocks: 3000 });
+});
 
 // For automated checks: lets a test tap the output and read the context.
-window.__lab = { get ctx() { return ctx; }, get node() { return node; } };
+window.__lab = {
+  get ctx() { return ctx; },
+  get node() { return node; },
+  // The worklet's flight recorder: [wall ms, audio time, peak, engine position] every 0.25 s.
+  dump: () => new Promise((resolve) => {
+    const previous = node.port.onmessage;
+    node.port.onmessage = (event) => {
+      if (event.data.type === 'history') { node.port.onmessage = previous; resolve(event.data.history); }
+      else previous && previous(event);
+    };
+    node.port.postMessage({ type: 'dump' });
+  }),
+  clear: () => node.port.postMessage({ type: 'clearHistory' }),
+};
