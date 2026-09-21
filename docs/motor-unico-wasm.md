@@ -1,6 +1,6 @@
 # Estudio: usar en la web el motor de audio de la app
 
-Escrito el 2026-09-21. Estado: **fases 1 y 2 hechas** (laboratorio en `/lab/app-engine/`, probado por
+Escrito el 2026-09-21. Estado: **fases 1, 2 y 3 hechas** (laboratorio en `/lab/app-engine/`, probado por
 el usuario: suena bien); decisión de sonido tomada (A, sección 5). La prueba es reproducible en `docs/motor-unico-spike/`.
 
 Pregunta: ¿puede la web sonar con el mismo motor que la app de Android, es viable y vale la
@@ -94,6 +94,25 @@ Requisito encontrado: la CSP debe incluir `'wasm-unsafe-eval'` en `script-src`.
 **Si mañana cambia el motor en la app:** `npm run engine:sync` → probar en el móvil → commit de
 `engine/` y `public/engine/`. Si el cambio añade o cambia una función del puente (lo que hoy
 llama Flutter por JNI), también hay que añadirla en `engine/web_glue.cpp`.
+
+## 2d. Fase 3 hecha: el motor, listo para usarse desde la web
+
+- `engine/web_glue.cpp` exporta **toda** la API del puente JNI de la app, con los mismos nombres
+  y argumentos (canción, patrones, sonidos, mezcla, previsualizaciones, notas que suenan y
+  golpeadas, niveles, exportación).
+- `public/engine/processor.js` (AudioWorklet): aplica órdenes por lotes entre dos bloques y
+  devuelve ~30 veces por segundo posición, notas, golpes de batería, niveles y cortes.
+  `engine-core.js` es el cargador común con el Worker de exportación.
+- `public/engine/export-worker.js`: llama al `exportWav` de la app con un sistema de archivos
+  en memoria. Pixel 8 Pro: 42 s de canción en 1,9 s (22-26× tiempo real).
+- `src/lib/appEngine/`: `AppEngine` (host.ts), órdenes tipadas (commands.ts) y las canciones de
+  prueba (demoSongs.ts), ya escritas con las mismas órdenes que usará el traductor.
+- Batería: las 46 grabaciones de la app con su hueco y su ganancia, leídos del Dart de la app por
+  `engine:sync` (`kit.json`). Se cargan bajo demanda (`ensureSlots`); por defecto, el kit
+  acústico y el cencerro de la cuenta atrás.
+- Verificado en el Pixel: 0 ms de cortes en las cuatro pruebas; carga 5,5 %. Con las ganancias
+  reales de la app el pico llega a 0,94-0,95 (antes 0,76): vigilar que no sature.
+- Pendiente para la fase 6: caché permanente de los recursos (hoy el navegador revalida).
 
 ## 3. Peso de los sonidos
 

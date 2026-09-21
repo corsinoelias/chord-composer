@@ -30,8 +30,15 @@ const wasiSdk = process.env.WASI_SDK
 
 /** General MIDI programs (bank 0) the web ships: the three every song starts with. */
 const PROGRAMS = [0, 25, 33];
-/** The kit's recordings the web ships, from the app's assets/drums/. */
-const DRUMS = ['kick', 'snare', 'stick', 'hat', 'hatopen', 'crash'];
+/**
+ * WASI calls the engine may make. clock_time_get is its load meter; the file ones are
+ * exportWav writing its WAV, which only ever runs in the export Worker (an in-memory file
+ * system); the worklet answers them with ENOSYS.
+ */
+const ALLOWED_IMPORTS = new Set([
+  'clock_time_get', 'fd_close', 'fd_fdstat_get', 'fd_fdstat_set_flags', 'fd_prestat_get',
+  'fd_prestat_dir_name', 'fd_read', 'fd_seek', 'fd_write', 'path_open', 'proc_exit',
+].map((n) => `wasi_snapshot_preview1.${n}`));
 
 const fail = (message) => {
   console.error(`engine:sync: ${message}`);
@@ -63,19 +70,30 @@ execFileSync(clang, [
   '-o', path.join(out, 'engine.wasm'), path.join(root, 'engine/web_glue.cpp'),
 ], { stdio: 'inherit' });
 
-// The worklet provides exactly one import. Anything more would fail at load time in the
-// browser, so it fails here instead.
+// Any import the worklet and the export Worker do not provide would fail at load time in
+// the browser, so it fails here instead.
 const imports = WebAssembly.Module.imports(new WebAssembly.Module(fs.readFileSync(path.join(out, 'engine.wasm'))))
   .map((i) => `${i.module}.${i.name}`);
-const unexpected = imports.filter((i) => i !== 'wasi_snapshot_preview1.clock_time_get');
-if (unexpected.length) fail(`engine.wasm imports ${unexpected.join(', ')}; public/lab/app-engine/worklet.js only provides clock_time_get`);
+const unexpected = imports.filter((i) => !ALLOWED_IMPORTS.has(i));
+if (unexpected.length) fail(`engine.wasm imports ${unexpected.join(', ')}, which public/engine/processor.js and export-worker.js do not provide`);
 
 // 3. Sounds.
 execFileSync(process.execPath, [
   path.join(root, 'scripts/sf2-subset.mjs'), path.join(app, 'assets/sf2/GeneralUser.sf2'),
   path.join(out, 'core.sf2'), PROGRAMS.join(','),
 ], { stdio: 'inherit' });
+// The kit: which recording sits in which of the engine's sample slots, and how loud. Read
+// from the app's Dart, where the app's own loader reads it (audio_engine.dart), so the two
+// can never load the same slot with different sounds or levels.
+const dart = (file) => fs.readFileSync(path.join(app, file), 'utf8');
+const assetList = dart('lib/core/music/constants.dart').match(/const sampledDrumAssets = \[([\s\S]*?)\];/);
+const gainMap = dart('lib/core/music/drum_gains.dart').match(/const sampledDrumGains = <String, double>\{([\s\S]*?)\};/);
+if (!assetList || !gainMap) fail('could not read sampledDrumAssets / sampledDrumGains from the app');
+const DRUMS = [...assetList[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+const gains = Object.fromEntries([...gainMap[1].matchAll(/'([^']+)':\s*([0-9.]+)/g)].map((m) => [m[1], Number(m[2])]));
 for (const name of DRUMS) fs.copyFileSync(path.join(app, 'assets/drums', `${name}.pcm`), path.join(out, 'drums', `${name}.pcm`));
+const kit = DRUMS.map((name, slot) => ({ slot, name, gain: gains[name] ?? 1.0 }));
+fs.writeFileSync(path.join(out, 'kit.json'), `${JSON.stringify(kit)}\n`);
 
 // 4. Record where it all came from.
 const manifest = {

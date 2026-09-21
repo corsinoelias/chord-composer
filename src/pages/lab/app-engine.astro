@@ -55,7 +55,7 @@ export const prerender = true;
     <span class="lbl">Laboratorio · fase 1</span>
     <h1>El motor de la app, en el navegador</h1>
   </div>
-  <p>Esto suena con el mismo código C++ que la app de Android (<span class="mono">native_audio.cpp</span>), compilado a WebAssembly y ejecutado en el hilo de audio del navegador. No usa nada del motor actual de la web.</p>
+  <p>Esto suena con el mismo código C++ que la app de Android (<span class="mono">native_audio.cpp</span>), compilado a WebAssembly y ejecutado en el hilo de audio del navegador, a través de la misma clase que usará el reproductor (<span class="mono">AppEngine</span>). No usa nada del motor actual de la web.</p>
 
   <div class="card" id="loadCard">
     <button class="primary" id="load">Cargar el motor</button>
@@ -122,6 +122,18 @@ export const prerender = true;
     <p class="note">Prueba también: bloquea la pantalla o cambia de app con la música sonando.</p>
   </div>
 
+  <div class="card" id="exportCard" hidden>
+    <div class="row">
+      <div style="flex: 1; min-width: 0;">
+        <b style="font-size: 14px;">Exportar WAV</b>
+        <p>El mismo motor en segundo plano, con la función de exportar de la app: el archivo es lo que oyes.</p>
+      </div>
+      <button class="cap" id="export">Exportar</button>
+    </div>
+    <p class="note" id="exportInfo"></p>
+    <a id="download" class="cap" style="align-self: flex-start; display: inline-flex; align-items: center; text-decoration: none;" hidden>Descargar el WAV</a>
+  </div>
+
   <div class="card" id="statsCard" hidden>
     <span class="lbl">Medidas</span>
     <div class="stats">
@@ -129,7 +141,7 @@ export const prerender = true;
       <div class="stat"><span class="lbl">Cortes al sonar</span><b id="drops">0 ms</b></div>
       <div class="stat"><span class="lbl">Frecuencia</span><b id="rate">—</b></div>
       <div class="stat"><span class="lbl">Latencia salida</span><b id="latency">—</b></div>
-      <div class="stat"><span class="lbl">Cortes (Chrome)</span><b id="glitches">—</b></div>
+      <div class="stat"><span class="lbl">Notas sonando</span><b id="notes">0</b></div>
       <div class="stat"><span class="lbl">Carga inicial</span><b id="startup">—</b></div>
     </div>
     <p class="note">Carga del motor: parte de los 2,67 ms de cada bloque de audio que necesita el motor, medida en el propio hilo de audio (solo con la música parada). Cortes al sonar: silencio total mientras la canción suena, con el más largo entre paréntesis.</p>
@@ -139,6 +151,8 @@ export const prerender = true;
     </div>
   </div>
 </main>
-<script type="module" src="/lab/app-engine/app.js" is:inline></script>
+<script>
+  import '@/lib/appEngine/lab';
+</script>
 </body>
 </html>

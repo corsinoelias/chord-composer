@@ -10,7 +10,7 @@ Chrome del móvil por el protocolo de DevTools y el sistema por `adb`.
    `/lab/app-engine/` — normal, interfaz atascada, pantalla apagada, Chrome en segundo plano.
 5. `node lab/app-engine/phone/web-scenario.mjs`: lo mismo con el reproductor actual, medido por
    `public/lab/app-engine/tap-worklet.js` enganchado a su salida.
-6. `bench.mjs` (Worker, reloj de alta resolución) y `worklet-bench.mjs` (en el hilo de audio):
+6. `worklet-bench.mjs` (en el hilo de audio, 3.000 bloques seguidos):
    cuánto del bloque de 2,67 ms usa el motor.
 
 El número de serie del móvil y la ruta de `adb` están escritos en los scripts.
