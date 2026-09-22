@@ -369,7 +369,10 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       setState(prev => ({
         ...prev,
         isPlaying: true,
-        currentChordIndex: 0,
+        // No chord is under way while the engine counts in: anything that animates the current
+        // chord (the song map's fill glides through it on a timer) would otherwise start four
+        // beats early. The position loop below sets chord 0 when the song's first step sounds.
+        currentChordIndex: countInBeats > 0 ? -1 : 0,
         bpm: options.bpm,
         metronomeEnabled: options.metronome,
       }));
