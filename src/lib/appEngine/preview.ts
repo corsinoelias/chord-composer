@@ -138,7 +138,11 @@ export function getAnalyserNode(): AnalyserNode | null {
   return analyser;
 }
 
-/** Opens the engine ahead of a first preview, from a tap. */
-export function warmPreviews(): void {
-  ready().catch(() => {});
+/**
+ * Opens the engine ahead of a first preview, from a tap, and says when it can sound. The
+ * first time that means downloading it (6.7 MB): anything timed from the tap — a sequence of
+ * held chords — has to wait for this, or every chord is released before it could start.
+ */
+export function readyPreviews(): Promise<void> {
+  return ready().then(() => undefined);
 }

@@ -16,7 +16,7 @@
  * started it is exactly what the UI needs.
  */
 import { parseChordString } from './chordParser';
-import { playChordHold } from './appEngine/preview';
+import { playChordHold, readyPreviews } from './appEngine/preview';
 import { getTransposedChordName } from './chordNotes';
 import type { Chord } from './musicTheory';
 
@@ -31,6 +31,8 @@ type StepListener = (step: number) => void;
 let timerId: number | null = null;
 let releaseCurrent: (() => void) | null = null;
 let playing = false;
+/** Bumped by every start and stop, so a start still waiting on the engine knows it was superseded. */
+let generation = 0;
 
 /** Identifies the owner of the current playback so a card can ask "am I the one playing?". */
 let currentOwner: string | null = null;
@@ -45,6 +47,7 @@ function releaseHeldChord(): void {
 /** Stops whatever is currently sounding. Safe to call when nothing is playing. */
 export function stopProgression(): void {
   playing = false;
+  generation += 1;
   currentOwner = null;
   if (timerId !== null) {
     window.clearTimeout(timerId);
@@ -100,7 +103,11 @@ export function playProgression(
     timerId = window.setTimeout(advance, slotMs);
   };
 
-  advance();
+  // The first chord waits for the engine: the first time it has to download, and a sequence
+  // timed from the tap released every chord before the engine could sound one (the first
+  // Play on the home was silent). Called here, inside the tap, so the audio may start.
+  const started = generation;
+  readyPreviews().then(() => { if (playing && generation === started) advance(); }).catch(() => {});
 }
 
 /** One-shot audition of a single chord, for click-a-chord-tile interactions. */
@@ -108,8 +115,11 @@ export function playSingleChord(chordName: string, holdMs = 900): void {
   const chord = parseChordString(chordName)[0];
   if (!chord) return;
 
-  const release = playChordHold(chord, 0.45);
-  window.setTimeout(release, holdMs);
+  // Held from when the engine can sound, not from the tap (see playProgression).
+  readyPreviews().then(() => {
+    const release = playChordHold(chord, 0.45);
+    window.setTimeout(release, holdMs);
+  }).catch(() => {});
 }
 
 /**
