@@ -88,8 +88,12 @@ export const CANDIDATES: Candidate[] = [
 // ── The fragment: C – Am – F – G, one bar each, at 92 BPM ──
 
 const CHORDS: [string, string][] = [['C', 'maj'], ['A', 'min'], ['F', 'maj'], ['G', 'maj']];
-/** Where each track sits, the app's defaults (defaultVoicings in audio_engine.dart). */
-const LOW: Record<MelodicTrack, number> = { piano: 60, guitar: 55, bass: 40 };
+/**
+ * Where each track sits. Piano and guitar as the app has them (defaultVoicings in
+ * audio_engine.dart); the bass an octave below the app's E2, which is where the web plays it
+ * (fromSong.ts) — heard at E2 in the first audition, every bass sounded thin.
+ */
+const LOW: Record<MelodicTrack, number> = { piano: 60, guitar: 55, bass: 28 };
 
 function fragment(c: Candidate, e: AppEngine): EngineCommand[] {
   const cmds: EngineCommand[] = [
@@ -157,10 +161,10 @@ const MAX_SECONDS = 4;
 /** The peak every converted recording set is brought to. */
 const NORMALISED_PEAK = 0.9;
 
-async function decode(ctx: BaseAudioContext, url: string, midi: number): Promise<Sf2Sample | null> {
+async function decode(ctx: BaseAudioContext, url: string, midi: number, maxSeconds = MAX_SECONDS): Promise<Sf2Sample | null> {
   try {
     const buf = await ctx.decodeAudioData(await (await fetch(url)).arrayBuffer());
-    const frames = Math.min(buf.length, Math.round(MAX_SECONDS * buf.sampleRate));
+    const frames = Math.min(buf.length, Math.round(maxSeconds * buf.sampleRate));
     const pcm = new Float32Array(frames);
     for (let ch = 0; ch < buf.numberOfChannels; ch++) {
       const data = buf.getChannelData(ch);
@@ -174,8 +178,9 @@ async function decode(ctx: BaseAudioContext, url: string, midi: number): Promise
   }
 }
 
-export async function buildWebFont(onProgress: (text: string) => void): Promise<ArrayBuffer> {
-  const ctx = new OfflineAudioContext(1, 1, 48000);
+/** [rate], [seconds] and [everyNth] trade weight for fidelity: a SoundFont holds its audio uncompressed. */
+export async function buildWebFont(onProgress: (text: string) => void, { rate = 48000, seconds = MAX_SECONDS, everyNth = 2 } = {}): Promise<ArrayBuffer> {
+  const ctx = new OfflineAudioContext(1, 1, rate);
   const presets: Sf2Preset[] = [];
   const take = async (name: string, program: number, jobs: Promise<Sf2Sample | null>[]) => {
     onProgress(`Convirtiendo ${name}…`);
@@ -187,15 +192,16 @@ export async function buildWebFont(onProgress: (text: string) => void): Promise<
     presets.push({ name, program, releaseSeconds: 0.12, samples });
   };
   // Piano: /audio/piano/1..88 = MIDI 21..108, every second one (the rest are a semitone away).
-  await take('Web piano', 0, Array.from({ length: 44 }, (_, k) => decode(ctx, `/audio/piano/${1 + 2 * k}.mp3`, 21 + 2 * k)));
+  const pianoCount = Math.floor(88 / everyNth);
+  await take('Web piano', 0, Array.from({ length: pianoCount }, (_, k) => decode(ctx, `/audio/piano/${1 + everyNth * k}.mp3`, 21 + everyNth * k, seconds)));
   // Basses: their files are named an octave above the note they sound (measured 2026-09-22).
   for (const [program, dir] of [[1, 'modo'], [2, 'finger'], [3, 'slap'], [4, 'muted']] as const) {
     const manifest = await (await fetch(`/audio/bass/${dir}/manifest.json`)).json() as { notes?: Record<string, { file: string }> } & Record<string, { file: string }>;
     const notes = manifest.notes ?? manifest;
-    await take(`Web bass ${dir}`, program, Object.entries(notes).map(([label, n]) => decode(ctx, `/audio/bass/${dir}/${n.file}`, Number(label) - 12)));
+    await take(`Web bass ${dir}`, program, Object.entries(notes).filter((_, i) => i % everyNth === 0).map(([label, n]) => decode(ctx, `/audio/bass/${dir}/${n.file}`, Number(label) - 12, seconds)));
   }
   for (const [program, dir] of [[5, 'acoustic'], [6, 'electric'], [7, 'nylon']] as const) {
-    await take(`Web guitar ${dir}`, program, GUITAR_FILES[dir].map((f) => decode(ctx, `/audio/guitar/${dir}/${f}.mp3`, noteMidi(f))));
+    await take(`Web guitar ${dir}`, program, GUITAR_FILES[dir].map((f) => decode(ctx, `/audio/guitar/${dir}/${f}.mp3`, noteMidi(f), seconds)));
   }
   onProgress('Montando el SoundFont…');
   return writeSf2(presets, 'Web recordings');
