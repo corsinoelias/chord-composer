@@ -1,6 +1,6 @@
 # Estudio: usar en la web el motor de audio de la app
 
-Escrito el 2026-09-21. Estado: **fases 1 a 4 hechas; arpegios descartados; fase 6: el motor de la app es el de por defecto (`?engine=web` vuelve al anterior)** (laboratorio en `/lab/app-engine/`, probado por
+Escrito el 2026-09-21. Estado: **hecho: el motor de la app es el único de la web (2026-09-22)** (laboratorio en `/lab/app-engine/`, probado por
 el usuario: suena bien); decisión de sonido tomada (A, sección 5). La prueba es reproducible en `docs/motor-unico-spike/`.
 
 Pregunta: ¿puede la web sonar con el mismo motor que la app de Android, es viable y vale la
@@ -158,7 +158,11 @@ llama Flutter por JNI), también hay que añadirla en `engine/web_glue.cpp`.
   las notas del SoundFont (un segundo piano sonando segundos); ahora un cambio de mezcla solo
   manda niveles, y un reenvío suelta las notas antes. En la app el mismo fallo se arregla en
   `native_audio.cpp` (soltar la nota al vaciar la pista), pendiente de probar en la app.
-- Sigue en el motor web: el editor de ritmo y las previsualizaciones de acordes.
+- **2026-09-22: motor web eliminado.** El editor de ritmo, la vista previa de estilos, las
+  previsualizaciones (acorde, nota, batería) y los efectos del mezclador pasan al motor de la app
+  (`preview.ts`, `effects.ts`); se borran `audioEngine.ts`, `audioEffects.ts`, `src/lib/engine/*` y las
+  pruebas `tests/audio` y `run-corpus`. La guitarra sube 6 dB (se oía apenas). El arreglo del
+  segundo piano en `native_audio.cpp` se deshizo: en la app no pasa.
 
 ## 3. Peso de los sonidos
 
