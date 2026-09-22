@@ -160,6 +160,15 @@ Solo he comparado nota a nota el Reggaeton; los demás pares hay que escucharlos
 - **Paneo en la web** con los valores de la app: piano −0,25, guitarra +0,3, batería y bajo al centro
   (`PAN` en `fromSong.ts`).
 
+## 7c. Página de escucha
+
+`/lab/sounds/` (noindex; antes, una vez: `npm run lab:audition`, que prepara su SoundFont de 9 MB fuera
+de git). Cada candidato toca Do–Lam–Fa–Sol a 92 BPM, solo, con el motor de la app: los programas del
+SoundFont (también Rhodes, órgano, contrabajo, fretless, cuerdas y pad), los timbres sintetizados de la
+app, los 9 kits y **las grabaciones de la web**, convertidas en el navegador a un SoundFont
+(`src/lib/appEngine/sf2Writer.ts`) en el tono que suenan de verdad y con el nivel igualado. Las marcas
+Sí/No se quedan en el navegador; «Copiar resultado» las da en texto.
+
 ## 8. Cómo se haría (cuando decidas)
 
 1. **Catálogo único:** `shared/catalog/sounds.json` pasa a ser la lista (id, nombre, programa o

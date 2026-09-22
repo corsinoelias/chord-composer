@@ -1,0 +1,72 @@
+---
+// The sound audition (docs/sonidos-comunes.md): each candidate for the list shared by the app
+// and the web, playing the same bars through the app's engine, to mark by ear. A lab page:
+// noindex, and its SoundFont (public/lab/sounds/audition.sf2) comes from `npm run lab:audition`.
+export const prerender = true;
+---
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Escucha de sonidos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
+<style is:inline>
+  :root {
+    --bg: #F6F7F9; --card: #FFFFFF; --muted: #E8EAED; --line: #DADCE2; --tx: #14181F; --soft: #606876;
+    --faint: #7E8695; --ac: #6A1FEA; --acs: #EFE8FD; --ok: #1B6B50; --oks: #E3F4EC; --bad: #B42318; --bads: #FDECEA;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--tx); font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px 16px 48px; display: flex; flex-direction: column; gap: 12px; }
+  h1 { margin: 4px 0 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  h2 { margin: 0 0 4px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+  p { margin: 0; font-size: 13px; color: var(--soft); line-height: 1.45; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--muted); }
+  .row:first-of-type { border-top: 0; }
+  .who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .who b { font-size: 14px; }
+  .who span { font-size: 11.5px; color: var(--faint); }
+  button { font: inherit; cursor: pointer; }
+  .play { width: 40px; height: 40px; border-radius: 20px; border: 0; background: var(--ac); color: #fff; font-size: 14px; flex-shrink: 0; }
+  .play:disabled { opacity: .35; cursor: not-allowed; }
+  .vote { display: flex; gap: 6px; }
+  .vote button { height: 32px; min-width: 44px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--muted); color: var(--tx); font-size: 13px; font-weight: 600; }
+  .vote button.on.yes { background: var(--oks); border-color: var(--ok); color: var(--ok); }
+  .vote button.on.no { background: var(--bads); border-color: var(--bad); color: var(--bad); }
+  .primary { height: 46px; border-radius: 12px; border: 0; background: var(--ac); color: #fff; font-weight: 700; font-size: 15px; padding: 0 18px; }
+  .primary:disabled { opacity: .5; }
+  .cap { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--muted); color: var(--tx); font-size: 13px; font-weight: 600; }
+  .bar { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 8px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  pre { white-space: pre-wrap; font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>Escucha de sonidos</h1>
+    <p>Cada sonido toca lo mismo (Do – Lam – Fa – Sol a 92 BPM), solo y con el motor de la app. Las grabaciones de la web se convierten aquí mismo en un SoundFont, afinadas en el tono que suenan de verdad, para que pasen por el mismo motor. Marca Sí o No; las marcas se quedan en este navegador.</p>
+  </div>
+
+  <div class="card" id="loadCard">
+    <button class="primary" id="load">Cargar los sonidos</button>
+    <p id="status">Descarga unos 9 MB de SoundFont y convierte unos 14 MB de grabaciones de la web.</p>
+  </div>
+
+  <div class="bar">
+    <button class="cap" id="stop">■ Parar</button>
+    <button class="cap" id="copy">Copiar resultado</button>
+    <span class="note" id="copied" style="font-size:12px;color:var(--faint)"></span>
+  </div>
+
+  <div id="cards" style="display:flex;flex-direction:column;gap:12px"></div>
+</main>
+<script>
+  import '@/lib/appEngine/auditionPage';
+</script>
+</body>
+</html>

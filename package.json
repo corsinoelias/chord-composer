@@ -21,7 +21,8 @@
     "prebuild": "npm run fetch-soundfonts",
     "indexnow": "node scripts/indexnow.mjs",
     "shared:export": "tsx scripts/export-shared.ts",
-    "test:shared": "tsx tests/shared/roundtrip.ts"
+    "test:shared": "tsx tests/shared/roundtrip.ts",
+    "lab:audition": "node scripts/lab-audition.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",

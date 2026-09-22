@@ -136,7 +136,8 @@ export class AppEngine {
    * (a tap on Play) so the context may start; [slots] are the kit's recordings to load
    * up front — more can follow with ensureSlots().
    */
-  static async start({ slots = DEFAULT_SLOTS, ctx }: { slots?: number[]; ctx?: AudioContext } = {}): Promise<AppEngine> {
+  /** [sf2]: another SoundFont than the web's (the sound audition in the lab); the engine loads one per start. */
+  static async start({ slots = DEFAULT_SLOTS, ctx, sf2: ownSf2 }: { slots?: number[]; ctx?: AudioContext; sf2?: ArrayBuffer } = {}): Promise<AppEngine> {
     const context = ctx ?? new AudioContext({ sampleRate: ENGINE_RATE, latencyHint: 'interactive' });
     const [assets] = await Promise.all([
       loadAssets(),
@@ -156,7 +157,7 @@ export class AppEngine {
     // cached here for the export Worker and the next engine.
     const kit = entries.map((k, i) => ({ slot: k.slot, gain: k.gain, pcm: pcm[i].slice(0) }));
     const wasm = assets.wasm.slice(0);
-    const sf2 = assets.sf2.slice(0);
+    const sf2 = (ownSf2 ?? assets.sf2).slice(0);
     node.port.postMessage({ type: 'init', wasm, sf2, kit }, [wasm, sf2, ...kit.map((k) => k.pcm)]);
     const info = await ready;
     if (!info.fontOk) throw new Error('the engine could not read its SoundFont');

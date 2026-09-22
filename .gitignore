@@ -48,3 +48,6 @@ drive-tmp3.mjs
 
 # Real-song corpus for the audio regression test (user data, never committed)
 tests/corpus/data/
+
+# The sound audition's SoundFont (npm run lab:audition): a listening tool, not shipped
+public/lab/sounds/audition.sf2
