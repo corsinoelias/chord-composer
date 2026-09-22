@@ -109,7 +109,12 @@ export class AppPlayback {
     getEngine().catch(() => { /* play() tries again */ });
   }
 
-  async play(input: AppSong): Promise<void> {
+  /**
+   * [countInBeats]: the engine's count-in, the cowbell on each beat, on the same sample clock
+   * as the song, which comes in exactly one beat after the last — as the app plays it. The
+   * state reports the beats left (countInBeats) for the screen.
+   */
+  async play(input: AppSong, countInBeats = 0): Promise<void> {
     const e = await getEngine();
     this.current = input;
     this.built = this.build(input, e);
@@ -130,7 +135,7 @@ export class AppPlayback {
         ended?.();
       }
     });
-    await e.play();
+    await e.play(Math.max(0, Math.min(7, Math.round(countInBeats))));
   }
 
   stop(): void {

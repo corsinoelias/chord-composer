@@ -7,7 +7,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useSyncExternalStore } from 'react';
 import { type Section } from '@/lib/sections';
 import { type InstrumentState, getDefaultInstrumentStates } from '@/lib/instruments';
-import { type StylePattern, MUSICAL_STYLES, resolveActiveStyle } from '@/lib/styles';
+import { type StylePattern, MUSICAL_STYLES, resolveActiveStyle, getSlotsPerBar } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
 import { type MelodicData } from '@/lib/bassScale';
 import { makeStyleLookup } from '@/lib/sectionPlayback';
@@ -83,6 +83,9 @@ interface PlayOptions {
   onEnded?: () => void;
   loopingSectionIndex?: number | null;
   melodic?: MelodicData;
+  // Count one bar in on the engine's cowbell before the song (4 beats in 4/4, 6 in 6/8), on
+  // the engine's own clock so the song lands on the beat after — see CountdownOverlay.
+  countIn?: boolean;
   sections?: Section[];
   // How long each track's notes ring (the app's note length, saved as app.noteLengths).
   noteLengths?: NoteLengths;
@@ -347,6 +350,9 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     try {
       const once = !(options.loop ?? true);
       const vocalBuffer = await decodeVocal(options);
+      const style = resolveCurrentStyle();
+      const stepsPerBeat = Math.max(1, Math.round(16 / (style.timeSignature?.denominator ?? 4)));
+      const countInBeats = options.countIn ? Math.round(getSlotsPerBar(style) / stepsPerBeat) : 0;
       await appRef.current.play({
         ...appSong(),
         once,
@@ -359,7 +365,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
           muted: () => (optionsRef.current?.transposition ?? 0) !== 0 || !!optionsRef.current?.vocalMuted,
           volume: () => optionsRef.current?.vocalVolume ?? 1,
         } : undefined,
-      });
+      }, countInBeats);
       setState(prev => ({
         ...prev,
         isPlaying: true,
@@ -373,7 +379,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       setState(prev => ({ ...prev, isPlaying: false }));
       console.error('[AUDIO] play() failed', err);
     }
-  }, [stop, setupMediaSession, appSong, decodeVocal]);
+  }, [stop, setupMediaSession, appSong, decodeVocal, resolveCurrentStyle]);
 
   // Opens the engine ahead of play() — call it when a count-in starts, from the tap that
   // started it, so the engine is ready when the count reaches zero.

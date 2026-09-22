@@ -682,7 +682,7 @@ const Index = ({ songId }: IndexProps) => {
     return () => window.removeEventListener('customStylesChanged', handleCustomStylesChanged);
   }, []);
 
-  const startPlayback = useCallback(async () => {
+  const startPlayback = useCallback(async (countIn = false) => {
     const currentSections = sectionsRef.current;
     const loopIdx = loopingSectionRef.current;
 
@@ -711,6 +711,7 @@ const Index = ({ songId }: IndexProps) => {
       loopingSectionIndex: loopIdx,
       melodic: melodicRef.current,
       noteLengths: noteLengthsRef.current,
+      countIn,
     });
   }, [play]);
 
@@ -1360,10 +1361,9 @@ const Index = ({ songId }: IndexProps) => {
   const handlePlayWithCountdown = useCallback(() => {
     if (!hasChords || isExporting) return;
     analytics.playProgression(selectedStyleId);
-    // Warm up all the audio play() will await (samples, bass sample dir, guitar
-    // soundfont) DURING the countdown, so it overlaps that ~1.2-2.4s window instead of
-    // freezing after "1" like it used to. Fire-and-forget; play() still awaits as a
-    // safety net if warmup hasn't finished. Uses the same refs startPlayback reads.
+    // Opens the engine from this tap (the audio may only start from one). The count-in is the
+    // engine's own, one bar of cowbell on its clock with the song landing on the beat after,
+    // as in the app; the overlay only shows the beats it reports.
     warmup({
       bpm: bpmRef.current,
       metronome: metronomeRef.current,
@@ -1377,16 +1377,17 @@ const Index = ({ songId }: IndexProps) => {
       noteLengths: noteLengthsRef.current,
     }).catch(() => {});
     setShowCountdown(true);
-  }, [hasChords, isExporting, selectedStyleId, warmup]);
+    void startPlayback(true);
+  }, [hasChords, isExporting, selectedStyleId, warmup, startPlayback]);
 
   const handleCountdownComplete = useCallback(() => {
     setShowCountdown(false);
-    startPlayback();
-  }, [startPlayback]);
+  }, []);
 
   const handleCountdownCancel = useCallback(() => {
     setShowCountdown(false);
-  }, []);
+    stopPlayback();
+  }, [stopPlayback]);
 
   // Generate chord IDs for all sections (for DndContext)
   const allChordIds = sections.flatMap((section, sectionIndex) =>
@@ -1869,7 +1870,6 @@ const Index = ({ songId }: IndexProps) => {
       {/* Countdown Overlay */}
       {showCountdown && (
         <CountdownOverlay
-          bpm={bpm}
           onComplete={handleCountdownComplete}
           onCancel={handleCountdownCancel}
         />
