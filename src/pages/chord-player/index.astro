@@ -124,62 +124,80 @@ const webAppSchema = {
           heading at all. The H1 now lives in the "About the chord player" section below the
           editor, which is outside #editor-skeleton and therefore survives hydration.
         -->
-        <div class="cp" style="background: var(--cp-bg);">
-          <!-- Same shape as the hydrated header (the Android app's): title row, transport,
-               the key/click/style capsules (their own row on a phone), the song map. -->
-          <div class="cp-hd">
-            <div class="flex h-12 items-center justify-between gap-2 px-2 lg:h-14 lg:px-8">
-              <div class="flex items-center gap-3">
-                <div class="hidden h-[30px] w-[30px] rounded-[9px] lg:block" style="background: color-mix(in srgb, var(--cp-ac) 25%, transparent);"></div>
+        <div class="cp flex min-h-screen flex-col lg:h-[100dvh] lg:min-h-0" style="background: var(--cp-bg);">
+          <!-- The same shape as the hydrated header (Index.tsx: the centred 1440 row, the title
+               row, the transport, the capsules — their own row on a phone — and the song map),
+               down to the paddings, so nothing moves when React takes over: measured header
+               162px wide screen / 186px phone, matching the app's own. -->
+          <div class="cp-hd shrink-0">
+            <div class="mx-auto w-full max-w-[1440px]">
+              <div class="flex h-12 items-center gap-1 px-3 lg:h-14 lg:gap-2 lg:px-8">
+                <div class="mr-1 hidden h-[30px] w-[30px] shrink-0 rounded-[9px] lg:block" style="background: color-mix(in srgb, var(--cp-ac) 25%, transparent);"></div>
                 <div class="flex items-center gap-2.5 text-[13px]">
                   <span class="hidden shrink-0 font-medium sm:inline" style="color: var(--cp-mu);">My library</span>
                   <span class="hidden sm:inline" style="color: var(--cp-ln2);">/</span>
                   <span class="m-0 inline max-w-[200px] truncate text-base font-extrabold">Chord Player</span>
                 </div>
-              </div>
-              <div class="flex items-center gap-2" aria-hidden="true">
-                <div class="h-8 w-8 rounded-[10px] animate-pulse" style="background: var(--cp-s2);"></div>
-              </div>
-            </div>
-            <div class="px-2 pt-1 lg:px-8 lg:pt-2" aria-hidden="true">
-              <div class="flex items-center gap-3">
-                <div class="h-14 w-14 shrink-0 rounded-full" style="background: color-mix(in srgb, var(--cp-ac) 30%, transparent);"></div>
-                <div class="flex flex-1 flex-col gap-2 lg:w-64 lg:flex-none">
-                  <div class="h-3 w-32 rounded animate-pulse" style="background: var(--cp-s2);"></div>
-                  <div class="h-5 w-16 rounded animate-pulse" style="background: var(--cp-s2);"></div>
-                  <div class="h-1 w-full rounded animate-pulse" style="background: var(--cp-s2);"></div>
+                <div class="ml-auto flex items-center gap-2" aria-hidden="true">
+                  <div class="h-8 w-20 rounded-lg animate-pulse" style="background: var(--cp-s2);"></div>
+                  <div class="h-10 w-10 rounded-[10px] animate-pulse" style="background: var(--cp-s2);"></div>
+                  <div class="hidden h-10 w-10 rounded-[10px] animate-pulse lg:block" style="background: var(--cp-s2);"></div>
                 </div>
-                <div class="hidden flex-1 items-center gap-2 lg:flex">
-                  <div class="h-9 w-28 rounded-full animate-pulse" style="background: var(--cp-s2);"></div>
-                  <div class="h-9 w-20 rounded-full animate-pulse" style="background: var(--cp-s2);"></div>
-                  <div class="h-9 w-64 rounded-full animate-pulse" style="background: var(--cp-s2);"></div>
+              </div>
+              <div class="px-3 pt-1 lg:px-8 lg:pt-2" aria-hidden="true">
+                <div class="flex items-center gap-3">
+                  <div class="h-14 w-14 shrink-0 rounded-full" style="background: color-mix(in srgb, var(--cp-ac) 30%, transparent);"></div>
+                  <!-- Tempo: label line, the number, the slider — 58px like the real one. -->
+                  <div class="flex min-w-0 flex-1 flex-col gap-1 lg:w-64 lg:flex-none">
+                    <div class="h-4 w-32 rounded animate-pulse" style="background: var(--cp-s2);"></div>
+                    <div class="h-6 w-16 rounded animate-pulse" style="background: var(--cp-s2);"></div>
+                    <div class="h-[10px] w-full rounded animate-pulse" style="background: var(--cp-s2);"></div>
+                  </div>
+                  <div class="hidden min-w-0 flex-1 items-center gap-2 lg:flex">
+                    <div class="h-9 w-28 shrink-0 rounded-full animate-pulse" style="background: var(--cp-s2);"></div>
+                    <div class="h-9 w-24 shrink-0 rounded-full animate-pulse" style="background: var(--cp-s2);"></div>
+                    <div class="h-9 min-w-0 flex-1 rounded-full animate-pulse lg:max-w-[300px]" style="background: var(--cp-s2);"></div>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <div class="h-10 w-10 rounded-[10px] animate-pulse" style="background: var(--cp-s2);"></div>
+                    <div class="hidden h-10 w-10 rounded-[10px] animate-pulse lg:block" style="background: var(--cp-s2);"></div>
+                  </div>
                 </div>
-                <div class="h-10 w-16 rounded-[10px] animate-pulse" style="background: var(--cp-s2);"></div>
+                <div class="mt-2 flex items-center gap-2 lg:hidden">
+                  <div class="h-9 w-28 shrink-0 rounded-full animate-pulse" style="background: var(--cp-s2);"></div>
+                  <div class="h-9 w-24 shrink-0 rounded-full animate-pulse" style="background: var(--cp-s2);"></div>
+                  <div class="h-9 min-w-0 flex-1 rounded-full animate-pulse" style="background: var(--cp-s2);"></div>
+                </div>
+                <div class="pb-3 pt-3 lg:pb-4 lg:pt-4">
+                  <div class="cp-map animate-pulse" style="background: var(--cp-s2);"></div>
+                </div>
               </div>
-              <div class="mt-2 flex items-center gap-2 lg:hidden">
-                <div class="h-9 w-28 rounded-full animate-pulse" style="background: var(--cp-s2);"></div>
-                <div class="h-9 w-20 rounded-full animate-pulse" style="background: var(--cp-s2);"></div>
-                <div class="h-9 flex-1 rounded-full animate-pulse" style="background: var(--cp-s2);"></div>
-              </div>
-              <div class="py-2"><div class="h-1.5 rounded animate-pulse" style="background: var(--cp-s2);"></div></div>
             </div>
           </div>
 
-          <div class="mx-auto grid w-full max-w-[1440px] items-start gap-3 px-3 pt-3 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-7 lg:px-8 lg:pt-5" aria-hidden="true">
-            <div class="cp-sec">
-              <div class="flex h-11 items-center gap-2 px-3" style="background: var(--cp-s2);">
-                <div class="h-4 w-24 rounded animate-pulse" style="background: var(--cp-s3);"></div>
+          <!-- The body, with the same paddings as the hydrated grid: one section card with its
+               header, a row of chords and the "add chord" row, and the two side cards. -->
+          <div class="mx-auto grid w-full max-w-[1440px] items-start gap-3 px-3 pb-10 pt-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-stretch lg:gap-7 lg:px-8 lg:py-0" aria-hidden="true">
+            <div class="flex min-w-0 flex-col gap-3 lg:pt-5">
+              <div class="cp-sec">
+                <div class="cp-sh">
+                  <div class="h-10 w-32 rounded animate-pulse" style="background: var(--cp-s3);"></div>
+                  <div class="ml-auto h-10 w-10 rounded animate-pulse" style="background: var(--cp-s3);"></div>
+                </div>
+                <div class="cp-grid">
+                  <div class="h-16 rounded-xl animate-pulse lg:h-[76px]" style="background: var(--cp-s2);"></div>
+                  <div class="h-16 rounded-xl animate-pulse lg:h-[76px]" style="background: var(--cp-s2);"></div>
+                  <div class="h-16 rounded-xl animate-pulse lg:h-[76px]" style="background: var(--cp-s2);"></div>
+                  <div class="h-16 rounded-xl animate-pulse lg:h-[76px]" style="background: var(--cp-s2);"></div>
+                  <div class="h-10 rounded-xl animate-pulse" style="grid-column: span 2; background: var(--cp-s2);"></div>
+                  <div class="hidden h-10 rounded-xl animate-pulse sm:block" style="grid-column: span 2; background: var(--cp-s2);"></div>
+                </div>
               </div>
-              <div class="cp-grid">
-                <div class="h-16 rounded-xl animate-pulse lg:h-[76px]" style="background: var(--cp-s2);"></div>
-                <div class="h-16 rounded-xl animate-pulse lg:h-[76px]" style="background: var(--cp-s2);"></div>
-                <div class="h-16 rounded-xl animate-pulse lg:h-[76px]" style="background: var(--cp-s2);"></div>
-                <div class="h-16 rounded-xl animate-pulse lg:h-[76px]" style="background: var(--cp-s2);"></div>
-              </div>
+              <div class="h-12 rounded-xl animate-pulse" style="background: var(--cp-s2);"></div>
             </div>
-            <div class="hidden flex-col gap-4 lg:flex">
-              <div class="cp-card h-[290px]"></div>
-              <div class="cp-card h-[140px]"></div>
+            <div class="hidden flex-col gap-4 lg:flex lg:pt-5">
+              <div class="cp-card h-[291px]"></div>
+              <div class="cp-card h-[142px]"></div>
             </div>
           </div>
         </div>
