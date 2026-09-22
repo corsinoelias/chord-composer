@@ -152,7 +152,7 @@ the chord index across the whole song (repeats counted), a 0-1 fraction and the 
 
 `StylePattern` (in `src/lib/styles.ts`) defines a rhythm style:
 - `rhythm.*` arrays: 16 slots (16th note resolution). `0` = silence, `0.5` = ghost, `1` = accent
-- `swing?`: 0-1, opt-in per style (only `jazz_light`/"Jazz Swing" sets it today). Shifts the "and" 8th note of each beat (slot ≡ 2 mod 4) later in time via `getSwingOffset(style, patternSlot, slotDuration)` — 0 = straight (50% of the beat, every other style's behavior), 1 = full triplet swing (66.7%). Sent to the engine as the ratio between the two halves of a beat (`setSwing`); the 0-1 velocity values in `rhythm.*` are unaffected
+- `swing?`: 0-1, opt-in per style (only `jazz_light`/"Jazz Swing" sets it today). Shifts the "and" 8th note of each beat (slot ≡ 2 mod 4) later in time via `getSwingOffset(style, patternSlot, slotDuration)` — 0 = straight (50% of the beat, every other style's behavior), 1 = full triplet swing (66.7%). Sent to the engine as the ratio between the two halves of a beat (`setSwing`); the 0-1 velocity values in `rhythm.*` are unaffected. A song can override it with its own ratio, as the app does — Straight 1 / Light 1.5 / Shuffle 2, the chip beside the tempo — saved as `app.swing` (`src/lib/swing.ts`, `songSwing`/`withSwing` in `songs.ts`)
 - `arpeggios.piano/guitar`: per-slot arpeggio cells (`type: 'up'|'down'|'updown'|'random'`, `speed`)
 - `fill`: pattern applied on bar 4 / bar 8
 - `instrumentSounds`: default sound type IDs per instrument for this style
