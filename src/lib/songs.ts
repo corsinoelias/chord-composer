@@ -94,6 +94,106 @@ export function withSwing(extras: Record<string, unknown>, ratio: number | undef
   return next;
 }
 
+/**
+ * The mixer as the app saves it (its MixerState, the song's `mixer` block): where each track
+ * sits, the master, the reverb send, and the tone and compression of the channels somebody
+ * actually shaped. Only these — each is an engine setting that means the same thing on both
+ * sides, so a song carries them across untranslated.
+ *
+ * The per-track faders and mutes stay out of it, in `instrumentSettings`: the web multiplies a
+ * fader by its own balance between the tracks and by the sound's measured gain (TRACK_TRIM and
+ * relativeSoundGain in appEngine/fromSong.ts) before the engine sees it, so the same number in
+ * the app's `mixer.drums` would not be the same mix — and writing it there would overwrite what
+ * the app had. Solo is saved by neither: muting a track is a decision about the mix, soloing one
+ * is a way of listening to it for a moment.
+ */
+export interface SongStrip {
+  low: number;
+  mid: number;
+  high: number;
+  threshold: number;
+  ratio: number;
+}
+
+export interface SongMixer {
+  master: number;
+  pan: Record<InstrumentType, number>;
+  reverbSize: number;
+  reverbMix: number;
+  /** Sparse: a track with no entry is flat and uncompressed, which is nearly every track. */
+  strips: Partial<Record<InstrumentType, SongStrip>>;
+}
+
+const MIX_TRACKS: InstrumentType[] = ['drums', 'piano', 'guitar', 'bass'];
+const num = (v: unknown, min: number, max: number): number | undefined =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : undefined;
+
+/** What the song says about the mixer; anything missing or unreadable is simply left out. */
+export function songMixer(song: unknown): Partial<SongMixer> {
+  const raw = (song as { mixer?: unknown })?.mixer;
+  if (!raw || typeof raw !== 'object') return {};
+  const json = raw as Record<string, unknown>;
+  const out: Partial<SongMixer> = {};
+  const master = num(json.master, 0, 1);
+  if (master !== undefined) out.master = master;
+  const size = num(json.reverbSize, 0, 1);
+  if (size !== undefined) out.reverbSize = size;
+  const mix = num(json.reverbMix, 0, 1);
+  if (mix !== undefined) out.reverbMix = mix;
+  if (json.pan && typeof json.pan === 'object') {
+    const pan: Partial<Record<InstrumentType, number>> = {};
+    for (const track of MIX_TRACKS) {
+      const value = num((json.pan as Record<string, unknown>)[track], -1, 1);
+      if (value !== undefined) pan[track] = value;
+    }
+    if (Object.keys(pan).length) out.pan = { drums: 0, piano: 0, guitar: 0, bass: 0, ...pan };
+  }
+  if (json.strips && typeof json.strips === 'object') {
+    const strips: Partial<Record<InstrumentType, SongStrip>> = {};
+    for (const track of MIX_TRACKS) {
+      const s = (json.strips as Record<string, unknown>)[track];
+      if (!s || typeof s !== 'object') continue;
+      const r = s as Record<string, unknown>;
+      strips[track] = {
+        low: num(r.low, -12, 12) ?? 0,
+        mid: num(r.mid, -12, 12) ?? 0,
+        high: num(r.high, -12, 12) ?? 0,
+        threshold: num(r.threshold, -40, 0) ?? 0,
+        ratio: num(r.ratio, 1, 12) ?? 1,
+      };
+    }
+    if (Object.keys(strips).length) out.strips = strips;
+  }
+  return out;
+}
+
+/**
+ * [extras] with [mixer] written into its `mixer` block, keeping whatever else the block held
+ * (the app writes keys this build does not model). A flat strip is taken out rather than
+ * written as five zeroes.
+ */
+export function withMixer(extras: Record<string, unknown>, mixer: SongMixer): Record<string, unknown> {
+  const previous = (extras.mixer as Record<string, unknown> | undefined) ?? {};
+  const strips: Record<string, SongStrip> = {};
+  for (const track of MIX_TRACKS) {
+    const strip = mixer.strips[track];
+    if (!strip) continue;
+    if (strip.low === 0 && strip.mid === 0 && strip.high === 0 && strip.ratio <= 1) continue;
+    strips[track] = strip;
+  }
+  const next = { ...extras };
+  next.mixer = {
+    ...previous,
+    master: mixer.master,
+    pan: { ...mixer.pan },
+    reverbSize: mixer.reverbSize,
+    reverbMix: mixer.reverbMix,
+    ...(Object.keys(strips).length ? { strips } : {}),
+  };
+  if (!Object.keys(strips).length) delete (next.mixer as Record<string, unknown>).strips;
+  return next;
+}
+
 /** The lengths the app offers (lib/core/music/constants.dart noteLengths): Short, 16th, 8th, 1/4, Hold. */
 export const NOTE_LENGTH_STEPS = [0.5, 1, 2, 4, 0];
 

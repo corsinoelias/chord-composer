@@ -6,8 +6,9 @@
  *
  * Every part of it is the engine's: the meters are the held peaks it reports (bus 0-3 and the
  * master, read while it plays), the pan and the master fader its own `pan` and `mixer`
- * commands (mix.ts). The EQ and compressor still belong to the whole mix rather than to the
- * selected channel, which is the one thing the app does and this does not.
+ * commands (mix.ts), the tone and compression one `strip` per channel and the reverb one send
+ * (effects.ts). The tone panel shows the channel whose name was tapped in the console, as the
+ * app's follows the instrument tab.
  */
 
 import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
@@ -16,15 +17,18 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/
 import { Slider } from '@/components/ui/slider';
 import { analytics } from '@/lib/analytics';
 import { ChevronLeft, Volume2 } from 'lucide-react';
-import { engineLevels } from '@/lib/appEngine/player';
+import { engineLevels, engineReductions } from '@/lib/appEngine/player';
 import { getMix, type MixSettings } from '@/lib/appEngine/mix';
 import { type InstrumentState, type InstrumentType } from '@/lib/instruments';
 import {
+  type ChannelStrip,
   type EffectsState,
   DEFAULT_EFFECTS_STATE,
-  updateEQ,
+  EQ_BANDS,
+  isStripFlat,
+  updateStrip,
+  resetStrip,
   updateReverb,
-  updateCompressor,
   updateMaster,
   updatePan,
   resetEffects,
@@ -38,6 +42,12 @@ interface MixingConsoleProps {
   /** The song's instruments; the strips read and change volume, mute and solo. */
   instruments?: InstrumentState[];
   onInstrumentsChange?: (next: InstrumentState[]) => void;
+  /**
+   * Something in the console moved (pan, master, tone, reverb). The console itself holds that
+   * state — it belongs to the engine, not to React — so this only tells the editor to save it
+   * with the song; the snapshot is read with currentSongMixer().
+   */
+  onMixerChange?: () => void;
 }
 
 /** The app's identity colour per instrument (AppTheme chart colours). */
@@ -50,6 +60,9 @@ const CHANNELS: { id: InstrumentType; name: string; color: string }[] = [
 
 const dbOf = (volume: number) =>
   volume <= 0.001 ? '−∞' : `${volume >= 1 ? '' : '−'}${Math.abs(20 * Math.log10(volume)).toFixed(1)}`;
+
+/** A room by its name: a number would say nothing about how long the tail runs (the app's). */
+const roomOf = (size: number) => (size < 0.35 ? 'Small room' : size < 0.75 ? 'Medium hall' : 'Cathedral');
 
 /** How tall the meter-and-fader row runs; the cap's own height insets the meter to match. */
 const CAP = 14;
@@ -220,103 +233,164 @@ function Knob({
 const panText = (pan: number) =>
   Math.abs(pan) < 0.02 ? 'C' : `${pan < 0 ? 'L' : 'R'}${Math.round(Math.abs(pan) * 100)}`;
 
-/** Frequencies the three EQ handles sit at, across a 342-wide curve. */
-const EQ_X = { low: 50, mid: 171, high: 292 } as const;
-const gainToY = (g: number) => 60 - g * (50 / 12);
+/** The curve's box, in its own units. ±14 dB of room for a band that stops at ±12. */
+const EQ_W = 342;
+const EQ_H = 120;
+const EQ_SPAN = 14;
+/** The axis runs 40 Hz to 16 kHz, by octaves, as the app's _EqCurve draws it. */
+const OCT_LO = Math.log2(40);
+const OCT_HI = Math.log2(16000);
+const octX = (hz: number) => ((Math.log2(hz) - OCT_LO) / (OCT_HI - OCT_LO)) * EQ_W;
+const eqY = (db: number) => EQ_H / 2 - (db / EQ_SPAN) * (EQ_H / 2 - 12);
 
-/** The EQ as a curve: three handles you drag up and down, the shape drawn between them. */
+/**
+ * The three bands as the curve they make: a shelf at 160 Hz, a bell at 1 kHz and a shelf at
+ * 4.5 kHz, summed — a picture of the settings rather than a measurement, which is all a curve
+ * this size needs to be. Drag a handle up or down; a double click flattens that band.
+ */
 function EqCurve({
-  eq,
+  strip,
+  color,
   onChange,
   onCommit,
 }: {
-  eq: EffectsState['eq'];
-  onChange: (band: 'low' | 'mid' | 'high', gain: number) => void;
+  strip: ChannelStrip;
+  color: string;
+  onChange: (band: 'low' | 'mid' | 'high', db: number) => void;
   onCommit: () => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const dragging = useRef<'low' | 'mid' | 'high' | null>(null);
-  const yL = gainToY(eq.low.gain);
-  const yM = gainToY(eq.mid.gain);
-  const yH = gainToY(eq.high.gain);
-  const line = `M0 ${yL} C 30 ${yL}, 20 ${yL}, 50 ${yL} C 100 ${yL}, 120 ${yM}, 171 ${yM} C 222 ${yM}, 242 ${yH}, 292 ${yH} C 322 ${yH}, 312 ${yH}, 342 ${yH}`;
+  const drag = useRef<{ band: 'low' | 'mid' | 'high'; y: number; db: number } | null>(null);
 
-  const gainAt = (clientY: number) => {
+  const gainAt = (octave: number) => {
+    const shelf = (centre: number, sign: number) => 1 / (1 + Math.exp(sign * (octave - Math.log2(centre)) * 2.2));
+    const bell = Math.exp(-((octave - Math.log2(1000)) ** 2) / (2 * 0.9 * 0.9));
+    return strip.low * shelf(160, 1) + strip.mid * bell + strip.high * shelf(4500, -1);
+  };
+
+  let line = '';
+  for (let x = 0; x <= EQ_W; x += 2) {
+    const octave = OCT_LO + (x / EQ_W) * (OCT_HI - OCT_LO);
+    line += `${x === 0 ? 'M' : 'L'}${x} ${eqY(gainAt(octave)).toFixed(2)} `;
+  }
+
+  /** A drag moves the band from where it was, so the handle never jumps to the finger. */
+  const dbFrom = (start: { db: number; y: number }, clientY: number) => {
     const box = svgRef.current!.getBoundingClientRect();
-    const y = ((clientY - box.top) / box.height) * 120;
-    return Math.round(Math.min(12, Math.max(-12, (60 - y) / (50 / 12))) * 2) / 2;
+    const perDb = ((EQ_H / 2 - 12) / EQ_SPAN) * (box.height / EQ_H);
+    const db = Math.max(-12, Math.min(12, start.db - (clientY - start.y) / perDb));
+    return Math.abs(db) < 0.4 ? 0 : Math.round(db * 2) / 2;
   };
 
   return (
     <svg
       ref={svgRef}
-      viewBox="0 0 342 120"
+      viewBox={`0 0 ${EQ_W} ${EQ_H}`}
       className="block w-full touch-none select-none"
       role="group"
       aria-label="Equaliser curve"
       onPointerMove={(e) => {
-        if (dragging.current) onChange(dragging.current, gainAt(e.clientY));
+        if (drag.current) onChange(drag.current.band, dbFrom(drag.current, e.clientY));
       }}
       onPointerUp={() => {
-        if (dragging.current) onCommit();
-        dragging.current = null;
+        if (drag.current) onCommit();
+        drag.current = null;
       }}
     >
-      <rect x="0" y="0" width="342" height="120" rx="10" fill="var(--cp-s2)" />
+      <rect x="0" y="0" width={EQ_W} height={EQ_H} rx="10" fill="var(--cp-s2)" />
       <g stroke="var(--cp-s3)" strokeWidth="1">
-        <line x1="0" y1="30" x2="342" y2="30" />
-        <line x1="0" y1="60" x2="342" y2="60" />
-        <line x1="0" y1="90" x2="342" y2="90" />
-        <line x1="85" y1="0" x2="85" y2="120" />
-        <line x1="171" y1="0" x2="171" y2="120" />
-        <line x1="256" y1="0" x2="256" y2="120" />
+        {[0.25, 0.5, 0.75].map((f) => (
+          <line key={`h${f}`} x1="0" y1={EQ_H * f} x2={EQ_W} y2={EQ_H * f} />
+        ))}
+        {[0.25, 0.5, 0.75].map((f) => (
+          <line key={`v${f}`} x1={EQ_W * f} y1="0" x2={EQ_W * f} y2={EQ_H} />
+        ))}
       </g>
-      <path d={`${line} L 342 120 L 0 120 Z`} fill="color-mix(in srgb, var(--cp-ac) 12%, transparent)" />
-      <path d={line} fill="none" stroke="var(--cp-ac)" strokeWidth="2.5" strokeLinecap="round" />
-      {(['low', 'mid', 'high'] as const).map((band) => (
-        <circle
-          key={band}
-          cx={EQ_X[band]}
-          cy={gainToY(eq[band].gain)}
-          r="9"
-          fill="var(--cp-s1)"
-          stroke="var(--cp-ac)"
-          strokeWidth="2.5"
-          className="cursor-ns-resize"
-          role="slider"
-          tabIndex={0}
-          aria-label={`${band} EQ gain`}
-          aria-valuemin={-12}
-          aria-valuemax={12}
-          aria-valuenow={eq[band].gain}
-          onPointerDown={(e) => {
-            svgRef.current?.setPointerCapture(e.pointerId);
-            dragging.current = band;
-          }}
-          onKeyDown={(e) => {
-            const g = eq[band].gain;
-            if (e.key === 'ArrowUp') onChange(band, Math.min(12, g + 0.5));
-            else if (e.key === 'ArrowDown') onChange(band, Math.max(-12, g - 0.5));
-            else return;
-            e.preventDefault();
-            onCommit();
-          }}
-        />
-      ))}
-      <text x="8" y="112" fill="var(--cp-fa)" fontSize="9" fontFamily="Space Mono, monospace">100 Hz</text>
-      <text x="155" y="112" fill="var(--cp-fa)" fontSize="9" fontFamily="Space Mono, monospace">1 kHz</text>
-      <text x="295" y="112" fill="var(--cp-fa)" fontSize="9" fontFamily="Space Mono, monospace">8 kHz</text>
+      <path d={`${line} L ${EQ_W} ${EQ_H} L 0 ${EQ_H} Z`} fill={color} fillOpacity="0.12" />
+      <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      {EQ_BANDS.map(({ band, hz, label }) => {
+        const x = octX(hz);
+        const db = strip[band];
+        return (
+          <g key={band}>
+            <circle
+              cx={x}
+              cy={eqY(gainAt(Math.log2(hz)))}
+              r="9"
+              fill="var(--cp-s1)"
+              stroke={color}
+              strokeWidth="2.5"
+              className="cursor-ns-resize"
+              role="slider"
+              tabIndex={0}
+              aria-label={`${band} EQ gain`}
+              aria-valuemin={-12}
+              aria-valuemax={12}
+              aria-valuenow={db}
+              aria-valuetext={`${db > 0 ? '+' : ''}${db.toFixed(1)} dB at ${label}`}
+              onPointerDown={(e) => {
+                svgRef.current?.setPointerCapture(e.pointerId);
+                drag.current = { band, y: e.clientY, db };
+              }}
+              onDoubleClick={() => {
+                drag.current = null;
+                onChange(band, 0);
+                onCommit();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowUp') onChange(band, Math.min(12, db + 0.5));
+                else if (e.key === 'ArrowDown') onChange(band, Math.max(-12, db - 0.5));
+                else return;
+                e.preventDefault();
+                onCommit();
+              }}
+            />
+            <text
+              x={Math.max(6, Math.min(EQ_W - 46, x - 20))}
+              y={EQ_H - 6}
+              fill="var(--cp-fa)"
+              fontSize="9"
+              fontFamily="Space Mono, monospace"
+            >
+              {label}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }
 
-/** Labelled horizontal slider, for the compressor. */
-function EffectSlider({
+/** A band's value, in a tile under the curve. Clicking it puts the band back at 0. */
+function BandTile({ label, db, onReset }: { label: string; db: number; onReset: () => void }) {
+  return (
+    <button
+      type="button"
+      className="flex flex-col items-center gap-0.5 rounded-[10px] py-2"
+      style={{ background: 'var(--cp-s2)' }}
+      title={`${label} · click to go back to 0`}
+      onClick={onReset}
+    >
+      <span className="cp-lbl">{label}</span>
+      <span className="cp-mono text-sm font-bold">
+        {Math.abs(db) < 0.05 ? '0.0' : `${db > 0 ? '+' : '−'}${Math.abs(db).toFixed(1)}`}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * A compressor setting: a label, a line, and the number it is on. A double click puts it back
+ * where it does nothing — [rest], which is the bottom for a ratio and the *top* for a
+ * threshold.
+ */
+function StripSlider({
   label,
   value,
   min,
   max,
   step,
+  rest,
   format,
   onChange,
   onCommit,
@@ -326,17 +400,57 @@ function EffectSlider({
   min: number;
   max: number;
   step: number;
+  rest: number;
   format: (v: number) => string;
   onChange: (v: number) => void;
   onCommit: () => void;
 }) {
+  const moved = Math.abs(value - rest) > 0.01;
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between text-xs font-medium" style={{ color: 'var(--cp-tx2)' }}>
-        <span>{label}</span>
-        <b className="cp-mono font-bold tabular-nums" style={{ color: 'var(--cp-tx)' }}>{format(value)}</b>
+    <div className="flex items-center gap-3" onDoubleClick={() => { onChange(rest); onCommit(); }}>
+      <span className="w-[62px] shrink-0 text-xs" style={{ color: 'var(--cp-tx2)' }}>{label}</span>
+      <Slider
+        className="flex-1"
+        value={[value]}
+        min={min}
+        max={max}
+        step={step}
+        aria-label={label}
+        onValueChange={([v]) => onChange(v)}
+        onValueCommit={onCommit}
+      />
+      <span
+        className="cp-mono w-[70px] shrink-0 text-right text-[11px] tabular-nums"
+        style={{ color: moved ? 'var(--cp-tx2)' : 'var(--cp-fa)' }}
+      >
+        {format(value)}
+      </span>
+    </div>
+  );
+}
+
+/** How much the compressor is actually pulling this channel down: twelve decibels of travel. */
+function Reduction({ db, active, color }: { db: number; active: boolean; color: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-[62px] shrink-0 text-xs" style={{ color: 'var(--cp-tx2)' }}>Reduction</span>
+      <div
+        className="h-1.5 flex-1 overflow-hidden rounded-full"
+        style={{ background: 'var(--cp-s2)' }}
+        role="meter"
+        aria-label="Gain reduction"
+        aria-valuemin={0}
+        aria-valuemax={12}
+        aria-valuenow={active ? Math.round(db * 10) / 10 : 0}
+      >
+        <div
+          className="h-full transition-[width] duration-150 ease-out"
+          style={{ width: `${active ? Math.min(100, (db / 12) * 100) : 0}%`, background: color }}
+        />
       </div>
-      <Slider value={[value]} min={min} max={max} step={step} onValueChange={([v]) => onChange(v)} onValueCommit={onCommit} />
+      <span className="cp-mono w-[70px] shrink-0 text-right text-[11px]" style={{ color: 'var(--cp-fa)' }}>
+        {active ? (db < 0.05 ? '0 dB' : `−${db.toFixed(1)} dB`) : 'off'}
+      </span>
     </div>
   );
 }
@@ -344,30 +458,33 @@ function EffectSlider({
 const SILENT = [0, 0, 0, 0, 0];
 
 /**
- * What the engine reports each bus is reaching — drums, piano, guitar, bass, master — while
- * the mixer is open, read every 60 ms as the app's console reads it. Nothing playing means
- * empty meters rather than the last peaks of the last song.
+ * What the engine reports per bus — the peaks each is reaching, or what each compressor is
+ * pulling down — while the mixer is open, read every 60 ms as the app's console reads it.
+ * Nothing playing means empty meters rather than the last peaks of the last song.
  */
-function useLevels(active: boolean): number[] {
+function useLevels(active: boolean, read: () => number[] | null = engineLevels): number[] {
   const [levels, setLevels] = useState<number[]>(SILENT);
   useEffect(() => {
     if (!active) return;
     const timer = window.setInterval(() => {
-      const next = engineLevels();
+      const next = read();
       setLevels((prev) => (next ?? (prev === SILENT ? prev : SILENT)));
     }, 60);
     return () => window.clearInterval(timer);
-  }, [active]);
+  }, [active, read]);
   return active ? levels : SILENT;
 }
 
 const cardStyle = { background: 'var(--cp-s1)', border: '1px solid var(--cp-ln)', borderRadius: 18 } as const;
 
-export function MixingConsole({ open, onOpenChange, instruments = [], onInstrumentsChange }: MixingConsoleProps) {
+export function MixingConsole({ open, onOpenChange, instruments = [], onInstrumentsChange, onMixerChange }: MixingConsoleProps) {
   const [effects, setEffects] = useState<EffectsState>(() => getCurrentEffectsState());
   const [mix, setMix] = useState<MixSettings>(() => getMix());
   const [tab, setTab] = useState<'eq' | 'comp'>('eq');
+  /** The channel the tone panel is on: picked by its name in the console, as in the app. */
+  const [selected, setSelected] = useState<InstrumentType>('piano');
   const levels = useLevels(open);
+  const reductions = useLevels(open, engineReductions);
 
   // Re-hydrate from the engine each time the panel opens, so values stay
   // consistent across sessions / context recreations.
@@ -378,30 +495,42 @@ export function MixingConsole({ open, onOpenChange, instruments = [], onInstrume
     }
   }, [open]);
 
+  // The console's own state lives in the engine's modules, so every change tells the editor to
+  // save it with the song. Through a ref: these handlers are stable and run on every pointer
+  // move, and a changed callback must not rebuild them.
+  const notifyRef = useRef(onMixerChange);
+  notifyRef.current = onMixerChange;
+  const notify = useCallback(() => notifyRef.current?.(), []);
+
   const handleMaster = useCallback((volume: number) => {
     setMix((prev) => ({ ...prev, master: volume }));
     updateMaster(volume);
-  }, []);
+    notify();
+  }, [notify]);
 
   const handlePan = useCallback((track: InstrumentType, pan: number) => {
     updatePan(track, pan);
     setMix(getMix());
-  }, []);
+    notify();
+  }, [notify]);
 
-  const handleEQChange = useCallback((band: 'low' | 'mid' | 'high', gain: number) => {
-    setEffects(prev => ({ ...prev, eq: { ...prev.eq, [band]: { ...prev.eq[band], gain } } }));
-    updateEQ(band, { gain });
-  }, []);
+  const handleStrip = useCallback((track: InstrumentType, settings: Partial<ChannelStrip>) => {
+    updateStrip(track, settings);
+    setEffects(getCurrentEffectsState());
+    notify();
+  }, [notify]);
 
-  const handleReverbChange = useCallback((key: keyof EffectsState['reverb'], value: number | boolean) => {
-    setEffects(prev => ({ ...prev, reverb: { ...prev.reverb, [key]: value } }));
-    updateReverb({ [key]: value });
-  }, []);
+  const handleStripReset = useCallback((track: InstrumentType) => {
+    resetStrip(track);
+    setEffects(getCurrentEffectsState());
+    notify();
+  }, [notify]);
 
-  const handleCompressorChange = useCallback((key: keyof EffectsState['compressor'], value: number | boolean) => {
-    setEffects(prev => ({ ...prev, compressor: { ...prev.compressor, [key]: value } }));
-    updateCompressor({ [key]: value });
-  }, []);
+  const handleReverbChange = useCallback((settings: Partial<EffectsState['reverb']>) => {
+    updateReverb(settings);
+    setEffects(getCurrentEffectsState());
+    notify();
+  }, [notify]);
 
   // Analytics fires on commit — the fader released, or the switch toggled — never from the
   // handlers above, which run on every pointer move so the sound follows the finger. See
@@ -412,12 +541,15 @@ export function MixingConsole({ open, onOpenChange, instruments = [], onInstrume
   const trackPan = useCallback(() => analytics.effectChanged('pan'), []);
 
   const handleReset = useCallback(() => {
-    setEffects(DEFAULT_EFFECTS_STATE);
     resetEffects();
+    setEffects(getCurrentEffectsState());
     setMix(getMix());
-  }, []);
+    notify();
+  }, [notify]);
 
   const isModified = !isConsoleDefault();
+  const selectedChannel = CHANNELS.find((c) => c.id === selected) ?? CHANNELS[1];
+  const strip = effects.strips[selected];
 
   const updateInstrument = (id: InstrumentType, updates: Partial<InstrumentState>) =>
     onInstrumentsChange?.(instruments.map((inst) => (inst.id === id ? { ...inst, ...updates } : inst)));
@@ -432,7 +564,7 @@ export function MixingConsole({ open, onOpenChange, instruments = [], onInstrume
             <ChevronLeft size={20} />
           </button>
           <SheetTitle className="m-0 flex-1 text-[17px] font-bold" style={{ color: 'var(--cp-tx)' }}>Mixer</SheetTitle>
-          <SheetDescription className="sr-only">Pan, volume, mute and solo for each instrument, the master fader, and the master EQ, compressor and reverb</SheetDescription>
+          <SheetDescription className="sr-only">Pan, volume, mute and solo for each instrument, the master fader, the selected channel&apos;s EQ and compressor, and the reverb for the whole mix</SheetDescription>
           <button
             className="cp-cap"
             style={{ height: 34, fontSize: 12 }}
@@ -453,8 +585,16 @@ export function MixingConsole({ open, onOpenChange, instruments = [], onInstrume
               // drawn as though someone had muted it — but it is not being heard either.
               const silent = inst.muted || (anySolo && !inst.solo);
               const pan = mix.pan[ch.id];
+              const current = selected === ch.id;
               return (
-                <div key={ch.id} className="flex flex-col items-center gap-1.5 py-1.5">
+                <div
+                  key={ch.id}
+                  className="flex flex-col items-center gap-1.5 rounded-xl border py-1.5 transition-colors"
+                  style={{
+                    background: current ? `color-mix(in srgb, ${ch.color} 8%, transparent)` : 'transparent',
+                    borderColor: current ? `color-mix(in srgb, ${ch.color} 45%, transparent)` : 'transparent',
+                  }}
+                >
                   <Knob
                     value={pan}
                     min={-1}
@@ -516,7 +656,17 @@ export function MixingConsole({ open, onOpenChange, instruments = [], onInstrume
                       S
                     </button>
                   </div>
-                  <span className="text-[11px] font-bold" style={{ color: silent ? 'var(--cp-fa)' : 'var(--cp-tx)' }}>{ch.name}</span>
+                  {/* The name is how you move the tone panel below to this channel. */}
+                  <button
+                    type="button"
+                    className="rounded-md px-0.5 text-[11px] font-bold"
+                    style={{ color: silent ? 'var(--cp-fa)' : 'var(--cp-tx)' }}
+                    aria-pressed={current}
+                    title={`Show ${ch.name}'s tone`}
+                    onClick={() => setSelected(ch.id)}
+                  >
+                    {ch.name}
+                  </button>
                 </div>
               );
             })}
@@ -544,11 +694,21 @@ export function MixingConsole({ open, onOpenChange, instruments = [], onInstrume
             </div>
           </div>
 
-          {/* EQ and compressor, on the master */}
+          {/* The tone panel: the channel the console has selected, its EQ or its compressor */}
           <div className="flex flex-col gap-2.5 p-3" style={cardStyle}>
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--cp-ac)' }} />
-              <span className="flex-1 text-sm font-bold">Master</span>
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: selectedChannel.color }} />
+              <span className="flex-1 text-sm font-bold">{selectedChannel.name}</span>
+              {!isStripFlat(strip) && (
+                <button
+                  type="button"
+                  className="px-1 text-xs font-semibold"
+                  style={{ color: 'var(--cp-act)' }}
+                  onClick={() => { handleStripReset(selected); trackEq(); }}
+                >
+                  Flat
+                </button>
+              )}
               <div className="cp-seg cp-seg-sm">
                 <button type="button" className={tab === 'eq' ? 'cp-on' : ''} onClick={() => setTab('eq')}>EQ</button>
                 <button type="button" className={tab === 'comp' ? 'cp-on' : ''} onClick={() => setTab('comp')}>Compressor</button>
@@ -557,87 +717,97 @@ export function MixingConsole({ open, onOpenChange, instruments = [], onInstrume
 
             {tab === 'eq' ? (
               <>
-                <EqCurve eq={effects.eq} onChange={handleEQChange} onCommit={trackEq} />
+                <EqCurve
+                  strip={strip}
+                  color={selectedChannel.color}
+                  onChange={(band, db) => handleStrip(selected, { [band]: db })}
+                  onCommit={trackEq}
+                />
                 <div className="grid grid-cols-3 gap-1.5">
-                  {(['low', 'mid', 'high'] as const).map((band) => (
-                    <div key={band} className="flex flex-col items-center gap-0.5 rounded-[10px] py-2" style={{ background: 'var(--cp-s2)' }}>
-                      <span className="cp-lbl">{band === 'low' ? 'Low' : band === 'mid' ? 'Mid' : 'High'}</span>
-                      <span className="cp-mono text-sm font-bold">
-                        {effects.eq[band].gain > 0 ? '+' : effects.eq[band].gain < 0 ? '−' : ''}
-                        {Math.abs(effects.eq[band].gain).toFixed(1)}
-                      </span>
-                    </div>
+                  {EQ_BANDS.map(({ band }) => (
+                    <BandTile
+                      key={band}
+                      label={band === 'low' ? 'Low' : band === 'mid' ? 'Mid' : 'High'}
+                      db={strip[band]}
+                      onReset={() => { handleStrip(selected, { [band]: 0 }); trackEq(); }}
+                    />
                   ))}
                 </div>
               </>
             ) : (
-              <div className="flex flex-col gap-3.5">
-                <label className="flex items-center justify-between text-[13px] font-semibold">
-                  Compressor
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={effects.compressor.enabled}
-                    aria-label="Compressor"
-                    className={`cp-sw ${effects.compressor.enabled ? 'cp-on' : ''}`}
-                    onClick={() => {
-                      handleCompressorChange('enabled', !effects.compressor.enabled);
-                      trackCompressor();
-                    }}
-                  />
-                </label>
-                <div className={`flex flex-col gap-3.5 ${effects.compressor.enabled ? '' : 'pointer-events-none opacity-45'}`}>
-                  <EffectSlider label="Threshold" value={effects.compressor.threshold} min={-60} max={0} step={1} format={(v) => `${v} dB`} onChange={(v) => handleCompressorChange('threshold', v)} onCommit={trackCompressor} />
-                  <EffectSlider label="Ratio" value={effects.compressor.ratio} min={1} max={20} step={0.5} format={(v) => `${v}:1`} onChange={(v) => handleCompressorChange('ratio', v)} onCommit={trackCompressor} />
-                  <EffectSlider label="Attack" value={effects.compressor.attack} min={0.001} max={1} step={0.001} format={(v) => `${(v * 1000).toFixed(0)} ms`} onChange={(v) => handleCompressorChange('attack', v)} onCommit={trackCompressor} />
-                  <EffectSlider label="Release" value={effects.compressor.release} min={0.01} max={1} step={0.01} format={(v) => `${(v * 1000).toFixed(0)} ms`} onChange={(v) => handleCompressorChange('release', v)} onCommit={trackCompressor} />
-                </div>
+              <div className="flex flex-col gap-3">
+                <StripSlider
+                  label="Threshold"
+                  value={strip.threshold}
+                  min={-40}
+                  max={0}
+                  step={1}
+                  rest={0}
+                  format={(v) => (v >= 0 ? '—' : `${Math.round(v)} dB`)}
+                  onChange={(v) => handleStrip(selected, { threshold: v })}
+                  onCommit={trackCompressor}
+                />
+                <StripSlider
+                  label="Ratio"
+                  value={strip.ratio}
+                  min={1}
+                  max={12}
+                  step={0.5}
+                  rest={1}
+                  // 1:1 is a compressor doing nothing, and saying so is clearer than printing a
+                  // ratio that reads like a setting.
+                  format={(v) => (v <= 1.02 ? 'off' : `${v.toFixed(1)}:1`)}
+                  onChange={(v) => handleStrip(selected, { ratio: v })}
+                  onCommit={trackCompressor}
+                />
+                <Reduction
+                  db={reductions[CHANNELS.findIndex((c) => c.id === selected)] ?? 0}
+                  active={strip.ratio > 1 && strip.threshold < 0}
+                  color={selectedChannel.color}
+                />
+                <p className="text-[11px]" style={{ color: 'var(--cp-fa)' }}>
+                  Lower the threshold for the compressor to start working; the ratio says how hard it
+                  squeezes. Its attack, release and knee are the engine's own.
+                </p>
               </div>
             )}
           </div>
 
-          {/* Reverb on two knobs */}
+          {/*
+            One reverb, fed from the whole mix rather than from a send per channel: the three
+            melodic tracks come out of the SoundFont already mixed together, so a send per
+            channel would be a control that only half worked. A mix of 0 is off — there is no
+            switch, as there is none in the app.
+          */}
           <div className="flex items-center gap-3.5 px-3.5 py-3" style={cardStyle}>
             <div className="flex flex-1 flex-col gap-0.5">
               <span className="cp-lbl">Reverb</span>
               <span className="text-[13px] font-semibold">
-                {effects.reverb.enabled ? `Room · ${effects.reverb.decay.toFixed(1)} s` : 'Off'}
+                {effects.reverb.mix < 0.01 ? 'Off' : roomOf(effects.reverb.size)}
               </span>
+              <span className="text-[11px]" style={{ color: 'var(--cp-fa)' }}>for the whole mix</span>
             </div>
-            <div className={`flex gap-3.5 ${effects.reverb.enabled ? '' : 'pointer-events-none opacity-45'}`}>
-              <Knob
-                value={effects.reverb.wetDry}
-                min={0}
-                max={1}
-                label="Mix"
-                valueText={`${Math.round(effects.reverb.wetDry * 100)}%`}
-                ring="var(--cp-ac)"
-                onChange={(v) => handleReverbChange('wetDry', Math.round(v * 100) / 100)}
-                onCommit={trackReverb}
-                onReset={() => { handleReverbChange('wetDry', DEFAULT_EFFECTS_STATE.reverb.wetDry); trackReverb(); }}
-              />
-              <Knob
-                value={effects.reverb.decay}
-                min={0.1}
-                max={5}
-                label="Size"
-                valueText={`${effects.reverb.decay.toFixed(1)} s`}
-                ring="var(--cp-ac)"
-                onChange={(v) => handleReverbChange('decay', Math.round(v * 10) / 10)}
-                onCommit={trackReverb}
-                onReset={() => { handleReverbChange('decay', DEFAULT_EFFECTS_STATE.reverb.decay); trackReverb(); }}
-              />
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={effects.reverb.enabled}
-              aria-label="Reverb"
-              className={`cp-sw ${effects.reverb.enabled ? 'cp-on' : ''}`}
-              onClick={() => {
-                handleReverbChange('enabled', !effects.reverb.enabled);
-                trackReverb();
-              }}
+            <Knob
+              value={effects.reverb.mix}
+              min={0}
+              max={1}
+              label="Mix"
+              valueText={`${Math.round(effects.reverb.mix * 100)}%`}
+              ring="var(--cp-ac)"
+              onChange={(v) => handleReverbChange({ mix: Math.round(v * 100) / 100 })}
+              onCommit={trackReverb}
+              onReset={() => { handleReverbChange({ mix: DEFAULT_EFFECTS_STATE.reverb.mix }); trackReverb(); }}
+            />
+            <Knob
+              value={effects.reverb.size}
+              min={0}
+              max={1}
+              label="Size"
+              valueText={`${Math.round(effects.reverb.size * 100)}%`}
+              ring="var(--cp-ac)"
+              onChange={(v) => handleReverbChange({ size: Math.round(v * 100) / 100 })}
+              onCommit={trackReverb}
+              onReset={() => { handleReverbChange({ size: DEFAULT_EFFECTS_STATE.reverb.size }); trackReverb(); }}
             />
           </div>
         </div>

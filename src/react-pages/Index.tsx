@@ -30,10 +30,11 @@ import { makeStyleLookup, effectiveSectionStyle, sectionPatternsFromStyle } from
 import { type SectionArrangement } from '@/components/SectionArrangementMenu';
 import { downloadBlob } from '@/lib/mp3Encoder';
 import { exportSongWav } from '@/lib/appEngine/player';
+import { currentSongMixer, loadSongMixer } from '@/lib/appEngine/effects';
 import { exportMidi } from '@/lib/midiExporter';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
-import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat, songNoteLengths, withNoteLengths, songSwing, withSwing } from '@/lib/songs';
+import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat, songNoteLengths, withNoteLengths, songSwing, withSwing, songMixer, withMixer } from '@/lib/songs';
 import { styleSwingRatio } from '@/lib/swing';
 import { type NoteLengths } from '@/lib/noteLengths';
 import { DEFAULT_CLICK, loadClickSettings, saveClickSettings, type ClickSettings } from '@/lib/clickSettings';
@@ -280,6 +281,10 @@ const Index = ({ songId }: IndexProps) => {
   const [showCountdown, setShowCountdown] = useState(false);
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
   const [mixingConsoleOpen, setMixingConsoleOpen] = useState(false);
+  // Bumped whenever the mixing console moves. The console's own state lives with the engine
+  // (appEngine/effects.ts), so this is what tells autosave that the song changed; the values
+  // themselves are read with currentSongMixer() when the save fires.
+  const [mixerRevision, setMixerRevision] = useState(0);
   // Refs for current values (used in callbacks)
   const sectionsRef = useRef<Section[]>(sections);
   const bpmRef = useRef(bpm);
@@ -431,6 +436,9 @@ const Index = ({ songId }: IndexProps) => {
           setMetronomeEnabled(song.metronomeEnabled);
           setNoteLengths(songNoteLengths(song));
           setSwing(songSwing(song));
+          // The mixer the song was left on — pan, master, tone, reverb — or the defaults for
+          // anything it says nothing about, so none of the last song's mix is left behind.
+          loadSongMixer(songMixer(song));
           setSongTitle(song.title);
           if (song.instrumentSettings.length > 0) {
             setInstruments(song.instrumentSettings);
@@ -491,7 +499,7 @@ const Index = ({ songId }: IndexProps) => {
         return;
       }
       const song: Song = {
-        ...withSwing(withNoteLengths(songExtrasRef.current, noteLengths), swing),
+        ...withMixer(withSwing(withNoteLengths(songExtrasRef.current, noteLengths), swing), currentSongMixer()),
         schemaVersion: SONG_SCHEMA_VERSION,
         id: currentSongId,
         title: songTitle,
@@ -521,14 +529,17 @@ const Index = ({ songId }: IndexProps) => {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [isLoggedIn, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, noteLengths, swing, songCreatedAt]);
+  }, [isLoggedIn, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, noteLengths, swing, mixerRevision, songCreatedAt]);
 
   // Explicit save — turns the current in-progress work into a persisted song.
   // Never fires automatically: /chord-player/ stays a stable, stateless URL until the user asks to save.
   const handleSaveNewSong = useCallback(async () => {
     // A first save (or a visitor's fork) keeps whatever the opened song carried that this
     // editor does not model, like every later autosave does.
-    const newSong: Song = { ...withSwing(withNoteLengths(songExtrasRef.current, noteLengths), swing), ...createSong(songTitle) };
+    const newSong: Song = {
+      ...withMixer(withSwing(withNoteLengths(songExtrasRef.current, noteLengths), swing), currentSongMixer()),
+      ...createSong(songTitle),
+    };
     newSong.sections = sections;
     newSong.bpm = bpm;
     newSong.styleId = selectedStyleId;
@@ -1910,6 +1921,7 @@ const Index = ({ songId }: IndexProps) => {
         onOpenChange={setMixingConsoleOpen}
         instruments={instruments}
         onInstrumentsChange={handleInstrumentsChange}
+        onMixerChange={() => setMixerRevision((n) => n + 1)}
       />
 
       <AccountPromptModal

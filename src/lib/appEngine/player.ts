@@ -94,6 +94,15 @@ export function engineLevels(): number[] | null {
   return state?.playing ? state.levels : null;
 }
 
+/**
+ * How much each channel's compressor is pulling it down, in dB — bus 0-3 — or null when
+ * nothing is playing. Without it a compressor is a row of numbers you have to take on faith.
+ */
+export function engineReductions(): number[] | null {
+  const state = startedAppEngine()?.state;
+  return state?.playing ? state.reductions : null;
+}
+
 export class AppPlayback {
   private built: EngineSong | null = null;
   private current: AppSong | null = null;

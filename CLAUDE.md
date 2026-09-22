@@ -62,8 +62,9 @@ It is the **only** engine the chord player has (the web's own Web Audio engine,
 that makes sound goes through `src/lib/appEngine/`: `player.ts` (`AppPlayback`: songs looping or once —
 a single pass ends on a silent bar appended to the song —, the vocal track, `exportSongWav` in a
 Worker), `preview.ts` (chord tap/hold, single note, drum hit, analyser; engine section 31, so songs get
-sections 0-29), `effects.ts` (the mixer's master EQ/compressor/reverb, mapped onto the engine's
-per-channel strips and reverb send) and `fromSong.ts` (song → commands). The single-note preview is
+sections 0-29), `effects.ts` (the mixer's tone: the engine's `strip` per channel and its one reverb
+send), `mix.ts` (the master fader and each track's pan, which `fromSong.ts` reads so a mix-only
+update cannot undo them) and `fromSong.ts` (song → commands). The single-note preview is
 `wg_preview_note` in `engine/web_glue.cpp`, which opens the engine's private members to that file
 only (`#define private public`) — the app's file stays untouched. The engine lives on `window` so a
 dev-server hot swap of the module cannot leave a second one playing. `public/audio/` samples stay:
@@ -91,6 +92,22 @@ ids), volume, accent and half beats in `src/lib/clickSettings.ts`, kept in `loca
 picked from the Click capsule's caret in the transport. It reaches the engine as the one
 `metronome` command, which also sets how the count-in sounds. It starts at 35%, not the app's 0.7:
 at that level the click sat over the whole song.
+
+**The mixer** (`src/components/MixingConsole.tsx`) is the app's mixer screen
+(`lib/features/mixer/mixer_screen.dart`): a strip per instrument — pan knob, meter, fader, level,
+mute, solo, name — the master at the end with its own fader, and a tone panel that follows the
+channel whose name you tap (EQ curve with shelves at 160 Hz / 4.5 kHz and a bell at 1 kHz, or the
+compressor's threshold and ratio with its gain-reduction meter). It offers exactly what the engine
+takes: the compressor's attack, release and knee are fixed in C++ (12 ms / 180 ms, hard knee,
+automatic makeup) and were sliders that did nothing until 2026-09-23, when the EQ also stopped
+being one band set applied to all four channels. The meters are the engine's held peaks
+(`wg_level`, buses 0-3 and master, `engineLevels()`), on the app's scale — the last 48 dB, and the
+gradient belongs to the track so the red stays at the top — and empty when nothing plays. Pan,
+master, the strips and the reverb are saved with the song where the app saves them, its `mixer`
+block (`songMixer` / `withMixer` in `songs.ts`, `loadSongMixer` / `currentSongMixer` in
+`effects.ts`); the per-track faders and mutes stay in `instrumentSettings`, because the web
+multiplies a fader by `TRACK_TRIM` and the sound's measured gain before the engine sees it. The web
+still starts dry (reverb mix 0) where the app starts at 18%.
 
 **Never add FAQPage or HowTo schema.** Google restricted FAQ rich results to government/health
 sites in Aug 2023 — this site doesn't qualify. HowTo was deprecated entirely in Sept 2023.
