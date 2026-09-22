@@ -50,9 +50,11 @@ const MAX_BARS = 4;
 const MAX_STEPS_PER_BAR = 20; // kMaxStepsPerBar: a fill row's width
 /** The kit when the catalog names one the app does not have: the app's own default. */
 const DEFAULT_KIT = 2;
-/** The metronome and the count-in: the app's side stick and cowbell. */
-const STICK_SLOT = 2;
-const COUNT_IN_SLOT = 36;
+/**
+ * The click: the app's cowbell (its count-in sound, and one of its metronome choices — the app's
+ * own default is the stick, the web's is the cowbell, decided 2026-09-22).
+ */
+const CLICK_SLOT = 36;
 
 /** The kit's internal balance, as the web engine had it: part of how a style is written. */
 const DRUM_TRIM: Record<string, number> = { hihat: 0.7, hihatOpen: 0.8, hihatFoot: 0.6, ride: 0.7 };
@@ -192,7 +194,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   c.push(['commitArrangement']);
 
   // ── Each section's grooves, lines and sounds ──
-  const drumSlots = new Set<number>([STICK_SLOT, COUNT_IN_SLOT]);
+  const drumSlots = new Set<number>([CLICK_SLOT]);
   const arpeggioTracks = new Set<string>();
   sections.forEach((section, s) => {
     const playback = resolveSectionPlayback(section, songStyle, lookup);
@@ -287,7 +289,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     c.push(['mixer', track, volume, !audible]);
   }
   c.push(['mixer', 'master', MASTER, false]);
-  c.push(['metronome', !!song.metronomeEnabled, 0.7, sampledDrum(STICK_SLOT), true, 1]);
+  c.push(['metronome', !!song.metronomeEnabled, 0.7, sampledDrum(CLICK_SLOT), true, 1]);
   // Dry, as the web always played (the mixer's reverb starts off, effects.ts), where the
   // engine's own default is a large room: left on, every note rang on for half a second.
   c.push(['reverb', 0.7, 0]);
