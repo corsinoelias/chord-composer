@@ -1,6 +1,7 @@
 # Estudio: un solo catálogo de sonidos para la app y la web
 
-Escrito el 2026-09-22. Estado: **la lista está cerrada y escuchada (§7e); decididos también el clic, los platos, los ritmos y el paneo (§7b). Queda la mezcla por defecto.** Datos sacados del código de los
+Escrito el 2026-09-22. Estado: **todo decidido** — la lista (§7e) y la mezcla (§7f) escuchadas en
+`/lab/sounds/`; el clic, los platos, los ritmos y el paneo en §7b. Queda llevarlo al código (§8). Datos sacados del código de los
 dos repos ese día (`chord_sequencer` en `165d929`, la web en `534a83d`+).
 
 Objetivo: que la app y la web tengan **los mismos sonidos, ganancias, volúmenes y ritmos**, y
@@ -143,7 +144,7 @@ Solo he comparado nota a nota el Reggaeton; los demás pares hay que escucharlos
 2. ~~**Pad/cuerdas:**~~ entran (§7e).
 3. ~~**Clic:**~~ el cencerro en los dos (§7b).
 4. ~~**Recortes de platos de la web:**~~ fuera (§7b).
-5. **Mezcla por defecto:** la de la app para los dos (con paneo), u otra. **Sin decidir.**
+5. ~~**Mezcla por defecto:**~~ la de la escucha, ganancia por sonido (§7f).
 6. ~~**Ritmos:**~~ ganan los de la web (§7b); falta pasarlos a la app.
 
 ## 7b. Decidido (2026-09-22)
@@ -180,6 +181,20 @@ energía entre 90 Hz y 6 kHz —la banda que de verdad se oye— y escribe en
 los aplica: medidos después, todos caen en −36,8 dB salvo el slap de la web, que necesitaría +10,7 y se
 queda 2,9 dB por debajo. La misma tabla debería ir al catálogo compartido, como la app ya hace con la
 batería (`drum_gains.dart`).
+
+## 7f. Mezcla por defecto: la de la escucha (2026-09-22)
+
+Último punto de §7, decidido de oído en `/lab/sounds/`: **manda la tabla de ganancias de §7d**. Cada
+sonido entra a la mezcla con la ganancia que lo lleva a la mediana, no con un recorte fijo por pista.
+Sustituye a `MIX_TRIM` de `fromSong.ts` (batería 0,6 · piano 1 · guitarra 1,66 · bajo 0,46), que eran
+tres arreglos a ojo para tapar que la guitarra no se oía y el bajo se comía la mezcla; con una ganancia
+por sonido el problema no existe.
+
+El volumen de cada pista pasa a ser `volumen del usuario × volumen del ritmo × margen × ganancia del
+sonido`, con el margen (−6 dB, como el `BASE_LEVEL` de la escucha) para que un sonido con +6 dB quepa
+sin recortarse: un fader del motor se detiene en 1. La batería no lleva ganancia propia —ya viene
+igualada grabación a grabación (`drum_gains.dart`)— así que queda al mismo nivel que los demás, que es
+como suena en la escucha.
 
 ## 8. Cómo se haría (cuando decidas)
 
@@ -265,8 +280,11 @@ así que conservarla es además no cambiarlas de sonido.
 - Grabaciones convertidas a SoundFont a 24 kHz y 2 s (lo elegido en §7c): 104 muestras, **9,5 MB**
   (acústica 29, eléctrica 17, nylon 28, fender 15, slap 15).
 
-**Por defecto:** piano → Piano; guitarra → Acústica (grabada); bajo → Fender (grabado); batería →
-Acoustic. Es lo que suena hoy en la web, y así ninguna canción guardada cambia de timbre.
+**Por defecto (elegidos de oído, 2026-09-22):** piano → **Piano**, guitarra → **Acústica**
+(la del SoundFont), bajo → **Dedos**, batería → **Acoustic 2**. No son los de hoy en la web
+(guitarra y bajo grabados, kit Acoustic), así que una canción guardada que nunca tocó su sonido
+sonará distinta: es lo que ya se decidió el 2026-09-21 al hacer del motor y los sonidos de la app
+la referencia.
 
 **Traducción de las canciones guardadas** (web → lista nueva): `sampled`/`acoustic`/`soft`/`upright`/
 `bright` → `piano`; `electric` (piano) → `e-piano`; `honkytonk` → `honkytonk`; `synth` (piano) →
