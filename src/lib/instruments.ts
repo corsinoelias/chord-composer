@@ -1,8 +1,17 @@
 /**
- * Instrument Configuration
- * 
- * Defines available instruments and their sound types
+ * The sounds a song can play — the list the app and the web share (docs/sonidos-comunes.md §7e,
+ * heard one by one in /lab/sounds/ on 2026-09-22 and voted).
+ *
+ * Every sound is either a program of the shipped SoundFont (`program`, bank 0) or one of the
+ * app's synthesised timbres (`timbre`); a kit is an index into the app's drumKits. Nothing here
+ * describes an oscillator any more: the web's own audio engine was removed on 2026-09-22 and
+ * everything sounds through the app's engine (src/lib/appEngine/).
+ *
+ * `npm run shared:export` writes this list to shared/catalog/sounds.json, which the app reads,
+ * and `npm run engine:sync` cuts the SoundFont down to exactly the programs named here.
  */
+
+import { TIMBRE } from './appEngine/commands';
 
 export type InstrumentType = 'piano' | 'bass' | 'drums' | 'guitar';
 
@@ -16,19 +25,21 @@ export interface InstrumentConfig {
 export interface SoundType {
   id: string;
   name: string;
-  // Oscillator configuration
-  oscillatorType: OscillatorType;
+  /** A General MIDI program of the shipped SoundFont (bank 0). */
+  program?: number;
+  /** One of the app's synthesised timbres, when the sound is not in the SoundFont. */
+  timbre?: number;
+  /** Drums only: which of the app's kits (drumKits in the app's constants.dart). */
+  kit?: number;
+  /** Octaves the sound plays from the web's own window, whose root octave is C4 (60). */
   octaveOffset: number;
-  attackTime: number;
-  decayTime: number;
-  sustainLevel: number;
-  releaseTime: number;
-  // Optional: use samples instead of synthesis
-  useSamples?: boolean;
-  // Optional: sample folder path (e.g., 'guitar-acoustic')
-  samplePath?: string;
-  // Optional: soundfont-player instrument name (e.g., 'acoustic_guitar_steel')
-  sf2Instrument?: string;
+  /**
+   * Decibels that bring this sound to the level of the rest, measured by
+   * `npm run lab:gains` (docs/sonidos-comunes.md §7d). The mix applies it (fromSong.ts).
+   */
+  gainDb?: number;
+  /** One of the web's own recordings (public/audio/), shipped inside the SoundFont. */
+  recorded?: boolean;
 }
 
 export interface InstrumentState {
@@ -39,346 +50,153 @@ export interface InstrumentState {
   soundTypeId: string;
 }
 
+/**
+ * The programs the web's recordings are written into when the SoundFont is built
+ * (scripts/build-recordings.mjs): above General MIDI's 0-127 range of names, so they can never
+ * collide with a program of the app's SoundFont.
+ */
+export const RECORDED_FIRST = 100;
+
 export const INSTRUMENTS: InstrumentConfig[] = [
   {
     id: 'piano',
     name: 'Piano',
-    defaultSoundType: 'sampled',
+    defaultSoundType: 'grand',
     soundTypes: [
-      {
-        id: 'sampled',
-        name: 'Grand Piano (Sampled)',
-        oscillatorType: 'sine', // Not used when useSamples is true
-        octaveOffset: 0,
-        attackTime: 0.01,
-        decayTime: 0.2,
-        sustainLevel: 0.7,
-        releaseTime: 0.5,
-        useSamples: true,
-      },
-      {
-        id: 'acoustic',
-        name: 'Acoustic Grand',
-        oscillatorType: 'triangle',
-        octaveOffset: 0,
-        attackTime: 0.01,
-        decayTime: 0.15,
-        sustainLevel: 0.6,
-        releaseTime: 0.4,
-      },
-      {
-        id: 'bright',
-        name: 'Bright Piano',
-        oscillatorType: 'sawtooth',
-        octaveOffset: 0,
-        attackTime: 0.005,
-        decayTime: 0.08,
-        sustainLevel: 0.5,
-        releaseTime: 0.25,
-      },
-      {
-        id: 'electric',
-        name: 'Electric Piano',
-        oscillatorType: 'sine',
-        octaveOffset: 0,
-        attackTime: 0.01,
-        decayTime: 0.2,
-        sustainLevel: 0.7,
-        releaseTime: 0.5,
-      },
-      {
-        id: 'soft',
-        name: 'Soft Piano',
-        oscillatorType: 'sine',
-        octaveOffset: 0,
-        attackTime: 0.03,
-        decayTime: 0.3,
-        sustainLevel: 0.8,
-        releaseTime: 0.6,
-      },
-      {
-        id: 'upright',
-        name: 'Upright Piano',
-        oscillatorType: 'triangle',
-        octaveOffset: 0,
-        attackTime: 0.015,
-        decayTime: 0.12,
-        sustainLevel: 0.55,
-        releaseTime: 0.35,
-      },
-      {
-        id: 'honkytonk',
-        name: 'Honky Tonk',
-        oscillatorType: 'sawtooth',
-        octaveOffset: 0,
-        attackTime: 0.008,
-        decayTime: 0.1,
-        sustainLevel: 0.45,
-        releaseTime: 0.2,
-      },
-    ],
-  },
-  {
-    id: 'bass',
-    name: 'Bass',
-    defaultSoundType: 'fender',
-    soundTypes: [
-      {
-        id: 'fender',
-        name: 'Fender (Pick)',
-        oscillatorType: 'sawtooth',
-        octaveOffset: -1,
-        attackTime: 0.005,
-        decayTime: 0.08,
-        sustainLevel: 0.6,
-        releaseTime: 0.15,
-        useSamples: true,
-        samplePath: 'bass/modo',
-      },
-      {
-        id: 'finger',
-        name: 'Finger',
-        oscillatorType: 'sine',
-        octaveOffset: -1,
-        attackTime: 0.02,
-        decayTime: 0.15,
-        sustainLevel: 0.6,
-        releaseTime: 0.3,
-        useSamples: true,
-        samplePath: 'bass/finger',
-      },
-      {
-        id: 'slap',
-        name: 'Slap',
-        oscillatorType: 'square',
-        octaveOffset: -1,
-        attackTime: 0.005,
-        decayTime: 0.06,
-        sustainLevel: 0.4,
-        releaseTime: 0.1,
-        useSamples: true,
-        samplePath: 'bass/slap',
-      },
-      {
-        id: 'muted',
-        name: 'Muted',
-        oscillatorType: 'sawtooth',
-        octaveOffset: -1,
-        attackTime: 0.005,
-        decayTime: 0.05,
-        sustainLevel: 0.3,
-        releaseTime: 0.08,
-        useSamples: true,
-        samplePath: 'bass/muted',
-      },
-      {
-        id: 'synth',
-        name: 'Synth Bass',
-        oscillatorType: 'sawtooth',
-        octaveOffset: -2,
-        attackTime: 0.01,
-        decayTime: 0.05,
-        sustainLevel: 0.9,
-        releaseTime: 0.1,
-      },
-      {
-        id: 'sub',
-        name: 'Deep Sub',
-        oscillatorType: 'sine',
-        octaveOffset: -3,
-        attackTime: 0.02,
-        decayTime: 0.1,
-        sustainLevel: 0.9,
-        releaseTime: 0.2,
-      },
-    ],
-  },
-  {
-    id: 'drums',
-    name: 'Drums',
-    defaultSoundType: 'standard',
-    soundTypes: [
-      {
-        id: 'standard',
-        name: 'Acoustic Kit',
-        oscillatorType: 'triangle',
-        octaveOffset: 0,
-        attackTime: 0.001,
-        decayTime: 0.12,
-        sustainLevel: 0.1,
-        releaseTime: 0.1,
-      },
-      {
-        id: 'analog',
-        name: 'Analog',
-        oscillatorType: 'sine',
-        octaveOffset: 0,
-        attackTime: 0.001,
-        decayTime: 0.5,
-        sustainLevel: 0.15,
-        releaseTime: 0.2,
-      },
-      {
-        id: 'punch',
-        name: 'Punch',
-        oscillatorType: 'sine',
-        octaveOffset: 0,
-        attackTime: 0.001,
-        decayTime: 0.22,
-        sustainLevel: 0.15,
-        releaseTime: 0.12,
-      },
-      {
-        id: 'lofi',
-        name: 'Lo-Fi',
-        oscillatorType: 'sine',
-        octaveOffset: 0,
-        attackTime: 0.001,
-        decayTime: 0.6,
-        sustainLevel: 0.2,
-        releaseTime: 0.25,
-      },
+      { id: 'grand', name: 'Grand Piano', program: 0, octaveOffset: 0, gainDb: 1.6 },
+      { id: 'epiano', name: 'Electric Piano', program: 4, octaveOffset: 0, gainDb: -1.9 },
+      { id: 'rhodes', name: 'Rhodes', program: 5, octaveOffset: 0, gainDb: -1.1 },
+      { id: 'organ', name: 'Organ', program: 16, octaveOffset: 0, gainDb: -3.1 },
+      { id: 'honkytonk', name: 'Honky-Tonk', program: 3, octaveOffset: 0, gainDb: 1.2 },
+      { id: 'strings', name: 'Strings', program: 48, octaveOffset: 0, gainDb: -1.4 },
+      { id: 'pad', name: 'Warm Pad', program: 89, octaveOffset: 0, gainDb: 2.9 },
+      { id: 'organ-syn', name: 'Organ (synth)', timbre: 3, octaveOffset: 0, gainDb: -6 },
+      { id: 'pad-syn', name: 'Pad (synth)', timbre: 4, octaveOffset: 0, gainDb: -6 },
+      { id: 'fm', name: 'FM', timbre: 1, octaveOffset: 0, gainDb: 6 },
     ],
   },
   {
     id: 'guitar',
     name: 'Guitar',
-    defaultSoundType: 'sf2-steel',
+    defaultSoundType: 'steel',
     soundTypes: [
-      {
-        id: 'acoustic',
-        name: 'Acoustic Steel',
-        oscillatorType: 'triangle',
-        octaveOffset: 0,
-        attackTime: 0.01,
-        decayTime: 0.15,
-        sustainLevel: 0.6,
-        releaseTime: 0.3,
-        useSamples: true,
-        samplePath: 'guitar/acoustic',
-      },
-      {
-        id: 'electric',
-        name: 'Electric Clean',
-        oscillatorType: 'sawtooth',
-        octaveOffset: 0,
-        attackTime: 0.005,
-        decayTime: 0.1,
-        sustainLevel: 0.7,
-        releaseTime: 0.2,
-        useSamples: true,
-        samplePath: 'guitar/electric',
-      },
-      {
-        id: 'nylon',
-        name: 'Classical Nylon',
-        oscillatorType: 'sine',
-        octaveOffset: 0,
-        attackTime: 0.015,
-        decayTime: 0.2,
-        sustainLevel: 0.5,
-        releaseTime: 0.4,
-        useSamples: true,
-        samplePath: 'guitar/nylon',
-      },
-      {
-        id: 'sf2-steel',
-        name: 'Steel ★',
-        oscillatorType: 'triangle',
-        octaveOffset: 0,
-        attackTime: 0.01,
-        decayTime: 0.15,
-        sustainLevel: 0.6,
-        releaseTime: 0.3,
-        sf2Instrument: 'acoustic_guitar_steel',
-      },
-      {
-        id: 'sf2-nylon',
-        name: 'Nylon ★',
-        oscillatorType: 'sine',
-        octaveOffset: 0,
-        attackTime: 0.015,
-        decayTime: 0.2,
-        sustainLevel: 0.5,
-        releaseTime: 0.4,
-        sf2Instrument: 'acoustic_guitar_nylon',
-      },
-      {
-        id: 'sf2-clean',
-        name: 'Clean ★',
-        oscillatorType: 'sawtooth',
-        octaveOffset: 0,
-        attackTime: 0.005,
-        decayTime: 0.1,
-        sustainLevel: 0.7,
-        releaseTime: 0.2,
-        sf2Instrument: 'electric_guitar_clean',
-      },
-      {
-        id: 'sf2-jazz',
-        name: 'Jazz ★',
-        oscillatorType: 'sine',
-        octaveOffset: 0,
-        attackTime: 0.008,
-        decayTime: 0.12,
-        sustainLevel: 0.65,
-        releaseTime: 0.25,
-        sf2Instrument: 'electric_guitar_jazz',
-      },
-      {
-        id: 'sf2-muted',
-        name: 'Muted ★',
-        oscillatorType: 'sawtooth',
-        octaveOffset: 0,
-        attackTime: 0.003,
-        decayTime: 0.06,
-        sustainLevel: 0.3,
-        releaseTime: 0.1,
-        sf2Instrument: 'electric_guitar_muted',
-      },
-      {
-        id: 'sf2-distortion',
-        name: 'Distorted ★',
-        oscillatorType: 'sawtooth',
-        octaveOffset: 0,
-        attackTime: 0.005,
-        decayTime: 0.1,
-        sustainLevel: 0.8,
-        releaseTime: 0.3,
-        sf2Instrument: 'distortion_guitar',
-      },
-      {
-        id: 'sf2-overdrive',
-        name: 'Overdrive ★',
-        oscillatorType: 'sawtooth',
-        octaveOffset: 0,
-        attackTime: 0.005,
-        decayTime: 0.1,
-        sustainLevel: 0.75,
-        releaseTime: 0.25,
-        sf2Instrument: 'overdriven_guitar',
-      },
-      {
-        id: 'sf2-harmonics',
-        name: 'Harmonics ★',
-        oscillatorType: 'sine',
-        octaveOffset: 0,
-        attackTime: 0.02,
-        decayTime: 0.3,
-        sustainLevel: 0.4,
-        releaseTime: 0.5,
-        sf2Instrument: 'guitar_harmonics',
-      },
+      { id: 'steel', name: 'Acoustic', program: 25, octaveOffset: 0, gainDb: 4.9 },
+      { id: 'steel-rec', name: 'Acoustic (recorded)', program: RECORDED_FIRST, octaveOffset: 0, gainDb: 3, recorded: true },
+      { id: 'nylon', name: 'Nylon', program: 24, octaveOffset: 0, gainDb: 1 },
+      { id: 'nylon-rec', name: 'Nylon (recorded)', program: RECORDED_FIRST + 2, octaveOffset: 0, gainDb: 1.7, recorded: true },
+      { id: 'clean', name: 'Electric Clean', program: 27, octaveOffset: 0, gainDb: 4.6 },
+      { id: 'clean-rec', name: 'Electric (recorded)', program: RECORDED_FIRST + 1, octaveOffset: 0, gainDb: 3, recorded: true },
+      { id: 'jazz', name: 'Jazz', program: 26, octaveOffset: 0, gainDb: 1.2 },
+      { id: 'muted', name: 'Muted', program: 28, octaveOffset: 0, gainDb: 6 },
+      { id: 'overdrive', name: 'Overdrive', program: 29, octaveOffset: 0, gainDb: -0.4 },
+      { id: 'distortion', name: 'Distortion', program: 30, octaveOffset: 0, gainDb: -3.9 },
+      { id: 'pluck', name: 'Pluck', timbre: 6, octaveOffset: 0 },
+    ],
+  },
+  {
+    id: 'bass',
+    name: 'Bass',
+    // Every bass plays from C2: the window the web has always played its bass in.
+    defaultSoundType: 'finger',
+    soundTypes: [
+      { id: 'finger', name: 'Finger', program: 33, octaveOffset: -2, gainDb: -5.1 },
+      { id: 'pick', name: 'Pick', program: 34, octaveOffset: -2, gainDb: -3.5 },
+      { id: 'fender-rec', name: 'Fender (recorded)', program: RECORDED_FIRST + 3, octaveOffset: -2, gainDb: 0, recorded: true },
+      { id: 'slap', name: 'Slap', program: 36, octaveOffset: -2, gainDb: -1.2 },
+      { id: 'slap-rec', name: 'Slap (recorded)', program: RECORDED_FIRST + 4, octaveOffset: -2, gainDb: 6, recorded: true },
+      { id: 'upright', name: 'Upright', program: 32, octaveOffset: -2, gainDb: -2.3 },
+      { id: 'fretless', name: 'Fretless', program: 35, octaveOffset: -2, gainDb: -4.1 },
+      { id: 'reese', name: 'Reese', timbre: 11, octaveOffset: -2, gainDb: -2.9 },
+      { id: 'square', name: 'Square', timbre: 12, octaveOffset: -2, gainDb: -3 },
+    ],
+  },
+  {
+    id: 'drums',
+    name: 'Drums',
+    // The kits are all recorded, and already level with each other (the app's drum_gains.dart),
+    // so none of them carries a gain of its own.
+    defaultSoundType: 'acoustic2',
+    soundTypes: [
+      { id: 'acoustic', name: 'Acoustic', kit: 2, octaveOffset: 0 },
+      { id: 'acoustic2', name: 'Acoustic 2', kit: 3, octaveOffset: 0 },
+      { id: 'electronic', name: 'Electronic', kit: 4, octaveOffset: 0 },
+      { id: 'ap1', name: 'AP1', kit: 5, octaveOffset: 0 },
+      { id: 'brutalist', name: 'Brutalist', kit: 6, octaveOffset: 0 },
+      { id: 'chase', name: 'Chase', kit: 7, octaveOffset: 0 },
+      { id: 'runit', name: 'Run It', kit: 8, octaveOffset: 0 },
     ],
   },
 ];
+
+/**
+ * What a sound id saved before the shared list (2026-09-22) plays now. Some ids kept their
+ * name and lost their meaning — the web's `slap` was its own recording, and `slap` is now the
+ * SoundFont's — so this is read by song schema version (migrateLegacySong), not by whether the
+ * id still exists.
+ */
+export const LEGACY_SOUND_IDS: Record<InstrumentType, Record<string, string>> = {
+  // The web offered the same grand piano four times over; `synth` was never a sound of its
+  // own — six rhythms named it and a grand piano is what played.
+  piano: {
+    sampled: 'grand', acoustic: 'grand', soft: 'grand', upright: 'grand', bright: 'grand',
+    electric: 'epiano', synth: 'grand',
+  },
+  // The recordings keep the songs that used them sounding the same; the `sf2-` ones are the
+  // SoundFont's, which now go by their own name.
+  guitar: {
+    acoustic: 'steel-rec', electric: 'clean-rec', nylon: 'nylon-rec',
+    'sf2-steel': 'steel', 'sf2-nylon': 'nylon', 'sf2-clean': 'clean', 'sf2-jazz': 'jazz',
+    'sf2-muted': 'muted', 'sf2-overdrive': 'overdrive', 'sf2-distortion': 'distortion',
+    'sf2-harmonics': 'overdrive',
+  },
+  // The web's own Finger and Muted recordings did not make the list; the SoundFont's Finger
+  // takes their place. Sub was dropped, and Reese is the synthesised bass nearest to it.
+  bass: {
+    fender: 'fender-rec', slap: 'slap-rec', finger: 'finger', muted: 'finger',
+    synth: 'square', sub: 'reese', electric: 'square', picked: 'pick',
+  },
+  // `standard` was the app's kit 9, the web's own recordings, which the list drops in favour of
+  // the app's seven.
+  drums: {
+    standard: 'acoustic2', analog: 'acoustic2', lofi: 'acoustic2', punch: 'electronic',
+    rock: 'acoustic2', jazz: 'acoustic', electronic: 'electronic',
+  },
+};
+
+/** The id a sound saved before the shared list plays as; unknown ids fall back to the default. */
+export function migrateSoundId(instrumentId: InstrumentType, soundTypeId: string): string {
+  const mapped = LEGACY_SOUND_IDS[instrumentId]?.[soundTypeId];
+  if (mapped) return mapped;
+  const instrument = getInstrumentConfig(instrumentId);
+  if (instrument?.soundTypes.some((s) => s.id === soundTypeId)) return soundTypeId;
+  return instrument?.defaultSoundType ?? soundTypeId;
+}
+
 export function getInstrumentConfig(id: InstrumentType): InstrumentConfig | undefined {
   return INSTRUMENTS.find(i => i.id === id);
 }
 
 export function getSoundType(instrumentId: InstrumentType, soundTypeId: string): SoundType | undefined {
   const instrument = getInstrumentConfig(instrumentId);
-  return instrument?.soundTypes.find(s => s.id === soundTypeId);
+  return instrument?.soundTypes.find(s => s.id === soundTypeId)
+    ?? instrument?.soundTypes.find(s => s.id === LEGACY_SOUND_IDS[instrumentId]?.[soundTypeId]);
+}
+
+/**
+ * What a sound is turned up or down by to be heard at the level of the track's own reference
+ * sound — the one the track plays by default, which is where the mix was set by ear
+ * (docs/sonidos-comunes.md §7f). Changing sound then changes the timbre, not the level.
+ */
+export function relativeSoundGain(instrumentId: InstrumentType, soundTypeId: string): number {
+  const instrument = getInstrumentConfig(instrumentId);
+  const reference = instrument?.soundTypes.find((s) => s.id === instrument.defaultSoundType)?.gainDb ?? 0;
+  const sound = getSoundType(instrumentId, soundTypeId)?.gainDb ?? reference;
+  return 10 ** ((sound - reference) / 20);
+}
+
+/** The engine timbre a sound plays on: the SoundFont, or one of the app's synthesised ones. */
+export function soundTimbre(sound: SoundType | undefined): number {
+  return sound?.timbre ?? TIMBRE.sampled;
 }
 
 export function getDefaultInstrumentStates(): InstrumentState[] {
@@ -396,9 +214,9 @@ export function getDefaultInstrumentStates(): InstrumentState[] {
  */
 export function isInstrumentAudible(instrument: InstrumentState, allInstruments: InstrumentState[]): boolean {
   if (instrument.muted) return false;
-  
+
   const anySolo = allInstruments.some(i => i.solo);
   if (anySolo && !instrument.solo) return false;
-  
+
   return true;
 }

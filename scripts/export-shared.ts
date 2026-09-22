@@ -17,41 +17,12 @@ import { fileURLToPath } from 'node:url';
 import { MUSICAL_STYLES, getSlotsPerBar, generateBarPattern, type StylePattern } from '../src/lib/styles';
 import { CHORD_QUALITIES, chordToMidiNotes, type ChordQuality } from '../src/lib/musicTheory';
 import { getScale } from '../src/lib/bassScale';
-import { INSTRUMENTS } from '../src/lib/instruments';
+import { INSTRUMENTS, LEGACY_SOUND_IDS } from '../src/lib/instruments';
 import { SONG_SCHEMA_VERSION } from '../src/lib/songs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'shared');
 const CATALOG = join(ROOT, 'catalog');
 
-/**
- * How each web sound is played by the app until it has the web's own samples (phase 4):
- * a SoundFont program (timbre 13) or one of its synth timbres, and for drums a kit index
- * into drumKits in the app's constants.dart. The one place this mapping lives.
- */
-const APP_SOUND: Record<string, Record<string, { timbre?: number; program?: number; kit?: number }>> = {
-  piano: {
-    sampled: { timbre: 13, program: 0 }, acoustic: { timbre: 13, program: 0 }, bright: { timbre: 13, program: 1 },
-    electric: { timbre: 13, program: 4 }, soft: { timbre: 13, program: 0 }, upright: { timbre: 13, program: 0 },
-    honkytonk: { timbre: 13, program: 3 },
-  },
-  bass: {
-    fender: { timbre: 13, program: 34 }, finger: { timbre: 13, program: 33 }, slap: { timbre: 13, program: 36 },
-    muted: { timbre: 13, program: 33 }, synth: { timbre: 12 }, sub: { timbre: 10 },
-    electric: { timbre: 12 }, picked: { timbre: 13, program: 34 },
-  },
-  guitar: {
-    acoustic: { timbre: 13, program: 25 }, electric: { timbre: 13, program: 27 }, nylon: { timbre: 13, program: 24 },
-    'sf2-steel': { timbre: 13, program: 25 }, 'sf2-nylon': { timbre: 13, program: 24 }, 'sf2-clean': { timbre: 13, program: 27 },
-    'sf2-jazz': { timbre: 13, program: 26 }, 'sf2-muted': { timbre: 13, program: 28 }, 'sf2-distortion': { timbre: 13, program: 30 },
-    'sf2-overdrive': { timbre: 13, program: 29 }, 'sf2-harmonics': { timbre: 13, program: 31 },
-  },
-  drums: {
-    // 9 is the app's "Web" kit: the web's own acoustic recordings (export-drums-for-app.mjs).
-    standard: { kit: 9 }, analog: { kit: 0 }, punch: { kit: 1 }, lofi: { kit: 0 },
-    // Removed kits still saved in some songs; the web plays them through its fallback.
-    rock: { kit: 9 }, jazz: { kit: 9 }, electronic: { kit: 4 },
-  },
-};
 
 /**
  * Ids that resolve to another id. The web's silent fallbacks (an unknown style plays as
@@ -110,6 +81,9 @@ function main() {
     }),
   );
 
+  // The shared sound list (docs/sonidos-comunes.md §7e): a SoundFont program or one of the
+  // app's synthesised timbres, a kit for drums, the window it plays in and the gain that puts
+  // it at the level of the rest. `legacy` is what an id saved before the list plays as.
   const sounds = Object.fromEntries(
     INSTRUMENTS.map((inst) => [
       inst.id,
@@ -118,15 +92,14 @@ function main() {
         sounds: inst.soundTypes.map((t) => ({
           id: t.id,
           name: t.name,
-          source: t.sf2Instrument ? 'soundfont' : t.samplePath || t.useSamples ? 'samples' : 'synth',
-          ...(t.samplePath ? { samplePath: t.samplePath } : {}),
-          ...(t.sf2Instrument ? { sf2Instrument: t.sf2Instrument } : {}),
+          ...(t.program !== undefined ? { program: t.program } : {}),
+          ...(t.timbre !== undefined ? { timbre: t.timbre } : {}),
+          ...(t.kit !== undefined ? { kit: t.kit } : {}),
           octaveOffset: t.octaveOffset,
-          app: APP_SOUND[inst.id]?.[t.id] ?? null,
+          ...(t.gainDb !== undefined ? { gainDb: t.gainDb } : {}),
+          ...(t.recorded ? { recorded: true } : {}),
         })),
-        legacy: Object.fromEntries(
-          Object.entries(APP_SOUND[inst.id] ?? {}).filter(([id]) => !inst.soundTypes.some((t) => t.id === id)),
-        ),
+        legacy: LEGACY_SOUND_IDS[inst.id] ?? {},
       },
     ]),
   );

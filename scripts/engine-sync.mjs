@@ -29,14 +29,16 @@ const wasiSdk = process.env.WASI_SDK
   || path.join(process.env.LOCALAPPDATA || '', 'wasi-sdk-25.0-x86_64-windows');
 
 /**
- * General MIDI programs (bank 0) the web ships: every program a web sound plays through
- * (shared/catalog/sounds.json, its `app` field), so any song made on the web has its sounds.
+ * General MIDI programs (bank 0) the web ships: every program the shared sound list names
+ * (shared/catalog/sounds.json, docs/sonidos-comunes.md §7e), so every sound it offers plays.
+ * The web's own recordings are not in there — they are written in afterwards, at programs
+ * from RECORDED_FIRST up (build-recordings.mjs).
  */
 const catalog = JSON.parse(fs.readFileSync(path.join(root, 'shared/catalog/sounds.json'), 'utf8'));
-const PROGRAMS = [...new Set(['piano', 'guitar', 'bass'].flatMap((track) => [
-  ...(catalog[track]?.sounds ?? []).map((sound) => sound.app?.program),
-  ...Object.values(catalog[track]?.legacy ?? {}).map((app) => app?.program),
-]).filter((program) => Number.isInteger(program)))].sort((a, b) => a - b);
+const RECORDED_FIRST = 100;
+const PROGRAMS = [...new Set(['piano', 'guitar', 'bass'].flatMap((track) =>
+  (catalog[track]?.sounds ?? []).map((sound) => sound.program),
+).filter((program) => Number.isInteger(program) && program < RECORDED_FIRST))].sort((a, b) => a - b);
 /**
  * The longest a web note takes to die away once let go, in seconds. The app's SoundFont lets
  * go slowly (its grand piano 1.5-8.6 s, clean guitar 0.8, pick bass 0.5); the web's own
@@ -91,11 +93,13 @@ const imports = WebAssembly.Module.imports(new WebAssembly.Module(fs.readFileSyn
 const unexpected = imports.filter((i) => !ALLOWED_IMPORTS.has(i));
 if (unexpected.length) fail(`engine.wasm imports ${unexpected.join(', ')}, which public/engine/processor.js and export-worker.js do not provide`);
 
-// 3. Sounds.
+// 3. Sounds: the SoundFont's programs, and then the web's own recordings written into the
+// same file (one font is all the engine loads).
 execFileSync(process.execPath, [
   path.join(root, 'scripts/sf2-subset.mjs'), path.join(app, 'assets/sf2/GeneralUser.sf2'),
   path.join(out, 'sounds.sf2'), PROGRAMS.join(','), String(RELEASE_SECONDS),
 ], { stdio: 'inherit' });
+execFileSync(process.execPath, [path.join(root, 'scripts/build-recordings.mjs'), path.join(out, 'sounds.sf2')], { stdio: 'inherit' });
 // The kit: which recording sits in which of the engine's sample slots, and how loud. Read
 // from the app's Dart, where the app's own loader reads it (audio_engine.dart), so the two
 // can never load the same slot with different sounds or levels.

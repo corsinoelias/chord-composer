@@ -11,7 +11,7 @@
  * a real piano would.
  */
 import { type Chord } from '../musicTheory';
-import soundCatalog from '../../../shared/catalog/sounds.json';
+import { getSoundType } from '../instruments';
 import { DRUM_ROWS, SAMPLED_FIRST, type DrumRow, type EngineCommand } from './commands';
 import { engineChord } from './fromSong';
 import { type AppEngine } from './host';
@@ -109,15 +109,12 @@ export function previewNote(midi: number, volume = 0.5): void {
   }).catch(() => {});
 }
 
-type CatalogDrums = { sounds: { id: string; app?: { kit?: number } }[]; legacy?: Record<string, { kit?: number }> };
-const drumCatalog = (soundCatalog as unknown as { drums: CatalogDrums }).drums;
-
 /** One piece of the kit, on the kit a drum sound maps to: a cell of the rhythm grid. */
-export function previewDrumHit(drumType: string, soundTypeId = 'standard', volume = 0.8): void {
+export function previewDrumHit(drumType: string, soundTypeId = 'acoustic2', volume = 0.8): void {
   const row = (ROW_OF[drumType] ?? drumType) as DrumRow;
   if (!DRUM_ROWS.includes(row)) return;
   ready().then(async (e) => {
-    const kit = drumCatalog.sounds.find((s) => s.id === soundTypeId)?.app?.kit ?? drumCatalog.legacy?.[soundTypeId]?.kit ?? DEFAULT_KIT;
+    const kit = getSoundType('drums', soundTypeId)?.kit ?? DEFAULT_KIT;
     await setKit(e, e.kits[kit] ? kit : DEFAULT_KIT);
     if (e.ctx.state !== 'running') void e.ctx.resume();
     const mix: EngineCommand[] = e.state?.playing ? [] : [['mixer', 'drums', Math.max(0, Math.min(1, volume)), false]];

@@ -275,10 +275,10 @@
     "drums": 1
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "acoustic"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "steel"
    },
    "slotsPerBar": 16,
    "rendered": {
@@ -874,10 +874,10 @@
     "drums": 1
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "acoustic"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "steel"
    },
    "slotsPerBar": 16,
    "rendered": {
@@ -1384,10 +1384,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "acoustic"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "steel"
    },
    "slotsPerBar": 16,
    "rendered": {
@@ -1844,10 +1844,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "acoustic"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "steel"
    },
    "melodic": {
     "bass": {
@@ -2347,10 +2347,10 @@
     "guitar": 1
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "sf2-muted"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "muted"
    },
    "melodic": {
     "bass": {
@@ -2934,10 +2934,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "synth",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "electric"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "clean"
    },
    "slotsPerBar": 16,
    "rendered": {
@@ -3426,10 +3426,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "synth",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "electric"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "clean"
    },
    "slotsPerBar": 16,
    "rendered": {
@@ -3918,10 +3918,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "synth",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "electric"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "clean"
    },
    "slotsPerBar": 16,
    "rendered": {
@@ -4411,10 +4411,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "electric"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "clean"
    },
    "melodic": {
     "bass": {
@@ -4961,9 +4961,9 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
     "guitar": "nylon"
    },
    "melodic": {
@@ -6298,10 +6298,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "synth",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "electric"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "clean"
    },
    "slotsPerBar": 16,
    "rendered": {
@@ -6826,10 +6826,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "synth",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "electric"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "clean"
    },
    "slotsPerBar": 16,
    "rendered": {
@@ -7318,10 +7318,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "acoustic"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "steel"
    },
    "slotsPerBar": 16,
    "rendered": {
@@ -7775,10 +7775,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "acoustic"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "steel"
    },
    "slotsPerBar": 16,
    "rendered": {
@@ -8232,10 +8232,10 @@
     "guitar": 1
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "electric"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "clean"
    },
    "melodic": {
     "bass": {
@@ -8952,10 +8952,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "acoustic"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "steel"
    },
    "slotsPerBar": 16,
    "rendered": {
@@ -9445,9 +9445,9 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
     "guitar": "nylon"
    },
    "melodic": {
@@ -10084,10 +10084,10 @@
     "drums": 0.75
    },
    "instrumentSounds": {
-    "piano": "sampled",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "electric"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "clean"
    },
    "melodic": {
     "bass": {
@@ -10980,10 +10980,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "synth",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "electric"
+    "piano": "grand",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "clean"
    },
    "melodic": {
     "bass": {
@@ -11530,10 +11530,10 @@
     "guitar": 0.7
    },
    "instrumentSounds": {
-    "piano": "electric",
-    "bass": "fender",
-    "drums": "standard",
-    "guitar": "electric"
+    "piano": "epiano",
+    "bass": "pick",
+    "drums": "acoustic2",
+    "guitar": "clean"
    },
    "melodic": {
     "bass": {

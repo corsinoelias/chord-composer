@@ -505,7 +505,7 @@ export function RhythmEditor({
   // Audible feedback: fire the instrument's own sound so the user hears what they placed.
   const previewInstrument = (instrument: InstrumentKey, velocity: number) => {
     if (velocity <= 0 || !DRUM_INSTRUMENT_KEYS.includes(instrument)) return;
-    const soundId = editedStyleRef.current.instrumentSounds?.drums ?? 'standard';
+    const soundId = editedStyleRef.current.instrumentSounds?.drums ?? 'acoustic2';
     const drumsVol = editedStyleRef.current.volumes?.drums ?? 0.8;
     previewDrumHit(instrument, soundId, Math.min(1, velocity) * drumsVol);
   };

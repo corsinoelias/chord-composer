@@ -182,32 +182,6 @@ los aplica: medidos después, todos caen en −36,8 dB salvo el slap de la web, 
 queda 2,9 dB por debajo. La misma tabla debería ir al catálogo compartido, como la app ya hace con la
 batería (`drum_gains.dart`).
 
-## 7f. Mezcla por defecto: la de la escucha (2026-09-22)
-
-Último punto de §7, decidido de oído en `/lab/sounds/`: **manda la tabla de ganancias de §7d**. Cada
-sonido entra a la mezcla con la ganancia que lo lleva a la mediana, no con un recorte fijo por pista.
-Sustituye a `MIX_TRIM` de `fromSong.ts` (batería 0,6 · piano 1 · guitarra 1,66 · bajo 0,46), que eran
-tres arreglos a ojo para tapar que la guitarra no se oía y el bajo se comía la mezcla; con una ganancia
-por sonido el problema no existe.
-
-El volumen de cada pista pasa a ser `volumen del usuario × volumen del ritmo × margen × ganancia del
-sonido`, con el margen (−6 dB, como el `BASE_LEVEL` de la escucha) para que un sonido con +6 dB quepa
-sin recortarse: un fader del motor se detiene en 1. La batería no lleva ganancia propia —ya viene
-igualada grabación a grabación (`drum_gains.dart`)— así que queda al mismo nivel que los demás, que es
-como suena en la escucha.
-
-## 8. Cómo se haría (cuando decidas)
-
-1. **Catálogo único:** `shared/catalog/sounds.json` pasa a ser la lista (id, nombre, programa o
-   kit, registro) y `styles.json` los ritmos, con la mezcla por defecto. Ya se exporta desde la
-   web y la app lo lee en su rama de paridad (el stash del 2026-09-18).
-2. **Web:** `instruments.ts` y los selectores leen del catálogo; los ids viejos (`sf2-steel`,
-   `acoustic`…) se traducen al nuevo al abrir una canción, sin perder nada. `engine:sync` recorta
-   el SoundFont con la lista nueva.
-3. **App:** `timbreOptions`, `drumKits` y `stylePresets` salen del mismo catálogo.
-4. **Canciones guardadas:** las que usen un sonido retirado pasan al más parecido de la lista
-   (p. ej. Honky-Tonk → Bright, Distortion → Overdrive, kit Synth → Electronic).
-
 ## 7e. Lista final (2026-09-22, escuchada)
 
 Decidida con `/lab/sounds/`, con todos los sonidos al mismo nivel. **37 sonidos y 7 kits.**
@@ -217,8 +191,8 @@ La columna «nivel» es la ganancia medida de §7d, que va con el sonido al cat�
 
 | Nombre | Origen | id propuesto | Nivel |
 |---|---|---|---|
-| Piano | SoundFont 0 | `piano` | +1,6 dB |
-| Piano eléctrico | SoundFont 4 | `e-piano` | −1,9 dB |
+| Piano | SoundFont 0 | `grand` | +1,6 dB |
+| Piano eléctrico | SoundFont 4 | `epiano` | −1,9 dB |
 | Rhodes | SoundFont 5 | `rhodes` | −1,1 dB |
 | Órgano | SoundFont 16 | `organ` | −3,1 dB |
 | Honky-Tonk | SoundFont 3 | `honkytonk` | +1,2 dB |
@@ -273,12 +247,12 @@ lleva el nombre a secas y la grabación el sufijo «(grabada)». Esto cambia la 
 SoundFont en los duplicados»): la grabación es lo que suena hoy en las canciones guardadas de la web,
 así que conservarla es además no cambiarlas de sonido.
 
-**Peso de la primera carga: 18,7 MB** (hoy 6,3 MB), en dos descargas que el navegador guarda en caché:
-
-- SoundFont recortado a los 19 programas de la lista: **9,16 MB** (release 0,12 s). Sin Honky-Tonk,
-  cuerdas y pad serían 6,61 MB, pero los tres entraron en la escucha.
-- Grabaciones convertidas a SoundFont a 24 kHz y 2 s (lo elegido en §7c): 104 muestras, **9,5 MB**
-  (acústica 29, eléctrica 17, nylon 28, fender 15, slap 15).
+**Peso: un SoundFont de 19,45 MB** (antes 6,3 MB), una sola descarga que el navegador guarda en
+caché: los 19 programas de la lista ocupan 9,16 MB (release 0,12 s) y las grabaciones, convertidas a
+24 kHz y 2 s (lo elegido en §7c), 10,3 MB — 104 muestras: acústica 29, eléctrica 17, nylon 28,
+fender 15, slap 15. Van en el mismo archivo porque el motor carga un solo SoundFont
+(`scripts/build-recordings.mjs`, parte de `npm run engine:sync`), en programas 100-104, que General
+MIDI no usa.
 
 **Por defecto (elegidos de oído, 2026-09-22):** piano → **Piano**, guitarra → **Acústica**
 (la del SoundFont), bajo → **Dedos**, batería → **Acoustic 2**. No son los de hoy en la web
@@ -286,9 +260,53 @@ así que conservarla es además no cambiarlas de sonido.
 sonará distinta: es lo que ya se decidió el 2026-09-21 al hacer del motor y los sonidos de la app
 la referencia.
 
-**Traducción de las canciones guardadas** (web → lista nueva): `sampled`/`acoustic`/`soft`/`upright`/
-`bright` → `piano`; `electric` (piano) → `e-piano`; `honkytonk` → `honkytonk`; `synth` (piano) →
-`pad-syn`; guitarra `acoustic`/`electric`/`nylon` → `steel-rec`/`clean-rec`/`nylon-rec`; `sf2-*` → su
-programa; `sf2-harmonics` → `overdrive`; bajo `fender` → `fender-rec`, `slap` → `slap-rec`, `finger` →
-`finger`, `muted` → `finger`, `sub` → `reese`, `synth` → `square`; kits `standard` → Acoustic,
-`analog`/`lofi` → Acoustic 2, `punch` → Electronic.
+**Traducción de las canciones guardadas** (`LEGACY_SOUND_IDS` en `instruments.ts`, aplicada al abrir
+una canción de esquema anterior al 6): `sampled`/`acoustic`/`soft`/`upright`/`bright` → `grand`;
+`electric` (piano) → `epiano`; `synth` (piano) → `grand`, que es lo que sonaba (seis ritmos lo
+nombraban y no existía); guitarra `acoustic`/`electric`/`nylon` → las grabadas; `sf2-*` → su
+programa; `sf2-harmonics` → `overdrive`; bajo `fender` → `fender-rec`, `slap` → `slap-rec`,
+`muted` → `finger`, `sub` → `reese`, `synth` → `square`; kits `standard`/`analog`/`lofi` →
+Acoustic 2, `punch` → Electronic.
+
+Los **ritmos** (`instrumentSounds` en `styles.ts`) pasan a los del SoundFont —`grand`, `steel`,
+`clean`, `nylon`, `pick`, `acoustic2`—, que es lo que ya sonaba desde que el motor de la app es el
+único (2026-09-22): las grabaciones quedan como una opción más, no como el sonido de un ritmo.
+
+## 7f. Mezcla por defecto: cada sonido al nivel del suyo (2026-09-22)
+
+Último punto de §7, decidido de oído en `/lab/sounds/`, donde cada sonido suena solo y al mismo
+nivel. Eso es lo que se lleva a la mezcla: **la tabla de ganancias de §7d iguala un sonido con otro
+dentro de su pista**, tomando como referencia el sonido por defecto de la pista. Cambiar de sonido
+cambia el timbre, no el volumen.
+
+El **equilibrio entre las cuatro pistas se queda como estaba** (batería 0,6 · piano 1 · guitarra
+1,66 · bajo 0,46 en `fromSong.ts`), porque eso ya se ajustó de oído el 2026-09-22 —la guitarra
+subió 6 dB cuando «apenas se escuchaba»— y la escucha de sonidos no dice nada de él: allí nunca
+suenan dos pistas a la vez. Se probó lo contrario (quitar los recortes y dejar solo la ganancia por
+sonido) y, medido con el reproductor de verdad, el bajo quedaba 5 dB por encima del piano y la
+batería 8: la mezcla se daba la vuelta.
+
+Queda entonces: `volumen del usuario × volumen del ritmo × recorte de la pista × ganancia del sonido
+frente al de referencia`. Medido después en el reproductor (pop_1, una pista cada vez), los diez
+teclados caen dentro de 4 dB entre ellos y las once guitarras dentro de 2,5 —salvo Apagada y Pluck,
+que la medida ya daba 6 dB por debajo del resto y el tope de ±6 dB no alcanza a subir.
+
+## 8. Llevado al código (2026-09-22)
+
+1. **La lista es `src/lib/instruments.ts`**: id, nombre, programa del SoundFont (o timbre
+   sintetizado, o kit), registro y ganancia. `npm run shared:export` la escribe en
+   `shared/catalog/sounds.json` para la app; `fromSong.ts` y `preview.ts` leen de ella, no del JSON.
+2. **El SoundFont** lo corta `npm run engine:sync` con los programas de la lista y
+   `scripts/build-recordings.mjs` le añade las cinco grabaciones (Chromium sin ventana decodifica
+   los mp3; Node no sabe). 19,45 MB.
+3. **Canciones guardadas:** esquema 6, `migrateLegacySong` traduce los ids al abrirlas.
+4. **Mezcla:** §7f.
+
+**Falta:**
+
+- **La app.** Su lista (`timbreOptions`, `drumKits`) sigue siendo la suya, y su SoundFont no tiene
+  las cinco grabaciones: para que suene igual hay que darle el mismo archivo o quitar de la lista lo
+  grabado. También le faltan los ritmos de la web (§7b).
+- **Escuchar el reproductor entero** con la lista nueva: lo medido dice que ningún sonido quedó
+  mudo y que dentro de cada pista están al mismo nivel, pero el equilibrio final se juzga de oído.
+

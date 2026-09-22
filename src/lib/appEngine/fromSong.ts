@@ -5,14 +5,13 @@
  * a style, resolveSectionPlayback composes a section's own arrangement, resolveVariation
  * picks its melodic lines — and this writes the result in the engine's terms: a step grid
  * per section and track, chords spelled for it, sounds mapped to the app's programs and kits
- * through the shared catalog (shared/catalog/sounds.json).
+ * through the shared sound list (instruments.ts, exported to shared/catalog/sounds.json).
  *
  * Decided 2026-09-21 (option A): the app's engine and sounds are the reference. So where the
  * two differ in *how* they play — when fills fall, how loud a single chord tone is against a
  * block chord — the engine's way stands. What the song *is* (its chords, grooves, lines,
  * sounds, register and note lengths) comes across as the web wrote it.
  */
-import soundCatalog from '../../../shared/catalog/sounds.json';
 import { type Chord } from '../musicTheory';
 import { type Section, type TrackId } from '../sections';
 import {
@@ -22,7 +21,15 @@ import {
 } from '../styles';
 import { resolveSectionPlayback, type StyleLookup } from '../sectionPlayback';
 import { resolveVariation, type BassScaleData } from '../bassScale';
-import { getSoundType, isInstrumentAudible, type InstrumentState, type InstrumentType } from '../instruments';
+import {
+  getInstrumentConfig,
+  getSoundType,
+  isInstrumentAudible,
+  relativeSoundGain,
+  soundTimbre,
+  type InstrumentState,
+  type InstrumentType,
+} from '../instruments';
 import {
   DEGREE,
   DRUM_ROWS,
@@ -68,18 +75,15 @@ const WEB_DRUMS: [web: string, row: DrumRow][] = [
   ['hihatFoot', 'hihatFoot'], ['tom1', 'tom1'], ['tom2', 'tom2'], ['floorTom', 'floorTom'], ['ride', 'ride'], ['crash', 'crash'],
 ];
 /**
- * The web's balance between instruments, kept. The same song through both engines, one
- * instrument at a time (reggaeton, default sounds, 2026-09-22), came out on the app's at
+ * The balance between the four tracks, heard and kept (2026-09-22). The same song through both
+ * engines, one instrument at a time (reggaeton, default sounds), came out on the app's at
  * drums -0.5 dB, piano -4.5, guitar -2.9 and bass +2.3 against the web's: the guitar
- * disappeared under the kit. A fader stops at 1, so the loud ones come down to the piano
- * and the master makes up the difference (its default is 0.7).
- *
- * The guitar then goes 6 dB above that (2026-09-22, heard: "barely audible, not level with
- * the rest"). It sat about 10 dB under the piano on the web engine too, and the app's
- * guitars strike softer, so matching the web was matching a guitar nobody could hear. Now
- * it sits about 2 dB under the piano.
+ * disappeared under the kit. A fader stops at 1, so the loud ones come down to the piano and
+ * the master makes up the difference. The guitar then goes 6 dB above that ("barely audible,
+ * not level with the rest"): the app's guitars strike softer, so matching the web was matching
+ * a guitar nobody could hear.
  */
-const MIX_TRIM: Record<TrackId, number> = { drums: 0.6, piano: 1, guitar: 1.66, bass: 0.46 };
+const TRACK_TRIM: Record<TrackId, number> = { drums: 0.6, piano: 1, guitar: 1.66, bass: 0.46 };
 const MASTER = 1;
 const MELODIC: MelodicTrack[] = ['piano', 'guitar', 'bass'];
 const TRACKS: TrackId[] = ['drums', 'piano', 'guitar', 'bass'];
@@ -113,18 +117,7 @@ export interface EngineSong {
   notes: string[];
 }
 
-type SoundEntry = { id: string; octaveOffset?: number; app?: { timbre?: number; program?: number; kit?: number } };
-type CatalogTrack = { default: string; sounds: SoundEntry[]; legacy?: Record<string, SoundEntry['app']> };
-const catalog = soundCatalog as unknown as Record<InstrumentType, CatalogTrack>;
-
-function appSound(track: InstrumentType, id: string): SoundEntry['app'] | undefined {
-  const block = catalog[track];
-  return block.sounds.find((s) => s.id === id)?.app ?? block.legacy?.[id] ?? undefined;
-}
-
-function octaveOffsetOf(track: InstrumentType, id: string): number {
-  return getSoundType(track, id)?.octaveOffset ?? catalog[track].sounds.find((s) => s.id === id)?.octaveOffset ?? 0;
-}
+const defaultSound = (track: InstrumentType) => getInstrumentConfig(track)?.defaultSoundType ?? '';
 
 const LETTER: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 const mod12 = (n: number) => ((n % 12) + 12) % 12;
@@ -249,14 +242,14 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     // Sounds, register and silence.
     for (const track of TRACKS) {
       const setting = instruments.find((inst) => inst.id === track);
-      const soundId = playback?.sounds?.[track] ?? setting?.soundTypeId ?? catalog[track].default;
+      const soundId = playback?.sounds?.[track] ?? setting?.soundTypeId ?? defaultSound(track);
+      const sound = getSoundType(track, soundId);
+      if (!sound) notes.push(`${track} sound "${soundId}" is not in the list; it plays the default`);
       c.push(['setSilence', s, track, !!playback?.silenced?.[track]]);
       if (track === 'drums') {
-        const kitIndex = appSound('drums', soundId)?.kit ?? DEFAULT_KIT;
+        const kitIndex = sound?.kit ?? DEFAULT_KIT;
         const kit = kits[kitIndex] ?? kits[DEFAULT_KIT];
-        // The web's default kit ("standard") names a kit the app does not have; the app's own
-        // default is the same acoustic kit, so only other sounds are worth a note.
-        if (!kits[kitIndex] && soundId !== catalog.drums.default) notes.push(`drum sound "${soundId}" has no kit in the app; it plays ${kit?.name ?? 'the default kit'}`);
+        if (!kits[kitIndex]) notes.push(`drum kit "${soundId}" is not in the app; it plays ${kit?.name ?? 'the default kit'}`);
         for (const row of DRUM_ROWS) {
           const sound = kit?.rows[row];
           if (sound === undefined) continue;
@@ -265,20 +258,16 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
         }
         continue;
       }
-      const app = appSound(track, soundId) ?? appSound(track, catalog[track].default);
-      if (!appSound(track, soundId)) notes.push(`${track} sound "${soundId}" is not in the catalog; it plays the default`);
-      c.push(['setTimbre', s, track, app?.timbre ?? TIMBRE.sampled]);
-      if (app?.program !== undefined) c.push(['setProgram', s, track, app.program]);
+      const voice = sound ?? getSoundType(track, defaultSound(track));
+      c.push(['setTimbre', s, track, soundTimbre(voice)]);
+      if (voice?.program !== undefined) c.push(['setProgram', s, track, voice.program]);
       // The web writes every chord with its root in the octave from C4, then moves the
       // sound by its octaveOffset (a bass sits one to three octaves down). The engine puts
       // the root at the bottom of the track's window, so the window starts there.
       //
-      // Except that the web's recorded basses (public/audio/bass/*) sound an octave below
-      // the note their files are named for — "A2" is an A1, its partials at 110 and 165 Hz
-      // — so every sampled bass on the web has always played an octave under its MIDI note,
-      // and that is the bass people know. The app's basses are in tune, so they go down one.
-      const recordedBass = track === 'bass' && !!getSoundType('bass', soundId)?.useSamples;
-      const low = 60 + 12 * octaveOffsetOf(track, soundId) - (recordedBass ? 12 : 0);
+      // The web's recordings are written into the SoundFont at the pitch they really sound
+      // (their files are named an octave above it), so no sound needs a correction of its own.
+      const low = 60 + 12 * (voice?.octaveOffset ?? 0);
       c.push(['voicing', s, track, low, low + 23]);
     }
   });
@@ -289,7 +278,13 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   for (const track of TRACKS) {
     const setting = instruments.find((inst) => inst.id === track);
     const styleVolume = volumes[track] ?? (track === 'guitar' ? volumes.piano : undefined) ?? 1;
-    const volume = Math.max(0, Math.min(1, (setting?.volume ?? 1) * styleVolume * MIX_TRIM[track]));
+    // Then the sound itself: what it takes to be heard at the level of the track's own
+    // reference sound (docs/sonidos-comunes.md §7f, measured by npm run lab:gains), so
+    // changing sound changes the timbre and not the level. The engine has one fader per
+    // track, so a section that swaps the sound for itself keeps the mixer's.
+    const soundId = setting?.soundTypeId ?? defaultSound(track);
+    const level = (setting?.volume ?? 1) * styleVolume * TRACK_TRIM[track] * relativeSoundGain(track, soundId);
+    const volume = Math.max(0, Math.min(1, level));
     const audible = setting ? isInstrumentAudible(setting, instruments) : true;
     c.push(['mixer', track, volume, !audible]);
   }

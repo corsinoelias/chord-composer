@@ -306,7 +306,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'steel' },
   },
 
   // ============================================
@@ -342,7 +342,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'steel' },
   },
 
   // ============================================
@@ -371,7 +371,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'steel' },
   },
 
   // ============================================
@@ -418,7 +418,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.75, bass: 1.0, drums: 0.9, guitar: 0.7 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'steel' },
     melodic: {
       bass: {
         enabled: true,
@@ -491,7 +491,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 1.0 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'sf2-muted' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'muted' },
     melodic: {
       // bass/piano intentionally left without variations — RhythmEditor's
       // migrateRhythmToMelodic() regenerates a real "Default" variation from
@@ -552,7 +552,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'clean' },
   },
 
   // ============================================
@@ -582,7 +582,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'clean' },
   },
 
   // ============================================
@@ -623,7 +623,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'clean' },
   },
 
   // ============================================
@@ -665,7 +665,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'clean' },
     melodic: {
       bass: {
         enabled: true,
@@ -726,7 +726,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'nylon' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'nylon' },
     melodic: {
       bass: {
         enabled: true,
@@ -899,7 +899,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'clean' },
   },
 
   // ============================================
@@ -930,7 +930,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'clean' },
   },
 
   // ============================================
@@ -964,7 +964,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'steel' },
   },
 
 
@@ -997,7 +997,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'steel' },
   },
 
   // ============================================
@@ -1029,7 +1029,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 1.0 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'clean' },
     melodic: {
       bass: {
         variations: [{
@@ -1106,7 +1106,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'acoustic' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'steel' },
   },
   // ============================================
   // 21. JAZZ SWING (Medium Swing) - 130 BPM
@@ -1147,7 +1147,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'nylon' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'nylon' },
     melodic: {
       bass: {
         enabled: true,
@@ -1200,7 +1200,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 1, bass: 1, drums: 0.75 },
-    instrumentSounds: { piano: 'sampled', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'clean' },
     melodic: {
       bass: {
         enabled: true,
@@ -1305,7 +1305,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'synth', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'clean' },
     melodic: {
       bass: {
         enabled: true,
@@ -1360,7 +1360,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 0.7 },
-    instrumentSounds: { piano: 'electric', bass: 'fender', drums: 'standard', guitar: 'electric' },
+    instrumentSounds: { piano: 'epiano', bass: 'pick', drums: 'acoustic2', guitar: 'clean' },
     melodic: {
       bass: {
         enabled: true,

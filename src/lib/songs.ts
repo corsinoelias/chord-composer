@@ -5,7 +5,7 @@
  */
 
 import type { Section } from './sections';
-import type { InstrumentState } from './instruments';
+import { migrateSoundId, type InstrumentState, type InstrumentType } from './instruments';
 import type { MelodicData, DegreePattern } from './bassScale';
 import { type NoteLengths } from './noteLengths';
 
@@ -17,7 +17,7 @@ import { type NoteLengths } from './noteLengths';
  * version opens the song read-only and never writes it back; everything else it does not
  * know is carried through untouched (see unknownSongFields).
  */
-export const SONG_SCHEMA_VERSION = 5;
+export const SONG_SCHEMA_VERSION = 6;
 
 export interface Song {
   /** Absent in every song saved before the app could open them: reads as 4. */
@@ -164,6 +164,28 @@ export function migrateLegacySong(raw: unknown): Song {
       guitar: { variations: [], enabled: false },
     };
     r.melodic = melodic;
+  }
+
+  // v5 → v6: the shared sound list (docs/sonidos-comunes.md §7e). Ids saved before it are
+  // read by version, not by whether they still exist: `slap` was the web's own recording and
+  // is now the SoundFont's, so a song that says `slap` means the recording.
+  if ((r.schemaVersion as number | undefined ?? 4) < 6) {
+    const settings = r.instrumentSettings as InstrumentState[] | undefined;
+    if (Array.isArray(settings)) {
+      r.instrumentSettings = settings.map((inst) => (
+        inst?.id && inst.soundTypeId ? { ...inst, soundTypeId: migrateSoundId(inst.id, inst.soundTypeId) } : inst
+      ));
+    }
+    const sections = r.sections as Section[] | undefined;
+    if (Array.isArray(sections)) {
+      for (const section of sections) {
+        if (!section?.sounds) continue;
+        section.sounds = Object.fromEntries(
+          Object.entries(section.sounds).map(([track, id]) => [track, migrateSoundId(track as InstrumentType, id as string)]),
+        );
+      }
+    }
+    r.schemaVersion = SONG_SCHEMA_VERSION;
   }
 
   return r as unknown as Song;

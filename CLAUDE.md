@@ -12,7 +12,7 @@ npm run check:schema  # Fails if any page has a banned JSON-LD @type (see note b
 npm run lint          # ESLint
 npx tsc --noEmit      # TypeScript-only type check (faster for catching errors)
 npm run seed          # Seed songs to Supabase (requires .env)
-npm run engine:sync   # Copy the Android app's audio engine into engine/vendor/ and build public/engine/ (needs wasi-sdk)
+npm run engine:sync   # Copy the Android app's audio engine into engine/vendor/ and build public/engine/ (needs wasi-sdk + Chromium for the recordings)
 npm run check:engine  # Fails if engine/ or public/engine/ differ from engine/source.json; wired into netlify.toml's build
 
 # Search Console (impressions, average position, CTR -- the half GA4 cannot see)
@@ -68,6 +68,19 @@ per-channel strips and reverb send) and `fromSong.ts` (song → commands). The s
 only (`#define private public`) — the app's file stays untouched. The engine lives on `window` so a
 dev-server hot swap of the module cannot leave a second one playing. `public/audio/` samples stay:
 the bass/guitar tab players, tuner, virtual piano and drums still use them.
+
+**The sound list** (`docs/sonidos-comunes.md` §7e-§7f) is `src/lib/instruments.ts` — 37 sounds and 7
+kits, chosen by ear in `/lab/sounds/` on 2026-09-22, each with its SoundFont program (or synth
+timbre, or kit), its window and the gain that levels it (`npm run lab:gains`). `fromSong.ts` and
+`preview.ts` read it directly; `npm run shared:export` writes it to `shared/catalog/sounds.json` for
+the app. `engine:sync` cuts the SoundFont to exactly its programs and `scripts/build-recordings.mjs`
+appends the web's own five recordings (three guitars, two basses) to the same file at programs
+100-104 — the engine loads one font — decoding the mp3s in a headless Chromium at 24 kHz, 2 s. It
+comes to 19.45 MB. The ids changed with the list (`sampled` → `grand`, `sf2-steel` → `steel`,
+`fender` → `fender-rec`…): saved songs are translated on load by `LEGACY_SOUND_IDS` /
+`migrateLegacySong` (song schema 6), so never reuse an old id for a different sound. The mix is the
+per-track balance set by ear (`TRACK_TRIM` in `fromSong.ts`) times each sound's gain **relative to
+its track's default sound**, so changing sound changes the timbre and not the level.
 
 **Never add FAQPage or HowTo schema.** Google restricted FAQ rich results to government/health
 sites in Aug 2023 — this site doesn't qualify. HowTo was deprecated entirely in Sept 2023.
