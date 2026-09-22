@@ -1,6 +1,6 @@
 # Estudio: un solo catálogo de sonidos para la app y la web
 
-Escrito el 2026-09-22. Estado: **decididos el clic, los platos, los ritmos y el paneo (§7b); falta la lista de sonidos, pad/cuerdas y la mezcla.** Datos sacados del código de los
+Escrito el 2026-09-22. Estado: **la lista está cerrada y escuchada (§7e); decididos también el clic, los platos, los ritmos y el paneo (§7b). Queda la mezcla por defecto.** Datos sacados del código de los
 dos repos ese día (`chord_sequencer` en `165d929`, la web en `534a83d`+).
 
 Objetivo: que la app y la web tengan **los mismos sonidos, ganancias, volúmenes y ritmos**, y
@@ -20,7 +20,8 @@ que solo queden los más profesionales.
   kits sintetizados…) y huecos (la web no tiene Rhodes, órgano, contrabajo ni fretless; la app
   no tiene los que la web usa por nombre). Propuesta: **6 pianos/teclados, 6 guitarras, 6 bajos
   y 7 kits grabados**, todos del SoundFont o grabados; el SoundFont de la web **baja** de 6,29 MB
-  a 5,82 MB.
+  a 5,82 MB. *(La escucha amplió esa propuesta: la lista final de §7e son 10 teclados, 11
+  guitarras, 9 bajos y 7 kits, 18,7 MB en la primera carga.)*
 - **Mezcla:** la misma canción suena con otro equilibrio en cada lado (la web con el bajo a la
   mitad que la app, sin paneo). Propuesta: una sola tabla de mezcla por defecto, la de la app.
 - **Ritmos:** la web tiene 20, la app 17; 12 se llaman igual y al menos uno de esos
@@ -28,7 +29,7 @@ que solo queden los más profesionales.
   existe y que la app ya sabe leer en su rama de paridad), y decidir ritmo a ritmo **escuchando**.
 - **Clic:** la web usa el cencerro y la app la baqueta. Uno de los dos.
 
-Lo que sigue son las tablas y, al final (§7), lo que te toca decidir.
+Lo que sigue son las tablas; lo decidido está en §7b y la lista final, escuchada, en §7e.
 
 ---
 
@@ -138,16 +139,12 @@ Solo he comparado nota a nota el Reggaeton; los demás pares hay que escucharlos
 
 ## 7. Lo que te toca decidir
 
-1. **La lista de sonidos de §2-§5.** La tabla propone por criterio técnico (grabado frente a
-   sintetizado, duplicados, peso); «el más profesional» se decide escuchando. Propongo añadir al
-   laboratorio (`/lab/app-engine/`) una página de escucha: cada candidato tocando el mismo
-   fragmento, uno detrás de otro, para marcar sí/no.
-2. **Pad/cuerdas:** entra (+2,3 MB, cargado solo si una canción lo usa) o no.
-3. **Clic:** cencerro o baqueta, en los dos.
-4. **Recortes de platos de la web:** dentro de los patrones o fuera.
-5. **Mezcla por defecto:** la de la app para los dos (con paneo), u otra.
-6. **Ritmos:** para cada par de §6, qué versión gana, y qué hacer con los que solo tiene un lado
-   (pasarlos al otro o quitarlos).
+1. ~~**La lista de sonidos de §2-§5.**~~ Escuchada y cerrada en §7e.
+2. ~~**Pad/cuerdas:**~~ entran (§7e).
+3. ~~**Clic:**~~ el cencerro en los dos (§7b).
+4. ~~**Recortes de platos de la web:**~~ fuera (§7b).
+5. **Mezcla por defecto:** la de la app para los dos (con paneo), u otra. **Sin decidir.**
+6. ~~**Ritmos:**~~ ganan los de la web (§7b); falta pasarlos a la app.
 
 ## 7b. Decidido (2026-09-22)
 
@@ -195,3 +192,85 @@ batería (`drum_gains.dart`).
 3. **App:** `timbreOptions`, `drumKits` y `stylePresets` salen del mismo catálogo.
 4. **Canciones guardadas:** las que usen un sonido retirado pasan al más parecido de la lista
    (p. ej. Honky-Tonk → Bright, Distortion → Overdrive, kit Synth → Electronic).
+
+## 7e. Lista final (2026-09-22, escuchada)
+
+Decidida con `/lab/sounds/`, con todos los sonidos al mismo nivel. **37 sonidos y 7 kits.**
+La columna «nivel» es la ganancia medida de §7d, que va con el sonido al catálogo.
+
+**Piano y teclados** (10)
+
+| Nombre | Origen | id propuesto | Nivel |
+|---|---|---|---|
+| Piano | SoundFont 0 | `piano` | +1,6 dB |
+| Piano eléctrico | SoundFont 4 | `e-piano` | −1,9 dB |
+| Rhodes | SoundFont 5 | `rhodes` | −1,1 dB |
+| Órgano | SoundFont 16 | `organ` | −3,1 dB |
+| Honky-Tonk | SoundFont 3 | `honkytonk` | +1,2 dB |
+| Cuerdas | SoundFont 48 | `strings` | −1,4 dB |
+| Pad cálido | SoundFont 89 | `pad` | +2,9 dB |
+| Órgano (sint.) | sintetizado | `organ-syn` | −6 dB |
+| Pad (sint.) | sintetizado | `pad-syn` | −6 dB |
+| FM | sintetizado | `fm` | +6 dB |
+
+Fuera: Bright Piano (casi igual al Piano) y el piano grabado de la web.
+
+**Guitarra** (11)
+
+| Nombre | Origen | id propuesto | Nivel |
+|---|---|---|---|
+| Acústica | SoundFont 25 | `steel` | +4,9 dB |
+| Nylon | SoundFont 24 | `nylon` | +1 dB |
+| Eléctrica limpia | SoundFont 27 | `clean` | +4,6 dB |
+| Jazz | SoundFont 26 | `jazz` | +1,2 dB |
+| Apagada | SoundFont 28 | `muted` | +6 dB |
+| Overdrive | SoundFont 29 | `overdrive` | −0,4 dB |
+| Distorsión | SoundFont 30 | `distortion` | −3,9 dB |
+| Pluck | sintetizado | `pluck` | +6 dB |
+| Acústica (grabada) | grabaciones de la web | `steel-rec` | +3 dB |
+| Eléctrica (grabada) | grabaciones de la web | `clean-rec` | +3 dB |
+| Nylon (grabada) | grabaciones de la web | `nylon-rec` | +1,7 dB |
+
+Fuera: Harmonics, Overdrive sint., Muted sint., Saw.
+
+**Bajo** (9)
+
+| Nombre | Origen | id propuesto | Nivel |
+|---|---|---|---|
+| Dedos | SoundFont 33 | `finger` | −5,1 dB |
+| Púa | SoundFont 34 | `pick` | −3,5 dB |
+| Slap | SoundFont 36 | `slap` | −1,2 dB |
+| Contrabajo | SoundFont 32 | `upright` | −2,3 dB |
+| Fretless | SoundFont 35 | `fretless` | −4,1 dB |
+| Reese | sintetizado | `reese` | −2,9 dB |
+| Square | sintetizado | `square` | −3 dB |
+| Fender (grabado) | grabaciones de la web | `fender-rec` | 0 dB |
+| Slap (grabado) | grabaciones de la web | `slap-rec` | +6 dB (le faltan 4,7) |
+
+Fuera: Sub, y las grabaciones Finger y Muted de la web.
+
+**Batería** (7): Acoustic (por defecto), Acoustic 2, Electronic, AP1, Brutalist, Chase, Run It.
+Fuera: Synth y 808 sintetizados.
+
+**Duplicados: entran los dos, con nombre distinto.** Cinco sonidos existen en las dos versiones y las
+dos pasaron la escucha (acústica, eléctrica y nylon de guitarra; púa y slap de bajo). El SoundFont
+lleva el nombre a secas y la grabación el sufijo «(grabada)». Esto cambia la regla de §7b («ganaba el
+SoundFont en los duplicados»): la grabación es lo que suena hoy en las canciones guardadas de la web,
+así que conservarla es además no cambiarlas de sonido.
+
+**Peso de la primera carga: 18,7 MB** (hoy 6,3 MB), en dos descargas que el navegador guarda en caché:
+
+- SoundFont recortado a los 19 programas de la lista: **9,16 MB** (release 0,12 s). Sin Honky-Tonk,
+  cuerdas y pad serían 6,61 MB, pero los tres entraron en la escucha.
+- Grabaciones convertidas a SoundFont a 24 kHz y 2 s (lo elegido en §7c): 104 muestras, **9,5 MB**
+  (acústica 29, eléctrica 17, nylon 28, fender 15, slap 15).
+
+**Por defecto:** piano → Piano; guitarra → Acústica (grabada); bajo → Fender (grabado); batería →
+Acoustic. Es lo que suena hoy en la web, y así ninguna canción guardada cambia de timbre.
+
+**Traducción de las canciones guardadas** (web → lista nueva): `sampled`/`acoustic`/`soft`/`upright`/
+`bright` → `piano`; `electric` (piano) → `e-piano`; `honkytonk` → `honkytonk`; `synth` (piano) →
+`pad-syn`; guitarra `acoustic`/`electric`/`nylon` → `steel-rec`/`clean-rec`/`nylon-rec`; `sf2-*` → su
+programa; `sf2-harmonics` → `overdrive`; bajo `fender` → `fender-rec`, `slap` → `slap-rec`, `finger` →
+`finger`, `muted` → `finger`, `sub` → `reese`, `synth` → `square`; kits `standard` → Acoustic,
+`analog`/`lofi` → Acoustic 2, `punch` → Electronic.
