@@ -3,10 +3,45 @@ import react from '@astrojs/react';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { readdirSync, readFileSync } from 'fs';
 
 import netlify from '@astrojs/netlify';
+
+/**
+ * `astro dev` without Netlify's edge-function emulation.
+ *
+ * The adapter puts @netlify/vite-plugin into the dev server and passes it only its image and
+ * environment-variable options, so the plugin's edge-function emulation is always on — the
+ * adapter's own `edgeFunctions: { enabled: false }` below does not reach it. Once the Netlify
+ * CLI had installed Deno (AppData/Roaming/netlify/Config/deno-cli), that emulation started a
+ * `deno` server for netlify/edge-functions/ with every `astro dev`, and it grew to 12-47 GB over
+ * a day of editing (measured 2026-09-22), starving the machine. Dev never needed it: the deep
+ * link that edge function serves is handled for `astro dev` by src/middleware.ts.
+ *
+ * So the dev hook of the adapter's plugin is swapped for one built with the same options plus
+ * `edgeFunctions: { enabled: false }`. Loaded from where the adapter loads it, so it is always
+ * the same copy; production builds are untouched (the build hooks are not replaced).
+ */
+const requireFromAdapter = createRequire(fileURLToPath(import.meta.resolve('@astrojs/netlify')));
+const { default: netlifyVitePlugin } = await import(pathToFileURL(requireFromAdapter.resolve('@netlify/vite-plugin')).href);
+function netlifyDevWithoutEdgeFunctions() {
+  const [ours] = netlifyVitePlugin({
+    // What the adapter passes (no remote image domains or patterns are configured here).
+    images: { enabled: true, remoteURLPatterns: [] },
+    environmentVariables: { enabled: false },
+    edgeFunctions: { enabled: false },
+  });
+  return {
+    name: 'netlify-dev-without-edge-functions',
+    apply: 'serve',
+    configResolved(config) {
+      const theirs = config.plugins.find((p) => p.name === 'vite-plugin-netlify');
+      if (theirs && ours?.configureServer) theirs.configureServer = ours.configureServer;
+    },
+  };
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -84,6 +119,7 @@ export default defineConfig({
   output: 'server',
 
   vite: {
+    plugins: [netlifyDevWithoutEdgeFunctions()],
     optimizeDeps: {
       include: ['vexflow'],
     },
@@ -117,11 +153,8 @@ export default defineConfig({
     },
   },
 
-  // edgeFunctions disabled in the dev emulator only — netlify/edge-functions/chord-player-deeplink.ts
-  // still deploys and runs for real on Netlify. Emulating it locally needs Deno, which
-  // isn't installed here, so every dev request was failing a `fetch` to the (never
-  // started) Deno subprocess and logging an unhandled rejection — see the "DEV ONLY"
-  // comment in src/middleware.ts: the deep-link rewrite it exists for is already
-  // handled there for `astro dev`, so dev never needed the edge function anyway.
+  // netlify/edge-functions/chord-player-deeplink.ts deploys and runs for real on Netlify. This
+  // option does NOT switch off its emulation under `astro dev` —
+  // netlifyDevWithoutEdgeFunctions() above does; see why there.
   adapter: netlify({ edgeFunctions: { enabled: false } }),
 });

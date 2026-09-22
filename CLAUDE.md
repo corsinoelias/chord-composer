@@ -42,6 +42,11 @@ window ends two days ago.
 
 There are no automated tests.
 
+`astro dev` runs without Netlify's edge-function emulation (`netlifyDevWithoutEdgeFunctions` in
+`astro.config.mjs`): left on, it started a `deno` server that grew to 12-47 GB over a day. The one
+edge function (`netlify/edge-functions/chord-player-deeplink.ts`) still deploys; in dev its job is
+done by `src/middleware.ts`. If a stray `deno.exe` shows up again, that swap stopped matching.
+
 **The app's audio engine on the web** (`docs/motor-unico-wasm.md`). The Android app's C++ engine
 (`chord_sequencer/android/app/src/main/cpp/native_audio.cpp`) is being brought to the web as
 WebAssembly running in an AudioWorklet. The app owns it: never edit `engine/vendor/` — change the
