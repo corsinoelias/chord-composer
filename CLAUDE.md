@@ -69,9 +69,13 @@ only (`#define private public`) — the app's file stays untouched. The engine l
 dev-server hot swap of the module cannot leave a second one playing. `public/audio/` samples stay:
 the bass/guitar tab players, tuner, virtual piano and drums still use them.
 
-**The sound list** (`docs/sonidos-comunes.md` §7e-§7f) is `src/lib/instruments.ts` — 37 sounds and 7
-kits, chosen by ear in `/lab/sounds/` on 2026-09-22, each with its SoundFont program (or synth
-timbre, or kit), its window and the gain that levels it (`npm run lab:gains`). `fromSong.ts` and
+**The sound list** (`docs/sonidos-comunes.md` §7e-§7f) is `src/lib/instruments.ts` — 34 sounds and 7
+kits (2026-09-22), each with its SoundFont program (or synth
+timbre, or kit) and its window; the gains live beside it in `src/lib/soundGains.json`, decibels from
+each track's reference sound, written by `npm run lab:gains` (`scripts/measure-list-gains.mjs`),
+which plays the real song through the shipped engine and SoundFont one sound at a time. The
+reference sound is named, not taken from the track's default, so changing a default never moves the
+whole track. `fromSong.ts` and
 `preview.ts` read it directly; `npm run shared:export` writes it to `shared/catalog/sounds.json` for
 the app. `engine:sync` cuts the SoundFont to exactly its programs and `scripts/build-recordings.mjs`
 appends the web's own five recordings (three guitars, two basses) to the same file at programs
@@ -81,6 +85,12 @@ comes to 19.45 MB. The ids changed with the list (`sampled` → `grand`, `sf2-st
 `migrateLegacySong` (song schema 6), so never reuse an old id for a different sound. The mix is the
 per-track balance set by ear (`TRACK_TRIM` in `fromSong.ts`) times each sound's gain **relative to
 its track's default sound**, so changing sound changes the timbre and not the level.
+
+**The click** is the person's, not the song's: sound (stick, cowbell, ride, beep — the app's own
+ids), volume, accent and half beats in `src/lib/clickSettings.ts`, kept in `localStorage` and
+picked from the Click capsule's caret in the transport. It reaches the engine as the one
+`metronome` command, which also sets how the count-in sounds. It starts at 35%, not the app's 0.7:
+at that level the click sat over the whole song.
 
 **Never add FAQPage or HowTo schema.** Google restricted FAQ rich results to government/health
 sites in Aug 2023 — this site doesn't qualify. HowTo was deprecated entirely in Sept 2023.
