@@ -28,7 +28,8 @@ import { getCustomStyles, getStyleOverride, saveStyleOverride, saveCustomStyle, 
 import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAudio, preloadInstrumentSound } from '@/lib/audioEngine';
 import { makeOfflineSectionResolver, makeStyleLookup, effectiveSectionStyle, sectionPatternsFromStyle } from '@/lib/sectionPlayback';
 import { type SectionArrangement } from '@/components/SectionArrangementMenu';
-import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
+import { encodeAndDownloadMp3, downloadBlob } from '@/lib/mp3Encoder';
+import { appEngineEnabled, exportSongWav } from '@/lib/appEngine/player';
 import { exportMidi } from '@/lib/midiExporter';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
@@ -1152,9 +1153,18 @@ const Index = ({ songId }: IndexProps) => {
     try {
       const style = resolveActiveStyle(selectedStyleId, liveEditedStyle, customStyles, getStyleOverride);
       const sectionResolver = makeOfflineSectionResolver(makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle));
-      const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition, undefined, sectionResolver, noteLengths);
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
-      await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
+      if (appEngineEnabled()) {
+        // The file is what the player plays: the app's engine, when that is the one in use.
+        downloadBlob(await exportSongWav({
+          song: { sections, bpm, transposition, instrumentSettings: instruments, noteLengths },
+          style,
+          lookup: makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle),
+        }), `${filename}.wav`);
+      } else {
+        const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition, undefined, sectionResolver, noteLengths);
+        await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
+      }
       // Short: it's confirming something the browser is already showing a download for,
       // and it has to be gone before the nudge arrives.
       toast.success('WAV exported', { id: EXPORT_TOAST_ID, duration: 2000 });

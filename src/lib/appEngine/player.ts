@@ -1,14 +1,14 @@
 /**
- * The chord player on the app's engine (phase 6 of docs/motor-unico-wasm.md), behind a
- * switch while it is compared with the web's own engine: `?engine=app` turns it on in this
- * browser, `?engine=web` turns it off again.
+ * The chord player on the app's engine (phase 6 of docs/motor-unico-wasm.md). It is the
+ * default; `?engine=web` goes back to the web's own engine in this browser (remembered) and
+ * `?engine=app` returns. A browser without AudioWorklet or WebAssembly keeps the web's.
  *
  * PlaybackContext keeps its interface; this only changes who makes the sound. The song goes
  * to the engine as commands (fromSong.ts), and every edit made while it plays goes after it
  * the same way — tempo, click and mix on their own, anything else as the whole song again,
  * which the engine takes in on its next step without stopping.
  */
-import { AppEngine, type EngineState } from './host';
+import { AppEngine, exportCommandsWav, loadKits, type EngineState } from './host';
 import { songToEngine, type EngineSong, type SongInput } from './fromSong';
 import { type EngineCommand } from './commands';
 import { type StylePattern, getSlotsPerBar } from '../styles';
@@ -20,14 +20,15 @@ const STORAGE_KEY = 'chordplayer:engine';
 /** Whether this browser plays songs on the app's engine. */
 export function appEngineEnabled(): boolean {
   if (typeof window === 'undefined') return false;
+  if (typeof AudioWorkletNode === 'undefined' || typeof WebAssembly === 'undefined') return false;
+  const asked = new URLSearchParams(window.location.search).get('engine');
   try {
-    const asked = new URLSearchParams(window.location.search).get('engine');
-    if (asked === 'app') localStorage.setItem(STORAGE_KEY, 'app');
-    if (asked === 'web') localStorage.removeItem(STORAGE_KEY);
-    if (asked) return asked === 'app';
-    return localStorage.getItem(STORAGE_KEY) === 'app';
+    if (asked === 'web') localStorage.setItem(STORAGE_KEY, 'web');
+    if (asked === 'app') localStorage.removeItem(STORAGE_KEY);
+    if (asked === 'web' || asked === 'app') return asked === 'app';
+    return localStorage.getItem(STORAGE_KEY) !== 'web';
   } catch {
-    return new URLSearchParams(window.location.search).get('engine') === 'app';
+    return asked !== 'web';
   }
 }
 
@@ -41,6 +42,24 @@ export interface AppPosition {
   step: number;
 }
 
+/** A span of the vocal recording, in seconds. */
+export interface AudioRange { startSec: number; endSec: number }
+
+/**
+ * The song's vocal reference recording, played beside the engine as the web engine plays
+ * it: one span for the whole song, restarted at its top, or one span per section, restarted
+ * on every pass through it and cut at the pass's end.
+ */
+export interface AppVocal {
+  buffer: AudioBuffer;
+  wholeRange?: AudioRange;
+  /** By Section.id. */
+  sectionRanges?: Record<string, AudioRange>;
+  /** Read on every state: muted by the player (or because the song is transposed), and level. */
+  muted: () => boolean;
+  volume: () => number;
+}
+
 export interface AppSong {
   song: SongInput;
   style: StylePattern;
@@ -49,6 +68,7 @@ export interface AppSong {
   /** Play the song through once, then stop and call onEnded (the web engine's loop: false). */
   once?: boolean;
   onEnded?: () => void;
+  vocal?: AppVocal;
 }
 
 /**
@@ -84,6 +104,10 @@ export class AppPlayback {
   private sentSong = '';
   /** In a single pass, the silent section after the song: reaching it is the end. */
   private tailIndex = -1;
+  private vocalSource: AudioBufferSourceNode | null = null;
+  private vocalGain: GainNode | null = null;
+  /** Which pass the vocal was last started for, so each pass starts it once. */
+  private vocalPass: string | null = null;
 
   static preload(): void {
     AppEngine.preload().catch(() => { /* play() tries again */ });
@@ -103,8 +127,11 @@ export class AppPlayback {
     this.sentSong = songPart(this.built.commands, input);
     e.send([['loopOnly', input.loopingSectionIndex ?? -1]]);
     this.unsubscribe?.();
+    this.stopVocal();
+    this.vocalPass = null;
     this.unsubscribe = e.subscribe((state) => {
       this.latest = state;
+      this.followVocal(state);
       if (this.current?.once && state.playing && state.section === this.tailIndex) {
         const ended = this.current.onEnded;
         this.stop();
@@ -115,6 +142,7 @@ export class AppPlayback {
   }
 
   stop(): void {
+    this.stopVocal();
     this.unsubscribe?.();
     this.unsubscribe = null;
     this.latest = null;
@@ -134,7 +162,7 @@ export class AppPlayback {
   async update(input: AppSong): Promise<void> {
     if (!this.current) return;
     // How it plays (once, and what to do after) is the play() call's, not the options'.
-    input = { ...input, once: this.current.once, onEnded: this.current.onEnded };
+    input = { ...input, once: this.current.once, onEnded: this.current.onEnded, vocal: this.current.vocal };
     const e = await getEngine();
     this.current = input;
     this.built = this.build(input, e);
@@ -160,7 +188,7 @@ export class AppPlayback {
   async updateMix(input: AppSong): Promise<void> {
     if (!this.current) return;
     // How it plays (once, and what to do after) is the play() call's, not the options'.
-    input = { ...input, once: this.current.once, onEnded: this.current.onEnded };
+    input = { ...input, once: this.current.once, onEnded: this.current.onEnded, vocal: this.current.vocal };
     const e = await getEngine();
     this.current = input;
     const mix = this.build(input, e).commands.filter((c) => c[0] === 'mixer');
@@ -191,6 +219,51 @@ export class AppPlayback {
     return { chordIndex, position: chordIndex + fraction, step: state.step };
   }
 
+  /** Starts the vocal's span when a new pass begins, and keeps its level with the player's. */
+  private followVocal(state: EngineState): void {
+    const vocal = this.current?.vocal;
+    const ctx = shared.__appEngine?.ctx;
+    if (!vocal || !ctx || !this.current || !this.built || !state.playing || state.countInBeats > 0) return;
+    if (this.vocalGain) {
+      const level = vocal.muted() ? 0 : vocal.volume();
+      if (Math.abs(this.vocalGain.gain.value - level) > 0.001) this.vocalGain.gain.setTargetAtTime(level, ctx.currentTime, 0.02);
+    }
+    const whole = !!vocal.wholeRange;
+    const pass = whole ? (state.section === 0 && state.round === 0 ? 'top' : 'rest') : `${state.section}:${state.round}`;
+    if (pass === this.vocalPass) return;
+    this.vocalPass = pass;
+    if (whole && pass !== 'top') return;
+    this.stopVocal();
+    const range = whole ? vocal.wholeRange : vocal.sectionRanges?.[this.current.song.sections[state.section]?.id ?? ''];
+    if (!range) return;
+    // Where this pass began, on the audio clock: the state is a few milliseconds behind the
+    // sound, and starting the span that much further in keeps the voice on the beat.
+    const stepSeconds = 60 / this.current.song.bpm / 4;
+    const lengths = this.built.chordSteps[state.section] ?? [];
+    let elapsed = state.chordStep;
+    for (let i = 0; i < state.chord && i < lengths.length; i++) elapsed += lengths[i];
+    const passStart = state.time - elapsed * stepSeconds;
+    const when = Math.max(ctx.currentTime, passStart);
+    const offset = range.startSec + (when - passStart);
+    let duration = range.endSec - offset;
+    if (!whole) duration = Math.min(duration, passStart + lengths.reduce((a, b) => a + b, 0) * stepSeconds - when);
+    if (duration <= 0 || offset >= vocal.buffer.duration) return;
+    const source = new AudioBufferSourceNode(ctx, { buffer: vocal.buffer });
+    const gain = new GainNode(ctx, { gain: vocal.muted() ? 0 : vocal.volume() });
+    source.connect(gain).connect(ctx.destination);
+    source.start(when, offset, duration);
+    this.vocalSource = source;
+    this.vocalGain = gain;
+  }
+
+  private stopVocal(): void {
+    try { this.vocalSource?.stop(); } catch { /* not started, or already over */ }
+    this.vocalSource?.disconnect();
+    this.vocalGain?.disconnect();
+    this.vocalSource = null;
+    this.vocalGain = null;
+  }
+
   private build(input: AppSong, e: AppEngine): EngineSong {
     // The engine always goes round again, so a single pass ends on a bar of silence: the
     // state reaches the page ~30 times a second, and by the time it says the song is over
@@ -211,6 +284,17 @@ export class AppPlayback {
 /** Everything [commands] say about the song itself, as text: what a mix change leaves alone. */
 function songPart(commands: EngineCommand[], input: AppSong): string {
   return JSON.stringify([commands.filter((c) => c[0] !== 'mixer'), input.loopingSectionIndex ?? -1]);
+}
+
+/**
+ * [input] rendered to a WAV by the app's engine, as it sounds when played: what the export
+ * button gives once the player is on this engine, so the file is what was heard. The mix is
+ * the song's; a count-in or click never goes into a file.
+ */
+export async function exportSongWav(input: Pick<AppSong, 'song' | 'style' | 'lookup'>, tailSeconds = 2): Promise<Blob> {
+  const built = songToEngine(input.song, input.style, input.lookup, await loadKits());
+  const slots = [...new Set([...built.drumSlots, ...Array.from({ length: 12 }, (_, i) => i)])];
+  return (await exportCommandsWav(built.commands, built.steps, tailSeconds, slots)).blob;
 }
 
 /** One bar with every track silenced: where a single pass ends. */

@@ -237,27 +237,7 @@ export class AppEngine {
    * in a Worker: faster than real time, and the same signal path as what you hear.
    */
   async exportWav(steps: number, tailSeconds = 4): Promise<ExportResult> {
-    const assets = await loadAssets();
-    const slots = [...this.loadedSlots];
-    const entries = this.kit.filter((k) => slots.includes(k.slot));
-    const pcm = await Promise.all(entries.map(loadPcm));
-    const kit = entries.map((k, i) => ({ slot: k.slot, gain: k.gain, pcm: pcm[i].slice(0) }));
-    const wasm = assets.wasm.slice(0);
-    const sf2 = assets.sf2.slice(0);
-    const worker = new Worker('/engine/export-worker.js', { type: 'module' });
-    try {
-      const result = await new Promise<{ wav: Uint8Array<ArrayBuffer>; frames: number; ms: number }>((resolve, reject) => {
-        worker.onmessage = ({ data }) => (data.error ? reject(new Error(data.error)) : resolve(data));
-        worker.onerror = (event) => reject(new Error(event.message || 'export worker failed'));
-        worker.postMessage(
-          { id: 1, wasm, sf2, kit, commands: this.journal, steps, tailSeconds },
-          [wasm, sf2, ...kit.map((k) => k.pcm)],
-        );
-      });
-      return { blob: new Blob([result.wav], { type: 'audio/wav' }), frames: result.frames, ms: result.ms };
-    } finally {
-      worker.terminate();
-    }
+    return exportCommandsWav(this.journal, steps, tailSeconds, [...this.loadedSlots]);
   }
 
   async dispose(): Promise<void> {
@@ -316,6 +296,38 @@ export class AppEngine {
       this.replies.get(data.id)!(data);
       this.replies.delete(data.id);
     }
+  }
+}
+
+/** The app's drum kits, as kit.json lists them, without opening any audio. */
+export async function loadKits(): Promise<DrumKit[]> {
+  return (await loadAssets()).kits;
+}
+
+/**
+ * Renders [commands] to a WAV with the engine in a Worker: no AudioContext, nothing playing
+ * needed. [slots] are the kit recordings the song uses (EngineSong.drumSlots).
+ */
+export async function exportCommandsWav(commands: EngineCommand[], steps: number, tailSeconds: number, slots: number[]): Promise<ExportResult> {
+  const assets = await loadAssets();
+  const entries = assets.kit.filter((k) => slots.includes(k.slot));
+  const pcm = await Promise.all(entries.map(loadPcm));
+  const kit = entries.map((k, i) => ({ slot: k.slot, gain: k.gain, pcm: pcm[i].slice(0) }));
+  const wasm = assets.wasm.slice(0);
+  const sf2 = assets.sf2.slice(0);
+  const worker = new Worker('/engine/export-worker.js', { type: 'module' });
+  try {
+    const result = await new Promise<{ wav: Uint8Array<ArrayBuffer>; frames: number; ms: number }>((resolve, reject) => {
+      worker.onmessage = ({ data }) => (data.error ? reject(new Error(data.error)) : resolve(data));
+      worker.onerror = (event) => reject(new Error(event.message || 'export worker failed'));
+      worker.postMessage(
+        { id: 1, wasm, sf2, kit, commands, steps, tailSeconds },
+        [wasm, sf2, ...kit.map((k) => k.pcm)],
+      );
+    });
+    return { blob: new Blob([result.wav], { type: 'audio/wav' }), frames: result.frames, ms: result.ms };
+  } finally {
+    worker.terminate();
   }
 }
 

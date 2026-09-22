@@ -17,7 +17,8 @@ import { SongChordsOnlyChart, type ChordOnlyRow } from '@/components/SongChordsO
 import { parseLyricLine, extractChordsWithDuration, sectionArrangement, type Song } from '@/data/songs';
 import { renderProgressionOffline } from '@/lib/audioEngine';
 import { makeOfflineSectionResolver, makeStyleLookup } from '@/lib/sectionPlayback';
-import { encodeAndDownloadMp3 } from '@/lib/mp3Encoder';
+import { encodeAndDownloadMp3, downloadBlob } from '@/lib/mp3Encoder';
+import { appEngineEnabled, exportSongWav } from '@/lib/appEngine/player';
 import { exportMidi } from '@/lib/midiExporter';
 import { MUSICAL_STYLES } from '@/lib/styles';
 import { analytics } from '@/lib/analytics';
@@ -785,8 +786,17 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
       const sections = buildFullSongSections();
       // Built-in styles only for public songs ("Mis ritmos" belong to the editor).
       const sectionResolver = makeOfflineSectionResolver(makeStyleLookup([], () => null));
-      const buffer = await renderProgressionOffline(sections, bpm, instruments, resolvedStyle, transpose, undefined, sectionResolver);
-      await encodeAndDownloadMp3(buffer, `${song.title} - ${song.artist}.wav`);
+      if (appEngineEnabled()) {
+        // The file is what the player plays: the app's engine, when that is the one in use.
+        downloadBlob(await exportSongWav({
+          song: { sections, bpm, transposition: transpose, instrumentSettings: instruments },
+          style: resolvedStyle,
+          lookup: makeStyleLookup([], () => null),
+        }), `${song.title} - ${song.artist}.wav`);
+      } else {
+        const buffer = await renderProgressionOffline(sections, bpm, instruments, resolvedStyle, transpose, undefined, sectionResolver);
+        await encodeAndDownloadMp3(buffer, `${song.title} - ${song.artist}.wav`);
+      }
     } finally {
       setIsExportingWav(false);
     }

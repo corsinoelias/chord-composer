@@ -1,6 +1,6 @@
 # Estudio: usar en la web el motor de audio de la app
 
-Escrito el 2026-09-21. Estado: **fases 1 a 4 hechas; arpegios descartados; fase 6 en marcha (`?engine=app`)** (laboratorio en `/lab/app-engine/`, probado por
+Escrito el 2026-09-21. Estado: **fases 1 a 4 hechas; arpegios descartados; fase 6: el motor de la app es el de por defecto (`?engine=web` vuelve al anterior)** (laboratorio en `/lab/app-engine/`, probado por
 el usuario: suena bien); decisión de sonido tomada (A, sección 5). La prueba es reproducible en `docs/motor-unico-spike/`.
 
 Pregunta: ¿puede la web sonar con el mismo motor que la app de Android, es viable y vale la
@@ -150,8 +150,15 @@ llama Flutter por JNI), también hay que añadirla en `engine/web_glue.cpp`.
   sus clics con el motor web; mientras cuenta, el motor de la app ya arranca.
 - Medido en el Pixel con el reproductor real: 0 ms de cortes con la página atascada 20 s; el
   cambio de tono entra en marcha.
-- Falta: una pasada y voz en el motor de la app, caché permanente de recursos, y comparar con
-  tus canciones antes de hacerlo el motor por defecto.
+- Hecho después (2026-09-22): la voz de referencia (se corta por sección y se alinea con la
+  posición del motor), caché permanente de los recursos (`netlify.toml`, URLs con huella), la
+  exportación WAV con el motor de la app (`exportSongWav`) y el motor de la app **por defecto**,
+  con `?engine=web` para volver y respaldo automático si el navegador no puede.
+- Encontrado en el camino: reenviar la canción entera en cada cambio vaciaba pistas sin soltar
+  las notas del SoundFont (un segundo piano sonando segundos); ahora un cambio de mezcla solo
+  manda niveles, y un reenvío suelta las notas antes. En la app el mismo fallo se arregla en
+  `native_audio.cpp` (soltar la nota al vaciar la pista), pendiente de probar en la app.
+- Sigue en el motor web: el editor de ritmo y las previsualizaciones de acordes.
 
 ## 3. Peso de los sonidos
 

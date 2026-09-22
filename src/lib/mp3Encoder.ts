@@ -24,18 +24,18 @@ export async function encodeAndDownloadMp3(
   // Create WAV file
   const wavBuffer = createWavFile(audioBuffer, numChannels, sampleRate, length);
   
-  // Create blob and trigger download
-  const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+  downloadBlob(new Blob([wavBuffer], { type: 'audio/wav' }), filename.replace('.mp3', '.wav'));
+}
+
+/** Hands [blob] to the browser as a download named [filename]. */
+export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
-  
   const link = document.createElement('a');
   link.href = url;
-  link.download = filename.replace('.mp3', '.wav');
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
-  // Clean up
   URL.revokeObjectURL(url);
 }
 

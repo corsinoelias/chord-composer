@@ -363,6 +363,30 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     });
   }, [stop]);
 
+  // Vocal reference audio: decode once per URL (cached across replays within the
+  // session), regardless of the current transposition — only the audible gain depends
+  // on transposition (see audioEngine.ts), so returning to key 0 mid-session doesn't
+  // need a re-fetch. An AudioBuffer is plain data, so the app's engine plays it too.
+  const decodeVocal = useCallback(async (options: PlayOptions): Promise<AudioBuffer | null> => {
+    let decodedAudioTrackBuffer: AudioBuffer | null = null;
+    if (options.audioTrack) {
+      const { url } = options.audioTrack;
+      if (audioTrackBufferRef.current?.url === url) {
+        decodedAudioTrackBuffer = audioTrackBufferRef.current.buffer;
+      } else {
+        try {
+          const res = await fetch(url);
+          const arrayBuffer = await res.arrayBuffer();
+          decodedAudioTrackBuffer = await getAudioContext().decodeAudioData(arrayBuffer);
+          audioTrackBufferRef.current = { url, buffer: decodedAudioTrackBuffer };
+        } catch (err) {
+          console.warn('Vocal reference audio failed to load/decode:', err);
+        }
+      }
+    }
+    return decodedAudioTrackBuffer;
+  }, []);
+
   /**
    * El cuerpo real de play(). Separado para que play() pueda envolverlo en un try y liberar
    * el mutex si algo lanza — antes cualquier excepción aquí dejaba la reproducción bloqueada
@@ -392,23 +416,38 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       detail: { instanceId: instanceIdRef.current },
     }));
 
-    // The vocal reference track stays on the web's engine for now.
-    if (useAppEngine.current && !options.audioTrack) {
-      const once = !(options.loop ?? true);
-      await appRef.current.play({
-        ...appSong(),
-        once,
-        onEnded: once ? () => (options.onEnded ?? stop)() : undefined,
-      });
-      setState(prev => ({
-        ...prev,
-        isPlaying: true,
-        currentChordIndex: 0,
-        bpm: options.bpm,
-        metronomeEnabled: options.metronome,
-      }));
-      setupMediaSession('Chord Progression');
-      return;
+    if (useAppEngine.current) {
+      try {
+        const once = !(options.loop ?? true);
+        const vocalBuffer = options.audioTrack ? await decodeVocal(options) : null;
+        await appRef.current.play({
+          ...appSong(),
+          once,
+          onEnded: once ? () => (options.onEnded ?? stop)() : undefined,
+          vocal: vocalBuffer ? {
+            buffer: vocalBuffer,
+            wholeRange: options.audioTrack?.wholeRange,
+            sectionRanges: options.audioTrack?.sectionRanges,
+            // Muted while transposed, as on the web engine: a recording cannot follow the key.
+            muted: () => (optionsRef.current?.transposition ?? 0) !== 0 || !!optionsRef.current?.vocalMuted,
+            volume: () => optionsRef.current?.vocalVolume ?? 1,
+          } : undefined,
+        });
+        setState(prev => ({
+          ...prev,
+          isPlaying: true,
+          currentChordIndex: 0,
+          bpm: options.bpm,
+          metronomeEnabled: options.metronome,
+        }));
+        setupMediaSession('Chord Progression');
+        return;
+      } catch (err) {
+        // Whatever stopped it (an old browser, a failed download), the web's engine still plays.
+        console.warn('[AUDIO] app engine failed to start; using the web engine', err);
+        useAppEngine.current = false;
+        appRef.current.stop();
+      }
     }
     if (appRef.current.active) appRef.current.stop();
 
@@ -522,26 +561,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Vocal reference audio: decode once per URL (cached across replays within the
-    // session), regardless of the current transposition — only the audible gain depends
-    // on transposition (see audioEngine.ts), so returning to key 0 mid-session doesn't
-    // need a re-fetch.
-    let decodedAudioTrackBuffer: AudioBuffer | null = null;
-    if (options.audioTrack) {
-      const { url } = options.audioTrack;
-      if (audioTrackBufferRef.current?.url === url) {
-        decodedAudioTrackBuffer = audioTrackBufferRef.current.buffer;
-      } else {
-        try {
-          const res = await fetch(url);
-          const arrayBuffer = await res.arrayBuffer();
-          decodedAudioTrackBuffer = await getAudioContext().decodeAudioData(arrayBuffer);
-          audioTrackBufferRef.current = { url, buffer: decodedAudioTrackBuffer };
-        } catch (err) {
-          console.warn('Vocal reference audio failed to load/decode:', err);
-        }
-      }
-    }
+    const decodedAudioTrackBuffer = await decodeVocal(options);
 
     setState(prev => ({
       ...prev,
@@ -624,7 +644,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     });
 
     cancelRef.current = cancel;
-  }, [stop, setupMediaSession, resolveCurrentStyle, appSong]);
+  }, [stop, setupMediaSession, resolveCurrentStyle, appSong, decodeVocal]);
 
   const play = useCallback(async (sections: Section[], options: PlayOptions) => {
     // Acquire mutex to prevent multiple instances
