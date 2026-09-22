@@ -29,6 +29,8 @@ const SUSTAIN_RATIO = 0.92;
 type StepListener = (step: number) => void;
 
 let timerId: number | null = null;
+/** The pending release of the held chord: cancelled on stop, or it would cut the next progression's first chord. */
+let releaseTimerId: number | null = null;
 let releaseCurrent: (() => void) | null = null;
 let playing = false;
 /** Bumped by every start and stop, so a start still waiting on the engine knows it was superseded. */
@@ -52,6 +54,10 @@ export function stopProgression(): void {
   if (timerId !== null) {
     window.clearTimeout(timerId);
     timerId = null;
+  }
+  if (releaseTimerId !== null) {
+    window.clearTimeout(releaseTimerId);
+    releaseTimerId = null;
   }
   releaseHeldChord();
 }
@@ -95,7 +101,9 @@ export function playProgression(
     releaseCurrent = playChordHold(parsed[index], 0.45);
 
     // Release just before the next chord starts so voices don't pile up across the loop.
-    window.setTimeout(() => {
+    if (releaseTimerId !== null) window.clearTimeout(releaseTimerId);
+    releaseTimerId = window.setTimeout(() => {
+      releaseTimerId = null;
       if (playing) releaseHeldChord();
     }, slotMs * SUSTAIN_RATIO);
 
