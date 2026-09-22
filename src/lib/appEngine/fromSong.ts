@@ -105,6 +105,12 @@ export interface EngineSong {
   steps: number;
   /** How many steps each chord of each section lasts in the engine, for the playhead. */
   chordSteps: number[][];
+  /**
+   * Which of the song's sections each section the engine got is. Empty ones are left out (see
+   * songToEngine), so the two are not the same list, and everything the engine reports about
+   * where it is comes back in *its* numbering.
+   */
+  sectionIndex: number[];
   /** Kit recordings the song plays (slots in kit.json): load them before playing. */
   drumSlots: number[];
   /** What could not be carried across, for the lab to show. */
@@ -151,8 +157,18 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   const stepsPerBeat = Math.max(1, Math.round(16 / denominator));
   const transposition = song.transposition ?? 0;
   const instruments = song.instrumentSettings ?? [];
-  const sections = song.sections.slice(0, MAX_SECTIONS);
+  // A section with no chords is left out of the arrangement. It has nothing to play, and the
+  // engine still spends one step on it every time round (a part with no chords ends on its
+  // first step, native_audio.cpp): the loop came back a sixteenth late and everything after it
+  // landed off the bar, once per pass. [sectionIndex] keeps the way back to the song's own
+  // numbering, which is what the editor draws.
+  const played = song.sections.slice(0, MAX_SECTIONS);
+  const sectionIndex = played.map((_, i) => i).filter((i) => played[i].chords.length > 0);
+  const sections = sectionIndex.map((i) => played[i]);
   if (song.sections.length > MAX_SECTIONS) notes.push(`${song.sections.length - MAX_SECTIONS} sections past the engine's ${MAX_SECTIONS} left out`);
+  for (const section of played) {
+    if (!section.chords.length) notes.push(`${section.name}: no chords, left out`);
+  }
 
   // ── Time and the arrangement ──
   c.push(['setBpm', song.bpm], ['setMeter', slotsPerBar, stepsPerBeat]);
@@ -293,7 +309,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   // engine's own default is a large room: left on, every note rang on for half a second.
   c.push(['reverb', 0.7, 0]);
 
-  return { commands: c, steps, chordSteps, drumSlots: [...drumSlots].sort((a, b) => a - b), notes: [...noted] };
+  return { commands: c, steps, chordSteps, sectionIndex, drumSlots: [...drumSlots].sort((a, b) => a - b), notes: [...noted] };
 }
 
 /**

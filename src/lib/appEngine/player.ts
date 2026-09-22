@@ -141,7 +141,7 @@ export class AppPlayback {
     // The mixer's effects go after the song, which starts dry.
     e.load([...this.built.commands, ...effectsCommands()]);
     this.sentSong = songPart(this.built.commands, input);
-    e.send([['loopOnly', input.loopingSectionIndex ?? -1]]);
+    e.send([['loopOnly', this.engineSection(input.loopingSectionIndex)]]);
     this.unsubscribe?.();
     this.stopVocal();
     this.vocalPass = null;
@@ -211,7 +211,7 @@ export class AppPlayback {
       ['previewOff', 'piano'], ['previewOff', 'guitar'], ['previewOff', 'bass'],
       ...this.built.commands,
       ...effectsCommands(),
-      ['loopOnly', input.loopingSectionIndex ?? -1],
+      ['loopOnly', this.engineSection(input.loopingSectionIndex)],
     ]);
   }
 
@@ -230,6 +230,20 @@ export class AppPlayback {
     if (this.current) engine()?.then((e) => e.send(commands)).catch(() => {});
   }
 
+  /**
+   * The song's own number for the section the engine says it is on: sections with no chords
+   * are not in the arrangement (fromSong.ts), so the two lists do not line up.
+   */
+  private songSection(engineSection: number): number {
+    return this.built?.sectionIndex[engineSection] ?? engineSection;
+  }
+
+  /** Where the engine has the song's section [index], or -1 when it was left out. */
+  private engineSection(index: number | null | undefined): number {
+    if (index === null || index === undefined || index < 0) return -1;
+    return this.built?.sectionIndex.indexOf(index) ?? index;
+  }
+
   /** Where the song is now, or null before the engine has said. */
   position(): AppPosition | null {
     const state = this.latest;
@@ -237,9 +251,10 @@ export class AppPlayback {
     if (!state || !built || !state.playing || state.countInBeats > 0) return null;
     const lengths = built.chordSteps[state.section];
     const sections = this.current?.song.sections ?? [];
-    const chords = sections[state.section]?.chords.length ?? 0;
+    const section = this.songSection(state.section);
+    const chords = sections[section]?.chords.length ?? 0;
     if (!lengths || !chords) return null;
-    const chordIndex = (this.sectionStart[state.section] ?? 0) + state.round * chords + Math.min(state.chord, chords - 1);
+    const chordIndex = (this.sectionStart[section] ?? 0) + state.round * chords + Math.min(state.chord, chords - 1);
     // The state comes ~30 times a second; between two, the clock carries the playhead on.
     const now = shared.__appEngine?.ctx.currentTime ?? null;
     const bpm = this.current?.song.bpm ?? 120;
@@ -265,7 +280,7 @@ export class AppPlayback {
     this.vocalPass = pass;
     if (whole && pass !== 'top') return;
     this.stopVocal();
-    const range = whole ? vocal.wholeRange : vocal.sectionRanges?.[this.current.song.sections[state.section]?.id ?? ''];
+    const range = whole ? vocal.wholeRange : vocal.sectionRanges?.[this.current.song.sections[this.songSection(state.section)]?.id ?? ''];
     if (!range) return;
     // Where this pass began, on the audio clock: the state is a few milliseconds behind the
     // sound, and starting the span that much further in keeps the voice on the beat.
@@ -300,9 +315,11 @@ export class AppPlayback {
     // state reaches the page ~30 times a second, and by the time it says the song is over
     // the next thing sounding must be nothing, not the top of the song.
     const played = input.song.sections.slice(0, SONG_SECTIONS);
-    this.tailIndex = input.once ? played.length : -1;
     const song = input.once ? { ...input.song, sections: [...played, silentBar(input.style)] } : input.song;
     const built = songToEngine(song, input.style, input.lookup, e.kits);
+    // The silent bar is the last thing the engine got; empty sections were left out along the
+    // way, so its place there is not played.length.
+    this.tailIndex = input.once ? built.sectionIndex.indexOf(played.length) : -1;
     let start = 0;
     this.sectionStart = input.song.sections.map((s) => {
       const at = start;
