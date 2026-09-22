@@ -10,6 +10,7 @@
 import { AppEngine } from './host';
 import { DEGREE, DRUM_ROWS, SAMPLED_FIRST, TIMBRE, packStep, type EngineCommand, type MelodicTrack } from './commands';
 import { writeSf2, type Sf2Preset, type Sf2Sample } from './sf2Writer';
+import gainTable from './auditionGains.json';
 
 type Track = MelodicTrack | 'drums';
 type Source = 'SoundFont' | 'Grabación web' | 'Sintetizado' | 'Kit grabado' | 'Kit sintetizado';
@@ -87,6 +88,15 @@ export const CANDIDATES: Candidate[] = [
 
 // ── The fragment: C – Am – F – G, one bar each, at 92 BPM ──
 
+/**
+ * How much each sound is turned up or down so they are all heard at the same level
+ * (scripts/measure-sound-gains.mjs): what is loud in a meter and what is loud to the ear are
+ * not the same, and a comparison decided by level decides nothing.
+ */
+export const GAIN_DB: Record<string, number> = gainTable.gains;
+/** The fader every candidate starts from, low enough that a sound turned up 6 dB still fits. */
+const BASE_LEVEL = 0.45;
+
 const CHORDS: [string, string][] = [['C', 'maj'], ['A', 'min'], ['F', 'maj'], ['G', 'maj']];
 /**
  * Where each track sits. Piano and guitar as the app has them (defaultVoicings in
@@ -104,7 +114,8 @@ function fragment(c: Candidate, e: AppEngine): EngineCommand[] {
   ];
   for (const t of ['drums', 'piano', 'guitar', 'bass'] as const) {
     cmds.push(['clearTrack', 0, t], ['setPatternBars', 0, t, 1], ['setSilence', 0, t, t !== c.track]);
-    cmds.push(['mixer', t, t === c.track ? 0.85 : 0, t !== c.track], ['pan', t, 0]);
+    const level = Math.min(1, BASE_LEVEL * 10 ** ((GAIN_DB[c.id] ?? 0) / 20));
+    cmds.push(['mixer', t, t === c.track ? level : 0, t !== c.track], ['pan', t, 0]);
   }
   cmds.push(['mixer', 'master', 1, false], ['reverb', 0.7, 0], ['metronome', false, 0.7, SAMPLED_FIRST + 36, true, 1]);
   const step = (track: Track, at: number, v: number, degree: number = DEGREE.chord, row = '') => cmds.push(['setStep', 0, track, row, at, packStep(v, degree)]);

@@ -2,7 +2,7 @@
  * /lab/sounds/: the page around Audition (audition.ts). One card per track, a row per
  * candidate; the marks stay in this browser, and "Copiar resultado" hands them over as text.
  */
-import { Audition, CANDIDATES } from './audition';
+import { Audition, CANDIDATES, GAIN_DB } from './audition';
 
 type Vote = 'sí' | 'no';
 const STORE = 'lab-sounds-votes';
@@ -28,7 +28,7 @@ function render() {
       const unavailable = c.engine === 'web' && audition && !audition.hasWeb;
       row.innerHTML = `
         <button class="play" data-play="${c.id}" aria-label="Escuchar ${c.name}" ${unavailable ? 'disabled' : ''}>${audition?.playing === c.id ? '■' : '▶'}</button>
-        <div class="who"><b>${c.name}</b><span>${c.source}${c.mb ? ` · ${c.mb.toString().replace('.', ',')} MB` : ''} · estudio: ${c.proposal}</span></div>
+        <div class="who"><b>${c.name}</b><span>${c.source}${c.mb ? ` · ${c.mb.toString().replace('.', ',')} MB` : ''}${GAIN_DB[c.id] ? ` · nivel ${GAIN_DB[c.id] > 0 ? '+' : ''}${String(GAIN_DB[c.id]).replace('.', ',')} dB` : ''} · estudio: ${c.proposal}</span></div>
         <div class="vote">
           <button data-vote="${c.id}" data-v="sí" class="${votes[c.id] === 'sí' ? 'on yes' : ''}">Sí</button>
           <button data-vote="${c.id}" data-v="no" class="${votes[c.id] === 'no' ? 'on no' : ''}">No</button>

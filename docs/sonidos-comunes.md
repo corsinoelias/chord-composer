@@ -169,6 +169,21 @@ app, los 9 kits y **las grabaciones de la web**, convertidas en el navegador a u
 (`src/lib/appEngine/sf2Writer.ts`) en el tono que suenan de verdad y con el nivel igualado. Las marcas
 Sí/No se quedan en el navegador; «Copiar resultado» las da en texto.
 
+## 7d. Niveles: una ganancia por sonido
+
+Cada sonido llega con el nivel que traía de fábrica, y lo que mide fuerte no es lo que se oye fuerte:
+el bajo Pick del SoundFont gasta un 34 % de su energía por debajo de 90 Hz (que un portátil no
+reproduce) y mide +9,7 dB sobre el piano; el slap grabado de la web mide 10,7 dB **menos** que el del
+SoundFont con el mismo pico, porque es corto y brillante. Comparar así decide por volumen, no por
+sonido.
+
+`npm run lab:gains` (scripts/measure-sound-gains.mjs) toca cada candidato con el mismo patrón, mide su
+energía entre 90 Hz y 6 kHz —la banda que de verdad se oye— y escribe en
+`src/lib/appEngine/auditionGains.json` la ganancia que lo lleva a la mediana (tope ±6 dB). La escucha ya
+los aplica: medidos después, todos caen en −36,8 dB salvo el slap de la web, que necesitaría +10,7 y se
+queda 2,9 dB por debajo. La misma tabla debería ir al catálogo compartido, como la app ya hace con la
+batería (`drum_gains.dart`).
+
 ## 8. Cómo se haría (cuando decidas)
 
 1. **Catálogo único:** `shared/catalog/sounds.json` pasa a ser la lista (id, nombre, programa o
