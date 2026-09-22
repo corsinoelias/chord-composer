@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, useRef, memo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -115,6 +115,10 @@ export const SectionCard = memo(function SectionCard({
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  // Set when the ⋯ menu is asked for the options panel. The panel opens only once the menu has
+  // finished closing: opened alongside it, the menu took focus with it on the way out and the
+  // panel read that as a click outside, closing itself a fifth of a second after it opened.
+  const openingOptions = useRef(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: section.id,
@@ -304,9 +308,17 @@ export const SectionCard = memo(function SectionCard({
               <MoreHorizontal size={18} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent
+            align="end"
+            onCloseAutoFocus={(e) => {
+              if (!openingOptions.current) return;
+              e.preventDefault();
+              openingOptions.current = false;
+              requestAnimationFrame(() => setOptionsOpen(true));
+            }}
+          >
             {canOpenOptions && (
-              <DropdownMenuItem onClick={() => setOptionsOpen(true)}>
+              <DropdownMenuItem onClick={() => { openingOptions.current = true; }}>
                 <SlidersHorizontal size={14} className="mr-2" />Section options…
               </DropdownMenuItem>
             )}

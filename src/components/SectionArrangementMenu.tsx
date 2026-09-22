@@ -473,7 +473,10 @@ export function SectionArrangementMenu({
       <PopoverTrigger asChild>{triggerEl}</PopoverTrigger>
       <PopoverContent
         align="end"
-        className="cp-pop flex w-[470px] max-w-[calc(100vw-1.5rem)] flex-col gap-[18px] p-[18px] text-left"
+        // Never taller than the room the screen has where it opens (a section low on the page,
+        // or a song with many): it scrolls inside instead of running off the edge.
+        collisionPadding={12}
+        className="cp-pop flex max-h-[var(--radix-popover-content-available-height)] w-[470px] max-w-[calc(100vw-1.5rem)] flex-col gap-[18px] overflow-y-auto p-[18px] text-left"
         style={{ color: 'var(--cp-tx)' }}
       >
         {body}
