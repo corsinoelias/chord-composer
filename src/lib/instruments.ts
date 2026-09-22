@@ -12,6 +12,7 @@
  */
 
 import { TIMBRE } from './appEngine/commands';
+import gainTable from './soundGains.json';
 
 export type InstrumentType = 'piano' | 'bass' | 'drums' | 'guitar';
 
@@ -33,11 +34,6 @@ export interface SoundType {
   kit?: number;
   /** Octaves the sound plays from the web's own window, whose root octave is C4 (60). */
   octaveOffset: number;
-  /**
-   * Decibels that bring this sound to the level of the rest, measured by
-   * `npm run lab:gains` (docs/sonidos-comunes.md §7d). The mix applies it (fromSong.ts).
-   */
-  gainDb?: number;
   /** One of the web's own recordings (public/audio/), shipped inside the SoundFont. */
   recorded?: boolean;
 }
@@ -63,51 +59,48 @@ export const INSTRUMENTS: InstrumentConfig[] = [
     name: 'Piano',
     defaultSoundType: 'grand',
     soundTypes: [
-      { id: 'grand', name: 'Grand Piano', program: 0, octaveOffset: 0, gainDb: 1.6 },
-      { id: 'epiano', name: 'Electric Piano', program: 4, octaveOffset: 0, gainDb: -1.9 },
-      { id: 'rhodes', name: 'Rhodes', program: 5, octaveOffset: 0, gainDb: -1.1 },
-      { id: 'organ', name: 'Organ', program: 16, octaveOffset: 0, gainDb: -3.1 },
-      { id: 'honkytonk', name: 'Honky-Tonk', program: 3, octaveOffset: 0, gainDb: 1.2 },
-      { id: 'strings', name: 'Strings', program: 48, octaveOffset: 0, gainDb: -1.4 },
-      { id: 'pad', name: 'Warm Pad', program: 89, octaveOffset: 0, gainDb: 2.9 },
-      { id: 'organ-syn', name: 'Organ (synth)', timbre: 3, octaveOffset: 0, gainDb: -6 },
-      { id: 'pad-syn', name: 'Pad (synth)', timbre: 4, octaveOffset: 0, gainDb: -6 },
-      { id: 'fm', name: 'FM', timbre: 1, octaveOffset: 0, gainDb: 6 },
+      { id: 'grand', name: 'Grand Piano', program: 0, octaveOffset: 0 },
+      { id: 'epiano', name: 'Electric Piano', program: 4, octaveOffset: 0 },
+      { id: 'rhodes', name: 'Rhodes', program: 5, octaveOffset: 0 },
+      { id: 'organ', name: 'Organ', program: 16, octaveOffset: 0 },
+      { id: 'honkytonk', name: 'Honky-Tonk', program: 3, octaveOffset: 0 },
+      { id: 'strings', name: 'Strings', program: 48, octaveOffset: 0 },
+      { id: 'pad', name: 'Warm Pad', program: 89, octaveOffset: 0 },
+      { id: 'organ-syn', name: 'Organ (synth)', timbre: 3, octaveOffset: 0 },
+      { id: 'pad-syn', name: 'Pad (synth)', timbre: 4, octaveOffset: 0 },
     ],
   },
   {
     id: 'guitar',
     name: 'Guitar',
-    defaultSoundType: 'steel',
+    defaultSoundType: 'clean',
     soundTypes: [
-      { id: 'steel', name: 'Acoustic', program: 25, octaveOffset: 0, gainDb: 4.9 },
-      { id: 'steel-rec', name: 'Acoustic (recorded)', program: RECORDED_FIRST, octaveOffset: 0, gainDb: 3, recorded: true },
-      { id: 'nylon', name: 'Nylon', program: 24, octaveOffset: 0, gainDb: 1 },
-      { id: 'nylon-rec', name: 'Nylon (recorded)', program: RECORDED_FIRST + 2, octaveOffset: 0, gainDb: 1.7, recorded: true },
-      { id: 'clean', name: 'Electric Clean', program: 27, octaveOffset: 0, gainDb: 4.6 },
-      { id: 'clean-rec', name: 'Electric (recorded)', program: RECORDED_FIRST + 1, octaveOffset: 0, gainDb: 3, recorded: true },
-      { id: 'jazz', name: 'Jazz', program: 26, octaveOffset: 0, gainDb: 1.2 },
-      { id: 'muted', name: 'Muted', program: 28, octaveOffset: 0, gainDb: 6 },
-      { id: 'overdrive', name: 'Overdrive', program: 29, octaveOffset: 0, gainDb: -0.4 },
-      { id: 'distortion', name: 'Distortion', program: 30, octaveOffset: 0, gainDb: -3.9 },
-      { id: 'pluck', name: 'Pluck', timbre: 6, octaveOffset: 0 },
+      { id: 'steel', name: 'Acoustic', program: 25, octaveOffset: 0 },
+      { id: 'steel-rec', name: 'Acoustic (recorded)', program: RECORDED_FIRST, octaveOffset: 0, recorded: true },
+      { id: 'nylon', name: 'Nylon', program: 24, octaveOffset: 0 },
+      { id: 'nylon-rec', name: 'Nylon (recorded)', program: RECORDED_FIRST + 2, octaveOffset: 0, recorded: true },
+      { id: 'clean', name: 'Electric Clean', program: 27, octaveOffset: 0 },
+      { id: 'clean-rec', name: 'Electric (recorded)', program: RECORDED_FIRST + 1, octaveOffset: 0, recorded: true },
+      { id: 'jazz', name: 'Jazz', program: 26, octaveOffset: 0 },
+      { id: 'overdrive', name: 'Overdrive', program: 29, octaveOffset: 0 },
+      { id: 'distortion', name: 'Distortion', program: 30, octaveOffset: 0 },
     ],
   },
   {
     id: 'bass',
     name: 'Bass',
     // Every bass plays from C2: the window the web has always played its bass in.
-    defaultSoundType: 'finger',
+    defaultSoundType: 'fender-rec',
     soundTypes: [
-      { id: 'finger', name: 'Finger', program: 33, octaveOffset: -2, gainDb: -5.1 },
-      { id: 'pick', name: 'Pick', program: 34, octaveOffset: -2, gainDb: -3.5 },
-      { id: 'fender-rec', name: 'Fender (recorded)', program: RECORDED_FIRST + 3, octaveOffset: -2, gainDb: 0, recorded: true },
-      { id: 'slap', name: 'Slap', program: 36, octaveOffset: -2, gainDb: -1.2 },
-      { id: 'slap-rec', name: 'Slap (recorded)', program: RECORDED_FIRST + 4, octaveOffset: -2, gainDb: 6, recorded: true },
-      { id: 'upright', name: 'Upright', program: 32, octaveOffset: -2, gainDb: -2.3 },
-      { id: 'fretless', name: 'Fretless', program: 35, octaveOffset: -2, gainDb: -4.1 },
-      { id: 'reese', name: 'Reese', timbre: 11, octaveOffset: -2, gainDb: -2.9 },
-      { id: 'square', name: 'Square', timbre: 12, octaveOffset: -2, gainDb: -3 },
+      { id: 'finger', name: 'Finger', program: 33, octaveOffset: -2 },
+      { id: 'pick', name: 'Pick', program: 34, octaveOffset: -2 },
+      { id: 'fender-rec', name: 'Fender (recorded)', program: RECORDED_FIRST + 3, octaveOffset: -2, recorded: true },
+      { id: 'slap', name: 'Slap', program: 36, octaveOffset: -2 },
+      { id: 'slap-rec', name: 'Slap (recorded)', program: RECORDED_FIRST + 4, octaveOffset: -2, recorded: true },
+      { id: 'upright', name: 'Upright', program: 32, octaveOffset: -2 },
+      { id: 'fretless', name: 'Fretless', program: 35, octaveOffset: -2 },
+      { id: 'reese', name: 'Reese', timbre: 11, octaveOffset: -2 },
+      { id: 'square', name: 'Square', timbre: 12, octaveOffset: -2 },
     ],
   },
   {
@@ -115,7 +108,7 @@ export const INSTRUMENTS: InstrumentConfig[] = [
     name: 'Drums',
     // The kits are all recorded, and already level with each other (the app's drum_gains.dart),
     // so none of them carries a gain of its own.
-    defaultSoundType: 'acoustic2',
+    defaultSoundType: 'acoustic',
     soundTypes: [
       { id: 'acoustic', name: 'Acoustic', kit: 2, octaveOffset: 0 },
       { id: 'acoustic2', name: 'Acoustic 2', kit: 3, octaveOffset: 0 },
@@ -146,7 +139,7 @@ export const LEGACY_SOUND_IDS: Record<InstrumentType, Record<string, string>> = 
   guitar: {
     acoustic: 'steel-rec', electric: 'clean-rec', nylon: 'nylon-rec',
     'sf2-steel': 'steel', 'sf2-nylon': 'nylon', 'sf2-clean': 'clean', 'sf2-jazz': 'jazz',
-    'sf2-muted': 'muted', 'sf2-overdrive': 'overdrive', 'sf2-distortion': 'distortion',
+    'sf2-muted': 'clean', 'sf2-overdrive': 'overdrive', 'sf2-distortion': 'distortion',
     'sf2-harmonics': 'overdrive',
   },
   // The web's own Finger and Muted recordings did not make the list; the SoundFont's Finger
@@ -183,15 +176,30 @@ export function getSoundType(instrumentId: InstrumentType, soundTypeId: string):
 }
 
 /**
- * What a sound is turned up or down by to be heard at the level of the track's own reference
- * sound — the one the track plays by default, which is where the mix was set by ear
+ * The sound each track's mix was set with (TRACK_TRIM in fromSong.ts, set by ear 2026-09-22):
+ * the level every other sound of that track is brought to. It is named here rather than taken
+ * from the track's default sound, because changing which sound a track starts on should not
+ * make the whole track louder or quieter.
+ */
+export const REFERENCE_SOUND = gainTable.reference as Record<InstrumentType, string>;
+
+/**
+ * Decibels that put a sound at the level of its track's reference sound, measured through the
+ * player itself by `npm run lab:gains` (scripts/measure-list-gains.mjs, docs/sonidos-comunes.md
+ * §7d). The reference sound is 0.
+ */
+export function soundGainDb(instrumentId: InstrumentType, soundTypeId: string): number {
+  const gains = gainTable.gains as Record<string, number>;
+  const id = getSoundType(instrumentId, soundTypeId)?.id ?? soundTypeId;
+  return gains[`${instrumentId}.${id}`] ?? 0;
+}
+
+/**
+ * What a sound is turned up or down by to be heard at the level the track's mix was set at
  * (docs/sonidos-comunes.md §7f). Changing sound then changes the timbre, not the level.
  */
 export function relativeSoundGain(instrumentId: InstrumentType, soundTypeId: string): number {
-  const instrument = getInstrumentConfig(instrumentId);
-  const reference = instrument?.soundTypes.find((s) => s.id === instrument.defaultSoundType)?.gainDb ?? 0;
-  const sound = getSoundType(instrumentId, soundTypeId)?.gainDb ?? reference;
-  return 10 ** ((sound - reference) / 20);
+  return 10 ** (soundGainDb(instrumentId, soundTypeId) / 20);
 }
 
 /** The engine timbre a sound plays on: the SoundFont, or one of the app's synthesised ones. */

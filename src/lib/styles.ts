@@ -491,7 +491,7 @@ export const MUSICAL_STYLES: StylePattern[] = [
       },
     },
     volumes: { piano: 0.7, bass: 1.0, drums: 1.0, guitar: 1.0 },
-    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'muted' },
+    instrumentSounds: { piano: 'grand', bass: 'pick', drums: 'acoustic2', guitar: 'clean' },
     melodic: {
       // bass/piano intentionally left without variations — RhythmEditor's
       // migrateRhythmToMelodic() regenerates a real "Default" variation from

@@ -1,5 +1,6 @@
 import { memo, useMemo, useRef } from 'react';
 import {
+  ChevronDown,
   Download,
   FileMusic,
   FolderOpen,
@@ -14,6 +15,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -24,6 +26,7 @@ import { type Section } from '@/lib/sections';
 import { type StylePattern } from '@/lib/styles';
 import { chordPosition, useGlide } from '@/lib/playbackPosition';
 import { SWING_OPTIONS, swingOption } from '@/lib/swing';
+import { CLICK_SOUNDS, type ClickSettings } from '@/lib/clickSettings';
 
 /** Metronome glyph — lucide has no metronome/pendulum icon, so this draws one:
  *  a trapezoidal body with a swung pendulum rod. Stroke style matches lucide
@@ -76,6 +79,9 @@ interface TransportControlsProps {
 
   metronomeEnabled: boolean;
   onMetronomeToggle: (enabled: boolean) => void;
+  /** How the click sounds — the person's own setting, as the app's metronome panel. */
+  click: ClickSettings;
+  onClickChange: (click: ClickSettings) => void;
 
   selectedStyleId: string;
   customStyles: StylePattern[];
@@ -112,7 +118,7 @@ export const TransportControls = memo(function TransportControls(props: Transpor
     isPlaying, isExporting, hasChords, onPlay, onStop,
     bpm, onBpmChange, meter, swingRatio, onSwingChange,
     keyBase, transposition, onTranspositionChange, onKeyModeChange, onKeyPick,
-    metronomeEnabled, onMetronomeToggle,
+    metronomeEnabled, onMetronomeToggle, click, onClickChange,
     selectedStyleId, customStyles, onStyleChange,
     onOpenMixer, onOpenLibrary, onOpenTemplates, onOpenInstruments, onOpenRhythmEditor, onNewRhythm,
     onExport, onExportMidi,
@@ -130,18 +136,69 @@ export const TransportControls = memo(function TransportControls(props: Transpor
         onKeyPick={onKeyPick}
         variant="pill"
       />
-      <button
-        type="button"
-        className={`cp-cap shrink-0 ${metronomeEnabled ? 'cp-on' : ''}`}
-        onClick={() => onMetronomeToggle(!metronomeEnabled)}
-        disabled={isExporting}
-        aria-pressed={metronomeEnabled}
-        aria-label="Metronome click"
-        title="Metronome click"
-      >
-        <MetronomeIcon size={16} />
-        <span className="text-xs">Click</span>
-      </button>
+      {/* The click: the capsule turns it on, the caret opens how it sounds — the app's own
+          metronome settings, which belong to the person and not to the song. */}
+      <div className={`cp-cap shrink-0 gap-0 p-0 ${metronomeEnabled ? 'cp-on' : ''}`}>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 py-1.5 pl-3 pr-1"
+          onClick={() => onMetronomeToggle(!metronomeEnabled)}
+          disabled={isExporting}
+          aria-pressed={metronomeEnabled}
+          aria-label="Metronome click"
+          title="Metronome click"
+        >
+          <MetronomeIcon size={16} />
+          <span className="text-xs">Click</span>
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="py-1.5 pl-0.5 pr-2.5 opacity-70"
+              disabled={isExporting}
+              aria-label="Click settings"
+              title="Click settings"
+            >
+              <ChevronDown size={14} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-52">
+            <DropdownMenuLabel className="text-[11px]">Sound</DropdownMenuLabel>
+            {CLICK_SOUNDS.map((sound) => (
+              <DropdownMenuItem key={sound.id} onClick={() => onClickChange({ ...click, sound: sound.id })}>
+                <span className="flex-1">{sound.label}</span>
+                {click.sound === sound.id && <span aria-hidden>✓</span>}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+              <label className="cp-lbl mb-1 block text-[11px]" htmlFor="click-volume" style={{ color: 'var(--cp-fa)' }}>
+                Volume {Math.round(click.volume * 100)}%
+              </label>
+              <input
+                id="click-volume"
+                className="cp-rg w-full"
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(click.volume * 100)}
+                onChange={(e) => onClickChange({ ...click, volume: Number(e.target.value) / 100 })}
+                style={{ ['--cp-p' as string]: `${Math.round(click.volume * 100)}%` }}
+              />
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={(e) => { e.preventDefault(); onClickChange({ ...click, accent: !click.accent }); }}>
+              <span className="flex-1">Accent first beat</span>
+              {click.accent && <span aria-hidden>✓</span>}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.preventDefault(); onClickChange({ ...click, division: click.division === 2 ? 1 : 2 }); }}>
+              <span className="flex-1">Half beats</span>
+              {click.division === 2 && <span aria-hidden>✓</span>}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <div className="min-w-0 flex-1 lg:max-w-[300px]" data-tour="style-selector">
         <StyleSelector
           selectedStyleId={selectedStyleId}

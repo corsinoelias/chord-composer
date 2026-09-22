@@ -151,6 +151,10 @@ Solo he comparado nota a nota el Reggaeton; los demás pares hay que escucharlos
 
 - **Clic: el cencerro en los dos.** Web hecho; en la app, `AppSettings.metronomeSound = countInSound`
   (`app_settings.dart`), sin commit hasta probar la app. Quien ya eligió otro clic lo conserva.
+  Desde el 2026-09-22 la web también deja **elegirlo**, como la app: sonido (baqueta, cencerro, ride
+  o pitido), volumen, acento y medios tiempos, en el desplegable de la cápsula Click
+  (`src/lib/clickSettings.ts`, guardado en este navegador porque es de la persona, no de la
+  canción). Arranca en el 35 % y no en el 0,7 de la app: a ese nivel se oía por encima de todo.
 - **Platos sin recorte.** La web quita su `DRUM_TRIM`: los platos suenan al nivel del patrón, como en
   la app.
 - **Ganan los ritmos de la web.** La app tendrá que tocar los de `shared/catalog/styles.json` (§8.3);
@@ -175,7 +179,16 @@ reproduce) y mide +9,7 dB sobre el piano; el slap grabado de la web mide 10,7 dB
 SoundFont con el mismo pico, porque es corto y brillante. Comparar así decide por volumen, no por
 sonido.
 
-`npm run lab:gains` (scripts/measure-sound-gains.mjs) toca cada candidato con el mismo patrón, mide su
+Los niveles que **manda hoy el reproductor** están en `src/lib/soundGains.json`, medidos por
+`npm run lab:gains` (scripts/measure-list-gains.mjs) tocando la canción de verdad con el motor y el
+SoundFont que se publican, un sonido a la vez, y llevando cada uno al nivel del sonido de
+referencia de su pista (piano, guitarra Acústica, bajo de Púa). Hacía falta: con los números de la
+escucha, el bajo Fender grabado quedaba 3,5 dB por debajo del de púa en el reproductor. Con los
+medidos, cada pista queda dentro de ~2 dB, salvo tres que topan el límite de ±9 dB y siguen
+flojos —el pad, el slap del SoundFont y el slap grabado— y la distorsión, 2 dB de más.
+
+Los de la escucha (`auditionGains.json`) se quedan para `/lab/sounds/`:
+`scripts/measure-sound-gains.mjs` toca cada candidato con el mismo patrón, mide su
 energía entre 90 Hz y 6 kHz —la banda que de verdad se oye— y escribe en
 `src/lib/appEngine/auditionGains.json` la ganancia que lo lleva a la mediana (tope ±6 dB). La escucha ya
 los aplica: medidos después, todos caen en −36,8 dB salvo el slap de la web, que necesitaría +10,7 y se
@@ -184,8 +197,10 @@ batería (`drum_gains.dart`).
 
 ## 7e. Lista final (2026-09-22, escuchada)
 
-Decidida con `/lab/sounds/`, con todos los sonidos al mismo nivel. **37 sonidos y 7 kits.**
-La columna «nivel» es la ganancia medida de §7d, que va con el sonido al catálogo.
+Decidida con `/lab/sounds/`, con todos los sonidos al mismo nivel. **34 sonidos y 7 kits**
+(después de escucharla en el reproductor salieron FM, Pluck y la guitarra Apagada, 2026-09-22).
+La columna «nivel» es la ganancia de la escucha; las que manda hoy el reproductor son otras,
+medidas con el motor de verdad en `src/lib/soundGains.json` (§7d).
 
 **Piano y teclados** (10)
 
@@ -200,9 +215,8 @@ La columna «nivel» es la ganancia medida de §7d, que va con el sonido al cat�
 | Pad cálido | SoundFont 89 | `pad` | +2,9 dB |
 | Órgano (sint.) | sintetizado | `organ-syn` | −6 dB |
 | Pad (sint.) | sintetizado | `pad-syn` | −6 dB |
-| FM | sintetizado | `fm` | +6 dB |
 
-Fuera: Bright Piano (casi igual al Piano) y el piano grabado de la web.
+Fuera: Bright Piano (casi igual al Piano), el piano grabado de la web y FM.
 
 **Guitarra** (11)
 
@@ -212,15 +226,13 @@ Fuera: Bright Piano (casi igual al Piano) y el piano grabado de la web.
 | Nylon | SoundFont 24 | `nylon` | +1 dB |
 | Eléctrica limpia | SoundFont 27 | `clean` | +4,6 dB |
 | Jazz | SoundFont 26 | `jazz` | +1,2 dB |
-| Apagada | SoundFont 28 | `muted` | +6 dB |
 | Overdrive | SoundFont 29 | `overdrive` | −0,4 dB |
 | Distorsión | SoundFont 30 | `distortion` | −3,9 dB |
-| Pluck | sintetizado | `pluck` | +6 dB |
 | Acústica (grabada) | grabaciones de la web | `steel-rec` | +3 dB |
 | Eléctrica (grabada) | grabaciones de la web | `clean-rec` | +3 dB |
 | Nylon (grabada) | grabaciones de la web | `nylon-rec` | +1,7 dB |
 
-Fuera: Harmonics, Overdrive sint., Muted sint., Saw.
+Fuera: Harmonics, Overdrive sint., Muted sint., Saw, Apagada y Pluck.
 
 **Bajo** (9)
 
@@ -254,11 +266,10 @@ fender 15, slap 15. Van en el mismo archivo porque el motor carga un solo SoundF
 (`scripts/build-recordings.mjs`, parte de `npm run engine:sync`), en programas 100-104, que General
 MIDI no usa.
 
-**Por defecto (elegidos de oído, 2026-09-22):** piano → **Piano**, guitarra → **Acústica**
-(la del SoundFont), bajo → **Dedos**, batería → **Acoustic 2**. No son los de hoy en la web
-(guitarra y bajo grabados, kit Acoustic), así que una canción guardada que nunca tocó su sonido
-sonará distinta: es lo que ya se decidió el 2026-09-21 al hacer del motor y los sonidos de la app
-la referencia.
+**Por defecto (elegidos de oído, 2026-09-22):** piano → **Piano**, guitarra → **Eléctrica limpia**,
+bajo → **Fender (grabado)**, batería → **Acoustic**. Una canción guardada que nunca tocó su sonido
+sonará distinta: es lo que ya se decidió el 2026-09-21 al hacer del motor y los sonidos de la app la
+referencia.
 
 **Traducción de las canciones guardadas** (`LEGACY_SOUND_IDS` en `instruments.ts`, aplicada al abrir
 una canción de esquema anterior al 6): `sampled`/`acoustic`/`soft`/`upright`/`bright` → `grand`;
@@ -300,7 +311,10 @@ que la medida ya daba 6 dB por debajo del resto y el tope de ±6 dB no alcanza a
    `scripts/build-recordings.mjs` le añade las cinco grabaciones (Chromium sin ventana decodifica
    los mp3; Node no sabe). 19,45 MB.
 3. **Canciones guardadas:** esquema 6, `migrateLegacySong` traduce los ids al abrirlas.
-4. **Mezcla:** §7f.
+4. **Mezcla:** §7f, con las ganancias medidas en `src/lib/soundGains.json` (`npm run lab:gains`).
+5. **Clic:** `src/lib/clickSettings.ts` + el desplegable de la cápsula Click; el motor recibe
+   sonido, volumen, acento y subdivisión en el mismo comando que ya llevaba (y con él cuenta la
+   entrada).
 
 **Falta:**
 

@@ -1,0 +1,38 @@
+{
+  "note": "Written by scripts/measure-list-gains.mjs; dB that put each sound at the level of its track's reference sound.",
+  "reference": {
+    "piano": "grand",
+    "guitar": "steel",
+    "bass": "pick",
+    "drums": "acoustic"
+  },
+  "gains": {
+    "piano.grand": 0,
+    "piano.epiano": -1.8,
+    "piano.rhodes": -1.6,
+    "piano.organ": -1.5,
+    "piano.honkytonk": -0.4,
+    "piano.strings": 1.7,
+    "piano.pad": 9,
+    "piano.organ-syn": -6.4,
+    "piano.pad-syn": -6.6,
+    "guitar.steel": 0,
+    "guitar.steel-rec": -2.1,
+    "guitar.nylon": -4.5,
+    "guitar.nylon-rec": -3.6,
+    "guitar.clean": -0.2,
+    "guitar.clean-rec": -3.3,
+    "guitar.jazz": -4.5,
+    "guitar.overdrive": -7.7,
+    "guitar.distortion": -9,
+    "bass.finger": -1.3,
+    "bass.pick": 0,
+    "bass.fender-rec": 5.7,
+    "bass.slap": 9,
+    "bass.slap-rec": 9,
+    "bass.upright": 0.8,
+    "bass.fretless": 0,
+    "bass.reese": 1,
+    "bass.square": 0.5
+  }
+}

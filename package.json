@@ -23,7 +23,7 @@
     "shared:export": "tsx scripts/export-shared.ts",
     "test:shared": "tsx tests/shared/roundtrip.ts",
     "lab:audition": "node scripts/lab-audition.mjs",
-    "lab:gains": "node scripts/measure-sound-gains.mjs"
+    "lab:gains": "node scripts/measure-list-gains.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",

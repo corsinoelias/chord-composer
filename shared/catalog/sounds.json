@@ -7,70 +7,63 @@
     "name": "Grand Piano",
     "program": 0,
     "octaveOffset": 0,
-    "gainDb": 1.6
+    "gainDb": 0
    },
    {
     "id": "epiano",
     "name": "Electric Piano",
     "program": 4,
     "octaveOffset": 0,
-    "gainDb": -1.9
+    "gainDb": -1.8
    },
    {
     "id": "rhodes",
     "name": "Rhodes",
     "program": 5,
     "octaveOffset": 0,
-    "gainDb": -1.1
+    "gainDb": -1.6
    },
    {
     "id": "organ",
     "name": "Organ",
     "program": 16,
     "octaveOffset": 0,
-    "gainDb": -3.1
+    "gainDb": -1.5
    },
    {
     "id": "honkytonk",
     "name": "Honky-Tonk",
     "program": 3,
     "octaveOffset": 0,
-    "gainDb": 1.2
+    "gainDb": -0.4
    },
    {
     "id": "strings",
     "name": "Strings",
     "program": 48,
     "octaveOffset": 0,
-    "gainDb": -1.4
+    "gainDb": 1.7
    },
    {
     "id": "pad",
     "name": "Warm Pad",
     "program": 89,
     "octaveOffset": 0,
-    "gainDb": 2.9
+    "gainDb": 9
    },
    {
     "id": "organ-syn",
     "name": "Organ (synth)",
     "timbre": 3,
     "octaveOffset": 0,
-    "gainDb": -6
+    "gainDb": -6.4
    },
    {
     "id": "pad-syn",
     "name": "Pad (synth)",
     "timbre": 4,
     "octaveOffset": 0,
-    "gainDb": -6
-   },
-   {
-    "id": "fm",
-    "name": "FM",
-    "timbre": 1,
-    "octaveOffset": 0,
-    "gainDb": 6
+    "gainDb": -6.6
    }
   ],
   "legacy": {
@@ -81,24 +74,25 @@
    "bright": "grand",
    "electric": "epiano",
    "synth": "grand"
-  }
+  },
+  "reference": "grand"
  },
  "guitar": {
-  "default": "steel",
+  "default": "clean",
   "sounds": [
    {
     "id": "steel",
     "name": "Acoustic",
     "program": 25,
     "octaveOffset": 0,
-    "gainDb": 4.9
+    "gainDb": 0
    },
    {
     "id": "steel-rec",
     "name": "Acoustic (recorded)",
     "program": 100,
     "octaveOffset": 0,
-    "gainDb": 3,
+    "gainDb": -2.1,
     "recorded": true
    },
    {
@@ -106,14 +100,14 @@
     "name": "Nylon",
     "program": 24,
     "octaveOffset": 0,
-    "gainDb": 1
+    "gainDb": -4.5
    },
    {
     "id": "nylon-rec",
     "name": "Nylon (recorded)",
     "program": 102,
     "octaveOffset": 0,
-    "gainDb": 1.7,
+    "gainDb": -3.6,
     "recorded": true
    },
    {
@@ -121,14 +115,14 @@
     "name": "Electric Clean",
     "program": 27,
     "octaveOffset": 0,
-    "gainDb": 4.6
+    "gainDb": -0.2
    },
    {
     "id": "clean-rec",
     "name": "Electric (recorded)",
     "program": 101,
     "octaveOffset": 0,
-    "gainDb": 3,
+    "gainDb": -3.3,
     "recorded": true
    },
    {
@@ -136,34 +130,21 @@
     "name": "Jazz",
     "program": 26,
     "octaveOffset": 0,
-    "gainDb": 1.2
-   },
-   {
-    "id": "muted",
-    "name": "Muted",
-    "program": 28,
-    "octaveOffset": 0,
-    "gainDb": 6
+    "gainDb": -4.5
    },
    {
     "id": "overdrive",
     "name": "Overdrive",
     "program": 29,
     "octaveOffset": 0,
-    "gainDb": -0.4
+    "gainDb": -7.7
    },
    {
     "id": "distortion",
     "name": "Distortion",
     "program": 30,
     "octaveOffset": 0,
-    "gainDb": -3.9
-   },
-   {
-    "id": "pluck",
-    "name": "Pluck",
-    "timbre": 6,
-    "octaveOffset": 0
+    "gainDb": -9
    }
   ],
   "legacy": {
@@ -174,35 +155,36 @@
    "sf2-nylon": "nylon",
    "sf2-clean": "clean",
    "sf2-jazz": "jazz",
-   "sf2-muted": "muted",
+   "sf2-muted": "clean",
    "sf2-overdrive": "overdrive",
    "sf2-distortion": "distortion",
    "sf2-harmonics": "overdrive"
-  }
+  },
+  "reference": "steel"
  },
  "bass": {
-  "default": "finger",
+  "default": "fender-rec",
   "sounds": [
    {
     "id": "finger",
     "name": "Finger",
     "program": 33,
     "octaveOffset": -2,
-    "gainDb": -5.1
+    "gainDb": -1.3
    },
    {
     "id": "pick",
     "name": "Pick",
     "program": 34,
     "octaveOffset": -2,
-    "gainDb": -3.5
+    "gainDb": 0
    },
    {
     "id": "fender-rec",
     "name": "Fender (recorded)",
     "program": 103,
     "octaveOffset": -2,
-    "gainDb": 0,
+    "gainDb": 5.7,
     "recorded": true
    },
    {
@@ -210,14 +192,14 @@
     "name": "Slap",
     "program": 36,
     "octaveOffset": -2,
-    "gainDb": -1.2
+    "gainDb": 9
    },
    {
     "id": "slap-rec",
     "name": "Slap (recorded)",
     "program": 104,
     "octaveOffset": -2,
-    "gainDb": 6,
+    "gainDb": 9,
     "recorded": true
    },
    {
@@ -225,28 +207,28 @@
     "name": "Upright",
     "program": 32,
     "octaveOffset": -2,
-    "gainDb": -2.3
+    "gainDb": 0.8
    },
    {
     "id": "fretless",
     "name": "Fretless",
     "program": 35,
     "octaveOffset": -2,
-    "gainDb": -4.1
+    "gainDb": 0
    },
    {
     "id": "reese",
     "name": "Reese",
     "timbre": 11,
     "octaveOffset": -2,
-    "gainDb": -2.9
+    "gainDb": 1
    },
    {
     "id": "square",
     "name": "Square",
     "timbre": 12,
     "octaveOffset": -2,
-    "gainDb": -3
+    "gainDb": 0.5
    }
   ],
   "legacy": {
@@ -258,52 +240,60 @@
    "sub": "reese",
    "electric": "square",
    "picked": "pick"
-  }
+  },
+  "reference": "pick"
  },
  "drums": {
-  "default": "acoustic2",
+  "default": "acoustic",
   "sounds": [
    {
     "id": "acoustic",
     "name": "Acoustic",
     "kit": 2,
-    "octaveOffset": 0
+    "octaveOffset": 0,
+    "gainDb": 0
    },
    {
     "id": "acoustic2",
     "name": "Acoustic 2",
     "kit": 3,
-    "octaveOffset": 0
+    "octaveOffset": 0,
+    "gainDb": 0
    },
    {
     "id": "electronic",
     "name": "Electronic",
     "kit": 4,
-    "octaveOffset": 0
+    "octaveOffset": 0,
+    "gainDb": 0
    },
    {
     "id": "ap1",
     "name": "AP1",
     "kit": 5,
-    "octaveOffset": 0
+    "octaveOffset": 0,
+    "gainDb": 0
    },
    {
     "id": "brutalist",
     "name": "Brutalist",
     "kit": 6,
-    "octaveOffset": 0
+    "octaveOffset": 0,
+    "gainDb": 0
    },
    {
     "id": "chase",
     "name": "Chase",
     "kit": 7,
-    "octaveOffset": 0
+    "octaveOffset": 0,
+    "gainDb": 0
    },
    {
     "id": "runit",
     "name": "Run It",
     "kit": 8,
-    "octaveOffset": 0
+    "octaveOffset": 0,
+    "gainDb": 0
    }
   ],
   "legacy": {
@@ -314,6 +304,7 @@
    "rock": "acoustic2",
    "jazz": "acoustic",
    "electronic": "electronic"
-  }
+  },
+  "reference": "acoustic"
  }
 }

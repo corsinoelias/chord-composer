@@ -4,7 +4,7 @@
     "commit": "165d929a0aeaa77e50982fdae12b035bbbb05cf6",
     "dirtyEngine": false
   },
-  "syncedAt": "2026-09-22T20:49:34.888Z",
+  "syncedAt": "2026-09-22T21:27:34.076Z",
   "programs": [
     0,
     3,
@@ -15,7 +15,6 @@
     25,
     26,
     27,
-    28,
     29,
     30,
     32,
@@ -81,7 +80,7 @@
     "engine/web_glue.cpp": "1031b4c5feb68077773e21e3737a6c79b293853bf091bc6d76a51bb438ec0acf",
     "engine/shim/aaudio/AAudio.h": "e05c86b807d44199f67776d9db135f20d0d0142f5a2c0ffc0b4807eaf6ee859d",
     "public/engine/engine.wasm": "256fca479d1f3c2f447351d65bdef531097e9c980fabbed7a5c69aefd9a0af91",
-    "public/engine/sounds.sf2": "8970538c4185be9c125bfe0b425b1bed6bc89e6cf3758b3f3087044d222dd8e9",
+    "public/engine/sounds.sf2": "4a13a97ea30c3bbe2acdcf5e5065362df09772413ce0f164b6f856291dfb0c65",
     "public/engine/kit.json": "0e2f507feb6dce72916a314a5c2ec1c0c01e9e361b75fbd6835299499afb73fc",
     "public/engine/drums/kick.pcm": "43c665669d8a8d5d56bd65b17aebf816154d47ed06fc1040ffe37b18036d8950",
     "public/engine/drums/snare.pcm": "aa569669c427eb841a5b4189592de5aec42b603043d93b0f6db7acf09809c372",

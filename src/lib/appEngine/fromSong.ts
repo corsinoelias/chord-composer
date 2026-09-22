@@ -45,6 +45,7 @@ import {
 import { type DrumKit } from './host';
 import { type NoteLengths } from '../noteLengths';
 import { styleSwingRatio } from '../swing';
+import { DEFAULT_CLICK, type ClickSettings } from '../clickSettings';
 
 /** The first of the engine's scale-degree step values (enum Degree, kScale1). */
 const SCALE_DEGREE_1 = 8;
@@ -58,11 +59,6 @@ const MAX_BARS = 4;
 const MAX_STEPS_PER_BAR = 20; // kMaxStepsPerBar: a fill row's width
 /** The kit when the catalog names one the app does not have: the app's own default. */
 const DEFAULT_KIT = 2;
-/**
- * The click: the app's cowbell (its count-in sound, and one of its metronome choices — the app's
- * own default is the stick, the web's is the cowbell, decided 2026-09-22).
- */
-const CLICK_SLOT = 36;
 
 /**
  * The pan each track sits at, the app's defaults (MixerState in audio_engine.dart): the piano a
@@ -103,6 +99,8 @@ export interface SongInput {
   swing?: number;
   /** The fill on every bar, as the rhythm editor's Fill switch previews it; the engine adds none of its own. */
   fillEveryBar?: boolean;
+  /** How the click sounds — the person's own setting, not the song's (clickSettings.ts). */
+  click?: ClickSettings;
 }
 
 export interface EngineSong {
@@ -192,7 +190,9 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   c.push(['commitArrangement']);
 
   // ── Each section's grooves, lines and sounds ──
-  const drumSlots = new Set<number>([CLICK_SLOT]);
+  const click = song.click ?? DEFAULT_CLICK;
+  // The click's own recording has to be loaded like any other (the beep is the engine's own).
+  const drumSlots = new Set<number>(click.sound >= SAMPLED_FIRST ? [click.sound - SAMPLED_FIRST] : []);
   const arpeggioTracks = new Set<string>();
   sections.forEach((section, s) => {
     const playback = resolveSectionPlayback(section, songStyle, lookup);
@@ -290,7 +290,8 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   }
   c.push(['mixer', 'master', MASTER, false]);
   for (const track of TRACKS) c.push(['pan', track, PAN[track]]);
-  c.push(['metronome', !!song.metronomeEnabled, 0.7, sampledDrum(CLICK_SLOT), true, 1]);
+  // The same command carries the count-in, which the engine clicks with these settings too.
+  c.push(['metronome', !!song.metronomeEnabled, click.volume, click.sound, click.accent, click.division]);
   // Dry, as the web always played (the mixer's reverb starts off, effects.ts), where the
   // engine's own default is a large room: left on, every note rang on for half a second.
   c.push(['reverb', 0.7, 0]);

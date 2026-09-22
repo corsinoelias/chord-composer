@@ -36,6 +36,7 @@ import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/us
 import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat, songNoteLengths, withNoteLengths, songSwing, withSwing } from '@/lib/songs';
 import { styleSwingRatio } from '@/lib/swing';
 import { type NoteLengths } from '@/lib/noteLengths';
+import { DEFAULT_CLICK, loadClickSettings, saveClickSettings, type ClickSettings } from '@/lib/clickSettings';
 import { parseChordString } from '@/lib/chordParser';
 import { decodeEditorSections, editorSectionsToSections } from '@/lib/editorLink';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
@@ -119,7 +120,7 @@ const editorSignature = (s: {
 
 const Index = ({ songId }: IndexProps) => {
   const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
-  const { state: playbackState, play, warmup, stop: stopPlayback, updatePlaybackOptions } = usePlayback();
+  const { state: playbackState, play, warmup, stop: stopPlayback, updatePlaybackOptions, setClickSettings } = usePlayback();
   const { isPlaying, currentChordIndex } = playbackState;
   // `currentStep` is intentionally NOT read here — it changes ~6.7x/sec and reading it
   // at this top level would re-render the entire editor tree every 16th note (the cause
@@ -241,6 +242,10 @@ const Index = ({ songId }: IndexProps) => {
   // whole sheet under them. It is a way of reading the same chords, so it is not persisted.
   const [keyOverride, setKeyOverride] = useState<DetectedKey | null>(null);
   const [metronomeEnabled, setMetronomeEnabled] = useState(restoredDraft?.metronomeEnabled ?? true);
+  // How the click sounds (sound, level, accent, half beats) — the person's own setting, as the
+  // app keeps it in its settings and not in the song (clickSettings.ts).
+  const [click, setClick] = useState<ClickSettings>(DEFAULT_CLICK);
+  useEffect(() => { setClick(loadClickSettings()); }, []);
   const [loopingSectionIndex, setLoopingSectionIndex] = useState<number | null>(null);
   // How long each track's notes ring — the Android app's note length, saved where the app
   // keeps it (app.noteLengths). Empty: every track plays the web's own length.
@@ -280,6 +285,7 @@ const Index = ({ songId }: IndexProps) => {
   const bpmRef = useRef(bpm);
   const metronomeRef = useRef(metronomeEnabled);
   const noteLengthsRef = useRef<NoteLengths>(noteLengths);
+  const clickRef = useRef<ClickSettings>(click);
   const instrumentsRef = useRef<InstrumentState[]>(instruments);
   const transpositionRef = useRef(transposition);
   const styleRef = useRef(selectedStyleId);
@@ -292,6 +298,7 @@ const Index = ({ songId }: IndexProps) => {
   bpmRef.current = bpm;
   metronomeRef.current = metronomeEnabled;
   noteLengthsRef.current = noteLengths;
+  clickRef.current = click;
   instrumentsRef.current = instruments;
   styleRef.current = selectedStyleId;
   loopingSectionRef.current = loopingSectionIndex;
@@ -718,6 +725,7 @@ const Index = ({ songId }: IndexProps) => {
       loopingSectionIndex: loopIdx,
       melodic: melodicRef.current,
       noteLengths: noteLengthsRef.current,
+      click: clickRef.current,
       swing: swingRef.current,
       countIn,
     });
@@ -1383,6 +1391,7 @@ const Index = ({ songId }: IndexProps) => {
       loopingSectionIndex: loopingSectionRef.current,
       melodic: melodicRef.current,
       noteLengths: noteLengthsRef.current,
+      click: clickRef.current,
     }).catch(() => {});
     setShowCountdown(true);
     void startPlayback(true);
@@ -1592,6 +1601,12 @@ const Index = ({ songId }: IndexProps) => {
           onMetronomeToggle={(enabled) => {
             setMetronomeEnabled(enabled);
             analytics.metronomeToggled(enabled);
+          }}
+          click={click}
+          onClickChange={(next) => {
+            setClick(next);
+            saveClickSettings(next);
+            setClickSettings(next);
           }}
           selectedStyleId={selectedStyleId}
           customStyles={customStyles}

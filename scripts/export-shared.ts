@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { MUSICAL_STYLES, getSlotsPerBar, generateBarPattern, type StylePattern } from '../src/lib/styles';
 import { CHORD_QUALITIES, chordToMidiNotes, type ChordQuality } from '../src/lib/musicTheory';
 import { getScale } from '../src/lib/bassScale';
-import { INSTRUMENTS, LEGACY_SOUND_IDS } from '../src/lib/instruments';
+import { INSTRUMENTS, LEGACY_SOUND_IDS, REFERENCE_SOUND, soundGainDb } from '../src/lib/instruments';
 import { SONG_SCHEMA_VERSION } from '../src/lib/songs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'shared');
@@ -96,10 +96,12 @@ function main() {
           ...(t.timbre !== undefined ? { timbre: t.timbre } : {}),
           ...(t.kit !== undefined ? { kit: t.kit } : {}),
           octaveOffset: t.octaveOffset,
-          ...(t.gainDb !== undefined ? { gainDb: t.gainDb } : {}),
+          gainDb: soundGainDb(inst.id, t.id),
           ...(t.recorded ? { recorded: true } : {}),
         })),
         legacy: LEGACY_SOUND_IDS[inst.id] ?? {},
+        // The sound the track's mix was set with: every gainDb is decibels from it.
+        reference: REFERENCE_SOUND[inst.id],
       },
     ]),
   );

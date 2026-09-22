@@ -13,6 +13,7 @@ import { type MelodicData } from '@/lib/bassScale';
 import { makeStyleLookup } from '@/lib/sectionPlayback';
 import { AppPlayback, startedAppEngine, type AppSong } from '@/lib/appEngine/player';
 import { type NoteLengths } from '@/lib/noteLengths';
+import { type ClickSettings } from '@/lib/clickSettings';
 
 interface PlaybackState {
   isPlaying: boolean;
@@ -42,6 +43,7 @@ interface PlaybackContextValue {
   stop: (opts?: { keepContext?: boolean }) => void;
   setBpm: (bpm: number) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
+  setClickSettings: (click: ClickSettings) => void;
 
   // For live updates during playback
   updatePlaybackOptions: (options: Partial<PlayOptions>) => void;
@@ -88,6 +90,8 @@ interface PlayOptions {
   countIn?: boolean;
   // The song's own swing ratio (the app's Straight/Light/Shuffle), or absent for the rhythm's.
   swing?: number;
+  // How the click sounds: the person's own setting (clickSettings.ts), not the song's.
+  click?: ClickSettings;
   sections?: Section[];
   // How long each track's notes ring (the app's note length, saved as app.noteLengths).
   noteLengths?: NoteLengths;
@@ -209,6 +213,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
         metronomeEnabled: opts.metronome,
         noteLengths: opts.noteLengths,
         swing: opts.swing,
+        click: opts.click,
       },
       style: opts.melodic ? { ...style, melodic: opts.melodic } : style,
       lookup: makeStyleLookup(opts.customStyles ?? getCustomStyles(), getStyleOverride, opts.liveEditedStyle),
@@ -401,6 +406,13 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     appRef.current.send([['setBpm', bpm]]);
   }, []);
 
+  /** The click's own settings: sent on their own, so nothing playing is cut short. */
+  const setClickSettings = useCallback((click: ClickSettings) => {
+    if (!optionsRef.current) return;
+    optionsRef.current.click = click;
+    appRef.current.send([['metronome', optionsRef.current.metronome, click.volume, click.sound, click.accent, click.division]]);
+  }, []);
+
   const setMetronomeEnabled = useCallback((enabled: boolean) => {
     setState(prev => ({ ...prev, metronomeEnabled: enabled }));
     if (optionsRef.current) {
@@ -453,6 +465,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     stop,
     setBpm,
     setMetronomeEnabled,
+    setClickSettings,
     updatePlaybackOptions,
     subscribeStep,
     getStep,
