@@ -63,8 +63,13 @@ const WEB_DRUMS: [web: string, row: DrumRow][] = [
  * drums -0.5 dB, piano -4.5, guitar -2.9 and bass +2.3 against the web's: the guitar
  * disappeared under the kit. A fader stops at 1, so the loud ones come down to the piano
  * and the master makes up the difference (its default is 0.7).
+ *
+ * The guitar then goes 6 dB above that (2026-09-22, heard: "barely audible, not level with
+ * the rest"). It sat about 10 dB under the piano on the web engine too, and the app's
+ * guitars strike softer, so matching the web was matching a guitar nobody could hear. Now
+ * it sits about 2 dB under the piano.
  */
-const MIX_TRIM: Record<TrackId, number> = { drums: 0.6, piano: 1, guitar: 0.83, bass: 0.46 };
+const MIX_TRIM: Record<TrackId, number> = { drums: 0.6, piano: 1, guitar: 1.66, bass: 0.46 };
 const MASTER = 1;
 const MELODIC: MelodicTrack[] = ['piano', 'guitar', 'bass'];
 const TRACKS: TrackId[] = ['drums', 'piano', 'guitar', 'bass'];
