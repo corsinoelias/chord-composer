@@ -86,6 +86,8 @@ interface PlayOptions {
   // Count one bar in on the engine's cowbell before the song (4 beats in 4/4, 6 in 6/8), on
   // the engine's own clock so the song lands on the beat after — see CountdownOverlay.
   countIn?: boolean;
+  // The song's own swing ratio (the app's Straight/Light/Shuffle), or absent for the rhythm's.
+  swing?: number;
   sections?: Section[];
   // How long each track's notes ring (the app's note length, saved as app.noteLengths).
   noteLengths?: NoteLengths;
@@ -206,6 +208,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
         instrumentSettings: opts.instruments,
         metronomeEnabled: opts.metronome,
         noteLengths: opts.noteLengths,
+        swing: opts.swing,
       },
       style: opts.melodic ? { ...style, melodic: opts.melodic } : style,
       lookup: makeStyleLookup(opts.customStyles ?? getCustomStyles(), getStyleOverride, opts.liveEditedStyle),

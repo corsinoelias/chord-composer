@@ -77,6 +77,23 @@ export function withNoteLengths(extras: Record<string, unknown>, lengths: NoteLe
   return next;
 }
 
+/** The song's own swing ratio (app.swing, 1-3, as the app clamps it), or undefined to play the rhythm's. */
+export function songSwing(song: unknown): number | undefined {
+  const raw = (song as { app?: { swing?: unknown } })?.app?.swing;
+  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(1, Math.min(3, raw)) : undefined;
+}
+
+/** [extras] with [ratio] written into its app block (or taken out, for the rhythm's own). */
+export function withSwing(extras: Record<string, unknown>, ratio: number | undefined): Record<string, unknown> {
+  const app = { ...((extras.app as Record<string, unknown> | undefined) ?? {}) };
+  if (ratio !== undefined) app.swing = ratio;
+  else delete app.swing;
+  const next = { ...extras };
+  if (Object.keys(app).length) next.app = app;
+  else delete next.app;
+  return next;
+}
+
 /** The lengths the app offers (lib/core/music/constants.dart noteLengths): Short, 16th, 8th, 1/4, Hold. */
 export const NOTE_LENGTH_STEPS = [0.5, 1, 2, 4, 0];
 

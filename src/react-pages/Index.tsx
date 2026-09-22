@@ -33,7 +33,8 @@ import { exportSongWav } from '@/lib/appEngine/player';
 import { exportMidi } from '@/lib/midiExporter';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
-import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat, songNoteLengths, withNoteLengths } from '@/lib/songs';
+import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat, songNoteLengths, withNoteLengths, songSwing, withSwing } from '@/lib/songs';
+import { styleSwingRatio } from '@/lib/swing';
 import { type NoteLengths } from '@/lib/noteLengths';
 import { parseChordString } from '@/lib/chordParser';
 import { decodeEditorSections, editorSectionsToSections } from '@/lib/editorLink';
@@ -244,6 +245,11 @@ const Index = ({ songId }: IndexProps) => {
   // How long each track's notes ring — the Android app's note length, saved where the app
   // keeps it (app.noteLengths). Empty: every track plays the web's own length.
   const [noteLengths, setNoteLengths] = useState<NoteLengths>({});
+  // The song's own swing (Straight/Light/Shuffle, the app's chip), saved as app.swing.
+  // Undefined: the rhythm's own feel.
+  const [swing, setSwing] = useState<number | undefined>(undefined);
+  const swingRef = useRef<number | undefined>(swing);
+  swingRef.current = swing;
   
   // Live edited style (for rhythm editor live mode)
   const [liveEditedStyle, setLiveEditedStyle] = useState<StylePattern | null>(null);
@@ -382,12 +388,12 @@ const Index = ({ songId }: IndexProps) => {
       bpm, styleId: selectedStyleId, customStyles, liveEditedStyle,
       melodic: currentStyle.melodic, instruments, transposition,
       metronome: metronomeEnabled, loopingSectionIndex,
-      sections, noteLengths,
+      sections, noteLengths, swing,
     });
   }, [
     isPlaying, bpm, selectedStyleId, customStyles, liveEditedStyle,
     currentStyle.melodic, instruments, transposition, metronomeEnabled,
-    loopingSectionIndex, updatePlaybackOptions, sections, noteLengths,
+    loopingSectionIndex, updatePlaybackOptions, sections, noteLengths, swing,
   ]);
 
   // Load song from URL param
@@ -417,6 +423,7 @@ const Index = ({ songId }: IndexProps) => {
           setKeyOverride(null);
           setMetronomeEnabled(song.metronomeEnabled);
           setNoteLengths(songNoteLengths(song));
+          setSwing(songSwing(song));
           setSongTitle(song.title);
           if (song.instrumentSettings.length > 0) {
             setInstruments(song.instrumentSettings);
@@ -477,7 +484,7 @@ const Index = ({ songId }: IndexProps) => {
         return;
       }
       const song: Song = {
-        ...withNoteLengths(songExtrasRef.current, noteLengths),
+        ...withSwing(withNoteLengths(songExtrasRef.current, noteLengths), swing),
         schemaVersion: SONG_SCHEMA_VERSION,
         id: currentSongId,
         title: songTitle,
@@ -507,14 +514,14 @@ const Index = ({ songId }: IndexProps) => {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [isLoggedIn, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, noteLengths, songCreatedAt]);
+  }, [isLoggedIn, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, noteLengths, swing, songCreatedAt]);
 
   // Explicit save — turns the current in-progress work into a persisted song.
   // Never fires automatically: /chord-player/ stays a stable, stateless URL until the user asks to save.
   const handleSaveNewSong = useCallback(async () => {
     // A first save (or a visitor's fork) keeps whatever the opened song carried that this
     // editor does not model, like every later autosave does.
-    const newSong: Song = { ...withNoteLengths(songExtrasRef.current, noteLengths), ...createSong(songTitle) };
+    const newSong: Song = { ...withSwing(withNoteLengths(songExtrasRef.current, noteLengths), swing), ...createSong(songTitle) };
     newSong.sections = sections;
     newSong.bpm = bpm;
     newSong.styleId = selectedStyleId;
@@ -536,7 +543,7 @@ const Index = ({ songId }: IndexProps) => {
       sharedBaselineRef.current = null;
     }
     setIsPublic(false);
-  }, [songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, instruments, noteLengths, sharedSong]);
+  }, [songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, instruments, noteLengths, swing, sharedSong]);
 
   // Share — flips the song's is_public flag and hands back the link. Opt-in and
   // reversible; a saved song stays private until this runs.
@@ -711,6 +718,7 @@ const Index = ({ songId }: IndexProps) => {
       loopingSectionIndex: loopIdx,
       melodic: melodicRef.current,
       noteLengths: noteLengthsRef.current,
+      swing: swingRef.current,
       countIn,
     });
   }, [play]);
@@ -1146,7 +1154,7 @@ const Index = ({ songId }: IndexProps) => {
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
       // The file is what the player plays: the same engine, in a Worker.
       downloadBlob(await exportSongWav({
-        song: { sections, bpm, transposition, instrumentSettings: instruments, noteLengths },
+        song: { sections, bpm, transposition, instrumentSettings: instruments, noteLengths, swing },
         style,
         lookup: makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle),
       }), `${filename}.wav`);
@@ -1161,7 +1169,7 @@ const Index = ({ songId }: IndexProps) => {
     } finally {
       setIsExporting(false);
     }
-  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, customStyles, noteLengths, showExportSaveNudge]);
+  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, customStyles, noteLengths, swing, showExportSaveNudge]);
 
   const handleExportMidi = useCallback(() => {
     const hasChords = sections.some(s => s.chords.length > 0);
@@ -1566,7 +1574,8 @@ const Index = ({ songId }: IndexProps) => {
               ? `${currentStyle.timeSignature.numerator}/${currentStyle.timeSignature.denominator}`
               : '4/4'
           }
-          swing={(currentStyle.swing ?? 0) > 0}
+          swingRatio={swing ?? styleSwingRatio(currentStyle)}
+          onSwingChange={setSwing}
           keyBase={keyBase}
           transposition={transposition}
           onTranspositionChange={(semitones: number) => {

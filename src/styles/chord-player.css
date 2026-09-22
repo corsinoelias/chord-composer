@@ -1292,7 +1292,9 @@ input.cp-rg:disabled {
 }
 .cp-play:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Meter and swing chips on the tempo label line */
+/* Meter and swing chips on the tempo label line; the swing one opens a menu */
+.cp-mini-btn { cursor: pointer; }
+.cp-mini-btn:hover { border-color: var(--cp-ln2); color: var(--cp-tx); }
 .cp-mini {
   height: 20px;
   padding: 0 7px;

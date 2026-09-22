@@ -23,6 +23,7 @@ import { type DetectedKey, type KeyMode } from '@/lib/keyDetect';
 import { type Section } from '@/lib/sections';
 import { type StylePattern } from '@/lib/styles';
 import { chordPosition, useGlide } from '@/lib/playbackPosition';
+import { SWING_OPTIONS, swingOption } from '@/lib/swing';
 
 /** Metronome glyph — lucide has no metronome/pendulum icon, so this draws one:
  *  a trapezoidal body with a swung pendulum rod. Stroke style matches lucide
@@ -62,7 +63,9 @@ interface TransportControlsProps {
   onBpmChange: (bpm: number) => void;
   /** The rhythm's time signature ("4/4", "6/8") and feel, shown beside the tempo. */
   meter: string;
-  swing: boolean;
+  /** The swing in force (the song's, else its rhythm's), as the app's ratio: 1, 1.5 or 2. */
+  swingRatio: number;
+  onSwingChange: (ratio: number) => void;
 
   /** Key reading in force (user pick, else detected), before transposition. */
   keyBase: DetectedKey | null;
@@ -107,7 +110,7 @@ interface TransportControlsProps {
 export const TransportControls = memo(function TransportControls(props: TransportControlsProps) {
   const {
     isPlaying, isExporting, hasChords, onPlay, onStop,
-    bpm, onBpmChange, meter, swing,
+    bpm, onBpmChange, meter, swingRatio, onSwingChange,
     keyBase, transposition, onTranspositionChange, onKeyModeChange, onKeyPick,
     metronomeEnabled, onMetronomeToggle,
     selectedStyleId, customStyles, onStyleChange,
@@ -167,13 +170,27 @@ export const TransportControls = memo(function TransportControls(props: Transpor
             : <Play size={24} fill="currentColor" strokeWidth={0} className="ml-[3px]" />}
         </button>
 
-        {/* Tempo: meter and feel ride the label line so they cost no height. Read-only on
-            the web — both belong to the rhythm, so they change with it. */}
+        {/* Tempo: meter and feel ride the label line so they cost no height. The meter belongs
+            to the rhythm; the feel is the song's own pick, as the app's swing chip. */}
         <div className="flex min-w-0 flex-1 flex-col gap-1 lg:w-64 lg:flex-none">
           <div className="flex items-center gap-[5px]">
             <span className="cp-lbl" style={{ color: 'var(--cp-fa)' }}>Tempo</span>
             <span className="cp-mini" title="Time signature — set by the rhythm">{meter}</span>
-            <span className="cp-mini" title="Feel — set by the rhythm">{swing ? 'Swing' : 'Straight'}</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className="cp-mini cp-mini-btn" title="Swing" aria-label={`Swing: ${swingOption(swingRatio).label}`}>
+                  {swingOption(swingRatio).label}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-36">
+                {SWING_OPTIONS.map((o) => (
+                  <DropdownMenuItem key={o.ratio} onClick={() => onSwingChange(o.ratio)}>
+                    <span className="flex-1">{o.label}</span>
+                    {swingOption(swingRatio).ratio === o.ratio && <span aria-hidden>✓</span>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className="flex items-baseline gap-[5px]">
             <span className="cp-mono text-2xl font-bold leading-none tabular-nums">{bpm}</span>

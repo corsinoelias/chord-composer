@@ -37,6 +37,7 @@ import {
 } from './commands';
 import { type DrumKit } from './host';
 import { type NoteLengths } from '../noteLengths';
+import { styleSwingRatio } from '../swing';
 
 /** The first of the engine's scale-degree step values (enum Degree, kScale1). */
 const SCALE_DEGREE_1 = 8;
@@ -91,6 +92,8 @@ export interface SongInput {
   metronomeEnabled?: boolean;
   /** How long each track's notes ring, in steps (0 holds); absent, the web's own length. */
   noteLengths?: NoteLengths;
+  /** The song's own swing ratio (app.swing), or absent for the rhythm's feel. */
+  swing?: number;
   /** The fill on every bar, as the rhythm editor's Fill switch previews it; the engine adds none of its own. */
   fillEveryBar?: boolean;
 }
@@ -163,10 +166,9 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
 
   // ── Time and the arrangement ──
   c.push(['setBpm', song.bpm], ['setMeter', slotsPerBar, stepsPerBeat]);
-  // The web's swing (0 straight … 1 triplet: where the "and" lands between 50 % and 66.7 %
-  // of the beat) as the engine's ratio between the two halves of the beat.
-  const p = 0.5 + Math.max(0, Math.min(1, songStyle.swing ?? 0)) / 6;
-  c.push(['setSwing', p / (1 - p)]);
+  // The song's own swing if it has one (the app's Straight/Light/Shuffle chip), else its
+  // rhythm's feel — both as the engine's ratio between the two halves of the beat.
+  c.push(['setSwing', song.swing ?? styleSwingRatio(songStyle)]);
 
   let steps = 0;
   const chordSteps: number[][] = [];
