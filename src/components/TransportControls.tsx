@@ -155,7 +155,7 @@ export const TransportControls = memo(function TransportControls(props: Transpor
   );
 
   return (
-    <div className="px-2 pt-1 lg:px-8 lg:pt-2">
+    <div className="px-3 pt-1 lg:px-8 lg:pt-2">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -252,9 +252,11 @@ export const TransportControls = memo(function TransportControls(props: Transpor
       </div>
 
       {/* Phones: the capsules get a row of their own */}
-      <div className="mt-2 flex items-center gap-2 pr-1 lg:hidden">{capsules}</div>
+      <div className="mt-2 flex items-center gap-2 lg:hidden">{capsules}</div>
 
-      <div className="py-2 pr-1 lg:pr-0">
+      {/* Room above (from the tempo slider) and below (to the header's edge), so it reads as
+          the song's own bar rather than as part of the tempo control. */}
+      <div className="pb-3 pt-3 lg:pb-4 lg:pt-4">
         <SongMap
           sections={props.sections}
           colors={props.sectionColors}

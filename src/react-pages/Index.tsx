@@ -1473,8 +1473,12 @@ const Index = ({ songId }: IndexProps) => {
           transport, then the song as a strip of its sections. On desktop the editor is
           exactly one screen tall and only the section list scrolls. */}
       <header className="cp-hd sticky top-0 z-40 shrink-0 lg:static">
+        {/* The same centred width as the body below, so on a wide screen the title, the transport
+            and the song map line up with the sections and the side panel instead of sitting out
+            at the window's edges. The background and its border still run the full width. */}
+        <div className="mx-auto w-full max-w-[1440px]">
         {/* Title row: the name, and what can be done with the song as a whole */}
-        <div className="flex h-12 items-center gap-1 px-2 lg:h-14 lg:gap-2 lg:px-8">
+        <div className="flex h-12 items-center gap-1 px-3 lg:h-14 lg:gap-2 lg:px-8">
           <a
             href="/"
             className="mr-1 hidden h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] text-white lg:flex"
@@ -1606,6 +1610,7 @@ const Index = ({ songId }: IndexProps) => {
           loopingSectionIndex={loopingSectionIndex}
           onJumpToSection={handleJumpToSection}
         />
+        </div>
       </header>
 
       <div className="mx-auto grid w-full max-w-[1440px] items-start gap-3 px-3 pb-10 pt-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-stretch lg:gap-7 lg:px-8 lg:py-0">
