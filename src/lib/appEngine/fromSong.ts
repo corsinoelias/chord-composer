@@ -57,8 +57,11 @@ const DEFAULT_KIT = 2;
  */
 const CLICK_SLOT = 36;
 
-/** The kit's internal balance, as the web engine had it: part of how a style is written. */
-const DRUM_TRIM: Record<string, number> = { hihat: 0.7, hihatOpen: 0.8, hihatFoot: 0.6, ride: 0.7 };
+/**
+ * The pan each track sits at, the app's defaults (MixerState in audio_engine.dart): the piano a
+ * little left, the guitar right, drums and bass in the middle. The web had none (2026-09-22).
+ */
+const PAN: Record<TrackId, number> = { drums: 0, piano: -0.25, guitar: 0.3, bass: 0 };
 /** The web's pieces, and the engine row each one plays on. */
 const WEB_DRUMS: [web: string, row: DrumRow][] = [
   ['kick', 'kick'], ['snare', 'snare'], ['snareStick', 'rim'], ['hihat', 'hihat'], ['hihatOpen', 'hihatOpen'],
@@ -212,7 +215,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
       for (const [web, row] of WEB_DRUMS) {
         const lane = (bar as unknown as Record<string, number[] | undefined>)[web];
         lane?.forEach((v, i) => {
-          if (v > 0 && i < slotsPerBar) c.push(['setStep', s, 'drums', row, b * slotsPerBar + i, packStep(v * (DRUM_TRIM[web] ?? 1) * 255)]);
+          if (v > 0 && i < slotsPerBar) c.push(['setStep', s, 'drums', row, b * slotsPerBar + i, packStep(v * 255)]);
         });
       }
     });
@@ -291,6 +294,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     c.push(['mixer', track, volume, !audible]);
   }
   c.push(['mixer', 'master', MASTER, false]);
+  for (const track of TRACKS) c.push(['pan', track, PAN[track]]);
   c.push(['metronome', !!song.metronomeEnabled, 0.7, sampledDrum(CLICK_SLOT), true, 1]);
   // Dry, as the web always played (the mixer's reverb starts off, effects.ts), where the
   // engine's own default is a large room: left on, every note rang on for half a second.
@@ -344,7 +348,7 @@ function fillCommand(s: number, style: StylePattern, slotsPerBar: number): Engin
     const index = DRUM_ROWS.indexOf(row);
     mask |= 1 << index;
     lane.forEach((v, i) => {
-      if (v > 0 && i < MAX_STEPS_PER_BAR) steps[index * MAX_STEPS_PER_BAR + i] = packStep(v * (DRUM_TRIM[web] ?? 1) * 255);
+      if (v > 0 && i < MAX_STEPS_PER_BAR) steps[index * MAX_STEPS_PER_BAR + i] = packStep(v * 255);
     });
   }
   return ['setFill', s, mask ? Math.max(0, Math.min(slotsPerBar - 1, fill.position)) : 0, mask, Array.from(steps)];

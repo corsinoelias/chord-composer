@@ -1,6 +1,6 @@
 # Estudio: un solo catálogo de sonidos para la app y la web
 
-Escrito el 2026-09-22. Estado: **estudio, nada implementado.** Datos sacados del código de los
+Escrito el 2026-09-22. Estado: **decididos el clic, los platos, los ritmos y el paneo (§7b); falta la lista de sonidos, pad/cuerdas y la mezcla.** Datos sacados del código de los
 dos repos ese día (`chord_sequencer` en `165d929`, la web en `534a83d`+).
 
 Objetivo: que la app y la web tengan **los mismos sonidos, ganancias, volúmenes y ritmos**, y
@@ -148,6 +148,17 @@ Solo he comparado nota a nota el Reggaeton; los demás pares hay que escucharlos
 5. **Mezcla por defecto:** la de la app para los dos (con paneo), u otra.
 6. **Ritmos:** para cada par de §6, qué versión gana, y qué hacer con los que solo tiene un lado
    (pasarlos al otro o quitarlos).
+
+## 7b. Decidido (2026-09-22)
+
+- **Clic: el cencerro en los dos.** Web hecho; en la app, `AppSettings.metronomeSound = countInSound`
+  (`app_settings.dart`), sin commit hasta probar la app. Quien ya eligió otro clic lo conserva.
+- **Platos sin recorte.** La web quita su `DRUM_TRIM`: los platos suenan al nivel del patrón, como en
+  la app.
+- **Ganan los ritmos de la web.** La app tendrá que tocar los de `shared/catalog/styles.json` (§8.3);
+  es trabajo en la app, pendiente.
+- **Paneo en la web** con los valores de la app: piano −0,25, guitarra +0,3, batería y bajo al centro
+  (`PAN` en `fromSong.ts`).
 
 ## 8. Cómo se haría (cuando decidas)
 
