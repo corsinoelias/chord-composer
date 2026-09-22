@@ -14,7 +14,6 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import * as SliderPrimitive from '@radix-ui/react-slider';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Slider } from '@/components/ui/slider';
 import { analytics } from '@/lib/analytics';
 import { ChevronLeft, Volume2 } from 'lucide-react';
 import { engineLevels, engineReductions } from '@/lib/appEngine/player';
@@ -391,6 +390,7 @@ function StripSlider({
   max,
   step,
   rest,
+  color,
   format,
   onChange,
   onCommit,
@@ -401,16 +401,19 @@ function StripSlider({
   max: number;
   step: number;
   rest: number;
+  color: string;
   format: (v: number) => string;
   onChange: (v: number) => void;
   onCommit: () => void;
 }) {
+  // At rest the line is grey: a threshold sitting at the top is a compressor doing nothing, and
+  // a full bar in the channel's colour would read as one turned all the way up.
   const moved = Math.abs(value - rest) > 0.01;
   return (
     <div className="flex items-center gap-3" onDoubleClick={() => { onChange(rest); onCommit(); }}>
       <span className="w-[62px] shrink-0 text-xs" style={{ color: 'var(--cp-tx2)' }}>{label}</span>
-      <Slider
-        className="flex-1"
+      <SliderPrimitive.Root
+        className="relative flex flex-1 touch-none select-none items-center"
         value={[value]}
         min={min}
         max={max}
@@ -418,7 +421,15 @@ function StripSlider({
         aria-label={label}
         onValueChange={([v]) => onChange(v)}
         onValueCommit={onCommit}
-      />
+      >
+        <SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full" style={{ background: 'var(--cp-s2)' }}>
+          <SliderPrimitive.Range className="absolute h-full" style={{ background: moved ? color : 'var(--cp-s3)' }} />
+        </SliderPrimitive.Track>
+        <SliderPrimitive.Thumb
+          className="block h-4 w-4 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          style={{ background: moved ? color : 'var(--cp-fa)', boxShadow: '0 1px 3px rgba(20,24,31,.3)' }}
+        />
+      </SliderPrimitive.Root>
       <span
         className="cp-mono w-[70px] shrink-0 text-right text-[11px] tabular-nums"
         style={{ color: moved ? 'var(--cp-tx2)' : 'var(--cp-fa)' }}
@@ -743,6 +754,7 @@ export function MixingConsole({ open, onOpenChange, instruments = [], onInstrume
                   max={0}
                   step={1}
                   rest={0}
+                  color={selectedChannel.color}
                   format={(v) => (v >= 0 ? '—' : `${Math.round(v)} dB`)}
                   onChange={(v) => handleStrip(selected, { threshold: v })}
                   onCommit={trackCompressor}
@@ -754,6 +766,7 @@ export function MixingConsole({ open, onOpenChange, instruments = [], onInstrume
                   max={12}
                   step={0.5}
                   rest={1}
+                  color={selectedChannel.color}
                   // 1:1 is a compressor doing nothing, and saying so is clearer than printing a
                   // ratio that reads like a setting.
                   format={(v) => (v <= 1.02 ? 'off' : `${v.toFixed(1)}:1`)}
