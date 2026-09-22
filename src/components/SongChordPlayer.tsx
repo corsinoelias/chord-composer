@@ -74,6 +74,11 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   const { isPlaying, currentChordIndex } = state;
   const [isLoading, setIsLoading] = useState(false);
   const [isExportingWav, setIsExportingWav] = useState(false);
+  // The WAV button needs the app's engine, which renders a whole song in a Worker in well
+  // under a second; the web engine's offline render was slow enough to hurt these pages.
+  // Decided after hydration, since the server cannot know which engine this browser uses.
+  const [wavExport, setWavExport] = useState(showWavExport);
+  useEffect(() => { if (appEngineEnabled()) setWavExport(true); }, []);
   const [bpm, setBpm] = useState(song.bpm);
   const [transpose, setTranspose] = useState(0);
   // Mobile performance console: Drawer open state + the "Voz" mixer channel's manual
@@ -782,6 +787,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   // ── Export WAV ─────────────────────────────────────────────────────────────
   const handleExportWav = useCallback(async () => {
     setIsExportingWav(true);
+    const began = performance.now();
     try {
       const sections = buildFullSongSections();
       // Built-in styles only for public songs ("Mis ritmos" belong to the editor).
@@ -793,10 +799,14 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
           style: resolvedStyle,
           lookup: makeStyleLookup([], () => null),
         }), `${song.title} - ${song.artist}.wav`);
+        analytics.songExportWav(song.slug, performance.now() - began);
       } else {
         const buffer = await renderProgressionOffline(sections, bpm, instruments, resolvedStyle, transpose, undefined, sectionResolver);
         await encodeAndDownloadMp3(buffer, `${song.title} - ${song.artist}.wav`);
       }
+    } catch (error) {
+      console.error('[EXPORT] song WAV failed', error);
+      analytics.songExportWavFailed(song.slug);
     } finally {
       setIsExportingWav(false);
     }
@@ -912,7 +922,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
           onExportMidi={handleExportMidi}
           editorUrl={editorUrl}
           inline={inline}
-          showWavExport={showWavExport}
+          showWavExport={wavExport}
           consoleOpen={consoleOpen}
           onToggleConsole={() => setConsoleOpen(v => !v)}
           isSoloSection={isSoloSection}
@@ -982,7 +992,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
               onExportWav={handleExportWav}
               onExportMidi={handleExportMidi}
               editorUrl={editorUrl}
-              showWavExport={showWavExport}
+              showWavExport={wavExport}
             />,
             practicePanelTarget,
           )}

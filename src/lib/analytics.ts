@@ -178,9 +178,12 @@ export const analytics = {
   songPdfExported: (songSlug: string) => track('song_pdf_exported', { song_slug: songSlug }),
   // MIDI export from a song page's practice panel. Named separately from the editor's
   // `exportMidi` (no song_slug there) so the two surfaces don't get merged in reporting —
-  // this button renders unconditionally in production; the WAV button next to it doesn't
-  // (see showWavExport in SongChordPlayer.tsx) so there is no song_export_wav to match.
+  // this button renders unconditionally in production. The WAV button next to it shows once
+  // the app's engine renders the file (see showWavExport in SongChordPlayer.tsx), from
+  // 2026-09-22: song_export_wav, and song_export_wav_failed when the render throws.
   songExportMidi: (songSlug: string) => track('song_export_midi', { song_slug: songSlug }),
+  songExportWav: (songSlug: string, ms: number) => track('song_export_wav', { song_slug: songSlug, latency_ms: Math.round(ms) }),
+  songExportWavFailed: (songSlug: string) => track('song_export_wav_failed', { song_slug: songSlug }),
   // Songs — practice controls. These separate "played the song" from "sat down to work on
   // it": looping a section, muting an instrument to play its part, or slowing the tempo are
   // the behaviours that distinguish a practice session from a listen, and they're the ones
