@@ -14,7 +14,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/
 import { Slider } from '@/components/ui/slider';
 import { analytics } from '@/lib/analytics';
 import { ChevronLeft } from 'lucide-react';
-import { getAnalyserNode } from '@/lib/audioEngine';
+import { getAnalyserNode } from '@/lib/appEngine/preview';
 import { type InstrumentState, type InstrumentType } from '@/lib/instruments';
 import {
   type EffectsState,
@@ -24,7 +24,7 @@ import {
   updateCompressor,
   resetEffects,
   getCurrentEffectsState,
-} from '@/lib/audioEffects';
+} from '@/lib/appEngine/effects';
 
 interface MixingConsoleProps {
   open: boolean;

@@ -14,7 +14,22 @@
 // export Worker — so the engine's "platform thread" and "callback" never run at once and
 // none of its atomics are ever contended.
 #include <cstdlib>
+// The standard headers the engine uses, included first so their guards keep the define below
+// out of them.
+#include <aaudio/AAudio.h>
+#include <atomic>
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <cstdio>
+#include <ctime>
+#include <cstdlib>
+// The engine's private members, opened to this file only: the web previews a single note
+// (the melodic grid), which the app never needed, and doing it with the engine's own voice
+// and program handling beats a second path around it. The app's file stays unchanged.
+#define private public
 #include "native_audio.cpp"
+#undef private
 
 extern "C" {
 #define WG(name) __attribute__((export_name(#name)))
@@ -98,6 +113,17 @@ WG(wg_preview_click) void wg_preview_click() { engine.previewClick(); }
 WG(wg_preview_chord) void wg_preview_chord(int section, int root, const char* type, int bass, const char* track) { engine.preview(section, root, type, bass, track); }
 WG(wg_preview_off) void wg_preview_off(const char* track) { engine.previewOff(track); }
 WG(wg_preview_drum) void wg_preview_drum(int section, const char* row) { engine.previewDrum(section, row); }
+/// One note on a melodic track, on the sound [section] gives it: what preview() does for a
+/// chord, for a single MIDI note. previewOff(track) lets go of it.
+WG(wg_preview_note) void wg_preview_note(int section, const char* track, int midi, float velocity) {
+  if (!engine.openStream()) return;
+  const int index = instrumentIndex(track);
+  engine.retrigger(index);
+  const int at = std::max(0, std::min(kSections - 1, section));
+  if (!engine.sequencing_.load(std::memory_order_acquire)) engine.applyPrograms(at);
+  const int timbre = engine.timbre_[at][index].load(std::memory_order_acquire);
+  engine.addVoice(at, hzFromMidi(midi), fmaxf(0.0f, fminf(1.0f, velocity)), index, timbre, midi);
+}
 
 // ── What is sounding ──
 WG(wg_sounding) int wg_sounding(int track, int word) { return static_cast<int>(engine.soundingWord(track, word)); }

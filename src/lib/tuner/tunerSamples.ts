@@ -1,12 +1,12 @@
 // Lightweight sample playback for the tuner's string-pin clicks and reference tone.
 // Reuses the same local sample sets as the Chord Player (public/audio/guitar-*, public/samples/modo)
-// without pulling in audioEngine.ts's full mixing/effects/drum pipeline — this page only ever
-// needs to play one note at a time.
+// with nothing else of an audio pipeline — this page only ever needs to play one note at a
+// time.
 import { preloadSampleDir, scheduleSampledNoteByDir } from '@/lib/bassTab/sampleEngine'
 
 export type TunerInstrumentId = 'bass4' | 'bass5' | 'electric' | 'acoustic' | 'ukulele'
 
-// Kept in sync with GUITAR_TYPE_NOTES in src/lib/audioEngine.ts
+// The notes each folder under public/audio/guitar-* holds.
 const GUITAR_NOTES: Record<string, string[]> = {
   'guitar-acoustic': ['A2', 'A3', 'A4', 'As2', 'As3', 'As4', 'B2', 'B3', 'B4', 'C3', 'C4', 'C5', 'Cs3', 'Cs4', 'D3', 'D4', 'Ds3', 'Ds4', 'E2', 'E3', 'E4', 'F3', 'F4', 'Fs3', 'Fs4', 'G3', 'G4', 'Gs3', 'Gs4'],
   'guitar-electric': ['A2', 'A3', 'A4', 'A5', 'C3', 'C4', 'C5', 'C6', 'Cs2', 'Ds3', 'Ds4', 'Ds5', 'E2', 'Fs2', 'Fs3', 'Fs4', 'Fs5'],

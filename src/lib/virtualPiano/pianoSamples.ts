@@ -1,6 +1,6 @@
 // Real sampled grand piano for the "Acoustic Piano" sound. Reuses the same
-// sample files as the Chord Player's own engine (src/lib/audioEngine.ts —
-// /audio/piano/1.mp3..88.mp3, MIDI 21-108, one sample per note) but is a
+// sample files the Chord Player's web engine used before the app's engine replaced it
+// (/audio/piano/1.mp3..88.mp3, MIDI 21-108, one sample per note) but is a
 // standalone module: Virtual Piano owns its own audio pipeline, same as
 // src/lib/virtualDrums/drumSynth.ts does for the drum kit.
 

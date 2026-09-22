@@ -20,7 +20,7 @@ import SongChordPlayer from '@/components/SongChordPlayer';
 import { PlaybackProvider, usePlayback } from '@/contexts/PlaybackContext';
 import { createSection, type Section } from '@/lib/sections';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
-import { playChordPreview } from '@/lib/audioEngine';
+import { playChordPreview } from '@/lib/appEngine/preview';
 import { sectionArrangement, type Song } from '@/data/songs';
 import { SectionArrangementMenu, type SectionArrangement } from '@/components/SectionArrangementMenu';
 import { ALL_KEYS, SONG_GENRES } from '@/lib/musicKeys';
@@ -420,7 +420,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
     liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
   }), [meta.bpm, meta.style]);
 
-  // Preview a single chord — short sound via audioEngine, no playback track
+  // Preview a single chord — a short sound on the app's engine, no playback track
   const previewChord = useCallback((chordStr: string) => {
     if (!chordStr) return;
     const parsed = parseChordString(chordStr);
@@ -839,7 +839,7 @@ export default function ChordStep({ sections: init, meta, onMetaChange, onBack, 
             {meta.artist && <span className="text-sm text-muted-foreground truncate">— {meta.artist}</span>}
           </div>
           <PlaybackProvider>
-            <SongChordPlayer song={previewSong} inline showWavExport />
+            <SongChordPlayer song={previewSong} inline />
           </PlaybackProvider>
         </DialogContent>
       </Dialog>

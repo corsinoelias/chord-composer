@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef, memo } from 'react';
-import { getAnalyserNode } from '@/lib/audioEngine';
+import { getAnalyserNode } from '@/lib/appEngine/preview';
 
 interface WaveformVisualizerProps {
   isPlaying: boolean;

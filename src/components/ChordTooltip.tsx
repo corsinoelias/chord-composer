@@ -5,7 +5,7 @@ import { getUkuleleVoicing } from '@/data/ukuleleChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 import { useSyncedChordView } from '@/hooks/useSyncedChordView';
-import { playChordPreview } from '@/lib/audioEngine';
+import { playChordPreview } from '@/lib/appEngine/preview';
 import { Play } from 'lucide-react';
 import { displayChord, type SongNotation } from '@/lib/songNotation';
 

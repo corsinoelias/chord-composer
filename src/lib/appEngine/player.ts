@@ -1,7 +1,6 @@
 /**
- * The chord player on the app's engine (phase 6 of docs/motor-unico-wasm.md). It is the
- * default; `?engine=web` goes back to the web's own engine in this browser (remembered) and
- * `?engine=app` returns. A browser without AudioWorklet or WebAssembly keeps the web's.
+ * The chord player on the app's engine (docs/motor-unico-wasm.md), the only engine the web
+ * has since 2026-09-22.
  *
  * PlaybackContext keeps its interface; this only changes who makes the sound. The song goes
  * to the engine as commands (fromSong.ts), and every edit made while it plays goes after it
@@ -11,26 +10,13 @@
 import { AppEngine, exportCommandsWav, loadKits, type EngineState } from './host';
 import { songToEngine, type EngineSong, type SongInput } from './fromSong';
 import { type EngineCommand } from './commands';
+import { effectsCommands } from './effects';
 import { type StylePattern, getSlotsPerBar } from '../styles';
 import { createSection, type Section } from '../sections';
 import { type StyleLookup } from '../sectionPlayback';
 
-const STORAGE_KEY = 'chordplayer:engine';
-
-/** Whether this browser plays songs on the app's engine. */
-export function appEngineEnabled(): boolean {
-  if (typeof window === 'undefined') return false;
-  if (typeof AudioWorkletNode === 'undefined' || typeof WebAssembly === 'undefined') return false;
-  const asked = new URLSearchParams(window.location.search).get('engine');
-  try {
-    if (asked === 'web') localStorage.setItem(STORAGE_KEY, 'web');
-    if (asked === 'app') localStorage.removeItem(STORAGE_KEY);
-    if (asked === 'web' || asked === 'app') return asked === 'app';
-    return localStorage.getItem(STORAGE_KEY) !== 'web';
-  } catch {
-    return asked !== 'web';
-  }
-}
+/** Sections a song may use (fromSong.ts MAX_SECTIONS): a single pass puts its silent bar next. */
+const SONG_SECTIONS = 30;
 
 /** Where the song is, in the web engine's terms. */
 export interface AppPosition {
@@ -93,6 +79,11 @@ function getEngine(): Promise<AppEngine> {
 }
 const engine = () => shared.__appEnginePromise ?? null;
 
+/** The page's engine, started on the first call (make it from a tap): for previews and the mixer. */
+export const getAppEngine = getEngine;
+/** The engine if it has started already, without starting it. */
+export const startedAppEngine = (): AppEngine | null => shared.__appEngine ?? null;
+
 export class AppPlayback {
   private built: EngineSong | null = null;
   private current: AppSong | null = null;
@@ -123,7 +114,8 @@ export class AppPlayback {
     this.current = input;
     this.built = this.build(input, e);
     await e.ensureSlots(this.built.drumSlots);
-    e.load(this.built.commands);
+    // The mixer's effects go after the song, which starts dry.
+    e.load([...this.built.commands, ...effectsCommands()]);
     this.sentSong = songPart(this.built.commands, input);
     e.send([['loopOnly', input.loopingSectionIndex ?? -1]]);
     this.unsubscribe?.();
@@ -150,8 +142,22 @@ export class AppPlayback {
     engine()?.then((e) => e.stop()).catch(() => {});
   }
 
+  /** Stops following the engine without stopping it: another player on the page has taken it over. */
+  detach(): void {
+    this.stopVocal();
+    this.unsubscribe?.();
+    this.unsubscribe = null;
+    this.latest = null;
+    this.current = null;
+  }
+
   get active(): boolean {
     return this.current !== null;
+  }
+
+  /** What the engine last reported while this plays, or null. */
+  get state(): EngineState | null {
+    return this.current ? this.latest : null;
   }
 
   /**
@@ -180,6 +186,7 @@ export class AppPlayback {
     e.send([
       ['previewOff', 'piano'], ['previewOff', 'guitar'], ['previewOff', 'bass'],
       ...this.built.commands,
+      ...effectsCommands(),
       ['loopOnly', input.loopingSectionIndex ?? -1],
     ]);
   }
@@ -268,8 +275,9 @@ export class AppPlayback {
     // The engine always goes round again, so a single pass ends on a bar of silence: the
     // state reaches the page ~30 times a second, and by the time it says the song is over
     // the next thing sounding must be nothing, not the top of the song.
-    this.tailIndex = input.once ? input.song.sections.length : -1;
-    const song = input.once ? { ...input.song, sections: [...input.song.sections, silentBar(input.style)] } : input.song;
+    const played = input.song.sections.slice(0, SONG_SECTIONS);
+    this.tailIndex = input.once ? played.length : -1;
+    const song = input.once ? { ...input.song, sections: [...played, silentBar(input.style)] } : input.song;
     const built = songToEngine(song, input.style, input.lookup, e.kits);
     let start = 0;
     this.sectionStart = input.song.sections.map((s) => {
@@ -294,7 +302,7 @@ function songPart(commands: EngineCommand[], input: AppSong): string {
 export async function exportSongWav(input: Pick<AppSong, 'song' | 'style' | 'lookup'>, tailSeconds = 2): Promise<Blob> {
   const built = songToEngine(input.song, input.style, input.lookup, await loadKits());
   const slots = [...new Set([...built.drumSlots, ...Array.from({ length: 12 }, (_, i) => i)])];
-  return (await exportCommandsWav(built.commands, built.steps, tailSeconds, slots)).blob;
+  return (await exportCommandsWav([...built.commands, ...effectsCommands()], built.steps, tailSeconds, slots)).blob;
 }
 
 /** One bar with every track silenced: where a single pass ends. */

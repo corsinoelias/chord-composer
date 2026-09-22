@@ -52,13 +52,17 @@ JNI and the output stream's lock and reconnect thread. The lab page is `/lab/app
 (noindex). WebAssembly needs `'wasm-unsafe-eval'` in the CSP (`src/middleware.ts` and the three
 `netlify.toml` blocks). Decided 2026-09-21: the app's engine and sounds are the reference —
 existing web songs will change sound. Arpeggios were dropped (no built-in style uses them).
-The player uses it **by default** (`src/lib/appEngine/player.ts`, wired in `PlaybackContext.tsx`):
-looping and single-pass playback (a single pass ends on a silent bar appended to the song), the
-vocal track, and Export WAV (`exportSongWav`, in a Worker). `?engine=web` goes back to the web
-engine in that browser (remembered; `?engine=app` returns); a browser without AudioWorklet or
-WebAssembly, or an engine that fails to start, falls back to it too. The rhythm editor and chord
-previews still play on the web engine. The engine lives on `window` so a dev-server hot swap of
-the module cannot leave a second one playing.
+It is the **only** engine the chord player has (the web's own Web Audio engine,
+`audioEngine.ts`/`audioEffects.ts` and its `tests/audio` suites, was removed 2026-09-22). Everything
+that makes sound goes through `src/lib/appEngine/`: `player.ts` (`AppPlayback`: songs looping or once —
+a single pass ends on a silent bar appended to the song —, the vocal track, `exportSongWav` in a
+Worker), `preview.ts` (chord tap/hold, single note, drum hit, analyser; engine section 31, so songs get
+sections 0-29), `effects.ts` (the mixer's master EQ/compressor/reverb, mapped onto the engine's
+per-channel strips and reverb send) and `fromSong.ts` (song → commands). The single-note preview is
+`wg_preview_note` in `engine/web_glue.cpp`, which opens the engine's private members to that file
+only (`#define private public`) — the app's file stays untouched. The engine lives on `window` so a
+dev-server hot swap of the module cannot leave a second one playing. `public/audio/` samples stay:
+the bass/guitar tab players, tuner, virtual piano and drums still use them.
 
 **Never add FAQPage or HowTo schema.** Google restricted FAQ rich results to government/health
 sites in Aug 2023 — this site doesn't qualify. HowTo was deprecated entirely in Sept 2023.
@@ -80,7 +84,7 @@ This is an **Astro + React** project deployed on Netlify. Astro handles routing 
 
 **1. Chord Progression Editor** — mounted at `/editor/` and `/app/`
 - Entry: `src/pages/editor/index.astro` → `src/components/EditorApp.tsx` → `src/react-pages/Index.tsx`
-- Audio: `src/lib/audioEngine.ts` (Web Audio, drum samples + chord synthesis) + `src/lib/audioEffects.ts` (EQ/reverb/compression chain wired in on context creation)
+- Audio: the Android app's engine (see above), through `src/lib/appEngine/` — `PlaybackContext.tsx` is its only caller for songs
 - Songs persisted to Supabase via `src/lib/songStorageCloud.ts`; `src/lib/songStorage.ts` re-exports it (thin shim — there is no local fallback anymore)
 - `src/contexts/PlaybackContext.tsx` coordinates transport state across components
 
@@ -122,28 +126,34 @@ Defined in `src/lib/bassTab/bassTheory.ts`. Index 0 = G2 (thinnest), index 3 = E
 
 **Keyboard shortcuts** — `useKeyboardShortcuts` hook: Space = play/stop, +/- = BPM, M = metronome toggle, Arrow keys = navigate chords
 
-### Audio engine — scheduling model
+### Audio engine — how a song plays
 
-`scheduleProgression` in `audioEngine.ts` is the core loop. It is **bar-by-bar**: it schedules one chord segment at a time, then queues itself via `setTimeout` for the next segment. This is what enables live parameter changes without restarting.
+The engine sequences on the audio thread (an AudioWorklet), sample by sample; the page only
+sends it commands. `songToEngine` (`fromSong.ts`) turns the song into a command list — arrangement,
+per-section step grids rendered with the web's own `generateBarPattern` / `resolveSectionPlayback` /
+`resolveVariation`, sounds through `shared/catalog/sounds.json`, mix — and `AppPlayback.play()` loads it.
 
-**What updates when during playback (no restart needed):**
-- BPM, metronome, transposition, style pattern, instrument sounds: picked up each bar via dynamic getters (`getBpm`, `getMetronome`, `getTransposition`, `getStyle`, `getInstruments`)
-- Section melodic variations (`pianoVariationId`, `bassVariationId`, `guitarVariationId`): picked up each bar via `getPianoScale(sectionId)` / `getBassScale` / `getGuitarScale` — these read from `optionsRef.current?.sections`
-- Chord structure changes (adding/removing chords): picked up at **loop end** — `getSections()` is called in `onLoopEnd` to rebuild `chordSegments`
+**Live changes (no restart):** `PlaybackContext.updatePlaybackOptions()` rebuilds the command list
+and `AppPlayback.update()` sends only what changed: the mixer levels alone when only faders/mute/solo
+moved (so no note is cut short), otherwise the whole song — released first (`previewOff`), since
+clearing a track drops its voices without telling the SoundFont — which the engine takes in on its
+next step. Tempo goes as `setBpm` on its own.
 
-**The `optionsRef` pattern in `PlaybackContext.tsx`** — `play()` stores all options in `optionsRef.current` and `sectionsRef.current`. The dynamic getters passed to `scheduleProgression` close over these refs, so calling `updatePlaybackOptions(updates)` mutates `optionsRef.current` in place and the running scheduler picks up the new values on the next bar without restarting.
+**Playhead:** the worklet reports position ~30 times a second; `AppPlayback.position()` turns it into
+the chord index across the whole song (repeats counted), a 0-1 fraction and the step, and
+`PlaybackContext` reads it every animation frame.
 
 ### Style system
 
 `StylePattern` (in `src/lib/styles.ts`) defines a rhythm style:
 - `rhythm.*` arrays: 16 slots (16th note resolution). `0` = silence, `0.5` = ghost, `1` = accent
-- `swing?`: 0-1, opt-in per style (only `jazz_light`/"Jazz Swing" sets it today). Shifts the "and" 8th note of each beat (slot ≡ 2 mod 4) later in time via `getSwingOffset(style, patternSlot, slotDuration)` — 0 = straight (50% of the beat, every other style's behavior), 1 = full triplet swing (66.7%). Applied in both the live scheduler and the offline WAV-export path in `audioEngine.ts`; the 0-1 velocity values in `rhythm.*` are unaffected either way
+- `swing?`: 0-1, opt-in per style (only `jazz_light`/"Jazz Swing" sets it today). Shifts the "and" 8th note of each beat (slot ≡ 2 mod 4) later in time via `getSwingOffset(style, patternSlot, slotDuration)` — 0 = straight (50% of the beat, every other style's behavior), 1 = full triplet swing (66.7%). Sent to the engine as the ratio between the two halves of a beat (`setSwing`); the 0-1 velocity values in `rhythm.*` are unaffected
 - `arpeggios.piano/guitar`: per-slot arpeggio cells (`type: 'up'|'down'|'updown'|'random'`, `speed`)
 - `fill`: pattern applied on bar 4 / bar 8
 - `instrumentSounds`: default sound type IDs per instrument for this style
 - `volumes`: per-instrument volume defaults
 
-**Note lengths** — how long each melodic track's notes ring, the Android app's setting (Instruments panel: Normal, Short, 1/16, 1/8, 1/4, Held). Stored where the app keeps it, `app.noteLengths` in the song (`songNoteLengths` / `withNoteLengths` in `songs.ts`), in steps, 0 = held until the track strikes again or the chord changes. A track left out plays the web's own length (3 slots, 2 for a plain root bass): `noteSeconds` in `engine/eventBuilder.ts`, `setNoteLength` in the app engine. Per-section overrides (`app.overrides.noteLengths` in the app) are not modelled yet.
+**Note lengths** — how long each melodic track's notes ring, the Android app's setting (Instruments panel: Normal, Short, 1/16, 1/8, 1/4, Held). Stored where the app keeps it, `app.noteLengths` in the song (`songNoteLengths` / `withNoteLengths` in `songs.ts`), in steps, 0 = held until the track strikes again or the chord changes. A track left out plays the web's own length (3 slots, 2 for a plain root bass), sent as `setNoteLength` (`fromSong.ts`); the type lives in `src/lib/noteLengths.ts`. Per-section overrides (`app.overrides.noteLengths` in the app) are not modelled yet.
 
 **Custom styles and overrides** flow: Supabase `user_settings` table → `getUserSettings()` → `initCustomStylesCache()` (called at app init) → in-memory cache in `customStyles.ts` (`getCustomStyles()` / `getStyleOverride()`). Both are then passed into `PlayOptions` and read by `getStyle()` each bar.
 

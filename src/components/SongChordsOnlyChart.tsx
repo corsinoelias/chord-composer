@@ -1,6 +1,6 @@
 import { Play, Square, Repeat } from 'lucide-react';
 import { parseChordString } from '@/lib/chordParser';
-import { playChordPreview } from '@/lib/audioEngine';
+import { playChordPreview } from '@/lib/appEngine/preview';
 import { analytics } from '@/lib/analytics';
 import { displayChord, type SongNotation } from '@/lib/songNotation';
 

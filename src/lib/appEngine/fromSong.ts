@@ -36,11 +36,15 @@ import {
   type MelodicTrack,
 } from './commands';
 import { type DrumKit } from './host';
-import { type NoteLengths } from '../engine/eventBuilder';
+import { type NoteLengths } from '../noteLengths';
 
 /** The first of the engine's scale-degree step values (enum Degree, kScale1). */
 const SCALE_DEGREE_1 = 8;
-const MAX_SECTIONS = 32;
+/**
+ * A song gets sections 0-29 of the engine's 32: a single pass adds its silent bar after the
+ * last (player.ts), and 31 is where previews keep their sounds (preview.ts).
+ */
+const MAX_SECTIONS = 30;
 const MAX_CHORDS = 32;
 const MAX_BARS = 4;
 const MAX_STEPS_PER_BAR = 20; // kMaxStepsPerBar: a fill row's width
@@ -50,7 +54,7 @@ const DEFAULT_KIT = 2;
 const STICK_SLOT = 2;
 const COUNT_IN_SLOT = 36;
 
-/** The kit's internal balance — eventBuilder.DRUM_TRIM, part of how a style is written. */
+/** The kit's internal balance, as the web engine had it: part of how a style is written. */
 const DRUM_TRIM: Record<string, number> = { hihat: 0.7, hihatOpen: 0.8, hihatFoot: 0.6, ride: 0.7 };
 /** The web's pieces, and the engine row each one plays on. */
 const WEB_DRUMS: [web: string, row: DrumRow][] = [
@@ -85,6 +89,8 @@ export interface SongInput {
   metronomeEnabled?: boolean;
   /** How long each track's notes ring, in steps (0 holds); absent, the web's own length. */
   noteLengths?: NoteLengths;
+  /** The fill on every bar, as the rhythm editor's Fill switch previews it; the engine adds none of its own. */
+  fillEveryBar?: boolean;
 }
 
 export interface EngineSong {
@@ -120,6 +126,16 @@ function bassPitchClass(bass: string | undefined): number {
   const letter = bass[0]?.toUpperCase();
   if (!(letter in LETTER)) return -1;
   return pitchClass(letter, bass[1] === '#' ? '#' : bass[1] === 'b' ? 'b' : '');
+}
+
+/** A chord as the engine names it: root and slash bass as pitch classes (-1: none), and its quality. */
+export function engineChord(chord: Pick<Chord, 'root' | 'accidental' | 'quality' | 'bassNote'>, transposition = 0): { root: number; quality: string; bass: number } {
+  const bass = bassPitchClass(chord.bassNote);
+  return {
+    root: mod12(pitchClass(chord.root, chord.accidental) + transposition),
+    quality: ENGINE_QUALITY[chord.quality] ?? chord.quality,
+    bass: bass < 0 ? -1 : mod12(bass + transposition),
+  };
 }
 
 /** Bars a lane may loop over: the engine plays patterns of 1, 2 or 4. */
@@ -184,7 +200,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     const loopBars = engineBars(style.loopBars ?? 1);
     if ((style.loopBars ?? 1) === 3) notes.push(`${section.name}: a 3-bar groove plays as 4 bars in the engine`);
     // The bars exactly as the web renders them, fills aside (the engine plays those itself).
-    const bars = Array.from({ length: loopBars }, (_, b) => generateBarPattern(style, b + 1, Number.POSITIVE_INFINITY));
+    const bars = Array.from({ length: loopBars }, (_, b) => generateBarPattern(style, b + 1, song.fillEveryBar ? 1 : Number.POSITIVE_INFINITY));
 
     // Drums.
     c.push(['clearTrack', s, 'drums'], ['setPatternBars', s, 'drums', loopBars]);
@@ -196,7 +212,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
         });
       }
     });
-    c.push(fillCommand(s, style, slotsPerBar));
+    c.push(song.fillEveryBar ? ['setFill', s, 0, 0, []] : fillCommand(s, style, slotsPerBar));
 
     // Piano, guitar, bass.
     for (const track of MELODIC) {
@@ -272,8 +288,8 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   }
   c.push(['mixer', 'master', MASTER, false]);
   c.push(['metronome', !!song.metronomeEnabled, 0.7, sampledDrum(STICK_SLOT), true, 1]);
-  // The web plays dry (audioEffects.ts has its reverb off), and the engine's own is a large
-  // room: left on, every note rang on for half a second after the web's would have ended.
+  // Dry, as the web always played (the mixer's reverb starts off, effects.ts), where the
+  // engine's own default is a large room: left on, every note rang on for half a second.
   c.push(['reverb', 0.7, 0]);
 
   return { commands: c, steps, chordSteps, drumSlots: [...drumSlots].sort((a, b) => a - b), notes: [...noted] };

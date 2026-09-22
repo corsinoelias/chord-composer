@@ -25,16 +25,16 @@ import { keyPrefersFlats } from '@/lib/musicKeys';
 import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { getStyleByIdWithOverrides, resolveActiveStyle, MUSICAL_STYLES, getSlotsPerBar, type StylePattern } from '@/lib/styles';
 import { getCustomStyles, getStyleOverride, saveStyleOverride, saveCustomStyle, isCustomStyle, initCustomStylesCache } from '@/lib/customStyles';
-import { renderProgressionOffline, playChordPreview, areSamplesLoaded, preloadAudio, preloadInstrumentSound } from '@/lib/audioEngine';
-import { makeOfflineSectionResolver, makeStyleLookup, effectiveSectionStyle, sectionPatternsFromStyle } from '@/lib/sectionPlayback';
+import { playChordPreview } from '@/lib/appEngine/preview';
+import { makeStyleLookup, effectiveSectionStyle, sectionPatternsFromStyle } from '@/lib/sectionPlayback';
 import { type SectionArrangement } from '@/components/SectionArrangementMenu';
-import { encodeAndDownloadMp3, downloadBlob } from '@/lib/mp3Encoder';
-import { appEngineEnabled, exportSongWav } from '@/lib/appEngine/player';
+import { downloadBlob } from '@/lib/mp3Encoder';
+import { exportSongWav } from '@/lib/appEngine/player';
 import { exportMidi } from '@/lib/midiExporter';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
 import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat, songNoteLengths, withNoteLengths } from '@/lib/songs';
-import { type NoteLengths } from '@/lib/engine/eventBuilder';
+import { type NoteLengths } from '@/lib/noteLengths';
 import { parseChordString } from '@/lib/chordParser';
 import { decodeEditorSections, editorSectionsToSections } from '@/lib/editorLink';
 import { getChordNotes, getTransposedChordName } from '@/lib/chordNotes';
@@ -699,16 +699,6 @@ const Index = ({ songId }: IndexProps) => {
 
     if (!hasChords) return;
 
-    // If samples not loaded, show loading toast and wait
-    if (!areSamplesLoaded()) {
-      toast.info('Loading audio samples...');
-      try {
-        await preloadAudio();
-      } catch (err) {
-        console.warn('Preload warning:', err);
-      }
-    }
-
     // IMPORTANT: always pass the full sections array; PlaybackContext will apply loopingSectionIndex.
     await play(currentSections, {
       bpm: bpmRef.current,
@@ -1152,19 +1142,13 @@ const Index = ({ songId }: IndexProps) => {
 
     try {
       const style = resolveActiveStyle(selectedStyleId, liveEditedStyle, customStyles, getStyleOverride);
-      const sectionResolver = makeOfflineSectionResolver(makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle));
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
-      if (appEngineEnabled()) {
-        // The file is what the player plays: the app's engine, when that is the one in use.
-        downloadBlob(await exportSongWav({
-          song: { sections, bpm, transposition, instrumentSettings: instruments, noteLengths },
-          style,
-          lookup: makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle),
-        }), `${filename}.wav`);
-      } else {
-        const audioBuffer = await renderProgressionOffline(sections, bpm, instruments, style, transposition, undefined, sectionResolver, noteLengths);
-        await encodeAndDownloadMp3(audioBuffer, `${filename}.wav`);
-      }
+      // The file is what the player plays: the same engine, in a Worker.
+      downloadBlob(await exportSongWav({
+        song: { sections, bpm, transposition, instrumentSettings: instruments, noteLengths },
+        style,
+        lookup: makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle),
+      }), `${filename}.wav`);
       // Short: it's confirming something the browser is already showing a download for,
       // and it has to be gone before the nudge arrives.
       toast.success('WAV exported', { id: EXPORT_TOAST_ID, duration: 2000 });
@@ -1176,7 +1160,7 @@ const Index = ({ songId }: IndexProps) => {
     } finally {
       setIsExporting(false);
     }
-  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, noteLengths, showExportSaveNudge]);
+  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, customStyles, noteLengths, showExportSaveNudge]);
 
   const handleExportMidi = useCallback(() => {
     const hasChords = sections.some(s => s.chords.length > 0);
@@ -1289,7 +1273,8 @@ const Index = ({ songId }: IndexProps) => {
   /**
    * Clicking a segment of the structure bar brings that section's card into view. The
    * canvas also promises it jumps playback mid-song; the engine has no seek yet, so that
-   * half is not wired up — see scheduleProgression in src/lib/audioEngine.ts.
+   * half is not wired up (the app's engine starts a song from its top or from a section
+   * held on repeat, loopOnly, but cannot jump mid-song).
    */
   const handleJumpToSection = useCallback((sectionIndex: number) => {
     const section = sectionsRef.current[sectionIndex];
@@ -1318,26 +1303,12 @@ const Index = ({ songId }: IndexProps) => {
 
   // Per-section arrangement. Changing a section's rhythm drops the melodic variations it had
   // picked: they belonged to the previous rhythm (docs/ritmo-por-seccion.md, rule 4).
-  /** Picking a new bass or guitar sound starts loading it right away — see preloadInstrumentSound. */
+  // Every sound is in the engine's SoundFont, already loaded: a new pick needs no fetching.
   const handleInstrumentsChange = useCallback((next: InstrumentState[]) => {
-    for (const inst of next) {
-      const prev = instrumentsRef.current.find(i => i.id === inst.id);
-      if (prev && prev.soundTypeId !== inst.soundTypeId) {
-        preloadInstrumentSound(inst.id, inst.soundTypeId, { sections: sectionsRef.current, style: currentStyle, transposition });
-      }
-    }
     setInstruments(next);
-  }, [currentStyle, transposition]);
+  }, []);
 
   const handleSectionArrangementChange = useCallback((sectionIndex: number, next: SectionArrangement) => {
-    // Same for a sound a section swaps in.
-    const section = sectionsRef.current[sectionIndex];
-    for (const track of ['bass', 'guitar'] as const) {
-      const sound = next.sounds?.[track];
-      if (sound && sound !== section?.sounds?.[track]) {
-        preloadInstrumentSound(track, sound, { sections: sectionsRef.current, style: currentStyle, transposition });
-      }
-    }
     setSections(prev => prev.map((s, i) => {
       if (i !== sectionIndex) return s;
       const { styleId: _s, trackStyles: _t, patterns: _p, silenced: _m, sounds: _n, ...rest } = s;
@@ -1347,7 +1318,7 @@ const Index = ({ songId }: IndexProps) => {
         : { ...rest, ...next };
     }));
     analytics.sectionArrangementChanged(next);
-  }, [currentStyle, transposition]);
+  }, []);
 
   const sectionStyleLookup = useMemo(
     () => makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle),

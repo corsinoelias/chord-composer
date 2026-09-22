@@ -27,7 +27,9 @@ import {
 // The chord player's tokens and primitives (the dialog renders in a portal).
 import '@/styles/chord-player.css';
 import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar, getStyleTotalSlots, getPulseInterval } from '@/lib/styles';
-import { getAudioContext, ensureSamplesLoaded, scheduleProgression, stopPlayback, previewDrumHit, ensureGuitarSoundfont, ensureGuitarSampleType } from '@/lib/audioEngine';
+import { previewDrumHit } from '@/lib/appEngine/preview';
+import { AppPlayback, type AppSong } from '@/lib/appEngine/player';
+import { createSection } from '@/lib/sections';
 import { getDefaultInstrumentStates, INSTRUMENTS, type InstrumentType } from '@/lib/instruments';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { saveCustomStyle, deleteCustomStyle, isCustomStyle, generateCustomStyleId, saveStyleOverride, deleteStyleOverride, hasStyleOverride, getStyleOverride } from '@/lib/customStyles';
@@ -215,14 +217,6 @@ function InstrumentMixControl({
             ...prev,
             instrumentSounds: { ...prev.instrumentSounds, [instType]: soundId },
           }));
-          // Guitar tones (soundfonts / sample kits) lazy-load, so the first bars after a
-          // switch fall back to the synth. Kick off the load now so the new sound is ready.
-          const sound = config.soundTypes.find(s => s.id === soundId);
-          if (instType === 'guitar' && sound) {
-            getAudioContext();
-            if (sound.sf2Instrument) ensureGuitarSoundfont(soundId, sound.sf2Instrument);
-            else if (sound.useSamples && sound.samplePath) ensureGuitarSampleType(sound.samplePath);
-          }
           onSoundTypeChange?.();
         }}
       >
@@ -301,12 +295,12 @@ export function RhythmEditor({
   
   const { stopPreview, previewingStyleId } = useStylePreview();
   
-  const playbackRef = useRef<{ cancel: () => void } | null>(null);
+  // The editor's own loop, on the app's engine. Only one of it and the song plays at once.
+  const playbackRef = useRef<AppPlayback | null>(null);
   const editedStyleRef = useRef<StylePattern>(editedStyle);
   const showFillRef = useRef(showFill);
   const initializedStyleIdRef = useRef<string>('');
   const stepAnimationRef = useRef<number | null>(null);
-  const loopStartTimeRef = useRef<number>(0);
   // Long-press bookkeeping: a tap toggles the cell, holding (>420ms) opens the
   // velocity control instead. longFiredRef guards the trailing click after a hold.
   const pressTimerRef = useRef<number | null>(null);
@@ -314,6 +308,39 @@ export function RhythmEditor({
   
   const isSyncedWithMain = isMainPlaying && !isLocalPlaying;
   const isPlaying = isLocalPlaying || isMainPlaying;
+
+  /**
+   * What the editor's loop plays: one chord of C major spanning the style's whole loop (its
+   * own meter and loopBars, so the loop point is the pattern's), in the style being edited,
+   * with its own sounds, the variation each tab is showing — even one switched off, so what
+   * you are editing is what you hear — and, with Fill on, the fill on every bar.
+   */
+  const loopInput = (): AppSong => {
+    const edited = editedStyleRef.current;
+    const beatsPerLoop = (getSlotsPerBar(edited) / 4) * (edited.loopBars ?? 1);
+    const melodic = edited.melodic ? { ...edited.melodic } : undefined;
+    if (melodic) {
+      for (const t of ['bass', 'piano', 'guitar'] as const) {
+        if (melodic[t]?.variations.length) melodic[t] = { ...melodic[t], enabled: true };
+      }
+    }
+    const ids = activeVarIdRef.current;
+    const section = {
+      ...createSection('Test'),
+      chords: [{ id: '1', root: 'C' as const, accidental: '' as const, quality: 'maj' as const, duration: beatsPerLoop }],
+      bassVariationId: ids.bass, pianoVariationId: ids.piano, guitarVariationId: ids.guitar,
+    };
+    return {
+      song: {
+        sections: [section],
+        bpm: edited.bpm,
+        instrumentSettings: getEffectiveInstruments(getDefaultInstrumentStates(), edited),
+        fillEveryBar: showFillRef.current,
+      },
+      style: { ...edited, melodic },
+      lookup: () => undefined,
+    };
+  };
   
   // Keep playhead visible: use main if synced, local if local playing, or -1 if nothing
   const displayStep = isLocalPlaying 
@@ -337,6 +364,8 @@ export function RhythmEditor({
     if (initializedStyleIdRef.current) {
       onStyleChange?.(editedStyle);
     }
+    // The loop hears every edit on its next step, as it did bar by bar before.
+    if (playbackRef.current?.active) void playbackRef.current.update(loopInput());
   }, [editedStyle, onStyleChange]);
 
   useEffect(() => {
@@ -391,167 +420,63 @@ export function RhythmEditor({
 
   useEffect(() => {
     if (!open) {
-      // Only stop local playback resources, don't call stopPlayback() if main is playing
-      if (playbackRef.current) {
-        playbackRef.current.cancel();
-        playbackRef.current = null;
-      }
-      if (stepAnimationRef.current) {
-        cancelAnimationFrame(stepAnimationRef.current);
-        stepAnimationRef.current = null;
-      }
-      // Only stop global audio if we were doing local playback, not if main was playing
-      if (isLocalPlaying) {
-        stopPlayback();
-      }
-      setIsLocalPlaying(false);
-      setCurrentStep(-1);
+      stopLocalPlayback();
       stopPreview();
     }
-  }, [open, stopPreview, isLocalPlaying]);
+  }, [open, stopPreview]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Stable identity (no deps) and no isLocalPlaying self-check: this loop is
-  // started/stopped purely imperatively (see startLocalPlayback/stopLocalPlayback)
-  // by cancelling stepAnimationRef.current — not by a reactive effect, which is
-  // vulnerable to React batching coalescing a false→true isLocalPlaying round-trip
-  // (e.g. on Fill-toggle restart) into a no-op that never reschedules the frame.
+  // Where the loop is, read from the engine each frame. Absolute across the whole loop, not
+  // bar-relative — otherwise bar 1 and bar 2's matching cell would light at the same time.
   const updatePlayhead = useCallback(() => {
-    const ctx = getAudioContext();
-    const bpm = editedStyleRef.current.bpm;
-    const barSlots = getSlotsPerBar(editedStyleRef.current);
-    const loopBarCount = editedStyleRef.current.loopBars ?? 1;
-    const slotDuration = (60 / bpm / 4); // Duration of 1 sixteenth note
-    // The actual audio loop (and onLoopEnd reset) spans the *full* loopBars
-    // cycle, not just one bar — match that here so the wrap doesn't happen
-    // early mid-way through bar 2 of a multi-bar style.
-    const loopDuration = slotDuration * barSlots * loopBarCount;
-
-    // Calculate precise position within the loop
-    const elapsed = ctx.currentTime - loopStartTimeRef.current;
-    const loopPosition = elapsed % loopDuration;
-
-    // Absolute step across the *whole* loop (0..barSlots*loopBarCount-1), not
-    // bar-relative — otherwise bar 1 and bar 2's matching cell would highlight
-    // at the same time since they'd both read as e.g. "step 2".
-    const step = Math.floor(loopPosition / slotDuration) % (barSlots * loopBarCount);
-    
-    // Only update if step changed to reduce re-renders
-    setCurrentStep(prev => prev !== step ? step : prev);
-    
+    const state = playbackRef.current?.state;
+    if (state && state.playing) {
+      const barSlots = getSlotsPerBar(editedStyleRef.current);
+      const loopBarCount = editedStyleRef.current.loopBars ?? 1;
+      const step = ((state.bar % loopBarCount) * barSlots + state.step) % (barSlots * loopBarCount);
+      setCurrentStep(prev => prev !== step ? step : prev);
+    }
     stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
   }, []);
 
-  // Only handles unmount — start/stop happen imperatively in startLocalPlayback/stopLocalPlayback.
-  // Unmounting while the local loop runs (Index remounts this editor per section, so saving
-  // a section's rhythm unmounts it before the !open effect ever runs) must stop that loop
-  // too: left alone it kept sounding, and pressing the main Play then played two at once.
+  // Unmounting while the loop runs (Index remounts this editor per section, so saving a
+  // section's rhythm unmounts it before the !open effect ever runs) must stop it too: left
+  // alone it kept sounding, and pressing the main Play then played two at once.
   useEffect(() => {
     return () => {
-      if (stepAnimationRef.current) {
-        cancelAnimationFrame(stepAnimationRef.current);
-      }
-      if (playbackRef.current) {
-        playbackRef.current.cancel();
-        playbackRef.current = null;
-        stopPlayback();
-      }
+      if (stepAnimationRef.current) cancelAnimationFrame(stepAnimationRef.current);
+      playbackRef.current?.stop();
+      playbackRef.current = null;
     };
   }, []);
 
   const stopLocalPlayback = useCallback(() => {
-    const hadLocalPlayback = isLocalPlaying || !!playbackRef.current;
-
-    if (playbackRef.current) {
-      playbackRef.current.cancel();
-      playbackRef.current = null;
-    }
     if (stepAnimationRef.current) {
       cancelAnimationFrame(stepAnimationRef.current);
       stepAnimationRef.current = null;
     }
-
-    // IMPORTANT: Only stop the global audio engine if we were actually running LOCAL playback.
-    // Otherwise (e.g. main playback is running), calling stopPlayback() would silence the whole app.
-    if (hadLocalPlayback) {
-      stopPlayback();
-      setIsLocalPlaying(false);
-      setCurrentStep(-1);
+    // Only this editor's own loop: stopping while the song plays behind it would silence the app.
+    if (playbackRef.current) {
+      playbackRef.current.stop();
+      playbackRef.current = null;
     }
-  }, [isLocalPlaying]);
-
-  // Resolves a specific variation by ID for local preview, bypassing the enabled flag
-  const resolveActiveVar = (inst: InstrumentMelodic | undefined, varId: string | undefined) => {
-    if (!inst || !inst.variations.length) return null;
-    const v = varId
-      ? (inst.variations.find(x => x.id === varId) ?? inst.variations[0])
-      : inst.variations[0];
-    const hasContent = !scalePatternIsEmpty(v?.pattern ?? {}) || (v?.chordHit ?? []).some(x => x > 0);
-    if (!v || !hasContent) return null;
-    return { pattern: v.pattern, chordHit: v.chordHit, loopBars: v.loopBars, octaveOffsets: v.octaveOffsets };
-  };
+    setIsLocalPlaying(false);
+    setCurrentStep(-1);
+  }, []);
 
   const startLocalPlayback = useCallback(async () => {
-    // Stop main playback if it's running
-    if (isMainPlaying) {
-      stopMainPlayback();
-    }
-    
+    if (isMainPlaying) stopMainPlayback();
     stopLocalPlayback();
-    
-    // Ensure samples are loaded before starting playback
-    await ensureSamplesLoaded();
-    
-    // Initialize loop start time for accurate playhead sync
-    const ctx = getAudioContext();
-    loopStartTimeRef.current = ctx.currentTime;
-    
-    setIsLocalPlaying(true);
-    setCurrentStep(0); // Start at step 0
 
-    // Imperative (re)start — see the note on updatePlayhead for why this can't
-    // be left to a reactive effect watching isLocalPlaying.
+    setIsLocalPlaying(true);
+    setCurrentStep(0);
+    // Imperative (re)start — a reactive effect watching isLocalPlaying can be coalesced by
+    // React batching into a no-op that never reschedules the frame.
     if (stepAnimationRef.current) cancelAnimationFrame(stepAnimationRef.current);
     stepAnimationRef.current = requestAnimationFrame(updatePlayhead);
 
-
-    // Match the chord's duration to exactly one full loop of the style's actual
-    // meter AND loopBars (3 beats for one 6/8 bar, 6 for a 2-bar 6/8 loop, not
-    // always 4) — otherwise the loop point drifts out of sync with the
-    // pattern's own cycle length, e.g. showing 12 real slots of a 6/8 bar plus
-    // 4 extra (the start of a second bar) before restarting.
-    const beatsPerLoop = (getSlotsPerBar(editedStyleRef.current) / 4) * (editedStyleRef.current.loopBars ?? 1);
-    const testSection = {
-      id: 'test',
-      name: 'Test',
-      chords: [{ id: '1', root: 'C' as const, accidental: '' as const, quality: 'maj' as const, duration: beatsPerLoop }],
-      repeatCount: 1
-    };
-    
-    // Apply the edited style's own instrument sound types (e.g. 'electric' guitar) — without
-    // this, every instrument falls back to its generic default sound (guitar defaults to a
-    // soundfont patch that loads over the network and can miss playback entirely).
-    const instruments = getEffectiveInstruments(getDefaultInstrumentStates(), editedStyleRef.current);
-
-    const { cancel } = scheduleProgression([testSection], editedStyleRef.current.bpm, {
-      loop: true,
-      metronome: false,
-      instruments,
-      style: editedStyleRef.current,
-      transposition: 0,      onLoopEnd: () => {
-        loopStartTimeRef.current = ctx.currentTime;
-      },
-      getStyle: () => editedStyleRef.current,
-      getBpm: () => editedStyleRef.current.bpm,
-      // Re-derive instrument sound types from the live style every bar — without this,
-      // picking a new sound in a tab has no audible effect until Stop/Play recomputes it.
-      getInstruments: () => getEffectiveInstruments(getDefaultInstrumentStates(), editedStyleRef.current),
-      forceFill: showFillRef.current,
-      getBassScale: () => resolveActiveVar(editedStyleRef.current.melodic?.bass, activeVarIdRef.current['bass']),
-      getPianoScale: () => resolveActiveVar(editedStyleRef.current.melodic?.piano, activeVarIdRef.current['piano']),
-      getGuitarScale: () => resolveActiveVar(editedStyleRef.current.melodic?.guitar, activeVarIdRef.current['guitar']),
-    });
-    
-    playbackRef.current = { cancel };
+    const playback = new AppPlayback();
+    playbackRef.current = playback;
+    await playback.play(loopInput());
   }, [stopLocalPlayback, isMainPlaying, stopMainPlayback, updatePlayhead]);
 
   useEffect(() => {
@@ -1238,7 +1163,7 @@ export function RhythmEditor({
                               // (see updatePlayhead), so this correctly highlights only the
                               // one cell actually playing even with loopBars>1. When synced
                               // with the main song transport instead, mainPlayheadStep is
-                              // bar-relative (audioEngine's patternSlot resets every bar), so
+                              // bar-relative (the engine's step resets every bar), so
                               // it only ever matches bar 1's cells — a known, minor gap for
                               // that mode, not a wrong/duplicate highlight.
                               const isCurrentStep = displayStep === step && (isLocalPlaying || isMainPlaying);
@@ -1447,6 +1372,7 @@ export function RhythmEditor({
               isPlaying={isPlaying}
               onActiveVarChange={id => {
                 activeVarIdRef.current[activeTab as 'bass' | 'piano' | 'guitar'] = id;
+                if (playbackRef.current?.active) void playbackRef.current.update(loopInput());
                 if (!isLocalPlaying && !isMainPlaying) startLocalPlayback();
               }}
               onChange={updated => {

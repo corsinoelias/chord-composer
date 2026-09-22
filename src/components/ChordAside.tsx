@@ -11,7 +11,7 @@ import { useSyncedChordView } from '@/hooks/useSyncedChordView';
 import { useSongNotation } from '@/hooks/useSongNotation';
 import { displayChord } from '@/lib/songNotation';
 import { useHorizontalScrollArrows } from '@/hooks/useHorizontalScrollArrows';
-import { playChordPreview } from '@/lib/audioEngine';
+import { playChordPreview } from '@/lib/appEngine/preview';
 import { analytics } from '@/lib/analytics';
 
 // ── Transpose helpers ─────────────────────────────────────────────────────────

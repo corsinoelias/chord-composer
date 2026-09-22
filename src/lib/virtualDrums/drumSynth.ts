@@ -14,9 +14,8 @@ export type DrumPieceId =
 export type DrumKitId = 'acoustic' | 'electronic'
 
 // Real sampled sounds for the Acoustic kit — the same /audio/drums/*.mp3
-// files the Chord Player's drum engine (src/lib/audioEngine.ts) already
-// uses, loaded independently here since that module's sample cache is tied
-// to its own playback scheduling. Any path that 404s (e.g. a zone-specific
+// files the Chord Player's web engine used before the app's engine replaced
+// it, loaded here on their own. Any path that 404s (e.g. a zone-specific
 // crash/ride file, sourced separately) just leaves that key unset — the
 // synthesized ac* function below is used for that piece until the file
 // shows up.

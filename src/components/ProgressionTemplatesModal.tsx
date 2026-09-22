@@ -9,7 +9,7 @@ import { useState, useCallback, useRef, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { type Chord } from '@/lib/musicTheory';
 import { GENRE_PROGRESSIONS, progressionToChords, type ChordProgression } from '@/lib/chordProgressions';
-import { playChordPreview } from '@/lib/audioEngine';
+import { playChordPreview } from '@/lib/appEngine/preview';
 import { getTransposedChordName } from '@/lib/chordNotes';
 import { qualityClass } from '@/lib/chordColors';
 import { Check, ChevronLeft, Music, Play, Search, Square } from 'lucide-react';

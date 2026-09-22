@@ -1,86 +1,55 @@
 /**
  * Style Preview Hook
- * Provides audio preview functionality for rhythm styles
+ * Provides audio preview functionality for rhythm styles: two bars of C major in the style,
+ * once, on the app's engine.
  */
 
 import { useRef, useCallback, useState } from 'react';
 import { type StylePattern, getSlotsPerBar } from '@/lib/styles';
-import { ensureSamplesLoaded, scheduleProgression, stopPlayback } from '@/lib/audioEngine';
 import { getDefaultInstrumentStates } from '@/lib/instruments';
-import { resolveVariation } from '@/lib/bassScale';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
+import { createSection } from '@/lib/sections';
+import { AppPlayback } from '@/lib/appEngine/player';
 
 export function useStylePreview() {
   const [previewingStyleId, setPreviewingStyleId] = useState<string | null>(null);
-  const previewRef = useRef<{ cancel: () => void } | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playbackRef = useRef<AppPlayback | null>(null);
 
   const stopPreview = useCallback(() => {
-    const hadPreview = !!previewRef.current || !!timeoutRef.current;
-
-    if (previewRef.current) {
-      previewRef.current.cancel();
-      previewRef.current = null;
-    }
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-
-    // IMPORTANT: Only stop the global audio engine if we actually started a preview.
-    // Otherwise this would silence the main playback just because the modal closed.
-    if (hadPreview) {
-      stopPlayback();
-    }
-
+    // Only a preview this hook started is stopped: closing the modal must not silence the
+    // song playing behind it.
+    if (playbackRef.current?.active) playbackRef.current.stop();
+    playbackRef.current = null;
     setPreviewingStyleId(null);
   }, []);
 
   const previewStyle = useCallback(async (style: StylePattern) => {
-    // Stop any existing preview
     stopPreview();
-    
     setPreviewingStyleId(style.id);
-    
-    // Ensure samples are loaded before starting preview
-    await ensureSamplesLoaded();
 
-    // Create a test section with a single chord spanning exactly one bar of
-    // this style's actual meter (3 beats for 6/8, not always 4) so the loop
-    // point doesn't drift out of sync with the pattern's own bar length.
+    // One chord spanning exactly one bar of this style's own meter (3 beats for 6/8, not
+    // always 4), played twice and then stopped.
     const beatsPerBar = getSlotsPerBar(style) / 4;
-    const testSection = {
-      id: 'preview',
-      name: 'Preview',
+    const section = {
+      ...createSection('Preview'),
+      repeatCount: 2,
       chords: [{ id: '1', root: 'C' as const, accidental: '' as const, quality: 'maj' as const, duration: beatsPerBar }],
-      repeatCount: 1
     };
-
-    // Apply the style's own instrument sound types (e.g. 'electric' guitar) — without this,
-    // every instrument falls back to its generic default sound (guitar defaults to a soundfont
-    // patch that loads over the network and can miss playback entirely).
+    // The style's own sounds (e.g. 'electric' guitar), as choosing the style would give.
     const instruments = getEffectiveInstruments(getDefaultInstrumentStates(), style);
 
-    const { cancel } = scheduleProgression([testSection], style.bpm, {
-      loop: true,
-      metronome: false,
-      instruments,
+    const playback = new AppPlayback();
+    playbackRef.current = playback;
+    await playback.play({
+      song: { sections: [section], bpm: style.bpm, instrumentSettings: instruments },
       style,
-      transposition: 0,      onLoopEnd: () => {},
-      getStyle: () => style,
-      getBassScale: () => style.melodic ? resolveVariation(style.melodic.bass, undefined) : null,
-      getPianoScale: () => style.melodic ? resolveVariation(style.melodic.piano, undefined) : null,
-      getGuitarScale: () => style.melodic ? resolveVariation(style.melodic.guitar, undefined) : null,
+      lookup: () => undefined,
+      once: true,
+      onEnded: () => {
+        if (playbackRef.current === playback) playbackRef.current = null;
+        setPreviewingStyleId((current) => (current === style.id ? null : current));
+      },
     });
-
-    previewRef.current = { cancel };
-
-    // Auto-stop after 2 bars of this style's actual meter (e.g. 3 beats/bar in
-    // 6/8, not always 4).
-    const barDuration = (60 / style.bpm) * beatsPerBar * 2; // 2 bars in seconds
-    timeoutRef.current = setTimeout(() => {
-      stopPreview();
-    }, barDuration * 1000);
   }, [stopPreview]);
 
   return {

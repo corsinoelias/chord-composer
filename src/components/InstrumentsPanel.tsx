@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { type InstrumentState, getInstrumentConfig } from '@/lib/instruments';
 import { type StylePattern, type InstrumentSounds } from '@/lib/styles';
 import { Piano, Guitar, Drum, Music, X } from 'lucide-react';
-import { type NoteLengths } from '@/lib/engine/eventBuilder';
+import { type NoteLengths } from '@/lib/noteLengths';
 
 type MelodicId = keyof NoteLengths;
 

@@ -167,7 +167,7 @@ export async function scheduleSampledNoteByDirAsync(
  *
  * Es el equivalente por directorio de preloadSamplesForMidis, que ya usaba el bass tab
  * player. El motor de acordes usaba preloadSampleDir, que se traga el banco entero: 30 notas
- * y unos 20 MB antes de la primera nota. Ver engine/preloadPlan.ts.
+ * y unos 20 MB antes de la primera nota (hasta que el reproductor pasó al motor de la app).
  *
  * Se mapea cada nota a su muestra más cercana con la misma funcion que usa la reproduccion,
  * asi que el conjunto descargado es exactamente el que se va a tocar.

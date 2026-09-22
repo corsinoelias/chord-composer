@@ -7,16 +7,16 @@
  * styles, sections and live parameter changes, and it loads drum samples on init.
  *
  * So this is a thin sequencer on top of the SAME audio primitives the editor uses --
- * `playChordHold` plays real sampled piano through the shared AudioContext. It is not a
+ * `playChordHold` plays the app engine's piano (src/lib/appEngine/preview.ts). It is not a
  * second audio engine: there is no synthesis, mixing or scheduling logic here, only a
- * setTimeout loop deciding when to start and release chords that audioEngine renders.
+ * setTimeout loop deciding when to start and release chords that engine renders.
  *
  * Playback is a module-level singleton on purpose. Only one thing on the page should be
  * audible at a time, and every caller stopping "whatever is playing" without knowing who
  * started it is exactly what the UI needs.
  */
 import { parseChordString } from './chordParser';
-import { playChordHold } from './audioEngine';
+import { playChordHold } from './appEngine/preview';
 import { getTransposedChordName } from './chordNotes';
 import type { Chord } from './musicTheory';
 

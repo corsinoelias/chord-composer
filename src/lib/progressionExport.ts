@@ -9,8 +9,8 @@
 import { parseChordString } from './chordParser';
 import { createSection, type Section } from './sections';
 import { exportMidi } from './midiExporter';
-import { renderProgressionOffline } from './audioEngine';
-import { encodeAndDownloadMp3 } from './mp3Encoder';
+import { exportSongWav } from './appEngine/player';
+import { downloadBlob } from './mp3Encoder';
 import { getDefaultInstrumentStates } from './instruments';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { MUSICAL_STYLES } from './styles';
@@ -39,8 +39,7 @@ export function downloadProgressionMidi(chordNames: string[], name: string, bpm:
 }
 
 /**
- * Renders the progression through the real playback chain (effects included) and saves it
- * as a WAV. Slower than the MIDI path because it has to wait for the drum/piano samples.
+ * Renders the progression with the player's engine (effects included) and saves it as a WAV.
  */
 export async function downloadProgressionWav(
   chordNames: string[],
@@ -50,8 +49,8 @@ export async function downloadProgressionWav(
 ): Promise<void> {
   const style = MUSICAL_STYLES.find((s) => s.id === styleId) ?? MUSICAL_STYLES[0];
   const instruments = getEffectiveInstruments(getDefaultInstrumentStates(), style);
-  const buffer = await renderProgressionOffline(toSections(chordNames), bpm, instruments, style);
-  await encodeAndDownloadMp3(buffer, `chord-sequence-${toFilename(name)}.wav`);
+  const blob = await exportSongWav({ song: { sections: toSections(chordNames), bpm, instrumentSettings: instruments }, style, lookup: () => undefined });
+  downloadBlob(blob, `chord-sequence-${toFilename(name)}.wav`);
 }
 
 /**

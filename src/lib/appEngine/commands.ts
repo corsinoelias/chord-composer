@@ -74,11 +74,12 @@ export type EngineCommand =
   | ['previewChord', number, number, string, number, MelodicTrack]
   | ['previewOff', MelodicTrack]
   | ['previewDrum', number, DrumRow]
+  | ['previewNote', number, MelodicTrack, number, number]
   | ['resetLoad'];
 
 /** Commands that act rather than describe the song; a file export leaves them out. */
 export const TRANSIENT = new Set<EngineCommand[0]>([
-  'start', 'stop', 'previewClick', 'previewChord', 'previewOff', 'previewDrum', 'resetLoad',
+  'start', 'stop', 'previewClick', 'previewChord', 'previewOff', 'previewDrum', 'previewNote', 'resetLoad',
 ]);
 
 /** A chord for ['chord', …]: the root as the engine spells it (sharps). */

@@ -36,6 +36,7 @@ export const ARGS = {
   previewChord: ['wg_preview_chord', 'iisis'],
   previewOff: ['wg_preview_off', 's'],
   previewDrum: ['wg_preview_drum', 'is'],
+  previewNote: ['wg_preview_note', 'isif'],
   resetLoad: ['wg_reset_load', ''],
 };
 

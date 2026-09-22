@@ -15,10 +15,9 @@ import { SongPlayingPill } from '@/components/SongPlayingPill';
 import { SongSectionChart } from '@/components/SongSectionChart';
 import { SongChordsOnlyChart, type ChordOnlyRow } from '@/components/SongChordsOnlyChart';
 import { parseLyricLine, extractChordsWithDuration, sectionArrangement, type Song } from '@/data/songs';
-import { renderProgressionOffline } from '@/lib/audioEngine';
-import { makeOfflineSectionResolver, makeStyleLookup } from '@/lib/sectionPlayback';
-import { encodeAndDownloadMp3, downloadBlob } from '@/lib/mp3Encoder';
-import { appEngineEnabled, exportSongWav } from '@/lib/appEngine/player';
+import { makeStyleLookup } from '@/lib/sectionPlayback';
+import { downloadBlob } from '@/lib/mp3Encoder';
+import { exportSongWav } from '@/lib/appEngine/player';
 import { exportMidi } from '@/lib/midiExporter';
 import { MUSICAL_STYLES } from '@/lib/styles';
 import { analytics } from '@/lib/analytics';
@@ -69,16 +68,11 @@ interface ResolvedSection {
 }
 
 // ─── Inner component (needs PlaybackContext) ──────────────────────────────────
-function SongChordPlayerInner({ song, inline = false, showWavExport = false }: { song: Song; inline?: boolean; showWavExport?: boolean }) {
+function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: boolean }) {
   const { state, play, stop, setBpm: setContextBpm, updatePlaybackOptions } = usePlayback();
   const { isPlaying, currentChordIndex } = state;
   const [isLoading, setIsLoading] = useState(false);
   const [isExportingWav, setIsExportingWav] = useState(false);
-  // The WAV button needs the app's engine, which renders a whole song in a Worker in well
-  // under a second; the web engine's offline render was slow enough to hurt these pages.
-  // Decided after hydration, since the server cannot know which engine this browser uses.
-  const [wavExport, setWavExport] = useState(showWavExport);
-  useEffect(() => { if (appEngineEnabled()) setWavExport(true); }, []);
   const [bpm, setBpm] = useState(song.bpm);
   const [transpose, setTranspose] = useState(0);
   // Mobile performance console: Drawer open state + the "Voz" mixer channel's manual
@@ -241,7 +235,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   }, [song.slug]);
 
   // Keep the Voz channel's manual mute/volume live during playback — engine OR's this with
-  // the transpose-forced mute above (see isVocalEffectivelyMuted in audioEngine.ts).
+  // the transpose-forced mute above (see the vocal's muted() in PlaybackContext.tsx).
   useEffect(() => {
     updatePlaybackOptions({ vocalMuted, vocalVolume });
   }, [vocalMuted, vocalVolume, updatePlaybackOptions]);
@@ -642,13 +636,9 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
     if (playSectionInFlightRef.current) return;
     playSectionInFlightRef.current = true;
     try {
-      // keepContext (only ever passed by the onEnded chain below) skips the expensive
-      // AudioContext close+reopen — safe here specifically because the previous section ended
-      // on its own with nothing left scheduled, unlike a user cutting playback off mid-flight.
-      // It's also what makes the transition instant: closing the context would invalidate the
-      // guitar-soundfont/bass-sample caches (both keyed by AudioContext identity), forcing a
-      // multi-second re-decode right as the next section is supposed to start (see
-      // stopPlaybackKeepContext in audioEngine.ts).
+      // keepContext (only ever passed by the onEnded chain below) dates from the web engine,
+      // which closed its AudioContext on a stop; the app's engine never does, so chaining into
+      // the next section is immediate either way.
       if (isPlaying) stop(opts?.keepContext ? { keepContext: true } : undefined);
       if (sectionChordCounts[si] === 0) return;
       analytics.playSongSection(song.slug, song.sections[si].name);
@@ -710,8 +700,8 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
   // signal available is activeSectionIndex changing on its own once the engine crosses into
   // the next section. When that happens with a queue pending, immediately redirect into solo
   // play of the queued section instead — `keepContext` makes this gapless, and the natural
-  // next section will have been audible for at most a few ms (well inside the ~100ms scheduling
-  // lookahead in audioEngine.ts), not long enough to be a perceptible glitch. Guarded to
+  // next section will have been audible for at most a few tens of ms (the engine reports its
+  // position ~30 times a second), not long enough to be a perceptible glitch. Guarded to
   // solo-mode-off specifically so this never double-fires alongside the onEnded path above.
   const prevActiveSectionIndexRef = useRef<number | null>(activeSectionIndex);
   useEffect(() => {
@@ -791,19 +781,13 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
     try {
       const sections = buildFullSongSections();
       // Built-in styles only for public songs ("Mis ritmos" belong to the editor).
-      const sectionResolver = makeOfflineSectionResolver(makeStyleLookup([], () => null));
-      if (appEngineEnabled()) {
-        // The file is what the player plays: the app's engine, when that is the one in use.
-        downloadBlob(await exportSongWav({
-          song: { sections, bpm, transposition: transpose, instrumentSettings: instruments },
-          style: resolvedStyle,
-          lookup: makeStyleLookup([], () => null),
-        }), `${song.title} - ${song.artist}.wav`);
-        analytics.songExportWav(song.slug, performance.now() - began);
-      } else {
-        const buffer = await renderProgressionOffline(sections, bpm, instruments, resolvedStyle, transpose, undefined, sectionResolver);
-        await encodeAndDownloadMp3(buffer, `${song.title} - ${song.artist}.wav`);
-      }
+      // The file is what the player plays: the same engine, in a Worker.
+      downloadBlob(await exportSongWav({
+        song: { sections, bpm, transposition: transpose, instrumentSettings: instruments },
+        style: resolvedStyle,
+        lookup: makeStyleLookup([], () => null),
+      }), `${song.title} - ${song.artist}.wav`);
+      analytics.songExportWav(song.slug, performance.now() - began);
     } catch (error) {
       console.error('[EXPORT] song WAV failed', error);
       analytics.songExportWavFailed(song.slug);
@@ -922,7 +906,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
           onExportMidi={handleExportMidi}
           editorUrl={editorUrl}
           inline={inline}
-          showWavExport={wavExport}
+          showWavExport
           consoleOpen={consoleOpen}
           onToggleConsole={() => setConsoleOpen(v => !v)}
           isSoloSection={isSoloSection}
@@ -992,7 +976,7 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
               onExportWav={handleExportWav}
               onExportMidi={handleExportMidi}
               editorUrl={editorUrl}
-              showWavExport={wavExport}
+              showWavExport
             />,
             practicePanelTarget,
           )}
@@ -1130,15 +1114,14 @@ function SongChordPlayerInner({ song, inline = false, showWavExport = false }: {
 }
 
 // ─── Public export (wraps with PlaybackProvider) ──────────────────────────────
-// `showWavExport` defaults off: rendering a full song offline is slow enough that it
-// was hurting the song pages, which are read-and-play surfaces, not export surfaces
-// (MIDI export stays — it's instant). The SongCreator preview opts back in.
+// The WAV button renders a whole song in a Worker with the app's engine (well under a second
+// for most songs, 2.7 s for a 2:47 one), so every song page offers it.
 export default function SongChordPlayer(
-  { song, inline, showWavExport }: { song: Song; inline?: boolean; showWavExport?: boolean },
+  { song, inline }: { song: Song; inline?: boolean },
 ) {
   return (
     <PlaybackProvider>
-      <SongChordPlayerInner song={song} inline={inline} showWavExport={showWavExport} />
+      <SongChordPlayerInner song={song} inline={inline} />
     </PlaybackProvider>
   );
 }

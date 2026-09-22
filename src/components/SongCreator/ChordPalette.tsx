@@ -2,7 +2,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { useEffect, useRef } from 'react';
 import { getDiatonicChords } from '@/lib/musicKeys';
 import { parseChordString } from '@/lib/chordParser';
-import { playChordHold } from '@/lib/audioEngine';
+import { playChordHold } from '@/lib/appEngine/preview';
 import { GripVertical } from 'lucide-react';
 
 function DraggableChord({ chord }: { chord: string }) {

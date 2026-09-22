@@ -4,7 +4,7 @@ import {
   DEGREES, CHORD_TONES, BASS_SCALE_PRESETS, getScaleNoteNames, scalePatternIsEmpty,
   createVariation, degreeToSemitone, type Degree, type DegreePattern, type ScaleVariation, type InstrumentMelodic,
 } from '@/lib/bassScale';
-import { previewNote } from '@/lib/audioEngine';
+import { previewNote } from '@/lib/appEngine/preview';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

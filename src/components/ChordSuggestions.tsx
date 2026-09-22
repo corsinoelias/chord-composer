@@ -14,7 +14,7 @@ import { type Chord, formatChord } from '@/lib/musicTheory';
 import { useChordSuggestions, type ProgressionSuggestion } from '@/hooks/useChordSuggestions';
 import { GENRE_PROGRESSIONS, progressionToChords } from '@/lib/chordProgressions';
 import { toast } from 'sonner';
-import { playChordPreview } from '@/lib/audioEngine';
+import { playChordPreview } from '@/lib/appEngine/preview';
 
 interface ChordSuggestionsProps {
   styleId: string;

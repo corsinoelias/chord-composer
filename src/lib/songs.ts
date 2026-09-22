@@ -7,7 +7,7 @@
 import type { Section } from './sections';
 import type { InstrumentState } from './instruments';
 import type { MelodicData, DegreePattern } from './bassScale';
-import { type NoteLengths } from './engine/eventBuilder';
+import { type NoteLengths } from './noteLengths';
 
 /**
  * The shared song document (docs/plan-paridad-web-app.md, "SongDoc"): this shape, stored as

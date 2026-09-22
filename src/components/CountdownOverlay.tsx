@@ -6,7 +6,14 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getAudioContext } from '@/lib/audioEngine';
+import { startedAppEngine } from '@/lib/appEngine/player';
+
+// The clicks are four sine pips timed by the page; they need an AudioContext, not an engine.
+// The app's engine's when it is already open, otherwise one of their own.
+let ownContext: AudioContext | null = null;
+function getAudioContext(): AudioContext {
+  return startedAppEngine()?.ctx ?? (ownContext ??= new AudioContext());
+}
 
 interface CountdownOverlayProps {
   bpm: number;
