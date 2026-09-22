@@ -7,8 +7,9 @@
  * compressor are applied to all four channels alike, which is what a master chain does to
  * their sum. The reverb starts off, as the web's did.
  */
-import { type EngineCommand } from './commands';
+import { type EngineCommand, type Track } from './commands';
 import { startedAppEngine } from './player';
+import { getMix, isMixDefault, resetMix, setMaster, setPan } from './mix';
 
 export interface EQBand {
   frequency: number;
@@ -27,7 +28,6 @@ export interface EffectsState {
     release: number;
     knee: number;
   };
-  masterVolume: number;
 }
 
 export const DEFAULT_EFFECTS_STATE: EffectsState = {
@@ -38,7 +38,6 @@ export const DEFAULT_EFFECTS_STATE: EffectsState = {
   },
   reverb: { enabled: false, decay: 1.5, wetDry: 0.3 },
   compressor: { enabled: false, threshold: -24, ratio: 4, attack: 0.003, release: 0.25, knee: 30 },
-  masterVolume: 1,
 };
 
 const clone = (s: EffectsState): EffectsState => JSON.parse(JSON.stringify(s));
@@ -56,8 +55,29 @@ export function effectsCommands(): EngineCommand[] {
   return [...strips, ['reverb', size, reverb.enabled ? reverb.wetDry : 0]];
 }
 
+/** The master fader and the pan of each track (mix.ts), as the engine takes them. */
+export function mixCommands(): EngineCommand[] {
+  const mix = getMix();
+  return [
+    ['mixer', 'master', mix.master, false],
+    ...(Object.keys(mix.pan) as Track[]).map((track): EngineCommand => ['pan', track, mix.pan[track]]),
+  ];
+}
+
 function apply(): void {
-  startedAppEngine()?.send(effectsCommands());
+  startedAppEngine()?.send([...effectsCommands(), ...mixCommands()]);
+}
+
+/** The whole output's level, 0-1. */
+export function updateMaster(volume: number): void {
+  setMaster(volume);
+  apply();
+}
+
+/** Where a track sits, −1 left … 1 right. */
+export function updatePan(track: Track, pan: number): void {
+  setPan(track, pan);
+  apply();
 }
 
 export function getCurrentEffectsState(): EffectsState {
@@ -79,7 +99,21 @@ export function updateCompressor(settings: Partial<EffectsState['compressor']>):
   apply();
 }
 
+/** Reset puts the console back as it opens: flat and dry, master up, the app's placement. */
 export function resetEffects(): void {
   Object.assign(state, clone(DEFAULT_EFFECTS_STATE));
+  resetMix();
   apply();
+}
+
+/** Whether anything in the console has been moved — what greys out Reset. */
+export function isConsoleDefault(): boolean {
+  return (
+    state.eq.low.gain === 0 &&
+    state.eq.mid.gain === 0 &&
+    state.eq.high.gain === 0 &&
+    !state.reverb.enabled &&
+    !state.compressor.enabled &&
+    isMixDefault()
+  );
 }

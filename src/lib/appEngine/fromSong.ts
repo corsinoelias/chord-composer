@@ -43,6 +43,7 @@ import {
   type MelodicTrack,
 } from './commands';
 import { type DrumKit } from './host';
+import { getMix } from './mix';
 import { type NoteLengths } from '../noteLengths';
 import { styleSwingRatio } from '../swing';
 import { DEFAULT_CLICK, type ClickSettings } from '../clickSettings';
@@ -60,11 +61,7 @@ const MAX_STEPS_PER_BAR = 20; // kMaxStepsPerBar: a fill row's width
 /** The kit when the catalog names one the app does not have: the app's own default. */
 const DEFAULT_KIT = 2;
 
-/**
- * The pan each track sits at, the app's defaults (MixerState in audio_engine.dart): the piano a
- * little left, the guitar right, drums and bass in the middle. The web had none (2026-09-22).
- */
-const PAN: Record<TrackId, number> = { drums: 0, piano: -0.25, guitar: 0.3, bass: 0 };
+/** Where each track sits and how loud the whole output is: the mixer's, mix.ts. */
 /** The web's pieces, and the engine row each one plays on. */
 const WEB_DRUMS: [web: string, row: DrumRow][] = [
   ['kick', 'kick'], ['snare', 'snare'], ['snareStick', 'rim'], ['hihat', 'hihat'], ['hihatOpen', 'hihatOpen'],
@@ -80,7 +77,6 @@ const WEB_DRUMS: [web: string, row: DrumRow][] = [
  * a guitar nobody could hear.
  */
 const TRACK_TRIM: Record<TrackId, number> = { drums: 0.6, piano: 1, guitar: 1.66, bass: 0.46 };
-const MASTER = 1;
 const MELODIC: MelodicTrack[] = ['piano', 'guitar', 'bass'];
 const TRACKS: TrackId[] = ['drums', 'piano', 'guitar', 'bass'];
 
@@ -274,6 +270,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   if (arpeggioTracks.size) notes.push(`arpeggios on ${[...arpeggioTracks].join(' and ')} play as block chords (no built-in style arpeggiates; only a custom one can)`);
 
   // ── The mix ──
+  const mix = getMix();
   const volumes = songStyle.volumes as Record<string, number | undefined>;
   for (const track of TRACKS) {
     const setting = instruments.find((inst) => inst.id === track);
@@ -288,8 +285,8 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     const audible = setting ? isInstrumentAudible(setting, instruments) : true;
     c.push(['mixer', track, volume, !audible]);
   }
-  c.push(['mixer', 'master', MASTER, false]);
-  for (const track of TRACKS) c.push(['pan', track, PAN[track]]);
+  c.push(['mixer', 'master', mix.master, false]);
+  for (const track of TRACKS) c.push(['pan', track, mix.pan[track]]);
   // The same command carries the count-in, which the engine clicks with these settings too.
   c.push(['metronome', !!song.metronomeEnabled, click.volume, click.sound, click.accent, click.division]);
   // Dry, as the web always played (the mixer's reverb starts off, effects.ts), where the

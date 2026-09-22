@@ -286,7 +286,7 @@ export const analytics = {
     }),
   // Coalesced per effect — see trackCoalesced. Callers fire this on commit (fader released,
   // switch toggled), never per value change.
-  effectChanged: (effect: 'eq' | 'reverb' | 'compressor') =>
+  effectChanged: (effect: 'eq' | 'reverb' | 'compressor' | 'pan' | 'master') =>
     trackCoalesced('effect_changed', effect, { effect }),
   customStyleSaved: (mode: string) => track('custom_style_saved', { mode }),
 

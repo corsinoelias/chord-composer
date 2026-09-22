@@ -84,6 +84,16 @@ export const getAppEngine = getEngine;
 /** The engine if it has started already, without starting it. */
 export const startedAppEngine = (): AppEngine | null => shared.__appEngine ?? null;
 
+/**
+ * The held peaks the engine reports — drums, piano, guitar, bass, master, linear 0-1 — for
+ * the mixer's meters, or null when nothing is playing: stopped, the held peaks would sit at
+ * whatever the song last reached, which the app's mixer empties for the same reason.
+ */
+export function engineLevels(): number[] | null {
+  const state = startedAppEngine()?.state;
+  return state?.playing ? state.levels : null;
+}
+
 export class AppPlayback {
   private built: EngineSong | null = null;
   private current: AppSong | null = null;
@@ -177,7 +187,7 @@ export class AppPlayback {
     const e = await getEngine();
     this.current = input;
     this.built = this.build(input, e);
-    const mix = this.built.commands.filter((c) => c[0] === 'mixer');
+    const mix = this.built.commands.filter((c) => c[0] === 'mixer' || c[0] === 'pan');
     const song = songPart(this.built.commands, input);
     if (song === this.sentSong) {
       e.send(mix);
@@ -203,7 +213,7 @@ export class AppPlayback {
     input = { ...input, once: this.current.once, onEnded: this.current.onEnded, vocal: this.current.vocal };
     const e = await getEngine();
     this.current = input;
-    const mix = this.build(input, e).commands.filter((c) => c[0] === 'mixer');
+    const mix = this.build(input, e).commands.filter((c) => c[0] === 'mixer' || c[0] === 'pan');
     e.send(mix);
   }
 
@@ -296,7 +306,10 @@ export class AppPlayback {
 
 /** Everything [commands] say about the song itself, as text: what a mix change leaves alone. */
 function songPart(commands: EngineCommand[], input: AppSong): string {
-  return JSON.stringify([commands.filter((c) => c[0] !== 'mixer'), input.loopingSectionIndex ?? -1]);
+  return JSON.stringify([
+    commands.filter((c) => c[0] !== 'mixer' && c[0] !== 'pan'),
+    input.loopingSectionIndex ?? -1,
+  ]);
 }
 
 /**
