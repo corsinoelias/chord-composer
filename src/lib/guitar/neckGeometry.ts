@@ -63,6 +63,9 @@ export interface NeckOptions {
   fretFrom?: number
   fretTo?: number
   stringLabels?: string[]
+  /** Room kept below the low E for the fret numbers. The instrument page leaves 56;
+   *  the tab editor, short of height, needs only enough for the numbers. */
+  footerH?: number
 }
 
 const DEFAULT_LABELS = ['e', 'B', 'G', 'D', 'A', 'E']
@@ -92,7 +95,7 @@ export function computeNeckGeometry(
 
   const gutter = 28
   const nutW = Math.max(5, Math.round(W * 0.007))
-  const footerH = 56
+  const footerH = opts.footerH ?? 56
   const usable = Math.max(120, H - footerH)
   const gap = Math.max(20, Math.min(44, (usable - 30) / 5))
   const padY = Math.max(8, (usable - gap * 5) / 2)

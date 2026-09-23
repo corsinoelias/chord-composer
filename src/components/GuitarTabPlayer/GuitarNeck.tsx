@@ -34,6 +34,9 @@ interface Props {
   /** Mirror the whole neck for a left-handed player. */
   lefty: boolean
   onPlay: (row: number, fret: number) => void
+  /** Dragging across the strings strums the shape. Off in the tab editor, where every
+   *  sounded cell becomes a note: a sweep there would write six notes nobody meant. */
+  strum?: boolean
 }
 
 /**
@@ -44,6 +47,7 @@ interface Props {
  */
 export function GuitarNeck({
   geo, fbRef, shapeRows, hasShape, activeRows, highlightRows, markRows, vibRef, labelMode, lefty, onPlay,
+  strum = true,
 }: Props) {
   // Left-handed mirrors the container, so the text inside has to be mirrored back or it
   // reads in reverse, and a pointer's x has to be mirrored the other way to land on the
@@ -137,7 +141,7 @@ export function GuitarNeck({
   // Crossing into a new row mid-drag is a strum, not an aim: play every row passed
   // over, at its shape fret, so a sweep sounds the chord the way a pick would.
   const handleMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!draggingRef.current) return
+    if (!draggingRef.current || !strum) return
     const { yv } = toViewBox(e)
     const row = rowFromY(geoRef.current, yv)
     if (row < 0 || row === lastRowRef.current) return

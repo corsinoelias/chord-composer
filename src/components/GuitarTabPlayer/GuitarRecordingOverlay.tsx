@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import type { GuitarNote, GuitarTrack, GuitarSound, GuitarStringIndex } from '../../lib/guitarTab/types'
 import { previewNote, getAudioContext, startRecordingMetronome, startPlayback, stopPlayback } from '../../lib/guitarTab/guitarAudio'
-import { GuitarFretboard } from './GuitarFretboard'
+import { GuitarTabNeck } from './GuitarTabNeck'
 
 const SNAP = 0.25
 const RECORDING_BPM = 40
@@ -313,11 +313,11 @@ export function GuitarRecordingOverlay({ track, sound, onComplete, onCancel }: P
             <DurationPicker noteDuration={noteDuration} setNoteDuration={v => { setNoteDuration(v); durationRef.current = v }} />
           </div>
           <div style={{ flexShrink: 0 }}>
-            <GuitarFretboard
+            <GuitarTabNeck
               activeFrets={Array(6).fill(null)}
               attackSignals={emptyAttacks}
               onNoteClick={handleFretClick}
-              maxHeight={260}
+              height={260}
             />
           </div>
           <div style={{ flexShrink: 0, padding: '8px 12px 16px', marginTop: 'auto' }}>

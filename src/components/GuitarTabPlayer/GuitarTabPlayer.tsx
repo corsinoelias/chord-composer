@@ -10,7 +10,7 @@ import { parseGpFile } from '../../lib/guitarTab/gpImport'
 import { useGuitarTrackEditor } from '../../hooks/useGuitarTrackEditor'
 import { GuitarTabGrid } from './GuitarTabGrid'
 import { GuitarTabView } from './GuitarTabView'
-import { GuitarFretboard } from './GuitarFretboard'
+import { GuitarTabNeck } from './GuitarTabNeck'
 import { GuitarPhotoFretboard } from './GuitarPhotoFretboard'
 import { GuitarTransport } from './GuitarTransport'
 import { GuitarInspector } from './GuitarInspector'
@@ -470,6 +470,85 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
     return () => window.removeEventListener('pointerdown', close)
   }, [ctxMenu])
 
+  // ── Keyboard ──────────────────────────────────────────────────────────────
+  // Editor-wide keys. The views keep their own (the tab's fret digits, x, arrows,
+  // Enter, Backspace; the grid's copy/paste) — anything a view already handled
+  // arrives here with defaultPrevented and is left alone. Nothing fires while
+  // typing in a field, so the Text view's textarea and the BPM box stay plain.
+  const [showKeys, setShowKeys] = useState(false)
+  const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {})
+  // Held +/− repeats faster than React re-renders, so the tempo steps from a ref.
+  const bpmRef = useRef(track.bpm)
+  bpmRef.current = track.bpm
+  const stepBpm = (delta: number) => {
+    const next = Math.max(20, Math.min(300, bpmRef.current + delta))
+    bpmRef.current = next
+    handleBpmChange(next, isPlaying)
+  }
+  keyHandlerRef.current = (e: KeyboardEvent) => {
+    const el = e.target as HTMLElement | null
+    const typing = !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))
+    if (typing || showRecording || showSongLibrary) return
+
+    const mod = e.ctrlKey || e.metaKey
+    const k = e.key
+
+    if (k === 'Escape') {
+      if (showKeys || menu || inspectorOpen || ctxMenu) {
+        setShowKeys(false); setMenu(null); setInspectorOpen(false); setCtxMenu(null)
+        e.preventDefault()
+      } else if (!e.defaultPrevented && selectedNoteId) {
+        setSelectedNoteId(null)
+      }
+      return
+    }
+    if (e.defaultPrevented) return
+
+    if (mod && !e.altKey) {
+      const lower = k.toLowerCase()
+      if (lower === 'z' && !e.shiftKey) { e.preventDefault(); if (canUndo) handleUndo() }
+      else if (lower === 'y' || (lower === 'z' && e.shiftKey)) { e.preventDefault(); if (canRedo) handleRedo() }
+      return
+    }
+    if (e.altKey) return
+
+    switch (k) {
+      case ' ':
+        // Also stops a focused button from being "clicked" by the space bar.
+        e.preventDefault()
+        if (isPlaying || isCountingIn) handleStop(); else handlePlay()
+        return
+      case 'Home':
+        e.preventDefault(); handleRewind(); return
+      case 'l': case 'L':
+        setLoop(v => !v); return
+      case 'm': case 'M':
+        setMetronome(v => !v); return
+      case '+': case '=':
+        e.preventDefault(); stepBpm(1); return
+      case '-': case '_':
+        e.preventDefault(); stepBpm(-1); return
+      case '[': case ']': {
+        // Shorter / longer note: steps through the inspector's durations.
+        const order = [0.25, 0.5, 1, 2, 4]
+        const current = selectedNote?.durationBeats ?? noteDuration
+        const i = order.findIndex(v => v >= current - 1e-6)
+        const next = order[Math.max(0, Math.min(order.length - 1, (i < 0 ? 2 : i) + (k === ']' ? 1 : -1)))]
+        e.preventDefault(); handleNoteDurationChange(next); return
+      }
+      case 'Delete': case 'Backspace':
+        if (selectedNoteId && !isPlaying) { e.preventDefault(); deleteNote(selectedNoteId); setSelectedNoteId(null) }
+        return
+      case '?':
+        e.preventDefault(); setShowKeys(v => !v); return
+    }
+  }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => keyHandlerRef.current(e)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   // ── Menus close on any outside press ──────────────────────────────────────
   useEffect(() => {
     if (!menu) return
@@ -480,6 +559,7 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
 
   const totalBeats = track.totalBars * track.beatsPerBar
   const fretboardView = viewMode === 'tab' || viewMode === 'grid'
+  const maxFret = track.notes.reduce((m, n) => (n.fret > m ? n.fret : m), 0)
   const trackName  = track.name || 'New Guitar Tab'
   const meta = [
     `${track.beatsPerBar}/4`,
@@ -539,6 +619,11 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
         <button title="Redo (Ctrl+Y)" onClick={handleRedo} disabled={!canRedo} style={iconBtn(false, !canRedo)}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7"/></svg>
         </button>
+        {!isCompact && (
+          <button title="Keyboard shortcuts (?)" onClick={() => setShowKeys(v => !v)} style={iconBtn(showKeys)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M18 13h.01M8 16h8"/></svg>
+          </button>
+        )}
         {!isCompact && <div style={{ width: 1, height: 20, background: T.border, margin: '0 4px' }} />}
 
         {GUITAR_PRESETS.length > 0 && (
@@ -734,13 +819,20 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
           {/* Fretboard — only under the views you edit in; Score and Text are for reading and need the height */}
           {showFretboard && fretboardView && (
             <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {!isCompact && <span style={sectionLabel}>Fretboard</span>}
-              <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: 'hidden' }}>
-                <GuitarFretboard
+              {!isCompact && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={sectionLabel}>Fretboard</span>
+                  <span style={{ fontSize: 11, color: T.muted }}>Tap a fret to place a note at the cursor</span>
+                </div>
+              )}
+              <div style={{ borderRadius: 10, overflow: 'hidden' }}>
+                <GuitarTabNeck
                   activeFrets={activeFrets}
                   attackSignals={attackSignals}
                   onNoteClick={handleFretboardClick}
-                  maxHeight={isCompact ? 150 : 220}
+                  selected={isPlaying ? null : selectedNote}
+                  maxFret={maxFret}
+                  height={isCompact ? 200 : 236}
                 />
               </div>
             </div>
@@ -792,6 +884,37 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
               </button>
             </div>
             {inspector}
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard shortcuts */}
+      {showKeys && (
+        <div onClick={() => setShowKeys(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div role="dialog" aria-label="Keyboard shortcuts" onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 100%)', maxHeight: '100%', overflowY: 'auto', background: T.bg, borderRadius: 14, boxShadow: '0 20px 48px rgba(15,23,42,0.25)', padding: '20px 22px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <span style={{ fontSize: 16, fontWeight: 700 }}>Keyboard shortcuts</span>
+              <button title="Close (Esc)" onClick={() => setShowKeys(false)} style={iconBtn()}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '18px 28px' }}>
+              {SHORTCUTS.map(group => (
+                <div key={group.title} style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <span style={sectionLabel}>{group.title}</span>
+                  {group.items.map(([keys, label]) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, fontSize: 13, color: T.text2 }}>
+                      <span>{label}</span>
+                      <span style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                        {keys.map(key => (
+                          <kbd key={key} style={{ minWidth: 22, height: 22, padding: '0 6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5, border: `1px solid ${T.border}`, borderBottomWidth: 2, background: T.panel, fontFamily: T.mono, fontSize: 11, color: T.text }}>{key}</kbd>
+                        ))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -862,6 +985,36 @@ const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'grid',      label: 'Grid' },
   { id: 'fretboard', label: 'Guitar' },
   { id: 'text',      label: 'Text' },
+]
+
+const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'
+
+/** What the shortcuts panel lists — kept next to the handler's cases. */
+const SHORTCUTS: { title: string; items: [string[], string][] }[] = [
+  { title: 'Playback', items: [
+    [['Space'], 'Play / stop'],
+    [['Home'], 'Back to start'],
+    [['L'], 'Loop on / off'],
+    [['M'], 'Metronome on / off'],
+    [['+', '−'], 'Tempo up / down'],
+  ] },
+  { title: 'Editing', items: [
+    [[MOD, 'Z'], 'Undo'],
+    [[MOD, 'Y'], 'Redo'],
+    [['[', ']'], 'Shorter / longer note'],
+    [['Del'], 'Delete selected note'],
+    [['Esc'], 'Deselect · close'],
+  ] },
+  { title: 'In the Tab view', items: [
+    [['0–24'], 'Type a fret at the cursor'],
+    [['X'], 'Muted note'],
+    [['←', '→'], 'Move along the bar'],
+    [['↑', '↓'], 'Change string'],
+    [['Enter'], 'Next position'],
+  ] },
+  { title: 'Help', items: [
+    [['?'], 'Show these shortcuts'],
+  ] },
 ]
 
 /** Below this width the rail becomes a row of tabs and the inspector a drawer. */
