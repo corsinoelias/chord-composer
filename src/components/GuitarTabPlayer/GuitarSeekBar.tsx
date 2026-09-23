@@ -1,5 +1,6 @@
 import React, { useRef, useCallback, useState } from 'react'
 import type { LoopRange } from '../../lib/guitarTab/types'
+import { T } from './theme'
 
 interface SeekBarProps {
   currentBeat:        number
@@ -91,11 +92,11 @@ export function GuitarSeekBar({
 
   const pct        = pctOf(currentBeat)
   const totalBars  = Math.ceil(totalBeats / beatsPerBar)
-  const curBar     = Math.floor(currentBeat / beatsPerBar) + 1
-  const curBeat    = Math.floor(currentBeat % beatsPerBar) + 1
   const loopInPct  = loopRange ? pctOf(loopRange.startBeat) : null
   const loopOutPct = loopRange ? pctOf(loopRange.endBeat)   : null
 
+  // The hit area is 22 px tall; the rail drawn inside it is 6. Loop handles span the
+  // whole hit area so they stay easy to grab.
   return (
     <div
       ref={railRef}
@@ -103,45 +104,31 @@ export function GuitarSeekBar({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onContextMenu={handleContextMenu}
-      style={{ position: 'relative', height: 22, background: '#e2e8f0', borderBottom: '1px solid #e2e8f0', cursor: hoverTarget ? 'ew-resize' : 'pointer', userSelect: 'none', touchAction: 'none', flexShrink: 0 }}
+      title="Click to seek · right-click to set the loop range"
+      style={{ position: 'relative', flex: 1, minWidth: 0, height: 22, cursor: hoverTarget ? 'ew-resize' : 'pointer', userSelect: 'none', touchAction: 'none' }}
     >
-      {/* Beat markers */}
-      {Array.from({ length: totalBars * beatsPerBar - 1 }, (_, i) => {
-        const isBar = (i + 1) % beatsPerBar === 0
-        if (isBar) return null
-        return <div key={i} style={{ position: 'absolute', top: 5, bottom: 5, left: `${((i + 1) / (totalBars * beatsPerBar)) * 100}%`, width: 1, background: '#f1f5f9', pointerEvents: 'none' }} />
-      })}
-      {/* Bar markers */}
-      {Array.from({ length: totalBars - 1 }, (_, i) => (
-        <div key={i} style={{ position: 'absolute', top: 0, bottom: 0, left: `${((i + 1) * beatsPerBar / totalBeats) * 100}%`, width: 1, background: '#cbd5e1', pointerEvents: 'none' }} />
-      ))}
-      {/* Loop fill */}
-      {loopRange && loopInPct !== null && loopOutPct !== null && (
-        <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${loopInPct}%`, width: `${loopOutPct - loopInPct}%`, background: 'rgba(124,58,237,0.12)', pointerEvents: 'none' }} />
-      )}
-      {/* Progress fill */}
-      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${pct}%`, background: isPlaying ? '#7c3aed' : '#a78bfa', opacity: isPlaying ? 0.5 : 0.35, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 8, height: 6, borderRadius: 999, background: T.well, overflow: 'hidden', pointerEvents: 'none' }}>
+        {/* Loop fill */}
+        {loopRange && loopInPct !== null && loopOutPct !== null && (
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${loopInPct}%`, width: `${loopOutPct - loopInPct}%`, background: 'rgba(217,119,6,0.18)' }} />
+        )}
+        {/* Progress fill */}
+        <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${pct}%`, borderRadius: 999, background: T.accent }} />
+        {/* Bar ticks */}
+        {Array.from({ length: totalBars - 1 }, (_, i) => (
+          <div key={i} style={{ position: 'absolute', top: 0, bottom: 0, left: `${((i + 1) * beatsPerBar / totalBeats) * 100}%`, width: 2, background: T.bg }} />
+        ))}
+      </div>
       {/* Loop IN handle */}
       {loopRange && loopInPct !== null && (
-        <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${loopInPct}%`, width: 2, background: hoverTarget === 'loopIn' ? '#f59e0b' : '#d97706', transform: 'translateX(-1px)', pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 10, height: 8, background: hoverTarget === 'loopIn' ? '#f59e0b' : '#d97706', borderRadius: '0 0 3px 3px' }} />
-        </div>
+        <div style={{ position: 'absolute', top: 2, bottom: 2, left: `${loopInPct}%`, width: 3, borderRadius: 2, background: hoverTarget === 'loopIn' ? '#f59e0b' : '#d97706', transform: 'translateX(-1.5px)', pointerEvents: 'none' }} />
       )}
       {/* Loop OUT handle */}
       {loopRange && loopOutPct !== null && (
-        <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${loopOutPct}%`, width: 2, background: hoverTarget === 'loopOut' ? '#22c55e' : '#16a34a', transform: 'translateX(-1px)', pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 10, height: 8, background: hoverTarget === 'loopOut' ? '#22c55e' : '#16a34a', borderRadius: '0 0 3px 3px' }} />
-        </div>
+        <div style={{ position: 'absolute', top: 2, bottom: 2, left: `${loopOutPct}%`, width: 3, borderRadius: 2, background: hoverTarget === 'loopOut' ? '#22c55e' : '#16a34a', transform: 'translateX(-1.5px)', pointerEvents: 'none' }} />
       )}
-      {/* Scrubber handle */}
-      <div style={{ position: 'absolute', top: '50%', left: `${pct}%`, transform: 'translate(-50%, -50%)', width: 10, height: 10, borderRadius: '50%', background: isPlaying ? '#7c3aed' : '#94a3b8', border: '2px solid #ffffff', pointerEvents: 'none', boxShadow: isPlaying ? '0 0 5px rgba(124,58,237,0.6)' : 'none', transition: 'background 0.15s' }} />
-      {/* Label */}
-      <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 9, fontFamily: 'ui-monospace, monospace', color: '#64748b', pointerEvents: 'none', letterSpacing: '0.04em' }}>
-        {loopRange
-          ? `${Math.floor(loopRange.startBeat / beatsPerBar) + 1}–${Math.ceil(loopRange.endBeat / beatsPerBar)} · ${curBar}:${curBeat}`
-          : `${curBar}/${totalBars} · ${curBeat}`
-        }
-      </span>
+      {/* Scrubber */}
+      <div style={{ position: 'absolute', top: '50%', left: `${pct}%`, width: 12, height: 12, margin: '-6px 0 0 -6px', borderRadius: '50%', background: '#ffffff', border: `1px solid ${T.borderStrong}`, boxShadow: `0 0 0 3px ${T.accentRing}`, pointerEvents: 'none', opacity: isPlaying || pct > 0 ? 1 : 0.9 }} />
     </div>
   )
 }

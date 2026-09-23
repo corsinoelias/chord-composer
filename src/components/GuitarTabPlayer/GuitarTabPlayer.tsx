@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import type { GuitarNote, GuitarTrack, GuitarSound, GuitarStringIndex, LoopRange } from '../../lib/guitarTab/types'
+import type { GuitarNote, GuitarTrack, GuitarSound, GuitarStringIndex, GuitarTechnique, LoopRange } from '../../lib/guitarTab/types'
 import { DEFAULT_TRACK } from '../../lib/guitarTab/types'
 import { startPlayback, stopPlayback, setMasterVolume, previewNote, startRecordingMetronome, prepareSoundfont } from '../../lib/guitarTab/guitarAudio'
 import { toAsciiTab, exportMidiFile, copyToClipboard } from '../../lib/guitarTab/exportTab'
@@ -13,17 +13,15 @@ import { GuitarTabView } from './GuitarTabView'
 import { GuitarFretboard } from './GuitarFretboard'
 import { GuitarPhotoFretboard } from './GuitarPhotoFretboard'
 import { GuitarTransport } from './GuitarTransport'
-import { GuitarChordHelper } from './GuitarChordHelper'
-import { GuitarSeekBar } from './GuitarSeekBar'
+import { GuitarInspector } from './GuitarInspector'
+import { clampDuration, type ChordShape } from '../../lib/guitarTab/guitarTheory'
+import { T, STRING_NAMES, iconBtn, sectionLabel } from './theme'
 import { GuitarNotationView } from './GuitarNotationView'
 import { GuitarRecordingOverlay } from './GuitarRecordingOverlay'
 import { GuitarSongLibrary } from './GuitarSongLibrary'
 import { GUITAR_PRESETS } from '../../data/guitarPresets'
 
 const STORAGE_KEY = 'guitar-tab-track-v1'
-
-const STRING_COLORS = ['#0284c7','#7c3aed','#059669','#d97706','#ea580c','#dc2626']
-const STRING_NAMES  = ['e','B','G','D','A','E']
 
 /** Where the Text view remembers rests, spacing and bars per line. */
 const TEXT_FORMAT_KEY = 'guitar-tab-text-format-v1'
@@ -76,9 +74,8 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   const [loopRange, setLoopRange]     = useState<LoopRange | null>(null)
   const [showRecording, setShowRecording] = useState(false)
   const [ctxMenu, setCtxMenu]         = useState<CtxMenu | null>(null)
-  const [showChordHelper, setShowChordHelper] = useState(true)
   const [showFretboard, setShowFretboard]     = useState(true)
-  const [viewMode, setViewMode]       = useState<'tab' | 'grid' | 'notation' | 'fretboard' | 'text'>('tab')
+  const [viewMode, setViewMode]       = useState<ViewMode>('tab')
   const [toastMsg, setToastMsg]       = useState<string | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [showSongLibrary, setShowSongLibrary] = useState(false)
@@ -91,7 +88,10 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   const [mutedStrings, setMutedStrings]   = useState<boolean[]>(Array(6).fill(false))
   const [soloedStrings, setSoloedStrings] = useState<boolean[]>(Array(6).fill(false))
   const [noteColors, setNoteColors]       = useState(false)
-  const [showMixer, setShowMixer]         = useState(false)
+  const [noteDuration, setNoteDuration]   = useState(1)
+  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [menu, setMenu]                   = useState<'import' | 'export' | null>(null)
+  const isCompact = useIsCompact()
 
   const countInStopRef    = useRef<(() => void) | null>(null)
   const midiInputRef      = useRef<HTMLInputElement | null>(null)
@@ -223,12 +223,12 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
       const note: GuitarNote = {
         id: crypto.randomUUID(),
         stringIndex: si as GuitarStringIndex,
-        fret, startBeat: cursorBeat, durationBeats: 1, velocity: 0.8,
+        fret, startBeat: cursorBeat, durationBeats: noteDuration, velocity: 0.8,
       }
       addNote(note)
-      setCursorBeat(c => c + 1)
+      setCursorBeat(c => c + noteDuration)
     }
-  }, [isPlaying, sound, track.capo, cursorBeat, addNote])
+  }, [isPlaying, sound, track.capo, cursorBeat, noteDuration, addNote])
 
   const handleNotePreview = useCallback((si: GuitarStringIndex, fret: number) => {
     previewNote(si, fret, sound, track.capo)
@@ -254,16 +254,41 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
 
   const handleFretChange = useCallback((fret: number) => {
     if (!selectedNoteId) return
-    updateNote(selectedNoteId, { fret })
-    previewNote(selectedNote?.stringIndex ?? 0, fret, sound, track.capo)
-  }, [selectedNoteId, selectedNote, sound, track.capo, updateNote])
-
-  // ── Chord helper ──────────────────────────────────────────────────────────
-  const handleInsertChord = useCallback((notes: GuitarNote[]) => {
     beginEdit()
-    notes.forEach(n => addNote(n))
-    setCursorBeat(c => c + 1)
-  }, [beginEdit, addNote])
+    updateNote(selectedNoteId, { fret, muted: false })
+    previewNote(selectedNote?.stringIndex ?? 0, fret, sound, track.capo)
+  }, [selectedNoteId, selectedNote, sound, track.capo, beginEdit, updateNote])
+
+  /** Sets the length of the next notes and, when a note is selected, of that note too. */
+  const handleNoteDurationChange = useCallback((beats: number) => {
+    setNoteDuration(beats)
+    if (!selectedNote) return
+    const others = track.notes.filter(n => n.id !== selectedNote.id)
+    const safe = clampDuration(others, selectedNote.stringIndex, selectedNote.startBeat, beats, track.totalBars * track.beatsPerBar)
+    if (safe <= 0 || safe === selectedNote.durationBeats) return
+    beginEdit()
+    updateNote(selectedNote.id, { durationBeats: safe })
+  }, [selectedNote, track.notes, track.totalBars, track.beatsPerBar, beginEdit, updateNote])
+
+  const handleTechniqueChange = useCallback((technique: GuitarTechnique | undefined) => {
+    if (!selectedNoteId) return
+    beginEdit()
+    updateNote(selectedNoteId, { technique })
+  }, [selectedNoteId, beginEdit, updateNote])
+
+  // ── Chords ────────────────────────────────────────────────────────────────
+  const handleInsertChord = useCallback((chord: ChordShape) => {
+    beginEdit()
+    for (const n of chord.notes) {
+      if (!n) continue
+      addNote({
+        id: crypto.randomUUID(),
+        stringIndex: n.stringIndex as GuitarStringIndex,
+        fret: n.fret, startBeat: cursorBeat, durationBeats: noteDuration, velocity: 0.8,
+      })
+    }
+    setCursorBeat(c => c + noteDuration)
+  }, [beginEdit, addNote, cursorBeat, noteDuration])
 
   // ── Recording ─────────────────────────────────────────────────────────────
   const handleRecordingComplete = useCallback((notes: GuitarNote[]) => {
@@ -445,155 +470,113 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
     return () => window.removeEventListener('pointerdown', close)
   }, [ctxMenu])
 
+  // ── Menus close on any outside press ──────────────────────────────────────
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    window.addEventListener('pointerdown', close)
+    return () => window.removeEventListener('pointerdown', close)
+  }, [menu])
+
   const totalBeats = track.totalBars * track.beatsPerBar
-  const soloActive = soloedStrings.some(Boolean)
+  const fretboardView = viewMode === 'tab' || viewMode === 'grid'
+  const trackName  = track.name || 'New Guitar Tab'
+  const meta = [
+    `${track.beatsPerBar}/4`,
+    track.capo ? `Capo ${track.capo}` : null,
+    `${track.totalBars} ${track.totalBars === 1 ? 'bar' : 'bars'}`,
+    `${track.notes.length} ${track.notes.length === 1 ? 'note' : 'notes'}`,
+  ].filter(Boolean).join(' · ')
+
+  const inspector = (
+    <GuitarInspector
+      selectedNote={selectedNote}
+      beatsPerBar={track.beatsPerBar}
+      noteDuration={noteDuration}
+      onNoteDurationChange={handleNoteDurationChange}
+      onFretChange={handleFretChange}
+      onTechniqueChange={handleTechniqueChange}
+      sound={sound}
+      onSoundChange={setSound}
+      capo={track.capo}
+      onCapoChange={handleCapoChange}
+      onBeatsPerBarChange={handleBeatsPerBarChange}
+      totalBars={track.totalBars}
+      onBarsChange={handleBarsChange}
+      mutedStrings={mutedStrings}
+      soloedStrings={soloedStrings}
+      onToggleMute={toggleMute}
+      onToggleSolo={toggleSolo}
+      onResetStrings={() => { setMutedStrings(Array(6).fill(false)); setSoloedStrings(Array(6).fill(false)) }}
+      onInsertChord={handleInsertChord}
+      onClearAll={handleClearAll}
+    />
+  )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', minHeight: 0, background: '#ffffff', fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif", color: '#1e293b' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', minHeight: 0, background: T.bg, fontFamily: T.sans, color: T.text }}>
 
-      {/* ── Navigation bar ── */}
-      <div style={{
-        flexShrink: 0, height: 50,
-        background: 'hsl(224 20% 8%)',
-        borderBottom: '1px solid hsl(224 15% 18%)',
-        display: 'flex', alignItems: 'center', gap: 8,
-        paddingLeft: 16, paddingRight: 16,
-        fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
-      }}>
-        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 7,
-            background: 'hsl(262 83% 58%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 12px hsl(262 83% 58% / 0.35)',
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      {/* ── Top bar ── */}
+      <div style={{ flexShrink: 0, height: 52, display: 'flex', alignItems: 'center', gap: isCompact ? 4 : 10, padding: isCompact ? '0 8px' : '0 20px', borderBottom: `1px solid ${T.border}`, background: T.bg }}>
+        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }} title="ChordSequence home">
+          <div style={{ width: 26, height: 26, borderRadius: 7, background: T.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.025em', color: 'hsl(220 14% 90%)' }}>
-            ChordSequence
-          </span>
+          {!isCompact && <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.025em', color: T.text }}>ChordSequence</span>}
         </a>
-
-        <span style={{ color: 'hsl(224 15% 35%)', fontSize: 14, fontWeight: 300, flexShrink: 0 }}>/</span>
-        <a href="/tools/"
-          style={{ fontSize: 13, color: 'hsl(220 10% 48%)', textDecoration: 'none', flexShrink: 0, transition: 'color 0.12s' }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 68%)'}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 48%)'}
-        >Tools</a>
-        <span style={{ color: 'hsl(224 15% 30%)', fontSize: 14, fontWeight: 300, flexShrink: 0 }}>/</span>
-
-        <span style={{
-          fontSize: 12, fontWeight: 500, color: 'hsl(262 60% 75%)',
-          background: 'hsl(262 40% 15%)', padding: '2px 9px', borderRadius: 20,
-          border: '1px solid hsl(262 40% 22%)', flexShrink: 0,
-        }}>Guitar</span>
-
-        <span style={{ color: 'hsl(224 15% 28%)', fontSize: 12, flexShrink: 0 }}>—</span>
-
-        {editingName ? (
-          <input
-            autoFocus
-            defaultValue={track.name}
-            onBlur={e => { setTrack(t => ({ ...t, name: e.target.value.trim() || 'New Guitar Tab' })); setEditingName(false) }}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur() }}
-            style={{
-              background: 'hsl(224 18% 17%)', border: '1px solid hsl(262 50% 40%)', borderRadius: 6,
-              color: 'hsl(220 14% 88%)', fontSize: 13, fontWeight: 500,
-              padding: '2px 8px', outline: 'none', width: 180, maxWidth: 220,
-              fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
-            }}
-          />
-        ) : (
-          <span
-            onClick={() => setEditingName(true)}
-            title="Click to rename"
-            style={{
-              fontSize: 13, fontWeight: 500, color: 'hsl(220 14% 68%)',
-              cursor: 'text', padding: '2px 4px', borderRadius: 4,
-              maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              transition: 'color 0.12s',
-            }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 14% 88%)'}
-            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'hsl(220 14% 68%)'}
-          >{track.name || 'New Guitar Tab'}</span>
-        )}
+        {!isCompact && <>
+          <span style={{ color: T.borderStrong, fontWeight: 300 }}>/</span>
+          <a href="/tools/guitar-tab/" style={{ fontSize: 13, color: T.muted, textDecoration: 'none', whiteSpace: 'nowrap' }}>Guitar Tab</a>
+        </>}
 
         <div style={{ flex: 1 }} />
 
+        <button title="Undo (Ctrl+Z)" onClick={handleUndo} disabled={!canUndo} style={iconBtn(false, !canUndo)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
+        </button>
+        <button title="Redo (Ctrl+Y)" onClick={handleRedo} disabled={!canRedo} style={iconBtn(false, !canRedo)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7"/></svg>
+        </button>
+        {!isCompact && <div style={{ width: 1, height: 20, background: T.border, margin: '0 4px' }} />}
+
         {GUITAR_PRESETS.length > 0 && (
+          <button onClick={() => setShowSongLibrary(true)} title="Load a preset song" style={textBtn}>Songs</button>
+        )}
+        <div style={{ position: 'relative' }} onPointerDown={e => e.stopPropagation()}>
+          <button onClick={() => setMenu(m => m === 'import' ? null : 'import')} style={textBtn}>Import</button>
+          {menu === 'import' && (
+            <Menu>
+              <MenuItem label="Import MIDI…" onClick={() => { setMenu(null); midiInputRef.current?.click() }} />
+              <MenuItem label="Import .gp / .gpx…" onClick={() => { setMenu(null); gpInputRef.current?.click() }} />
+              <MenuItem label="Record from fretboard…" onClick={() => { setMenu(null); if (!isPlaying) setShowRecording(true) }} />
+            </Menu>
+          )}
+        </div>
+        <div style={{ position: 'relative' }} onPointerDown={e => e.stopPropagation()}>
           <button
-            onClick={() => setShowSongLibrary(true)}
-            title="Load a preset song"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 500,
-              cursor: 'pointer', border: '1px solid hsl(224 15% 28%)',
-              background: 'hsl(224 18% 14%)', color: 'hsl(220 10% 62%)',
-              transition: 'all 0.15s', flexShrink: 0,
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(262 60% 45%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(262 80% 80%)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'hsl(224 15% 28%)'; (e.currentTarget as HTMLElement).style.color = 'hsl(220 10% 62%)' }}
+            onClick={() => setMenu(m => m === 'export' ? null : 'export')}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, height: 32, padding: isCompact ? '0 10px' : '0 14px', borderRadius: 8, border: 'none', background: T.accent, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: T.sans }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-            </svg>
-            Songs
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          {menu === 'export' && (
+            <Menu>
+              <MenuItem label="Copy as ASCII tab" onClick={() => { setMenu(null); handleExportAscii() }} />
+              <MenuItem label="Download MIDI" onClick={() => { setMenu(null); handleExportMidi() }} />
+              <MenuItem label="Download SVG" onClick={() => { setMenu(null); handleExportImage('svg') }} />
+              <MenuItem label="Download PNG" onClick={() => { setMenu(null); handleExportImage('png') }} />
+            </Menu>
+          )}
+        </div>
+        {isCompact && (
+          <button title="Note, track and chords" onClick={() => setInspectorOpen(true)} style={iconBtn(inspectorOpen)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
           </button>
         )}
-
-        <span style={{
-          fontSize: 11, color: 'hsl(220 10% 50%)',
-          background: 'hsl(224 18% 14%)', padding: '2px 8px', borderRadius: 10,
-          border: '1px solid hsl(224 15% 20%)',
-        }}>
-          {track.notes.length} {track.notes.length === 1 ? 'note' : 'notes'}
-        </span>
       </div>
-
-      {/* Transport */}
-      <GuitarTransport
-        isPlaying={isPlaying || isCountingIn}
-        loop={loop}
-        metronome={metronome}
-        bpm={track.bpm}
-        sound={sound}
-        capo={track.capo}
-        totalBars={track.totalBars}
-        zoom={zoom}
-        volume={volume}
-        playbackSpeed={playbackSpeed}
-        countIn={countIn}
-        selectedNoteFret={selectedNote?.fret ?? null}
-        hasSelectedNote={!!selectedNote}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onPlay={handlePlay}
-        onStop={handleStop}
-        onRewind={handleRewind}
-        onLoopToggle={() => setLoop(l => !l)}
-        onMetronomeToggle={() => setMetronome(m => !m)}
-        onBpmChange={bpm => handleBpmChange(bpm, isPlaying)}
-        onSoundChange={setSound}
-        onCapoChange={handleCapoChange}
-        onBarsChange={handleBarsChange}
-        onZoomIn={() => setZoom(z => Math.min(4, z + 0.2))}
-        onZoomOut={() => setZoom(z => Math.max(0.3, z - 0.2))}
-        onFretChange={handleFretChange}
-        onVolumeChange={setVolume}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        onClearAll={handleClearAll}
-        onExportAscii={handleExportAscii}
-        onExportMidi={handleExportMidi}
-        onRecord={() => setShowRecording(true)}
-        onImportMidi={() => midiInputRef.current?.click()}
-        onImportGp={() => gpInputRef.current?.click()}
-        onSpeedChange={setPlaybackSpeed}
-        onCountInChange={setCountIn}
-        onExportImage={handleExportImage}
-      />
 
       {/* Hidden file inputs */}
       <input
@@ -607,174 +590,210 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
         onChange={e => { const f = e.target.files?.[0]; if (f) handleGpImport(f); e.target.value = '' }}
       />
 
-      {/* View toggles + string mixer toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', borderRadius: 7, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-          <ViewToggle label="Tab"      active={viewMode === 'tab'}      onClick={() => setViewMode('tab')}      style={{ borderRadius: 0, border: 'none' }} />
-          <div style={{ width: 1, background: '#e2e8f0' }} />
-          <ViewToggle label="Grid"     active={viewMode === 'grid'}     onClick={() => setViewMode('grid')}     style={{ borderRadius: 0, border: 'none' }} />
-          <div style={{ width: 1, background: '#e2e8f0' }} />
-          <ViewToggle label="Notation" active={viewMode === 'notation'} onClick={() => setViewMode('notation')} style={{ borderRadius: 0, border: 'none' }} />
-          <div style={{ width: 1, background: '#e2e8f0' }} />
-          <ViewToggle label="Guitar"   active={viewMode === 'fretboard'} onClick={() => setViewMode('fretboard')} style={{ borderRadius: 0, border: 'none' }} />
-          <div style={{ width: 1, background: '#e2e8f0' }} />
-          <ViewToggle label="Text"     active={viewMode === 'text'}     onClick={() => setViewMode('text')}     style={{ borderRadius: 0, border: 'none' }} />
-        </div>
-        <ViewToggle label="Fretboard" active={showFretboard}   onClick={() => setShowFretboard(v => !v)} />
-        <ViewToggle label="Chords"    active={showChordHelper}  onClick={() => setShowChordHelper(v => !v)} />
-        <ViewToggle label="Loop"      active={!!loopRange}      onClick={() => setLoopRange(r => r ? null : { startBeat: 0, endBeat: Math.ceil(totalBeats / 2) })} />
-        <ViewToggle label="Colors"    active={noteColors}       onClick={() => setNoteColors(v => !v)} />
-        <ViewToggle label="Mixer"     active={showMixer}        onClick={() => setShowMixer(v => !v)} />
-      </div>
-
-      {/* String mixer panel */}
-      {showMixer && (
-        <div style={{ flexShrink: 0, background: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 4 }}>Strings</span>
-          {STRING_NAMES.map((name, si) => {
-            const col   = STRING_COLORS[si]
-            const muted = mutedStrings[si]
-            const soloed = soloedStrings[si]
-            const dimmed = (!soloed && soloActive) || muted
-            return (
-              <div key={si} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: 11, fontWeight: 700, color: dimmed ? '#cbd5e1' : col }}>{name}</span>
-                <div style={{ display: 'flex', gap: 2 }}>
-                  <button
-                    onClick={() => toggleMute(si)}
-                    title={muted ? 'Unmute' : 'Mute'}
-                    style={{ width: 22, height: 18, fontSize: 9, fontWeight: 700, borderRadius: 3, border: `1px solid ${muted ? '#dc2626' : '#e2e8f0'}`, background: muted ? '#fee2e2' : '#fff', color: muted ? '#dc2626' : '#94a3b8', cursor: 'pointer', lineHeight: 1 }}
-                  >M</button>
-                  <button
-                    onClick={() => toggleSolo(si)}
-                    title={soloed ? 'Unsolo' : 'Solo'}
-                    style={{ width: 22, height: 18, fontSize: 9, fontWeight: 700, borderRadius: 3, border: `1px solid ${soloed ? '#16a34a' : '#e2e8f0'}`, background: soloed ? '#dcfce7' : '#fff', color: soloed ? '#16a34a' : '#94a3b8', cursor: 'pointer', lineHeight: 1 }}
-                  >S</button>
-                </div>
-              </div>
-            )
-          })}
-          {(mutedStrings.some(Boolean) || soloActive) && (
-            <button
-              onClick={() => { setMutedStrings(Array(6).fill(false)); setSoloedStrings(Array(6).fill(false)) }}
-              style={{ marginLeft: 8, fontSize: 10, color: '#7c3aed', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-            >Reset</button>
-          )}
+      {/* ── Views on a phone: a row of tabs instead of the rail */}
+      {isCompact && (
+        <div style={{ flexShrink: 0, display: 'flex', gap: 2, padding: '6px 10px', borderBottom: `1px solid ${T.border}`, overflowX: 'auto' }}>
+          {VIEWS.map(v => (
+            <button key={v.id} onClick={() => setViewMode(v.id)} style={railBtn(viewMode === v.id, true)}>{v.label}</button>
+          ))}
         </div>
       )}
 
-      {/* Seek bar */}
-      <GuitarSeekBar
+      <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+
+        {/* ── View rail */}
+        {!isCompact && (
+          <nav aria-label="Views" style={{ width: 68, flexShrink: 0, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '14px 0' }}>
+            {VIEWS.map(v => (
+              <button key={v.id} onClick={() => setViewMode(v.id)} style={railBtn(viewMode === v.id, false)}>{v.label}</button>
+            ))}
+          </nav>
+        )}
+
+        {/* ── Center: title, the view, the fretboard */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: isCompact ? 10 : 18, padding: isCompact ? '12px 10px 10px' : '22px 28px 18px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', columnGap: 14, rowGap: 4, flexWrap: 'wrap', minWidth: 0 }}>
+            {editingName ? (
+              <input
+                autoFocus
+                defaultValue={track.name}
+                onBlur={e => { setTrack(t => ({ ...t, name: e.target.value.trim() || 'New Guitar Tab' })); setEditingName(false) }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur() }}
+                style={{ fontSize: isCompact ? 18 : 22, fontWeight: 700, letterSpacing: '-0.02em', color: T.text, border: 'none', borderBottom: `2px solid ${T.accent}`, outline: 'none', padding: 0, background: 'transparent', fontFamily: T.sans, minWidth: 0, width: 'min(420px, 100%)' }}
+              />
+            ) : (
+              <span
+                onClick={() => setEditingName(true)}
+                title="Click to rename"
+                style={{ fontSize: isCompact ? 18 : 22, fontWeight: 700, letterSpacing: '-0.02em', cursor: 'text', minWidth: 0, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >{trackName}</span>
+            )}
+            <span style={{ fontSize: 12, color: T.muted }}>{meta}</span>
+            <div style={{ flex: 1 }} />
+            <div style={{ display: 'flex', gap: 2, alignSelf: 'center' }}>
+              {fretboardView && <Toggle label="Fretboard" on={showFretboard} onClick={() => setShowFretboard(v => !v)} />}
+              <Toggle label="Colors" on={noteColors} onClick={() => setNoteColors(v => !v)} />
+              <Toggle label="−" title="Zoom out" onClick={() => setZoom(z => Math.max(0.3, z - 0.2))} />
+              <Toggle label="+" title="Zoom in" onClick={() => setZoom(z => Math.min(4, z + 0.2))} />
+            </div>
+          </div>
+
+          {/* Main editor view — the tab is one fixed-height strip, so it keeps its own height
+              and the fretboard sits at the bottom, as in the design; the others fill the column */}
+          <div style={{ flex: viewMode === 'tab' ? '0 1 auto' : 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative', border: `1px solid ${T.border}`, borderRadius: 10, overflow: 'hidden', background: T.bg }}>
+            {viewMode === 'tab' ? (
+              <GuitarTabView
+                track={track}
+                zoom={zoom}
+                currentBeat={currentBeat}
+                cursorBeat={cursorBeat}
+                isPlaying={isPlaying}
+                selectedNoteId={selectedNoteId}
+                sound={sound}
+                noteColors={noteColors}
+                onAddNote={addNote}
+                onUpdateNote={updateNote}
+                onDeleteNote={deleteNote}
+                onSelectNote={setSelectedNoteId}
+                onCursorBeatChange={setCursorBeat}
+                onBeginEdit={beginEdit}
+                onNotePreview={handleNotePreview}
+                noteDuration={noteDuration}
+                onNoteDurationChange={setNoteDuration}
+                noteToolsElsewhere={!isCompact}
+              />
+            ) : viewMode === 'grid' ? (
+              <GuitarTabGrid
+                track={track}
+                zoom={zoom}
+                currentBeat={currentBeat}
+                cursorBeat={cursorBeat}
+                isPlaying={isPlaying}
+                selectedNoteId={selectedNoteId}
+                onAddNote={addNote}
+                onUpdateNote={updateNote}
+                onDeleteNote={deleteNote}
+                onSelectNote={setSelectedNoteId}
+                onCursorBeatChange={setCursorBeat}
+                onZoomChange={setZoom}
+                onBeginEdit={beginEdit}
+                onNotePreview={handleNotePreview}
+                onLongPressNote={handleLongPress}
+              />
+            ) : viewMode === 'notation' ? (
+              <GuitarNotationView
+                track={track}
+                zoom={zoom}
+                isPlaying={isPlaying}
+                currentBeat={currentBeat}
+                getBeat={getBeat}
+              />
+            ) : viewMode === 'text' ? (
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 12 }}>
+                <StringTabText
+                  track={track}
+                  labels={STRING_NAMES}
+                  storageKey={TEXT_FORMAT_KEY}
+                  onApply={applyTabText}
+                  getBeat={getBeat}
+                  isPlaying={isPlaying}
+                  onSeekBeat={setCursorBeat}
+                />
+              </div>
+            ) : (
+              <GuitarPhotoFretboard
+                activeFrets={activeFrets}
+                attackSignals={attackSignals}
+              />
+            )}
+
+            {/* Count-in overlay */}
+            {isCountingIn && countdownBeat !== null && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'rgba(255,255,255,0.82)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                zIndex: 20, pointerEvents: 'none',
+              }}>
+                <div style={{
+                  fontSize: 80, fontWeight: 900, color: T.accent,
+                  lineHeight: 1, fontFamily: T.sans,
+                  animation: 'countInPulse 0.08s ease-out',
+                }}>
+                  {countdownBeat}
+                </div>
+                <div style={{ fontSize: 13, color: T.muted, marginTop: 10, letterSpacing: '0.1em', fontWeight: 600 }}>
+                  COUNT IN
+                </div>
+              </div>
+            )}
+          </div>
+
+          {viewMode === 'tab' && <div style={{ flex: 1 }} />}
+
+          {/* Fretboard — only under the views you edit in; Score and Text are for reading and need the height */}
+          {showFretboard && fretboardView && (
+            <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {!isCompact && <span style={sectionLabel}>Fretboard</span>}
+              <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: 'hidden' }}>
+                <GuitarFretboard
+                  activeFrets={activeFrets}
+                  attackSignals={attackSignals}
+                  onNoteClick={handleFretboardClick}
+                  maxHeight={isCompact ? 150 : 220}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Inspector */}
+        {!isCompact && (
+          <aside aria-label="Note, track and chords" style={{ width: 272, flexShrink: 0, borderLeft: `1px solid ${T.border}`, background: T.panel, overflowY: 'auto' }}>
+            {inspector}
+          </aside>
+        )}
+      </div>
+
+      {/* ── Transport */}
+      <GuitarTransport
+        isPlaying={isPlaying || isCountingIn}
+        loop={loop}
+        metronome={metronome}
+        countIn={countIn}
+        bpm={track.bpm}
+        playbackSpeed={playbackSpeed}
+        volume={volume}
         currentBeat={currentBeat}
         totalBeats={totalBeats}
         beatsPerBar={track.beatsPerBar}
-        isPlaying={isPlaying}
-        onSeek={handleSeek}
         loopRange={loopRange}
+        compact={isCompact}
+        onPlay={handlePlay}
+        onStop={handleStop}
+        onRewind={handleRewind}
+        onLoopToggle={() => setLoop(l => !l)}
+        onMetronomeToggle={() => setMetronome(m => !m)}
+        onCountInChange={setCountIn}
+        onBpmChange={bpm => handleBpmChange(bpm, isPlaying)}
+        onSpeedChange={setPlaybackSpeed}
+        onVolumeChange={setVolume}
+        onSeek={handleSeek}
         onLoopRangeChange={setLoopRange}
       />
 
-      {/* Fretboard */}
-      {showFretboard && (
-        <GuitarFretboard
-          activeFrets={activeFrets}
-          attackSignals={attackSignals}
-          onNoteClick={handleFretboardClick}
-          maxHeight={200}
-        />
-      )}
-
-      {/* Main editor view */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        {viewMode === 'tab' ? (
-          <GuitarTabView
-            track={track}
-            zoom={zoom}
-            currentBeat={currentBeat}
-            cursorBeat={cursorBeat}
-            isPlaying={isPlaying}
-            selectedNoteId={selectedNoteId}
-            sound={sound}
-            noteColors={noteColors}
-            onAddNote={addNote}
-            onUpdateNote={updateNote}
-            onDeleteNote={deleteNote}
-            onSelectNote={setSelectedNoteId}
-            onCursorBeatChange={setCursorBeat}
-            onBeginEdit={beginEdit}
-            onNotePreview={handleNotePreview}
-          />
-        ) : viewMode === 'grid' ? (
-          <GuitarTabGrid
-            track={track}
-            zoom={zoom}
-            currentBeat={currentBeat}
-            cursorBeat={cursorBeat}
-            isPlaying={isPlaying}
-            selectedNoteId={selectedNoteId}
-            onAddNote={addNote}
-            onUpdateNote={updateNote}
-            onDeleteNote={deleteNote}
-            onSelectNote={setSelectedNoteId}
-            onCursorBeatChange={setCursorBeat}
-            onZoomChange={setZoom}
-            onBeginEdit={beginEdit}
-            onNotePreview={handleNotePreview}
-            onLongPressNote={handleLongPress}
-          />
-        ) : viewMode === 'notation' ? (
-          <GuitarNotationView
-            track={track}
-            zoom={zoom}
-          />
-        ) : viewMode === 'text' ? (
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 12 }}>
-            <StringTabText
-              track={track}
-              labels={STRING_NAMES}
-              storageKey={TEXT_FORMAT_KEY}
-              onApply={applyTabText}
-              getBeat={getBeat}
-              isPlaying={isPlaying}
-              onSeekBeat={setCursorBeat}
-            />
-          </div>
-        ) : (
-          <GuitarPhotoFretboard
-            activeFrets={activeFrets}
-            attackSignals={attackSignals}
-          />
-        )}
-
-        {/* Count-in overlay */}
-        {isCountingIn && countdownBeat !== null && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'rgba(0,0,0,0.55)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            zIndex: 20, pointerEvents: 'none',
-          }}>
-            <div style={{
-              fontSize: 80, fontWeight: 900, color: '#ffffff',
-              lineHeight: 1, fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
-              textShadow: '0 0 40px rgba(124,58,237,0.8)',
-              animation: 'countInPulse 0.08s ease-out',
-            }}>
-              {countdownBeat}
+      {/* Inspector as a drawer on a phone */}
+      {isCompact && inspectorOpen && (
+        <div onClick={() => setInspectorOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 90 }}>
+          <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 'min(320px, 88vw)', background: T.panel, borderLeft: `1px solid ${T.border}`, overflowY: 'auto', boxShadow: '-8px 0 24px rgba(15,23,42,0.12)' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 10px 0' }}>
+              <button title="Close" onClick={() => setInspectorOpen(false)} style={iconBtn()}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 10, letterSpacing: '0.1em', fontWeight: 600 }}>
-              COUNT IN
-            </div>
+            {inspector}
           </div>
-        )}
-      </div>
-
-      {/* Chord Helper */}
-      {showChordHelper && (
-        <GuitarChordHelper
-          cursorBeat={cursorBeat}
-          onInsertChord={handleInsertChord}
-        />
+        </div>
       )}
 
       {/* Song library modal */}
@@ -799,14 +818,14 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
       {ctxMenu && (
         <div
           onPointerDown={e => e.stopPropagation()}
-          style={{ position: 'fixed', left: ctxMenu.x + 8, top: ctxMenu.y - 50, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 12, zIndex: 100, display: 'flex', alignItems: 'center', gap: 10 }}
+          style={{ position: 'fixed', left: ctxMenu.x + 8, top: ctxMenu.y - 50, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 12, zIndex: 100, display: 'flex', alignItems: 'center', gap: 10 }}
         >
-          <span style={{ fontSize: 11, color: '#64748b' }}>Fret</span>
+          <span style={{ fontSize: 11, color: T.muted }}>Fret</span>
           <input
             type="number" min={0} max={24}
             defaultValue={track.notes.find(n => n.id === ctxMenu.noteId)?.fret ?? 0}
             autoFocus
-            style={{ width: 52, height: 30, textAlign: 'center', border: '1px solid #7c3aed', borderRadius: 6, fontSize: 14, fontWeight: 700, color: '#7c3aed' }}
+            style={{ width: 52, height: 30, textAlign: 'center', border: `1px solid ${T.accent}`, borderRadius: 6, fontSize: 14, fontWeight: 700, color: T.accentText }}
             onChange={e => {
               const v = Math.max(0, Math.min(24, parseInt(e.target.value, 10) || 0))
               updateNote(ctxMenu.noteId, { fret: v })
@@ -814,16 +833,16 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
           />
           <button
             onClick={() => { deleteNote(ctxMenu.noteId); setCtxMenu(null) }}
-            style={{ height: 30, padding: '0 10px', borderRadius: 6, border: '1px solid #fee2e2', background: '#fff1f1', color: '#dc2626', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+            style={{ height: 30, padding: '0 10px', borderRadius: 6, border: '1px solid #fee2e2', background: '#fff1f1', color: T.danger, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
           >
             Delete
           </button>
         </div>
       )}
 
-      {/* Toast */}
+      {/* Toast — above the transport */}
       {toastMsg && (
-        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1e293b', color: '#f8fafc', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 500, boxShadow: '0 4px 16px rgba(0,0,0,0.2)', zIndex: 200, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+        <div style={{ position: 'fixed', bottom: 96, left: '50%', transform: 'translateX(-50%)', background: T.text, color: '#f8fafc', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 500, boxShadow: '0 4px 16px rgba(0,0,0,0.2)', zIndex: 200, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
           {toastMsg}
         </div>
       )}
@@ -834,11 +853,78 @@ export function GuitarTabPlayer({ initialPreset }: { initialPreset?: string } = 
   )
 }
 
-function ViewToggle({ label, active, onClick, style: extraStyle }: { label: string; active: boolean; onClick: () => void; style?: React.CSSProperties }) {
+type ViewMode = 'tab' | 'grid' | 'notation' | 'fretboard' | 'text'
+
+/** The rail, top to bottom. "Score" is the notation view; "Guitar" the photo fretboard. */
+const VIEWS: { id: ViewMode; label: string }[] = [
+  { id: 'tab',       label: 'Tab' },
+  { id: 'notation',  label: 'Score' },
+  { id: 'grid',      label: 'Grid' },
+  { id: 'fretboard', label: 'Guitar' },
+  { id: 'text',      label: 'Text' },
+]
+
+/** Below this width the rail becomes a row of tabs and the inspector a drawer. */
+const COMPACT_QUERY = '(max-width: 900px)'
+
+function useIsCompact(): boolean {
+  const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.matchMedia(COMPACT_QUERY).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(COMPACT_QUERY)
+    const on = () => setCompact(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return compact
+}
+
+const textBtn: React.CSSProperties = {
+  height: 32, padding: '0 10px', borderRadius: 7, border: 'none', background: 'transparent',
+  fontSize: 13, color: T.text2, cursor: 'pointer', fontFamily: T.sans, whiteSpace: 'nowrap',
+}
+
+function railBtn(active: boolean, horizontal: boolean): React.CSSProperties {
+  return {
+    width: horizontal ? 'auto' : 52, height: horizontal ? 30 : 40, padding: horizontal ? '0 12px' : 0,
+    borderRadius: 8, border: 'none', flexShrink: 0, cursor: 'pointer', fontFamily: T.sans,
+    fontSize: horizontal ? 12 : 11, fontWeight: 600,
+    background: active ? T.accentSoft : 'transparent',
+    color: active ? T.accentText : T.muted,
+  }
+}
+
+/** A dot-and-label switch, as in the design's view toggles. Without `on` it is a plain action. */
+function Toggle({ label, on, title, onClick }: { label: string; on?: boolean; title?: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      style={{ height: 26, padding: '0 10px', borderRadius: 6, border: `1px solid ${active ? '#7c3aed' : '#e2e8f0'}`, background: active ? '#ede9fe' : '#ffffff', color: active ? '#7c3aed' : '#64748b', fontSize: 11, fontWeight: 600, cursor: 'pointer', ...extraStyle }}
+      title={title}
+      aria-pressed={on}
+      style={{ display: 'flex', alignItems: 'center', gap: 6, height: 28, minWidth: 28, justifyContent: 'center', padding: '0 9px', borderRadius: 7, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: on === undefined ? 15 : 12, fontWeight: 500, fontFamily: T.sans, color: on === false ? T.muted : T.text }}
+      onMouseEnter={e => (e.currentTarget.style.background = T.well)}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      {on !== undefined && <span style={{ width: 6, height: 6, borderRadius: 999, background: on ? T.accent : T.borderStrong }} />}
+      {label}
+    </button>
+  )
+}
+
+function Menu({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 6, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 10, boxShadow: '0 8px 24px rgba(15,23,42,0.12)', padding: 6, zIndex: 60, minWidth: 190, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {children}
+    </div>
+  )
+}
+
+function MenuItem({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{ padding: '8px 12px', borderRadius: 6, border: 'none', background: 'transparent', color: T.text2, fontSize: 13, textAlign: 'left', cursor: 'pointer', width: '100%', fontFamily: T.sans }}
+      onMouseEnter={e => (e.currentTarget.style.background = T.panel)}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
       {label}
     </button>

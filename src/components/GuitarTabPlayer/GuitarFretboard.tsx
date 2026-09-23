@@ -49,10 +49,11 @@ export function GuitarFretboard({ activeFrets, attackSignals, onNoteClick, maxHe
     const measure = () => {
       const w = el.getBoundingClientRect().width
       if (w <= 0) return
-      const naturalFrets = Math.max(MIN_FRETS, Math.min(MAX_FRETS, Math.floor((w - LABEL_W - OPEN_W) / CELL_W)))
+      const scaleH = maxHeight ? Math.min(1, maxHeight / NATURAL_H) : 1
+      // Shrunk to fit the height, the neck has room for more frets across the same width.
+      const naturalFrets = Math.max(MIN_FRETS, Math.min(MAX_FRETS, Math.floor((w / scaleH - LABEL_W - OPEN_W) / CELL_W)))
       const naturalW = LABEL_W + OPEN_W + naturalFrets * CELL_W
       const scaleW = Math.min(1, w / naturalW)
-      const scaleH = maxHeight ? Math.min(1, maxHeight / NATURAL_H) : 1
       setFretCount(naturalFrets)
       setScale(Math.min(scaleW, scaleH))
     }

@@ -109,13 +109,15 @@ export function GuitarPhotoFretboard({ activeFrets, attackSignals }: Props) {
     return toScreen(fx, fy)
   }
 
-  // Inter-string spacing → dot radius
+  // Inter-string spacing → dot radius. Sized for the fret number to read at a
+  // glance (≥ 12 px); on a narrow neck neighbouring dots may touch, which beats
+  // a number nobody can read.
   const dotR = (() => {
-    if (cH === 0) return 6
+    if (cH === 0) return 10
     const yLow  = toScreen(FB.nut.lowE.x,  0).y
     const yHigh = toScreen(FB.nut.highE.x, 0).y
     const gap   = Math.abs(yHigh - yLow) / 5
-    return Math.max(4, Math.min(gap * 0.45, 10))
+    return Math.max(10, Math.min(gap * 0.62, 16))
   })()
 
   // Attack flash
@@ -182,22 +184,21 @@ export function GuitarPhotoFretboard({ activeFrets, attackSignals }: Props) {
                 ref={el => { dotGrpRefs.current[si][fret] = el }}
                 style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
               >
-                <circle cx={pos.x} cy={pos.y} r={dotR * 2.0} fill={`${col}18`} />
-                <circle cx={pos.x} cy={pos.y} r={dotR * 1.4} fill={`${col}30`} />
+                <circle cx={pos.x} cy={pos.y} r={dotR * 1.7} fill={`${col}18`} />
+                <circle cx={pos.x} cy={pos.y} r={dotR * 1.3} fill={`${col}30`} />
                 <circle cx={pos.x} cy={pos.y} r={dotR}
-                  fill={col} stroke="rgba(255,255,255,0.70)" strokeWidth={1.2}
+                  fill={col} stroke="rgba(255,255,255,0.85)" strokeWidth={1.5}
                   style={{ filter: `drop-shadow(0 0 ${dotR * 0.7}px ${col})` }}
                 />
-                {dotR >= 6 && (
-                  <text x={pos.x} y={pos.y + 0.5}
-                    textAnchor="middle" dominantBaseline="middle"
-                    fontSize={Math.round(dotR * 0.8)} fontFamily="ui-monospace,monospace"
-                    fontWeight="700" fill="white"
-                    style={{ pointerEvents: 'none', userSelect: 'none' }}
-                  >
-                    {fret}
-                  </text>
-                )}
+                <text x={pos.x} y={pos.y + 0.5}
+                  textAnchor="middle" dominantBaseline="central"
+                  fontSize={Math.round(dotR * (fret >= 10 ? 0.95 : 1.15))} fontFamily="ui-monospace,monospace"
+                  fontWeight="800" fill="white"
+                  stroke="rgba(0,0,0,0.35)" strokeWidth={0.6} paintOrder="stroke"
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {fret}
+                </text>
               </g>
             )
           })}

@@ -39,6 +39,11 @@ interface TabViewProps {
   onCursorBeatChange: (beat: number) => void
   onBeginEdit?: () => void
   onNotePreview?: (si: GuitarStringIndex, fret: number) => void
+  /** Length of new notes, when the page owns it (the inspector's Duration). */
+  noteDuration?: number
+  onNoteDurationChange?: (beats: number) => void
+  /** The inspector shows duration and technique, so the status bar drops them. */
+  noteToolsElsewhere?: boolean
 }
 
 interface EditCursor { beat: number; stringIndex: GuitarStringIndex }
@@ -48,6 +53,7 @@ export function GuitarTabView({
   selectedNoteId, sound, noteColors = false,
   onAddNote, onUpdateNote, onDeleteNote, onSelectNote,
   onCursorBeatChange, onBeginEdit, onNotePreview,
+  noteDuration: noteDurationProp, onNoteDurationChange, noteToolsElsewhere = false,
 }: TabViewProps) {
   const scrollRef    = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -56,7 +62,9 @@ export function GuitarTabView({
   const [editCursor, setEditCursorState]   = useState<EditCursor | null>(null)
   const [fretBuffer,  setFretBufferState]  = useState('')
   const [hoveredNote, setHoveredNote]      = useState<string | null>(null)
-  const [noteDuration, setNoteDuration]    = useState(1)   // beats per note
+  const [ownDuration, setOwnDuration]      = useState(1)   // beats per note
+  const noteDuration    = noteDurationProp ?? ownDuration
+  const setNoteDuration = onNoteDurationChange ?? setOwnDuration
   const noteDurationRef = useRef(1)
 
   const editCursorRef = useRef<EditCursor | null>(null)
@@ -488,15 +496,14 @@ export function GuitarTabView({
         </svg>
       </div>
 
-      {/* ── Status bar (always visible) */}
-      <div style={{ flexShrink: 0, minHeight: 32, background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 12, paddingLeft: 14, paddingRight: 14, flexWrap: 'wrap' }}>
+      {/* ── Status bar (always visible unless the inspector holds its tools) */}
+      {(!noteToolsElsewhere || (editCursor && !isPlaying)) && <div style={{ flexShrink: 0, minHeight: 32, background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 12, paddingLeft: 14, paddingRight: 14, flexWrap: 'wrap' }}>
 
-        {/* Duration selector — always visible */}
-        <DurationSelector value={noteDuration} onChange={v => { setNoteDuration(v); noteDurationRef.current = v }} />
+        {!noteToolsElsewhere && <DurationSelector value={noteDuration} onChange={v => { setNoteDuration(v); noteDurationRef.current = v }} />}
 
         {editCursor && !isPlaying && (
           <>
-            <div style={{ width: 1, height: 18, background: '#e2e8f0' }} />
+            {!noteToolsElsewhere && <div style={{ width: 1, height: 18, background: '#e2e8f0' }} />}
             <span style={{ fontFamily: "ui-monospace, 'SF Mono', monospace", fontSize: 11, color: STRING_COLORS[editCursor.stringIndex], fontWeight: 700 }}>
               {STRING_NAMES[editCursor.stringIndex]}
             </span>
@@ -508,7 +515,7 @@ export function GuitarTabView({
               : <span style={{ fontFamily: "ui-monospace, 'SF Mono', monospace", fontSize: 11, color: '#94a3b8' }}>type fret · x=mute · ←→ move · ↑↓ str</span>
             }
             {/* Technique picker for selected note */}
-            {selectedNoteId && track.notes.find(n => n.id === selectedNoteId) && !fretBuffer && (
+            {!noteToolsElsewhere && selectedNoteId && track.notes.find(n => n.id === selectedNoteId) && !fretBuffer && (
               <TechniquePicker
                 current={track.notes.find(n => n.id === selectedNoteId)?.technique}
                 onChange={t => { onBeginEdit?.(); onUpdateNote(selectedNoteId, { technique: t }) }}
@@ -516,7 +523,7 @@ export function GuitarTabView({
             )}
           </>
         )}
-      </div>
+      </div>}
 
       {/* ── Mobile numpad */}
       {editCursor && !isPlaying && (

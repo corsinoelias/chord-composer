@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { BT, alpha, f } from '../../lib/bassTab/theme'
 import { columnAtBeat } from '../../lib/tabtext/render'
 import type { RenderOptions, RenderedTab, RestStyle } from '../../lib/tabtext/types'
@@ -140,6 +140,25 @@ export function TabTextEditor({
 
   // ── Playhead ──────────────────────────────────────────────────────────────
   const areaRef = useRef<HTMLTextAreaElement>(null)
+
+  // The horizontal scrollbar a system wider than the panel brings with it. It
+  // takes its height out of the box, and with the vertical scroll turned off it
+  // hid the last line of the tab — the count line, or a string — under it.
+  const [scrollbarH, setScrollbarH] = useState(0)
+  useLayoutEffect(() => {
+    const area = areaRef.current
+    if (!area) return
+    const measure = () => {
+      const cs = getComputedStyle(area)
+      const borders = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth)
+      const h = Math.max(0, area.offsetHeight - area.clientHeight - borders)
+      setScrollbarH(prev => (prev === h ? prev : h))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(area)
+    return () => ro.disconnect()
+  }, [draft])
   const markRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
 
@@ -343,7 +362,7 @@ export function TabTextEditor({
             // was there but the box showed a slice of it, and the rest needed a
             // scroll nobody knew was there. The panel around this one scrolls
             // instead, which is the thing the eye expects to scroll.
-            height: (draft.split('\n').length * LINE_HEIGHT) + PAD * 2 + 2,
+            height: (draft.split('\n').length * LINE_HEIGHT) + PAD * 2 + 2 + scrollbarH,
             minHeight: 220,
             fontFamily: f('mono'), fontSize: FONT_SIZE, lineHeight: `${LINE_HEIGHT}px`,
             color: BT.ink,
