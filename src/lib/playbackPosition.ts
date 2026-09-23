@@ -32,12 +32,16 @@ export function chordPosition(
 ): ChordPosition | null {
   if (currentChordIndex < 0) return null;
 
+  // Which section by where the playhead is, never by which one is set to loop. Asking to loop
+  // a part does not move the playhead into it: the engine takes the repeat at the end of the
+  // part it is playing, and a marker that jumped to the new part the moment the button was
+  // pressed said that part was already sounding when it was not.
   let remaining = currentChordIndex;
   let beatsBefore = 0;
   let found = -1;
   for (let i = 0; i < sections.length; i++) {
     const span = sections[i].chords.length * sections[i].repeatCount;
-    if (loopingSectionIndex !== null ? i === loopingSectionIndex : span > 0 && remaining < span) {
+    if (span > 0 && remaining < span) {
       found = i;
       break;
     }

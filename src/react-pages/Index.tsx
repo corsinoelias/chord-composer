@@ -1212,27 +1212,19 @@ const Index = ({ songId }: IndexProps) => {
   useUnsavedChangesGuard(hasChords && !(isLoggedIn && lastSavedAt));
 
   // Resolve which chord is currently highlighted during playback
+  // currentChordIndex is a global index over the whole song, repeats unrolled, and it says
+  // where the engine is — including while a part that has just been set to loop waits its
+  // turn. So the chord is found by walking the sections, never by assuming the looped one.
   const currentPlayingChord = useMemo(() => {
     if (currentChordIndex < 0) return null;
-    if (loopingSectionIndex !== null) {
-      const sec = sections[loopingSectionIndex];
-      if (!sec || sec.chords.length === 0) return null;
-      // currentChordIndex is a global index; subtract this section's start offset
-      let sectionOffset = 0;
-      for (let i = 0; i < loopingSectionIndex; i++) {
-        sectionOffset += sections[i].chords.length * sections[i].repeatCount;
-      }
-      const localIdx = (currentChordIndex - sectionOffset) % sec.chords.length;
-      return sec.chords[Math.max(0, localIdx)];
-    }
     let idx = currentChordIndex;
     for (const sec of sections) {
       const total = sec.chords.length * sec.repeatCount;
-      if (idx < total) return sec.chords[idx % sec.chords.length];
+      if (total > 0 && idx < total) return sec.chords[idx % sec.chords.length];
       idx -= total;
     }
     return null;
-  }, [currentChordIndex, sections, loopingSectionIndex]);
+  }, [currentChordIndex, sections]);
 
   // What to show in the visualization panel: playback chord when playing, last clicked or first chord otherwise
   const visualChord = useMemo(() => {
