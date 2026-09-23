@@ -18,6 +18,15 @@ import { type StyleLookup } from '../sectionPlayback';
 /** Sections a song may use (fromSong.ts MAX_SECTIONS): a single pass puts its silent bar next. */
 const SONG_SECTIONS = 30;
 
+/**
+ * Commands that say how the song is played rather than what it is: the mix, the click, the
+ * tempo and the feel. Every one of them is a single value in the engine (native_audio.cpp),
+ * so each can be sent on its own — and has to be. Sending the song again clears every track,
+ * which drops whatever the SoundFont was holding: toggling the click or a repeat used to cut
+ * the chord that was ringing, because it went round by the same road as an edit.
+ */
+const LIVE = new Set<EngineCommand[0]>(['mixer', 'pan', 'metronome', 'setBpm', 'setSwing']);
+
 /** Where the song is, in the web engine's terms. */
 export interface AppPosition {
   /** The chord across the whole song, repeats counted: the web engine's chordIndex. */
@@ -110,7 +119,7 @@ export class AppPlayback {
   private latest: EngineState | null = null;
   /** First chord of each section, repeats counted, for chordIndex. */
   private sectionStart: number[] = [];
-  /** The song part of what was last sent (everything but the mixer), to spot a mix-only change. */
+  /** What was last sent about the song itself (everything but LIVE), to spot a live-only change. */
   private sentSong = '';
   /** In a single pass, the silent section after the song: reaching it is the end. */
   private tailIndex = -1;
@@ -140,7 +149,7 @@ export class AppPlayback {
     await e.ensureSlots(this.built.drumSlots);
     // The mixer's effects go after the song, which starts dry.
     e.load([...this.built.commands, ...effectsCommands()]);
-    this.sentSong = songPart(this.built.commands, input);
+    this.sentSong = songPart(this.built.commands);
     e.send([['loopOnly', this.engineSection(input.loopingSectionIndex)]]);
     this.unsubscribe?.();
     this.stopVocal();
@@ -196,10 +205,9 @@ export class AppPlayback {
     const e = await getEngine();
     this.current = input;
     this.built = this.build(input, e);
-    const mix = this.built.commands.filter((c) => c[0] === 'mixer' || c[0] === 'pan');
-    const song = songPart(this.built.commands, input);
+    const song = songPart(this.built.commands);
     if (song === this.sentSong) {
-      e.send(mix);
+      e.send(this.liveCommands(input));
       return;
     }
     this.sentSong = song;
@@ -215,15 +223,16 @@ export class AppPlayback {
     ]);
   }
 
-  /** Only the mix changed (a fader, mute or solo): the levels alone, so nothing is cut short. */
-  async updateMix(input: AppSong): Promise<void> {
-    if (!this.current) return;
-    // How it plays (once, and what to do after) is the play() call's, not the options'.
-    input = { ...input, once: this.current.once, onEnded: this.current.onEnded, vocal: this.current.vocal };
-    const e = await getEngine();
-    this.current = input;
-    const mix = this.build(input, e).commands.filter((c) => c[0] === 'mixer' || c[0] === 'pan');
-    e.send(mix);
+  /**
+   * Everything about the song that can change without the song changing: the mix, the click,
+   * the tempo, the feel and which part repeats. Sent on their own whenever nothing else moved,
+   * so a note that is ringing goes on ringing.
+   */
+  private liveCommands(input: AppSong): EngineCommand[] {
+    return [
+      ...(this.built?.commands ?? []).filter((c) => LIVE.has(c[0])),
+      ['loopOnly', this.engineSection(input.loopingSectionIndex)],
+    ];
   }
 
   send(commands: EngineCommand[]): void {
@@ -330,12 +339,9 @@ export class AppPlayback {
   }
 }
 
-/** Everything [commands] say about the song itself, as text: what a mix change leaves alone. */
-function songPart(commands: EngineCommand[], input: AppSong): string {
-  return JSON.stringify([
-    commands.filter((c) => c[0] !== 'mixer' && c[0] !== 'pan'),
-    input.loopingSectionIndex ?? -1,
-  ]);
+/** Everything [commands] say about the song itself: what a live change (LIVE) leaves alone. */
+function songPart(commands: EngineCommand[]): string {
+  return JSON.stringify(commands.filter((c) => !LIVE.has(c[0])));
 }
 
 /**

@@ -3,10 +3,10 @@
  * fader and where each track sits in the stereo field (MixerState in the app's
  * audio_engine.dart, `pan` and `master`).
  *
- * Kept here, apart from effects.ts, because fromSong.ts reads it too: the mix-only update
- * (AppPlayback.updateMix) resends the `mixer` and `pan` commands the song was built with, so
- * a master or a pan set here has to be what the song is built from or it would be undone by
- * the next fader move.
+ * Kept here, apart from effects.ts, because fromSong.ts reads it too: a live change resends
+ * the `mixer` and `pan` commands the song was built with (AppPlayback's LIVE), so a master or
+ * a pan set here has to be what the song is built from or it would be undone by the next
+ * fader move.
  *
  * Session state, like the EQ, compressor and reverb beside it: the app saves the mixer with
  * the project, the web does not yet.
