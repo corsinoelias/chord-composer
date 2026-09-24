@@ -16,6 +16,8 @@ import { buildKeyVariants } from '@/lib/songKeys';
 import { fetchCoverImage } from '@/lib/coverImage';
 import JsonLd from '../../components/schema/JsonLd.astro';
 import { buildBreadcrumbSchema } from '../../components/schema/builders';
+import { withBrand, BRAND_SUFFIX } from '../../lib/seoTitle';
+import { TITLE_TEST_A, titleCaseName } from '../../lib/songTitleTest';
 
 const { slug } = Astro.params;
 
@@ -130,45 +132,38 @@ function buildSeoDescription(s: Song): string {
 }
 
 // Google truncates titles past ~65 characters — fall back to shorter variants rather than
-// let it cut mid-word. Artist (not brand) is what search queries actually match — Google
-// already rewrites our own deployed titles to insert the artist when we don't (confirmed on
-// live SERP for /songs/washed-elevation-rhythm/). Brand is dropped: Google shows it separately
-// via the breadcrumb line above the title, so repeating it here just costs budget. BPM is
-// deliberately excluded — "bpm" queries have 0% CTR sitewide regardless of position.
+// let it cut mid-word. Artist is what search queries actually match — Google already
+// rewrites our own titles to insert it when we don't (seen on the live SERP for
+// /songs/washed-elevation-rhythm/). The brand goes through withBrand(), so it appears only
+// when the title still fits in 60 and never pushes the artist out. BPM is deliberately
+// excluded — "bpm" queries have 0% CTR sitewide regardless of position.
 //
-// "& Lyrics" is gone, and "in Any Key" replaces it. Both come from the same 28-day
-// Search Console read (Aug 2026):
-//
-//   - Lyric intent does not convert here. Queries containing "lyrics"/"letra" are 8,171
-//     impressions at 1.21% CTR, and by position it is 1.6% at p5, 0.8% at p6, 1.0% at
-//     p7-p8 — Genius and AZLyrics own that SERP below rank 4. Advertising lyrics in the
-//     title bought impressions this page cannot convert and diluted the CTR Google sees.
-//   - Key intent converts about twice as well as anything else at the SAME position:
-//     10.5% vs 4.9% at p4, 7.4% vs 3.5% at p5, 4.6% vs 2.0% at p6.
-//
-// Deliberately NOT "Key of {s.key}": the recorded key is the one key nobody searches for.
-// This site's key queries are for the key the singer wants, not the one on the record —
-// great-are-you-lord is stored in A and earns 9.6% CTR on "key of g", center-bethel is
-// stored in A and earns 13.1% on "key of c". Naming a specific key would put the title in
-// direct contradiction with the query it is trying to match; "in Any Key" is what the page
-// actually offers and still bolds on the word the query shares.
-//
-// Under test as of Sep 2026. Judge it on CLICKS, not impressions — dropping lyric intent
-// should cost impressions on purpose. Baseline: 6,041 clicks / 190,318 impressions / 3.17%
-// sitewide, and the eight song pages were ~490 clicks below their own positions' rate.
-// Reassessment needs 2-3 weeks; `node scripts/gsc.mjs compare` and `... page songs/<slug>/`.
+// History. Until 2026-09-05: "{Title} Chords & Lyrics — {Artist}". f5c81fd swapped in
+// "in Any Key" to sell the transpose (key queries converted ~2x at the same position).
+// Read on 2026-09-24 with matched page+query pairs: CTR at the same position did not move
+// (+5%), key queries did not improve, and the song pages lost ~0.5 positions on the same
+// queries while the rest of the site gained ~1.2. No competitor puts "key" in a title —
+// they all say "{Title} Chords - {Artist}", some with "& Lyrics". So "in Any Key" is gone
+// and the two remaining candidates run as an A/B test, the arm per song in
+// src/lib/songTitleTest.ts (A: "Chords & Lyrics", B: plain "Chords").
 function buildSeoTitle(s: Song): string {
-  const artist = s.artist.trim();
-  const full = `${s.title} Chords in Any Key — ${artist}`;
-  if (full.length <= 65) return full;
+  const title = titleCaseName(s.title);
+  const artist = titleCaseName(s.artist);
+  const words = TITLE_TEST_A.has(s.slug) ? 'Chords & Lyrics' : 'Chords';
 
-  const shortArtist = `${s.title} Chords — ${artist}`;
+  // The brand is decided on the longer arm's length for BOTH arms: judged on each arm's own
+  // length, B would carry it far more often than A and the test would measure the brand too.
+  const full = `${title} ${words} — ${artist}`;
+  const brandFits = withBrand(`${title} Chords & Lyrics — ${artist}`) !== `${title} Chords & Lyrics — ${artist}`;
+  if (full.length <= 65) return brandFits ? `${full}${BRAND_SUFFIX}` : full;
+
+  const shortArtist = `${title} Chords — ${artist}`;
   if (shortArtist.length <= 65) return shortArtist;
 
-  const noArtist = `${s.title} Chords in Any Key`;
+  const noArtist = `${title} ${words}`;
   if (noArtist.length <= 65) return noArtist;
 
-  return `${s.title} Chords`;
+  return `${title} Chords`;
 }
 
 const seoDescription = buildSeoDescription(song);
@@ -394,7 +389,6 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
     : `https://chordsequence.com/og/songs/${song.slug}`}
   ogImageAlt={`${song.title} by ${song.artist} — chords in Key of ${song.key}`}
   author="Elías Corsino Saldaña"
-  appBanner="banner_songs"
 >
   <Fragment slot="head">
     <JsonLd schema={musicSchema} />
