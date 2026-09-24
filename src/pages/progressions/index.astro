@@ -17,10 +17,15 @@ import IconicSongProgressions from '../../components/home/IconicSongProgressions
 // being a front door to the Chord Player: on the home it held people for 55 s but kept them
 // from the product; here it is exactly what a visitor browsing progressions came for.
 //
-// The <title> stays genre-focused on purpose. "chord progressions" on its own is ranked by
-// /learn/what-is-a-chord-progression/ (position ~10.6, tens of thousands of impressions a
-// week); retitling this page to the bare head term would put two URLs of this site in
-// competition for it.
+// Sept 24 2026: this page now targets the bare head term "chord progressions" (Keyword
+// Planner lumps it with "chord sequence" — our domain — at 246k/month). Until now the
+// <title> stayed genre-focused so it would not compete with /learn/what-is-a-chord-progression/,
+// but that article held the term at position 10.6 for 45k impressions and 13 clicks in 28 days:
+// people searching "chord progressions" want a list to play, not a definition. The article
+// now takes "what is a chord progression / chord sequence" and links here. The playable
+// library goes first for the same reason. docs/plan-progressions.md has the next steps, which
+// wait on Search Console: read `node scripts/gsc.mjs query "chord progressions"` 3-4 weeks
+// after Google recrawls both pages.
 
 const DAWS = ['Ableton Live', 'FL Studio', 'Logic Pro', 'GarageBand', 'Cubase', 'Studio One', 'Reaper'];
 
@@ -72,8 +77,8 @@ const collectionSchema = {
   '@context': 'https://schema.org',
   '@type': 'CollectionPage',
   '@id': `${CANONICAL}#webpage`,
-  name: 'Chord Progressions by Genre',
-  description: 'Hundreds of chord progressions by genre and mood — pop, jazz, lo-fi, worship, blues, neo soul, EDM. Click any progression to hear it instantly.',
+  name: 'Chord Progressions',
+  description: 'The most common chord progressions, playable in any key — pop, jazz, lo-fi, worship, gospel, blues, neo soul, EDM. Click any progression to hear it instantly.',
   url: CANONICAL,
   mainEntity: {
     '@type': 'ItemList',
@@ -128,45 +133,37 @@ const songListSchema = {
 ---
 
 <BaseLayout
-  title="Chord Progressions by Genre — Play Any in Your Browser"
-  description="Hundreds of chord progressions by genre and mood — pop, jazz, lo-fi, worship, blues, and more. Click any progression to hear it instantly, free."
+  title="Chord Progressions: The Most Common, Playable in Any Key"
+  description="The most common chord progressions — pop, jazz, worship, gospel, blues and more. Hear each one instantly, transpose to any key, export MIDI & WAV. Free."
   canonicalUrl={CANONICAL}
   ogImage="/og/page/progressions/"
-  ogImageAlt="Chord Progressions by Genre | Chord Sequence"
+  ogImageAlt="Chord Progressions | Chord Sequence"
 >
   <Fragment slot="head">
     <JsonLd schema={[collectionSchema, progressionListSchema, songListSchema]} />
   </Fragment>
 
   <main>
-    <!-- ─── HERO + GENERATOR ───────────────────────────────────────────── -->
-    <section class="relative overflow-hidden border-b border-border pt-10 pb-14 sm:pt-14 sm:pb-20">
-      <div class="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center">
+    <!-- ─── HERO + PROGRESSION LIBRARY ─────────────────────────────────── -->
+    <section id="library" class="relative overflow-hidden border-b border-border pt-10 pb-14 sm:pt-14 sm:pb-20">
+      <div class="pointer-events-none absolute inset-0 -z-10 flex items-start justify-center">
         <div class="h-[400px] w-[700px] rounded-full bg-primary/10 blur-[130px]"></div>
       </div>
 
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="mx-auto mb-9 max-w-3xl text-center">
           <h1 class="font-serif text-4xl font-bold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-            Chord progressions by genre
+            Chord Progressions
           </h1>
           <p class="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg">
-            Audition popular <strong class="text-foreground">chord progressions</strong> with real-time audio,
-            transpose across all 12 keys, see piano and guitar voicings, and download
+            A <strong class="text-foreground">chord progression</strong> — or chord sequence — is a series of
+            chords played in order. These are the most common ones in pop, worship, gospel, jazz and
+            blues: hear each one instantly, transpose it to any of the 12 keys, and download
             <strong class="text-foreground">free MIDI &amp; WAV files</strong> for your DAW.
           </p>
         </div>
 
-        <HomeGenerator client:idle />
-
-        <div class="mt-5 flex flex-wrap items-center justify-center gap-2 text-center text-xs">
-          <span class="font-mono font-medium text-muted-foreground">Compatible with all major DAWs:</span>
-          <div class="flex flex-wrap items-center justify-center gap-1.5 font-mono text-[11px] font-semibold">
-            {DAWS.map((daw) => (
-              <span class="rounded-md border border-border bg-card px-2 py-0.5 text-muted-foreground">{daw}</span>
-            ))}
-          </div>
-        </div>
+        <ProgressionExplorer client:visible />
       </div>
     </section>
 
@@ -206,23 +203,31 @@ const songListSchema = {
       </div>
     </section>
 
-    <!-- ─── PROGRESSION EXPLORER ───────────────────────────────────────── -->
-    <section id="library" class="border-b border-border bg-muted/20 py-14 sm:py-20">
+    <!-- ─── GENERATOR ──────────────────────────────────────────────────── -->
+    <section id="generator" class="border-b border-border bg-muted/20 py-14 sm:py-20">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="mx-auto mb-10 max-w-3xl text-center">
           <p class="mb-2 font-mono text-xs font-bold uppercase tracking-wider text-primary">
-            Harmonic Explorer &amp; Downloads
+            Chord Progression Generator
           </p>
           <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Popular Chord Progressions Library
+            Generate a new progression
           </h2>
           <p class="mt-2 text-sm text-muted-foreground sm:text-base">
-            Filter by genre, mood and key. Audition in real time, transpose instantly, and download free
-            <strong class="text-foreground">MIDI &amp; WAV stems</strong> for your music production.
+            Pick a genre or hit randomize, hear what comes out, and take it into the Chord Player or your DAW.
           </p>
         </div>
 
-        <ProgressionExplorer client:visible />
+        <HomeGenerator client:visible />
+
+        <div class="mt-5 flex flex-wrap items-center justify-center gap-2 text-center text-xs">
+          <span class="font-mono font-medium text-muted-foreground">Compatible with all major DAWs:</span>
+          <div class="flex flex-wrap items-center justify-center gap-1.5 font-mono text-[11px] font-semibold">
+            {DAWS.map((daw) => (
+              <span class="rounded-md border border-border bg-card px-2 py-0.5 text-muted-foreground">{daw}</span>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
 
