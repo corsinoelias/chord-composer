@@ -18,7 +18,7 @@ const SITE = 'https://chordsequence.com';
 // Flooring every entry at the template's own date is the truthful lastmod, not a nudge:
 // that IS the day the page last changed. Bump it whenever [slug].astro changes what the
 // page renders.
-const TEMPLATE_LAST_CHANGED = '2026-09-05';
+const TEMPLATE_LAST_CHANGED = '2026-09-24';
 const lastmodOf = (own?: string): string =>
   !own || own < TEMPLATE_LAST_CHANGED ? TEMPLATE_LAST_CHANGED : own;
 
