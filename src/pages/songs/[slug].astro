@@ -4,11 +4,10 @@ import SongChordPlayerIsland from '../../components/SongChordPlayerIsland.astro'
 import CommunityEditButton from '../../components/CommunityEditButton';
 import ReportSongButton from '../../components/ReportSongButton';
 import SongHeaderActions from '../../components/SongHeaderActions';
-import ChordAside from '../../components/ChordAside';
 import { LEGACY_PRACTICE_PANEL } from '../../lib/songPageFlags';
 import ToolIcon from '../../components/ToolIcon.astro';
 import type { ToolIconName } from '../../components/toolIcons';
-import { SONGS, extractChordsFromSong } from '../../data/songs';
+import { SONGS, extractChordsFromSong, parseLyricLine } from '../../data/songs';
 import type { Song } from '../../data/songs';
 import { getPublicSongBySlug, getRelatedPublicSongs } from '@/lib/publicSongs';
 import { buildSongEditorUrl } from '@/lib/editorLink';
@@ -65,6 +64,11 @@ const canonicalUrl = `https://chordsequence.com/songs/${song.slug}/`;
 const coverImage = await fetchCoverImage(song.slug, song.artist, song.title);
 const allChords = extractChordsFromSong(song);
 const uniqueChords = [...new Set(allChords)];
+// How long the chart plays at its own tempo (chord durations are in beats; repeats count).
+const totalBeats = song.sections.reduce((acc, sec) => acc + (sec.repeatCount ?? 1) *
+  sec.lines.reduce((a, line) => a + parseLyricLine(line).reduce((b, t) => b + (t.chord ? t.duration : 0), 0), 0), 0);
+const durationSec = song.bpm > 0 ? Math.round(totalBeats * 60 / song.bpm) : 0;
+const durationText = `${Math.floor(durationSec / 60)}:${String(durationSec % 60).padStart(2, '0')}`;
 // The same chords written out in the keys people search for. Server-rendered on purpose:
 // the transpose control on the chart is React, so until now the only answer to "great are
 // you lord chords key of g" (874 impressions, this site's best-converting query shape)
@@ -408,90 +412,59 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
       <span class="text-foreground truncate">{song.title}</span>
     </nav>
 
-    <!-- Song header: title + cover + actions — a normal document heading now, not pinned.
-         Scrolls away like any title; Play/Practice live in #song-header-transport below,
-         portalled in by SongChordPlayer (see SongHeaderTransport.tsx). -->
-    <div data-stage-hide class="-mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-1 flex items-start sm:items-center gap-4 border-b border-border">
-      {coverImage && (
+    <!-- Song header (Sep 2026 redesign): cover · title, artist line and chips · Play and the
+         actions. On a phone the Play button here gives way to the bottom bar's, the chips become
+         one scrolling row and the actions sit under them. The h1 text is unchanged ("<title>
+         Chords"); only "Chords" is set smaller. -->
+    <div data-stage-hide class="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 sm:gap-x-4 gap-y-3 items-start pb-4 mb-1">
+      {coverImage ? (
         <img
           src={coverImage}
           alt={`${song.title} by ${song.artist} — album cover`}
-          class="w-16 h-16 rounded-xl object-cover shrink-0 shadow-sm border border-border"
+          class="w-14 h-14 sm:w-20 sm:h-20 rounded-xl object-cover shrink-0 shadow-sm border border-border md:row-span-2"
           loading="eager"
-          width="64"
-          height="64"
+          width="80"
+          height="80"
         />
-      )}
-      <!-- Title and actions share this column (instead of actions sitting next to the cover
-           image at the outer level) so that when actions wrap to their own line on mobile,
-           they inherit the title's left edge, not the cover art's — previously they lined up
-           flush with the thumbnail, a column to the left of where the title actually starts,
-           which read as a stray toolbar rather than something that belonged to the heading. -->
-      <div class="flex-1 min-w-0 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div class="flex-1 min-w-0">
-          <h1 class="text-xl sm:text-3xl font-bold text-foreground leading-tight truncate">{song.title} Chords</h1>
-          <p class="text-sm text-muted-foreground mt-0.5 truncate">
-            {song.artist}{song.year ? ` · ${song.year}` : ''}{song.album ? ` · ${song.album}` : ''}
-          </p>
-        </div>
-        <!-- w-full forces this onto its own line on mobile, where the title/album otherwise had
-             to compete with 3-4 icon buttons for space in one row and got squeezed unreadable;
-             sm:w-auto + sm:ml-auto puts it back inline, pinned to the row's right edge, once
-             there's room. -->
-        <div class="w-full sm:w-auto sm:ml-auto flex justify-start">
-          <SongHeaderActions client:load song={song} isCommunity={isCommunity} isLocalhost={isLocalhost} />
-        </div>
+      ) : <div aria-hidden="true"></div>}
+      <div class="min-w-0 self-center">
+        <h1 class="text-[22px] sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight [text-wrap:balance]">{song.title} <span class="block sm:inline font-medium text-muted-foreground text-[13px] sm:text-[0.6em] tracking-normal sm:ml-1">Chords</span></h1>
+        <p class="text-sm text-muted-foreground mt-1 truncate">
+          <span class="font-semibold text-foreground/80">{song.artist}</span>{song.album ? ` · ${song.album}` : ''}{song.year ? ` · ${song.year}` : ''}
+        </p>
       </div>
-    </div>
-
-    <!-- Header transport (Play/Practice) + song stats share one row on desktop instead of two
-         separate skinny rows, each mostly empty space on a wide viewport — stats sit to the
-         right, flush with the transport, and only stack under it once the screen narrows. -->
-    <div data-stage-hide class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mt-4 mb-6">
-      <!-- Portal target for the React island's header transport (Play/Stop + Practice) — see
-           SongHeaderTransport.tsx. SongChordPlayer (client:load) is one of the heaviest
-           islands on this page — it carries the whole playback engine — so this div sits
-           empty in the server-rendered HTML until its bundle downloads, parses and
-           hydrates, which is slow enough to notice, especially in dev.
-           `grid` + `grid-template-columns: minmax(0,1fr)` here, with both the shimmer AND
-           SongHeaderTransport's own root (see its `col-start-1 row-start-1`) placed in the
-           SAME cell, is the piano page's skeleton-stacking trick (piano/index.astro):
-           the two layers overlap instead of stacking as separate block rows, so fading the
-           shimmer out never reserves double height/width for the ~150ms both are mounted —
-           a plain block parent did exactly that and was the actual cause of the visible
-           jump + blank gap, not the fade timing itself. The script at the bottom of this
-           file removes the shimmer once createPortal has appended the real buttons. -->
-      <div id="song-header-transport" class="grid" style="grid-template-columns: minmax(0,1fr);">
-        <div id="song-header-transport-skeleton" class="col-start-1 row-start-1 flex items-center gap-2.5 transition-opacity duration-150" aria-hidden="true">
-          <span class="h-10 w-[136px] rounded-full bg-muted animate-pulse"></span>
-          {LEGACY_PRACTICE_PANEL && <span class="h-10 w-[108px] rounded-full bg-muted animate-pulse"></span>}
+      <!-- Play (portalled in by SongChordPlayer, see SongHeaderTransport.tsx) above the actions,
+           right-aligned, from md up. The grid cell below keeps the shimmer and the real buttons
+           in one cell so swapping them never jumps (see the script at the bottom). -->
+      <div class="col-start-3 row-start-1 md:row-span-2 flex md:flex-col items-start md:items-end gap-2.5">
+        <div id="song-header-transport" class={LEGACY_PRACTICE_PANEL ? 'grid' : 'hidden md:grid'} style="grid-template-columns: minmax(0,1fr);">
+          <div id="song-header-transport-skeleton" class="col-start-1 row-start-1 flex items-center gap-2.5 transition-opacity duration-150" aria-hidden="true">
+            <span class="h-10 w-[136px] rounded-full bg-muted animate-pulse"></span>
+            {LEGACY_PRACTICE_PANEL && <span class="h-10 w-[108px] rounded-full bg-muted animate-pulse"></span>}
+          </div>
         </div>
+        <SongHeaderActions client:load song={song} isCommunity={isCommunity} isLocalhost={isLocalhost} />
       </div>
-
-      <!-- Song stats -->
-      <div class="flex flex-wrap gap-2 lg:justify-end">
-        <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border border-border bg-muted/40 text-foreground">
-          <svg class="w-3 h-3 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-          {song.bpm} BPM
-        </span>
+      <!-- Song stats — one scrolling row on a phone, under the title. -->
+      <div class="col-start-2 col-span-2 md:col-span-1 flex gap-1.5 overflow-x-auto md:flex-wrap md:overflow-visible -mr-4 pr-4 md:mr-0 md:pr-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <!-- A button since the Sep 2026 redesign: it opens the key picker (the script at the
              bottom sends song-open-key; SongKeyControl answers). -->
-        <button type="button" id="song-key-chip" title="Change the key" class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 transition-colors">
-          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-          Key of <span id="song-key-value">{song.key}</span>
-          <svg class="w-3 h-3 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+        <button type="button" id="song-key-chip" title="Change the key" class="shrink-0 whitespace-nowrap inline-flex items-center gap-1 h-[26px] px-2.5 rounded-full bg-primary/10 text-primary text-[12.5px] font-medium hover:bg-primary/15 transition-colors">
+          Key <b class="font-bold" id="song-key-value">{song.key}</b>
         </button>
-        {song.genre.map(g => (
-          <span class="text-xs font-medium px-2.5 py-1 rounded-full border border-border bg-muted/40 text-muted-foreground capitalize">{g}</span>
-        ))}
-        {song.capo && (
-          <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary">
-            Capo {song.capo}
-          </span>
+        <span class="shrink-0 whitespace-nowrap inline-flex items-center gap-1 h-[26px] px-2.5 rounded-full bg-secondary text-muted-foreground text-[12.5px] font-medium"><b class="font-semibold text-foreground">{song.bpm}</b> BPM</span>
+        {durationSec > 0 && (
+          <span class="shrink-0 whitespace-nowrap inline-flex items-center gap-1 h-[26px] px-2.5 rounded-full bg-secondary text-muted-foreground text-[12.5px] font-medium" title="Length at the chart's tempo"><b class="font-semibold text-foreground tabular-nums">{durationText}</b></span>
         )}
-        <span class={`text-xs font-medium px-2.5 py-1 rounded-full border ${difficultyLabel === 'Beginner' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : difficultyLabel === 'Beginner–Intermediate' ? 'border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400' : difficultyLabel === 'Intermediate' ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
+        {song.capo && (
+          <span class="shrink-0 whitespace-nowrap inline-flex items-center h-[26px] px-2.5 rounded-full bg-primary/10 text-primary text-[12.5px] font-medium">Capo {song.capo}</span>
+        )}
+        <span class={`shrink-0 whitespace-nowrap inline-flex items-center h-[26px] px-2.5 rounded-full text-[12.5px] font-medium ${difficultyLabel === 'Beginner' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : difficultyLabel === 'Beginner–Intermediate' ? 'bg-sky-500/10 text-sky-700 dark:text-sky-400' : difficultyLabel === 'Intermediate' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-rose-500/10 text-rose-700 dark:text-rose-400'}`}>
           {difficultyLabel}
         </span>
+        {song.genre.map(g => (
+          <span class="shrink-0 whitespace-nowrap inline-flex items-center gap-1 h-[26px] px-2.5 rounded-full bg-secondary text-muted-foreground text-[12.5px] font-medium capitalize">{g}</span>
+        ))}
       </div>
     </div>
 
@@ -499,8 +472,11 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
          flow below the transport+stats row; see SongPracticePanel.tsx. -->
     {LEGACY_PRACTICE_PANEL && <div data-stage-hide id="song-practice-panel"></div>}
 
-    <!-- Tab bar -->
-    <div data-stage-hide class="flex border-b border-border mb-6 gap-0" role="tablist" aria-label="Song view">
+    <!-- Tab bar — hidden since the Sep 2026 redesign: "Lyrics" is a view of the chart now (its
+         toolbar: Chords + lyrics / Lyrics / Chords). The lyrics panel below stays in the served
+         HTML exactly as before (hidden on load, as it always was), so the page's text is
+         unchanged for search engines. -->
+    <div data-stage-hide class="hidden" role="tablist" aria-label="Song view">
       <button
         id="tab-btn-chords"
         role="tab"
@@ -531,18 +507,12 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
       <!-- Full-width chart column — no reserved side column. -->
       <div class="max-w-none">
         <div class="min-w-0">
-          <!-- The chord diagrams sit above the chart (Sep 2026 redesign; the old "Chord preview"
-               card that sat here showed one chord in ~190px, and its job — the chord sounding
-               now — moved to the bottom bar and to this strip's Now / Next marks). This wrapper
-               is the pinned strip's sticky container: it lets go at the end of the chart instead
-               of following the reader through the key table and the FAQ. The island elements are
-               display:contents, so ChordAside's root is a direct child here. Stage mode
-               (SongChordPlayer) keeps this block and hides everything else on the page. -->
+          <!-- The chart, with its song map, toolbar and chord-diagram strip (SongChordPlayer
+               renders ChordAside itself since the Sep 2026 redesign, so the strip can sit under
+               the toolbar). The old "Chord preview" card that sat above it is gone: its job — the
+               chord sounding now — moved to the bottom bar and to the strip's Now / Next marks.
+               Stage mode keeps this block and hides everything else on the page. -->
           <div id="song-stage-chart">
-            {uniqueChords.length > 0 && (
-              <ChordAside client:load chords={uniqueChords} songKey={song.key} songSlug={song.slug} />
-            )}
-            <div class="h-5" aria-hidden="true"></div>
             <SongChordPlayerIsland song={song} />
           </div>
 
@@ -565,7 +535,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
 
               <dl class="mt-5 divide-y divide-border">
                 {keyVariants.map((variant) => (
-                  <div id={`key-of-${variant.key.toLowerCase().replace('#', '-sharp')}`} class="flex flex-col gap-2 py-3 sm:flex-row sm:items-baseline sm:gap-4">
+                  <div id={`key-of-${variant.key.toLowerCase().replace('#', '-sharp')}`} data-key-row={variant.semitones > 6 ? variant.semitones - 12 : variant.semitones} class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:gap-4 -mx-2 px-2 rounded-lg transition-colors data-[current=true]:bg-primary/[0.07]" data-current={variant.isOriginal ? 'true' : 'false'}>
                     <dt class="flex shrink-0 items-baseline gap-2 sm:w-40">
                       <span class="text-sm font-semibold text-foreground">Key of {variant.label}</span>
                       {variant.isOriginal && (
@@ -581,6 +551,10 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
                         </span>
                       ))}
                     </dd>
+                    <!-- Transposes the chart and the playback to this key (script below → SongChordPlayer). -->
+                    <button type="button" data-use-key={variant.semitones > 6 ? variant.semitones - 12 : variant.semitones} class="self-start sm:self-center sm:ml-auto shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors">
+                      <span class="use-key-label">{variant.isOriginal ? 'Current' : 'Use this key'}</span>
+                    </button>
                   </div>
                 ))}
               </dl>
@@ -858,6 +832,26 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
     // copies (chart toolbar from md up, bottom bar on phones) is on screen opens.
     document.getElementById('song-key-chip')?.addEventListener('click', () => {
       window.dispatchEvent(new CustomEvent('song-open-key'));
+    });
+
+    // "Use this key" in the other-keys table: move the chart and playback there, then go to it.
+    document.querySelectorAll('[data-use-key]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const semitones = Number(btn.getAttribute('data-use-key'));
+        window.dispatchEvent(new CustomEvent('song-set-transpose', { detail: { semitones } }));
+        document.getElementById('song-stage-chart')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+    // …and mark the row of the key the chart is in now.
+    window.addEventListener('song-transpose', (e) => {
+      const t = e.detail && e.detail.transpose;
+      if (typeof t !== 'number') return;
+      document.querySelectorAll('[data-key-row]').forEach(row => {
+        const current = Number(row.getAttribute('data-key-row')) === t;
+        row.setAttribute('data-current', current ? 'true' : 'false');
+        const label = row.querySelector('.use-key-label');
+        if (label) label.textContent = current ? 'Current' : 'Use this key';
+      });
     });
 
     const songKeyValue = document.getElementById('song-key-value');

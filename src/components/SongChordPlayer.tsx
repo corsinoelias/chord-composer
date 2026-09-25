@@ -13,14 +13,16 @@ import { SongPracticePanel } from '@/components/SongPracticePanel';
 import { SongStructureMap } from '@/components/SongStructureMap';
 import { NotationSelector } from '@/components/NotationSelector';
 import { SongTransportBar } from '@/components/SongTransportBar';
+import ChordAside from '@/components/ChordAside';
 import { SongKeyControl } from '@/components/SongKeyControl';
-import { AutoscrollControl, TextSizeControl } from '@/components/SongReadingControls';
+import { AutoscrollControl, DisplayOptions } from '@/components/SongReadingControls';
+import { useLeftHanded, setLeftHanded } from '@/lib/leftHanded';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { LEGACY_PRACTICE_PANEL } from '@/lib/songPageFlags';
 import { displayChord } from '@/lib/songNotation';
 import { SongSectionChart } from '@/components/SongSectionChart';
 import { SongChordsOnlyChart, type ChordOnlyRow } from '@/components/SongChordsOnlyChart';
-import { parseLyricLine, extractChordsWithDuration, sectionArrangement, type Song } from '@/data/songs';
+import { parseLyricLine, extractChordsWithDuration, extractChordsFromSong, sectionArrangement, type Song } from '@/data/songs';
 import { makeStyleLookup } from '@/lib/sectionPlayback';
 import { downloadBlob } from '@/lib/mp3Encoder';
 import { exportSongWav } from '@/lib/appEngine/player';
@@ -31,7 +33,17 @@ import { buildSongEditorUrl, linkArrangement, type EditorLinkSection } from '@/l
 import { useSongNotation } from '@/hooks/useSongNotation';
 import type { SongNotation } from '@/lib/songNotation';
 
-type Density = 'full' | 'compact' | 'chords';
+// What the chart shows: chords over lyrics, the words alone, or the chords alone.
+type Density = 'full' | 'lyrics' | 'chords';
+// The rest of the "Aa" menu — the reader's, remembered per browser.
+interface DisplayPrefs {
+  spacing: 'comfy' | 'compact';
+  columns: 'auto' | '1' | '2';
+  accidentals: 'auto' | 'sharp' | 'flat';
+  hoverDiagrams: boolean;
+}
+const DISPLAY_DEFAULTS: DisplayPrefs = { spacing: 'comfy', columns: 'auto', accidentals: 'auto', hoverDiagrams: true };
+const DISPLAY_KEY = 'song-display-prefs';
 
 // ─── Transpose helpers ────────────────────────────────────────────────────────
 const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -95,6 +107,20 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // header's Practice button. Density — which of the three ways to render the chart itself.
   const [practiceOpen, setPracticeOpen] = useState(false);
   const [density, setDensity] = useState<Density>('full');
+  const [display, setDisplay] = useState<DisplayPrefs>(DISPLAY_DEFAULTS);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DISPLAY_KEY);
+      if (raw) setDisplay({ ...DISPLAY_DEFAULTS, ...JSON.parse(raw) });
+    } catch { /* storage blocked or bad JSON */ }
+  }, []);
+  const updateDisplay = useCallback((patch: Partial<DisplayPrefs>) => {
+    setDisplay(prev => {
+      const next = { ...prev, ...patch };
+      try { localStorage.setItem(DISPLAY_KEY, JSON.stringify(next)); } catch { /* storage blocked */ }
+      return next;
+    });
+  }, []);
   // How chord names are spelled (standard / Nashville numbers / Do-Re-Mi). Purely a display
   // layer: it never reaches the audio engine, the editor deep-link or the exports, all of which
   // keep working off the real chord names.
@@ -250,7 +276,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     // `semitones` is what the diagram strip draws — the capo shapes; `displayKey` stays the
     // sounding key for the chip; `capo` lets ChordAside's previews sound at the real pitch.
     window.dispatchEvent(new CustomEvent('song-transpose', {
-      detail: { semitones: shapeShift, displayKey, capo },
+      detail: { semitones: shapeShift, displayKey, capo, transpose },
     }));
   }, [transpose, shapeShift, capo, displayKey, updatePlaybackOptions]);
 
@@ -454,10 +480,13 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // pattern as the bpm/transposition sync effects above.
   useEffect(() => { updatePlaybackOptions({ instruments }); }, [instruments, updatePlaybackOptions]);
 
-  // Every chord moved `shift` semitones, spelled for `key`.
-  const shiftSections = useCallback((shift: number, key: string) => {
-    if (shift === 0) return resolvedSections;
-    const flats = FLAT_KEYS.has(key);
+  // Sharps or flats: the key's own spelling unless the reader picked one in "Aa".
+  const spellFlats = useCallback((key: string) =>
+    display.accidentals === 'flat' ? true : display.accidentals === 'sharp' ? false : FLAT_KEYS.has(key),
+  [display.accidentals]);
+  // Every chord moved `shift` semitones, spelled with flats or sharps.
+  const shiftSections = useCallback((shift: number, flats: boolean, respell = false) => {
+    if (shift === 0 && !respell) return resolvedSections;
     return resolvedSections.map(sec => ({
       ...sec,
       lines: sec.lines.map(line =>
@@ -469,12 +498,15 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     }));
   }, [resolvedSections]);
   // What the chart draws (capo shapes) vs what sounds (the editor link must get the latter).
-  const displayedSections = useMemo(() => shiftSections(shapeShift, shapeKey), [shiftSections, shapeShift, shapeKey]);
-  const soundingSections = useMemo(() => shiftSections(transpose, displayKey), [shiftSections, transpose, displayKey]);
+  const displayedSections = useMemo(
+    () => shiftSections(shapeShift, spellFlats(shapeKey), display.accidentals !== 'auto'),
+    [shiftSections, shapeShift, spellFlats, shapeKey, display.accidentals],
+  );
+  const soundingSections = useMemo(() => shiftSections(transpose, FLAT_KEYS.has(displayKey)), [shiftSections, transpose, displayKey]);
   // One chord name as the chart draws it.
   const shapeName = useCallback(
-    (raw: string) => shapeShift === 0 ? raw : transposeChordStr(raw, shapeShift, FLAT_KEYS.has(shapeKey)),
-    [shapeShift, shapeKey],
+    (raw: string) => shapeShift === 0 && display.accidentals === 'auto' ? raw : transposeChordStr(raw, shapeShift, spellFlats(shapeKey)),
+    [shapeShift, shapeKey, spellFlats, display.accidentals],
   );
 
   // ── Sections in the shape the editor's ?data= param expects — one entry per
@@ -720,6 +752,11 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     return displayChord(shapeName(raw), shapeKey, notation);
   }, [allChordsFlat, shapeName, shapeKey, notation]);
   const barNowChord = isPlaying ? chordLabel(activeGlobal) : chordLabel(0);
+  // The same chord by name (capo shapes, letters) — the bar draws its diagram.
+  const barNowName = (() => {
+    const raw = allChordsFlat[isPlaying ? activeGlobal : 0];
+    return raw ? shapeName(raw) : null;
+  })();
   const barNextChord = isPlaying
     ? chordLabel(globalAt(currentChordIndex + 1))
     : chordLabel(allChordsFlat.length > 1 ? 1 : -1);
@@ -1037,6 +1074,58 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     analytics.songNotationChanged(song.slug, next);
   }, [setNotation, song.slug]);
 
+  // The diagram strip (rendered here, under the toolbar) lists each chord once, in order.
+  const uniqueChords = useMemo(() => [...new Set(extractChordsFromSong(song))], [song]);
+  // The bar's timeline: each playable section and its share of the song.
+  const timelineSegments = useMemo(() => song.sections
+    .map((s, si) => ({ sectionIndex: si, name: s.name, span: sectionChordCounts[si] * (s.repeatCount ?? 1) }))
+    .filter(s => s.span > 0), [song.sections, sectionChordCounts]);
+  // "56 bars · 3:18" at the end of the song map.
+  const songSummary = useMemo(() => {
+    const secs = Math.round(totalBeats * 60 / (bpm || 1));
+    return `${Math.round(totalBeats / 4)} bars · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+  }, [totalBeats, bpm]);
+
+  // The toolbar sticks under the site header; ChordAside's pinned strip sticks under the toolbar,
+  // so it needs the toolbar's live height (--song-toolbar-h) — the row wraps at narrower widths.
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = toolbarRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      document.documentElement.style.setProperty('--song-toolbar-h', `${el.offsetHeight}px`);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // The other-keys table under the chart (plain Astro markup) asks for a key with an event.
+  useEffect(() => {
+    if (inline) return;
+    const onSet = (e: Event) => {
+      const s = (e as CustomEvent<{ semitones: number }>).detail?.semitones;
+      if (typeof s !== 'number' || !Number.isFinite(s)) return;
+      analytics.songKeyOpened(song.slug, 'table');
+      handleTransposeChange(Math.max(-6, Math.min(6, s)));
+    };
+    window.addEventListener('song-set-transpose', onSet);
+    return () => window.removeEventListener('song-set-transpose', onSet);
+  }, [inline, song.slug, handleTransposeChange]);
+
+  const leftHanded = useLeftHanded();
+  // The "Aa" menu, shared by the desktop toolbar and the phone's Options sheet.
+  const displayOptions = (showColumns: boolean) => (
+    <DisplayOptions
+      showColumns={showColumns}
+      textScale={textScale} onTextScaleChange={handleTextScaleChange}
+      columns={display.columns} onColumnsChange={(columns) => updateDisplay({ columns })}
+      spacing={display.spacing} onSpacingChange={(spacing) => updateDisplay({ spacing })}
+      accidentals={display.accidentals} onAccidentalsChange={(accidentals) => updateDisplay({ accidentals })}
+      hoverDiagrams={display.hoverDiagrams} onHoverDiagramsChange={(hoverDiagrams) => updateDisplay({ hoverDiagrams })}
+      leftHanded={leftHanded} onLeftHandedChange={setLeftHanded}
+    />
+  );
+
   const handleOpenPractice = useCallback((surface: 'bar' | 'dock' | 'options') => {
     setPracticeOpen(true);
     analytics.songPracticeOpened(song.slug, surface);
@@ -1173,6 +1262,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
             onPlayPause={handlePlay}
             sectionName={barSectionName}
             nowChord={barNowChord}
+            nowChordName={barNowName}
             nextChord={barNextChord}
             activeDuration={activeDuration}
             currentChordIndex={currentChordIndex}
@@ -1201,12 +1291,15 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
             onTextScaleChange={handleTextScaleChange}
             stage={stage}
             onStageChange={handleStageChange}
+            displayOptions={displayOptions(false)}
             notation={notation}
             onNotationChange={handleNotationChange}
             displayKey={shapeKey}
             density={density}
             onDensityChange={handleDensityChange}
             onOpenPractice={handleOpenPractice}
+            segments={timelineSegments}
+            onSeekSection={handlePlaySection}
           />, document.body)}
         </>
       )}
@@ -1231,21 +1324,24 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
 
       {/* ─ Song chart ─ */}
       <div className={inline ? 'mt-4 px-5 pb-5' : ''}>
-        {!inline && (
-          /* Structure map + density picker share one row on desktop — stacked, they were two
-             skinny bars each mostly empty next to a handful of section chips / three buttons.
-             The map takes the available width (min-w-0 + flex-1) and scrolls internally if the
-             song has a lot of sections; the density picker stays put on the right, with the
-             notation picker to its left — the two are the same kind of choice ("how do I read
-             this chart"), so they share a row and wear the same styling. `flex-wrap` on the
-             right-hand group is what keeps six buttons from squeezing the map at mid widths. */
-          /* From md up this row is the chart's toolbar and stays under the site header while you
-             read (--song-nav-h: the navbar's 64px, 0 in stage mode), or under ChordAside's strip when that is pinned —
-             the strip comes first on the page, so it sticks first (--song-strip-h is its height
-             while pinned, 0 otherwise). The key leads the row: it is the control this page
-             most needs people to find. On phones the row scrolls with the page and the key lives
-             in the bottom bar instead, so there is one fixed bar there, not two. */
-          <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2.5 md:gap-3 mb-4 md:sticky md:top-[calc(var(--song-nav-h,4rem)+var(--song-strip-h,0px))] md:z-30 md:-mx-3 md:px-3 md:py-2 md:bg-background/95 md:backdrop-blur-md md:border-b md:border-border">
+        {!inline && (<>
+          {/* The song map: the arrangement in order, in section colours. It scrolls with the page;
+              the toolbar under it is what stays. */}
+          <div className="mb-3 md:mb-0 py-2.5 border-t md:border-y border-border">
+            <SongStructureMap
+              items={structureItems}
+              activeSectionIndex={activeSectionIndex}
+              queuedSectionIndex={queuedSectionIndex}
+              onSelect={handleSectionCardTap}
+              summary={songSummary}
+            />
+          </div>
+          {/* From md up this row is the chart's toolbar and stays under the site header while you
+              read (--song-nav-h: the navbar's 64px, 0 in stage mode). The key leads the row: it is
+              the control this page most needs people to find. On phones the row scrolls with the
+              page and the key lives in the bottom bar instead, so there is one fixed bar, not two.
+              Its height goes to --song-toolbar-h for ChordAside's pinned strip, which sits under it. */}
+          <div ref={toolbarRef} className="hidden md:flex flex-wrap items-center gap-2.5 mb-4 md:sticky md:top-[var(--song-nav-h,4rem)] md:z-30 md:-mx-3 md:px-3 md:py-2 md:bg-background/95 md:backdrop-blur-md md:border-b md:border-border">
             <div className="hidden md:flex items-center gap-1 shrink-0">
               <SongKeyControl
                 surface="toolbar"
@@ -1266,13 +1362,6 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                 </button>
               )}
             </div>
-            <SongStructureMap
-              items={structureItems}
-              activeSectionIndex={activeSectionIndex}
-              queuedSectionIndex={queuedSectionIndex}
-              onSelect={handleSectionCardTap}
-            />
-            <div className="flex flex-wrap items-center gap-2 md:justify-end md:shrink-0 md:ml-auto">
               <NotationSelector
                 value={notation}
                 onChange={handleNotationChange}
@@ -1280,9 +1369,9 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
               />
               <div className="inline-flex p-0.5 rounded-lg bg-secondary/60">
                 {([
-                  ['full', 'Lyrics + chords'],
-                  ['compact', 'Compact'],
-                  ['chords', 'Chords only'],
+                  ['full', 'Chords + lyrics'],
+                  ['lyrics', 'Lyrics'],
+                  ['chords', 'Chords'],
                 ] as const).map(([d, label]) => (
                   <button
                     key={d}
@@ -1296,8 +1385,8 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                   </button>
                 ))}
               </div>
+              <span className="hidden md:block flex-1" />
               <AutoscrollControl
-                compact
                 className="hidden md:inline-flex"
                 on={autoScroll}
                 onChange={handleAutoScrollChange}
@@ -1308,15 +1397,15 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    title="Text size"
+                    title="Text and diagrams"
                     className={`hidden md:inline-flex items-center gap-1 h-9 px-2.5 rounded-lg border text-xs font-semibold transition-colors ${textScale !== 100 ? 'border-primary/35 bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground hover:text-foreground'}`}
                   >
                     <Type className="w-4 h-4" />
                     {textScale !== 100 && <span className="tabular-nums">{textScale}%</span>}
                   </button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-auto p-2">
-                  <TextSizeControl scale={textScale} onChange={handleTextScaleChange} />
+                <PopoverContent align="end" className="w-80 p-3">
+                  {displayOptions(true)}
                 </PopoverContent>
               </Popover>
               <button
@@ -1328,9 +1417,11 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
               >
                 {stage ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
-            </div>
           </div>
-        )}
+          {uniqueChords.length > 0 && (
+            <ChordAside chords={uniqueChords} songKey={song.key} songSlug={song.slug} className="mb-6" />
+          )}
+        </>)}
 
         {/* The chart body. Text size is a zoom on this block only — the chart mixes several
             fixed Tailwind sizes, and zoom scales them all (and the layout) together, while the
@@ -1353,7 +1444,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
             soundingChord={soundingChord}
           />
         ) : (
-          <div className={!inline ? 'lg:columns-2 lg:gap-10' : ''}>
+          <div className={inline ? '' : display.columns === '1' ? '' : display.columns === '2' ? 'md:columns-2 md:gap-10' : 'lg:columns-2 lg:gap-12'}>
             {displayedSections.map((section, si) => {
               const repeatOfIdx = sectionIsRepeatOf[si];
               return (
@@ -1378,7 +1469,9 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                   notation={notation}
                   displayKey={shapeKey}
                   soundingChord={soundingChord}
-                  compact={!inline && density === 'compact'}
+                  compact={!inline && display.spacing === 'compact'}
+                  lyricsOnly={!inline && density === 'lyrics'}
+                  hoverDiagrams={display.hoverDiagrams}
                   chordRefs={chordRefs}
                   openTooltipIdx={openTooltipIdx}
                   onOpenTooltip={setOpenTooltipIdx}

@@ -55,6 +55,7 @@ export function SongKeyControl({ transpose, onTransposeChange, keyName, songSlug
   const step = `grid place-items-center text-primary hover:bg-primary/10 disabled:opacity-35 disabled:pointer-events-none transition-colors ${big ? 'w-11 h-11 rounded-xl' : 'w-8 h-9 rounded-lg'}`;
 
   return (
+    <>
     <div
       ref={rootRef}
       className={`inline-flex items-center rounded-xl border border-primary/25 bg-primary/[0.07] ${big ? 'h-11' : 'h-9'} ${className}`}
@@ -77,7 +78,7 @@ export function SongKeyControl({ transpose, onTransposeChange, keyName, songSlug
           >
             <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">Key</span>
             <span className="min-w-[1.75rem] text-center text-base font-extrabold">{keyName(transpose)}</span>
-            {capo > 0 && <span className="text-[10px] font-semibold opacity-80 whitespace-nowrap">capo {capo}</span>}
+            {big && capo > 0 && <span className="text-[10px] font-semibold opacity-80 whitespace-nowrap">capo {capo}</span>}
             {!big && <ChevronDown className="w-3 h-3 opacity-70" />}
           </button>
         </PopoverTrigger>
@@ -141,5 +142,18 @@ export function SongKeyControl({ transpose, onTransposeChange, keyName, songSlug
         <Plus className="w-4 h-4" />
       </button>
     </div>
+    {/* The toolbar also gets a Capo button of its own: the same picker, but someone looking
+        for "capo" should not have to guess that it lives behind the key. */}
+    {!big && (
+      <button
+        type="button"
+        onClick={() => handleOpenChange(true)}
+        className={`inline-flex items-center h-9 px-3 rounded-lg border text-xs font-semibold transition-colors ${capo > 0 ? 'border-primary/35 bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground hover:text-foreground'}`}
+      >
+        {capo > 0 ? `Capo ${capo}` : 'Capo'}
+        <ChevronDown className="w-3 h-3 ml-1 opacity-70" />
+      </button>
+    )}
+    </>
   );
 }

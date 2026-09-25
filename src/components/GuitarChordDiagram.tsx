@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import type { GuitarVoicing } from '@/data/guitarChords';
+import { useLeftHanded, mirrorVoicing } from '@/lib/leftHanded';
 
 // ─── SVG coordinate constants (reverse-engineered from reference SVGs) ────────
 // String x-positions are derived from the voicing's own string count (35px apart, 30px
@@ -36,7 +37,10 @@ interface Props {
   className?: string;
 }
 
-export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing, chordName, className = '' }: Props) {
+export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing: given, chordName, className = '' }: Props) {
+  // Drawn for left-handed players when the reader asked for it (song page "Aa" menu).
+  const lefty = useLeftHanded();
+  const voicing = lefty ? mirrorVoicing(given) : given;
   const { frets, fingers, barre, baseFret } = voicing;
   const STRING_X = frets.map((_, i) => PAD_X + i * STRING_SPACING);
   const W = STRING_X[STRING_X.length - 1] + PAD_X;

@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useHorizontalScrollArrows } from '@/hooks/useHorizontalScrollArrows';
+import { sectionShort, sectionStyle } from '@/lib/sectionKind';
 
 interface StructureItem {
   sectionIndex: number;
@@ -12,74 +13,58 @@ interface SongStructureMapProps {
   activeSectionIndex: number | null;
   queuedSectionIndex: number | null;
   onSelect: (si: number) => void;
+  // "56 bars · 3:18"-style summary shown at the end of the row (optional).
+  summary?: string;
 }
 
-// The whole arrangement in one glance — today that information only comes from scrolling the
-// entire song. Click a chip to jump/queue that exact instance (a repeated section further down
-// the array is its own chip, not merged with the first). The strip scrolls (rather than
-// wrapping) so on a phone it reads left-to-right like a timeline instead of reflowing into a
-// stack — its native scrollbar is hidden (a bare scrollbar under six pills read as a rendering
-// glitch, not an intentional strip) and replaced with prev/next arrows, since hiding it also
-// removes the only way a mouse (no drag/swipe gesture) had to move the strip.
-export function SongStructureMap({ items, activeSectionIndex, queuedSectionIndex, onSelect }: SongStructureMapProps) {
+// The whole arrangement in one glance — V1 C V2 C B B C — each chip in its section kind's colour
+// (sectionKind.ts), the one playing filled solid. Click a chip to jump/queue that exact instance
+// (a repeated section further down the array is its own chip, not merged with the first). The
+// strip scrolls (rather than wrapping) so on a phone it reads left-to-right like a timeline; its
+// scrollbar is hidden and replaced with prev/next arrows, since a mouse has no swipe gesture.
+export function SongStructureMap({ items, activeSectionIndex, queuedSectionIndex, onSelect, summary }: SongStructureMapProps) {
   const { ref, canScrollLeft, canScrollRight, scrollByPage } = useHorizontalScrollArrows<HTMLDivElement>();
 
   if (items.length <= 1) return null;
 
+  const arrow = 'shrink-0 rounded-md p-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-0 disabled:pointer-events-none transition-opacity';
+
   return (
-    <div className="flex items-center gap-1 px-2.5 py-2 border border-border rounded-xl bg-card min-w-0 flex-1">
-      <span className="shrink-0 text-[9.5px] font-bold uppercase tracking-widest text-muted-foreground mr-0.5">
-        Structure
+    <nav aria-label="Song map" className="flex flex-wrap md:flex-nowrap items-center gap-x-2 gap-y-2 min-w-0">
+      <span className="shrink-0 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground mr-1">
+        Song map
       </span>
-      <button
-        type="button"
-        onClick={() => scrollByPage(-1)}
-        disabled={!canScrollLeft}
-        aria-label="Scroll structure left"
-        className="shrink-0 rounded-md p-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-0 disabled:pointer-events-none transition-opacity"
-      >
+      <button type="button" onClick={() => scrollByPage(-1)} disabled={!canScrollLeft} aria-label="Scroll song map left" className={`hidden md:block ${arrow}`}>
         <ChevronLeft className="w-3.5 h-3.5" />
       </button>
       <div
         ref={ref}
-        className="flex items-center gap-1.5 overflow-x-auto min-w-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="order-3 md:order-none basis-full md:basis-auto flex items-center gap-1.5 overflow-x-auto min-w-0 py-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         {items.map(item => {
           const isActive = item.sectionIndex === activeSectionIndex;
           const isQueued = item.sectionIndex === queuedSectionIndex;
+          const style = sectionStyle(item.name);
           return (
             <button
               key={item.sectionIndex}
               type="button"
               onClick={() => onSelect(item.sectionIndex)}
-              className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11.5px] font-semibold transition-colors
-                ${isActive
-                  ? 'border-primary/40 bg-primary/10 text-primary'
-                  : isQueued
-                    ? 'border-primary/40 border-dashed bg-primary/5 text-primary/80'
-                    : 'border-transparent bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary'
-                }
-              `}
+              title={`${item.name}${item.repeatCount > 1 ? ` ×${item.repeatCount}` : ''}${isQueued ? ' · plays next' : ''}`}
+              aria-current={isActive ? 'true' : undefined}
+              className={`shrink-0 inline-flex items-center gap-0.5 h-[30px] min-w-[38px] justify-center px-2.5 rounded-lg border text-[12.5px] font-bold transition-colors
+                ${isActive ? style.solid : style.chip} ${isQueued ? 'border-dashed ring-2 ring-primary/30' : ''} hover:brightness-95`}
             >
-              {item.name}
-              {item.repeatCount > 1 && (
-                <span className={`text-[9.5px] font-bold ${isActive ? 'text-primary/70' : 'text-muted-foreground/70'}`}>
-                  ×{item.repeatCount}
-                </span>
-              )}
+              {sectionShort(item.name)}
+              {item.repeatCount > 1 && <sup className="text-[9px] font-bold opacity-80">{item.repeatCount}</sup>}
             </button>
           );
         })}
       </div>
-      <button
-        type="button"
-        onClick={() => scrollByPage(1)}
-        disabled={!canScrollRight}
-        aria-label="Scroll structure right"
-        className="shrink-0 rounded-md p-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-0 disabled:pointer-events-none transition-opacity"
-      >
+      <button type="button" onClick={() => scrollByPage(1)} disabled={!canScrollRight} aria-label="Scroll song map right" className={`hidden md:block ${arrow}`}>
         <ChevronRight className="w-3.5 h-3.5" />
       </button>
-    </div>
+      {summary && <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">{summary}</span>}
+    </nav>
   );
 }

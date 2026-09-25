@@ -3,17 +3,18 @@ import { formatChord, type ChartNotation } from '@/lib/chordSheet/chordSheetCore
 /**
  * How chord names are spelled on a song page.
  *
- * A strict subset of Chord Sheet Maker's `ChartNotation` — the whole formatting engine already
+ * Nearly a subset of Chord Sheet Maker's `ChartNotation` (plus 'roman', song pages only) — the whole formatting engine already
  * lives in chordSheetCore.ts, this module only narrows what the song pages offer (no movable-Do)
  * and owns the persistence rules. Assignable straight to `ChartNotation`, so no mapping table.
  */
-export type SongNotation = 'standard' | 'number' | 'fixed';
+export type SongNotation = 'standard' | 'number' | 'roman' | 'fixed';
 
 // `title` carries the real explanation: "1 4 5" means nothing to someone who has never seen a
 // number chart, and the button itself is too small to spell out "Nashville numbers".
 export const NOTATION_OPTIONS: { value: SongNotation; label: string; title: string }[] = [
   { value: 'standard', label: 'A B C', title: 'Standard chord names' },
   { value: 'number', label: '1 4 5', title: 'Nashville numbers — degrees of the key, so the chart works in any key' },
+  { value: 'roman', label: 'I IV V', title: 'Roman numerals — degrees of the key, minor chords in lower case (vi)' },
   { value: 'fixed', label: 'Do Re Mi', title: 'Do Re Mi — solfège names (Do = C)' },
 ];
 
@@ -21,7 +22,7 @@ export const NOTATION_STORAGE_KEY = 'song_chord_notation';
 const URL_PARAM = 'notation';
 
 function isSongNotation(v: unknown): v is SongNotation {
-  return v === 'standard' || v === 'number' || v === 'fixed';
+  return v === 'standard' || v === 'number' || v === 'roman' || v === 'fixed';
 }
 
 /**
@@ -74,5 +75,14 @@ export function persistNotation(n: SongNotation): void {
  */
 export function displayChord(name: string, key: string, n: SongNotation): string {
   if (n === 'standard' || !name) return name;
+  if (n === 'roman') return toRoman(formatChord(name, key, 'number'));
   return formatChord(name, key, n as ChartNotation);
+}
+
+// Nashville numbers → Roman numerals: "6m" → "vi", "5/7" → "V/VII", "♭7" → "♭VII",
+// "4maj7" → "IVmaj7". A minor chord's "m" becomes the lower case, as Roman analysis writes it.
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+function toRoman(nashville: string): string {
+  return nashville.replace(/(^|\/)([b#♭♯]?)([1-7])(m(?!aj))?/g, (_m, pre: string, acc: string, d: string, minor: string | undefined) =>
+    pre + acc + (minor ? ROMAN[Number(d)].toLowerCase() : ROMAN[Number(d)]));
 }

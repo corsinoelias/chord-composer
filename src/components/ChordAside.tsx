@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { Play, ChevronLeft, ChevronRight, Pin } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Play, ChevronLeft, ChevronRight, ChevronDown, Pin } from 'lucide-react';
 import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
 import { getUkuleleVoicing } from '@/data/ukuleleChords';
 import { PianoKeyboard } from '@/components/PianoKeyboard';
 import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
-import { InstrumentViewSelector } from '@/components/InstrumentViewSelector';
 import { useSyncedChordView } from '@/hooks/useSyncedChordView';
 import { useSongNotation } from '@/hooks/useSongNotation';
 import { displayChord } from '@/lib/songNotation';
@@ -42,14 +41,16 @@ function transposeKey(key: string, s: number) {
 }
 
 const PIN_KEY = 'song-strip-pinned';
+const FOLD_KEY = 'song-strip-folded';
 
 interface Props {
   chords: string[];
   songKey: string;
   songSlug: string;
+  className?: string;
 }
 
-export default function ChordAside({ chords, songKey, songSlug }: Props) {
+export default function ChordAside({ chords, songKey, songSlug, className = '' }: Props) {
   const [view, setView] = useSyncedChordView('guitar');
   const [notation] = useSongNotation();
   const [semitones, setSemitones] = useState(0);
@@ -66,20 +67,16 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
   useEffect(() => {
     try { setPinned(localStorage.getItem(PIN_KEY) === '1'); } catch { /* storage blocked */ }
   }, []);
-  // While pinned, the chart toolbar (SongChordPlayer) sticks right under this strip instead of
-  // under the site header, so it needs this strip's live height.
-  const rootRef = useRef<HTMLDivElement>(null);
+  // Folded = just the header row; the chart moves up. Remembered per browser, like pinning.
+  const [folded, setFolded] = useState(false);
   useEffect(() => {
-    const root = document.documentElement;
-    const el = rootRef.current;
-    if (!pinned || !el || typeof ResizeObserver === 'undefined') {
-      root.style.setProperty('--song-strip-h', '0px');
-      return;
-    }
-    const ro = new ResizeObserver(() => root.style.setProperty('--song-strip-h', `${el.offsetHeight}px`));
-    ro.observe(el);
-    return () => { ro.disconnect(); root.style.setProperty('--song-strip-h', '0px'); };
-  }, [pinned]);
+    try { setFolded(localStorage.getItem(FOLD_KEY) === '1'); } catch { /* storage blocked */ }
+  }, []);
+  const toggleFolded = () => {
+    const next = !folded;
+    setFolded(next);
+    try { localStorage.setItem(FOLD_KEY, next ? '1' : '0'); } catch { /* storage blocked */ }
+  };
   const togglePinned = () => {
     const next = !pinned;
     setPinned(next);
@@ -126,22 +123,34 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
     .filter(item => item.chordObj && item.notes.length > 0);
 
   return (
+    // Pinned: sticks right under SongChordPlayer's toolbar (--song-toolbar-h) until the chart ends.
     <div
-      ref={rootRef}
-      className={`rounded-xl border border-border bg-card overflow-hidden ${pinned
-        ? 'md:sticky md:z-20 md:top-[var(--song-nav-h,4rem)] md:shadow-[0_10px_22px_-16px_rgba(0,0,0,0.45)]'
+      className={`-mx-4 sm:-mx-6 md:mx-0 border-y md:border md:rounded-xl border-border bg-card overflow-hidden ${className} ${pinned
+        ? 'md:sticky md:z-20 md:top-[calc(var(--song-nav-h,4rem)+var(--song-toolbar-h,3.5rem))] md:shadow-[0_10px_22px_-16px_rgba(0,0,0,0.45)]'
         : ''}`}
     >
 
       {/* ── Header ── */}
-      <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-border">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Chords used
+      <div className={`flex items-center gap-2 pl-3.5 pr-2 py-1.5 ${folded ? '' : 'border-b border-border/60'}`}>
+        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+          Chords
         </span>
-        <span className="text-xs text-muted-foreground/50 font-mono tabular-nums">
+        <span className="text-[11px] font-semibold text-foreground/70 bg-secondary rounded-md px-1.5 tabular-nums">
           {items.length}
         </span>
-        <InstrumentViewSelector value={view} onChange={setView} className="ml-auto" />
+        <div className="ml-auto inline-flex p-0.5 rounded-lg bg-secondary/60" role="group" aria-label="Instrument">
+          {(['guitar', 'piano', 'ukulele'] as const).map(v => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              aria-pressed={view === v}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${view === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           onClick={togglePinned}
@@ -151,6 +160,15 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
         >
           <Pin className="w-3.5 h-3.5" />
         </button>
+        <button
+          type="button"
+          onClick={toggleFolded}
+          aria-expanded={!folded}
+          title={folded ? 'Show the chord diagrams' : 'Hide the chord diagrams'}
+          className="grid place-items-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        >
+          <ChevronDown className={`w-4 h-4 transition-transform ${folded ? '-rotate-90' : ''}`} />
+        </button>
       </div>
 
       {/* ── Chord strip — always visible, horizontal scroll, one tap per chord to hear it.
@@ -159,7 +177,7 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
           pattern) so the strip signals "click me to hear this" without extra copy. Native
           scrollbar hidden and replaced with prev/next arrows — same reasoning as Structure:
           a mouse has no drag/swipe gesture to move the strip once the scrollbar's gone. ── */}
-      <div className={`flex items-center gap-1 px-1 ${pinned ? 'py-3 md:py-1.5' : 'py-3'}`}>
+      {!folded && <div className={`flex items-center gap-1 px-1 ${pinned ? 'py-2 md:py-1' : 'py-2'}`}>
         <button
           type="button"
           onClick={() => scrollByPage(-1)}
@@ -171,7 +189,7 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
         </button>
         <div
           ref={stripRef}
-          className="flex gap-5 overflow-x-auto px-3 min-w-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-2 md:gap-5 overflow-x-auto px-1 md:px-3 min-w-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
           {items.map(({ chord, chordObj, notes, guitarVoicing, ukuleleVoicing }) => {
             const isNow = chord === activeChord;
@@ -193,7 +211,7 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
               <span className={`h-3 text-[9px] font-bold uppercase tracking-widest leading-3 ${isNow ? 'text-primary' : 'text-muted-foreground'}`}>
                 {isNow ? 'Now' : isNext ? 'Next' : ''}
               </span>
-              <span className="text-sm font-bold text-primary group-hover:text-primary/80 transition-colors">
+              <span className="text-[15px] font-bold text-foreground group-hover:text-primary transition-colors">
                 {displayChord(chord, displayKey, notation)}
               </span>
               <div className="relative rounded-xl p-2 -m-2 transition-all duration-150 group-hover:bg-card group-hover:shadow-lg group-hover:shadow-black/10 group-hover:ring-1 group-hover:ring-border group-hover:-translate-y-0.5">
@@ -208,7 +226,7 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
                     </span>
                   )
                 ) : guitarVoicing ? (
-                  <GuitarChordDiagram voicing={guitarVoicing} className={pinned ? 'w-20 md:w-14' : 'w-20'} />
+                  <GuitarChordDiagram voicing={guitarVoicing} className={pinned ? 'w-12 md:w-14' : 'w-12 md:w-16'} />
                 ) : (
                   <span className="w-20 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
                     No voicing
@@ -236,7 +254,7 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
         >
           <ChevronRight className="w-4 h-4" />
         </button>
-      </div>
+      </div>}
 
     </div>
   );

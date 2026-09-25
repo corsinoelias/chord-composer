@@ -3,6 +3,7 @@ import { parseChordString } from '@/lib/chordParser';
 import { playChordPreview } from '@/lib/appEngine/preview';
 import { analytics } from '@/lib/analytics';
 import { displayChord, type SongNotation } from '@/lib/songNotation';
+import { sectionShort, sectionStyle } from '@/lib/sectionKind';
 
 export interface ChordOnlyRow {
   sectionIndex: number;
@@ -60,8 +61,11 @@ export function SongChordsOnlyChart({
         const playing = isSectionPlaying(row.sectionIndex);
         return (
           <div key={row.sectionIndex} className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-3 sm:px-4 py-3 ${isActive ? 'bg-primary/5' : ''}`}>
-            <div className="flex items-center gap-1.5 w-full sm:w-auto sm:min-w-[130px] shrink-0">
-              <span className={`text-[11px] font-bold uppercase tracking-widest ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+            <div className="flex items-center gap-1.5 w-full sm:w-auto sm:min-w-[150px] shrink-0">
+              <span className={`shrink-0 inline-grid place-items-center min-w-[30px] h-[22px] px-1.5 rounded-md border text-[11px] font-bold ${isActive ? sectionStyle(row.name).solid : sectionStyle(row.name).chip}`}>
+                {sectionShort(row.name)}
+              </span>
+              <span className={`text-[11px] font-bold uppercase tracking-widest ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                 {row.name}
               </span>
               {row.repeatCount > 1 && (

@@ -7,16 +7,20 @@ import { SongPillTime } from '@/components/SongPlayingPill';
 import { SongKeyControl } from '@/components/SongKeyControl';
 import { NotationSelector } from '@/components/NotationSelector';
 import { DurationDots } from '@/components/DurationDots';
-import { AutoscrollControl, TextSizeControl } from '@/components/SongReadingControls';
+import { AutoscrollControl } from '@/components/SongReadingControls';
 import { analytics } from '@/lib/analytics';
 import type { SongNotation } from '@/lib/songNotation';
+import { sectionStyle } from '@/lib/sectionKind';
+import { parseChordString } from '@/lib/chordParser';
+import { getGuitarVoicing } from '@/data/guitarChords';
+import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
 
-type Density = 'full' | 'compact' | 'chords';
+type Density = 'full' | 'lyrics' | 'chords';
 
 const DENSITIES: ReadonlyArray<readonly [Density, string]> = [
-  ['full', 'Lyrics + chords'],
-  ['compact', 'Compact'],
-  ['chords', 'Chords only'],
+  ['full', 'Chords + lyrics'],
+  ['lyrics', 'Lyrics'],
+  ['chords', 'Chords'],
 ];
 
 interface Props {
@@ -27,6 +31,8 @@ interface Props {
   // What the bar says it will play (at rest) or is playing.
   sectionName: string | null;
   nowChord: string | null;
+  // The same chord by name (letters, capo shapes), for its little diagram.
+  nowChordName: string | null;
   nextChord: string | null;
   activeDuration: number;
   currentChordIndex: number;
@@ -58,6 +64,8 @@ interface Props {
   onTextScaleChange: (scale: number) => void;
   stage: boolean;
   onStageChange: (on: boolean) => void;
+  // The "Aa" settings (text size, spacing, ♯/♭, diagrams), shown inside Options on a phone.
+  displayOptions: React.ReactNode;
   // Reading options, which the phone keeps behind "Options".
   notation: SongNotation;
   onNotationChange: (n: SongNotation) => void;
@@ -65,18 +73,62 @@ interface Props {
   density: Density;
   onDensityChange: (d: Density) => void;
   onOpenPractice: (surface: 'bar' | 'dock' | 'options') => void;
+  // The song's sections along the timeline (span = chord positions incl. repeats, the same
+  // unit as the progress), and what clicking one does: jump there.
+  segments: { sectionIndex: number; name: string; span: number }[];
+  onSeekSection: (sectionIndex: number) => void;
+}
+
+// The desktop timeline: one coloured stretch per section, in section-kind colours, with the
+// progress laid over them. Each stretch is a button — clicking the second chorus jumps there.
+function Timeline({ segments, onSeekSection, baseChordOffset, totalChordSpan }: {
+  segments: Props['segments'];
+  onSeekSection: Props['onSeekSection'];
+  baseChordOffset: number;
+  totalChordSpan: number;
+}) {
+  return (
+    <div className="relative mt-1 h-4 flex items-center">
+      <div className="absolute inset-x-0 h-1.5 flex gap-0.5 rounded-full overflow-hidden">
+        {segments.map(s => (
+          <button
+            key={s.sectionIndex}
+            type="button"
+            title={`Play from ${s.name}`}
+            aria-label={`Play from ${s.name}`}
+            onClick={() => onSeekSection(s.sectionIndex)}
+            className={`h-full ${sectionStyle(s.name).bar} hover:brightness-90`}
+            style={{ flex: s.span }}
+          />
+        ))}
+      </div>
+      <Progress knob baseChordOffset={baseChordOffset} totalChordSpan={totalChordSpan} className="absolute inset-x-0 h-4 !bg-transparent !overflow-visible pointer-events-none [&>div:first-child]:top-[5px] [&>div:first-child]:bottom-[5px] [&>div:first-child]:rounded-full" />
+    </div>
+  );
+}
+
+// A small guitar diagram of the chord playing now, next to its name.
+function NowDiagram({ name }: { name: string | null }) {
+  if (!name) return null;
+  const chord = parseChordString(name)[0];
+  const voicing = chord ? getGuitarVoicing(chord) : null;
+  if (!voicing) return null;
+  return <GuitarChordDiagram voicing={voicing} className="w-9 shrink-0 hidden lg:flex" />;
 }
 
 // Isolated so only the bar re-renders at animation-frame rate (usePlaybackPosition updates
 // ~60x/sec) — the same split SongPlayerBar makes with ProgressFill.
-function Progress({ baseChordOffset, totalChordSpan, className }: { baseChordOffset: number; totalChordSpan: number; className: string }) {
+function Progress({ baseChordOffset, totalChordSpan, className, knob = false }: { baseChordOffset: number; totalChordSpan: number; className: string; knob?: boolean }) {
   const { state } = usePlayback();
   const playbackPosition = usePlaybackPosition();
   const position = baseChordOffset + Math.max(0, playbackPosition);
   const pct = state.isPlaying && totalChordSpan > 0 ? Math.min(100, (position / totalChordSpan) * 100) : 0;
   return (
     <div className={`relative overflow-hidden bg-secondary ${className}`} aria-hidden="true">
-      <div className="absolute inset-y-0 left-0 bg-primary" style={{ width: `${pct}%` }} />
+      <div className="absolute inset-y-0 left-0 bg-primary/90" style={{ width: `${pct}%` }} />
+      {knob && (
+        <span className="absolute top-1/2 w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-card border-2 border-primary" style={{ left: `${pct}%` }} />
+      )}
     </div>
   );
 }
@@ -133,7 +185,7 @@ export function SongTransportBar(p: Props) {
               <SongPillTime baseChordOffset={p.baseChordOffset} cumulativeBeats={p.cumulativeBeats} totalBeats={p.totalBeats} bpm={p.bpm} />
             </span>
           </div>
-          <Progress baseChordOffset={p.baseChordOffset} totalChordSpan={p.totalChordSpan} className="mt-1.5 h-1.5 rounded-full" />
+          <Timeline segments={p.segments} onSeekSection={p.onSeekSection} baseChordOffset={p.baseChordOffset} totalChordSpan={p.totalChordSpan} />
         </div>
         {p.nowChord && (
           <div className="flex items-center gap-4 px-4 border-x border-border self-stretch">
@@ -143,6 +195,7 @@ export function SongTransportBar(p: Props) {
                 <DurationDots duration={p.activeDuration} isActive={live} bpm={p.bpm} uid="bar-now" rawIndex={p.currentChordIndex} size={6} />
               </span>
             </div>
+            <NowDiagram name={p.nowChordName} />
             {p.nextChord && (
               <div className="text-xs text-muted-foreground leading-tight">
                 Next
@@ -174,10 +227,11 @@ export function SongTransportBar(p: Props) {
         <button
           type="button"
           onClick={() => p.onOpenPractice('bar')}
-          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          title="Practice: sections, mixer, tempo, export"
+          aria-label="Practice: sections, mixer, tempo, export"
+          className={iconBtn}
         >
-          <SlidersHorizontal className="w-4 h-4" />
-          Practice
+          <SlidersHorizontal className="w-[18px] h-[18px]" />
         </button>
       </div>
 
@@ -270,10 +324,7 @@ export function SongTransportBar(p: Props) {
               <span className="text-sm font-medium">Autoscroll</span>
               <AutoscrollControl on={p.autoScroll} onChange={(on) => { p.onAutoScrollChange(on); if (on) setOptionsOpen(false); }} speed={p.scrollSpeed} onSpeedChange={p.onScrollSpeedChange} />
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium">Text size</span>
-              <TextSizeControl scale={p.textScale} onChange={p.onTextScaleChange} />
-            </div>
+            <div className="pt-3 border-t border-border">{p.displayOptions}</div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-medium">Stage mode<small className="block text-xs font-normal text-muted-foreground">Only the chart, full screen</small></span>
               <Switch checked={p.stage} onCheckedChange={(on) => { p.onStageChange(on); setOptionsOpen(false); }} aria-label="Stage mode" />

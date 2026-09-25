@@ -1,11 +1,11 @@
 import { Play, Square, ChevronDown, ChevronUp, Repeat } from 'lucide-react';
-import { DurationDots } from '@/components/DurationDots';
 import ChordTooltip from '@/components/ChordTooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { parseChordString } from '@/lib/chordParser';
 import { playChordPreview } from '@/lib/appEngine/preview';
 import { analytics } from '@/lib/analytics';
 import { displayChord, type SongNotation } from '@/lib/songNotation';
+import { sectionShort, sectionStyle } from '@/lib/sectionKind';
 
 interface ResolvedToken {
   chord: string;
@@ -44,6 +44,10 @@ interface SongSectionChartProps {
   // tapping one plays it at the song pitch. Identity when there is no capo.
   soundingChord?: (name: string) => string;
   compact?: boolean;
+  // "Lyrics" view: the words only, no chord row.
+  lyricsOnly?: boolean;
+  // Hovering a chord name shows its diagram (the reader can turn that off in "Aa").
+  hoverDiagrams?: boolean;
   chordRefs: React.MutableRefObject<Map<number, HTMLElement>>;
   openTooltipIdx: number | null;
   onOpenTooltip: (idx: number | null) => void;
@@ -59,6 +63,10 @@ interface SongSectionChartProps {
 // one) — a thin border-b under the section name is the only separator, and the section that's
 // actually sounding gets a soft tinted rounded wrapper instead of every section always being
 // boxed. `compact` only tightens vertical rhythm; it's the same content as full density.
+// Sep 2026 redesign: each section wears its kind's colour (sectionKind.ts) on a short badge —
+// V1, C, B — the same one the song map and the playback bar use; lyrics are set in the page's
+// own typeface (the chord sits above the start of its own lyric segment, so no monospace is
+// needed to line it up), and the beat dots moved out of the chart into the bottom bar.
 export function SongSectionChart({
   section,
   repeatCount,
@@ -73,13 +81,13 @@ export function SongSectionChart({
   isLoading,
   isPlaying,
   activeGlobal,
-  currentChordIndex,
-  bpm,
   songSlug,
   notation,
   displayKey,
   soundingChord = (name: string) => name,
   compact = false,
+  lyricsOnly = false,
+  hoverDiagrams = true,
   chordRefs,
   openTooltipIdx,
   onOpenTooltip,
@@ -116,14 +124,24 @@ export function SongSectionChart({
     </div>
   );
 
+  const kindStyle = sectionStyle(section.name);
+  // "8 bars": the section's chord durations (beats) over four.
+  const bars = Math.round(section.lines.reduce((sum, line) => sum + line.reduce((s, t) => s + (t.chord ? t.duration : 0), 0), 0) / 4);
+  const barsLabel = bars > 0 ? `${bars} bar${bars === 1 ? '' : 's'}` : '';
+  const badge = (
+    <span className={`shrink-0 inline-grid place-items-center min-w-[30px] h-[22px] px-1.5 rounded-md border text-[11px] font-bold ${isActiveSection ? kindStyle.solid : kindStyle.chip}`}>
+      {sectionShort(section.name)}
+    </span>
+  );
+
   if (repeatOfName) {
     return (
-      <div className="break-inside-avoid-column mb-3 flex items-center gap-2.5 px-3 py-2.5 border border-dashed border-border rounded-lg bg-secondary/30">
-        <Repeat className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-        <span className="text-xs text-muted-foreground min-w-0 truncate">
-          <strong className="text-foreground">{repeatOfName}</strong> again{repeatCount > 1 ? ` ×${repeatCount}` : ''}
+      <div className={`break-inside-avoid-column mb-4 flex items-center gap-2.5 px-3 py-2.5 border rounded-lg ${isActiveSection ? kindStyle.soft : 'border-dashed border-border'}`}>
+        {badge}
+        <span className="text-sm font-semibold text-foreground/80 min-w-0 truncate">
+          {repeatOfName}{repeatCount > 1 ? ` ×${repeatCount}` : ''}
         </span>
-        <span className="ml-auto hidden sm:inline shrink-0 text-[10px] text-muted-foreground">printed once above</span>
+        <span className="ml-auto shrink-0 text-xs text-muted-foreground">Repeat{barsLabel ? ` · ${barsLabel}` : ''}</span>
         {transportButtons}
       </div>
     );
@@ -131,44 +149,53 @@ export function SongSectionChart({
 
   return (
     <div
-      className={`break-inside-avoid-column mb-5 ${
-        isActiveSection ? 'rounded-xl bg-primary/5 border border-primary/15 -mx-3 px-3 pt-2 pb-3' : ''
-      }`}
+      className="break-inside-avoid-column mb-7"
     >
-      <div className={`flex items-center gap-2 pb-1.5 mb-2 border-b ${isActiveSection ? 'border-primary/20' : 'border-border'}`}>
-        <button
-          onClick={onToggleCollapse}
-          className="flex-1 flex items-center justify-between text-left min-w-0"
-        >
-          <span className="flex items-center gap-1.5 min-w-0">
-            <span className={`text-[11px] font-bold uppercase tracking-widest truncate ${isActiveSection ? 'text-primary' : 'text-muted-foreground'}`}>
-              {section.name}
-            </span>
-            {repeatCount > 1 && (
-              <span
-                title={`Repeats ${repeatCount}×`}
-                className="shrink-0 text-[10px] font-bold text-primary/80 bg-primary/10 border border-primary/20 rounded-full px-1.5 py-0.5"
-              >
-                ×{repeatCount}
-              </span>
-            )}
+      <div className={`flex items-center gap-2.5 pb-2 mb-3 border-b transition-colors ${isActiveSection ? kindStyle.rule : 'border-border'}`}>
+        {badge}
+        <span className="text-[12.5px] font-bold uppercase tracking-[0.07em] text-foreground/75 truncate">
+          {section.name}
+        </span>
+        {barsLabel && <span className="shrink-0 text-xs text-muted-foreground">{barsLabel}</span>}
+        {repeatCount > 1 && (
+          <span title={`Repeats ${repeatCount}×`} className={`shrink-0 text-[11px] font-bold leading-[18px] px-1.5 rounded-md border ${kindStyle.chip}`}>
+            ×{repeatCount}
           </span>
-          {collapsed
-            ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0 ml-2" />
-            : <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0 ml-2" />
-          }
-        </button>
-        {transportButtons}
+        )}
+        <span className="ml-auto flex items-center gap-0.5 opacity-70 hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          {transportButtons}
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? `Show ${section.name}` : `Hide ${section.name}`}
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+          </button>
+        </span>
       </div>
 
       {!collapsed && (
-        <div className={compact ? 'space-y-1.5' : 'space-y-3'}>
+        <div className={compact ? 'space-y-1' : 'space-y-2.5'}>
           {section.lines.map((line, li) => {
             if (line.length === 0) return null;
             const isChordOnlyLine = line.every(t => !t.lyrics.trim());
+            // The line being played gets a soft highlight; its chord gets the solid pill below.
+            const isLineActive = isPlaying && line.some(t => t.globalIndex === activeGlobal);
+            const lineActiveClass = isLineActive ? '-mx-2 px-2 rounded-lg bg-primary/[0.08]' : '';
+
+            if (lyricsOnly) {
+              if (isChordOnlyLine) return null;
+              return (
+                <p key={li} className={`text-[16.5px] md:text-[17px] leading-snug text-foreground/85 transition-colors ${lineActiveClass}`}>
+                  {line.map(t => t.lyrics).join('')}
+                </p>
+              );
+            }
 
             return (
-              <div key={li} className={`flex flex-wrap ${isChordOnlyLine ? 'gap-x-3 gap-y-1' : ''}`}>
+              <div key={li} className={`flex flex-wrap transition-colors ${isChordOnlyLine ? 'gap-x-3 gap-y-1' : ''} ${lineActiveClass}`}>
                 {line.map((token, ti) => {
                   if (!token.chord && !token.lyrics.trim()) return null;
                   const isActive = isPlaying && token.globalIndex === activeGlobal;
@@ -182,7 +209,6 @@ export function SongSectionChart({
                         else chordRefs.current.delete(token.globalIndex);
                       } : undefined}
                       className="inline-flex flex-col items-start relative max-w-full min-w-0"
-                      style={{ fontFamily: 'var(--font-mono, monospace)' }}
                     >
                       {hasChord ? (
                         <Popover
@@ -198,14 +224,11 @@ export function SongSectionChart({
                               className={`
                                 relative inline-flex items-center justify-center
                                 min-h-[44px] min-w-[1ch] -mt-[14px] -mb-[12px] px-0.5
-                                text-xs font-bold whitespace-pre transition-all duration-100
+                                text-[14.5px] font-bold whitespace-pre transition-all duration-100
                                 cursor-pointer select-none
-                                ${isActive
-                                  ? 'text-primary bg-primary/15 rounded scale-105'
-                                  : 'text-primary/70 hover:text-primary'
-                                }
+                                text-primary
                               `}
-                              onMouseEnter={() => onOpenTooltip(token.globalIndex)}
+                              onMouseEnter={hoverDiagrams ? () => onOpenTooltip(token.globalIndex) : undefined}
                               onClick={() => {
                                 const parsed = parseChordString(soundingChord(token.chord));
                                 if (parsed[0]) {
@@ -214,7 +237,11 @@ export function SongSectionChart({
                                 }
                               }}
                             >
-                              {displayChord(token.chord, displayKey, notation)}
+                              {/* The 44px-tall button is the touch target; only this span is painted,
+                                  so the playing chord's fill never covers the lyric under it. */}
+                              <span className={`rounded-md px-0.5 -mx-0.5 transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-primary/10'}`}>
+                                {displayChord(token.chord, displayKey, notation)}
+                              </span>
                             </button>
                           </PopoverTrigger>
                           <PopoverContent
@@ -227,16 +254,14 @@ export function SongSectionChart({
                           </PopoverContent>
                         </Popover>
                       ) : (
-                        <span className="invisible select-none inline-flex items-center h-[18px] text-xs font-bold whitespace-pre px-0.5" style={{ minWidth: '0' }}>.</span>
+                        <span className="invisible select-none inline-flex items-center h-[18px] text-[13.5px] font-bold whitespace-pre px-0.5" style={{ minWidth: '0' }}>.</span>
                       )}
-
-                      {hasChord && isPlaying && <DurationDots duration={token.duration} isActive={isActive} bpm={bpm} uid={token.globalIndex} rawIndex={currentChordIndex} className="mt-0.5" />}
 
                       {!isChordOnlyLine && (
                         <span
                           className={`
-                            text-sm leading-relaxed whitespace-pre-wrap break-words transition-colors duration-100
-                            ${isActive ? 'text-foreground font-medium' : 'text-muted-foreground'}
+                            text-[16.5px] md:text-[17px] leading-snug whitespace-pre-wrap break-words transition-colors duration-100
+                            ${isActive ? 'text-foreground font-medium' : 'text-foreground/85'}
                           `}
                         >
                           {token.lyrics || (hasChord ? ' ' : '')}

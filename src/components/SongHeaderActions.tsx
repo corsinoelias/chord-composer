@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Share2, Printer, Image as ImageIcon, Pencil } from 'lucide-react';
+import { Share2, Printer, Image as ImageIcon, Pencil, MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { parseLyricLine, type Song } from '@/data/songs';
 import { generateSongImage, downloadCanvasAsPng, type ImageSection } from '@/lib/songImage';
 import { analytics } from '@/lib/analytics';
@@ -94,37 +95,45 @@ export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Pr
 
   const editUrl = isCommunity ? `/songs/new/?edit=${song.slug}` : `/songs/new/?from-static=${song.slug}`;
 
+  // Share stays on the page; the rest lives behind "···" (Sep 2026 redesign) — the header had
+  // four same-weight buttons competing with Play.
+  const pdfHref = `/songs/pdf/${song.slug}/${transpose !== 0 ? `?transpose=${transpose}` : ''}`;
   return (
     <div className="flex items-center gap-1.5 shrink-0">
       <button onClick={handleShare} title={shareTitle} className={iconButtonClass}>
         <Share2 className="w-4 h-4 shrink-0" />
         <span className={labelClass}>{shareTitle}</span>
       </button>
-      {/* The href carries the transposition the chart is showing, the same way the PNG
-          export below already does. Without it someone transposes to their key, hits
-          Print, and gets the recorded key back — /songs/pdf/ has always accepted
-          ?transpose=, this link just never passed it. */}
-      <a
-        href={`/songs/pdf/${song.slug}/${transpose !== 0 ? `?transpose=${transpose}` : ''}`}
-        target="_blank"
-        rel="noopener"
-        title="Download PDF"
-        className={iconButtonClass}
-        onClick={() => analytics.songPdfOpened(song.slug)}
-      >
-        <Printer className="w-4 h-4 shrink-0" />
-        <span className={labelClass}>Print</span>
-      </a>
-      <button onClick={handleDownloadImage} disabled={imageBusy} title="Download Image" className={iconButtonClass}>
-        <ImageIcon className="w-4 h-4 shrink-0" />
-        <span className={labelClass}>Image</span>
-      </button>
-      {isLocalhost && (
-        <a href={editUrl} title="Edit song" className={iconButtonClass}>
-          <Pencil className="w-4 h-4 shrink-0" />
-          <span className={labelClass}>Edit</span>
-        </a>
-      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" aria-label="Print, image and more" title="Print, image and more" className="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 border border-border transition-colors">
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          {/* The href carries the transposition the chart is showing, the same way the PNG
+              export below does. Without it someone transposes to their key, hits Print, and
+              gets the recorded key back — /songs/pdf/ has always accepted ?transpose=. */}
+          <DropdownMenuItem asChild>
+            <a href={pdfHref} target="_blank" rel="noopener" onClick={() => analytics.songPdfOpened(song.slug)} className="cursor-pointer">
+              <Printer className="w-4 h-4 mr-2 text-muted-foreground" />
+              Print / PDF
+            </a>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={handleDownloadImage} disabled={imageBusy} className="cursor-pointer">
+            <ImageIcon className="w-4 h-4 mr-2 text-muted-foreground" />
+            Save as image
+          </DropdownMenuItem>
+          {isLocalhost && (
+            <DropdownMenuItem asChild>
+              <a href={editUrl} className="cursor-pointer">
+                <Pencil className="w-4 h-4 mr-2 text-muted-foreground" />
+                Edit song
+              </a>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

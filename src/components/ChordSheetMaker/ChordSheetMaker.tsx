@@ -235,7 +235,8 @@ export function ChordSheetMaker() {
     // on every mount would silently overwrite the chart type a saved sheet chose.
     setDoc({
       ...BLANK_DOC, ...songToSheetSeed(song), semi: opts.semi ?? 0,
-      chartType: readStoredNotation(),
+      // The maker has no Roman numerals; the nearest thing it does have is numbers.
+      chartType: readStoredNotation() === 'roman' ? 'number' : readStoredNotation() as Exclude<ReturnType<typeof readStoredNotation>, 'roman'>,
       layout: newSheetLayout(),
     });
     setSongId(null);
