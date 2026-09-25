@@ -43,6 +43,10 @@ constexpr int kMaxSteps = kMaxStepsPerBar * kMaxBars;
 // constants.dart: the first four are the rows the grid started with, so a song sent by an
 // older build lands on the same ones.
 constexpr int kDrumRows = 11;
+// A fill's lanes: the kit's rows, then one per melodic track (piano, guitar, bass), so a
+// fill can be the bass walking up or the piano stopping on the four, not only the drummer.
+constexpr int kFillRows = kDrumRows + 3;
+constexpr int kDrumFillMask = (1 << kDrumRows) - 1;
 constexpr const char* kDrumRowNames[kDrumRows] = {
     "kick", "snare", "hihat", "rim", "hihatOpen", "hihatFoot", "tom1", "tom2", "floorTom", "ride", "crash"};
 constexpr int kCrashRow = 10;
@@ -971,23 +975,25 @@ class Engine {
     silent_[section][index].store(silent, std::memory_order_release);
   }
 
-  /// The fill that takes a section into the next one: a bar per piece of the kit, the
-  /// step it starts on, and which lanes it writes at all. A lane outside the mask leaves
-  /// that row playing its groove; one inside it takes the row over, silence included.
+  /// The fill that takes a section into the next one: a bar per piece of the kit and per
+  /// melodic track (kFillRows), the step it starts on, and which lanes it writes at all. A
+  /// lane outside the mask leaves that row or track playing its groove; one inside it takes
+  /// it over, silence included. A caller that sends only the kit's rows gets the melodic
+  /// ones empty and outside the mask — the web did, before it had melodic fills.
   ///
   /// The mask goes down first and comes back up last, so the callback — which only reads
   /// lanes the mask names — never plays a bar that is half the old fill and half the new.
   void setFill(int section, int from, int mask, const int* steps, int count) {
     if (section < 0 || section >= kSections) return;
     fillMask_[section].store(0, std::memory_order_release);
-    for (int row = 0; row < kDrumRows; ++row) {
+    for (int row = 0; row < kFillRows; ++row) {
       for (int step = 0; step < kMaxStepsPerBar; ++step) {
         const int at = row * kMaxStepsPerBar + step;
         fill_[section][row][step].store(at < count ? steps[at] : 0, std::memory_order_release);
       }
     }
     fillFrom_[section].store(std::max(0, std::min(kMaxStepsPerBar, from)), std::memory_order_release);
-    fillMask_[section].store(mask & ((1 << kDrumRows) - 1), std::memory_order_release);
+    fillMask_[section].store(mask & ((1 << kFillRows) - 1), std::memory_order_release);
   }
   // Java writes the inactive buffer and publishes it atomically on commit.
   // The audio callback therefore never locks or reads a partially edited song.
@@ -1681,17 +1687,18 @@ class Engine {
     // the crash for some later downbeat that nothing filled into.
     const bool crash = crashPending_;
     crashPending_ = false;
+    // Inside a bar the fill plays over, it takes over the lanes it writes from the step it
+    // starts on — kit and melodic tracks alike. Everywhere else this is the groove as ever.
+    const int inFill = fillStep(arrangement);
+    const bool filling = inFill >= 0 && inFill < kMaxStepsPerBar &&
+                         inFill >= fillFrom_[sectionIndex_].load(std::memory_order_acquire);
+    const int fillMask = filling ? fillMask_[sectionIndex_].load(std::memory_order_acquire) : 0;
     if (!silent_[sectionIndex_][3].load(std::memory_order_acquire)) {
       if (crash) {
         triggerDrum(drumSound_[sectionIndex_][kCrashRow].load(std::memory_order_acquire), .85f, kCrashRow);
       }
       const int at = laneStep(sectionIndex_, 3, step);
-      // Inside a bar the fill plays over, it takes over the lanes it writes from the step
-      // it starts on. Everywhere else this is the groove as ever.
-      const int inFill = fillStep(arrangement);
-      const bool filling = inFill >= 0 && inFill < kMaxStepsPerBar &&
-                           inFill >= fillFrom_[sectionIndex_].load(std::memory_order_acquire);
-      const int mask = filling ? fillMask_[sectionIndex_].load(std::memory_order_acquire) : 0;
+      const int mask = fillMask;
       for (int row = 0; row < kDrumRows; ++row) {
         const int packed = (mask & (1 << row))
                                ? fill_[sectionIndex_][row][inFill].load(std::memory_order_acquire)
@@ -1723,7 +1730,10 @@ class Engine {
       const Chord& c = section.chords[chordIndex_];
       for (int track = 0; track < 3; ++track) {
         if (silent_[sectionIndex_][track].load(std::memory_order_acquire)) continue;
-        const int packed = instruments_[sectionIndex_][track][laneStep(sectionIndex_, track, step)].load();
+        const int fillRow = kDrumRows + track;
+        const int packed = (fillMask & (1 << fillRow))
+                               ? fill_[sectionIndex_][fillRow][inFill].load(std::memory_order_acquire)
+                               : instruments_[sectionIndex_][track][laneStep(sectionIndex_, track, step)].load();
         const int degree = stepDegree(packed);
         float velocity = stepVelocity(packed) / 255.0f;
         if (velocity <= 0 || degree == kRest) continue;
@@ -1763,7 +1773,8 @@ class Engine {
           // The part being left filled into this one unless its fill is off, so the next
           // step — this part's downbeat — lands on a crash. Not when that fill crashed
           // already: a second crash a beat after the first is a stumble, not an arrival.
-          const int leaving = fillMask_[sectionIndex_].load(std::memory_order_acquire);
+          // Only a fill the drummer plays: the bass walking up alone is not an arrival on the kit.
+          const int leaving = fillMask_[sectionIndex_].load(std::memory_order_acquire) & kDrumFillMask;
           crashPending_ = leaving != 0 && !(leaving & (1 << kCrashRow));
           // On repeat, the part comes round again instead of handing over to the next.
           const int only = loopOnly_.load(std::memory_order_relaxed);
@@ -2345,7 +2356,7 @@ class Engine {
   std::atomic<int> patternBars_[kSections][4]{};  // by section, then track; drums last
   // Each section's fill: one bar per piece, the step it starts on, and which pieces it
   // writes.
-  std::atomic<int> fill_[kSections][kDrumRows][kMaxStepsPerBar]{};
+  std::atomic<int> fill_[kSections][kFillRows][kMaxStepsPerBar]{};
   std::atomic<int> fillFrom_[kSections]{}, fillMask_[kSections]{};
   std::atomic<float> gateSteps_[kSections][3]{};  // 0 is hold, as the engine always did
   std::atomic<float> bpm_{95}, swing_{1.0f}, gains_[4], master_{.7f}; std::atomic<int> drums_[kSections][kDrumRows][kMaxSteps]; std::atomic<int> instruments_[kSections][3][kMaxSteps]; std::atomic<int> timbre_[kSections][3], program_[kSections][3], drumSound_[kSections][kDrumRows]; std::atomic<bool> silent_[kSections][4]{}; Voice voices_[kVoices]; DrumVoice drumVoices_[kDrumVoices]; uint32_t drumSerial_ = 0; Arrangement arrangements_[2]; std::atomic<int> activeArrangement_{0}; std::atomic<int64_t> reportedPosition_{0}; std::atomic<int> clearVoices_{0};

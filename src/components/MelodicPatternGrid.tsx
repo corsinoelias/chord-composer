@@ -38,6 +38,12 @@ interface MelodicPatternGridProps {
   // Slots per visual beat-group divider — matches the meter's pulse (4 for 4/4's
   // quarter note, 2 for 6/8's eighth note), same interval the metronome clicks on.
   slotsPerBeatGroup?: number;
+  /**
+   * Set when the grid edits a fill rather than the groove: the slot the fill starts on.
+   * The grid is then one bar with nothing to choose between — no variations, presets or
+   * loop length — and the slots before the start are drawn faint, as the groove's.
+   */
+  fillPosition?: number;
 }
 
 export function MelodicPatternGrid({
@@ -52,7 +58,10 @@ export function MelodicPatternGrid({
   onActiveVarChange,
   slotsPerBar = 16,
   slotsPerBeatGroup = 4,
+  fillPosition,
 }: MelodicPatternGridProps) {
+  const fillMode = fillPosition !== undefined;
+  const beforeFill = (slot: number) => fillMode && slot < fillPosition!;
   const isMobile = useIsMobile();
   const { variations, enabled } = melodic;
   const [activeVarId, setActiveVarId] = useState<string>(() => variations[0]?.id ?? '');
@@ -264,7 +273,8 @@ export function MelodicPatternGrid({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Variation tabs */}
+      {/* Variation tabs — a fill has one bar and no variations */}
+      {!fillMode && (
       <div className="flex items-center gap-1 flex-wrap border-b pb-2">
         {variations.map(v => (
           <div
@@ -305,9 +315,10 @@ export function MelodicPatternGrid({
           <Plus className="h-3 w-3" /> New variation
         </Button>
       </div>
+      )}
 
       {/* Controls for active variation */}
-      {activeVariation && (
+      {activeVariation && !fillMode && (
         <div className="flex items-center gap-2 flex-wrap">
           {/* Preset */}
           <Select onValueChange={handlePreset}>
@@ -373,6 +384,7 @@ export function MelodicPatternGrid({
                         className={cn(
                           'aspect-square rounded-md border transition-all cursor-pointer hover:brightness-110',
                           slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
+                          beforeFill(slot) && 'opacity-40',
                           isCurrent && !active && 'bg-amber-500/25 border-amber-500/50',
                           active ? 'bg-amber-500 border-amber-500' : 'bg-amber-500/5 border-amber-400/45',
                         )}
@@ -460,6 +472,7 @@ export function MelodicPatternGrid({
                         className={cn(
                           'aspect-square rounded-md border transition-all cursor-pointer',
                           slot % slotsPerBeatGroup === 0 && slot > 0 && 'border-l-2',
+                          beforeFill(slot) && 'opacity-40',
                           !active && !isCurrent && !isChordTone && 'bg-secondary border-border/70',
                           !active && 'hover:brightness-110',
                         )}

@@ -81,6 +81,26 @@ export interface ScaleVariation {
   octaveOffsets?: Partial<Record<DegreeKey, number>>;
 }
 
+/**
+ * A melodic track's part of a fill: one bar in the melodic editor's own terms (degrees,
+ * altered ones included, and chord hits). From the fill's position on it replaces the
+ * track's groove — silent slots included — the way a drum row of the fill does; a track
+ * with no fill keeps playing its groove. The app writes the same thing (SectionFill).
+ */
+export interface MelodicFill {
+  pattern: DegreePattern;
+  chordHit?: number[];
+  octaveOffsets?: Partial<Record<DegreeKey, number>>;
+}
+export type MelodicFillTrack = 'piano' | 'guitar' | 'bass';
+export type MelodicFills = Partial<Record<MelodicFillTrack, MelodicFill>>;
+
+/** Whether a track's fill plays anything at all. */
+export function melodicFillIsEmpty(fill: MelodicFill | undefined): boolean {
+  if (!fill) return true;
+  return scalePatternIsEmpty(fill.pattern ?? {}) && !(fill.chordHit ?? []).some(v => v > 0);
+}
+
 export interface InstrumentMelodic {
   variations: ScaleVariation[];
   enabled: boolean;

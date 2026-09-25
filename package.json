@@ -22,7 +22,7 @@
     "indexnow": "node scripts/indexnow.mjs",
     "shared:export": "tsx scripts/export-shared.ts",
     "test:shared": "tsx tests/shared/roundtrip.ts",
-    "test:melodic": "tsx tests/melodic/altered-degrees.ts",
+    "test:melodic": "tsx tests/melodic/altered-degrees.ts && tsx tests/melodic/melodic-fill.ts",
     "lab:audition": "node scripts/lab-audition.mjs",
     "lab:gains": "node scripts/measure-list-gains.mjs"
   },

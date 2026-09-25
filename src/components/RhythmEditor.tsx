@@ -48,7 +48,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { MelodicPatternGrid } from '@/components/MelodicPatternGrid';
-import { emptyMelodicData, createVariation, scalePatternIsEmpty, type InstrumentMelodic } from '@/lib/bassScale';
+import {
+  emptyMelodicData, createVariation, scalePatternIsEmpty, degreeKeysOf,
+  type InstrumentMelodic, type DegreePattern, type MelodicFillTrack,
+} from '@/lib/bassScale';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 // Drum-part glyphs — shared with the Drum Tab Player, which uses the same set.
@@ -654,6 +657,50 @@ export function RhythmEditor({
     toast.success('Pattern copied to fill');
   };
 
+  /** Where the fill starts: the same control on every tab, since it is one fill. */
+  const renderFillPosition = () => (
+    <div className="flex items-center gap-2">
+      <Label className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">Fill Position:</Label>
+      <Select
+        value={editedStyle.fill.position.toString()}
+        onValueChange={v => setEditedStyle(prev => ({ ...prev, fill: { ...prev.fill, position: parseInt(v) } }))}
+      >
+        <SelectTrigger className="w-20 sm:w-24 h-8 text-xs sm:text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="0">Beat 1</SelectItem>
+          <SelectItem value="4">Beat 2</SelectItem>
+          <SelectItem value="8">Beat 3</SelectItem>
+          <SelectItem value="12">Beat 4</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
+  /**
+   * A melodic track's groove, first bar, as its fill: somewhere to start editing from
+   * rather than a blank bar that silences the track the moment the fill begins.
+   */
+  const copyMelodicMainToFill = (track: MelodicFillTrack) => {
+    const melodic = migratedMelodic[track];
+    const variation = melodic.variations.find(v => v.id === activeVarIdRef.current[track]) ?? melodic.variations[0];
+    const bar = (lane?: number[]) => (lane ? lane.slice(0, slotsPerBar) : undefined);
+    const pattern: DegreePattern = {};
+    for (const key of degreeKeysOf(variation?.pattern ?? {})) pattern[key] = bar(variation!.pattern[key]);
+    setEditedStyle(prev => ({
+      ...prev,
+      fill: {
+        ...prev.fill,
+        melodic: {
+          ...(prev.fill.melodic ?? {}),
+          [track]: { pattern, chordHit: bar(variation?.chordHit), octaveOffsets: variation?.octaveOffsets },
+        },
+      },
+    }));
+    toast.success('Pattern copied to fill');
+  };
+
   // Handle save - always show dialog for built-in styles
   const handleSaveClick = () => {
     if (onSaveSection) {
@@ -1072,23 +1119,7 @@ export function RhythmEditor({
 
             {showFill && (
               <>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">Fill Position:</Label>
-                  <Select 
-                    value={editedStyle.fill.position.toString()} 
-                    onValueChange={v => setEditedStyle(prev => ({ ...prev, fill: { ...prev.fill, position: parseInt(v) } }))}
-                  >
-                    <SelectTrigger className="w-20 sm:w-24 h-8 text-xs sm:text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Beat 1</SelectItem>
-                      <SelectItem value="4">Beat 2</SelectItem>
-                      <SelectItem value="8">Beat 3</SelectItem>
-                      <SelectItem value="12">Beat 4</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {renderFillPosition()}
                 
                 <Button variant="ghost" size="sm" onClick={copyMainToFill} className="px-2 sm:px-3">
                   <Copy className="w-4 h-4 sm:mr-1" />
@@ -1350,16 +1381,84 @@ export function RhythmEditor({
           </>
           ) : (
           <div className="flex-1 overflow-auto">
-            {/* This instrument's own volume + sound selector — scoped to this tab only */}
-            <div className="flex min-h-16 items-center px-3 py-2.5 sm:px-7">
-              <InstrumentMixControl
-                instType={activeTab as InstrumentType}
-                editedStyle={editedStyle}
-                onChange={setEditedStyle}
-                onSoundTypeChange={() => { if (isLocalPlaying) startLocalPlayback(); }}
-              />
+            {/* Main/Fill, as on the Drums tab — the fill is the band's, not only the drummer's
+                — then this instrument's own volume + sound selector, scoped to this tab only */}
+            <div className="flex min-h-16 flex-wrap items-center gap-x-[22px] gap-y-2 px-3 py-2.5 sm:px-7">
+              <label className="flex cursor-pointer items-center gap-2.5 text-[13px] font-semibold">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={showFill}
+                  aria-label="Edit the fill instead of the main groove"
+                  className={`cp-sw ${showFill ? 'cp-on' : ''}`}
+                  onClick={() => handleFillToggle(!showFill)}
+                />
+                {showFill ? 'Fill' : 'Main'}
+              </label>
+              {showFill && (
+                <>
+                  {renderFillPosition()}
+                  <Button
+                    variant="ghost" size="sm" className="px-2 sm:px-3"
+                    onClick={() => copyMelodicMainToFill(activeTab as MelodicFillTrack)}
+                  >
+                    <Copy className="w-4 h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Copy Main</span>
+                  </Button>
+                </>
+              )}
+              <div className="ml-auto">
+                <InstrumentMixControl
+                  instType={activeTab as InstrumentType}
+                  editedStyle={editedStyle}
+                  onChange={setEditedStyle}
+                  onSoundTypeChange={() => { if (isLocalPlaying) startLocalPlayback(); }}
+                />
+              </div>
             </div>
             <div className="p-4">
+            {showFill ? (
+              // The fill's bar for this track, as a one-variation melodic grid. From the
+              // fill's position on it replaces the track's groove; empty, the groove plays on.
+              (() => {
+                const track = activeTab as MelodicFillTrack;
+                const bar = editedStyle.fill.melodic?.[track];
+                return (
+                  <MelodicPatternGrid
+                    key={`fill-${track}`}
+                    melodic={{
+                      enabled: true,
+                      variations: [{
+                        id: 'fill', name: 'Fill', loopBars: 1,
+                        pattern: bar?.pattern ?? {}, chordHit: bar?.chordHit, octaveOffsets: bar?.octaveOffsets,
+                      }],
+                    }}
+                    accentColor={INSTRUMENT_COLORS[activeTab] ?? DEFAULT_INSTRUMENT_COLOR}
+                    referenceRootMidi={referenceRootMidi}
+                    referenceQuality={referenceQuality}
+                    slotsPerBar={slotsPerBar}
+                    slotsPerBeatGroup={slotsPerBeatGroup}
+                    naturalOctave={track === 'bass' ? -1 : 0}
+                    currentStep={displayStep}
+                    isPlaying={isPlaying}
+                    fillPosition={editedStyle.fill.position}
+                    onChange={updated => {
+                      const v = updated.variations[0];
+                      setEditedStyle(prev => ({
+                        ...prev,
+                        fill: {
+                          ...prev.fill,
+                          melodic: {
+                            ...(prev.fill.melodic ?? {}),
+                            [track]: { pattern: v?.pattern ?? {}, chordHit: v?.chordHit, octaveOffsets: v?.octaveOffsets },
+                          },
+                        },
+                      }));
+                    }}
+                  />
+                );
+              })()
+            ) : (
             <MelodicPatternGrid
               melodic={migratedMelodic[activeTab as 'bass' | 'piano' | 'guitar']}
               accentColor={INSTRUMENT_COLORS[activeTab] ?? DEFAULT_INSTRUMENT_COLOR}
@@ -1396,6 +1495,7 @@ export function RhythmEditor({
                 });
               }}
             />
+            )}
             </div>
           </div>
           )}

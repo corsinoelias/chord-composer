@@ -20,7 +20,10 @@ import {
   getSlotsPerBar,
 } from '../styles';
 import { resolveSectionPlayback, type StyleLookup } from '../sectionPlayback';
-import { degreeKeysOf, parseDegreeKey, resolveVariation, type BassScaleData, type DegreeKey } from '../bassScale';
+import {
+  degreeKeysOf, melodicFillIsEmpty, parseDegreeKey, resolveVariation,
+  type BassScaleData, type DegreeKey, type MelodicFill, type MelodicFillTrack,
+} from '../bassScale';
 import {
   getInstrumentConfig,
   getSoundType,
@@ -249,6 +252,18 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
           });
         });
       }
+      // The Fill switch's preview hears the fill on every bar: from its position on, the
+      // track's fill bar is written over each bar of its groove, silences included — what
+      // generateBarPattern does for the kit above. Four bars, the most a groove runs for.
+      const fillBar = style.fill?.melodic?.[track];
+      if (song.fillEveryBar && !melodicFillIsEmpty(fillBar)) {
+        const slot = degreeSlots(fillBar!);
+        for (let b = 0; b < MAX_BARS; b++) {
+          for (let i = Math.max(0, style.fill.position); i < slotsPerBar; i++) {
+            c.push(['setStep', s, track, '', b * slotsPerBar + i, slot(i)]);
+          }
+        }
+      }
     }
 
     // Sounds, register and silence.
@@ -322,37 +337,52 @@ function writeVariation(c: EngineCommand[], s: number, track: MelodicTrack, vari
   const loop = engineBars(variation.loopBars ?? 1);
   const length = loop * slotsPerBar;
   c.push(['setPatternBars', s, track, loop], ['setNoteLength', s, track, noteLength]);
-  const degrees = degreeKeysOf(variation.pattern);
-  const octave = (d: DegreeKey) => variation.octaveOffsets?.[d] ?? 0;
+  const slot = degreeSlots(variation);
+  for (let i = 0; i < length; i++) {
+    const packed = slot(i);
+    if (packed) c.push(['setStep', s, track, '', i, packed]);
+  }
+}
+
+/**
+ * One slot of a degree pattern packed for the engine, 0 when it is silent: a chord hit
+ * (every tone of the chord) wins, and otherwise the lowest two degrees that sound, each
+ * with its octave and its alteration. Shared by a variation and a fill's melodic bar.
+ */
+function degreeSlots(data: Pick<MelodicFill, 'pattern' | 'chordHit' | 'octaveOffsets'>): (i: number) => number {
+  const degrees = degreeKeysOf(data.pattern);
+  const octave = (d: DegreeKey) => data.octaveOffsets?.[d] ?? 0;
   const step = (d: DegreeKey) => SCALE_DEGREE_1 + parseDegreeKey(d)!.degree - 1;
   const alter = (d: DegreeKey) => parseDegreeKey(d)!.alter;
-  for (let i = 0; i < length; i++) {
-    const hit = variation.chordHit?.[i] ?? 0;
-    if (hit > 0) {
-      c.push(['setStep', s, track, '', i, packStep(hit * 255, DEGREE.chord)]);
-      continue;
-    }
-    const playing = degrees.filter((d) => (variation.pattern[d]?.[i] ?? 0) > 0);
-    if (!playing.length) continue;
-    const velocity = Math.max(...playing.map((d) => variation.pattern[d]![i]));
+  return (i) => {
+    const hit = data.chordHit?.[i] ?? 0;
+    if (hit > 0) return packStep(hit * 255, DEGREE.chord);
+    const playing = degrees.filter((d) => (data.pattern[d]?.[i] ?? 0) > 0);
+    if (!playing.length) return 0;
+    const velocity = Math.max(...playing.map((d) => data.pattern[d]![i]));
     const [first, second] = playing;
-    c.push(['setStep', s, track, '', i, packStep(
+    return packStep(
       velocity * 255,
       step(first), octave(first),
       second ? step(second) : 0, second ? octave(second) : 0,
       false, alter(first), second ? alter(second) : 0,
-    )]);
-  }
+    );
+  };
 }
+
+/** The engine's fill rows after the kit's, one per melodic track (kFillRows). */
+const FILL_TRACKS: MelodicFillTrack[] = ['piano', 'guitar', 'bass'];
 
 /**
  * The style's fill: from its position to the end of the bar, each row it writes replaces the
  * groove's (silences included) and the rest keep playing — the same rule on both sides. When
  * it plays is the engine's: the end of every eighth bar of a section and of its last pass.
+ * Its rows are the kit's, then piano, guitar and bass: a fill is the band's, not only the
+ * drummer's.
  */
-function fillCommand(s: number, style: StylePattern, slotsPerBar: number): EngineCommand {
+export function fillCommand(s: number, style: StylePattern, slotsPerBar: number): EngineCommand {
   const fill = style.fill;
-  const steps = new Int32Array(DRUM_ROWS.length * MAX_STEPS_PER_BAR);
+  const steps = new Int32Array((DRUM_ROWS.length + FILL_TRACKS.length) * MAX_STEPS_PER_BAR);
   let mask = 0;
   const pattern = (fill?.pattern ?? {}) as Record<string, number[] | undefined>;
   for (const [web, row] of WEB_DRUMS) {
@@ -364,5 +394,13 @@ function fillCommand(s: number, style: StylePattern, slotsPerBar: number): Engin
       if (v > 0 && i < MAX_STEPS_PER_BAR) steps[index * MAX_STEPS_PER_BAR + i] = packStep(v * 255);
     });
   }
+  FILL_TRACKS.forEach((track, t) => {
+    const bar = fill?.melodic?.[track];
+    if (melodicFillIsEmpty(bar)) return;
+    const index = DRUM_ROWS.length + t;
+    mask |= 1 << index;
+    const slot = degreeSlots(bar!);
+    for (let i = 0; i < Math.min(slotsPerBar, MAX_STEPS_PER_BAR); i++) steps[index * MAX_STEPS_PER_BAR + i] = slot(i);
+  });
   return ['setFill', s, mask ? Math.max(0, Math.min(slotsPerBar - 1, fill.position)) : 0, mask, Array.from(steps)];
 }

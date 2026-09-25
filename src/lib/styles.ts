@@ -98,6 +98,8 @@ export interface StylePattern {
       piano?: (ArpeggioCell | null)[];
       guitar?: (ArpeggioCell | null)[];
     };
+    /** Piano, guitar and bass in the fill, bar-long, in degrees (bassScale.MelodicFill). */
+    melodic?: import('./bassScale').MelodicFills;
   };
   // Default volumes (0-1)
   volumes: {
