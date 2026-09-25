@@ -57,6 +57,8 @@ export type EngineCommand =
   | ['setSwing', number]
   | ['setMeter', number, number]
   | ['loopOnly', number]
+  /** The Fill-in button: the sounding part plays its fill now (engine.fillNow). */
+  | ['fillNow']
   | ['beginArrangement', number]
   | ['section', number, number, boolean, number]
   | ['chord', number, number, string, string, number, number]

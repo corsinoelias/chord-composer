@@ -38,6 +38,10 @@ export interface EngineState {
   countInBeats: number;
   /** Step within the sounding chord. */
   chordStep: number;
+  /** A fill asked for with the Fill-in button: 0 none, 1 waiting for the next bar, 2 sounding. */
+  fillByHand: number;
+  /** Whether this bar is one the fill plays over — by hand, at the end of a part or on a phrase. */
+  fillBar: boolean;
   /** MIDI notes each melodic track is holding: piano, guitar, bass. */
   sounding: [number[], number[], number[]];
   /** MIDI notes each melodic track struck since the last state. */
@@ -278,6 +282,8 @@ export class AppEngine {
         bar: (lo >> 24) & 0xf,
         countInBeats: (lo >> 28) & 0x7,
         chordStep: (data.positionHi as number) & 0xffff,
+        fillByHand: ((data.positionHi as number) >> 16) & 0x3,
+        fillBar: (((data.positionHi as number) >> 18) & 1) === 1,
         sounding: [notesOf(sounding, 0), notesOf(sounding, 1), notesOf(sounding, 2)],
         struck: [notesOf(struck, 0), notesOf(struck, 1), notesOf(struck, 2)],
         drumStruck: data.drumStruck as number,

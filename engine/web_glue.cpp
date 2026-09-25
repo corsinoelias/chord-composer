@@ -77,6 +77,9 @@ WG(wg_set_bpm) void wg_set_bpm(float bpm) { engine.setBpm(bpm); }
 WG(wg_set_swing) void wg_set_swing(float ratio) { engine.setSwing(ratio); }
 WG(wg_set_meter) void wg_set_meter(int stepsPerBar, int stepsPerBeat) { engine.setMeter(stepsPerBar, stepsPerBeat); }
 WG(wg_loop_only) void wg_loop_only(int section) { engine.loopOnly(section); }
+// The Fill-in button: the sounding part plays its fill now (this bar, or the next when
+// this one has less than a beat left). Where it is comes back in the position, bits 48-49.
+WG(wg_fill_now) void wg_fill_now() { engine.fillNow(); }
 /// The engine's position, in two halves because it is 64 bits: the low word packs step
 /// (0-7), chord (8-12), time round (13-15), section (16-23), bar (24-27) and count-in
 /// beats left (28-30); the high word is the step within the chord.

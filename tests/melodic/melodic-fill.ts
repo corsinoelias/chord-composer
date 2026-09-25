@@ -48,6 +48,14 @@ check('a piano stab', [stabMask, lane(stabSteps, DRUM_ROWS.length)[12]], [1 << D
 const empty: StylePattern = { ...base, fill: { position: 12, pattern: {}, melodic: { guitar: { pattern: { 3: [0, 0] } } } } };
 check('an empty track fill writes nothing', (fillCommand(0, empty, 16) as number[])[3], 0);
 
+// The Fill-in button reaches the engine by name: the command the page sends, and the
+// function engine.wasm exports for it.
+const { ARGS } = await import('../../public/engine/engine-core.js');
+check('fillNow is a command', (ARGS as Record<string, unknown>).fillNow, ['wg_fill_now', '']);
+const { readFileSync } = await import('node:fs');
+const wasm = await WebAssembly.compile(readFileSync(new URL('../../public/engine/engine.wasm', import.meta.url)));
+check('engine.wasm exports wg_fill_now', WebAssembly.Module.exports(wasm).some((e) => e.name === 'wg_fill_now'), true);
+
 if (failed) {
   console.error(`${failed} failed`);
   process.exit(1);

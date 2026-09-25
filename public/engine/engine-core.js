@@ -11,6 +11,7 @@ export const ARGS = {
   setSwing: ['wg_set_swing', 'f'],
   setMeter: ['wg_set_meter', 'ii'],
   loopOnly: ['wg_loop_only', 'i'],
+  fillNow: ['wg_fill_now', ''],
   beginArrangement: ['wg_begin_arrangement', 'i'],
   section: ['wg_section', 'iiii'],
   chord: ['wg_chord', 'iissii'],

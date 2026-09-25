@@ -23,12 +23,12 @@ import {
   Piano,
   Guitar,
   Music,
-  RotateCw, X } from 'lucide-react';
+  RotateCw, X, Zap } from 'lucide-react';
 // The chord player's tokens and primitives (the dialog renders in a portal).
 import '@/styles/chord-player.css';
 import { type StylePattern, MUSICAL_STYLES, getSlotsPerBar, getStyleTotalSlots, getPulseInterval } from '@/lib/styles';
 import { previewDrumHit } from '@/lib/appEngine/preview';
-import { AppPlayback, type AppSong } from '@/lib/appEngine/player';
+import { AppPlayback, fillNow, subscribeEngineState, type AppSong } from '@/lib/appEngine/player';
 import { createSection } from '@/lib/sections';
 import { getDefaultInstrumentStates, INSTRUMENTS, type InstrumentType } from '@/lib/instruments';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
@@ -312,6 +312,38 @@ export function RhythmEditor({
   const isSyncedWithMain = isMainPlaying && !isLocalPlaying;
   const isPlaying = isLocalPlaying || isMainPlaying;
 
+  // The Fill-in button's light: where a fill asked for by hand is (0 none, 1 waiting for the
+  // next bar, 2 sounding), read from the one engine whichever player is using it.
+  const [fillByHand, setFillByHand] = useState(0);
+  // And whether the bar sounding is a fill bar at all (by hand, at the end of a part or on a
+  // phrase): the grid's playhead follows the fill's cells then, not the groove's.
+  const [fillBarSounding, setFillBarSounding] = useState(false);
+  useEffect(() => {
+    if (!isPlaying) {
+      setFillByHand(0);
+      setFillBarSounding(false);
+      return;
+    }
+    return subscribeEngineState(state => {
+      setFillByHand(prev => (prev === state.fillByHand ? prev : state.fillByHand));
+      setFillBarSounding(prev => (prev === state.fillBar ? prev : state.fillBar));
+    });
+  }, [isPlaying]);
+  // Off in the fill preview, which already plays the fill on every bar.
+  const canFillNow = isPlaying && !showFill;
+  const fillNowStyle: React.CSSProperties | undefined = fillByHand === 2
+    ? { background: 'var(--cp-ac)', borderColor: 'var(--cp-ac)', color: '#fff' }
+    : fillByHand === 1
+      ? { borderColor: 'var(--cp-ac)', color: 'var(--cp-act)' }
+      : undefined;
+  const fillNowTitle = !isPlaying
+    ? 'Press play to throw in the fill'
+    : showFill
+      ? 'The fill preview already plays the fill on every bar'
+      : fillByHand === 1
+        ? 'The fill comes in on the next bar'
+        : 'Throw in the fill now (like a keyboard\'s Fill-in button)';
+
   /**
    * What the editor's loop plays: one chord of C major spanning the style's whole loop (its
    * own meter and loopBars, so the loop point is the pattern's), in the style being edited,
@@ -339,6 +371,9 @@ export function RhythmEditor({
         bpm: edited.bpm,
         instrumentSettings: getEffectiveInstruments(getDefaultInstrumentStates(), edited),
         fillEveryBar: showFillRef.current,
+        // A groove to listen to, not a song that ends every bar: the fill comes every eighth
+        // bar or when the Fill button asks for it.
+        holdOpen: true,
       },
       style: { ...edited, melodic },
       lookup: () => undefined,
@@ -350,6 +385,12 @@ export function RhythmEditor({
     ? currentStep 
     : (isSyncedWithMain && mainPlayheadStep !== undefined ? mainPlayheadStep : currentStep);
   
+  // The playhead on the grid shown: the groove's while the groove plays, the fill's while the
+  // fill does. The fill preview plays the fill on every bar (fillEveryBar), so there it
+  // always follows.
+  const followsGrid = showFill ? (isLocalPlaying || fillBarSounding) : !fillBarSounding;
+  const gridStep = followsGrid ? displayStep : -1;
+
   // Check if editing a built-in style
   const isEditingBuiltIn = !isCustomStyle(style.id) && !isNewStyle;
   const hasOverride = isEditingBuiltIn && hasStyleOverride(style.id);
@@ -1021,6 +1062,18 @@ export function RhythmEditor({
                 </button>
               )}
 
+              <button
+                className="cp-btn"
+                onClick={fillNow}
+                disabled={!canFillNow}
+                title={fillNowTitle}
+                aria-label="Throw in the fill now"
+                style={{ ...fillNowStyle, ...(canFillNow ? {} : { opacity: 0.45 }) }}
+              >
+                <Zap className="h-4 w-4" />
+                Fill
+              </button>
+
               <button className="cp-btn" onClick={togglePlayback}>
                 {(isLocalPlaying || isMainPlaying) ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                 {(isLocalPlaying || isMainPlaying) ? 'Stop' : (showFill ? 'Preview Fill' : 'Play')}
@@ -1093,6 +1146,12 @@ export function RhythmEditor({
                 onClick={() => handleFillToggle(!showFill)}
               />
               {showFill ? 'Fill' : 'Main'}
+                {!showFill && fillBarSounding && (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: 'var(--cp-act)' }}>
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--cp-ac)' }} />
+                    fill playing
+                  </span>
+                )}
             </label>
 
             {/* Loop bars — lets bar 2 (and beyond) differ from bar 1 instead of
@@ -1197,7 +1256,7 @@ export function RhythmEditor({
                               // bar-relative (the engine's step resets every bar), so
                               // it only ever matches bar 1's cells — a known, minor gap for
                               // that mode, not a wrong/duplicate highlight.
-                              const isCurrentStep = displayStep === step && (isLocalPlaying || isMainPlaying);
+                              const isCurrentStep = gridStep === step && (isLocalPlaying || isMainPlaying);
 
                               // fill.position is bar-relative (where in *each* bar the fill
                               // zone starts), but the fill pattern data itself is now the
@@ -1394,6 +1453,12 @@ export function RhythmEditor({
                   onClick={() => handleFillToggle(!showFill)}
                 />
                 {showFill ? 'Fill' : 'Main'}
+                {!showFill && fillBarSounding && (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: 'var(--cp-act)' }}>
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--cp-ac)' }} />
+                    fill playing
+                  </span>
+                )}
               </label>
               {showFill && (
                 <>
@@ -1439,7 +1504,7 @@ export function RhythmEditor({
                     slotsPerBar={slotsPerBar}
                     slotsPerBeatGroup={slotsPerBeatGroup}
                     naturalOctave={track === 'bass' ? -1 : 0}
-                    currentStep={displayStep}
+                    currentStep={gridStep}
                     isPlaying={isPlaying}
                     fillPosition={editedStyle.fill.position}
                     onChange={updated => {
@@ -1467,7 +1532,7 @@ export function RhythmEditor({
               slotsPerBar={slotsPerBar}
               slotsPerBeatGroup={slotsPerBeatGroup}
               naturalOctave={activeTab === 'bass' ? -1 : 0}
-              currentStep={displayStep}
+              currentStep={gridStep}
               isPlaying={isPlaying}
               onActiveVarChange={id => {
                 activeVarIdRef.current[activeTab as 'bass' | 'piano' | 'guitar'] = id;
@@ -1531,6 +1596,17 @@ export function RhythmEditor({
               </Button>
             ) : null}
 
+            <Button
+              variant="outline"
+              onClick={fillNow}
+              disabled={!canFillNow}
+              title={fillNowTitle}
+              aria-label="Throw in the fill now"
+              className="shrink-0 gap-1.5"
+              style={fillNowStyle}
+            >
+              <Zap className="w-4 h-4" /> Fill
+            </Button>
             <Button
               variant={(isLocalPlaying || isMainPlaying) ? 'destructive' : 'default'}
               onClick={togglePlayback}

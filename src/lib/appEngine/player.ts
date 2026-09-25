@@ -94,6 +94,30 @@ export const getAppEngine = getEngine;
 export const startedAppEngine = (): AppEngine | null => shared.__appEngine ?? null;
 
 /**
+ * The Fill-in button of a home keyboard: whatever the engine is playing — the song or the
+ * rhythm editor's loop — the part sounding plays its fill now. The rest of this bar, from
+ * the fill's own position if that is still to come; the next bar whole when this one has
+ * less than a beat left (engine.fillNow). Where it is comes back as state.fillByHand.
+ */
+export function fillNow(): void {
+  engine()?.then((e) => e.send([['fillNow']])).catch(() => {});
+}
+
+/**
+ * Every state the engine reports, once it is running — it may still be starting when this
+ * is called, which is the moment a Play button's effect runs. Returns the unsubscribe.
+ */
+export function subscribeEngineState(listener: (state: EngineState) => void): () => void {
+  let unsubscribe: (() => void) | null = null;
+  let cancelled = false;
+  engine()?.then((e) => { if (!cancelled) unsubscribe = e.subscribe(listener); }).catch(() => {});
+  return () => {
+    cancelled = true;
+    unsubscribe?.();
+  };
+}
+
+/**
  * The held peaks the engine reports — drums, piano, guitar, bass, master, linear 0-1 — for
  * the mixer's meters, or null when nothing is playing: stopped, the held peaks would sit at
  * whatever the song last reached, which the app's mixer empties for the same reason.

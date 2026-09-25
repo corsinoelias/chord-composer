@@ -98,6 +98,13 @@ export interface SongInput {
   swing?: number;
   /** The fill on every bar, as the rhythm editor's Fill switch previews it; the engine adds none of its own. */
   fillEveryBar?: boolean;
+  /**
+   * Every section held open, round and round — the rhythm editor's loop. A section that ends
+   * fills into what comes next on its last pass, and a one-bar loop that ends on every bar
+   * played its fill on every bar; held open, the fill comes on the eighth bar or by hand, as
+   * in a song.
+   */
+  holdOpen?: boolean;
   /** How the click sounds — the person's own setting, not the song's (clickSettings.ts). */
   click?: ClickSettings;
 }
@@ -185,7 +192,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   sections.forEach((section, s) => {
     const chords: Chord[] = section.chords.slice(0, MAX_CHORDS);
     if (section.chords.length > MAX_CHORDS) notes.push(`${section.name}: ${section.chords.length - MAX_CHORDS} chords past ${MAX_CHORDS} left out`);
-    c.push(['section', s, Math.max(1, section.repeatCount), false, chords.length]);
+    c.push(['section', s, Math.max(1, section.repeatCount), !!song.holdOpen, chords.length]);
     let sectionSteps = 0;
     const lengths: number[] = [];
     chordSteps.push(lengths);

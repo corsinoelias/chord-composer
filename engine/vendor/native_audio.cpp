@@ -801,6 +801,8 @@ class Engine {
     // Listening to one part on repeat starts on that part.
     if (const int only = loopOnly_.load(std::memory_order_relaxed); only >= 0) sectionIndex_ = only;
     crashPending_ = false;
+    fillRequest_.store(false, std::memory_order_relaxed);
+    manualFill_ = 0;
     for (auto& bottom : lastBottom_) bottom = 0;
     lastChord_ = -1;
     reportedPosition_.store(0, std::memory_order_release);
@@ -1021,6 +1023,10 @@ class Engine {
   /// Plays only section [index], round and round; -1 plays the whole song. Read when the
   /// transport starts and whenever a part ends.
   void loopOnly(int index) { loopOnly_.store(index, std::memory_order_relaxed); }
+  /// The Fill-in button of a home keyboard: the part's fill, now, whatever bar this is.
+  /// Taken by the callback on its next step (triggerStep), which alone decides where in
+  /// the bar it lands.
+  void fillNow() { fillRequest_.store(true, std::memory_order_release); }
   void commitArrangement() { activeArrangement_.store(editingArrangement_, std::memory_order_release); }
   /// Bar, section, chord and step as reportedPosition_ packs them, with the beats of the
   /// count-in still to play in the three bits above the bar.
@@ -1687,11 +1693,32 @@ class Engine {
     // the crash for some later downbeat that nothing filled into.
     const bool crash = crashPending_;
     crashPending_ = false;
+    // A fill asked for by hand (fillNow). It turns the rest of this bar into the part's
+    // fill, from the fill's own start when that is still to come — the groove plays on
+    // until then — or from this step when it has passed. With less than a beat of the bar
+    // left it would be a stumble, not a fill, so it waits and plays the next bar whole.
+    const int fillStart = fillFrom_[sectionIndex_].load(std::memory_order_acquire);
+    if (fillRequest_.exchange(false, std::memory_order_acq_rel) && manualFill_ == 0 && stepBudget_ < 0) {
+      const int bar = stepsPerBar_.load(std::memory_order_relaxed);
+      const int perBeat = std::max(1, stepsPerBeat_.load(std::memory_order_relaxed));
+      if (step >= fillStart && step >= bar - perBeat) {
+        manualFill_ = kFillArmed;
+      } else {
+        manualFill_ = kFillPlaying;
+        manualFrom_ = std::max(step, fillStart);
+      }
+    }
     // Inside a bar the fill plays over, it takes over the lanes it writes from the step it
     // starts on — kit and melodic tracks alike. Everywhere else this is the groove as ever.
-    const int inFill = fillStep(arrangement);
+    const bool byHand = manualFill_ == kFillPlaying;
+    const int inFill = byHand ? step : fillStep(arrangement);
     const bool filling = inFill >= 0 && inFill < kMaxStepsPerBar &&
-                         inFill >= fillFrom_[sectionIndex_].load(std::memory_order_acquire);
+                         inFill >= (byHand ? manualFrom_ : fillStart);
+    // Whether this bar is one the fill plays over — at the end of the part, on a phrase,
+    // or by hand — so the screen can follow the fill's cells rather than the groove's.
+    // The whole bar, not only from the fill's start: the playhead walks up to where it
+    // comes in. A part with no fill has no fill bar.
+    const bool fillBar = (byHand || inFill >= 0) && fillMask_[sectionIndex_].load(std::memory_order_acquire) != 0;
     const int fillMask = filling ? fillMask_[sectionIndex_].load(std::memory_order_acquire) : 0;
     if (!silent_[sectionIndex_][3].load(std::memory_order_acquire)) {
       if (crash) {
@@ -1717,7 +1744,9 @@ class Engine {
       // played rather than on whichever bar happens to be open. So does the repeat,
       // in the three bits above the chord (which never needs more than five), so the
       // section card can say which time round it is.
-      reportedPosition_.store(int64_t(std::min(chordStep_, 0xffff)) << 32 | (barIndex_ % kMaxBars) << 24 | (sectionIndex_ << 16) |
+      reportedPosition_.store(int64_t(fillBar ? 1 : 0) << 50 | int64_t(manualFill_) << 48 |
+                                  int64_t(std::min(chordStep_, 0xffff)) << 32 |
+                                  (barIndex_ % kMaxBars) << 24 | (sectionIndex_ << 16) |
                                   (std::min(loopCount_, 7) << 13) | (chordIndex_ << 8) | step,
                               std::memory_order_release);
       if (section.chordCount > 0) {
@@ -1806,6 +1835,12 @@ class Engine {
       currentStep_ = 0;
       barIndex_ = (barIndex_ + 1) % kMaxBars;
       ++sectionBar_;
+      if (manualFill_ == kFillPlaying) {
+        manualFill_ = 0;
+      } else if (manualFill_ == kFillArmed) {
+        manualFill_ = kFillPlaying;
+        manualFrom_ = fillFrom_[sectionIndex_ < kSections ? sectionIndex_ : 0].load(std::memory_order_acquire);
+      }
     }
   }
   /// One tone of the chord, as a MIDI note. The root is anchored in the track's
@@ -2395,6 +2430,12 @@ class Engine {
   std::atomic<float> reduction_[4]{};
   std::atomic<float> levels_[5]{};
   std::atomic<int> loopOnly_{-1};
+  // The Fill-in button: asked for from the platform thread, then the callback's own. 0 is
+  // no fill by hand, kFillArmed one waiting for the next bar, kFillPlaying one sounding
+  // from manualFrom_ to the end of this bar. Reported with the position (bits 48-49).
+  static constexpr int kFillArmed = 1, kFillPlaying = 2;
+  std::atomic<bool> fillRequest_{false};
+  int manualFill_ = 0, manualFrom_ = 0;
   std::atomic<bool> stripsDirty_{true};
   // A sine pip with a 40 ms decay. A sample would have to be shipped, loaded and kept
   // in step with the bank; three floats do the same job and are always ready.
@@ -2485,6 +2526,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainAct
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetStrip(JNIEnv* env, jobject, jstring track, jfloat low, jfloat mid, jfloat high, jfloat threshold, jfloat ratio) { const char* t=chars(env,track); engine.strip(t,low,mid,high,threshold,ratio); release(env,track,t); }
 extern "C" JNIEXPORT jfloat JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeGainReduction(JNIEnv*, jobject, jint bus) { return engine.gainReduction(bus); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeLoopOnly(JNIEnv*, jobject, jint index) { engine.loopOnly(index); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeFillNow(JNIEnv*, jobject) { engine.fillNow(); }
 extern "C" JNIEXPORT jfloat JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeLevel(JNIEnv*, jobject, jint bus) { return engine.level(bus); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetMetronome(JNIEnv*, jobject, jboolean enabled, jfloat volume, jint sound, jboolean accent, jint division) { engine.metronome(enabled,volume,sound,accent,division); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativePreviewMetronome(JNIEnv*, jobject) { engine.previewClick(); }
