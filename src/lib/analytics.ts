@@ -229,6 +229,8 @@ export const analytics = {
     trackCoalesced('song_capo_changed', songSlug, { song_slug: songSlug, capo }),
   songAutoscrollToggled: (songSlug: string, on: boolean, speed: number) =>
     track('song_autoscroll_toggled', { song_slug: songSlug, on, speed }),
+  songStageToggled: (songSlug: string, on: boolean) =>
+    track('song_stage_toggled', { song_slug: songSlug, on }),
   songTextSizeChanged: (songSlug: string, percent: number) =>
     trackCoalesced('song_text_size_changed', songSlug, { song_slug: songSlug, percent }),
   // Song page → editor. This is the SEO-traffic-to-product conversion: the visitor

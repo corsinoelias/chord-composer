@@ -129,7 +129,7 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
     <div
       ref={rootRef}
       className={`rounded-xl border border-border bg-card overflow-hidden ${pinned
-        ? 'md:sticky md:z-20 md:top-16 md:shadow-[0_10px_22px_-16px_rgba(0,0,0,0.45)]'
+        ? 'md:sticky md:z-20 md:top-[var(--song-nav-h,4rem)] md:shadow-[0_10px_22px_-16px_rgba(0,0,0,0.45)]'
         : ''}`}
     >
 

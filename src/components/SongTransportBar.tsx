@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowRight, Loader2, Minus, Play, Plus, Repeat, SlidersHorizontal, Square, Timer, Type } from 'lucide-react';
 import { usePlayback, usePlaybackPosition } from '@/contexts/PlaybackContext';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { Switch } from '@/components/ui/switch';
 import { SongPillTime } from '@/components/SongPlayingPill';
 import { SongKeyControl } from '@/components/SongKeyControl';
 import { NotationSelector } from '@/components/NotationSelector';
@@ -55,6 +56,8 @@ interface Props {
   onScrollSpeedChange: (speed: number) => void;
   textScale: number;
   onTextScaleChange: (scale: number) => void;
+  stage: boolean;
+  onStageChange: (on: boolean) => void;
   // Reading options, which the phone keeps behind "Options".
   notation: SongNotation;
   onNotationChange: (n: SongNotation) => void;
@@ -270,6 +273,10 @@ export function SongTransportBar(p: Props) {
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-medium">Text size</span>
               <TextSizeControl scale={p.textScale} onChange={p.onTextScaleChange} />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">Stage mode<small className="block text-xs font-normal text-muted-foreground">Only the chart, full screen</small></span>
+              <Switch checked={p.stage} onCheckedChange={(on) => { p.onStageChange(on); setOptionsOpen(false); }} aria-label="Stage mode" />
             </div>
             <button
               type="button"

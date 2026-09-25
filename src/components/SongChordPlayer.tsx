@@ -5,7 +5,7 @@ import { parseChordString } from '@/lib/chordParser';
 import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { createSection } from '@/lib/sections';
-import { ChevronDown, ChevronUp, Type } from 'lucide-react';
+import { ChevronDown, ChevronUp, Maximize2, Minimize2, Type } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SongPlayerBar } from '@/components/SongPlayerBar';
 import { SongHeaderTransport } from '@/components/SongHeaderTransport';
@@ -190,12 +190,48 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [autoScroll, isPlaying, scrollSpeed]);
+  // Stage mode: the chart, its diagrams and the bar, nothing else (the page's CSS hides the
+  // rest under body.song-stage), full screen where the browser allows it. F toggles it, Esc
+  // leaves, and leaving the browser's full screen leaves it too.
+  const [stage, setStage] = useState(false);
+  const handleStageChange = useCallback((on: boolean) => {
+    setStage(on);
+    analytics.songStageToggled(song.slug, on);
+    try {
+      if (on && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+      if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    } catch { /* not allowed here */ }
+  }, [song.slug]);
   useEffect(() => {
-    if (!autoScroll || !('wakeLock' in navigator)) return;
+    if (inline) return;
+    document.body.classList.toggle('song-stage', stage);
+    if (stage) window.scrollTo({ top: 0 });
+    return () => document.body.classList.remove('song-stage');
+  }, [stage, inline]);
+  useEffect(() => {
+    if (inline) return;
+    const onFullscreen = () => { if (!document.fullscreenElement) setStage(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (e.key === 'f' || e.key === 'F') handleStageChange(!document.body.classList.contains('song-stage'));
+      else if (e.key === 'Escape' && document.body.classList.contains('song-stage')) handleStageChange(false);
+    };
+    document.addEventListener('fullscreenchange', onFullscreen);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreen);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [inline, handleStageChange]);
+
+  useEffect(() => {
+    if (!(autoScroll || stage) || !('wakeLock' in navigator)) return;
     let lock: { release: () => Promise<void> } | null = null;
     navigator.wakeLock.request('screen').then(l => { lock = l; }).catch(() => { /* refused */ });
     return () => { lock?.release().catch(() => {}); };
-  }, [autoScroll]);
+  }, [autoScroll, stage]);
 
   // A chord name as drawn → the chord that actually sounds, for the tap-to-hear previews.
   const soundingChord = useCallback(
@@ -1163,6 +1199,8 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
             onScrollSpeedChange={handleScrollSpeedChange}
             textScale={textScale}
             onTextScaleChange={handleTextScaleChange}
+            stage={stage}
+            onStageChange={handleStageChange}
             notation={notation}
             onNotationChange={handleNotationChange}
             displayKey={shapeKey}
@@ -1202,12 +1240,12 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
              this chart"), so they share a row and wear the same styling. `flex-wrap` on the
              right-hand group is what keeps six buttons from squeezing the map at mid widths. */
           /* From md up this row is the chart's toolbar and stays under the site header while you
-             read (4rem = the navbar's 64px), or under ChordAside's strip when that is pinned —
+             read (--song-nav-h: the navbar's 64px, 0 in stage mode), or under ChordAside's strip when that is pinned —
              the strip comes first on the page, so it sticks first (--song-strip-h is its height
              while pinned, 0 otherwise). The key leads the row: it is the control this page
              most needs people to find. On phones the row scrolls with the page and the key lives
              in the bottom bar instead, so there is one fixed bar there, not two. */
-          <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2.5 md:gap-3 mb-4 md:sticky md:top-[calc(4rem+var(--song-strip-h,0px))] md:z-30 md:-mx-3 md:px-3 md:py-2 md:bg-background/95 md:backdrop-blur-md md:border-b md:border-border">
+          <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2.5 md:gap-3 mb-4 md:sticky md:top-[calc(var(--song-nav-h,4rem)+var(--song-strip-h,0px))] md:z-30 md:-mx-3 md:px-3 md:py-2 md:bg-background/95 md:backdrop-blur-md md:border-b md:border-border">
             <div className="hidden md:flex items-center gap-1 shrink-0">
               <SongKeyControl
                 surface="toolbar"
@@ -1281,6 +1319,15 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                   <TextSizeControl scale={textScale} onChange={handleTextScaleChange} />
                 </PopoverContent>
               </Popover>
+              <button
+                type="button"
+                onClick={() => handleStageChange(!stage)}
+                aria-pressed={stage}
+                title={stage ? 'Leave stage mode (Esc)' : 'Stage mode: only the chart, full screen (F)'}
+                className={`hidden md:inline-grid place-items-center w-9 h-9 rounded-lg border transition-colors ${stage ? 'border-primary/35 bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground hover:text-foreground'}`}
+              >
+                {stage ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
             </div>
           </div>
         )}

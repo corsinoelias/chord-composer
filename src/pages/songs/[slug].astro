@@ -400,7 +400,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
     <!-- Breadcrumb — kept close to the title below it (mb-3/4, not the old mb-8) so the
          two read as one header block. The visual break for the next section happens after
          the title via the sticky bar's own border-b, not here. -->
-    <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted-foreground mb-3 sm:mb-4">
+    <nav data-stage-hide aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted-foreground mb-3 sm:mb-4">
       <a href="/" class="hover:text-foreground transition-colors">Home</a>
       <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
       <a href="/songs/" class="hover:text-foreground transition-colors">Songs</a>
@@ -411,7 +411,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
     <!-- Song header: title + cover + actions — a normal document heading now, not pinned.
          Scrolls away like any title; Play/Practice live in #song-header-transport below,
          portalled in by SongChordPlayer (see SongHeaderTransport.tsx). -->
-    <div class="-mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-1 flex items-start sm:items-center gap-4 border-b border-border">
+    <div data-stage-hide class="-mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-1 flex items-start sm:items-center gap-4 border-b border-border">
       {coverImage && (
         <img
           src={coverImage}
@@ -447,7 +447,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
     <!-- Header transport (Play/Practice) + song stats share one row on desktop instead of two
          separate skinny rows, each mostly empty space on a wide viewport — stats sit to the
          right, flush with the transport, and only stack under it once the screen narrows. -->
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mt-4 mb-6">
+    <div data-stage-hide class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mt-4 mb-6">
       <!-- Portal target for the React island's header transport (Play/Stop + Practice) — see
            SongHeaderTransport.tsx. SongChordPlayer (client:load) is one of the heaviest
            islands on this page — it carries the whole playback engine — so this div sits
@@ -497,10 +497,10 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
 
     <!-- Practice panel — Sections/Mixer/Tempo/Metronome/Export, expands in normal document
          flow below the transport+stats row; see SongPracticePanel.tsx. -->
-    {LEGACY_PRACTICE_PANEL && <div id="song-practice-panel"></div>}
+    {LEGACY_PRACTICE_PANEL && <div data-stage-hide id="song-practice-panel"></div>}
 
     <!-- Tab bar -->
-    <div class="flex border-b border-border mb-6 gap-0" role="tablist" aria-label="Song view">
+    <div data-stage-hide class="flex border-b border-border mb-6 gap-0" role="tablist" aria-label="Song view">
       <button
         id="tab-btn-chords"
         role="tab"
@@ -536,8 +536,9 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
                now — moved to the bottom bar and to this strip's Now / Next marks). This wrapper
                is the pinned strip's sticky container: it lets go at the end of the chart instead
                of following the reader through the key table and the FAQ. The island elements are
-               display:contents, so ChordAside's root is a direct child here. -->
-          <div>
+               display:contents, so ChordAside's root is a direct child here. Stage mode
+               (SongChordPlayer) keeps this block and hides everything else on the page. -->
+          <div id="song-stage-chart">
             {uniqueChords.length > 0 && (
               <ChordAside client:load chords={uniqueChords} songKey={song.key} songSlug={song.slug} />
             )}
@@ -904,5 +905,17 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
   <style is:global>
     body { padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px)); }
     @media (min-width: 768px) { body { padding-bottom: 4.5rem; } }
+
+    /* Stage mode (body.song-stage, toggled by SongChordPlayer): the chart, its diagrams and
+       the playback bar, nothing else. The site header goes too, so the sticky toolbar and
+       the pinned strip move up to the top edge (--song-nav-h). */
+    body.song-stage { --song-nav-h: 0px; }
+    body.song-stage > header,
+    body.song-stage > footer,
+    body.song-stage [data-stage-hide],
+    body.song-stage #song-stage-chart ~ *,
+    body.song-stage #tab-panel-lyrics { display: none !important; }
+    body.song-stage #tab-panel-chords { display: block !important; }
+    body.song-stage main { padding-top: 0.75rem; }
   </style>
 </BaseLayout>
