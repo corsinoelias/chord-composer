@@ -40,6 +40,9 @@ interface SongSectionChartProps {
   // audio preview, fed to analytics and shown in the tooltip's "what this actually is" line.
   notation: SongNotation;
   displayKey: string;
+  // With a capo on, the chart draws shapes; this maps a drawn name to the chord that sounds, so
+  // tapping one plays it at the song pitch. Identity when there is no capo.
+  soundingChord?: (name: string) => string;
   compact?: boolean;
   chordRefs: React.MutableRefObject<Map<number, HTMLElement>>;
   openTooltipIdx: number | null;
@@ -75,6 +78,7 @@ export function SongSectionChart({
   songSlug,
   notation,
   displayKey,
+  soundingChord = (name: string) => name,
   compact = false,
   chordRefs,
   openTooltipIdx,
@@ -203,7 +207,7 @@ export function SongSectionChart({
                               `}
                               onMouseEnter={() => onOpenTooltip(token.globalIndex)}
                               onClick={() => {
-                                const parsed = parseChordString(token.chord);
+                                const parsed = parseChordString(soundingChord(token.chord));
                                 if (parsed[0]) {
                                   analytics.playChordPreview(songSlug, token.chord, 'chart');
                                   playChordPreview(parsed[0]);

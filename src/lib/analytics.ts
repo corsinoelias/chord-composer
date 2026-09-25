@@ -213,6 +213,24 @@ export const analytics = {
   // on is worth a row in GA4.
   songTransposed: (songSlug: string, semitones: number) =>
     trackCoalesced('song_transposed', songSlug, { song_slug: songSlug, semitones }),
+  // The redesign's bet (Sep 2026): transposing sat at ~1% of song-page users while its only
+  // control lived inside the Practice panel. These say which of the now-visible doors people
+  // use — the phone's bottom bar, the desktop toolbar or the "Key" chip under the title.
+  songKeyOpened: (songSlug: string, surface: 'dock' | 'toolbar' | 'chip') =>
+    track('song_key_opened', { song_slug: songSlug, surface }),
+  songOptionsOpened: (songSlug: string) => track('song_options_opened', { song_slug: songSlug }),
+  songPracticeOpened: (songSlug: string, surface: 'dock' | 'bar' | 'options') =>
+    track('song_practice_opened', { song_slug: songSlug, surface }),
+  songStripPinned: (songSlug: string, pinned: boolean) =>
+    track('song_strip_pinned', { song_slug: songSlug, pinned }),
+  // Reading aids added with the redesign's phase 2. Capo and text size are coalesced: people
+  // step through a few values before settling, and only the one they keep matters.
+  songCapoChanged: (songSlug: string, capo: number) =>
+    trackCoalesced('song_capo_changed', songSlug, { song_slug: songSlug, capo }),
+  songAutoscrollToggled: (songSlug: string, on: boolean, speed: number) =>
+    track('song_autoscroll_toggled', { song_slug: songSlug, on, speed }),
+  songTextSizeChanged: (songSlug: string, percent: number) =>
+    trackCoalesced('song_text_size_changed', songSlug, { song_slug: songSlug, percent }),
   // Song page → editor. This is the SEO-traffic-to-product conversion: the visitor
   // arrived to read a chart and leaves with it loaded in the editor. Fires on an <a>
   // that navigates away — gtag sends via navigator.sendBeacon, which survives unload.

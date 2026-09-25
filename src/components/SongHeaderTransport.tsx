@@ -6,6 +6,8 @@ interface SongHeaderTransportProps {
   onPlayPause: () => void;
   practiceOpen: boolean;
   onTogglePractice: () => void;
+  // Off since the Sep 2026 redesign moved Practice into the bottom bar; see songPageFlags.ts.
+  showPractice?: boolean;
 }
 
 // The header's whole transport: Play/Stop plus the door into everything else (Sections, Mixer,
@@ -13,7 +15,7 @@ interface SongHeaderTransportProps {
 // the only place on the page besides SongPlayingPill where playback state is ever surfaced.
 // No margin of its own — its portal target sits in a row shared with the song stats badges
 // (see [slug].astro), which owns the spacing so the two align cleanly.
-export function SongHeaderTransport({ isPlaying, isLoading, onPlayPause, practiceOpen, onTogglePractice }: SongHeaderTransportProps) {
+export function SongHeaderTransport({ isPlaying, isLoading, onPlayPause, practiceOpen, onTogglePractice, showPractice = true }: SongHeaderTransportProps) {
   return (
     // col-start-1 row-start-1: overlaps the shimmer placeholder in the same grid cell
     // (see the #song-header-transport comment in songs/[slug].astro) instead of
@@ -40,7 +42,7 @@ export function SongHeaderTransport({ isPlaying, isLoading, onPlayPause, practic
             : <><Play className="w-3.5 h-3.5 fill-current" /> Play chords</>
         }
       </button>
-      <button
+      {showPractice && <button
         type="button"
         onClick={onTogglePractice}
         aria-expanded={practiceOpen}
@@ -55,7 +57,7 @@ export function SongHeaderTransport({ isPlaying, isLoading, onPlayPause, practic
       >
         Practice
         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 motion-reduce:transition-none ${practiceOpen ? 'rotate-180' : ''}`} />
-      </button>
+      </button>}
     </div>
   );
 }

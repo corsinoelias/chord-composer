@@ -5,7 +5,7 @@ import CommunityEditButton from '../../components/CommunityEditButton';
 import ReportSongButton from '../../components/ReportSongButton';
 import SongHeaderActions from '../../components/SongHeaderActions';
 import ChordAside from '../../components/ChordAside';
-import SongChordPreview from '../../components/SongChordPreview';
+import { LEGACY_PRACTICE_PANEL } from '../../lib/songPageFlags';
 import ToolIcon from '../../components/ToolIcon.astro';
 import type { ToolIconName } from '../../components/toolIcons';
 import { SONGS, extractChordsFromSong } from '../../data/songs';
@@ -464,7 +464,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
       <div id="song-header-transport" class="grid" style="grid-template-columns: minmax(0,1fr);">
         <div id="song-header-transport-skeleton" class="col-start-1 row-start-1 flex items-center gap-2.5 transition-opacity duration-150" aria-hidden="true">
           <span class="h-10 w-[136px] rounded-full bg-muted animate-pulse"></span>
-          <span class="h-10 w-[108px] rounded-full bg-muted animate-pulse"></span>
+          {LEGACY_PRACTICE_PANEL && <span class="h-10 w-[108px] rounded-full bg-muted animate-pulse"></span>}
         </div>
       </div>
 
@@ -474,10 +474,13 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
           <svg class="w-3 h-3 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
           {song.bpm} BPM
         </span>
-        <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border border-border bg-muted/40 text-foreground">
-          <svg class="w-3 h-3 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <!-- A button since the Sep 2026 redesign: it opens the key picker (the script at the
+             bottom sends song-open-key; SongKeyControl answers). -->
+        <button type="button" id="song-key-chip" title="Change the key" class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 transition-colors">
+          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
           Key of <span id="song-key-value">{song.key}</span>
-        </span>
+          <svg class="w-3 h-3 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
         {song.genre.map(g => (
           <span class="text-xs font-medium px-2.5 py-1 rounded-full border border-border bg-muted/40 text-muted-foreground capitalize">{g}</span>
         ))}
@@ -494,7 +497,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
 
     <!-- Practice panel — Sections/Mixer/Tempo/Metronome/Export, expands in normal document
          flow below the transport+stats row; see SongPracticePanel.tsx. -->
-    <div id="song-practice-panel"></div>
+    {LEGACY_PRACTICE_PANEL && <div id="song-practice-panel"></div>}
 
     <!-- Tab bar -->
     <div class="flex border-b border-border mb-6 gap-0" role="tablist" aria-label="Song view">
@@ -525,30 +528,22 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
     <!-- Chords tab panel -->
     <div id="tab-panel-chords" role="tabpanel" aria-labelledby="tab-btn-chords">
 
-      <!-- Chord preview / now playing — pulled up here (was buried below the whole chart as
-           part of ChordAside) so it's visible without scrolling past the song first, on both
-           mobile and desktop. ChordAside below still owns the "Chords used" list. -->
-      {uniqueChords.length > 0 && (
-        <div class="mb-6">
-          <SongChordPreview client:load chords={uniqueChords} songKey={song.key} />
-        </div>
-      )}
-
-      <!-- Full-width chart column — no reserved side column. The old two-column split (chart +
-           300px aside for the performance rail/chord diagrams) is gone: the rail was replaced
-           by the on-demand Practice panel (see [slug].astro's #song-practice-panel above), and
-           ChordAside now sits in its own non-sticky section below the chart. -->
+      <!-- Full-width chart column — no reserved side column. -->
       <div class="max-w-none">
         <div class="min-w-0">
-          <SongChordPlayerIsland song={song} />
-
-          <!-- Chord diagrams — a plain, non-sticky block right under the chart. Used to live in
-               a sticky sidebar; now scrolls with everything else, like the rest of the page. -->
-          {uniqueChords.length > 0 && (
-            <div class="mt-8">
+          <!-- The chord diagrams sit above the chart (Sep 2026 redesign; the old "Chord preview"
+               card that sat here showed one chord in ~190px, and its job — the chord sounding
+               now — moved to the bottom bar and to this strip's Now / Next marks). This wrapper
+               is the pinned strip's sticky container: it lets go at the end of the chart instead
+               of following the reader through the key table and the FAQ. The island elements are
+               display:contents, so ChordAside's root is a direct child here. -->
+          <div>
+            {uniqueChords.length > 0 && (
               <ChordAside client:load chords={uniqueChords} songKey={song.key} songSlug={song.slug} />
-            </div>
-          )}
+            )}
+            <div class="h-5" aria-hidden="true"></div>
+            <SongChordPlayerIsland song={song} />
+          </div>
 
           <!--
             The song in the keys people search for. No client directive anywhere in here —
@@ -858,6 +853,12 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
     // No transpose maths here on purpose: SongChordPlayer puts the key it already computed on
     // the event, so the chip can never drift from the chart (and this page doesn't become the
     // eighth copy of the sharps/flats table).
+    // The chip opens the key picker. SongKeyControl listens for this event; whichever of its two
+    // copies (chart toolbar from md up, bottom bar on phones) is on screen opens.
+    document.getElementById('song-key-chip')?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('song-open-key'));
+    });
+
     const songKeyValue = document.getElementById('song-key-value');
     if (songKeyValue) {
       window.addEventListener('song-transpose', (e) => {
@@ -898,4 +899,10 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
       }
     }
   </script>
+  <!-- Room under the footer for the fixed playback bar (SongTransportBar): up to ~120px on a
+       phone while a song plays, ~68px from md up. -->
+  <style is:global>
+    body { padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px)); }
+    @media (min-width: 768px) { body { padding-bottom: 4.5rem; } }
+  </style>
 </BaseLayout>

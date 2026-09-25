@@ -10,7 +10,7 @@ function fmtTime(seconds: number): string {
 // ~60x/sec) — same isolation pattern as ProgressFill in SongPlayerBar.tsx. Converts the
 // existing chord-COUNT position (baseChordOffset + playbackPosition) into real seconds via a
 // beat-weighted cumulative array, interpolating between the two chords position sits between.
-function SongPillTime({
+export function SongPillTime({
   baseChordOffset,
   cumulativeBeats,
   totalBeats,

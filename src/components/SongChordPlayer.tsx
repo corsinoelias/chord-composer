@@ -5,13 +5,19 @@ import { parseChordString } from '@/lib/chordParser';
 import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { createSection } from '@/lib/sections';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Type } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SongPlayerBar } from '@/components/SongPlayerBar';
 import { SongHeaderTransport } from '@/components/SongHeaderTransport';
 import { SongPracticePanel } from '@/components/SongPracticePanel';
 import { SongStructureMap } from '@/components/SongStructureMap';
 import { NotationSelector } from '@/components/NotationSelector';
-import { SongPlayingPill } from '@/components/SongPlayingPill';
+import { SongTransportBar } from '@/components/SongTransportBar';
+import { SongKeyControl } from '@/components/SongKeyControl';
+import { AutoscrollControl, TextSizeControl } from '@/components/SongReadingControls';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { LEGACY_PRACTICE_PANEL } from '@/lib/songPageFlags';
+import { displayChord } from '@/lib/songNotation';
 import { SongSectionChart } from '@/components/SongSectionChart';
 import { SongChordsOnlyChart, type ChordOnlyRow } from '@/components/SongChordsOnlyChart';
 import { parseLyricLine, extractChordsWithDuration, sectionArrangement, type Song } from '@/data/songs';
@@ -118,6 +124,84 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // The key everything on the page is read in. Declared up here, above the broadcast below,
   // because that effect ships it to the non-React listeners too.
   const displayKey = useMemo(() => transpose === 0 ? song.key : transposeKey(song.key, transpose), [song.key, transpose]);
+  // The key picker's labels, spelled by the same helper as displayKey above.
+  const keyName = useCallback((s: number) => s === 0 ? song.key : transposeKey(song.key, s), [song.key]);
+
+  // Capo. The song still SOUNDS in displayKey (audio, exports, the editor link and the "Key of"
+  // chip all keep `transpose`); what changes is what the chart asks you to play — the shapes,
+  // `capo` semitones below. Everything drawn on the page that names a chord (the chart, the
+  // diagram strip, the bottom bar) reads shapeShift / shapeKey instead.
+  const [capo, setCapo] = useState(0);
+  const shapeShift = transpose - capo;
+  const shapeKey = useMemo(() => shapeShift === 0 ? song.key : transposeKey(song.key, shapeShift), [song.key, shapeShift]);
+  const handleCapoChange = useCallback((c: number) => {
+    setCapo(c);
+    analytics.songCapoChanged(song.slug, c);
+  }, [song.slug]);
+  // ── Reading aids: autoscroll and text size. Speed and size are the reader's, not the song's,
+  // so they are remembered per browser; autoscroll itself always starts off. ──────────────
+  const [autoScroll, setAutoScroll] = useState(false);
+  const [scrollSpeed, setScrollSpeed] = useState(3);
+  const [textScale, setTextScale] = useState(100);
+  useEffect(() => {
+    try {
+      const sp = Number(localStorage.getItem('song-autoscroll-speed'));
+      if (sp >= 1 && sp <= 10) setScrollSpeed(sp);
+      const ts = Number(localStorage.getItem('song-text-size'));
+      if (ts >= 80 && ts <= 160) setTextScale(ts);
+    } catch { /* storage blocked */ }
+  }, []);
+  const handleAutoScrollChange = useCallback((on: boolean) => {
+    setAutoScroll(on);
+    analytics.songAutoscrollToggled(song.slug, on, scrollSpeed);
+  }, [song.slug, scrollSpeed]);
+  const handleScrollSpeedChange = useCallback((sp: number) => {
+    setScrollSpeed(sp);
+    try { localStorage.setItem('song-autoscroll-speed', String(sp)); } catch { /* storage blocked */ }
+  }, []);
+  const handleTextScaleChange = useCallback((ts: number) => {
+    setTextScale(ts);
+    try { localStorage.setItem('song-text-size', String(ts)); } catch { /* storage blocked */ }
+    analytics.songTextSizeChanged(song.slug, ts);
+  }, [song.slug]);
+
+  // The scroll itself. Pauses while a song plays (following the playhead already moves the page)
+  // and switches off once the end of the chart is in view. Keeps the screen awake while it runs,
+  // where the browser allows it — both hands are on the instrument.
+  const chartBodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!autoScroll || isPlaying) return;
+    let raf = 0;
+    let last = 0;
+    let carry = 0;
+    const step = (ts: number) => {
+      const dt = last ? Math.min(64, ts - last) : 0;
+      last = ts;
+      carry += dt * (0.006 + scrollSpeed * 0.0075); // ≈ 13 px/s at 1, 28 at 3, 81 at 10
+      const px = Math.floor(carry);
+      if (px >= 1) { window.scrollBy(0, px); carry -= px; }
+      const body = chartBodyRef.current;
+      const atEnd = body
+        ? body.getBoundingClientRect().bottom < window.innerHeight * 0.6
+        : window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+      if (atEnd) { setAutoScroll(false); return; }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [autoScroll, isPlaying, scrollSpeed]);
+  useEffect(() => {
+    if (!autoScroll || !('wakeLock' in navigator)) return;
+    let lock: { release: () => Promise<void> } | null = null;
+    navigator.wakeLock.request('screen').then(l => { lock = l; }).catch(() => { /* refused */ });
+    return () => { lock?.release().catch(() => {}); };
+  }, [autoScroll]);
+
+  // A chord name as drawn → the chord that actually sounds, for the tap-to-hear previews.
+  const soundingChord = useCallback(
+    (name: string) => capo === 0 ? name : transposeChordStr(name, capo, FLAT_KEYS.has(displayKey)),
+    [capo, displayKey],
+  );
 
   // Keep context transposition in sync + notify ChordAside.
   // `displayKey` rides along so listeners don't have to re-derive it: the header's "Key of …"
@@ -127,10 +211,12 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // only way the chip and the chart are guaranteed to name the key identically.
   useEffect(() => {
     updatePlaybackOptions({ transposition: transpose });
+    // `semitones` is what the diagram strip draws — the capo shapes; `displayKey` stays the
+    // sounding key for the chip; `capo` lets ChordAside's previews sound at the real pitch.
     window.dispatchEvent(new CustomEvent('song-transpose', {
-      detail: { semitones: transpose, displayKey },
+      detail: { semitones: shapeShift, displayKey, capo },
     }));
-  }, [transpose, displayKey, updatePlaybackOptions]);
+  }, [transpose, shapeShift, capo, displayKey, updatePlaybackOptions]);
 
   // ── Listening telemetry ──────────────────────────────────────────────────────
   // song_audio_ready / song_play_failed / song_play_progress / song_play_stopped — see
@@ -332,25 +418,34 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // pattern as the bpm/transposition sync effects above.
   useEffect(() => { updatePlaybackOptions({ instruments }); }, [instruments, updatePlaybackOptions]);
 
-  const displayedSections = useMemo(() => {
-    if (transpose === 0) return resolvedSections;
-    const flats = FLAT_KEYS.has(displayKey);
+  // Every chord moved `shift` semitones, spelled for `key`.
+  const shiftSections = useCallback((shift: number, key: string) => {
+    if (shift === 0) return resolvedSections;
+    const flats = FLAT_KEYS.has(key);
     return resolvedSections.map(sec => ({
       ...sec,
       lines: sec.lines.map(line =>
         line.map(token => ({
           ...token,
-          chord: token.chord ? transposeChordStr(token.chord, transpose, flats) : token.chord,
+          chord: token.chord ? transposeChordStr(token.chord, shift, flats) : token.chord,
         }))
       ),
     }));
-  }, [resolvedSections, transpose, displayKey]);
+  }, [resolvedSections]);
+  // What the chart draws (capo shapes) vs what sounds (the editor link must get the latter).
+  const displayedSections = useMemo(() => shiftSections(shapeShift, shapeKey), [shiftSections, shapeShift, shapeKey]);
+  const soundingSections = useMemo(() => shiftSections(transpose, displayKey), [shiftSections, transpose, displayKey]);
+  // One chord name as the chart draws it.
+  const shapeName = useCallback(
+    (raw: string) => shapeShift === 0 ? raw : transposeChordStr(raw, shapeShift, FLAT_KEYS.has(shapeKey)),
+    [shapeShift, shapeKey],
+  );
 
   // ── Sections in the shape the editor's ?data= param expects — one entry per
   // song section, preserving name/repeatCount/per-chord duration, using the
   // currently displayed (transposed) chord names ──────────────────────────────
   const editorSectionsData: EditorLinkSection[] = useMemo(() => {
-    return displayedSections
+    return soundingSections
       .map((section, si) => ({
         name: section.name,
         repeatCount: song.sections[si]?.repeatCount ?? 1,
@@ -360,7 +455,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         ...(song.sections[si] ? linkArrangement(song.sections[si]) : {}),
       }))
       .filter(s => s.chords.length > 0);
-  }, [displayedSections, song.sections]);
+  }, [soundingSections, song.sections]);
 
   // ── Build one playback Section for a range of resolved chords ──────────────
   const buildPlayback = useCallback((startGlobal: number, count: number, label: string, repeatCount = 1) => {
@@ -409,26 +504,33 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
 
   // ── Map the flat playback position (which advances across repeats) back to the
   // single rendered DOM token for highlighting/scrolling ──────────────────────
-  const activeGlobal = useMemo(() => {
-    if (!isPlaying || currentChordIndex < 0) return -1;
+  // A flat playback position → the rendered token it lands on. Also asked one step ahead, for
+  // the bar's "next chord".
+  const globalAt = useCallback((flat: number) => {
+    if (flat < 0) return -1;
     if (playingSection !== null) {
       const count = sectionChordCounts[playingSection];
       if (count === 0) return -1;
       const repeatCount = song.sections[playingSection]?.repeatCount ?? 1;
-      if (currentChordIndex >= count * repeatCount) return -1;
-      return sectionStartIndices[playingSection] + (currentChordIndex % count);
+      if (flat >= count * repeatCount) return -1;
+      return sectionStartIndices[playingSection] + (flat % count);
     }
     for (let si = 0; si < song.sections.length; si++) {
       const count = sectionChordCounts[si];
       if (count === 0) continue;
       const start = sectionSpanOffsets[si];
       const span = count * (song.sections[si].repeatCount ?? 1);
-      if (currentChordIndex >= start && currentChordIndex < start + span) {
-        return sectionStartIndices[si] + ((currentChordIndex - start) % count);
+      if (flat >= start && flat < start + span) {
+        return sectionStartIndices[si] + ((flat - start) % count);
       }
     }
     return -1;
-  }, [isPlaying, currentChordIndex, playingSection, sectionChordCounts, sectionStartIndices, sectionSpanOffsets, song.sections]);
+  }, [playingSection, sectionChordCounts, sectionStartIndices, sectionSpanOffsets, song.sections]);
+
+  const activeGlobal = useMemo(
+    () => (!isPlaying || currentChordIndex < 0) ? -1 : globalAt(currentChordIndex),
+    [isPlaying, currentChordIndex, globalAt],
+  );
 
   // ── Which song section is currently sounding — single source of truth for the section
   // header highlight, the timeline markers, and the prev/next/loop transport buttons ──────
@@ -568,20 +670,43 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   const activeChordName = useMemo(() => {
     if (activeGlobal < 0) return null;
     const raw = allChordsFlat[activeGlobal];
-    if (!raw) return null;
-    return transpose === 0 ? raw : transposeChordStr(raw, transpose, FLAT_KEYS.has(displayKey));
-  }, [activeGlobal, allChordsFlat, transpose, displayKey]);
+    return raw ? shapeName(raw) : null;
+  }, [activeGlobal, allChordsFlat, shapeName]);
 
   const activeDuration = activeGlobal >= 0 ? (allChordsWithDuration[activeGlobal]?.duration ?? 4) : 4;
+
+  // ── What the bottom bar shows: the chord now and the next one, in the reader's notation.
+  // At rest it previews the start of the song (first chord → second), so the bar never sits
+  // empty and already says what Play will do. ──────────────────────────────────────────────
+  const chordLabel = useCallback((g: number) => {
+    const raw = g >= 0 ? allChordsFlat[g] : undefined;
+    if (!raw) return null;
+    return displayChord(shapeName(raw), shapeKey, notation);
+  }, [allChordsFlat, shapeName, shapeKey, notation]);
+  const barNowChord = isPlaying ? chordLabel(activeGlobal) : chordLabel(0);
+  const barNextChord = isPlaying
+    ? chordLabel(globalAt(currentChordIndex + 1))
+    : chordLabel(allChordsFlat.length > 1 ? 1 : -1);
+  const firstPlayableSection = sectionChordCounts.findIndex(c => c > 0);
+  const barSectionName = isPlaying
+    ? (activeSectionIndex !== null ? song.sections[activeSectionIndex]?.name ?? null : null)
+    : (song.sections[firstPlayableSection]?.name ?? null);
+
+  // The chord after it, same spelling — ChordAside marks it "Next" in the diagram strip.
+  const nextChordName = useMemo(() => {
+    if (!isPlaying) return null;
+    const raw = allChordsFlat[globalAt(currentChordIndex + 1)];
+    return raw ? shapeName(raw) : null;
+  }, [isPlaying, allChordsFlat, globalAt, currentChordIndex, shapeName]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('song-active-chord', {
       // rawIndex is the raw, ever-increasing playback index (not repeat-resolved) — it's what
       // DurationDots needs to correctly restart its fill on every chord instance, including
       // repeats of a section that land back on the same activeGlobal/DOM position.
-      detail: { chord: activeChordName, isPlaying, duration: activeDuration, bpm, rawIndex: currentChordIndex },
+      detail: { chord: activeChordName, next: nextChordName, isPlaying, duration: activeDuration, bpm, rawIndex: currentChordIndex },
     }));
-  }, [activeChordName, isPlaying, activeDuration, bpm, currentChordIndex]);
+  }, [activeChordName, nextChordName, isPlaying, activeDuration, bpm, currentChordIndex]);
 
   // handlePlaySectionRef always holds the LATEST handlePlaySection — onEnded below needs to
   // call back into it to chain forward, but referencing the function by name from inside its
@@ -876,6 +1001,50 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     analytics.songNotationChanged(song.slug, next);
   }, [setNotation, song.slug]);
 
+  const handleOpenPractice = useCallback((surface: 'bar' | 'dock' | 'options') => {
+    setPracticeOpen(true);
+    analytics.songPracticeOpened(song.slug, surface);
+  }, [song.slug]);
+
+  // Everything SongPracticePanel needs, shared by its two homes: the sheet the bottom bar opens,
+  // and — with LEGACY_PRACTICE_PANEL on — the old inline panel under the header.
+  const practicePanelProps = {
+    sectionMarkers,
+    activeSectionIndex,
+    onSelectSection: handleSectionCardTap,
+    queuedSectionIndex,
+    isPlaying,
+    loopTargetIndex: loopTarget,
+    onToggleLoop: handleToggleLoop,
+    isLoading,
+    isSoloSection,
+    activeSectionSpanStart,
+    activeSectionSpanLength,
+    instruments: instrumentStates,
+    onInstrumentsChange: handleInstrumentsChange,
+    hasVocalTrack: !!song.audioTrack,
+    vocalMuted,
+    vocalVolume,
+    onVocalMutedChange: setVocalMuted,
+    onVocalVolumeChange: setVocalVolume,
+    vocalForcedMuted,
+    bpm,
+    originalBpm: song.bpm,
+    onBpmChange: setBpm,
+    transpose,
+    onTransposeChange: handleTransposeChange,
+    songKey: song.key,
+    metronome,
+    onMetronomeChange: handleMetronomeChange,
+    songSlug: song.slug,
+    allChordsCount: allChordsFlat.length,
+    isExportingWav,
+    onExportWav: handleExportWav,
+    onExportMidi: handleExportMidi,
+    editorUrl,
+    showWavExport: true,
+  };
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div>
@@ -935,51 +1104,72 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
               onPlayPause={handlePlay}
               practiceOpen={practiceOpen}
               onTogglePractice={() => setPracticeOpen(v => !v)}
+              showPractice={LEGACY_PRACTICE_PANEL}
             />,
             headerTransportTarget,
           )}
 
-          {/* ─ Practice panel — Sections/Mixer/Tempo/Export, expands in normal document flow ─ */}
-          {practicePanelTarget && createPortal(
-            <SongPracticePanel
-              open={practiceOpen}
-              sectionMarkers={sectionMarkers}
-              activeSectionIndex={activeSectionIndex}
-              onSelectSection={handleSectionCardTap}
-              queuedSectionIndex={queuedSectionIndex}
-              isPlaying={isPlaying}
-              loopTargetIndex={loopTarget}
-              onToggleLoop={handleToggleLoop}
-              isLoading={isLoading}
-              isSoloSection={isSoloSection}
-              activeSectionSpanStart={activeSectionSpanStart}
-              activeSectionSpanLength={activeSectionSpanLength}
-              instruments={instrumentStates}
-              onInstrumentsChange={handleInstrumentsChange}
-              hasVocalTrack={!!song.audioTrack}
-              vocalMuted={vocalMuted}
-              vocalVolume={vocalVolume}
-              onVocalMutedChange={setVocalMuted}
-              onVocalVolumeChange={setVocalVolume}
-              vocalForcedMuted={vocalForcedMuted}
-              bpm={bpm}
-              originalBpm={song.bpm}
-              onBpmChange={setBpm}
-              transpose={transpose}
-              onTransposeChange={handleTransposeChange}
-              songKey={song.key}
-              metronome={metronome}
-              onMetronomeChange={handleMetronomeChange}
-              songSlug={song.slug}
-              allChordsCount={allChordsFlat.length}
-              isExportingWav={isExportingWav}
-              onExportWav={handleExportWav}
-              onExportMidi={handleExportMidi}
-              editorUrl={editorUrl}
-              showWavExport
-            />,
-            practicePanelTarget,
+          {LEGACY_PRACTICE_PANEL ? (
+            /* ─ The pre-Sep-2026 Practice panel, expanding in normal document flow ─ */
+            practicePanelTarget && createPortal(
+              <SongPracticePanel open={practiceOpen} {...practicePanelProps} />,
+              practicePanelTarget,
+            )
+          ) : (
+            /* ─ The same panel, opened from the bottom bar ─ */
+            <Sheet open={practiceOpen} onOpenChange={setPracticeOpen}>
+              <SheetContent
+                side="bottom"
+                className="mx-auto max-w-2xl rounded-t-2xl px-4 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-h-[88vh] overflow-y-auto"
+              >
+                <SheetTitle className="text-base">Practice</SheetTitle>
+                <SongPracticePanel open {...practicePanelProps} />
+              </SheetContent>
+            </Sheet>
           )}
+
+          {/* Portalled to <body> (headerTransportTarget doubles as the "mounted" signal): this
+              island lives inside the Chords tab panel, and the bar has to stay put on Lyrics. */}
+          {headerTransportTarget && createPortal(<SongTransportBar
+            songSlug={song.slug}
+            isPlaying={isPlaying}
+            isLoading={isLoading}
+            onPlayPause={handlePlay}
+            sectionName={barSectionName}
+            nowChord={barNowChord}
+            nextChord={barNextChord}
+            activeDuration={activeDuration}
+            currentChordIndex={currentChordIndex}
+            baseChordOffset={baseChordOffset}
+            totalChordSpan={totalSpan}
+            cumulativeBeats={cumulativeBeatsAtChordIndex}
+            totalBeats={totalBeats}
+            bpm={bpm}
+            originalBpm={song.bpm}
+            onBpmChange={setBpm}
+            metronome={metronome}
+            onMetronomeChange={handleMetronomeChange}
+            loopArmed={loopTarget !== null && loopTarget === activeSectionIndex}
+            canLoop={isPlaying && activeSectionIndex !== null}
+            onToggleLoop={() => handleToggleLoop()}
+            transpose={transpose}
+            onTransposeChange={handleTransposeChange}
+            keyName={keyName}
+            capo={capo}
+            onCapoChange={handleCapoChange}
+            autoScroll={autoScroll}
+            onAutoScrollChange={handleAutoScrollChange}
+            scrollSpeed={scrollSpeed}
+            onScrollSpeedChange={handleScrollSpeedChange}
+            textScale={textScale}
+            onTextScaleChange={handleTextScaleChange}
+            notation={notation}
+            onNotationChange={handleNotationChange}
+            displayKey={shapeKey}
+            density={density}
+            onDensityChange={handleDensityChange}
+            onOpenPractice={handleOpenPractice}
+          />, document.body)}
         </>
       )}
 
@@ -994,23 +1184,11 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
       {!inline && isPlaying && !autoFollow && (
         <button
           onClick={() => setAutoFollow(true)}
-          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 inline-flex items-center gap-1 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-lg hover:bg-primary/90 transition-colors"
+          className="fixed bottom-36 md:bottom-24 left-1/2 -translate-x-1/2 z-40 inline-flex items-center gap-1 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-lg hover:bg-primary/90 transition-colors"
         >
           {jumpDirection === 'up' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           Now playing
         </button>
-      )}
-
-      {/* ─ The one floating element on the page, and only while audio is actually running ─ */}
-      {!inline && isPlaying && (
-        <SongPlayingPill
-          sectionName={activeSectionIndex !== null ? song.sections[activeSectionIndex]?.name ?? null : null}
-          onStop={stop}
-          baseChordOffset={baseChordOffset}
-          cumulativeBeats={cumulativeBeatsAtChordIndex}
-          totalBeats={totalBeats}
-          bpm={bpm}
-        />
       )}
 
       {/* ─ Song chart ─ */}
@@ -1023,18 +1201,44 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
              notation picker to its left — the two are the same kind of choice ("how do I read
              this chart"), so they share a row and wear the same styling. `flex-wrap` on the
              right-hand group is what keeps six buttons from squeezing the map at mid widths. */
-          <div className="flex flex-col lg:flex-row lg:items-center gap-2.5 lg:gap-4 mb-4">
+          /* From md up this row is the chart's toolbar and stays under the site header while you
+             read (4rem = the navbar's 64px), or under ChordAside's strip when that is pinned —
+             the strip comes first on the page, so it sticks first (--song-strip-h is its height
+             while pinned, 0 otherwise). The key leads the row: it is the control this page
+             most needs people to find. On phones the row scrolls with the page and the key lives
+             in the bottom bar instead, so there is one fixed bar there, not two. */
+          <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2.5 md:gap-3 mb-4 md:sticky md:top-[calc(4rem+var(--song-strip-h,0px))] md:z-30 md:-mx-3 md:px-3 md:py-2 md:bg-background/95 md:backdrop-blur-md md:border-b md:border-border">
+            <div className="hidden md:flex items-center gap-1 shrink-0">
+              <SongKeyControl
+                surface="toolbar"
+                transpose={transpose}
+                onTransposeChange={handleTransposeChange}
+                keyName={keyName}
+                songSlug={song.slug}
+                capo={capo}
+                onCapoChange={handleCapoChange}
+              />
+              {transpose !== 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleTransposeChange(0)}
+                  className="px-2 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors whitespace-nowrap"
+                >
+                  Back to {song.key}
+                </button>
+              )}
+            </div>
             <SongStructureMap
               items={structureItems}
               activeSectionIndex={activeSectionIndex}
               queuedSectionIndex={queuedSectionIndex}
               onSelect={handleSectionCardTap}
             />
-            <div className="flex flex-wrap items-center justify-end gap-2 lg:shrink-0 lg:ml-auto">
+            <div className="flex flex-wrap items-center gap-2 md:justify-end md:shrink-0 md:ml-auto">
               <NotationSelector
                 value={notation}
                 onChange={handleNotationChange}
-                displayKey={displayKey}
+                displayKey={shapeKey}
               />
               <div className="inline-flex p-0.5 rounded-lg bg-secondary/60">
                 {([
@@ -1054,10 +1258,37 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                   </button>
                 ))}
               </div>
+              <AutoscrollControl
+                compact
+                className="hidden md:inline-flex"
+                on={autoScroll}
+                onChange={handleAutoScrollChange}
+                speed={scrollSpeed}
+                onSpeedChange={handleScrollSpeedChange}
+              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    title="Text size"
+                    className={`hidden md:inline-flex items-center gap-1 h-9 px-2.5 rounded-lg border text-xs font-semibold transition-colors ${textScale !== 100 ? 'border-primary/35 bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <Type className="w-4 h-4" />
+                    {textScale !== 100 && <span className="tabular-nums">{textScale}%</span>}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-auto p-2">
+                  <TextSizeControl scale={textScale} onChange={handleTextScaleChange} />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         )}
 
+        {/* The chart body. Text size is a zoom on this block only — the chart mixes several
+            fixed Tailwind sizes, and zoom scales them all (and the layout) together, while the
+            sticky toolbar above keeps its size. */}
+        <div ref={chartBodyRef} style={!inline && textScale !== 100 ? { zoom: textScale / 100 } : undefined}>
         {!inline && density === 'chords' ? (
           <SongChordsOnlyChart
             rows={chordOnlyRows}
@@ -1071,7 +1302,8 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
             isSectionPlaying={(si) => isPlaying && playingSection === si}
             songSlug={song.slug}
             notation={notation}
-            displayKey={displayKey}
+            displayKey={shapeKey}
+            soundingChord={soundingChord}
           />
         ) : (
           <div className={!inline ? 'lg:columns-2 lg:gap-10' : ''}>
@@ -1097,7 +1329,8 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                   bpm={bpm}
                   songSlug={song.slug}
                   notation={notation}
-                  displayKey={displayKey}
+                  displayKey={shapeKey}
+                  soundingChord={soundingChord}
                   compact={!inline && density === 'compact'}
                   chordRefs={chordRefs}
                   openTooltipIdx={openTooltipIdx}
@@ -1108,6 +1341,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
             })}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

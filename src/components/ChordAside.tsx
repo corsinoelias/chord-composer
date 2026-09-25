@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Play, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Play, ChevronLeft, ChevronRight, Pin } from 'lucide-react';
 import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
@@ -41,6 +41,8 @@ function transposeKey(key: string, s: number) {
   return (FLAT_KEYS.has(key) ? FLATS : SHARPS)[((i + s) % 12 + 12) % 12] + (minor ? 'm' : '');
 }
 
+const PIN_KEY = 'song-strip-pinned';
+
 interface Props {
   chords: string[];
   songKey: string;
@@ -51,11 +53,56 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
   const [view, setView] = useSyncedChordView('guitar');
   const [notation] = useSongNotation();
   const [semitones, setSemitones] = useState(0);
+  // With a capo the strip draws shapes (semitones already includes it); a tap still has to
+  // sound the chord the song plays, `capo` semitones above the shape.
+  const [capo, setCapo] = useState(0);
+  // The chord sounding now and the one after it (SongChordPlayer's song-active-chord event),
+  // marked Now / Next on the diagrams so the strip doubles as the player's chord display.
+  const [activeChord, setActiveChord] = useState<string | null>(null);
+  const [nextChord, setNextChord] = useState<string | null>(null);
+  // Pinned = the strip stays on screen under the chart toolbar while you scroll (md and up;
+  // on a phone the bottom bar already shows the chord now and next). Remembered per browser.
+  const [pinned, setPinned] = useState(false);
+  useEffect(() => {
+    try { setPinned(localStorage.getItem(PIN_KEY) === '1'); } catch { /* storage blocked */ }
+  }, []);
+  // While pinned, the chart toolbar (SongChordPlayer) sticks right under this strip instead of
+  // under the site header, so it needs this strip's live height.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const el = rootRef.current;
+    if (!pinned || !el || typeof ResizeObserver === 'undefined') {
+      root.style.setProperty('--song-strip-h', '0px');
+      return;
+    }
+    const ro = new ResizeObserver(() => root.style.setProperty('--song-strip-h', `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => { ro.disconnect(); root.style.setProperty('--song-strip-h', '0px'); };
+  }, [pinned]);
+  const togglePinned = () => {
+    const next = !pinned;
+    setPinned(next);
+    try { localStorage.setItem(PIN_KEY, next ? '1' : '0'); } catch { /* storage blocked */ }
+    analytics.songStripPinned(songSlug, next);
+  };
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent<{ chord: string | null; next?: string | null; isPlaying: boolean }>).detail;
+      setActiveChord(d.isPlaying ? d.chord : null);
+      setNextChord(d.isPlaying ? d.next ?? null : null);
+    };
+    window.addEventListener('song-active-chord', handler);
+    return () => window.removeEventListener('song-active-chord', handler);
+  }, []);
   const { ref: stripRef, canScrollLeft, canScrollRight, scrollByPage } = useHorizontalScrollArrows<HTMLDivElement>();
 
   useEffect(() => {
     const handler = (e: Event) => {
-      setSemitones((e as CustomEvent<{ semitones: number }>).detail.semitones);
+      const d = (e as CustomEvent<{ semitones: number; capo?: number }>).detail;
+      setSemitones(d.semitones);
+      setCapo(d.capo ?? 0);
     };
     window.addEventListener('song-transpose', handler);
     return () => window.removeEventListener('song-transpose', handler);
@@ -79,7 +126,12 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
     .filter(item => item.chordObj && item.notes.length > 0);
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div
+      ref={rootRef}
+      className={`rounded-xl border border-border bg-card overflow-hidden ${pinned
+        ? 'md:sticky md:z-20 md:top-16 md:shadow-[0_10px_22px_-16px_rgba(0,0,0,0.45)]'
+        : ''}`}
+    >
 
       {/* ── Header ── */}
       <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-border">
@@ -90,6 +142,15 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
           {items.length}
         </span>
         <InstrumentViewSelector value={view} onChange={setView} className="ml-auto" />
+        <button
+          type="button"
+          onClick={togglePinned}
+          aria-pressed={pinned}
+          title={pinned ? 'Let the diagrams scroll with the page' : 'Keep the diagrams on screen while you scroll'}
+          className={`hidden md:grid place-items-center w-7 h-7 rounded-md transition-colors ${pinned ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
+        >
+          <Pin className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* ── Chord strip — always visible, horizontal scroll, one tap per chord to hear it.
@@ -98,7 +159,7 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
           pattern) so the strip signals "click me to hear this" without extra copy. Native
           scrollbar hidden and replaced with prev/next arrows — same reasoning as Structure:
           a mouse has no drag/swipe gesture to move the strip once the scrollbar's gone. ── */}
-      <div className="flex items-center gap-1 px-1 py-4">
+      <div className={`flex items-center gap-1 px-1 ${pinned ? 'py-3 md:py-1.5' : 'py-3'}`}>
         <button
           type="button"
           onClick={() => scrollByPage(-1)}
@@ -112,18 +173,26 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
           ref={stripRef}
           className="flex gap-5 overflow-x-auto px-3 min-w-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
-          {items.map(({ chord, chordObj, notes, guitarVoicing, ukuleleVoicing }) => (
+          {items.map(({ chord, chordObj, notes, guitarVoicing, ukuleleVoicing }) => {
+            const isNow = chord === activeChord;
+            const isNext = !isNow && chord === nextChord;
+            return (
             <button
               key={chord}
               type="button"
               onClick={() => {
                 if (!chordObj) return;
                 analytics.playChordPreview(songSlug, chord, 'aside');
-                playChordPreview(chordObj);
+                const sounding = capo === 0 ? chordObj : parseChordString(transposeChordStr(chord, capo, useFlats))[0] ?? chordObj;
+                playChordPreview(sounding);
               }}
               title={`Play ${chord}`}
-              className="group relative flex flex-col items-center gap-1.5 shrink-0 hover:z-10"
+              className={`group relative flex flex-col items-center gap-1 shrink-0 hover:z-10 rounded-xl px-1.5 pt-0.5 pb-1.5 border transition-colors
+                ${isNow ? 'border-primary bg-primary/[0.07]' : isNext ? 'border-dashed border-primary/50' : 'border-transparent'}`}
             >
+              <span className={`h-3 text-[9px] font-bold uppercase tracking-widest leading-3 ${isNow ? 'text-primary' : 'text-muted-foreground'}`}>
+                {isNow ? 'Now' : isNext ? 'Next' : ''}
+              </span>
               <span className="text-sm font-bold text-primary group-hover:text-primary/80 transition-colors">
                 {displayChord(chord, displayKey, notation)}
               </span>
@@ -139,7 +208,7 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
                     </span>
                   )
                 ) : guitarVoicing ? (
-                  <GuitarChordDiagram voicing={guitarVoicing} className="w-20" />
+                  <GuitarChordDiagram voicing={guitarVoicing} className={pinned ? 'w-20 md:w-14' : 'w-20'} />
                 ) : (
                   <span className="w-20 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
                     No voicing
@@ -155,7 +224,8 @@ export default function ChordAside({ chords, songKey, songSlug }: Props) {
                 )}
               </div>
             </button>
-          ))}
+            );
+          })}
         </div>
         <button
           type="button"

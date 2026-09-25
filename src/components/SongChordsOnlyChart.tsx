@@ -25,6 +25,8 @@ interface SongChordsOnlyChartProps {
   // Display-only — `c.chord` stays the real transposed name for audio and analytics.
   notation: SongNotation;
   displayKey: string;
+  // See SongSectionChart: a capo shape → the chord that actually sounds.
+  soundingChord?: (name: string) => string;
 }
 
 // The whole arrangement as chord-only rows — one screen, no lyrics, the way a player who
@@ -44,6 +46,7 @@ export function SongChordsOnlyChart({
   songSlug,
   notation,
   displayKey,
+  soundingChord = (name: string) => name,
 }: SongChordsOnlyChartProps) {
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-6">This song has no chords.</p>;
@@ -99,7 +102,7 @@ export function SongChordsOnlyChart({
                     type="button"
                     title={`Play ${c.chord}`}
                     onClick={() => {
-                      const parsed = parseChordString(c.chord);
+                      const parsed = parseChordString(soundingChord(c.chord));
                       if (parsed[0]) {
                         analytics.playChordPreview(songSlug, c.chord, 'chart');
                         playChordPreview(parsed[0]);
