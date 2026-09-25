@@ -5,7 +5,7 @@ import { parseChordString } from '@/lib/chordParser';
 import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { getEffectiveInstruments } from '@/hooks/useStyleInstruments';
 import { createSection } from '@/lib/sections';
-import { ChevronDown, ChevronUp, Maximize2, Minimize2, Type } from 'lucide-react';
+import { Maximize2, Minimize2, Type } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SongPlayerBar } from '@/components/SongPlayerBar';
 import { SongHeaderTransport } from '@/components/SongHeaderTransport';
@@ -749,21 +749,19 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     chordRefs.current.get(activeGlobal)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [activeGlobal, isPlaying, autoFollow]);
 
-  // ── Which way the "jump back" pill needs to point — the active chord can end up above OR
-  // below the viewport depending on which way the user scrolled, so a fixed arrow is wrong
-  // half the time. Recomputed on scroll while the pill is showing. ──────────────────────────
-  const [jumpDirection, setJumpDirection] = useState<'up' | 'down'>('down');
-
+  // ── Following resumes by itself once the chord that is playing is back on screen (the reader
+  // scrolled back to it). There used to be a floating "Now playing" button for this; it sat
+  // over the chart, so it went (Sep 2026). ─────────────────────────────────────────────────
   useEffect(() => {
     if (!isPlaying || autoFollow) return;
-    const updateDirection = () => {
+    const check = () => {
       const el = chordRefs.current.get(activeGlobal);
       if (!el) return;
-      setJumpDirection(el.getBoundingClientRect().top < window.innerHeight / 2 ? 'up' : 'down');
+      const r = el.getBoundingClientRect();
+      if (r.top > window.innerHeight * 0.15 && r.bottom < window.innerHeight * 0.75) setAutoFollow(true);
     };
-    updateDirection();
-    window.addEventListener('scroll', updateDirection, { passive: true });
-    return () => window.removeEventListener('scroll', updateDirection);
+    window.addEventListener('scroll', check, { passive: true });
+    return () => window.removeEventListener('scroll', check);
   }, [isPlaying, autoFollow, activeGlobal]);
 
   // ── Notify ChordAside of the currently sounding chord (same event-bus pattern as transpose) ──
@@ -1440,17 +1438,6 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
           onComplete={() => setCounting(false)}
           onCancel={() => { setCounting(false); stop(); }}
         />
-      )}
-
-      {/* ─ Resume auto-scroll pill — only once the user has scrolled away during playback ─ */}
-      {!inline && isPlaying && !autoFollow && (
-        <button
-          onClick={() => setAutoFollow(true)}
-          className="fixed bottom-36 md:bottom-24 left-1/2 -translate-x-1/2 z-40 inline-flex items-center gap-1 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-lg hover:bg-primary/90 transition-colors"
-        >
-          {jumpDirection === 'up' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          Now playing
-        </button>
       )}
 
       {/* ─ Song chart ─ */}

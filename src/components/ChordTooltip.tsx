@@ -2,11 +2,8 @@ import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
 import { getUkuleleVoicing } from '@/data/ukuleleChords';
-import { PianoKeyboard } from '@/components/PianoKeyboard';
-import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
+import { FretDiagram, PianoDiagram } from '@/components/SongChordDiagram';
 import { useSyncedChordView } from '@/hooks/useSyncedChordView';
-import { playChordPreview } from '@/lib/appEngine/preview';
-import { Play } from 'lucide-react';
 import { displayChord, type SongNotation } from '@/lib/songNotation';
 
 interface Props {
@@ -30,62 +27,24 @@ export default function ChordTooltip({ chord, notation = 'standard', displayKey 
 
   if (!chordObj || notes.length === 0) return null;
 
-  function handlePlay(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (chordObj) playChordPreview(chordObj);
-  }
+  // Laid out as the V4 prototype's chord pop-up: the name large on the left (with the real chord
+  // under a number, or the hint that a click plays it), the diagram on the right. Tapping the chord
+  // name in the chart is what plays it, so the pop-up needs no button of its own.
+  const diagram = view === 'piano'
+    ? <PianoDiagram notes={notes} width={124} />
+    : view === 'ukulele'
+      ? (ukuleleVoicing ? <FretDiagram voicing={ukuleleVoicing} width={72} /> : <p className="text-xs text-muted-foreground py-4">No ukulele voicing</p>)
+      : (voicing ? <FretDiagram voicing={voicing} width={72} /> : <p className="text-xs text-muted-foreground py-4">No guitar voicing</p>);
 
   return (
-    <div className="w-56 rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-        <span className="text-sm font-bold text-foreground font-mono">
-          {displayChord(chord, displayKey, notation)}
-        </span>
-        {/* Numbers only — the translation back to the sounding chord is what makes a number
-            chart learnable. Solfège needs no gloss: "Sol♯m" and "G#m" are the same name in two
-            alphabets, so showing both just reads as a contradiction. */}
-        {notation === 'number' && (
-          <span className="text-[11px] font-medium text-muted-foreground font-mono">{chord}</span>
-        )}
-        <button
-          onClick={handlePlay}
-          title="Play chord"
-          className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-        >
-          <Play className="w-3 h-3 fill-primary" />
-        </button>
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 shadow-xl text-foreground">
+      <div className="min-w-[3.5rem]">
+        <div className="text-[22px] font-extrabold leading-none text-primary">{displayChord(chord, displayKey, notation)}</div>
+        <small className="block mt-1 text-[11.5px] font-medium text-muted-foreground">
+          {notation === 'number' || notation === 'roman' ? chord : 'Click to hear'}
+        </small>
       </div>
-
-      {/* Notes */}
-      <div className="flex gap-1 px-3 pt-2">
-        {notes.map(n => (
-          <span key={n} className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
-            {n}
-          </span>
-        ))}
-      </div>
-
-      {/* Visualization */}
-      <div className="p-3">
-        {view === 'piano' ? (
-          <PianoKeyboard activeNotes={notes} className="w-full" />
-        ) : view === 'ukulele' ? (
-          ukuleleVoicing ? (
-            <GuitarChordDiagram voicing={ukuleleVoicing} heightPx={104} />
-          ) : (
-            <p className="text-xs text-muted-foreground text-center py-4">
-              No ukulele voicing available
-            </p>
-          )
-        ) : voicing ? (
-          <GuitarChordDiagram voicing={voicing} heightPx={104} />
-        ) : (
-          <p className="text-xs text-muted-foreground text-center py-4">
-            No guitar voicing available
-          </p>
-        )}
-      </div>
+      {diagram}
     </div>
   );
 }

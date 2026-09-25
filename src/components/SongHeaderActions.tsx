@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Share2, Printer, Image as ImageIcon, Pencil, MoreHorizontal, Flag } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { openFeedback } from '@/lib/feedback';
 import { parseLyricLine, type Song } from '@/data/songs';
 import { generateSongImage, downloadCanvasAsPng, type ImageSection } from '@/lib/songImage';
 import { analytics } from '@/lib/analytics';
@@ -28,7 +29,7 @@ interface Props {
   song: Song;
   isCommunity: boolean;
   isLocalhost: boolean;
-  // The song is in the database (public_songs), so the report form can take a report for it.
+  // Unused since "Report an issue" opens the site-wide feedback modal (works for every song).
   canReport?: boolean;
 }
 
@@ -39,7 +40,7 @@ const iconButtonClass =
   'inline-flex items-center justify-center gap-1.5 w-9 h-9 sm:w-auto sm:min-w-9 sm:px-2.5 rounded-[9px] bg-card text-muted-foreground hover:text-foreground hover:bg-secondary border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 const labelClass = 'hidden sm:inline text-[13px] font-medium';
 
-export default function SongHeaderActions({ song, isCommunity, isLocalhost, canReport = false }: Props) {
+export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Props) {
   const [transpose, setTranspose] = useState(0);
   // The PNG export is a picture of the chart, so it has to be spelled the way the chart on
   // screen is — otherwise someone reading in numbers downloads an image in letters.
@@ -126,7 +127,7 @@ export default function SongHeaderActions({ song, isCommunity, isLocalhost, canR
             <ImageIcon className="w-4 h-4 mr-2.5 text-muted-foreground" />
             Save as image
           </DropdownMenuItem>
-          {(isLocalhost || canReport) && <DropdownMenuSeparator />}
+          <DropdownMenuSeparator />
           {isLocalhost && (
             <DropdownMenuItem asChild>
               <a href={editUrl} className="cursor-pointer">
@@ -135,12 +136,15 @@ export default function SongHeaderActions({ song, isCommunity, isLocalhost, canR
               </a>
             </DropdownMenuItem>
           )}
-          {canReport && (
-            <DropdownMenuItem onSelect={() => window.dispatchEvent(new CustomEvent('song-report-open'))} className="cursor-pointer">
-              <Flag className="w-4 h-4 mr-2.5 text-muted-foreground" />
-              Report an issue
-            </DropdownMenuItem>
-          )}
+          {/* The site's feedback modal ("Send feedback — Found a bug or have an idea?"), opened on
+              Bug with the song attached, so the report arrives knowing which chart it is about. */}
+          <DropdownMenuItem
+            onSelect={() => openFeedback({ entryPoint: 'song_menu', kind: 'bug', context: { song_slug: song.slug, transpose } })}
+            className="cursor-pointer"
+          >
+            <Flag className="w-4 h-4 mr-2.5 text-muted-foreground" />
+            Report an issue
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

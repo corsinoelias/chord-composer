@@ -13,7 +13,7 @@ import type { SongNotation } from '@/lib/songNotation';
 import { sectionStyle } from '@/lib/sectionKind';
 import { parseChordString } from '@/lib/chordParser';
 import { getGuitarVoicing } from '@/data/guitarChords';
-import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
+import { FretDiagram } from '@/components/SongChordDiagram';
 
 type Density = 'full' | 'lyrics' | 'chords';
 
@@ -151,7 +151,7 @@ function NowDiagram({ name }: { name: string | null }) {
   const chord = parseChordString(name)[0];
   const voicing = chord ? getGuitarVoicing(chord) : null;
   if (!voicing) return null;
-  return <GuitarChordDiagram voicing={voicing} heightPx={48} className="shrink-0 hidden lg:flex" />;
+  return <FretDiagram voicing={voicing} width={38} className="shrink-0 hidden lg:block text-foreground" />;
 }
 
 // The song page's one playback surface, fixed to the bottom at every width (Sep 2026 redesign).

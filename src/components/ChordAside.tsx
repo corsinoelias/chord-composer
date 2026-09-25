@@ -4,8 +4,7 @@ import { parseChordString } from '@/lib/chordParser';
 import { getChordNotes } from '@/lib/chordNotes';
 import { getGuitarVoicing } from '@/data/guitarChords';
 import { getUkuleleVoicing } from '@/data/ukuleleChords';
-import { PianoKeyboard } from '@/components/PianoKeyboard';
-import { GuitarChordDiagram } from '@/components/GuitarChordDiagram';
+import { FretDiagram, PianoDiagram } from '@/components/SongChordDiagram';
 import { useSyncedChordView } from '@/hooks/useSyncedChordView';
 import { useSongNotation } from '@/hooks/useSongNotation';
 import { displayChord } from '@/lib/songNotation';
@@ -216,17 +215,17 @@ export default function ChordAside({ chords, songKey, songSlug, className = '' }
               </span>
               <div className="relative rounded-xl p-2 -m-2 transition-all duration-150 group-hover:bg-card group-hover:shadow-lg group-hover:shadow-black/10 group-hover:ring-1 group-hover:ring-border group-hover:-translate-y-0.5">
                 {view === 'piano' ? (
-                  <PianoKeyboard activeNotes={notes} className="w-36" />
+                  <PianoDiagram notes={notes} width={pinned ? 96 : 118} />
                 ) : view === 'ukulele' ? (
                   ukuleleVoicing ? (
-                    <GuitarChordDiagram voicing={ukuleleVoicing} heightPx={pinned ? 64 : 80} />
+                    <FretDiagram voicing={ukuleleVoicing} width={pinned ? 50 : 62} />
                   ) : (
                     <span className="w-16 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
                       No voicing
                     </span>
                   )
                 ) : guitarVoicing ? (
-                  <GuitarChordDiagram voicing={guitarVoicing} heightPx={pinned ? 64 : 80} />
+                  <FretDiagram voicing={guitarVoicing} width={pinned ? 50 : 62} />
                 ) : (
                   <span className="w-20 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
                     No voicing
