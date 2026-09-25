@@ -72,14 +72,14 @@ export default function ChordTooltip({ chord, notation = 'standard', displayKey 
           <PianoKeyboard activeNotes={notes} className="w-full" />
         ) : view === 'ukulele' ? (
           ukuleleVoicing ? (
-            <GuitarChordDiagram voicing={ukuleleVoicing} className="w-full" />
+            <GuitarChordDiagram voicing={ukuleleVoicing} heightPx={104} />
           ) : (
             <p className="text-xs text-muted-foreground text-center py-4">
               No ukulele voicing available
             </p>
           )
         ) : voicing ? (
-          <GuitarChordDiagram voicing={voicing} className="w-full" />
+          <GuitarChordDiagram voicing={voicing} heightPx={104} />
         ) : (
           <p className="text-xs text-muted-foreground text-center py-4">
             No guitar voicing available

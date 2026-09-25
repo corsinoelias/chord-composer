@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useHorizontalScrollArrows } from '@/hooks/useHorizontalScrollArrows';
 import { sectionShort, sectionStyle } from '@/lib/sectionKind';
+import { usePlayback, usePlaybackPosition } from '@/contexts/PlaybackContext';
 
 interface StructureItem {
   sectionIndex: number;
@@ -15,6 +16,21 @@ interface SongStructureMapProps {
   onSelect: (si: number) => void;
   // "56 bars · 3:18"-style summary shown at the end of the row (optional).
   summary?: string;
+  // Where each chip's section sits on the playback timeline (chord positions, repeats
+  // counted), and where the engine's position 0 is — for the fill that tracks playback.
+  spans?: { start: number; span: number }[];
+  baseChordOffset?: number;
+}
+
+// How much of one section has played: 0 before it, 100 after, in between while it plays.
+// Its own component so only the fills re-render at animation-frame rate.
+function ChipFill({ start, span, baseChordOffset }: { start: number; span: number; baseChordOffset: number }) {
+  const { state } = usePlayback();
+  const position = baseChordOffset + Math.max(0, usePlaybackPosition());
+  if (!state.isPlaying || span <= 0) return null;
+  const pct = Math.max(0, Math.min(100, ((position - start) / span) * 100));
+  if (pct === 0) return null;
+  return <span className="absolute inset-y-0 left-0 bg-current opacity-[0.18] pointer-events-none" style={{ width: `${pct}%` }} aria-hidden="true" />;
 }
 
 // The whole arrangement in one glance — V1 C V2 C B B C — each chip in its section kind's colour
@@ -22,7 +38,7 @@ interface SongStructureMapProps {
 // (a repeated section further down the array is its own chip, not merged with the first). The
 // strip scrolls (rather than wrapping) so on a phone it reads left-to-right like a timeline; its
 // scrollbar is hidden and replaced with prev/next arrows, since a mouse has no swipe gesture.
-export function SongStructureMap({ items, activeSectionIndex, queuedSectionIndex, onSelect, summary }: SongStructureMapProps) {
+export function SongStructureMap({ items, activeSectionIndex, queuedSectionIndex, onSelect, summary, spans, baseChordOffset = 0 }: SongStructureMapProps) {
   const { ref, canScrollLeft, canScrollRight, scrollByPage } = useHorizontalScrollArrows<HTMLDivElement>();
 
   if (items.length <= 1) return null;
@@ -41,7 +57,7 @@ export function SongStructureMap({ items, activeSectionIndex, queuedSectionIndex
         ref={ref}
         className="order-3 md:order-none basis-full md:basis-auto flex items-center gap-1.5 overflow-x-auto min-w-0 py-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
-        {items.map(item => {
+        {items.map((item, i) => {
           const isActive = item.sectionIndex === activeSectionIndex;
           const isQueued = item.sectionIndex === queuedSectionIndex;
           const style = sectionStyle(item.name);
@@ -52,10 +68,11 @@ export function SongStructureMap({ items, activeSectionIndex, queuedSectionIndex
               onClick={() => onSelect(item.sectionIndex)}
               title={`${item.name}${item.repeatCount > 1 ? ` ×${item.repeatCount}` : ''}${isQueued ? ' · plays next' : ''}`}
               aria-current={isActive ? 'true' : undefined}
-              className={`shrink-0 inline-flex items-center gap-0.5 h-[30px] min-w-[38px] justify-center px-2.5 rounded-lg border text-[12.5px] font-bold transition-colors
+              className={`relative overflow-hidden shrink-0 inline-flex items-center gap-0.5 h-[30px] min-w-[38px] justify-center px-2.5 rounded-lg border text-[12.5px] font-bold transition-colors
                 ${isActive ? style.solid : style.chip} ${isQueued ? 'border-dashed ring-2 ring-primary/30' : ''} hover:brightness-95`}
             >
-              {sectionShort(item.name)}
+              {spans?.[i] && <ChipFill start={spans[i].start} span={spans[i].span} baseChordOffset={baseChordOffset} />}
+              <span className="relative">{sectionShort(item.name)}</span>
               {item.repeatCount > 1 && <sup className="text-[9px] font-bold opacity-80">{item.repeatCount}</sup>}
             </button>
           );

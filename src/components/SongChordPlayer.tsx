@@ -20,6 +20,7 @@ import { useLeftHanded, setLeftHanded } from '@/lib/leftHanded';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { LEGACY_PRACTICE_PANEL } from '@/lib/songPageFlags';
 import { displayChord } from '@/lib/songNotation';
+import { sectionShort } from '@/lib/sectionKind';
 import { SongSectionChart } from '@/components/SongSectionChart';
 import { SongChordsOnlyChart, type ChordOnlyRow } from '@/components/SongChordsOnlyChart';
 import { parseLyricLine, extractChordsWithDuration, extractChordsFromSong, sectionArrangement, type Song } from '@/data/songs';
@@ -31,6 +32,7 @@ import { MUSICAL_STYLES } from '@/lib/styles';
 import { analytics } from '@/lib/analytics';
 import { buildSongEditorUrl, linkArrangement, type EditorLinkSection } from '@/lib/editorLink';
 import { useSongNotation } from '@/hooks/useSongNotation';
+import { useSyncedChordView } from '@/hooks/useSyncedChordView';
 import type { SongNotation } from '@/lib/songNotation';
 
 // What the chart shows: chords over lyrics, the words alone, or the chords alone.
@@ -158,7 +160,12 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // `capo` semitones below. Everything drawn on the page that names a chord (the chart, the
   // diagram strip, the bottom bar) reads shapeShift / shapeKey instead.
   const [capo, setCapo] = useState(0);
-  const shapeShift = transpose - capo;
+  // A capo is a fretted-instrument thing: with the diagrams on piano it neither shows nor
+  // changes a chord (the choice is kept for when guitar or ukulele comes back).
+  const [chordView] = useSyncedChordView('guitar');
+  const capoApplies = chordView !== 'piano';
+  const effCapo = capoApplies ? capo : 0;
+  const shapeShift = transpose - effCapo;
   const shapeKey = useMemo(() => shapeShift === 0 ? song.key : transposeKey(song.key, shapeShift), [song.key, shapeShift]);
   const handleCapoChange = useCallback((c: number) => {
     setCapo(c);
@@ -261,8 +268,8 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
 
   // A chord name as drawn → the chord that actually sounds, for the tap-to-hear previews.
   const soundingChord = useCallback(
-    (name: string) => capo === 0 ? name : transposeChordStr(name, capo, FLAT_KEYS.has(displayKey)),
-    [capo, displayKey],
+    (name: string) => effCapo === 0 ? name : transposeChordStr(name, effCapo, FLAT_KEYS.has(displayKey)),
+    [effCapo, displayKey],
   );
 
   // Keep context transposition in sync + notify ChordAside.
@@ -276,9 +283,9 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     // `semitones` is what the diagram strip draws — the capo shapes; `displayKey` stays the
     // sounding key for the chip; `capo` lets ChordAside's previews sound at the real pitch.
     window.dispatchEvent(new CustomEvent('song-transpose', {
-      detail: { semitones: shapeShift, displayKey, capo, transpose },
+      detail: { semitones: shapeShift, displayKey, capo: effCapo, transpose },
     }));
-  }, [transpose, shapeShift, capo, displayKey, updatePlaybackOptions]);
+  }, [transpose, shapeShift, effCapo, displayKey, updatePlaybackOptions]);
 
   // ── Listening telemetry ──────────────────────────────────────────────────────
   // song_audio_ready / song_play_failed / song_play_progress / song_play_stopped — see
@@ -394,6 +401,14 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
   // null = full song, number = which section index is playing solo
   const [playingSection, setPlayingSection] = useState<number | null>(null);
+  // Full-song playback started part-way through (the bar's timeline was clicked): the flat
+  // position, repeats counted, that the engine's chord 0 stands for. null = from the top.
+  const [seekOffset, setSeekOffset] = useState<number | null>(null);
+  // The bar's loop button cycles off → this section → the whole song. `loopTarget` below is the
+  // section half; this is the song half. A ref too: onEnded reads it long after play() ran.
+  const [songLoop, setSongLoop] = useState(false);
+  const songLoopRef = useRef(false);
+  songLoopRef.current = songLoop;
   // Which SONG section is armed to loop — a song.sections index, deliberately NOT an index
   // into whatever Section[] happens to be scheduled right now. That distinction is what lets
   // the loop be armed while stopped (tap ⟳ on the chorus, then press Play): there is no
@@ -567,7 +582,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // song, not about the current playback run, so it has to survive Stop and be there on the
   // next Play. Only the two genuinely run-scoped values are cleared.
   useEffect(() => {
-    if (!isPlaying && !isLoading) { setPlayingSection(null); setQueuedSectionIndex(null); }
+    if (!isPlaying && !isLoading) { setPlayingSection(null); setQueuedSectionIndex(null); setSeekOffset(null); }
   }, [isPlaying, isLoading]);
 
   // ── Map the flat playback position (which advances across repeats) back to the
@@ -576,6 +591,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // the bar's "next chord".
   const globalAt = useCallback((flat: number) => {
     if (flat < 0) return -1;
+    if (playingSection === null && seekOffset !== null) flat += seekOffset;
     if (playingSection !== null) {
       const count = sectionChordCounts[playingSection];
       if (count === 0) return -1;
@@ -593,7 +609,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
       }
     }
     return -1;
-  }, [playingSection, sectionChordCounts, sectionStartIndices, sectionSpanOffsets, song.sections]);
+  }, [playingSection, seekOffset, sectionChordCounts, sectionStartIndices, sectionSpanOffsets, song.sections]);
 
   const activeGlobal = useMemo(
     () => (!isPlaying || currentChordIndex < 0) ? -1 : globalAt(currentChordIndex),
@@ -761,9 +777,18 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     ? chordLabel(globalAt(currentChordIndex + 1))
     : chordLabel(allChordsFlat.length > 1 ? 1 : -1);
   const firstPlayableSection = sectionChordCounts.findIndex(c => c > 0);
+  // "Chorus (2 of 3)" when a section name comes back later in the song.
+  const sectionLabel = (si: number) => {
+    const name = song.sections[si]?.name;
+    if (!name) return null;
+    const same = song.sections.filter(s => s.name === name).length;
+    if (same < 2) return name;
+    const nth = song.sections.slice(0, si + 1).filter(s => s.name === name).length;
+    return `${name} (${nth} of ${same})`;
+  };
   const barSectionName = isPlaying
-    ? (activeSectionIndex !== null ? song.sections[activeSectionIndex]?.name ?? null : null)
-    : (song.sections[firstPlayableSection]?.name ?? null);
+    ? (activeSectionIndex !== null ? sectionLabel(activeSectionIndex) : null)
+    : sectionLabel(firstPlayableSection);
 
   // The chord after it, same spelling — ChordAside marks it "Next" in the diagram strip.
   const nextChordName = useMemo(() => {
@@ -803,21 +828,76 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
       return;
     }
     analytics.playSong(song.slug, song.title);
+    startSongRef.current(0);
+  }, [isPlaying, stop, allChordsFlat.length, song, loopTarget, sectionChordCounts]);
+
+  // ── The whole song from a flat position (0 = the top; repeats counted) ──────────────────
+  // The engine has no "jump to", so starting part-way means scheduling the song from there:
+  // the rest of the current section pass, its remaining repeats, then every later section —
+  // what section play already does, one section wider. From the top with the song loop on,
+  // the engine loops by itself; otherwise the pass ends in onEnded, which either goes round
+  // again from the top (song loop switched on meanwhile) or stops.
+  const startSongRef = useRef<(offset: number) => void>(() => {});
+  const startSong = useCallback(async (offset: number) => {
+    if (allChordsFlat.length === 0 || totalSpan === 0) return;
+    const flat = Math.max(0, Math.min(totalSpan - 1, Math.floor(offset)));
+    if (isPlaying) stop();
+    const full = buildFullSongSections();
+    let sections = full;
+    if (flat > 0) {
+      const si = song.sections.findIndex((s, i) => {
+        const start = sectionSpanOffsets[i];
+        const span = sectionChordCounts[i] * (s.repeatCount ?? 1);
+        return span > 0 && flat >= start && flat < start + span;
+      });
+      if (si < 0) return;
+      const count = sectionChordCounts[si];
+      const into = flat - sectionSpanOffsets[si];
+      const pass = Math.floor(into / count);
+      const at = into % count;
+      const sec = song.sections[si];
+      const repeats = sec.repeatCount ?? 1;
+      sections = [
+        { ...buildPlayback(sectionStartIndices[si] + at, count - at, sec.name, 1), ...sectionArrangement(sec) },
+        ...(repeats - 1 - pass > 0 ? [{ ...buildPlayback(sectionStartIndices[si], count, sec.name, repeats - 1 - pass), ...sectionArrangement(sec) }] : []),
+        ...full.slice(si + 1),
+      ];
+      // A section loop is scheduled against the whole song; from mid-song it has nothing to hold.
+      if (loopTargetRef.current !== null) { loopTargetRef.current = null; setLoopTarget(null); }
+    }
     setPlayingSection(null);
+    setSeekOffset(flat > 0 ? flat : null);
     setAutoFollow(true);
     setIsLoading(true);
     try {
-      const fullSections = buildFullSongSections();
-      const playPromise = play(fullSections, {
-        bpm, metronome, instruments, loop: true,
+      const playPromise = play(sections, {
+        bpm, metronome, instruments, loop: flat === 0 && songLoopRef.current,
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
         melodic: resolvedStyle.melodic,
-        audioTrack: buildAudioTrack(fullSections),
+        audioTrack: flat === 0 ? buildAudioTrack(full) : undefined,
+        onEnded: () => {
+          if (songLoopRef.current) { startSongRef.current(0); return; }
+          stopReasonRef.current = 'ended';
+          stop();
+        },
       });
       trackPlayAttempt(playPromise);
       await playPromise;
     } finally { setIsLoading(false); }
-  }, [isPlaying, play, stop, allChordsFlat.length, bpm, metronome, song, transpose, buildFullSongSections, instruments, resolvedStyle, buildAudioTrack, loopTarget, sectionChordCounts, trackPlayAttempt]);
+  }, [allChordsFlat.length, totalSpan, isPlaying, stop, buildFullSongSections, song.sections, song.style, sectionSpanOffsets, sectionChordCounts, sectionStartIndices, buildPlayback, play, bpm, metronome, instruments, transpose, resolvedStyle, buildAudioTrack, trackPlayAttempt]);
+  startSongRef.current = startSong;
+
+  // The song loop switched off while the engine was looping the song by itself: stop when it
+  // comes round to the top instead of starting over.
+  const prevChordIndexRef = useRef(-1);
+  useEffect(() => {
+    const prev = prevChordIndexRef.current;
+    prevChordIndexRef.current = currentChordIndex;
+    if (!isPlaying || songLoop || playingSection !== null || seekOffset !== null) return;
+    if (prev > 0 && currentChordIndex >= 0 && currentChordIndex < prev) { stopReasonRef.current = 'ended'; stop(); }
+  }, [currentChordIndex, isPlaying, songLoop, playingSection, seekOffset, stop]);
+
+  const handleToggleLoopRef = useRef<(si?: number) => void>(() => {});
 
   // ── Play single section ────────────────────────────────────────────────────
   // Synchronous reentrancy guard — `isLoading` (React state) already disables the section-card
@@ -956,7 +1036,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
 
     // Full-song playback: the scheduled Section[] IS song.sections, so the index maps 1:1 and
     // the loop can be engaged live — it simply takes effect when playback reaches that section.
-    if (playingSection === null) {
+    if (playingSection === null && seekOffset === null) {
       updatePlaybackOptions({ loopingSectionIndex: next });
       return;
     }
@@ -970,7 +1050,22 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
       return;
     }
     handlePlaySectionRef.current(next);
-  }, [activeSectionIndex, sectionChordCounts, isPlaying, playingSection, updatePlaybackOptions, song.slug, song.sections]);
+  }, [activeSectionIndex, sectionChordCounts, isPlaying, playingSection, seekOffset, updatePlaybackOptions, song.slug, song.sections]);
+  handleToggleLoopRef.current = handleToggleLoop;
+
+  // The bar's loop button: off → the section playing (or the first, when stopped) → the whole
+  // song → off.
+  const loopMode: 'off' | 'section' | 'song' = loopTarget !== null ? 'section' : songLoop ? 'song' : 'off';
+  const handleCycleLoop = useCallback(() => {
+    if (loopTargetRef.current !== null) {
+      handleToggleLoopRef.current(loopTargetRef.current);
+      setSongLoop(true);
+      return;
+    }
+    if (songLoopRef.current) { setSongLoop(false); return; }
+    const target = activeSectionIndex ?? sectionChordCounts.findIndex(c => c > 0);
+    if (target >= 0) handleToggleLoopRef.current(target);
+  }, [activeSectionIndex, sectionChordCounts]);
 
   // ── Export WAV ─────────────────────────────────────────────────────────────
   const handleExportWav = useCallback(async () => {
@@ -1024,7 +1119,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // chorus at the song's midpoint). SongPlayerBar combines this with the live chord index
   // and a real-time fraction itself (see ProgressFill) so the fill animates continuously
   // instead of snapping once per chord.
-  const baseChordOffset = playingSection !== null ? sectionSpanOffsets[playingSection] : 0;
+  const baseChordOffset = playingSection !== null ? sectionSpanOffsets[playingSection] : (seekOffset ?? 0);
 
   // ── For the mobile Sections panel's per-card progress ring — the active section's own span
   // (repeat-aware), and whether the current playback is a solo-section play (playbackPosition
@@ -1275,13 +1370,16 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
             onBpmChange={setBpm}
             metronome={metronome}
             onMetronomeChange={handleMetronomeChange}
-            loopArmed={loopTarget !== null && loopTarget === activeSectionIndex}
-            canLoop={isPlaying && activeSectionIndex !== null}
-            onToggleLoop={() => handleToggleLoop()}
+            loopMode={loopMode}
+            loopLabel={loopTarget !== null ? sectionShort(song.sections[loopTarget]?.name ?? '') : 'ALL'}
+            loopTitle={loopTarget !== null ? `Loop: ${song.sections[loopTarget]?.name}` : songLoop ? 'Loop: whole song' : 'Loop: off'}
+            onToggleLoop={handleCycleLoop}
+            onSeek={(flat) => startSongRef.current(flat)}
             transpose={transpose}
             onTransposeChange={handleTransposeChange}
             keyName={keyName}
-            capo={capo}
+            capo={effCapo}
+            showCapo={capoApplies}
             onCapoChange={handleCapoChange}
             autoScroll={autoScroll}
             onAutoScrollChange={handleAutoScrollChange}
@@ -1299,7 +1397,6 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
             onDensityChange={handleDensityChange}
             onOpenPractice={handleOpenPractice}
             segments={timelineSegments}
-            onSeekSection={handlePlaySection}
           />, document.body)}
         </>
       )}
@@ -1334,6 +1431,8 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
               queuedSectionIndex={queuedSectionIndex}
               onSelect={handleSectionCardTap}
               summary={songSummary}
+              spans={structureItems.map(it => ({ start: sectionSpanOffsets[it.sectionIndex], span: sectionChordCounts[it.sectionIndex] * it.repeatCount }))}
+              baseChordOffset={baseChordOffset}
             />
           </div>
           {/* From md up this row is the chart's toolbar and stays under the site header while you
@@ -1351,6 +1450,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                 songSlug={song.slug}
                 capo={capo}
                 onCapoChange={handleCapoChange}
+                showCapo={capoApplies}
               />
               {transpose !== 0 && (
                 <button

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Loader2, Minus, Play, Plus, Repeat, SlidersHorizontal, Square, Timer, Type } from 'lucide-react';
+import { ArrowRight, Loader2, Minus, Play, Plus, Repeat, SlidersHorizontal, Square, Type } from 'lucide-react';
 import { usePlayback, usePlaybackPosition } from '@/contexts/PlaybackContext';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
@@ -46,14 +46,19 @@ interface Props {
   onBpmChange: (bpm: number) => void;
   metronome: boolean;
   onMetronomeChange: (on: boolean) => void;
-  loopArmed: boolean;
-  canLoop: boolean;
+  // The loop button cycles off → a section → the whole song; the tag says which ("V1", "ALL").
+  loopMode: 'off' | 'section' | 'song';
+  loopLabel: string;
+  loopTitle: string;
   onToggleLoop: () => void;
+  // Start the song from a flat chord position (repeats counted) — the timeline was clicked.
+  onSeek: (flat: number) => void;
   // Key (the phone's bar carries it; on wider screens it lives in the chart toolbar).
   transpose: number;
   onTransposeChange: (t: number) => void;
   keyName: (semitones: number) => string;
   capo: number;
+  showCapo: boolean;
   onCapoChange: (capo: number) => void;
   // Reading aids, which the phone keeps behind "Options" (the desktop toolbar shows them).
   autoScroll: boolean;
@@ -76,34 +81,67 @@ interface Props {
   // The song's sections along the timeline (span = chord positions incl. repeats, the same
   // unit as the progress), and what clicking one does: jump there.
   segments: { sectionIndex: number; name: string; span: number }[];
-  onSeekSection: (sectionIndex: number) => void;
 }
 
 // The desktop timeline: one coloured stretch per section, in section-kind colours, with the
 // progress laid over them. Each stretch is a button — clicking the second chorus jumps there.
-function Timeline({ segments, onSeekSection, baseChordOffset, totalChordSpan }: {
+// Clicking anywhere on it starts the song there (to the chord under the pointer); arrow keys
+// step a chord at a time.
+function Timeline({ segments, onSeek, baseChordOffset, totalChordSpan, className = 'mt-1 h-4' }: {
   segments: Props['segments'];
-  onSeekSection: Props['onSeekSection'];
+  onSeek: Props['onSeek'];
   baseChordOffset: number;
   totalChordSpan: number;
+  className?: string;
 }) {
+  const { state } = usePlayback();
+  const position = baseChordOffset + Math.max(0, usePlaybackPosition());
+  // Where the marker sits: the playing position, or the start while stopped.
+  const pct = state.isPlaying && totalChordSpan > 0 ? Math.min(100, (position / totalChordSpan) * 100) : 0;
+  const seekAt = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const f = Math.max(0, Math.min(0.999, (e.clientX - r.left) / r.width));
+    onSeek(Math.floor(f * totalChordSpan));
+  };
   return (
-    <div className="relative mt-1 h-4 flex items-center">
-      <div className="absolute inset-x-0 h-1.5 flex gap-0.5 rounded-full overflow-hidden">
+    <div
+      role="slider"
+      tabIndex={0}
+      aria-label="Song position"
+      aria-valuemin={0}
+      aria-valuemax={totalChordSpan}
+      aria-valuenow={Math.floor(position)}
+      onPointerDown={seekAt}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowRight') { e.preventDefault(); onSeek(Math.floor(position) + 1); }
+        if (e.key === 'ArrowLeft') { e.preventDefault(); onSeek(Math.max(0, Math.floor(position) - 1)); }
+      }}
+      className={`relative flex items-center cursor-pointer group ${className}`}
+    >
+      <div className="absolute inset-x-0 h-1.5 flex gap-0.5 rounded-full overflow-hidden pointer-events-none">
         {segments.map(s => (
-          <button
+          <div
             key={s.sectionIndex}
-            type="button"
-            title={`Play from ${s.name}`}
-            aria-label={`Play from ${s.name}`}
-            onClick={() => onSeekSection(s.sectionIndex)}
-            className={`h-full ${sectionStyle(s.name).bar} hover:brightness-90`}
+            title={s.name}
+            className={`h-full ${sectionStyle(s.name).bar}`}
             style={{ flex: s.span }}
           />
         ))}
       </div>
-      <Progress knob baseChordOffset={baseChordOffset} totalChordSpan={totalChordSpan} className="absolute inset-x-0 h-4 !bg-transparent !overflow-visible pointer-events-none [&>div:first-child]:top-[5px] [&>div:first-child]:bottom-[5px] [&>div:first-child]:rounded-full" />
+      <div className="absolute left-0 h-1.5 rounded-full bg-primary/90 pointer-events-none" style={{ width: `${pct}%` }} />
+      <span className="absolute top-1/2 w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-card border-2 border-primary shadow-sm pointer-events-none" style={{ left: `${pct}%` }} />
     </div>
+  );
+}
+
+// A metronome (lucide has none): body, pendulum, the weight's rail.
+function MetronomeIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M9 3h6l4 18H5L9 3z" />
+      <path d="M12 15l5-8" />
+      <path d="M7 15h10" />
+    </svg>
   );
 }
 
@@ -113,24 +151,7 @@ function NowDiagram({ name }: { name: string | null }) {
   const chord = parseChordString(name)[0];
   const voicing = chord ? getGuitarVoicing(chord) : null;
   if (!voicing) return null;
-  return <GuitarChordDiagram voicing={voicing} className="w-9 shrink-0 hidden lg:flex" />;
-}
-
-// Isolated so only the bar re-renders at animation-frame rate (usePlaybackPosition updates
-// ~60x/sec) — the same split SongPlayerBar makes with ProgressFill.
-function Progress({ baseChordOffset, totalChordSpan, className, knob = false }: { baseChordOffset: number; totalChordSpan: number; className: string; knob?: boolean }) {
-  const { state } = usePlayback();
-  const playbackPosition = usePlaybackPosition();
-  const position = baseChordOffset + Math.max(0, playbackPosition);
-  const pct = state.isPlaying && totalChordSpan > 0 ? Math.min(100, (position / totalChordSpan) * 100) : 0;
-  return (
-    <div className={`relative overflow-hidden bg-secondary ${className}`} aria-hidden="true">
-      <div className="absolute inset-y-0 left-0 bg-primary/90" style={{ width: `${pct}%` }} />
-      {knob && (
-        <span className="absolute top-1/2 w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-card border-2 border-primary" style={{ left: `${pct}%` }} />
-      )}
-    </div>
-  );
+  return <GuitarChordDiagram voicing={voicing} heightPx={48} className="shrink-0 hidden lg:flex" />;
 }
 
 // The song page's one playback surface, fixed to the bottom at every width (Sep 2026 redesign).
@@ -169,12 +190,16 @@ export function SongTransportBar(p: Props) {
         <button
           type="button"
           onClick={p.onToggleLoop}
-          disabled={!p.canLoop}
-          aria-pressed={p.loopArmed}
-          title={p.loopArmed ? 'Looping this section' : 'Loop the section that is playing'}
-          className={`${iconBtn} ${p.loopArmed ? pressed : ''}`}
+          aria-pressed={p.loopMode !== 'off'}
+          title={`${p.loopTitle} (click: off → section → song)`}
+          className={`relative ${iconBtn} ${p.loopMode !== 'off' ? pressed : ''}`}
         >
           <Repeat className="w-[18px] h-[18px]" />
+          {p.loopMode !== 'off' && (
+            <span className="absolute right-0 bottom-0 px-[3px] rounded bg-primary text-primary-foreground text-[9px] font-bold leading-[13px]">
+              {p.loopLabel}
+            </span>
+          )}
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-3 text-[13px]">
@@ -185,7 +210,7 @@ export function SongTransportBar(p: Props) {
               <SongPillTime baseChordOffset={p.baseChordOffset} cumulativeBeats={p.cumulativeBeats} totalBeats={p.totalBeats} bpm={p.bpm} />
             </span>
           </div>
-          <Timeline segments={p.segments} onSeekSection={p.onSeekSection} baseChordOffset={p.baseChordOffset} totalChordSpan={p.totalChordSpan} />
+          <Timeline segments={p.segments} onSeek={p.onSeek} baseChordOffset={p.baseChordOffset} totalChordSpan={p.totalChordSpan} />
         </div>
         {p.nowChord && (
           <div className="flex items-center gap-4 px-4 border-x border-border self-stretch">
@@ -222,7 +247,7 @@ export function SongTransportBar(p: Props) {
           title="Metronome"
           className={`${iconBtn} ${p.metronome ? pressed : ''}`}
         >
-          <Timer className="w-[18px] h-[18px]" />
+          <MetronomeIcon className="w-[18px] h-[18px]" />
         </button>
         <button
           type="button"
@@ -239,7 +264,9 @@ export function SongTransportBar(p: Props) {
       <div className="md:hidden px-3">
         {live && (
           <>
-            <Progress baseChordOffset={p.baseChordOffset} totalChordSpan={p.totalChordSpan} className="-mx-3 h-[3px]" />
+            <div className="-mx-3">
+              <Timeline segments={p.segments} onSeek={p.onSeek} baseChordOffset={p.baseChordOffset} totalChordSpan={p.totalChordSpan} className="h-3" />
+            </div>
             <div className="flex items-center gap-2.5 pt-2">
               <div className="flex flex-col items-start gap-1 min-w-[2.5rem]">
                 <span className="text-[22px] font-extrabold text-primary leading-none">{p.nowChord}</span>
@@ -269,6 +296,7 @@ export function SongTransportBar(p: Props) {
             keyName={p.keyName}
             songSlug={p.songSlug}
             capo={p.capo}
+            showCapo={p.showCapo}
             onCapoChange={p.onCapoChange}
             className="flex-1 max-w-[12rem]"
           />

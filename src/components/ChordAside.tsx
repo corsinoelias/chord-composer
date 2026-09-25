@@ -219,14 +219,14 @@ export default function ChordAside({ chords, songKey, songSlug, className = '' }
                   <PianoKeyboard activeNotes={notes} className="w-36" />
                 ) : view === 'ukulele' ? (
                   ukuleleVoicing ? (
-                    <GuitarChordDiagram voicing={ukuleleVoicing} className="w-16" />
+                    <GuitarChordDiagram voicing={ukuleleVoicing} heightPx={pinned ? 64 : 80} />
                   ) : (
                     <span className="w-16 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
                       No voicing
                     </span>
                   )
                 ) : guitarVoicing ? (
-                  <GuitarChordDiagram voicing={guitarVoicing} className={pinned ? 'w-12 md:w-14' : 'w-12 md:w-16'} />
+                  <GuitarChordDiagram voicing={guitarVoicing} heightPx={pinned ? 64 : 80} />
                 ) : (
                   <span className="w-20 h-24 flex items-center justify-center text-[9px] text-muted-foreground text-center">
                     No voicing

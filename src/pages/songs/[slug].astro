@@ -517,202 +517,174 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
           </div>
 
           <!--
-            The song in the keys people search for. No client directive anywhere in here —
-            that is the entire point. The chart's own transpose control is React, so the
-            answer to "<song> chords key of g" only existed after hydration; this is the
+            Everything under the chart (Sep 2026 redesign, laid out as in the V4 prototype):
+            other keys → Chord Player card → Play next → About + FAQ side by side → Practice
+            tools → footer links. All of it is served HTML with no client directive (apart from
+            the report form), same text and links as before.
+
+            The song in the keys people search for: the chart's own transpose control is React,
+            so the answer to "<song> chords key of g" only existed after hydration; this is the
             same answer in the served HTML. Each row gets an id so a link (or a Google jump
             link) can land on one key.
           -->
+          <div class="mt-12 flex flex-col gap-10">
           {keyVariants.length > 1 && (
-            <section class="mt-8 rounded-xl border border-border bg-card p-5 sm:p-6" aria-labelledby="other-keys-heading">
-              <h2 id="other-keys-heading" class="text-base font-semibold text-foreground">
+            <section aria-labelledby="other-keys-heading">
+              <h2 id="other-keys-heading" class="text-lg font-bold tracking-tight text-foreground">
                 {song.title} chords in other keys
               </h2>
-              <p class="mt-1.5 text-sm text-muted-foreground">
-                The same progression moved to whichever key suits your voice. Every chord below is
-                the transposed chart, not a different arrangement.
+              <p class="mt-1 mb-3.5 max-w-[68ch] text-sm text-muted-foreground">
+                The same progression moved to whichever key suits your voice. Pick one to transpose
+                the chart and the playback.
               </p>
-
-              <dl class="mt-5 divide-y divide-border">
+              <dl class="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border">
                 {keyVariants.map((variant) => (
-                  <div id={`key-of-${variant.key.toLowerCase().replace('#', '-sharp')}`} data-key-row={variant.semitones > 6 ? variant.semitones - 12 : variant.semitones} class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:gap-4 -mx-2 px-2 rounded-lg transition-colors data-[current=true]:bg-primary/[0.07]" data-current={variant.isOriginal ? 'true' : 'false'}>
-                    <dt class="flex shrink-0 items-baseline gap-2 sm:w-40">
+                  <div id={`key-of-${variant.key.toLowerCase().replace('#', '-sharp')}`} data-key-row={variant.semitones > 6 ? variant.semitones - 12 : variant.semitones} data-current={variant.isOriginal ? 'true' : 'false'} class="grid grid-cols-[1fr_auto] sm:grid-cols-[8.5rem_1fr_auto] items-center gap-x-3 gap-y-2 px-3.5 py-2.5 transition-colors data-[current=true]:bg-primary/[0.07]">
+                    <dt class="flex items-center gap-1.5">
                       <span class="text-sm font-semibold text-foreground">Key of {variant.label}</span>
                       {variant.isOriginal && (
-                        <span class="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          Original
-                        </span>
+                        <span class="rounded-full border border-border px-1.5 text-[11px] font-medium text-muted-foreground">Original</span>
                       )}
                     </dt>
-                    <dd class="flex min-w-0 flex-wrap gap-1.5">
+                    <dd class="col-span-2 sm:col-span-1 row-start-2 sm:row-start-auto flex flex-wrap gap-1.5">
                       {variant.chords.map((chord) => (
-                        <span class="rounded-md border border-border bg-background px-2 py-1 font-mono text-xs text-foreground">
-                          {chord}
-                        </span>
+                        <span class="min-w-[2.1rem] text-center rounded-md bg-secondary px-2 py-0.5 text-[13px] font-semibold text-foreground">{chord}</span>
                       ))}
                     </dd>
                     <!-- Transposes the chart and the playback to this key (script below → SongChordPlayer). -->
-                    <button type="button" data-use-key={variant.semitones > 6 ? variant.semitones - 12 : variant.semitones} class="self-start sm:self-center sm:ml-auto shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors">
+                    <button type="button" data-use-key={variant.semitones > 6 ? variant.semitones - 12 : variant.semitones} class="justify-self-end rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-primary hover:bg-primary/10 transition-colors">
                       <span class="use-key-label">{variant.isOriginal ? 'Current' : 'Use this key'}</span>
                     </button>
                   </div>
                 ))}
               </dl>
-
-              <p class="mt-4 text-sm text-muted-foreground">
-                Need a key that isn't here? The chart above transposes to any of the twelve, and
-                plays back in whichever you pick.
-              </p>
             </section>
           )}
 
           <!--
-            Song → editor conversion point. Sits right under the chart, where someone has
-            just heard the song and the natural next thought is "what if I change it".
-            Deliberately a plain <a> with no client directive: it has to be in the served
-            HTML (for the anchor text signal to /chord-player/) and it has to work on
-            mobile, where the player bar's own Editor link is hidden.
+            Song → editor conversion point, right under the chart: someone has just heard the
+            song and the natural next thought is "what if I change it". A plain <a>: it has to be
+            in the served HTML (anchor text to /chord-player/) and work on phones. The Chord
+            Sheet Maker link is secondary on purpose ("print my own version" vs "play it
+            differently"); `?from=` is read on mount by ChordSheetMaker.tsx.
           -->
-          <section class="mt-8 rounded-xl border border-border bg-card p-5 sm:p-6">
-            <div class="flex items-start gap-4">
-              <div class="hidden sm:flex w-11 h-11 rounded-lg bg-primary/10 items-center justify-center shrink-0">
-                <ToolIcon name="piano" class="w-6 h-6 text-primary" />
-              </div>
-              <div class="min-w-0 flex-1">
-                <h2 class="text-base font-semibold text-foreground">
-                  Open {song.title} in the Chord Player
-                </h2>
-                <p class="mt-1.5 text-sm text-muted-foreground">
-                  Change the chords, try a different rhythm style, transpose to your key, and export to WAV.
-                </p>
-                <a
-                  href={songEditorUrl}
-                  data-editor-cta
-                  data-entry-point="cta_block"
-                  data-song-slug={song.slug}
-                  class="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-                >
-                  Open in the Chord Player
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </a>
-                <!--
-                  Secondary on purpose. The two destinations answer different questions —
-                  the Chord Player is "play it differently", the Chord Sheet Maker is
-                  "print my own version" — and only one of them can be the primary action
-                  in a block whose heading already names the player. `?from=` is read on
-                  mount by ChordSheetMaker.tsx, which resolves the slug against Supabase.
-                -->
-                <p class="mt-3 text-sm text-muted-foreground">
-                  Or <a
-                    href={`/chord-sheet-maker/editor/?from=${song.slug}`}
-                    class="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-primary"
-                    onclick="if(typeof gtag!=='undefined')gtag('event','sheet_cta_clicked',{entry_point:'song_page'})"
-                  >make your own chord sheet</a> — your key, your section order, ready to print for the band.
-                </p>
-              </div>
+          <section class="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 rounded-xl bg-secondary/70 p-5">
+            <div class="w-11 h-11 rounded-xl bg-card flex items-center justify-center shrink-0">
+              <ToolIcon name="piano" class="w-6 h-6 text-primary" />
             </div>
+            <div class="min-w-0 flex-1">
+              <h2 class="text-base font-bold text-foreground">Open {song.title} in the Chord Player</h2>
+              <p class="mt-0.5 text-sm text-foreground/75">
+                Change the chords, try a different rhythm style, transpose to your key, and export to WAV. Or <a
+                  href={`/chord-sheet-maker/editor/?from=${song.slug}`}
+                  class="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-primary"
+                  onclick="if(typeof gtag!=='undefined')gtag('event','sheet_cta_clicked',{entry_point:'song_page'})"
+                >make your own chord sheet</a> in your key and section order.
+              </p>
+            </div>
+            <a
+              href={songEditorUrl}
+              data-editor-cta
+              data-entry-point="cta_block"
+              data-song-slug={song.slug}
+              class="shrink-0 inline-flex items-center gap-2 h-10 rounded-[9px] bg-primary px-4 text-sm font-semibold text-primary-foreground whitespace-nowrap transition-colors hover:bg-primary/90"
+            >
+              Open in the Chord Player
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+            </a>
           </section>
-
-          <!-- Related progressions -->
-          {song.relatedProgressions.length > 0 && (
-            <div class="mt-8 pt-8 border-t border-border">
-              <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                Explore related progressions
-              </h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {song.relatedProgressions.map(slug => (
-                  <a
-                    href={`/progressions/${slug}/`}
-                    class="group flex items-center justify-between rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
-                  >
-                    <span class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors capitalize">
-                      {slug.replace(/-/g, ' ')} chord progressions
-                    </span>
-                    <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
 
           <!-- Related songs -->
           {relatedSongs.length > 0 && (
-            <div class="mt-8 pt-8 border-t border-border">
-              <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                Play next
-              </h2>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {relatedSongs.map(s => (
-                  <a
-                    href={`/songs/${s.slug}/`}
-                    class="group rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
-                  >
-                    <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{s.title}</p>
-                    <p class="text-xs text-muted-foreground mt-0.5">{s.artist}</p>
-                  </a>
-                ))}
+            <section>
+              <h2 class="text-lg font-bold tracking-tight text-foreground">Play next</h2>
+              <p class="mt-1 mb-3.5 text-sm text-muted-foreground">Songs with a similar feel.</p>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {relatedSongs.map(s => {
+                  // A stand-in cover: a gradient whose hue comes from the slug, so each song keeps its own.
+                  const hue = [...s.slug].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+                  return (
+                    <a
+                      href={`/songs/${s.slug}/`}
+                      class="group flex items-center gap-3 rounded-xl border border-border bg-card p-2.5 hover:bg-secondary/60 transition-colors"
+                    >
+                      <span class="w-11 h-11 rounded-lg shrink-0" style={`background:linear-gradient(135deg,hsl(${hue} 35% 72%),hsl(${(hue + 25) % 360} 40% 32%))`} aria-hidden="true"></span>
+                      <span class="min-w-0">
+                        <b class="block text-sm font-semibold text-foreground truncate">{s.title}</b>
+                        <span class="block text-[13px] text-muted-foreground truncate">{s.artist}{s.key ? ` · Key of ${s.key}` : ''}</span>
+                      </span>
+                    </a>
+                  );
+                })}
               </div>
-            </div>
+            </section>
           )}
 
-          <!-- About this song -->
-          <section class="mt-10 pt-8 border-t border-border">
-            <h2 class="text-xl font-bold text-foreground mb-3">About {song.title}</h2>
-            <p class="text-muted-foreground leading-relaxed text-sm">{analysisText}</p>
-
-            <div class="mt-6 space-y-2">
-              <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Frequently asked questions</h3>
-              {songFaq.map((f) => (
-                <div class="rounded-xl border border-border bg-card overflow-hidden">
-                  <details class="group">
-                    <summary class="flex cursor-pointer items-center justify-between gap-4 px-5 py-3.5 text-sm font-semibold text-foreground select-none list-none hover:bg-accent/30 transition-colors">
-                      {f.q}
-                      <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
-                    </summary>
-                    <div class="border-t border-border px-5 py-3.5">
-                      <p class="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
-                    </div>
-                  </details>
+          <!-- About (with the related progressions as links) and the FAQ, side by side from md up. -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <section>
+              <h2 class="text-lg font-bold tracking-tight text-foreground mb-1">About {song.title}</h2>
+              <p class="text-sm text-muted-foreground leading-relaxed max-w-[68ch]">{analysisText}</p>
+              {song.relatedProgressions.length > 0 && (
+                <div class="mt-3.5 flex flex-wrap gap-2">
+                  {song.relatedProgressions.map(slug => (
+                    <a
+                      href={`/progressions/${slug}/`}
+                      class="rounded-full border border-border bg-card px-3 py-1.5 text-[13px] font-medium text-foreground capitalize hover:bg-secondary transition-colors"
+                    >
+                      {slug.replace(/-/g, ' ')} chord progressions
+                    </a>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {pub && (
-              <div class="mt-4">
-                <ReportSongButton client:visible songSlug={song.slug} />
+              )}
+            </section>
+            <section>
+              <h2 class="text-lg font-bold tracking-tight text-foreground mb-1">Frequently asked questions</h2>
+              <div class="border-b border-border">
+                {songFaq.map((f) => (
+                  <details class="group border-t border-border">
+                    <summary class="flex cursor-pointer items-center justify-between gap-3 py-3 text-sm font-semibold text-foreground select-none list-none [&::-webkit-details-marker]:hidden">
+                      {f.q}
+                      <span class="text-lg font-medium leading-none text-muted-foreground group-open:hidden" aria-hidden="true">+</span>
+                      <span class="text-lg font-medium leading-none text-muted-foreground hidden group-open:inline" aria-hidden="true">–</span>
+                    </summary>
+                    <p class="pb-3.5 text-sm text-foreground/75 leading-relaxed">{f.a}</p>
+                  </details>
+                ))}
               </div>
-            )}
-          </section>
+            </section>
+          </div>
 
           <!-- Practice tools -->
-          <section class="mt-10 pt-8 border-t border-border">
-            <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Practice tools</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <section>
+            <h2 class="text-lg font-bold tracking-tight text-foreground">Practice tools</h2>
+            <p class="mt-1 mb-3.5 text-sm text-muted-foreground">Tools to practise this song with.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {practiceTools.map((tool) => (
                 <a
                   href={tool.href}
                   data-editor-cta={tool.href === '/chord-player/' ? '' : undefined}
                   data-entry-point={tool.href === '/chord-player/' ? 'practice_tools' : undefined}
                   data-song-slug={tool.href === '/chord-player/' ? song.slug : undefined}
-                  class="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                  class="group flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 hover:bg-secondary/60 transition-colors"
                 >
-                  <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <ToolIcon name={tool.icon} class="w-5 h-5 text-primary" />
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{tool.label}</p>
-                    <p class="text-xs text-muted-foreground">{tool.desc}</p>
-                  </div>
-                  <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary ml-auto shrink-0 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  <span class="w-[34px] h-[34px] rounded-[9px] bg-primary/10 flex items-center justify-center shrink-0">
+                    <ToolIcon name={tool.icon} class="w-[18px] h-[18px] text-primary" />
+                  </span>
+                  <span class="min-w-0">
+                    <b class="block text-sm font-semibold text-foreground">{tool.label}</b>
+                    <span class="block text-[13px] text-muted-foreground">{tool.desc}</span>
+                  </span>
                 </a>
               ))}
             </div>
           </section>
 
-          <!-- Back -->
-          <div class="mt-8 text-center">
-            <a href="/songs/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              ← All song chord charts
-            </a>
+          <!-- Footer links: back to the list, and the report form (community songs). -->
+          <div class="flex flex-wrap items-start justify-between gap-3 pt-4 border-t border-border text-[13px] text-muted-foreground">
+            <a href="/songs/" class="hover:text-foreground transition-colors">← All song chord charts</a>
+            {pub && <ReportSongButton client:load songSlug={song.slug} />}
+          </div>
           </div>
         </div>
       </div>

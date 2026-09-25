@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Flag } from 'lucide-react';
 
 interface Props {
@@ -10,6 +10,16 @@ interface Props {
 // src/pages/api/report-song and src/pages/api/admin/list-reported.
 export default function ReportSongButton({ songSlug }: Props) {
   const [open, setOpen] = useState(false);
+  // The header's "···" menu asks for this form too (song-report-open): open it and bring it into view.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onOpen = () => {
+      setOpen(true);
+      requestAnimationFrame(() => rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    };
+    window.addEventListener('song-report-open', onOpen);
+    return () => window.removeEventListener('song-report-open', onOpen);
+  }, []);
   const [reason, setReason] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
@@ -46,7 +56,7 @@ export default function ReportSongButton({ songSlug }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 max-w-md">
+    <div ref={rootRef} className="rounded-xl border border-border bg-card p-4 max-w-md">
       <label htmlFor="report-reason" className="block text-xs font-semibold text-foreground mb-2">
         What's wrong with this song?
       </label>

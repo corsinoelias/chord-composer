@@ -17,6 +17,8 @@ interface Props {
   // Capo: the chart shows the shapes to play with it on; the sound stays in the key above.
   capo: number;
   onCapoChange: (capo: number) => void;
+  // False while the diagrams are on piano: no capo there.
+  showCapo?: boolean;
   className?: string;
 }
 
@@ -27,7 +29,7 @@ const EASY_SHAPES = new Set(['C', 'G', 'D', 'A', 'E', 'Am', 'Em', 'Dm']);
 // The key, always in reach: − [Key C ▾] +. Until Sep 2026 the only way to transpose a song was
 // the Pitch stepper inside the Practice panel, and ~1% of visitors used it. The middle button
 // opens every key at once, so going from C to G is one tap instead of five.
-export function SongKeyControl({ transpose, onTransposeChange, keyName, songSlug, surface, capo, onCapoChange, className = '' }: Props) {
+export function SongKeyControl({ transpose, onTransposeChange, keyName, songSlug, surface, capo, onCapoChange, showCapo = true, className = '' }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const big = surface === 'dock';
@@ -78,7 +80,7 @@ export function SongKeyControl({ transpose, onTransposeChange, keyName, songSlug
           >
             <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">Key</span>
             <span className="min-w-[1.75rem] text-center text-base font-extrabold">{keyName(transpose)}</span>
-            {big && capo > 0 && <span className="text-[10px] font-semibold opacity-80 whitespace-nowrap">capo {capo}</span>}
+            {big && showCapo && capo > 0 && <span className="text-[10px] font-semibold opacity-80 whitespace-nowrap">capo {capo}</span>}
             {!big && <ChevronDown className="w-3 h-3 opacity-70" />}
           </button>
         </PopoverTrigger>
@@ -108,6 +110,7 @@ export function SongKeyControl({ transpose, onTransposeChange, keyName, songSlug
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
             Original key · the chart and the playback move together
           </p>
+          {showCapo && <>
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-4 mb-1.5">Capo</p>
           <div className="flex flex-col max-h-56 overflow-y-auto -mx-1">
             {Array.from({ length: MAX_CAPO + 1 }, (_, c) => {
@@ -130,6 +133,7 @@ export function SongKeyControl({ transpose, onTransposeChange, keyName, songSlug
               );
             })}
           </div>
+          </>}
         </PopoverContent>
       </Popover>
       <button
@@ -144,7 +148,7 @@ export function SongKeyControl({ transpose, onTransposeChange, keyName, songSlug
     </div>
     {/* The toolbar also gets a Capo button of its own: the same picker, but someone looking
         for "capo" should not have to guess that it lives behind the key. */}
-    {!big && (
+    {!big && showCapo && (
       <button
         type="button"
         onClick={() => handleOpenChange(true)}

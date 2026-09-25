@@ -35,9 +35,13 @@ interface Props {
   voicing: GuitarVoicing;
   chordName?: string;
   className?: string;
+  // Draw at this height (width follows). Guitar and ukulele diagrams share one fret height this
+  // way, so a 4-string diagram is not drawn bigger-looking or smaller than a 6-string one —
+  // sizing by width made the ukulele's grid a different scale from the guitar's.
+  heightPx?: number;
 }
 
-export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing: given, chordName, className = '' }: Props) {
+export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing: given, chordName, className = '', heightPx }: Props) {
   // Drawn for left-handed players when the reader asked for it (song page "Aa" menu).
   const lefty = useLeftHanded();
   const voicing = lefty ? mirrorVoicing(given) : given;
@@ -58,8 +62,8 @@ export const GuitarChordDiagram = memo(function GuitarChordDiagram({ voicing: gi
 
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        width="100%"
-        style={{ maxWidth: W }}
+        width={heightPx ? undefined : '100%'}
+        style={heightPx ? { height: heightPx, width: (heightPx * W) / H } : { maxWidth: W }}
         aria-hidden="true"
       >
         {/* ── Fret number label (when not at nut) ── */}
