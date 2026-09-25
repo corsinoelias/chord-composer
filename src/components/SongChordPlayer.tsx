@@ -18,6 +18,8 @@ import { SongKeyControl } from '@/components/SongKeyControl';
 import { AutoscrollControl, DisplayOptions } from '@/components/SongReadingControls';
 import { useLeftHanded, setLeftHanded } from '@/lib/leftHanded';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { Switch } from '@/components/ui/switch';
+import { CountdownOverlay } from '@/components/CountdownOverlay';
 import { LEGACY_PRACTICE_PANEL } from '@/lib/songPageFlags';
 import { displayChord } from '@/lib/songNotation';
 import { sectionShort } from '@/lib/sectionKind';
@@ -406,6 +408,20 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   const [seekOffset, setSeekOffset] = useState<number | null>(null);
   // The bar's loop button cycles off → this section → the whole song. `loopTarget` below is the
   // section half; this is the song half. A ref too: onEnded reads it long after play() ran.
+  // One bar counted in on the engine's cowbell before Play (or a section's ▷) starts the music —
+  // on by default, like the prototype; the reader's choice is remembered. `counting` shows the
+  // big 4-3-2-1 while the engine counts.
+  const [countIn, setCountIn] = useState(true);
+  const countInRef = useRef(true);
+  countInRef.current = countIn;
+  const [counting, setCounting] = useState(false);
+  useEffect(() => {
+    try { if (localStorage.getItem('song-count-in') === '0') setCountIn(false); } catch { /* storage blocked */ }
+  }, []);
+  const handleCountInChange = useCallback((on: boolean) => {
+    setCountIn(on);
+    try { localStorage.setItem('song-count-in', on ? '1' : '0'); } catch { /* storage blocked */ }
+  }, []);
   const [songLoop, setSongLoop] = useState(false);
   const songLoopRef = useRef(false);
   songLoopRef.current = songLoop;
@@ -828,7 +844,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
       return;
     }
     analytics.playSong(song.slug, song.title);
-    startSongRef.current(0);
+    startSongRef.current(0, { countIn: true });
   }, [isPlaying, stop, allChordsFlat.length, song, loopTarget, sectionChordCounts]);
 
   // ── The whole song from a flat position (0 = the top; repeats counted) ──────────────────
@@ -837,8 +853,8 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // what section play already does, one section wider. From the top with the song loop on,
   // the engine loops by itself; otherwise the pass ends in onEnded, which either goes round
   // again from the top (song loop switched on meanwhile) or stops.
-  const startSongRef = useRef<(offset: number) => void>(() => {});
-  const startSong = useCallback(async (offset: number) => {
+  const startSongRef = useRef<(offset: number, opts?: { countIn?: boolean }) => void>(() => {});
+  const startSong = useCallback(async (offset: number, opts?: { countIn?: boolean }) => {
     if (allChordsFlat.length === 0 || totalSpan === 0) return;
     const flat = Math.max(0, Math.min(totalSpan - 1, Math.floor(offset)));
     if (isPlaying) stop();
@@ -869,8 +885,11 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     setSeekOffset(flat > 0 ? flat : null);
     setAutoFollow(true);
     setIsLoading(true);
+    const withCountIn = !!opts?.countIn && countInRef.current;
+    if (withCountIn) setCounting(true);
     try {
       const playPromise = play(sections, {
+        countIn: withCountIn,
         bpm, metronome, instruments, loop: flat === 0 && songLoopRef.current,
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [], loopingSectionIndex: null,
         melodic: resolvedStyle.melodic,
@@ -920,6 +939,9 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
       if (isPlaying) stop(opts?.keepContext ? { keepContext: true } : undefined);
       if (sectionChordCounts[si] === 0) return;
       analytics.playSongSection(song.slug, song.sections[si].name);
+      // Counted in when someone presses a section's ▷, not when one section chains into the next.
+      const withCountIn = countInRef.current && !opts?.keepContext;
+      if (withCountIn) setCounting(true);
       setPlayingSection(si);
       setAutoFollow(true);
       setIsLoading(true);
@@ -934,7 +956,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         // Exactly ONE section is scheduled here, so the engine's loop index for it is 0 —
         // that is the whole reason loopTarget is kept as a song.sections index and translated
         // at the boundary instead of being stored in the engine's frame of reference.
-        bpm, metronome, instruments, loop: false,
+        bpm, metronome, instruments, loop: false, countIn: withCountIn,
         styleId: song.style, transposition: transpose, liveEditedStyle: null, customStyles: [],
         loopingSectionIndex: loopTargetRef.current === si ? 0 : null,
         melodic: resolvedStyle.melodic,
@@ -1343,6 +1365,10 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
                 className="mx-auto max-w-2xl rounded-t-2xl px-4 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-h-[88vh] overflow-y-auto"
               >
                 <SheetTitle className="text-base">Practice</SheetTitle>
+                <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-border bg-card px-3.5 py-2.5">
+                  <span className="text-sm font-medium">Count-in (1 bar)<small className="block text-xs font-normal text-muted-foreground">Four clicks before the music starts</small></span>
+                  <Switch checked={countIn} onCheckedChange={handleCountInChange} aria-label="Count-in" />
+                </div>
                 <SongPracticePanel open {...practicePanelProps} />
               </SheetContent>
             </Sheet>
@@ -1406,6 +1432,14 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
         <p className={`text-xs text-muted-foreground text-center italic ${inline ? 'px-5 pt-2' : 'pt-2'}`}>
           Referencia vocal silenciada — tono transpuesto
         </p>
+      )}
+
+      {/* ─ The count-in: 4, 3, 2, 1 from the engine's own clock (CountdownOverlay reads it) ─ */}
+      {!inline && counting && (
+        <CountdownOverlay
+          onComplete={() => setCounting(false)}
+          onCancel={() => { setCounting(false); stop(); }}
+        />
       )}
 
       {/* ─ Resume auto-scroll pill — only once the user has scrolled away during playback ─ */}

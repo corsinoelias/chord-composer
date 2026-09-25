@@ -28,6 +28,8 @@ interface Props {
   song: Song;
   isCommunity: boolean;
   isLocalhost: boolean;
+  // The song is in the database (public_songs), so the report form can take a report for it.
+  canReport?: boolean;
 }
 
 // Icon-only (w-8 h-8) below sm — there's only ever room for a compact toolbar there. From sm
@@ -37,7 +39,7 @@ const iconButtonClass =
   'inline-flex items-center justify-center gap-1.5 w-9 h-9 sm:w-auto sm:min-w-9 sm:px-2.5 rounded-[9px] bg-card text-muted-foreground hover:text-foreground hover:bg-secondary border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 const labelClass = 'hidden sm:inline text-[13px] font-medium';
 
-export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Props) {
+export default function SongHeaderActions({ song, isCommunity, isLocalhost, canReport = false }: Props) {
   const [transpose, setTranspose] = useState(0);
   // The PNG export is a picture of the chart, so it has to be spelled the way the chart on
   // screen is — otherwise someone reading in numbers downloads an image in letters.
@@ -124,7 +126,7 @@ export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Pr
             <ImageIcon className="w-4 h-4 mr-2.5 text-muted-foreground" />
             Save as image
           </DropdownMenuItem>
-          {(isLocalhost || isCommunity) && <DropdownMenuSeparator />}
+          {(isLocalhost || canReport) && <DropdownMenuSeparator />}
           {isLocalhost && (
             <DropdownMenuItem asChild>
               <a href={editUrl} className="cursor-pointer">
@@ -133,7 +135,7 @@ export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Pr
               </a>
             </DropdownMenuItem>
           )}
-          {isCommunity && (
+          {canReport && (
             <DropdownMenuItem onSelect={() => window.dispatchEvent(new CustomEvent('song-report-open'))} className="cursor-pointer">
               <Flag className="w-4 h-4 mr-2.5 text-muted-foreground" />
               Report an issue

@@ -13,6 +13,7 @@ import { getPublicSongBySlug, getRelatedPublicSongs } from '@/lib/publicSongs';
 import { buildSongEditorUrl } from '@/lib/editorLink';
 import { buildKeyVariants } from '@/lib/songKeys';
 import { fetchCoverImage } from '@/lib/coverImage';
+import { MUSICAL_STYLES } from '@/lib/styles';
 import JsonLd from '../../components/schema/JsonLd.astro';
 import { buildBreadcrumbSchema } from '../../components/schema/builders';
 import { withBrand, BRAND_SUFFIX } from '../../lib/seoTitle';
@@ -61,7 +62,9 @@ if (pub) {
 
 const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(Astro.url.hostname);
 const canonicalUrl = `https://chordsequence.com/songs/${song.slug}/`;
-const coverImage = await fetchCoverImage(song.slug, song.artist, song.title);
+// Started now, awaited below together with the "Play next" covers, so the four lookups share
+// one budget instead of adding up (fetchCoverImage gives each at most 700ms).
+const coverPromise = fetchCoverImage(song.slug, song.artist, song.title);
 const allChords = extractChordsFromSong(song);
 const uniqueChords = [...new Set(allChords)];
 // How long the chart plays at its own tempo (chord durations are in beats; repeats count).
@@ -182,6 +185,16 @@ const relatedSongs = [
   ...communityRelated,
 ].filter((s, i, arr) => arr.findIndex(x => x.slug === s.slug) === i)
   .slice(0, 3);
+const [coverImage, ...relatedCovers] = await Promise.all([
+  coverPromise,
+  ...relatedSongs.map(s => fetchCoverImage(s.slug, s.artist, s.title)),
+]);
+
+// Time signature for the header chip: the song's rhythm style's, 4/4 when it names none.
+const songStyle = MUSICAL_STYLES.find(st => st.id === song.style);
+const meterText = songStyle?.timeSignature
+  ? `${songStyle.timeSignature.numerator}/${songStyle.timeSignature.denominator}`
+  : '4/4';
 
 // ── Song analysis helpers ────────────────────────────────────────────────────
 const KEY_MOODS: Record<string, string> = {
@@ -443,7 +456,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
             {LEGACY_PRACTICE_PANEL && <span class="h-10 w-[108px] rounded-full bg-muted animate-pulse"></span>}
           </div>
         </div>
-        <SongHeaderActions client:load song={song} isCommunity={isCommunity} isLocalhost={isLocalhost} />
+        <SongHeaderActions client:load song={song} isCommunity={isCommunity} isLocalhost={isLocalhost} canReport={!!pub} />
       </div>
       <!-- Song stats — one scrolling row on a phone, under the title. -->
       <div class="col-start-2 col-span-2 md:col-span-1 flex gap-1.5 overflow-x-auto md:flex-wrap md:overflow-visible -mr-4 pr-4 md:mr-0 md:pr-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -453,6 +466,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
           Key <b class="font-bold" id="song-key-value">{song.key}</b>
         </button>
         <span class="shrink-0 whitespace-nowrap inline-flex items-center gap-1 h-[26px] px-2.5 rounded-full bg-secondary text-muted-foreground text-[12.5px] font-medium"><b class="font-semibold text-foreground">{song.bpm}</b> BPM</span>
+        <span class="shrink-0 whitespace-nowrap inline-flex items-center gap-1 h-[26px] px-2.5 rounded-full bg-secondary text-muted-foreground text-[12.5px] font-medium" title="Time signature"><b class="font-semibold text-foreground">{meterText}</b></span>
         {durationSec > 0 && (
           <span class="shrink-0 whitespace-nowrap inline-flex items-center gap-1 h-[26px] px-2.5 rounded-full bg-secondary text-muted-foreground text-[12.5px] font-medium" title="Length at the chart's tempo"><b class="font-semibold text-foreground tabular-nums">{durationText}</b></span>
         )}
@@ -600,15 +614,19 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
               <h2 class="text-lg font-bold tracking-tight text-foreground">Play next</h2>
               <p class="mt-1 mb-3.5 text-sm text-muted-foreground">Songs with a similar feel.</p>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {relatedSongs.map(s => {
-                  // A stand-in cover: a gradient whose hue comes from the slug, so each song keeps its own.
+                {relatedSongs.map((s, i) => {
+                  // The album cover when iTunes has one; otherwise a gradient whose hue comes from the
+                  // slug, so each song keeps its own.
+                  const cover = relatedCovers[i];
                   const hue = [...s.slug].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
                   return (
                     <a
                       href={`/songs/${s.slug}/`}
                       class="group flex items-center gap-3 rounded-xl border border-border bg-card p-2.5 hover:bg-secondary/60 transition-colors"
                     >
-                      <span class="w-11 h-11 rounded-lg shrink-0" style={`background:linear-gradient(135deg,hsl(${hue} 35% 72%),hsl(${(hue + 25) % 360} 40% 32%))`} aria-hidden="true"></span>
+                      {cover
+                        ? <img src={cover} alt="" width="44" height="44" loading="lazy" class="w-11 h-11 rounded-lg shrink-0 object-cover border border-border" />
+                        : <span class="w-11 h-11 rounded-lg shrink-0" style={`background:linear-gradient(135deg,hsl(${hue} 35% 72%),hsl(${(hue + 25) % 360} 40% 32%))`} aria-hidden="true"></span>}
                       <span class="min-w-0">
                         <b class="block text-sm font-semibold text-foreground truncate">{s.title}</b>
                         <span class="block text-[13px] text-muted-foreground truncate">{s.artist}{s.key ? ` · Key of ${s.key}` : ''}</span>
