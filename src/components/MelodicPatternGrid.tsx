@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  DEGREES, CHORD_TONES, BASS_SCALE_PRESETS, getScaleNoteNames, scalePatternIsEmpty,
-  createVariation, degreeToSemitone, type Degree, type DegreePattern, type ScaleVariation, type InstrumentMelodic,
+  DEGREES, CHORD_TONES, BASS_SCALE_PRESETS, ALTERED_DEGREES, getScaleNoteNames, scalePatternIsEmpty,
+  createVariation, degreeToSemitone, degreeKeysOf, degreeLabel, degreeOrder, parseDegreeKey,
+  type Degree, type DegreeKey, type AlteredDegree, type DegreePattern, type ScaleVariation, type InstrumentMelodic,
 } from '@/lib/bassScale';
 import { previewNote } from '@/lib/appEngine/preview';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,9 @@ export function MelodicPatternGrid({
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [melPage, setMelPage] = useState(0);
+  // Altered rows added this session that have no notes yet. Not part of the song: a row is
+  // shown because it plays, and this only holds a new one open until its first note.
+  const [addedAltered, setAddedAltered] = useState<AlteredDegree[]>([]);
 
   // Sync activeVarId when variations change (e.g. after external load)
   const resolvedActiveId = variations.find(v => v.id === activeVarId)
@@ -101,6 +105,14 @@ export function MelodicPatternGrid({
     [referenceRootMidi, referenceQuality, activeVariation?.octaveOffsets],
   );
 
+  // The rows: the eight natural degrees always, and an altered one wherever the pattern
+  // writes it or it was just added — each beside its own natural, a flat just under it.
+  const rowKeys: DegreeKey[] = activeVariation
+    ? [...new Set<DegreeKey>([...DEGREES, ...degreeKeysOf(activeVariation.pattern), ...addedAltered])]
+        .sort((a, b) => degreeOrder(a) - degreeOrder(b))
+    : [...DEGREES];
+  const addable = ALTERED_DEGREES.filter((d) => !rowKeys.includes(d));
+
   const update = (updatedVariations: ScaleVariation[], newEnabled = enabled) => {
     onChange({ variations: updatedVariations, enabled: newEnabled });
   };
@@ -109,7 +121,7 @@ export function MelodicPatternGrid({
     update(variations.map(v => v.id === resolvedActiveId ? { ...v, pattern } : v));
   };
 
-  const handleOctaveChange = (degree: Degree, delta: number) => {
+  const handleOctaveChange = (degree: DegreeKey, delta: number) => {
     if (!activeVariation) return;
     const cur = activeVariation.octaveOffsets ?? {};
     const stored = cur[degree] ?? naturalOctave;
@@ -119,12 +131,12 @@ export function MelodicPatternGrid({
   };
 
   // Audible feedback: play the real pitch of a degree (root + scale semitone + octave).
-  const previewDegree = (degree: Degree) => {
+  const previewDegree = (degree: DegreeKey) => {
     const off = activeVariation?.octaveOffsets?.[degree] ?? 0;
     previewNote(referenceRootMidi + degreeToSemitone(degree, referenceQuality) + off * 12);
   };
 
-  const handleCellClick = (degree: Degree, slot: number) => {
+  const handleCellClick = (degree: DegreeKey, slot: number) => {
     if (!activeVariation) return;
     const cur = activeVariation.pattern[degree] ?? Array(totalSlots).fill(0);
     const padded = cur.length < totalSlots
@@ -156,8 +168,8 @@ export function MelodicPatternGrid({
     const newSlots = bars * slotsPerBar;
     const adjusted: DegreePattern = {};
     for (const [d, slots] of Object.entries(activeVariation.pattern)) {
-      if (!slots) continue;
-      adjusted[Number(d) as Degree] = slots.length >= newSlots
+      if (!slots || !parseDegreeKey(d)) continue;
+      adjusted[d as DegreeKey] = slots.length >= newSlots
         ? slots.slice(0, newSlots)
         : [...slots, ...Array(newSlots - slots.length).fill(0)];
     }
@@ -177,12 +189,29 @@ export function MelodicPatternGrid({
     const newSlots = totalSlots;
     const padded: DegreePattern = {};
     for (const [d, slots] of Object.entries(preset.pattern)) {
-      if (!slots) continue;
-      padded[Number(d) as Degree] = slots.length >= newSlots
+      if (!slots || !parseDegreeKey(d)) continue;
+      padded[d as DegreeKey] = slots.length >= newSlots
         ? slots.slice(0, newSlots)
         : [...slots, ...Array(newSlots - slots.length).fill(0)];
     }
     updateActivePattern(padded);
+  };
+
+  /** Opens an altered row, and lets you hear where it sits. */
+  const handleAddAltered = (degree: AlteredDegree) => {
+    setAddedAltered((rows) => (rows.includes(degree) ? rows : [...rows, degree]));
+    previewDegree(degree);
+  };
+
+  /** Takes an altered row off the grid, with its notes and its octave. */
+  const handleRemoveAltered = (degree: AlteredDegree) => {
+    setAddedAltered((rows) => rows.filter((d) => d !== degree));
+    if (!activeVariation) return;
+    const pattern = { ...activeVariation.pattern };
+    delete pattern[degree];
+    const octaveOffsets = activeVariation.octaveOffsets ? { ...activeVariation.octaveOffsets } : undefined;
+    if (octaveOffsets) delete octaveOffsets[degree];
+    update(variations.map(v => v.id === resolvedActiveId ? { ...v, pattern, octaveOffsets } : v));
   };
 
   const handleNewVariation = () => {
@@ -355,9 +384,11 @@ export function MelodicPatternGrid({
             );
           })()}
 
-          {/* Degree rows — chip (note) + colored pads, matching the drum rows */}
-          {DEGREES.map(degree => {
-            const isChordTone = CHORD_TONES.has(degree);
+          {/* Degree rows — chip (note) + colored pads, matching the drum rows. An altered
+              row (♭3, ♯4) sits beside its natural and reads as a passing note, not a chord tone. */}
+          {rowKeys.map(degree => {
+            const altered = parseDegreeKey(degree)!.alter !== 0;
+            const isChordTone = !altered && CHORD_TONES.has(degree as Degree);
             const degSlots = activeVariation.pattern[degree] ?? [];
             const storedOctave = activeVariation.octaveOffsets?.[degree] ?? naturalOctave;
             const displayOctave = storedOctave - naturalOctave;
@@ -366,7 +397,7 @@ export function MelodicPatternGrid({
                 <Popover>
                   <PopoverTrigger asChild>
                     <button
-                      title={`Degree ${degree} · ${pitchClass(noteNames[degree])} — tap for octave`}
+                      title={`Degree ${degreeLabel(degree)} · ${pitchClass(noteNames[degree])} — tap for octave`}
                       className={cn(
                         'w-14 h-10 shrink-0 rounded-lg border relative flex flex-col items-center justify-center gap-0 transition-transform active:scale-95',
                         !isChordTone && 'bg-muted text-muted-foreground border-border',
@@ -376,7 +407,7 @@ export function MelodicPatternGrid({
                         : undefined}
                     >
                       <span className="text-sm font-bold leading-none text-foreground">{pitchClass(noteNames[degree])}</span>
-                      <span className="text-[8px] leading-none text-muted-foreground">{degree}</span>
+                      <span className="text-[8px] leading-none text-muted-foreground">{degreeLabel(degree)}</span>
                       {displayOctave !== 0 && (
                         <span className="absolute -top-1.5 -right-1.5 min-w-[15px] h-3.5 px-0.5 rounded-full bg-primary text-primary-foreground text-[8px] font-bold grid place-items-center">
                           {displayOctave > 0 ? `+${displayOctave}` : displayOctave}
@@ -384,10 +415,12 @@ export function MelodicPatternGrid({
                       )}
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent side="right" align="center" className="w-auto p-2.5">
+                  {/* pointer-events-auto: the rhythm editor is a modal dialog, which turns pointer
+                      events off on everything outside it, this popover included. */}
+                  <PopoverContent side="right" align="center" className="w-auto p-2.5 pointer-events-auto">
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-semibold" style={isChordTone ? { color: accentColor } : undefined}>
-                        {degree} · {pitchClass(noteNames[degree])}
+                        {degreeLabel(degree)} · {pitchClass(noteNames[degree])}
                       </span>
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] text-muted-foreground uppercase tracking-wide mr-1">Octave</span>
@@ -397,6 +430,15 @@ export function MelodicPatternGrid({
                         </span>
                         <button onClick={() => handleOctaveChange(degree, +1)} disabled={displayOctave >= 2} className="w-7 h-7 rounded-md bg-muted hover:bg-muted-foreground/20 disabled:opacity-30 grid place-items-center" title="Up an octave">▴</button>
                       </div>
+                      {altered && (
+                        <button
+                          onClick={() => handleRemoveAltered(degree as AlteredDegree)}
+                          className="w-7 h-7 rounded-md text-destructive hover:bg-destructive/10 grid place-items-center"
+                          title={`Remove the ${degreeLabel(degree)} row`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </PopoverContent>
                 </Popover>
@@ -428,6 +470,40 @@ export function MelodicPatternGrid({
               </div>
             );
           })}
+
+          {/* A flattened or sharpened degree gets a row of its own: the blues ♭3, the ♯4
+              walking up to the fifth. The app offers the same ones. */}
+          {addable.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className="w-14 h-8 shrink-0 rounded-lg border border-dashed text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 grid place-items-center"
+                    title="Add a flattened or sharpened degree"
+                  >
+                    + ♭/♯
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="right" align="start" className="w-auto p-2.5 pointer-events-auto">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Altered degree</div>
+                  {(['b', '#'] as const).map(sign => (
+                    <div key={sign} className="flex gap-1 mb-1">
+                      {addable.filter(d => d.startsWith(sign)).map(d => (
+                        <button
+                          key={d}
+                          onClick={() => handleAddAltered(d)}
+                          className="min-w-9 h-9 px-1.5 rounded-md bg-muted hover:bg-muted-foreground/20 flex flex-col items-center justify-center"
+                        >
+                          <span className="text-sm font-bold leading-none">{degreeLabel(d)}</span>
+                          <span className="text-[9px] leading-none text-muted-foreground mt-0.5">{pitchClass(noteNames[d])}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
 
           {/* Beat ruler at the bottom (like the drum grid) */}
           <div className="flex items-center gap-2 pt-0.5">

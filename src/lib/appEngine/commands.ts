@@ -38,10 +38,18 @@ export const CLICK_BEEP = -1;
  * One step of a pattern packed the engine's way (stepVelocity & co): velocity 0-255,
  * which chord tone, an octave shift, optionally a second tone, and an accent bit.
  */
-export function packStep(velocity: number, degree: number = DEGREE.chord, octave = 0, degree2 = 0, octave2 = 0, accent = false): number {
+export function packStep(
+  velocity: number, degree: number = DEGREE.chord, octave = 0, degree2 = 0, octave2 = 0, accent = false,
+  alter = 0, alter2 = 0,
+): number {
   if (velocity <= 0 || degree === DEGREE.rest) return 0;
   const v = Math.max(1, Math.min(255, Math.round(velocity)));
-  return v | ((degree & 0xf) << 8) | (((octave + 8) & 0xf) << 12) | ((degree2 & 0xf) << 16) | (((octave2 + 8) & 0xf) << 20) | (accent ? 1 << 24 : 0);
+  // An alteration moves a single note a semitone (bits 25-26 and 27-28: 1 flat, 2 sharp);
+  // it means nothing on the whole chord, where it is dropped, as the app does.
+  const bits = (a: number) => (a < 0 ? 1 : a > 0 ? 2 : 0);
+  return v | ((degree & 0xf) << 8) | (((octave + 8) & 0xf) << 12) | ((degree2 & 0xf) << 16) | (((octave2 + 8) & 0xf) << 20) | (accent ? 1 << 24 : 0)
+    | ((degree === DEGREE.chord ? 0 : bits(alter)) << 25)
+    | ((degree2 <= DEGREE.chord ? 0 : bits(alter2)) << 27);
 }
 
 export type EngineCommand =

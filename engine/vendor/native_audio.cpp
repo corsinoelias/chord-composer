@@ -122,12 +122,18 @@ enum Degree { kRest = 0, kChordAll, kRoot, kThird, kFifth, kSeventh, kExtension,
 // the callback keeps its lock-free read.
 //   bits 0-7   velocity 0..255   bits 8-11  degree     bits 12-15 octave shift + 8
 //   bits 16-19 second degree    bits 20-23 second octave + 8   bit 24 accent
+//   bits 25-26 alteration       bits 27-28 second alteration (0 as written, 1 flat, 2 sharp)
 inline int stepVelocity(int packed) { return packed & 0xff; }
 inline int stepDegree(int packed) { return (packed >> 8) & 0xf; }
 inline int stepOctave(int packed) { return ((packed >> 12) & 0xf) - 8; }
 inline int stepDegree2(int packed) { return (packed >> 16) & 0xf; }
 inline int stepOctave2(int packed) { return ((packed >> 20) & 0xf) - 8; }
 inline bool stepAccent(int packed) { return ((packed >> 24) & 1) != 0; }
+// The semitone a note is moved by: the blues third, the raised fourth. Zero on anything
+// written before alterations existed.
+inline int alterOf(int bits) { return bits == 1 ? -1 : bits == 2 ? 1 : 0; }
+inline int stepAlter(int packed) { return alterOf((packed >> 25) & 0x3); }
+inline int stepAlter2(int packed) { return alterOf((packed >> 27) & 0x3); }
 
 int noteIndex(const char* value) {
   const char* names[] = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
@@ -1657,6 +1663,20 @@ class Engine {
     // that does not play its drums should cost nothing, and a hit that is triggered and
     // then muted is still a voice taken from the pool.
     const Arrangement& arrangement = arrangements_[activeArrangement_.load(std::memory_order_acquire)];
+    // A part with no chords lasts nothing, so it is stepped over before anything of this
+    // step sounds. It used to take one step of its own, which left every part after it a
+    // sixteenth behind the bar: the chords landed late against the drums from the first
+    // empty part on. The export and midi_export.dart skip it the same way. A part held on
+    // repeat is left alone — playing its drums on their own is what was asked for.
+    if (arrangement.sectionCount > 0) {
+      if (sectionIndex_ >= arrangement.sectionCount) { sectionIndex_ = 0; chordIndex_ = 0; chordStep_ = 0; loopCount_ = 0; }
+      if (loopOnly_.load(std::memory_order_relaxed) < 0) {
+        for (int tried = 0; tried < arrangement.sectionCount && arrangement.sections[sectionIndex_].chordCount == 0; ++tried) {
+          sectionIndex_ = (sectionIndex_ + 1) % arrangement.sectionCount;
+          loopCount_ = 0; chordIndex_ = 0; chordStep_ = 0;
+        }
+      }
+    }
     // Taken whether or not it can sound, so a part with its drums silenced does not keep
     // the crash for some later downbeat that nothing filled into.
     const bool crash = crashPending_;
@@ -1716,13 +1736,13 @@ class Engine {
           // A single tone carries the level a whole chord would have had, so swapping
           // a block chord for an arpeggio does not drop the track in the mix.
           const float gain = velocity * (track == 2 ? 1.0f : .66f);
-          const int note = chordTone(sectionIndex_, c, degree, track, stepOctave(packed));
+          const int note = chordTone(sectionIndex_, c, degree, track, stepOctave(packed), stepAlter(packed));
           addVoice(sectionIndex_, hzFromMidi(note), gain, track, timbre, note);
           // A second tone in the same step: root and octave together is what a boogie
           // bass does, and it is not the same as the two alternating.
           const int degree2 = stepDegree2(packed);
           if (degree2 != kRest && degree2 != kChordAll) {
-            const int note2 = chordTone(sectionIndex_, c, degree2, track, stepOctave2(packed));
+            const int note2 = chordTone(sectionIndex_, c, degree2, track, stepOctave2(packed), stepAlter2(packed));
             addVoice(sectionIndex_, hzFromMidi(note2), gain * .8f, track, timbre, note2);
           }
         }
@@ -1780,7 +1800,7 @@ class Engine {
   /// One tone of the chord, as a MIDI note. The root is anchored in the track's
   /// register and everything else is stacked above it by its interval, so "the fifth"
   /// is the fifth of this chord rather than whichever fifth happens to be nearby.
-  int chordTone(int section, const Chord& chord, int degree, int track, int octaveShift) {
+  int chordTone(int section, const Chord& chord, int degree, int track, int octaveShift, int alter) {
     const ChordType& type = kChordTypes[chord.type];
     const Window window = windowOf(section, track);
     // A slash chord names the note that goes underneath. On the bass track the root
@@ -1812,7 +1832,7 @@ class Engine {
     }
     // The step's own octave shift still applies on top: that is written into the
     // pattern and is a deliberate leap, not a register the range is meant to override.
-    return std::max(kNoteFloor, std::min(108, note + octaveShift * 12));
+    return std::max(kNoteFloor, std::min(108, note + alter + octaveShift * 12));
   }
 
   // Voice leading: put each chord tone in the octave nearest to whatever played the

@@ -20,7 +20,7 @@ import {
   getSlotsPerBar,
 } from '../styles';
 import { resolveSectionPlayback, type StyleLookup } from '../sectionPlayback';
-import { resolveVariation, type BassScaleData } from '../bassScale';
+import { degreeKeysOf, parseDegreeKey, resolveVariation, type BassScaleData, type DegreeKey } from '../bassScale';
 import {
   getInstrumentConfig,
   getSoundType,
@@ -314,29 +314,33 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
 
 /**
  * A melodic variation: scale degrees counted from the chord's lowest note, as the web
- * plays them (bassScale.getScale). The engine holds two tones per step, so a slot the web
- * writes with more keeps the lowest two; a chord hit (every tone of the chord) wins.
+ * plays them (bassScale.getScale), each natural or moved a semitone ('b3', '#4'). The
+ * engine holds two tones per step, so a slot the web writes with more keeps the lowest
+ * two; a chord hit (every tone of the chord) wins.
  */
 function writeVariation(c: EngineCommand[], s: number, track: MelodicTrack, variation: BassScaleData, slotsPerBar: number, noteLength: number) {
   const loop = engineBars(variation.loopBars ?? 1);
   const length = loop * slotsPerBar;
   c.push(['setPatternBars', s, track, loop], ['setNoteLength', s, track, noteLength]);
-  const degrees = Object.keys(variation.pattern).map(Number).filter((d) => d >= 1 && d <= 8).sort((a, b) => a - b);
-  const octave = (d: number) => variation.octaveOffsets?.[d as 1] ?? 0;
+  const degrees = degreeKeysOf(variation.pattern);
+  const octave = (d: DegreeKey) => variation.octaveOffsets?.[d] ?? 0;
+  const step = (d: DegreeKey) => SCALE_DEGREE_1 + parseDegreeKey(d)!.degree - 1;
+  const alter = (d: DegreeKey) => parseDegreeKey(d)!.alter;
   for (let i = 0; i < length; i++) {
     const hit = variation.chordHit?.[i] ?? 0;
     if (hit > 0) {
       c.push(['setStep', s, track, '', i, packStep(hit * 255, DEGREE.chord)]);
       continue;
     }
-    const playing = degrees.filter((d) => (variation.pattern[d as 1]?.[i] ?? 0) > 0);
+    const playing = degrees.filter((d) => (variation.pattern[d]?.[i] ?? 0) > 0);
     if (!playing.length) continue;
-    const velocity = Math.max(...playing.map((d) => variation.pattern[d as 1]![i]));
+    const velocity = Math.max(...playing.map((d) => variation.pattern[d]![i]));
     const [first, second] = playing;
     c.push(['setStep', s, track, '', i, packStep(
       velocity * 255,
-      SCALE_DEGREE_1 + first - 1, octave(first),
-      second ? SCALE_DEGREE_1 + second - 1 : 0, second ? octave(second) : 0,
+      step(first), octave(first),
+      second ? step(second) : 0, second ? octave(second) : 0,
+      false, alter(first), second ? alter(second) : 0,
     )]);
   }
 }
