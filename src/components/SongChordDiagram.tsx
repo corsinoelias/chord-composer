@@ -52,7 +52,10 @@ export const FretDiagram = memo(function FretDiagram({ voicing: given, width = 6
       )}
       {frets.map((f, i) => {
         const x = x0 + i * sw;
-        if (f < 0) return <text key={i} x={x} y={y0 - 7} fontSize={8.5} textAnchor="middle" fill="currentColor" opacity={0.6} fontFamily={FONT}>×</text>;
+        // Muted string: an × drawn as two strokes (a text glyph picked up the page's colour).
+        if (f < 0) return (
+          <path key={i} d={`M${x - 2.4} ${y0 - 11.4}L${x + 2.4} ${y0 - 6.6}M${x + 2.4} ${y0 - 11.4}L${x - 2.4} ${y0 - 6.6}`} stroke="currentColor" strokeOpacity={0.6} strokeWidth={1.1} strokeLinecap="round" />
+        );
         if (f === 0) return <circle key={i} cx={x} cy={y0 - 9} r={2.6} fill="none" stroke="currentColor" strokeOpacity={0.7} strokeWidth={1.1} />;
         // Inside a barre only its first string gets a dot (with the "1"); the pill carries the rest.
         if (inBarre(i, f) && barre && i !== barre.fromString) return null;
