@@ -252,6 +252,13 @@ const Index = ({ songId }: IndexProps) => {
   const [click, setClick] = useState<ClickSettings>(DEFAULT_CLICK);
   useEffect(() => { setClick(loadClickSettings()); }, []);
   const [loopingSectionIndex, setLoopingSectionIndex] = useState<number | null>(null);
+  /**
+   * While the app rhythm editor is open, the song plays what is being edited: these sections in
+   * place of its own, until Save keeps them or Cancel gives the song back.
+   */
+  const [editorDraft, setEditorDraft] = useState<Section[] | null>(null);
+  const editorDraftRef = useRef<Section[] | null>(null);
+  editorDraftRef.current = editorDraft;
   // How long each track's notes ring — the Android app's note length, saved where the app
   // keeps it (app.noteLengths). Empty: every track plays the web's own length.
   const [noteLengths, setNoteLengths] = useState<NoteLengths>({});
@@ -420,12 +427,12 @@ const Index = ({ songId }: IndexProps) => {
       bpm, styleId: selectedStyleId, customStyles, liveEditedStyle,
       melodic: currentStyle.melodic, instruments, transposition,
       metronome: metronomeEnabled, loopingSectionIndex,
-      sections, noteLengths, swing,
+      sections: editorDraft ?? sections, noteLengths, swing,
     });
   }, [
     isPlaying, bpm, selectedStyleId, customStyles, liveEditedStyle,
     currentStyle.melodic, instruments, transposition, metronomeEnabled,
-    loopingSectionIndex, updatePlaybackOptions, sections, noteLengths, swing,
+    loopingSectionIndex, updatePlaybackOptions, sections, noteLengths, swing, editorDraft,
   ]);
 
   // Load song from URL param
@@ -728,7 +735,7 @@ const Index = ({ songId }: IndexProps) => {
   }, []);
 
   const startPlayback = useCallback(async (countIn = false) => {
-    const currentSections = sectionsRef.current;
+    const currentSections = editorDraftRef.current ?? sectionsRef.current;
     const loopIdx = loopingSectionRef.current;
 
     // Validate loopIdx is within bounds
@@ -1905,19 +1912,25 @@ const Index = ({ songId }: IndexProps) => {
           open={!!appEditor}
           onClose={() => setAppEditor(null)}
           style={appEditor.style}
-          songStyle={currentStyle}
-          lookup={sectionStyleLookup}
           sections={sections}
           editable={appEditable}
           initialSection={appEditor.section}
-          bpm={bpm}
           transposition={transposition}
           instruments={instruments}
-          swing={swing}
           onSave={(next) => {
             setSections(next);
             toast.success('Rhythm saved in the song');
           }}
+          playing={isPlaying}
+          loopingIndex={loopingSectionIndex}
+          onLoop={(index, start) => {
+            // Set on the ref too: startPlayback reads it before the next render.
+            loopingSectionRef.current = index;
+            setLoopingSectionIndex(index);
+            if (start && !isPlaying) void startPlayback();
+          }}
+          onStop={stopPlaybackCompletely}
+          onDraft={setEditorDraft}
         />
       )}
       <RhythmEditor

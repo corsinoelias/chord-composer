@@ -8,10 +8,8 @@ import {
 } from '@/lib/groove';
 import { type Section, type TrackId } from '@/lib/sections';
 import { type Chord } from '@/lib/musicTheory';
-import { type StylePattern } from '@/lib/styles';
-import { type StyleLookup } from '@/lib/sectionPlayback';
 import { getSoundType, soundTimbre, type InstrumentState } from '@/lib/instruments';
-import { AppPlayback, fillNow, subscribeEngineState, type AppSong } from '@/lib/appEngine/player';
+import { fillNow, subscribeEngineState } from '@/lib/appEngine/player';
 import { previewAppCell } from '@/lib/appEngine/preview';
 import { loadKits, type DrumKit } from '@/lib/appEngine/host';
 import { engineChord } from '@/lib/appEngine/fromSong';
@@ -22,7 +20,6 @@ import {
   vel, withVelocity, type StepNote,
 } from '@/lib/appEngine/steps';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { usePlayback } from '@/contexts/PlaybackContext';
 import { toast } from 'sonner';
 import '@/styles/chord-player.css';
 
@@ -72,23 +69,27 @@ export interface AppRhythmEditorProps {
   open: boolean;
   onClose: () => void;
   style: AppStyle;
-  /** The song's own rhythm, resolved — what the loop is built with. */
-  songStyle: StylePattern;
-  lookup: StyleLookup;
   sections: Section[];
   /** Which sections play this rhythm, and so can be edited here. */
   editable: number[];
   initialSection: number;
-  bpm: number;
   transposition: number;
   instruments: InstrumentState[];
-  swing?: number;
   /** Save: the song's sections with the edited ones given their groove (and silences). */
   onSave: (sections: Section[]) => void;
+  /** Whether the song is playing: the editor plays through the song's own player. */
+  playing: boolean;
+  /** The section the song loops on, if any. */
+  loopingIndex: number | null;
+  /** Loops the song on a section (null: the whole song again); [start] plays it if it is stopped. */
+  onLoop: (index: number | null, start?: boolean) => void;
+  onStop: () => void;
+  /** While the editor is open, the song plays these sections instead of its own: what is being edited. Null gives it back. */
+  onDraft: (sections: Section[] | null) => void;
 }
 
 export function AppRhythmEditor(props: AppRhythmEditorProps) {
-  const { open, onClose, style, songStyle, lookup, sections, editable, initialSection, bpm, transposition, instruments, swing, onSave } = props;
+  const { open, onClose, style, sections, editable, initialSection, transposition, instruments, onSave, playing, loopingIndex, onLoop, onStop, onDraft } = props;
   const spb = appStepsPerBar(style);
   const stepsPerBeat = Math.max(1, Math.round(16 / style.meter.unit));
   const isMobile = useIsMobile();
@@ -96,7 +97,6 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   // app splits it — shown one at a time, never stacked, so the grid does not grow tall.
   const per = isMobile ? Math.max(stepsPerBeat, Math.ceil(spb / 2 / stepsPerBeat) * stepsPerBeat) : spb;
   const chunks = Math.ceil(spb / per);
-  const { state: mainPlayback, stop: stopMain } = usePlayback();
 
   const [sec, setSec] = useState(initialSection);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
@@ -178,44 +178,72 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const ref = refChord ? engineChord(refChord, transposition) : { root: 0, quality: 'maj', bass: -1 };
   const chordLabel = refChord ? chordName(refChord) : '';
 
-  // ── The loop: this section on its own, held open, playing what is being edited ──
-  const playbackRef = useRef<AppPlayback | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [engine, setEngine] = useState<{ step: number; bar: number; fillBar: boolean; fillByHand: number } | null>(null);
-  const loopInput = useCallback((drafts: Record<number, Draft>): AppSong => {
-    const d = draftOf(sec, drafts);
-    const s = section;
-    const groove = sectionGrooveOf(style, s, { a: d.a, b: d.b });
-    return {
-      song: {
-        sections: [{ ...s, repeatCount: 1, groove, silenced: d.silenced, variation: v === 'b' && d.b ? 1 : 0 }],
-        bpm, transposition, instrumentSettings: instruments, swing, holdOpen: true,
-      },
-      style: songStyle,
-      lookup,
-    };
-  }, [draftOf, sec, section, style, v, bpm, transposition, instruments, swing, songStyle, lookup]);
-  useEffect(() => { if (playing) void playbackRef.current?.update(loopInput(drafts)); }, [drafts, v, playing, loopInput]);
+  // ── Sound: the song's own player, playing what is being edited ──
+  /**
+   * The song's sections with every edit so far: what Save keeps, and — with [audition] — what
+   * plays while the editor is open, where the section on screen plays the variation being edited.
+   */
+  const merged = useCallback((ds: Record<number, Draft>, audition: boolean): Section[] => sections.map((sct, i) => {
+    const d = ds[i];
+    const out: Section = { ...sct };
+    if (d) {
+      const groove = sectionGrooveOf(style, sct, { a: d.a, b: d.b });
+      const off = Object.fromEntries(Object.entries(d.silenced).filter(([, on]) => on));
+      if (Object.keys(off).length) out.silenced = off; else delete out.silenced;
+      if (groove) out.groove = groove; else delete out.groove;
+    }
+    if (audition && i === sec && !sct.stylePart) out.variation = v === 'b' ? 1 : 0;
+    return out;
+  }), [sections, style, sec, v]);
+  useEffect(() => { if (open) onDraft(merged(drafts, true)); }, [open, drafts, merged]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [engine, setEngine] = useState<{ section: number; step: number; bar: number; fillBar: boolean; fillByHand: number } | null>(null);
   useEffect(() => {
-    if (!playing) { setEngine(null); return; }
-    return subscribeEngineState((st) => setEngine((prev) => (prev && prev.step === st.step && prev.bar === st.bar && prev.fillBar === st.fillBar && prev.fillByHand === st.fillByHand
-      ? prev : { step: st.step, bar: st.bar, fillBar: st.fillBar, fillByHand: st.fillByHand })));
-  }, [playing]);
-  const stopLoop = useCallback(() => { playbackRef.current?.stop(); playbackRef.current = null; setPlaying(false); }, []);
-  const startLoop = useCallback(async () => {
-    // One thing plays at a time: the song behind the editor stops for the loop.
-    if (mainPlayback.isPlaying) stopMain();
-    stopLoop();
-    const pb = new AppPlayback();
-    playbackRef.current = pb;
-    setPlaying(true);
+    if (!open || !playing) { setEngine(null); return; }
+    return subscribeEngineState((st) => setEngine((prev) => (prev && prev.section === st.section && prev.step === st.step && prev.bar === st.bar && prev.fillBar === st.fillBar && prev.fillByHand === st.fillByHand
+      ? prev : { section: st.section, step: st.step, bar: st.bar, fillBar: st.fillBar, fillByHand: st.fillByHand })));
+  }, [open, playing]);
+  /** The engine numbers only the sections with chords (fromSong.ts); this is the way back to the song's. */
+  const engineSections = useMemo(() => sections.slice(0, 30).map((x, i) => (x.chords.length ? i : -1)).filter((i) => i >= 0), [sections]);
+  const playingSection = engine ? engineSections[engine.section] ?? -1 : -1;
+  const here = playing && playingSection === sec;
+  /** The loop this editor set, so closing it gives the song back as it was. */
+  const loopedByEditor = useRef(false);
+  const loopHere = loopingIndex === sec;
+  const toggleLoop = () => {
+    if (loopHere) { onLoop(null); loopedByEditor.current = false; return; }
+    onLoop(sec, !playing);
+    loopedByEditor.current = true;
     setFollow(true);
-    try { await pb.play(loopInput(drafts)); } catch { setPlaying(false); toast.error('Could not start the sound'); }
-  }, [stopLoop, loopInput, drafts, mainPlayback.isPlaying, stopMain]);
-  useEffect(() => { if (!open) stopLoop(); }, [open, stopLoop]);
-  useEffect(() => () => { playbackRef.current?.stop(); }, []);
-  // Another section: the loop follows it.
-  useEffect(() => { if (playing) void startLoop(); }, [sec]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
+  const playOrStop = () => {
+    if (playing) { onStop(); return; }
+    onLoop(sec, true);
+    loopedByEditor.current = true;
+    setFollow(true);
+  };
+  // Another section on screen: a loop the editor set moves with it.
+  useEffect(() => { if (loopedByEditor.current && loopingIndex !== null && loopingIndex !== sec) onLoop(sec); }, [sec]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Closing gives the song back: its own sections, and no loop it did not have. Closed or
+  // taken off the page (Index unmounts it), whichever comes first; the latest callbacks, by ref.
+  const giveBack = useRef(() => {});
+  giveBack.current = () => {
+    onDraft(null);
+    if (loopedByEditor.current) { onLoop(null); loopedByEditor.current = false; }
+  };
+  useEffect(() => { if (!open) giveBack.current(); }, [open]);
+  useEffect(() => () => giveBack.current(), []);
+  /** Goes to a section: its own variation, its own page. */
+  const goToSection = (i: number) => {
+    const target = sections[i];
+    setSec(i); setPage(0); setFocus(null); setPop(null);
+    setV(target?.variation === 1 && !target.stylePart ? 'b' : 'a');
+    if (target?.stylePart) setMode('groove');
+  };
+  // Following goes from section to section too, as the app's grid does.
+  useEffect(() => {
+    if (!follow || !playing || playingSection < 0 || playingSection === sec || !editable.includes(playingSection)) return;
+    goToSection(playingSection);
+  }, [playingSection, follow, playing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Reading the grid ──
   const fillWrites = (key: string) => Object.prototype.hasOwnProperty.call(variation.fill.lanes, key);
@@ -409,22 +437,11 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
 
   // ── Save and cancel ──
   const save = () => {
-    const next = sections.map((s, i) => {
-      const d = drafts[i];
-      if (!d) return s;
-      const groove = sectionGrooveOf(style, s, { a: d.a, b: d.b });
-      const out: Section = { ...s, silenced: Object.fromEntries(Object.entries(d.silenced).filter(([, on]) => on)) };
-      if (!Object.keys(out.silenced!).length) delete out.silenced;
-      if (groove) out.groove = groove; else delete out.groove;
-      return out;
-    });
-    onSave(next);
-    stopLoop();
+    onSave(merged(drafts, false));
     onClose();
   };
   const cancel = () => {
     if (dirty && !confirmDiscard) { setConfirmDiscard(true); return; }
-    stopLoop();
     onClose();
   };
 
@@ -466,14 +483,14 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
 
   // ── Where the music is ──
   const playhead = (() => {
-    if (!playing || !engine) return -1;
+    if (!here || !engine) return -1;
     if (mode === 'fill') return engine.fillBar ? engine.step : -1;
     if (engine.fillBar) return -1;
     return engine.bar % bars === shownBar ? engine.step : -1;
   })();
   // Following: the page moves to where the music is, bar and half bar, groove or fill.
   useEffect(() => {
-    if (!playing || !follow || !engine) return;
+    if (!here || !follow || !engine) return;
     const chunk = Math.min(chunks - 1, Math.floor(engine.step / per));
     let target: number;
     if (mode === 'fill') {
@@ -484,7 +501,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       target = (engine.bar % bars) * chunks + chunk;
     }
     if (target !== pageNow) setPage(target);
-  }, [engine, playing, follow, mode, bars, chunks, per, pageNow]);
+  }, [engine, here, follow, mode, bars, chunks, per, pageNow]);
 
   if (!section) return null;
   const popLane = pop ? lanes.find((l) => laneId(l) === pop.id) : undefined;
@@ -520,7 +537,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
               className="h-9 rounded-full border px-3 text-sm font-semibold"
               style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }}
               value={sec}
-              onChange={(e) => { setSec(Number(e.target.value)); setPage(0); setFocus(null); const s = sections[Number(e.target.value)]; setV(s?.variation === 1 && !s.stylePart ? 'b' : 'a'); if (s?.stylePart) setMode('groove'); }}
+              onChange={(e) => { setFollow(false); goToSection(Number(e.target.value)); }}
               aria-label="Section"
             >
               {editable.map((i) => <option key={i} value={i}>{sections[i].name}{drafts[i] ? ' •' : ''}</option>)}
@@ -534,7 +551,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
               <Zap size={15} />{isMobile ? 'Fill' : 'Fill now'}
             </button>
           )}
-          <button type="button" className="cp-btn" onClick={() => (playing ? stopLoop() : void startLoop())}>
+          <button type="button" className="cp-btn" onClick={playOrStop} title={playing ? 'Stop the song' : 'Play this section round and round'}>
             {playing ? <Square size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}{playing ? 'Stop' : isMobile ? 'Loop' : 'Loop section'}
           </button>
           <button type="button" className="cp-btn" onClick={cancel}>Cancel</button>
@@ -544,7 +561,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           <div className="flex flex-wrap items-center gap-3 px-4 py-2 text-sm" style={{ background: 'var(--cp-acs)' }}>
             <span className="flex-1">Discard what you changed? The song stays as it was.</span>
             <button type="button" className="cp-btn" onClick={() => setConfirmDiscard(false)}>Keep editing</button>
-            <button type="button" className="cp-btn" style={{ color: 'var(--cp-dg)' }} onClick={() => { setConfirmDiscard(false); stopLoop(); onClose(); }}>Discard</button>
+            <button type="button" className="cp-btn" style={{ color: 'var(--cp-dg)' }} onClick={() => { setConfirmDiscard(false); onClose(); }}>Discard</button>
           </div>
         )}
 
@@ -644,6 +661,20 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                 </span>
                 {tab !== 'drums' && <span className="text-xs" style={{ color: 'var(--cp-mu)' }}>names over <b style={{ color: 'var(--cp-tx)' }}>{chordLabel}</b> (bar {shownSectionBar + 1})</span>}
                 <span className="flex-1" />
+                {playing && !here && playingSection >= 0 && (
+                  <span className="flex items-center gap-2 text-xs" style={{ color: 'var(--cp-mu)' }}>
+                    Playing: <b style={{ color: 'var(--cp-tx)' }}>{sections[playingSection]?.name}</b> · bar {(engine?.bar ?? 0) + 1}
+                    {editable.includes(playingSection) && (
+                      <button type="button" className="h-[26px] rounded-full border px-2 text-xs font-semibold" style={{ borderColor: 'var(--cp-ln)', background: 'transparent', color: 'var(--cp-act)' }}
+                        onClick={() => { setFollow(true); goToSection(playingSection); }}>Go there</button>
+                    )}
+                  </span>
+                )}
+                <button type="button" aria-pressed={loopHere} onClick={toggleLoop} title="The song plays this section round and round"
+                  className="h-[30px] rounded-full border px-2.5 text-xs font-semibold"
+                  style={loopHere ? { background: 'var(--cp-acs)', borderColor: 'var(--cp-ac)', color: 'var(--cp-act)' } : { background: 'transparent', borderColor: 'var(--cp-ln)', color: 'var(--cp-mu)' }}>
+                  {loopHere ? '⟲ Looping here' : 'Loop here'}
+                </button>
                 {playing && (
                   <button type="button" aria-pressed={follow} onClick={() => setFollow((on) => !on)}
                     title="The grid moves to the bar that is playing"
