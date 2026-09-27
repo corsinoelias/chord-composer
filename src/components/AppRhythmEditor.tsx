@@ -92,6 +92,10 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const spb = appStepsPerBar(style);
   const stepsPerBeat = Math.max(1, Math.round(16 / style.meter.unit));
   const isMobile = useIsMobile();
+  // A page is the whole bar where it fits; on a phone, half of it (two beats in four), as the
+  // app splits it — shown one at a time, never stacked, so the grid does not grow tall.
+  const per = isMobile ? Math.max(stepsPerBeat, Math.ceil(spb / 2 / stepsPerBeat) * stepsPerBeat) : spb;
+  const chunks = Math.ceil(spb / per);
   const { state: mainPlayback, stop: stopMain } = usePlayback();
 
   const [sec, setSec] = useState(initialSection);
@@ -99,7 +103,10 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const [v, setV] = useState<VariationKey>('a');
   const [mode, setMode] = useState<'groove' | 'fill'>('groove');
   const [tab, setTab] = useState<GrooveTrack>('drums');
-  const [bar, setBar] = useState(0);
+  /** The page on screen: a bar of the pattern, or half of one on a phone. */
+  const [page, setPage] = useState(0);
+  /** While the loop plays the page follows the bar that sounds, as the app's grid does; paging by hand stops it. */
+  const [follow, setFollow] = useState(true);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [focus, setFocus] = useState<{ li: number; s: number } | null>(null);
   /** The open cell window, by row (not position: an accidental moves a note to a row that did not exist). */
@@ -116,7 +123,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     setSec(initialSection);
     setDrafts({});
     setV(sections[initialSection]?.variation === 1 ? 'b' : 'a');
-    setMode('groove'); setTab('drums'); setBar(0); setAdded(new Set()); setFocus(null); setPop(null); setMenu(null);
+    setMode('groove'); setTab('drums'); setPage(0); setAdded(new Set()); setFocus(null); setPop(null); setMenu(null);
     setConfirmDiscard(false);
     undo.current = []; redo.current = [];
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -166,7 +173,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     return chordSteps.list.find((c) => at >= c.from && at < c.to)?.chord ?? chordSteps.list[0].chord;
   }, [chordSteps]);
   /** The bar of the section the bar on screen is first heard in: the fill is always the last one. */
-  const shownSectionBar = mode === 'fill' ? sectionBars - 1 : bar;
+  const shownSectionBar = mode === 'fill' ? sectionBars - 1 : Math.floor(page / chunks);
   const refChord = chordAtStep(shownSectionBar * spb);
   const ref = refChord ? engineChord(refChord, transposition) : { root: 0, quality: 'maj', bass: -1 };
   const chordLabel = refChord ? chordName(refChord) : '';
@@ -202,6 +209,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     const pb = new AppPlayback();
     playbackRef.current = pb;
     setPlaying(true);
+    setFollow(true);
     try { await pb.play(loopInput(drafts)); } catch { setPlaying(false); toast.error('Could not start the sound'); }
   }, [stopLoop, loopInput, drafts, mainPlayback.isPlaying, stopMain]);
   useEffect(() => { if (!open) stopLoop(); }, [open, stopLoop]);
@@ -231,7 +239,10 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       .map((r) => ({ key: r, row: r, color: rowColor(r) }));
   }, [tab, variation, mode, added]);
   const bars = variation.bars[tab];
-  const shownBar = mode === 'fill' ? 0 : Math.min(bar, bars - 1);
+  const pageCount = mode === 'fill' ? chunks : bars * chunks;
+  const pageNow = Math.min(page, pageCount - 1);
+  const shownBar = mode === 'fill' ? 0 : Math.floor(pageNow / chunks);
+  const shownChunk = pageNow % chunks;
   const valueAt = (lane: Lane, s: number): number => {
     if (mode === 'fill' && fillWrites(lane.key)) return variation.fill.lanes[lane.key][s] ?? 0;
     const b = mode === 'fill' ? bars - 1 : shownBar;
@@ -460,13 +471,25 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     if (engine.fillBar) return -1;
     return engine.bar % bars === shownBar ? engine.step : -1;
   })();
+  // Following: the page moves to where the music is, bar and half bar, groove or fill.
+  useEffect(() => {
+    if (!playing || !follow || !engine) return;
+    const chunk = Math.min(chunks - 1, Math.floor(engine.step / per));
+    let target: number;
+    if (mode === 'fill') {
+      if (!engine.fillBar) return;
+      target = chunk;
+    } else {
+      if (engine.fillBar) return;
+      target = (engine.bar % bars) * chunks + chunk;
+    }
+    if (target !== pageNow) setPage(target);
+  }, [engine, playing, follow, mode, bars, chunks, per, pageNow]);
 
   if (!section) return null;
   const popLane = pop ? lanes.find((l) => laneId(l) === pop.id) : undefined;
 
   // ── Layout ──
-  const per = isMobile ? Math.max(stepsPerBeat, Math.ceil(spb / 2 / stepsPerBeat) * stepsPerBeat) : spb;
-  const chunks = Math.ceil(spb / per);
   const labelW = isMobile ? (tab === 'drums' ? 70 : 50) : (tab === 'drums' ? 108 : 72);
   const gap = isMobile ? 3 : 5;
   const cols = `${labelW}px repeat(${per}, minmax(0, 1fr))`;
@@ -497,7 +520,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
               className="h-9 rounded-full border px-3 text-sm font-semibold"
               style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }}
               value={sec}
-              onChange={(e) => { setSec(Number(e.target.value)); setBar(0); setFocus(null); const s = sections[Number(e.target.value)]; setV(s?.variation === 1 && !s.stylePart ? 'b' : 'a'); if (s?.stylePart) setMode('groove'); }}
+              onChange={(e) => { setSec(Number(e.target.value)); setPage(0); setFocus(null); const s = sections[Number(e.target.value)]; setV(s?.variation === 1 && !s.stylePart ? 'b' : 'a'); if (s?.stylePart) setMode('groove'); }}
               aria-label="Section"
             >
               {editable.map((i) => <option key={i} value={i}>{sections[i].name}{drafts[i] ? ' •' : ''}</option>)}
@@ -508,11 +531,11 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             <button type="button" className="cp-btn" onClick={() => (playing ? fillNow() : toast('Start the loop to throw the fill in'))}
               title="The section plays its fill on the next bar"
               style={engine?.fillByHand === 2 ? { background: 'var(--cp-ac)', borderColor: 'var(--cp-ac)', color: '#fff' } : engine?.fillByHand === 1 ? { borderColor: 'var(--cp-ac)', color: 'var(--cp-act)' } : undefined}>
-              <Zap size={15} />Fill now
+              <Zap size={15} />{isMobile ? 'Fill' : 'Fill now'}
             </button>
           )}
           <button type="button" className="cp-btn" onClick={() => (playing ? stopLoop() : void startLoop())}>
-            {playing ? <Square size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}{playing ? 'Stop' : 'Loop section'}
+            {playing ? <Square size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}{playing ? 'Stop' : isMobile ? 'Loop' : 'Loop section'}
           </button>
           <button type="button" className="cp-btn" onClick={cancel}>Cancel</button>
           <button type="button" className="cp-btn" style={{ background: 'var(--cp-ac)', borderColor: 'var(--cp-ac)', color: '#fff' }} onClick={save}>Save</button>
@@ -533,7 +556,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             const on = tab === t.id;
             return (
               <button key={t.id} type="button" role="tab" aria-selected={on}
-                onClick={() => { setTab(t.id); setBar(0); setFocus(null); }}
+                onClick={() => { setTab(t.id); setPage(0); setFocus(null); }}
                 className="flex items-center gap-2 whitespace-nowrap border-0 bg-transparent px-3 pb-2.5 pt-3 text-sm font-semibold"
                 style={{ color: on ? 'var(--cp-tx)' : 'var(--cp-mu)', borderBottom: `2px solid ${on ? 'var(--cp-ac)' : 'transparent'}` }}>
                 <span className="h-2 w-2 rounded" style={{ background: t.color }} />{t.name}
@@ -552,7 +575,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
               <div className="flex overflow-hidden rounded-[11px] border" role="group" aria-label="Variation" style={{ borderColor: 'var(--cp-ln)' }}>
                 {(['a', 'b'] as const).map((k) => (
                   <button key={k} type="button" aria-pressed={v === k} disabled={k === 'b' && !hasB}
-                    onClick={() => { setV(k); setBar(0); if (playing) toast(`Switching to ${k.toUpperCase()} through the fill, on the next bar`); }}
+                    onClick={() => { setV(k); setPage(0); if (playing) toast(`Switching to ${k.toUpperCase()} through the fill, on the next bar`); }}
                     className="h-[34px] min-w-[38px] border-0 px-3 text-[13px] font-extrabold disabled:opacity-40"
                     style={v === k ? { background: 'var(--cp-ac)', color: '#fff' } : { background: 'transparent', color: 'var(--cp-mu)' }}
                     title={k === 'b' && !hasB ? 'This rhythm has no variation B' : `Variation ${k.toUpperCase()}`}>{k.toUpperCase()}</button>
@@ -611,16 +634,36 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
 
           {/* The grid */}
           <div className="px-4 pb-4">
-            <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--cp-ln)' }}>
-              {tab !== 'drums' && (
-                <p className="mb-2.5 text-xs" style={{ color: 'var(--cp-mu)' }}>
-                  Note names over <b style={{ color: 'var(--cp-tx)' }}>{chordLabel}</b>, the chord of bar {shownSectionBar + 1}. The pattern follows every chord it plays over.
-                </p>
-              )}
-              {Array.from({ length: chunks }, (_, c) => (
-                <div key={c} className="grid gap-1.5" style={c ? { marginTop: 14 } : undefined}>
+            <div className="rounded-2xl border px-3 pb-3" style={{ borderColor: 'var(--cp-ln)' }}>
+              {/* Where you are, and the other pages: at the top, and held there while the grid scrolls. */}
+              <div className="sticky top-0 z-[5] -mx-3 mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-t-2xl border-b px-3 py-2"
+                style={{ background: 'var(--cp-s1)', borderColor: 'var(--cp-ln)' }}>
+                <span className="text-[13px] font-bold">
+                  {mode === 'fill' ? `Fill · from step ${from + 1}` : `Bar ${shownBar + 1} of ${bars}`}
+                  {chunks > 1 && <span className="font-semibold" style={{ color: 'var(--cp-mu)' }}> · beats {Math.floor((shownChunk * per) / stepsPerBeat) + 1}–{Math.min(spb, (shownChunk + 1) * per) / stepsPerBeat}</span>}
+                </span>
+                {tab !== 'drums' && <span className="text-xs" style={{ color: 'var(--cp-mu)' }}>names over <b style={{ color: 'var(--cp-tx)' }}>{chordLabel}</b> (bar {shownSectionBar + 1})</span>}
+                <span className="flex-1" />
+                {playing && (
+                  <button type="button" aria-pressed={follow} onClick={() => setFollow((on) => !on)}
+                    title="The grid moves to the bar that is playing"
+                    className="h-[30px] rounded-full border px-2.5 text-xs font-semibold"
+                    style={follow ? { background: 'var(--cp-acs)', borderColor: 'var(--cp-ac)', color: 'var(--cp-act)' } : { background: 'transparent', borderColor: 'var(--cp-ln)', color: 'var(--cp-mu)' }}>
+                    {follow ? '● Following' : 'Follow'}
+                  </button>
+                )}
+                {pageCount > 1 && (
+                  <span className="ml-auto flex items-center gap-1.5 text-xs font-bold" style={{ color: 'var(--cp-tx2)' }}>
+                    <button type="button" className="cp-icb" style={{ width: 30, height: 30 }} disabled={pageNow === 0} onClick={() => { setFollow(false); setPage(pageNow - 1); }} aria-label={chunks > 1 ? 'Previous page' : 'Previous bar'}>‹</button>
+                    {pageNow + 1}/{pageCount}
+                    <button type="button" className="cp-icb" style={{ width: 30, height: 30 }} disabled={pageNow >= pageCount - 1} onClick={() => { setFollow(false); setPage(pageNow + 1); }} aria-label={chunks > 1 ? 'Next page' : 'Next bar'}>›</button>
+                  </span>
+                )}
+              </div>
+              {[shownChunk].map((c) => (
+                <div key={c} className="grid gap-1.5">
                   <div className="grid items-center" style={{ gridTemplateColumns: cols, columnGap: gap }}>
-                    <span className="text-[11px] font-bold" style={{ color: 'var(--cp-tx2)' }}>{c === 0 ? (mode === 'fill' ? `Fill · from ${from + 1}` : `Bar ${shownBar + 1}/${bars}`) : ''}</span>
+                    <span />
                     {Array.from({ length: Math.min(per, spb - c * per) }, (_, i) => {
                       const s = c * per + i;
                       const onBeat = s % stepsPerBeat === 0;
@@ -643,7 +686,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                     if (tab === 'drums') {
                       const lab = rowLabel(lane.row);
                       tag = (
-                        <button type="button" className="flex h-full min-h-[34px] flex-col justify-center rounded-[9px] border bg-transparent px-2 text-left text-[11.5px] font-bold leading-tight"
+                        <button type="button" className="flex h-full min-h-[28px] sm:min-h-[34px] flex-col justify-center rounded-[9px] border bg-transparent px-2 text-left text-[11.5px] font-bold leading-tight"
                           style={{ borderColor: lane.color, background: `color-mix(in srgb, ${lane.color} 12%, transparent)`, color: 'var(--cp-tx)', opacity: c ? 0.55 : 1 }}
                           onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openLaneMenu(lane, r.left, r.bottom); }} title={`${lab.name} · options`}>
                           <span className="truncate">{lab.name}</span>
@@ -654,7 +697,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                       );
                     } else if (lane.chord) {
                       tag = (
-                        <button type="button" className="flex h-full min-h-[34px] items-center gap-1.5 rounded-[9px] border bg-transparent px-2 text-left"
+                        <button type="button" className="flex h-full min-h-[28px] sm:min-h-[34px] items-center gap-1.5 rounded-[9px] border bg-transparent px-2 text-left"
                           style={{ borderColor: lane.color, color: 'var(--cp-tx)', opacity: c ? 0.55 : 1 }}
                           onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openLaneMenu(lane, r.left, r.bottom); }} title="The whole chord">
                           <b className="text-[13px]">●</b><small className="text-[9.5px] font-semibold" style={{ color: 'var(--cp-mu)' }}>{chordLabel}</small>
@@ -666,7 +709,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                       const iv = CHORD_OF(ref.quality);
                       const tone = iv.includes(((semi % 12) + 12) % 12);
                       tag = (
-                        <button type="button" className={`flex items-center gap-1.5 rounded-[9px] border bg-transparent text-left ${slim ? 'h-[18px] px-1.5' : 'h-full min-h-[34px] px-2'}`}
+                        <button type="button" className={`flex items-center gap-1.5 rounded-[9px] border bg-transparent text-left ${slim ? 'h-[18px] px-1.5' : 'h-full min-h-[28px] sm:min-h-[34px] px-2'}`}
                           style={{ borderColor: lane.a ? 'var(--cp-ln)' : lane.color, background: tone ? `color-mix(in srgb, ${lane.color} 24%, transparent)` : 'transparent', color: 'var(--cp-tx)', opacity: c ? 0.55 : 1 }}
                           onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openLaneMenu(lane, r.left, r.bottom); }}
                           title={`Degree ${rowText(lane.k!, lane.a!)} of the ${chordLabel} scale${tone ? ' · a note of the chord' : ''}`}>
@@ -699,8 +742,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                             background: on ? `color-mix(in srgb, ${lane.color} ${Math.round(alpha * 100)}%, var(--cp-s2))` : 'var(--cp-s2)',
                             opacity: faded && playhead !== s ? 0.32 : 1,
                             boxShadow: playhead === s ? 'inset 0 0 0 2px var(--cp-tx)' : focused ? 'inset 0 0 0 2px var(--cp-ac)' : ring && on ? 'inset 0 0 0 2px #0B0D12' : undefined,
-                            height: slim ? 18 : undefined,
-                            aspectRatio: slim ? undefined : '1',
+                            height: slim ? 18 : isMobile ? 28 : 36,
                             borderRadius: slim ? 5 : 8,
                           };
                           return (
@@ -731,19 +773,12 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                     : tab === 'drums' ? 'Tap to add or remove a hit · hold or right-click for strength and tone'
                       : 'Tap a degree to add that note (two per step) · hold or right-click for ♭ ♯, octave, chord tone and strength'}
                 </span>
-                {mode === 'groove' && (
-                  <span className="flex items-center gap-1.5 text-xs font-bold" style={{ color: 'var(--cp-tx2)' }}>
-                    <button type="button" className="cp-icb" style={{ width: 30, height: 30 }} disabled={shownBar === 0} onClick={() => setBar(shownBar - 1)} aria-label="Previous bar">‹</button>
-                    {shownBar + 1}/{bars}
-                    <button type="button" className="cp-icb" style={{ width: 30, height: 30 }} disabled={shownBar >= bars - 1} onClick={() => setBar(shownBar + 1)} aria-label="Next bar">›</button>
-                  </span>
-                )}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-4 py-2.5 text-[11.5px]" style={{ borderColor: 'var(--cp-ln)', color: 'var(--cp-mu)' }}>
+        <div className="hidden flex-wrap items-center gap-x-4 gap-y-1 border-t px-4 py-2.5 text-[11.5px] sm:flex" style={{ borderColor: 'var(--cp-ln)', color: 'var(--cp-mu)' }}>
           {tab === 'drums'
             ? <><span><b>H</b> open · high</span><span><b>M</b> muted</span><span><b>L</b> low</span><span>● accent</span><span>shade = strength</span></>
             : <><span><b>tinted row</b> a note of the chord</span><span><b>slim row</b> altered degree</span><span><b>R 3 5 7 9 8</b> in a cell: follows the chord</span><span><b>+1</b> octave up</span></>}
