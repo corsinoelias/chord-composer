@@ -109,5 +109,24 @@ for (const s of styles) {
   check('part has no B', baseVariation(s, part, 'b') === null);
 }
 
+// 7. A B the section makes when the rhythm has none: a copy of A that exists even untouched,
+//    keeps only what differs from the rhythm's A, and plays back as edited.
+// Every rhythm of the library brings a B, so the ones without are made by taking it away.
+for (const s of styles.slice(0, 30).map((x) => ({ ...x, id: `${x.id}-noB`, b: undefined }))) {
+  const a = effectiveVariation(s, {}, 'a')!;
+  const untouched = sectionGrooveOf(s, {}, { a, b: cloneDense(a) });
+  check(`${s.id} made B exists`, !!untouched?.bCreated && !untouched.b && !untouched.a);
+  const b0 = effectiveVariation(s, { groove: untouched }, 'b');
+  check(`${s.id} made B starts as A`, !!b0 && JSON.stringify(b0) === JSON.stringify(a));
+  const b = cloneDense(a);
+  const spb = a.rows.drums.kick?.length ? a.rows.drums.kick.length / a.bars.drums : 16;
+  b.rows.drums.kick = new Array(b.bars.drums * spb).fill(0).map((_, i) => (i % 4 === 0 ? packHit(200) : 0));
+  const g = sectionGrooveOf(s, {}, { a, b });
+  check(`${s.id} made B keeps its drums alone`, !!g?.bCreated && !!g.b?.tracks?.drums && Object.keys(g.b!.tracks!).length === 1);
+  const back = effectiveVariation(s, { groove: g }, 'b')!;
+  check(`${s.id} made B plays back`, JSON.stringify(back.rows.drums.kick) === JSON.stringify(b.rows.drums.kick));
+  check(`${s.id} no B without it`, effectiveVariation(s, {}, 'b') === null);
+}
+
 console.log(`${checks - failed}/${checks} checks passed over ${styles.length} rhythms`);
 if (failed) process.exit(1);

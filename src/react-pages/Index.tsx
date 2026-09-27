@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { type Chord, generateChordId, chordToMidiNotes } from '@/lib/musicTheory';
-import { type Section, createSection, getSectionDisplayName, sectionHasArrangement } from '@/lib/sections';
+import { type Section, createSection, getSectionDisplayName, sectionHasArrangement, sectionB, arrangementOf } from '@/lib/sections';
 import { detectKey, keyLabel, relativeTonic, type DetectedKey, type KeyMode } from '@/lib/keyDetect';
 import { keyPrefersFlats } from '@/lib/musicKeys';
 import { completeInstrumentStates, getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
@@ -283,7 +283,8 @@ const Index = ({ songId }: IndexProps) => {
   const songExtrasRef = useRef<Record<string, unknown>>({});
   const newerFormatRef = useRef(false);
   // Set while the Rhythm Editor is editing one section's groove rather than a style.
-  const [sectionRhythmEdit, setSectionRhythmEdit] = useState<{ index: number; base: StylePattern } | null>(null);
+  /** A section's rhythm on the web's editor: which section, what it starts from, and which variation (A or B). */
+  const [sectionRhythmEdit, setSectionRhythmEdit] = useState<{ index: number; base: StylePattern; variation: 0 | 1 } | null>(null);
   const [createRhythmModalOpen, setCreateRhythmModalOpen] = useState(false);
   const [editingNewStyle, setEditingNewStyle] = useState<StylePattern | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -1394,15 +1395,31 @@ const Index = ({ songId }: IndexProps) => {
       setAppEditor({ style: app, section: sectionIndex });
       return;
     }
-    const base = effectiveSectionStyle(section, currentStyle, sectionStyleLookup);
-    setSectionRhythmEdit({ index: sectionIndex, base });
+    // The variation the section plays is the one opened; the editor's A|B goes to the other.
+    const variation: 0 | 1 = section.alt && section.variation === 1 ? 1 : 0;
+    const base = effectiveSectionStyle(variation ? sectionB(section)! : section, currentStyle, sectionStyleLookup);
+    setSectionRhythmEdit({ index: sectionIndex, base, variation });
     setRhythmEditorOpen(true);
   }, [sections, currentStyle, sectionStyleLookup, appStyleOfSection]);
 
   /** Variation A or B of the rhythm, for one section: kept with the song, as the app keeps it. */
   const handleSectionABChange = useCallback((sectionIndex: number, variation: 0 | 1) => {
-    setSections(prev => prev.map((s, i) => i !== sectionIndex ? s : { ...s, variation }));
-  }, []);
+    const section = sectionsRef.current[sectionIndex];
+    const app = section ? appStyleOfSection(section) : undefined;
+    // A rhythm with no B: the section makes its own from A the first time B is asked for, as the app does.
+    const making = variation === 1 && !section?.stylePart && (app
+      ? !app.b && !(section.groove?.styleId === app.id && section.groove.bCreated)
+      : !section?.alt);
+    setSections(prev => prev.map((s, i) => {
+      if (i !== sectionIndex) return s;
+      if (!making) return { ...s, variation };
+      // A web rhythm's B starts as what A plays now; an app rhythm's, as its A (groove.ts).
+      if (!app) return { ...s, variation, alt: arrangementOf(s) };
+      const groove = s.groove?.styleId === app.id ? s.groove : { styleId: app.id };
+      return { ...s, variation, groove: { ...groove, bCreated: true } };
+    }));
+    if (making) toast('B created from A: open Edit rhythm to change it');
+  }, [appStyleOfSection]);
 
   const handleSectionVariationChange = useCallback((sectionIndex: number, instrument: 'bass' | 'piano' | 'guitar', variationId: string) => {
     setSections(prev => prev.map((s, i) => i !== sectionIndex ? s : {
@@ -1934,7 +1951,7 @@ const Index = ({ songId }: IndexProps) => {
         />
       )}
       <RhythmEditor
-        key={sectionRhythmEdit ? `section-${sectionRhythmEdit.index}` : 'song'}
+        key={sectionRhythmEdit ? `section-${sectionRhythmEdit.index}-${sectionRhythmEdit.variation}` : 'song'}
         open={rhythmEditorOpen}
         onClose={() => {
           setRhythmEditorOpen(false);
@@ -1948,9 +1965,36 @@ const Index = ({ songId }: IndexProps) => {
         // In section mode the edit stays inside the editor until saved: previewing it live
         // would make the whole song play the section's groove.
         onStyleChange={sectionRhythmEdit ? undefined : setLiveEditedStyle}
+        sectionVariation={sectionRhythmEdit ? {
+          value: sectionRhythmEdit.variation,
+          onSwitch: (to, edited) => {
+            // What was edited stays in the variation left; the other one opens, made from A the first time.
+            const { index, base, variation } = sectionRhythmEdit;
+            const next = sectionsRef.current.map((s, i) => {
+              if (i !== index) return s;
+              const kept = variation
+                ? { ...s, alt: { ...s.alt, patterns: sectionPatternsFromStyle(edited, base, sectionB(s)!) } }
+                : { ...s, patterns: sectionPatternsFromStyle(edited, base, s) };
+              if (to === 1 && !kept.alt) {
+                toast('B created from A: change what you want in it');
+                return { ...kept, alt: arrangementOf(kept) };
+              }
+              return kept;
+            });
+            setSections(next);
+            const target = next[index];
+            setSectionRhythmEdit({ index, variation: to, base: effectiveSectionStyle(to ? sectionB(target)! : target, currentStyle, sectionStyleLookup) });
+          },
+        } : undefined}
         onSaveSection={sectionRhythmEdit ? (edited) => {
-          const { index, base } = sectionRhythmEdit;
-          setSections(prev => prev.map((s, i) => i === index ? { ...s, patterns: sectionPatternsFromStyle(edited, base, s) } : s));
+          const { index, base, variation } = sectionRhythmEdit;
+          setSections(prev => prev.map((s, i) => {
+            if (i !== index) return s;
+            // Variation B keeps its grooves in the section's alt; A, as before, in the section.
+            return variation && s.alt
+              ? { ...s, alt: { ...s.alt, patterns: sectionPatternsFromStyle(edited, base, sectionB(s)!) } }
+              : { ...s, patterns: sectionPatternsFromStyle(edited, base, s) };
+          }));
           setSectionRhythmEdit(null);
           toast.success('Section rhythm saved');
         } : undefined}

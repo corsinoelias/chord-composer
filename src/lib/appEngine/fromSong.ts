@@ -13,7 +13,7 @@
  * sounds, register and note lengths) comes across as the web wrote it.
  */
 import { type Chord } from '../musicTheory';
-import { type Section, type TrackId } from '../sections';
+import { type Section, type TrackId, sectionB } from '../sections';
 import {
   type StylePattern,
   generateBarPattern,
@@ -239,43 +239,53 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     } else if (style.engine) {
       writeAppStyle(c, s, style.engine, section, kitRows, drumSlots);
     } else {
-      writeWebStyle(s, style, playback);
+      writeWebStyle(s, section, style, playback, 0);
+      // The section's own B, when it made one: another arrangement of the same part, in bank 1.
+      const b = sectionB(section);
+      if (b) {
+        const playbackB = resolveSectionPlayback(b, songStyle, lookup);
+        writeWebStyle(s, b, playbackB?.style ?? songStyle, playbackB, 1);
+      } else clearVariationB(c, s);
+      c.push(['setVariation', s, b && section.variation === 1 ? 1 : 0]);
     }
     writeSounds(s, playback, !!app);
   });
 
-  /** A section on one of the web's own rhythms: its bars as generateBarPattern renders them. */
-  function writeWebStyle(s: number, style: StylePattern, playback: ReturnType<typeof resolveSectionPlayback>) {
-    const section = sections[s];
+  /**
+   * A section on one of the web's own rhythms: its bars as generateBarPattern renders them,
+   * in [bank] — variation A in 0, and the section's B (section.alt) in 1 when it has one.
+   */
+  function writeWebStyle(s: number, section: Section, style: StylePattern, playback: ReturnType<typeof resolveSectionPlayback>, bank: 0 | 1) {
     const loopBars = engineBars(style.loopBars ?? 1);
     if ((style.loopBars ?? 1) === 3) notes.push(`${section.name}: a 3-bar groove plays as 4 bars in the engine`);
     // The bars exactly as the web renders them, fills aside (the engine plays those itself).
     const bars = Array.from({ length: loopBars }, (_, b) => generateBarPattern(style, b + 1, song.fillEveryBar ? 1 : Number.POSITIVE_INFINITY));
 
     // Drums.
-    c.push(['clearTrack', s, 'drums'], ['setPatternBars', s, 'drums', loopBars]);
+    c.push(['clearTrack', s, 'drums', bank], ['setPatternBars', s, 'drums', loopBars, bank]);
     bars.forEach((bar, b) => {
       for (const [web, row] of WEB_DRUMS) {
         const lane = (bar as unknown as Record<string, number[] | undefined>)[web];
         lane?.forEach((v, i) => {
-          if (v > 0 && i < slotsPerBar) c.push(['setStep', s, 'drums', row, b * slotsPerBar + i, packStep(v * 255)]);
+          if (v > 0 && i < slotsPerBar) c.push(['setStep', s, 'drums', row, b * slotsPerBar + i, packStep(v * 255), bank]);
         });
       }
     });
-    c.push(song.fillEveryBar ? ['setFill', s, 0, 0, []] : fillCommand(s, style, slotsPerBar));
+    c.push(song.fillEveryBar ? ['setFill', s, 0, 0, [], bank] : fillCommand(s, style, slotsPerBar, bank));
 
     // Piano, guitar, bass.
     for (const track of MELODIC) {
-      c.push(['clearTrack', s, track]);
+      c.push(['clearTrack', s, track, bank]);
       const variation = playback?.melodic
         ? playback.melodic[track]
         : songStyle.melodic?.[track]
           ? resolveVariation(songStyle.melodic[track], section[`${track}VariationId` as const])
           : null;
       if (variation) {
-        writeVariation(c, s, track, variation, slotsPerBar, song.noteLengths?.[track] ?? 3);
+        writeVariation(c, s, track, variation, slotsPerBar, song.noteLengths?.[track] ?? 3, bank);
       } else {
-        c.push(['setPatternBars', s, track, loopBars], ['setNoteLength', s, track, song.noteLengths?.[track] ?? (track === 'bass' ? 2 : 3)]);
+        c.push(['setPatternBars', s, track, loopBars, bank]);
+        if (bank === 0) c.push(['setNoteLength', s, track, song.noteLengths?.[track] ?? (track === 'bass' ? 2 : 3)]);
         bars.forEach((bar, b) => {
           const lane = (bar as unknown as Record<string, number[] | undefined>)[track];
           lane?.forEach((v, i) => {
@@ -283,7 +293,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
             // Plain rhythm rows: the whole chord on piano and guitar, the root (the slash
             // bass when there is one) on the bass — eventBuilder.buildSlotEvents.
             if (track !== 'bass' && style.arpeggios?.[track]?.[i]) arpeggioTracks.add(track);
-            c.push(['setStep', s, track, '', b * slotsPerBar + i, packStep(v * 255, track === 'bass' ? DEGREE.root : DEGREE.chord)]);
+            c.push(['setStep', s, track, '', b * slotsPerBar + i, packStep(v * 255, track === 'bass' ? DEGREE.root : DEGREE.chord), bank]);
           });
         });
       }
@@ -295,15 +305,14 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
         const slot = degreeSlots(fillBar!);
         for (let b = 0; b < MAX_BARS; b++) {
           for (let i = Math.max(0, style.fill.position); i < slotsPerBar; i++) {
-            c.push(['setStep', s, track, '', b * slotsPerBar + i, slot(i)]);
+            c.push(['setStep', s, track, '', b * slotsPerBar + i, slot(i), bank]);
           }
         }
       }
     }
-    // The web's rhythms never write the synth or a variation B: whatever a rhythm of the
-    // app's left in this section's slots is cleared, so it cannot sound under this one.
-    c.push(['clearTrack', s, 'synth'], ['setPatternBars', s, 'synth', 1]);
-    clearVariationB(c, s);
+    // The web's rhythms never write the synth: whatever a rhythm of the app's left in this
+    // section's slots is cleared, so it cannot sound under this one.
+    c.push(['clearTrack', s, 'synth', bank], ['setPatternBars', s, 'synth', 1, bank]);
   }
 
   /**
@@ -393,14 +402,15 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
  * engine holds two tones per step, so a slot the web writes with more keeps the lowest
  * two; a chord hit (every tone of the chord) wins.
  */
-function writeVariation(c: EngineCommand[], s: number, track: MelodicTrack, variation: BassScaleData, slotsPerBar: number, noteLength: number) {
+function writeVariation(c: EngineCommand[], s: number, track: MelodicTrack, variation: BassScaleData, slotsPerBar: number, noteLength: number, bank: 0 | 1 = 0) {
   const loop = engineBars(variation.loopBars ?? 1);
   const length = loop * slotsPerBar;
-  c.push(['setPatternBars', s, track, loop], ['setNoteLength', s, track, noteLength]);
+  c.push(['setPatternBars', s, track, loop, bank]);
+  if (bank === 0) c.push(['setNoteLength', s, track, noteLength]);
   const slot = degreeSlots(variation);
   for (let i = 0; i < length; i++) {
     const packed = slot(i);
-    if (packed) c.push(['setStep', s, track, '', i, packed]);
+    if (packed) c.push(['setStep', s, track, '', i, packed, bank]);
   }
 }
 
@@ -440,7 +450,7 @@ const FILL_TRACKS: MelodicFillTrack[] = ['piano', 'guitar', 'bass'];
  * Its rows are the kit's, then piano, guitar and bass: a fill is the band's, not only the
  * drummer's.
  */
-export function fillCommand(s: number, style: StylePattern, slotsPerBar: number): EngineCommand {
+export function fillCommand(s: number, style: StylePattern, slotsPerBar: number, bank: 0 | 1 = 0): EngineCommand {
   const fill = style.fill;
   const steps = new Int32Array((DRUM_ROWS.length + FILL_TRACKS.length) * MAX_STEPS_PER_BAR);
   let mask = 0;
@@ -462,5 +472,5 @@ export function fillCommand(s: number, style: StylePattern, slotsPerBar: number)
     const slot = degreeSlots(bar!);
     for (let i = 0; i < Math.min(slotsPerBar, MAX_STEPS_PER_BAR); i++) steps[index * MAX_STEPS_PER_BAR + i] = slot(i);
   });
-  return ['setFill', s, mask ? Math.max(0, Math.min(slotsPerBar - 1, fill.position)) : 0, mask, Array.from(steps)];
+  return ['setFill', s, mask ? Math.max(0, Math.min(slotsPerBar - 1, fill.position)) : 0, mask, Array.from(steps), bank];
 }

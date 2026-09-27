@@ -63,6 +63,31 @@ export interface Section {
    * in it, sparse. Everything else follows the rhythm. See groove.ts.
    */
   groove?: import('./groove').SectionGroove;
+  /**
+   * Variation B of a section on one of the web's own rhythms, as a home keyboard's VARIATION
+   * button has it: another arrangement of the same part — its rhythm, its tracks' rhythms and
+   * its edited grooves — made as a copy of A the first time B is asked for. Sounds and silences
+   * are the section's, the same for both (as the engine keeps them). The app's rhythms bring
+   * their own B (groove.ts).
+   */
+  alt?: SectionArrangementOnly;
+}
+
+/** What a variation of a section can play differently. */
+export type SectionArrangementOnly = Pick<Section, 'styleId' | 'trackStyles' | 'patterns' | 'bassVariationId' | 'pianoVariationId' | 'guitarVariationId'>;
+
+/** The arrangement a section has now, to make a B from. */
+export function arrangementOf(section: Section): SectionArrangementOnly {
+  return JSON.parse(JSON.stringify({
+    styleId: section.styleId, trackStyles: section.trackStyles, patterns: section.patterns,
+    bassVariationId: section.bassVariationId, pianoVariationId: section.pianoVariationId, guitarVariationId: section.guitarVariationId,
+  }));
+}
+
+/** The section as its variation B plays it, or null when it has none. */
+export function sectionB(section: Section): Section | null {
+  if (!section.alt) return null;
+  return { ...section, styleId: undefined, trackStyles: undefined, patterns: undefined, bassVariationId: undefined, pianoVariationId: undefined, guitarVariationId: undefined, ...section.alt };
 }
 
 /** Whether a section changes anything about how the song is arranged. */

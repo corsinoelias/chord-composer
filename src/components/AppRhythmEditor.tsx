@@ -59,6 +59,8 @@ interface Draft {
   a: DenseVariation | null;
   b: DenseVariation | null;
   silenced: Partial<Record<TrackId, boolean>>;
+  /** Which variation the section plays in the song, when changed here. */
+  plays?: 0 | 1;
 }
 
 /** A row of the grid: a kit row, the whole chord, or a degree 1-8 with its alteration. */
@@ -148,7 +150,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       if (undo.current.length > 100) undo.current.shift();
       redo.current = [];
       const d = draftOf(sec, prev);
-      const next: Draft = { a: d.a && cloneDense(d.a), b: d.b && cloneDense(d.b), silenced: { ...d.silenced } };
+      const next: Draft = { a: d.a && cloneDense(d.a), b: d.b && cloneDense(d.b), silenced: { ...d.silenced }, plays: d.plays };
       fn(next);
       return { ...prev, [sec]: next };
     });
@@ -192,7 +194,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       if (Object.keys(off).length) out.silenced = off; else delete out.silenced;
       if (groove) out.groove = groove; else delete out.groove;
     }
-    if (audition && i === sec && !sct.stylePart) out.variation = v === 'b' ? 1 : 0;
+    if (d?.plays !== undefined) out.variation = d.plays;
+    if (audition && i === sec && !sct.stylePart) out.variation = v === 'b' && (d?.b ?? true) ? 1 : 0;
     return out;
   }), [sections, style, sec, v]);
   useEffect(() => { if (open) onDraft(merged(drafts, true)); }, [open, drafts, merged]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -591,11 +594,19 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             {!isPart && (
               <div className="flex overflow-hidden rounded-[11px] border" role="group" aria-label="Variation" style={{ borderColor: 'var(--cp-ln)' }}>
                 {(['a', 'b'] as const).map((k) => (
-                  <button key={k} type="button" aria-pressed={v === k} disabled={k === 'b' && !hasB}
-                    onClick={() => { setV(k); setPage(0); if (playing) toast(`Switching to ${k.toUpperCase()} through the fill, on the next bar`); }}
+                  <button key={k} type="button" aria-pressed={v === k}
+                    onClick={() => {
+                      // No B yet: made from A, as the app makes it the first time it is asked for.
+                      if (k === 'b' && !hasB) {
+                        change((d) => { d.b = d.a && cloneDense(d.a); });
+                        toast('B created from A: change what you want in it');
+                      }
+                      setV(k); setPage(0);
+                      if (playing && here) toast(`Switching to ${k.toUpperCase()} through the fill, on the next bar`);
+                    }}
                     className="h-[34px] min-w-[38px] border-0 px-3 text-[13px] font-extrabold disabled:opacity-40"
                     style={v === k ? { background: 'var(--cp-ac)', color: '#fff' } : { background: 'transparent', color: 'var(--cp-mu)' }}
-                    title={k === 'b' && !hasB ? 'This rhythm has no variation B' : `Variation ${k.toUpperCase()}`}>{k.toUpperCase()}</button>
+                    title={k === 'b' && !hasB ? 'Make a variation B from A' : `Edit variation ${k.toUpperCase()}`}>{k.toUpperCase()}</button>
                 ))}
               </div>
             )}
@@ -615,8 +626,24 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
               {isPart ? `${section.stylePart!.kind === 'intro' ? 'Intro' : 'Ending'} part: one variation, no fill`
                 : engine?.fillBar ? 'The fill is playing'
                   : mode === 'fill' ? 'The last bar of the section, and every 8 bars'
-                    : `Variation ${v.toUpperCase()}`}
+                    : `Editing variation ${v.toUpperCase()}`}
             </span>
+            {!isPart && hasB && (() => {
+              // What the section plays in the song is the section card's choice; said here, with a
+              // way to make it the one being edited.
+              const plays = draft.plays ?? (section.variation === 1 ? 1 : 0);
+              const wanted = v === 'b' ? 1 : 0;
+              return (
+                <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--cp-mu)' }}>
+                  · this section plays {plays ? 'B' : 'A'}
+                  {plays !== wanted && (
+                    <button type="button" className="h-[26px] rounded-full border px-2 text-xs font-semibold"
+                      style={{ borderColor: 'var(--cp-ln)', background: 'transparent', color: 'var(--cp-act)' }}
+                      onClick={() => change((d) => { d.plays = wanted; })}>Play {v.toUpperCase()} here</button>
+                  )}
+                </span>
+              );
+            })()}
             <div className="flex-1" />
             <span className="cp-cap h-[34px] rounded-full px-3 text-[12.5px]" title="Change it in Instruments" style={{ background: 'var(--cp-s2)' }}>
               {getSoundType(tab, instruments.find((i) => i.id === tab)?.soundTypeId ?? '')?.name ?? 'Sound'}

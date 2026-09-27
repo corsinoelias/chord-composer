@@ -268,7 +268,7 @@ export const SectionCard = memo(function SectionCard({
 
         {/* A and B, as a home keyboard's VARIATION button: only a rhythm of the app's has a B.
             While this section sounds, the change goes through the fill at the bar line. */}
-        {onSectionVariationChange && style?.engine?.b && !section.stylePart && (
+        {onSectionVariationChange && !section.stylePart && (
           <div className="flex overflow-hidden rounded-full" role="group" aria-label={`${section.name} variation`} style={{ border: '1px solid var(--cp-ln)' }}>
             {([0, 1] as const).map((v) => {
               const on = (section.variation ?? 0) === v;

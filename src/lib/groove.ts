@@ -37,6 +37,11 @@ export interface SectionGroove {
   styleId: string;
   a?: GrooveVariation;
   b?: GrooveVariation;
+  /**
+   * The rhythm has no variation B and this section made one, as the app does the first time
+   * B is asked for: it starts as a copy of A, and [b] keeps what differs from the rhythm's A.
+   */
+  bCreated?: true;
 }
 
 /** A variation spelled out in full: every row of every track as a lane of steps. What the editor edits. */
@@ -112,9 +117,23 @@ export function withGroove(base: DenseVariation, edits: GrooveVariation | undefi
 const sectionEdits = (style: AppStyle, section: Pick<Section, 'groove'>, v: VariationKey) =>
   section.groove?.styleId === style.id ? section.groove[v] : undefined;
 
-/** What the section plays in [v]: the rhythm with this section's edits, or null when the rhythm has no such variation. */
+/** Whether the rhythm lacks a B and this section made one of its own. */
+export const hasCreatedB = (style: AppStyle, section: Pick<Section, 'stylePart' | 'groove'>) =>
+  !style.b && !section.stylePart && section.groove?.styleId === style.id && !!section.groove.bCreated;
+
+/**
+ * What variation [v] is measured against: the rhythm's own, or — for a B the section made —
+ * the rhythm's A, which is what that B started as.
+ */
+function referenceOf(style: AppStyle, section: Pick<Section, 'stylePart' | 'groove'>, v: VariationKey, creating = false): DenseVariation | null {
+  const own = baseVariation(style, section, v);
+  if (own || v === 'a' || section.stylePart) return own;
+  return creating || hasCreatedB(style, section) ? baseVariation(style, section, 'a') : null;
+}
+
+/** What the section plays in [v]: the rhythm with this section's edits, or null when there is no such variation. */
 export function effectiveVariation(style: AppStyle, section: Pick<Section, 'stylePart' | 'groove'>, v: VariationKey): DenseVariation | null {
-  const base = baseVariation(style, section, v);
+  const base = referenceOf(style, section, v);
   return base ? withGroove(base, sectionEdits(style, section, v), appStepsPerBar(style)) : null;
 }
 
@@ -169,13 +188,15 @@ export function sectionGrooveOf(
 ): SectionGroove | undefined {
   const out: SectionGroove = { styleId: style.id };
   for (const v of ['a', 'b'] as const) {
-    const base = baseVariation(style, section, v);
     const e = edited[v];
+    const base = e ? referenceOf(style, section, v, true) : null;
     if (!base || !e) continue;
     const g = grooveOf(e, base);
     if (g) out[v] = g;
   }
-  return out.a || out.b ? out : undefined;
+  // A B the section made is kept even while it is still the same as A: it exists.
+  if (!style.b && !section.stylePart && edited.b) out.bCreated = true;
+  return out.a || out.b || out.bCreated ? out : undefined;
 }
 
 /** A dense variation as the engine writer takes it. */
