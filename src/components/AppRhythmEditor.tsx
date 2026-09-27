@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Check, ChevronDown, Copy, ListMusic, Play, Square, Trash2, VolumeX, X, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { type AppStyle, appStepsPerBar } from '@/lib/appStyles';
@@ -137,7 +137,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   /** The song's sounds as they are being tried: kept on Save, dropped on Cancel. */
   const [songSounds, setSongSounds] = useState<SongSounds>({ instruments, drumSounds });
-  const [soundMenu, setSoundMenu] = useState<{ x: number; y: number } | null>(null);
+  const [soundMenu, setSoundMenu] = useState<{ x: number; y: number; above: number } | null>(null);
   const [allSounds, setAllSounds] = useState(false);
   const [kits, setKits] = useState<DrumKit[]>([]);
   const undo = useRef<string[]>([]);
@@ -608,7 +608,11 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       <DialogContent
         className="cp flex h-[94vh] max-h-[980px] w-[calc(100vw-16px)] max-w-[1180px] flex-col gap-0 overflow-hidden rounded-2xl p-0 [&>button:last-child]:hidden"
         style={{ background: 'var(--cp-s1)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }}
-        onEscapeKeyDown={(e) => { if (pop || menu) { e.preventDefault(); setPop(null); setMenu(null); } }}
+        data-editor-root=""
+        onEscapeKeyDown={(e) => { if (pop || menu || soundMenu) { e.preventDefault(); setPop(null); setMenu(null); setSoundMenu(null); } }}
+        // Closed by Cancel, Save or Esc only: a tap beside it — or one that lands as a menu
+        // closes and "All sounds…" opens, as a phone delivers it — must not throw the edits away.
+        onInteractOutside={(e) => e.preventDefault()}
       >
         {/* Header */}
         <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3" style={{ borderColor: 'var(--cp-ln)' }}>
@@ -733,7 +737,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             <div className="flex-1" />
             <button type="button" aria-label={`${trackName(tab)} sound`} aria-haspopup="menu"
               title={draft.sounds[tab] ? 'This section’s own sound' : 'The song’s sound'}
-              onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setSoundMenu({ x: r.left, y: r.bottom }); }}
+              onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setSoundMenu({ x: r.left, y: r.bottom, above: r.top }); }}
               className="flex h-[34px] max-w-[240px] items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-semibold"
               style={{ background: 'var(--cp-s2)', borderColor: draft.sounds[tab] ? 'var(--cp-ac)' : 'var(--cp-ln)', color: 'var(--cp-tx)' }}>
               <span className="truncate">{getSoundType(tab, soundIdOf(tab))?.name ?? 'Sound'}</span>
@@ -952,7 +956,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
         )}
         {menu && <Menu items={menu.items} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}
         {soundMenu && (
-          <SoundMenu key={tab} track={tab} x={soundMenu.x} y={soundMenu.y} onClose={() => setSoundMenu(null)}
+          <SoundMenu key={tab} track={tab} x={soundMenu.x} y={soundMenu.y} above={soundMenu.above} onClose={() => setSoundMenu(null)}
             songSound={songSoundOf(tab)} sectionSound={draft.sounds[tab]} sectionName={section?.name ?? ''}
             rhythmSound={rhythmSoundOf(tab)}
             onPick={(id, scope) => pickSound(tab, id, scope)}
@@ -992,12 +996,35 @@ function chordsOfSection(chords: Chord[], transposition: number) {
 type MenuItem = { head: string } | { label: string; run: () => void };
 
 /**
+ * Where a pop-up opened at the screen point ([x], [y]) goes, whole on screen: under the point,
+ * or over [above] (the top of what opened it) when there is no room below. The editor is
+ * centred with a transform, which makes it the box a fixed pop-up inside it is placed in, so
+ * the screen point is taken to the editor's own. Hidden until it has been measured.
+ */
+function usePlaced(ref: React.RefObject<HTMLElement>, x: number, y: number, above?: number, size?: number): CSSProperties {
+  const [at, setAt] = useState<{ left: number; top: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const box = el.parentElement?.closest('[data-editor-root]')?.getBoundingClientRect() ?? { left: 0, top: 0 };
+    const w = el.offsetWidth, h = el.offsetHeight, m = 8;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const sx = Math.max(m, Math.min(vw - w - m, x));
+    let sy = y + 6;
+    if (sy + h > vh - m && above !== undefined && above - h - 6 >= m) sy = above - h - 6;
+    sy = Math.max(m, Math.min(vh - h - m, sy));
+    setAt({ left: sx - box.left, top: sy - box.top });
+  }, [ref, x, y, above, size]);
+  return at ? { left: at.left, top: at.top } : { left: 0, top: 0, visibility: 'hidden' };
+}
+
+/**
  * A track's sound, for the whole song (as the Instruments panel sets it) or for the section on
  * screen only (as the section card's sounds): the list's sounds, the rhythm's own first, and
  * every sound of the SoundFont behind "All sounds…". The kit's list, for the drums.
  */
-function SoundMenu({ track, x, y, onClose, songSound, sectionSound, sectionName, rhythmSound, onPick, onAllSounds }: {
-  track: TrackId; x: number; y: number; onClose: () => void;
+function SoundMenu({ track, x, y, above, onClose, songSound, sectionSound, sectionName, rhythmSound, onPick, onAllSounds }: {
+  track: TrackId; x: number; y: number; above: number; onClose: () => void;
   songSound: string; sectionSound?: string; sectionName: string; rhythmSound?: string;
   onPick: (id: string, scope: 'song' | 'section') => void;
   onAllSounds: () => void;
@@ -1019,11 +1046,10 @@ function SoundMenu({ track, x, y, onClose, songSound, sectionSound, sectionName,
     ...(gmProgramOf(current) !== null ? [current] : []),
     ...(config?.soundTypes.map((s) => s.id) ?? []),
   ])];
-  const left = Math.min(window.innerWidth - 272, Math.max(12, x));
-  const top = Math.max(12, Math.min(window.innerHeight - 440, y + 6));
+  const place = usePlaced(ref, x, y, above);
   return (
-    <div ref={ref} role="menu" aria-label={`${config?.name ?? track} sound`} className="fixed z-[60] flex w-[260px] flex-col rounded-xl border p-1.5 shadow-xl"
-      style={{ left, top, background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)', maxHeight: 'min(430px, 80vh)' }}>
+    <div ref={ref} role="menu" aria-label={`${config?.name ?? track} sound`} className="fixed z-[60] flex w-[260px] max-w-[calc(100vw-16px)] flex-col rounded-xl border p-1.5 shadow-xl"
+      style={{ ...place, background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)', maxHeight: 'min(430px, calc(100dvh - 16px))' }}>
       <div className="flex overflow-hidden rounded-[10px] border m-1" role="group" aria-label="Where the sound goes" style={{ borderColor: 'var(--cp-ln)' }}>
         {(['song', 'section'] as const).map((k) => (
           <button key={k} type="button" aria-pressed={scope === k} onClick={() => setScope(k)}
@@ -1071,11 +1097,10 @@ function Menu({ items, x, y, onClose }: { items: MenuItem[]; x: number; y: numbe
     window.addEventListener('pointerdown', down);
     return () => window.removeEventListener('pointerdown', down);
   }, [onClose]);
-  const left = Math.min(window.innerWidth - 230, Math.max(12, x));
-  const top = Math.min(window.innerHeight - 40 - items.length * 34, y + 6);
+  const place = usePlaced(ref, x, y, undefined, items.length);
   return (
-    <div ref={ref} role="menu" className="fixed z-[60] grid min-w-[210px] rounded-xl border p-1.5 shadow-xl"
-      style={{ left, top, background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)', maxHeight: '60vh', overflowY: 'auto' }}>
+    <div ref={ref} role="menu" className="fixed z-[60] grid min-w-[210px] max-w-[calc(100vw-16px)] rounded-xl border p-1.5 shadow-xl"
+      style={{ ...place, background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)', maxHeight: 'min(60vh, calc(100dvh - 16px))', overflowY: 'auto' }}>
       {items.map((it, i) => ('head' in it
         ? <div key={i} className="px-2.5 pb-1 pt-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--cp-mu)' }}>{it.head}</div>
         : <button key={i} role="menuitem" type="button" className="rounded-lg border-0 bg-transparent px-2.5 py-2 text-left text-[13px] hover:bg-[var(--cp-s2)]"
@@ -1158,11 +1183,10 @@ function CellPopover({ lane, s, x, y, p, tab, title, drumSound, chords, onWrite,
   );
   const own = drumSound !== undefined ? drumSound - GM_PERC_FIRST : 0;
   const tones = isDrums && lane.row.startsWith('perc') && own > 0 ? percTones(own) : [];
-  const left = Math.min(window.innerWidth - 296, Math.max(12, x));
-  const top = Math.min(window.innerHeight - 380, y + 8);
+  const place = usePlaced(ref, x, y);
   return (
-    <div ref={ref} role="dialog" aria-label={`${title}, step ${s + 1}`} className="fixed z-[60] grid w-[284px] gap-2.5 rounded-2xl border p-3 shadow-xl"
-      style={{ left, top, background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)', color: 'var(--cp-tx)' }}>
+    <div ref={ref} role="dialog" aria-label={`${title}, step ${s + 1}`} className="fixed z-[60] grid w-[284px] max-w-[calc(100vw-16px)] gap-2.5 rounded-2xl border p-3 shadow-xl"
+      style={{ ...place, background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)', color: 'var(--cp-tx)', maxHeight: 'calc(100dvh - 16px)', overflowY: 'auto' }}>
       <div className="flex items-center gap-2"><b className="flex-1 text-[13px]">{title} · step {s + 1}</b>
         <button type="button" className="cp-icb" style={{ width: 28, height: 28 }} onClick={onClose} aria-label="Close"><X size={15} /></button></div>
       {note && (
