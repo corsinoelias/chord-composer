@@ -23,8 +23,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   ArrowRight, Copy, Download, FolderOpen, LayoutGrid, Loader2, LogIn, MoreVertical, Music2, Play,
-  Plus, Search, Square, Trash2, Waves,
+  Plus, Search, Square, Star, Trash2, Waves,
 } from 'lucide-react';
+import { useFavorites } from '@/lib/favorites';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useAccountState } from '@/hooks/useAccountState';
@@ -88,7 +89,25 @@ function timeAgo(iso: string): string {
 }
 
 const RECENT_DAYS = 7;
-type Filter = 'all' | 'recent';
+type Filter = 'all' | 'recent' | 'favorites';
+const FILTERS: [Filter, string][] = [['all', 'All'], ['recent', 'Recent'], ['favorites', 'Favourites']];
+
+/** A song's star, one tap from the list: filled when it is a favourite. */
+function StarButton({ on, title, onToggle }: { on: boolean; title: string; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      className="cp-icb"
+      style={{ width: 36, color: on ? 'var(--cp-maj)' : 'var(--cp-fa)' }}
+      onClick={onToggle}
+      aria-pressed={on}
+      aria-label={on ? `Remove ${title} from favourites` : `Add ${title} to favourites`}
+      title={on ? 'Remove from favourites' : 'Mark as favourite'}
+    >
+      <Star size={19} fill={on ? 'currentColor' : 'none'} />
+    </button>
+  );
+}
 
 /**
  * My songs, as the Android app draws it (lib/features/library/library_screen.dart and
@@ -106,6 +125,7 @@ const Songs = () => {
   const [filter, setFilter] = useState<Filter>('all');
   const [deleteConfirm, setDeleteConfirm] = useState<Song | null>(null);
   const [activeSong, setActiveSong] = useState<Song | null>(null);
+  const [favorites, toggleFavorite] = useFavorites('songs');
 
   const { state: playbackState, play, stop } = usePlayback();
   const isLoading = authLoading || songsLoading;
@@ -145,11 +165,12 @@ const Songs = () => {
     const since = Date.now() - RECENT_DAYS * 86400000;
     return sorted.filter((song) => {
       if (filter === 'recent' && new Date(song.updatedAt).getTime() < since) return false;
+      if (filter === 'favorites' && !favorites.has(song.id)) return false;
       if (!query) return true;
       const f = facts.get(song.id)!;
       return [song.title, f.styleName, f.key ?? ''].some((text) => text.toLowerCase().includes(query));
     });
-  }, [sorted, facts, searchQuery, filter]);
+  }, [sorted, facts, searchQuery, filter, favorites]);
 
   const lastSong = sorted[0] ?? null;
 
@@ -211,6 +232,10 @@ const Songs = () => {
         <DropdownMenuItem onClick={() => handlePlay(song)}>
           {isSongPlaying(song) ? <Square size={14} className="mr-2" /> : <Play size={14} className="mr-2" />}
           {isSongPlaying(song) ? 'Stop' : 'Play'}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => toggleFavorite(song.id)}>
+          <Star size={14} className="mr-2" fill={favorites.has(song.id) ? 'currentColor' : 'none'} />
+          {favorites.has(song.id) ? 'Remove from favourites' : 'Mark as favourite'}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleDuplicate(song)}>
           <Copy size={14} className="mr-2" />Duplicate
@@ -330,7 +355,7 @@ const Songs = () => {
             </label>
 
             <div className="flex gap-1.5">
-              {([['all', 'All'], ['recent', 'Recent']] as [Filter, string][]).map(([id, label]) => (
+              {FILTERS.map(([id, label]) => (
                 <button
                   key={id}
                   onClick={() => setFilter(id)}
@@ -361,7 +386,10 @@ const Songs = () => {
                   >
                     <div className="flex items-center gap-2.5">
                       <a href={songHref(lastSong.id)} className="flex min-w-0 flex-1 flex-col gap-[3px] no-underline" style={{ color: 'inherit' }}>
-                        <span className="truncate text-[17px] font-bold">{lastSong.title}</span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate text-[17px] font-bold">{lastSong.title}</span>
+                          {favorites.has(lastSong.id) && <Star size={15} fill="currentColor" strokeWidth={0} className="shrink-0" style={{ color: 'var(--cp-maj)' }} aria-label="Favourite" />}
+                        </span>
                         <span className="text-xs" style={{ color: 'var(--cp-mu)' }}>{metaOf(lastSong, f)}</span>
                       </a>
                       <button
@@ -399,7 +427,7 @@ const Songs = () => {
             })()}
 
             <span className="cp-lbl mt-2">
-              {filter === 'recent' ? 'Recent' : 'All'} · {filteredSongs.length}
+              {FILTERS.find(([id]) => id === filter)![1]} · {filteredSongs.length}
             </span>
 
             {filteredSongs.length > 0 ? (
@@ -429,6 +457,7 @@ const Songs = () => {
                           <span className="truncate text-[11px]" style={{ color: 'var(--cp-fa)' }}>{metaOf(song, f)}</span>
                         </span>
                       </a>
+                      <StarButton on={favorites.has(song.id)} title={song.title} onToggle={() => toggleFavorite(song.id)} />
                       {songMenu(song)}
                     </div>
                   );
@@ -438,7 +467,9 @@ const Songs = () => {
               <div className="py-16 text-center text-sm" style={{ color: 'var(--cp-mu)' }}>
                 {searchQuery.trim()
                   ? <>No songs matching "<span style={{ color: 'var(--cp-tx)' }}>{searchQuery}</span>"</>
-                  : `No songs edited in the last ${RECENT_DAYS} days`}
+                  : filter === 'favorites'
+                    ? "Tap a song's star and it will be here."
+                    : `No songs edited in the last ${RECENT_DAYS} days`}
               </div>
             )}
           </>
