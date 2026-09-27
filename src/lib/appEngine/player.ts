@@ -176,6 +176,7 @@ export class AppPlayback {
     // The mixer's effects go after the song, which starts dry.
     e.load([...this.built.commands, ...effectsCommands()]);
     this.sentSong = songPart(this.built.commands);
+    this.sentCommands = this.built.commands;
     this.rememberVariations(this.built.commands);
     e.send([['loopOnly', this.engineSection(input.loopingSectionIndex)]]);
     this.unsubscribe?.();
@@ -237,7 +238,15 @@ export class AppPlayback {
       e.send(this.liveCommands(input));
       return;
     }
+    // Only cells changed — a step written in the rhythm editor, a fill: those alone go, and
+    // everything that is ringing goes on ringing. Resending the song would clear every track.
+    const delta = stepDelta(this.sentCommands, this.built.commands);
     this.sentSong = song;
+    this.sentCommands = this.built.commands;
+    if (delta) {
+      e.send([...delta, ...this.liveCommands(input)]);
+      return;
+    }
     this.rememberVariations(this.built.commands);
     await e.ensureSlots(this.built.drumSlots);
     if (this.built.needsFullSoundFont) await e.useFullSoundFont();
@@ -272,6 +281,9 @@ export class AppPlayback {
     });
     return [...live, ['loopOnly', this.engineSection(input.loopingSectionIndex)]];
   }
+
+  /** Everything the engine was last sent about the song, to send only what changes. */
+  private sentCommands: EngineCommand[] = [];
 
   /** The variation each engine section was last told to play. */
   private sentVariations = new Map<number, number>();
@@ -383,6 +395,40 @@ export class AppPlayback {
     });
     return built;
   }
+}
+
+/**
+ * The commands that turn [before] into [after] when the two differ only in steps and fills:
+ * each step that changed (0 for one that went), each fill that changed. Null when anything
+ * else differs, which needs the song sent again.
+ */
+function stepDelta(before: EngineCommand[], after: EngineCommand[]): EngineCommand[] | null {
+  const cells = (list: EngineCommand[]) => {
+    const steps = new Map<string, EngineCommand>();
+    const fills = new Map<string, EngineCommand>();
+    const rest: EngineCommand[] = [];
+    for (const c of list) {
+      if (c[0] === 'setStep') steps.set(`${c[1]}|${c[2]}|${c[3]}|${c[4]}|${c[6] ?? 0}`, c);
+      else if (c[0] === 'setFill') fills.set(`${c[1]}|${c[5] ?? 0}`, c);
+      else if (!LIVE.has(c[0])) rest.push(c);
+    }
+    return { steps, fills, rest };
+  };
+  const a = cells(before);
+  const b = cells(after);
+  if (!before.length || JSON.stringify(a.rest) !== JSON.stringify(b.rest)) return null;
+  const out: EngineCommand[] = [];
+  for (const [key, c] of b.steps) {
+    const old = a.steps.get(key);
+    if (!old || old[5] !== c[5]) out.push(c);
+  }
+  for (const [key, c] of a.steps) {
+    if (b.steps.has(key)) continue;
+    const [, s, track, row, step, , bank] = c as Extract<EngineCommand, ['setStep', ...unknown[]]>;
+    out.push(['setStep', s, track, row, step, 0, bank]);
+  }
+  for (const [key, c] of b.fills) if (JSON.stringify(a.fills.get(key)) !== JSON.stringify(c)) out.push(c);
+  return out;
 }
 
 /** Everything [commands] say about the song itself: what a live change (LIVE) leaves alone. */

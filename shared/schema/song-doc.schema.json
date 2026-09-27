@@ -44,6 +44,26 @@
   },
   "definitions": {
     "track": { "enum": ["drums", "bass", "piano", "guitar", "synth"] },
+    "sparseLane": { "type": "array", "items": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 } },
+    "grooveVariation": {
+      "type": "object",
+      "properties": {
+        "tracks": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/definitions/track" },
+          "additionalProperties": {
+            "type": "object",
+            "required": ["bars", "rows"],
+            "properties": { "bars": { "enum": [1, 2, 4] }, "rows": { "type": "object", "additionalProperties": { "$ref": "#/definitions/sparseLane" } } }
+          }
+        },
+        "fill": {
+          "type": "object",
+          "required": ["from", "lanes"],
+          "properties": { "from": { "type": "integer", "minimum": 0 }, "lanes": { "type": "object", "additionalProperties": { "$ref": "#/definitions/sparseLane" } } }
+        }
+      }
+    },
     "chord": {
       "type": "object",
       "required": ["root", "accidental", "quality", "duration"],
@@ -95,6 +115,16 @@
             "styleId": { "type": "string" },
             "kind": { "enum": ["intro", "ending"] },
             "index": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "groove": {
+          "type": "object",
+          "description": "This section's own version of an app rhythm (lib-N, app-id): only the tracks and the fill edited in it, as [step, packed engine step] pairs. See src/lib/groove.ts.",
+          "required": ["styleId"],
+          "properties": {
+            "styleId": { "type": "string" },
+            "a": { "$ref": "#/definitions/grooveVariation" },
+            "b": { "$ref": "#/definitions/grooveVariation" }
           }
         }
       }

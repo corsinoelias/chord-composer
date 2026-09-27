@@ -10,6 +10,7 @@
 import { type AppFill, type AppPart, type AppPatterns, type AppStyle, type AppVariation, appStepsPerBar } from '../appStyles';
 import { type Chord, type ChordQuality, type RootNote, type Accidental, createChord } from '../musicTheory';
 import { type Section, generateSectionId } from '../sections';
+import { effectiveVariation, toAppVariation } from '../groove';
 import { DRUM_ROWS, GM_PERC_FIRST, SAMPLED_FIRST, type EngineCommand, type MelodicTrack, type Track } from './commands';
 
 const ENGINE_TRACKS: Track[] = ['drums', 'piano', 'guitar', 'bass', 'synth'];
@@ -82,23 +83,32 @@ function writeTrackFeel(c: EngineCommand[], s: number, style: AppStyle) {
 
 /**
  * A section playing [style]: A in bank 0, B (or nothing) in bank 1, both fills, the kit's
- * sounds, the tracks' register and note length, and which variation it starts on.
+ * sounds, the tracks' register and note length, and which variation it starts on. Whatever
+ * the section edited of the rhythm (section.groove, groove.ts) plays in place of it.
  */
 export function writeAppStyle(
-  c: EngineCommand[], s: number, style: AppStyle, variation: 0 | 1, kitRows: Record<string, number> | undefined, slots: Set<number>,
+  c: EngineCommand[], s: number, style: AppStyle, section: Pick<Section, 'stylePart' | 'groove' | 'variation'>,
+  kitRows: Record<string, number> | undefined, slots: Set<number>,
 ) {
-  writeVariation(c, s, style.a, 0);
-  writeVariation(c, s, style.b, 1);
-  c.push(['setVariation', s, style.b && variation === 1 ? 1 : 0]);
+  const a = effectiveVariation(style, section, 'a');
+  const b = effectiveVariation(style, section, 'b');
+  writeVariation(c, s, a ? toAppVariation(a) : style.a, 0);
+  writeVariation(c, s, b ? toAppVariation(b) : undefined, 1);
+  c.push(['setVariation', s, b && section.variation === 1 ? 1 : 0]);
   writeDrumSounds(c, s, style, kitRows, slots);
   writeTrackFeel(c, s, style);
 }
 
-/** A section that is one part of [style]'s intro or ending: that part's patterns, no fill, no B. */
+/**
+ * A section that is one part of [style]'s intro or ending: that part's patterns (with the
+ * section's edits of them), no fill, no B.
+ */
 export function writeAppPart(
-  c: EngineCommand[], s: number, style: AppStyle, part: AppPart, kitRows: Record<string, number> | undefined, slots: Set<number>,
+  c: EngineCommand[], s: number, style: AppStyle, section: Pick<Section, 'stylePart' | 'groove'>,
+  kitRows: Record<string, number> | undefined, slots: Set<number>,
 ) {
-  writePatterns(c, s, part.patterns, part.patternBars, 0);
+  const a = effectiveVariation(style, section, 'a');
+  if (a) writePatterns(c, s, a.rows, a.bars, 0);
   c.push(appFillCommand(s, undefined, 0));
   clearVariationB(c, s);
   writeDrumSounds(c, s, style, kitRows, slots);

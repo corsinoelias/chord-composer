@@ -88,6 +88,9 @@ export function useStyleInstruments({
     // Only sync when style ID actually changes
     if (lastStyleIdRef.current === style.id) return;
     lastStyleIdRef.current = style.id;
+    // A rhythm of the app's brings its own sounds, put on the song when it is picked
+    // (appStyleSong.ts): resetting them here would undo that.
+    if (style.engine) return;
     
     // Create new instrument states from the style, preserving mute/solo
     const newInstruments = createInstrumentStatesFromStyle(style, instruments);

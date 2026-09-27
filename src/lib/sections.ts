@@ -58,6 +58,11 @@ export interface Section {
    * ending"): it plays that part's own patterns over its own chords, in the song's key.
    */
   stylePart?: { styleId: string; kind: 'intro' | 'ending'; index: number };
+  /**
+   * This section's own version of a rhythm of the app's: only the tracks (and the fill) edited
+   * in it, sparse. Everything else follows the rhythm. See groove.ts.
+   */
+  groove?: import('./groove').SectionGroove;
 }
 
 /** Whether a section changes anything about how the song is arranged. */

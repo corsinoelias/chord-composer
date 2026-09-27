@@ -23,7 +23,8 @@ import { type Section, createSection, getSectionDisplayName, sectionHasArrangeme
 import { detectKey, keyLabel, relativeTonic, type DetectedKey, type KeyMode } from '@/lib/keyDetect';
 import { keyPrefersFlats } from '@/lib/musicKeys';
 import { completeInstrumentStates, getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
-import { ensureAppStyles, getAppStyle, songUsesAppStyles } from '@/lib/appStyles';
+import { ensureAppStyles, getAppStyle, songUsesAppStyles, type AppStyle } from '@/lib/appStyles';
+import { AppRhythmEditor } from '@/components/AppRhythmEditor';
 import { appStyleInstruments, withAppStyleParts } from '@/lib/appStyleSong';
 import { type AppStyleApply } from '@/components/StyleSelector';
 import { getStyleByIdWithOverrides, resolveActiveStyle, MUSICAL_STYLES, getSlotsPerBar, type StylePattern } from '@/lib/styles';
@@ -121,12 +122,6 @@ const editorSignature = (s: {
   transposition: number;
   metronomeEnabled: boolean;
 }) => JSON.stringify([s.title, s.sections, s.bpm, s.styleId, s.transposition, s.metronomeEnabled]);
-
-/**
- * The app's rhythms play as the app wrote them, on grids the web's editor cannot show yet:
- * opening it on one would show an empty grid whose edits are never heard, so it says so.
- */
-const APP_RHYTHM_NOT_EDITABLE = "This rhythm plays as the app wrote it. Editing it here isn't available yet: pick one of the web's rhythms to edit its grid.";
 
 const Index = ({ songId }: IndexProps) => {
   const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
@@ -1371,17 +1366,31 @@ const Index = ({ songId }: IndexProps) => {
   );
   const availableSectionStyles = useMemo(() => [...customStyles, ...MUSICAL_STYLES], [customStyles]);
 
+  /**
+   * The app's rhythm a section plays, if it plays one: its own, the song's, or the rhythm whose
+   * intro or ending it is. Those are edited in the app rhythm editor, a section at a time.
+   */
+  const appStyleOfSection = useCallback((section: Section): AppStyle | undefined => {
+    if (section.stylePart) return getAppStyle(section.stylePart.styleId);
+    return effectiveSectionStyle(section, currentStyle, sectionStyleLookup).engine;
+  }, [currentStyle, sectionStyleLookup]);
+  const [appEditor, setAppEditor] = useState<{ style: AppStyle; section: number } | null>(null);
+  const appEditable = useMemo(() => (appEditor
+    ? sections.map((s, i) => (appStyleOfSection(s)?.id === appEditor.style.id ? i : -1)).filter((i) => i >= 0)
+    : []), [appEditor, sections, appStyleOfSection]);
+
   const handleEditSectionRhythm = useCallback((sectionIndex: number) => {
     const section = sections[sectionIndex];
     if (!section) return;
-    const base = effectiveSectionStyle(section, currentStyle, sectionStyleLookup);
-    if (base.engine || section.stylePart) {
-      toast.info(APP_RHYTHM_NOT_EDITABLE);
+    const app = appStyleOfSection(section);
+    if (app) {
+      setAppEditor({ style: app, section: sectionIndex });
       return;
     }
+    const base = effectiveSectionStyle(section, currentStyle, sectionStyleLookup);
     setSectionRhythmEdit({ index: sectionIndex, base });
     setRhythmEditorOpen(true);
-  }, [sections, currentStyle, sectionStyleLookup]);
+  }, [sections, currentStyle, sectionStyleLookup, appStyleOfSection]);
 
   /** Variation A or B of the rhythm, for one section: kept with the song, as the app keeps it. */
   const handleSectionABChange = useCallback((sectionIndex: number, variation: 0 | 1) => {
@@ -1483,8 +1492,15 @@ const Index = ({ songId }: IndexProps) => {
   }, []);
 
   const handleOpenRhythmEditor = useCallback(() => {
-    if (currentStyleRef.current.engine) {
-      toast.info(APP_RHYTHM_NOT_EDITABLE);
+    const app = currentStyleRef.current.engine;
+    if (app) {
+      // A rhythm of the app's is edited a section at a time: the one looping, else the first
+      // that plays it.
+      const all = sectionsRef.current;
+      const looping = loopingSectionRef.current;
+      const first = looping !== null && looping !== undefined && all[looping] && !all[looping].styleId ? looping
+        : Math.max(0, all.findIndex((s) => !s.stylePart && !s.styleId));
+      setAppEditor({ style: app, section: first });
       return;
     }
     setLiveEditedStyle(null);
@@ -1884,6 +1900,26 @@ const Index = ({ songId }: IndexProps) => {
         onNoteLengthsChange={setNoteLengths}
       />
 
+      {appEditor && (
+        <AppRhythmEditor
+          open={!!appEditor}
+          onClose={() => setAppEditor(null)}
+          style={appEditor.style}
+          songStyle={currentStyle}
+          lookup={sectionStyleLookup}
+          sections={sections}
+          editable={appEditable}
+          initialSection={appEditor.section}
+          bpm={bpm}
+          transposition={transposition}
+          instruments={instruments}
+          swing={swing}
+          onSave={(next) => {
+            setSections(next);
+            toast.success('Rhythm saved in the song');
+          }}
+        />
+      )}
       <RhythmEditor
         key={sectionRhythmEdit ? `section-${sectionRhythmEdit.index}` : 'song'}
         open={rhythmEditorOpen}

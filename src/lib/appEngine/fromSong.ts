@@ -235,9 +235,9 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     const drumSetting = instruments.find((inst) => inst.id === 'drums');
     const kitRows = kits[getSoundType('drums', playback?.sounds?.drums ?? drumSetting?.soundTypeId ?? defaultSound('drums'))?.kit ?? DEFAULT_KIT]?.rows;
     if (part && partStyle) {
-      writeAppPart(c, s, partStyle, part, kitRows, drumSlots);
+      writeAppPart(c, s, partStyle, section, kitRows, drumSlots);
     } else if (style.engine) {
-      writeAppStyle(c, s, style.engine, section.variation === 1 ? 1 : 0, kitRows, drumSlots);
+      writeAppStyle(c, s, style.engine, section, kitRows, drumSlots);
     } else {
       writeWebStyle(s, style, playback);
     }

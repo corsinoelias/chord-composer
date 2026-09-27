@@ -12,7 +12,9 @@
  */
 import { type Chord } from '../musicTheory';
 import { getSoundType } from '../instruments';
-import { DRUM_ROWS, SAMPLED_FIRST, type DrumRow, type EngineCommand } from './commands';
+import { DRUM_ROWS, GM_PERC_FIRST, SAMPLED_FIRST, type DrumRow, type EngineCommand, type MelodicTrack } from './commands';
+import { SHORT_FONT_PROGRAMS } from './host';
+import { hitTone } from './steps';
 import { engineChord } from './fromSong';
 import { type AppEngine } from './host';
 import { getAppEngine, startedAppEngine } from './player';
@@ -121,6 +123,60 @@ export function previewDrumHit(drumType: string, soundTypeId = 'acoustic2', volu
     e.send([...mix, ['previewDrum', PREVIEW, row]]);
   }).catch(() => {});
 }
+
+/**
+ * One cell of a rhythm of the app's, as the song will play it there: a melodic step over the
+ * chord that falls on it, with the track's sound and register (the engine's previewStep); a
+ * hit on its row's sound, or on its own percussion tone. Silent while the song plays, as in
+ * the app: the loop is what you hear then.
+ */
+export function previewAppCell(cell: {
+  track: 'drums' | MelodicTrack;
+  row: string;
+  packed: number;
+  /** The chord under the step, and how far the song is transposed. */
+  chord?: Chord;
+  transposition?: number;
+  /** The track's sound: an engine timbre, and its program when that is the SoundFont (13). */
+  timbre?: number;
+  program?: number;
+  /** Where the track's register starts. */
+  low?: number;
+  /** The row's drum sound. */
+  drumSound?: number;
+}): void {
+  if (!cell.packed) return;
+  ready().then(async (e) => {
+    if (e.state?.playing) return;
+    if (e.ctx.state !== 'running') void e.ctx.resume();
+    if (cell.track === 'drums') {
+      const tone = hitTone(cell.packed);
+      const sound = tone ? GM_PERC_FIRST + tone : cell.drumSound;
+      if (sound === undefined) return;
+      if (sound >= SAMPLED_FIRST && sound < GM_PERC_FIRST) await e.ensureSlots([sound - SAMPLED_FIRST]);
+      // The preview section's kit is no longer the kit it had: the next kit preview puts it back.
+      kitOnPreview = -1;
+      e.send([['mixer', 'drums', 0.8, false], ['setDrumSound', PREVIEW, cell.row as DrumRow, sound], ['previewDrum', PREVIEW, cell.row as DrumRow]]);
+      return;
+    }
+    if (!cell.chord) return;
+    const track = cell.track;
+    if (cell.program !== undefined && !SHORT_FONT_PROGRAMS.has(cell.program)) await e.useFullSoundFont();
+    const low = cell.low ?? 60;
+    const { root, quality, bass } = engineChord(cell.chord, cell.transposition ?? 0);
+    e.send([
+      ['mixer', track, 0.8, false],
+      ['setTimbre', PREVIEW, track, cell.timbre ?? 13],
+      ...(cell.program !== undefined ? [['setProgram', PREVIEW, track, cell.program] as EngineCommand] : []),
+      ['voicing', PREVIEW, track, low, low + 23], ['setNoteLength', PREVIEW, track, 0],
+      ['previewStep', PREVIEW, root, quality, bass, track, cell.packed],
+    ]);
+    const timer = cellTimers.get(track);
+    if (timer) clearTimeout(timer);
+    cellTimers.set(track, setTimeout(() => { cellTimers.delete(track); e.send([['previewOff', track]]); }, NOTE_SECONDS * 1000));
+  }).catch(() => {});
+}
+const cellTimers = new Map<MelodicTrack, ReturnType<typeof setTimeout>>();
 
 let analyser: AnalyserNode | null = null;
 /** An analyser on the engine's output, for meters and the waveform; null until it has started. */
