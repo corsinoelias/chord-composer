@@ -17,6 +17,8 @@ export const ENGINE_FILES = (drums) => [
   'engine/shim/aaudio/AAudio.h',
   'public/engine/engine.wasm',
   'public/engine/sounds.sf2',
+  'public/engine/sounds-full.sf2',
+  'public/engine/presets.json',
   'public/engine/kit.json',
   ...drums.map((d) => `public/engine/drums/${d}.pcm`),
 ];

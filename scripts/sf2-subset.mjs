@@ -4,6 +4,10 @@
 //
 //   node sf2subset.mjs <in.sf2> <out.sf2> 0,25,33 [releaseSeconds]
 //
+// Each item of the list is a program of bank 0 (`25`), a program of another bank (`128:0`,
+// the General MIDI percussion kit; `8:4`, a variation), or `all` for every melodic preset
+// the font has. An item starting with `-` leaves that one out again (`-100`).
+//
 // With releaseSeconds, no note takes longer than that to die away once it is let go
 // (releaseVolEnv, generator 38, capped on every instrument zone; a preset's offset to it is
 // never allowed to lengthen it).
@@ -13,7 +17,15 @@
 import fs from 'node:fs';
 
 const [, , inPath, outPath, list, releaseArg] = process.argv;
-const programs = list.split(',').map(Number);
+const items = list.split(',').map((item) => item.trim()).filter(Boolean);
+const key = (bank, program) => bank * 1000 + program;
+const parse = (item) => {
+  const [a, c] = item.split(':').map(Number);
+  return c === undefined ? key(0, a) : key(a, c);
+};
+const wanted = new Set(items.filter((i) => !i.startsWith('-') && i !== 'all').map(parse));
+const unwanted = new Set(items.filter((i) => i.startsWith('-')).map((i) => parse(i.slice(1))));
+const everyMelodic = items.includes('all');
 // In timecents, as the file keeps it: 1200 * log2(seconds).
 const releaseCap = releaseArg ? Math.round(1200 * Math.log2(Number(releaseArg))) : null;
 const RELEASE_VOL_ENV = 38;
@@ -52,7 +64,10 @@ const u16 = (r, o) => r.readUInt16LE(o);
 // ── What to keep ──
 const presets = [];
 for (let p = 0; p < phdr.length - 1; p++) {
-  if (u16(phdr[p], 22) === 0 && programs.includes(u16(phdr[p], 20))) presets.push(p);
+  const bank = u16(phdr[p], 22);
+  const k = key(bank, u16(phdr[p], 20));
+  if (unwanted.has(k)) continue;
+  if (wanted.has(k) || (everyMelodic && bank < 128)) presets.push(p);
 }
 const instSet = new Set();
 for (const p of presets) {

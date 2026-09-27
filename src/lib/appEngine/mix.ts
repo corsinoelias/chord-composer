@@ -28,7 +28,7 @@ export interface MixSettings {
  */
 export const DEFAULT_MIX: MixSettings = {
   master: 1,
-  pan: { drums: 0, piano: -0.25, guitar: 0.3, bass: 0 },
+  pan: { drums: 0, piano: -0.25, guitar: 0.3, bass: 0, synth: 0.15 },
 };
 
 const state: MixSettings = { master: DEFAULT_MIX.master, pan: { ...DEFAULT_MIX.pan } };

@@ -36,9 +36,22 @@ const wasiSdk = process.env.WASI_SDK
  */
 const catalog = JSON.parse(fs.readFileSync(path.join(root, 'shared/catalog/sounds.json'), 'utf8'));
 const RECORDED_FIRST = 100;
-const PROGRAMS = [...new Set(['piano', 'guitar', 'bass'].flatMap((track) =>
+const PROGRAMS = [...new Set(['piano', 'guitar', 'bass', 'synth'].flatMap((track) =>
   (catalog[track]?.sounds ?? []).map((sound) => sound.program),
 ).filter((program) => Number.isInteger(program) && program < RECORDED_FIRST))].sort((a, b) => a - b);
+/**
+ * The General MIDI percussion kit (bank 128, preset 0): the hand percussion rows of the kit —
+ * congas, bongos, timbales, güiro… — play its notes, so every font the web loads carries it.
+ */
+const PERCUSSION_KIT = '128:0';
+/**
+ * The whole font, for "All sounds…": every melodic preset of the app's GeneralUser.sf2 and
+ * its variations, loaded only when that list is opened (or a song asks for a sound the
+ * short font does not have). The recordings take programs RECORDED_FIRST… of bank 0, so the
+ * General MIDI presets there are left out rather than have two presets answer to one number.
+ */
+const RECORDED_PROGRAMS = [100, 101, 102, 103, 104];
+const FULL = ['all', PERCUSSION_KIT, ...RECORDED_PROGRAMS.map((p) => `-${p}`)].join(',');
 /**
  * The longest a web note takes to die away once let go, in seconds. The app's SoundFont lets
  * go slowly (its grand piano 1.5-8.6 s, clean guitar 0.8, pick bass 0.5); the web's own
@@ -97,9 +110,18 @@ if (unexpected.length) fail(`engine.wasm imports ${unexpected.join(', ')}, which
 // same file (one font is all the engine loads).
 execFileSync(process.execPath, [
   path.join(root, 'scripts/sf2-subset.mjs'), path.join(app, 'assets/sf2/GeneralUser.sf2'),
-  path.join(out, 'sounds.sf2'), PROGRAMS.join(','), String(RELEASE_SECONDS),
+  path.join(out, 'sounds.sf2'), [...PROGRAMS, PERCUSSION_KIT].join(','), String(RELEASE_SECONDS),
 ], { stdio: 'inherit' });
 execFileSync(process.execPath, [path.join(root, 'scripts/build-recordings.mjs'), path.join(out, 'sounds.sf2')], { stdio: 'inherit' });
+execFileSync(process.execPath, [
+  path.join(root, 'scripts/sf2-subset.mjs'), path.join(app, 'assets/sf2/GeneralUser.sf2'),
+  path.join(out, 'sounds-full.sf2'), FULL, String(RELEASE_SECONDS),
+], { stdio: 'inherit' });
+execFileSync(process.execPath, [path.join(root, 'scripts/build-recordings.mjs'), path.join(out, 'sounds-full.sf2')], { stdio: 'inherit' });
+// The full font's melodic presets by name, keyed by program as the engine takes it (the
+// General MIDI number plus 128 × the bank): the "All sounds…" list, readable without the font.
+fs.writeFileSync(path.join(out, 'presets.json'), `${JSON.stringify(presetsOf(path.join(out, 'sounds-full.sf2')))}
+`);
 // The kit: which recording sits in which of the engine's sample slots, and how loud. Read
 // from the app's Dart, where the app's own loader reads it (audio_engine.dart), so the two
 // can never load the same slot with different sounds or levels.
@@ -121,6 +143,34 @@ const kits = [...kitsSource[1].matchAll(/DrumKit\('([^']+)',\s*\{([^}]*)\}/g)].m
 if (!kits.length) fail('drumKits had no kits');
 const samples = DRUMS.map((name, slot) => ({ slot, name, gain: gains[name] ?? 1.0 }));
 fs.writeFileSync(path.join(out, 'kit.json'), `${JSON.stringify({ samples, kits })}\n`);
+
+/** [program, name] for every preset of bank < 128 in [file], by program. */
+function presetsOf(file) {
+  const b = fs.readFileSync(file);
+  let off = 12;
+  const find = (id, from, end) => {
+    while (from < end) {
+      const cid = b.toString('ascii', from, from + 4);
+      const size = b.readUInt32LE(from + 4);
+      if (cid === id) return { at: from + 8, size };
+      if (cid === 'LIST') {
+        const inner = find(id, from + 12, from + 8 + size);
+        if (inner) return inner;
+      }
+      from += 8 + size + (size & 1);
+    }
+    return null;
+  };
+  const phdr = find('phdr', off, b.length);
+  const list = [];
+  for (let at = phdr.at; at + 38 <= phdr.at + phdr.size - 38; at += 38) {
+    const bank = b.readUInt16LE(at + 22);
+    if (bank >= 128) continue;
+    const name = b.toString('latin1', at, at + 20).split(String.fromCharCode(0))[0].trim();
+    list.push([bank * 128 + b.readUInt16LE(at + 20), name]);
+  }
+  return list.sort((x, y) => x[0] - y[0]);
+}
 
 // 4. Record where it all came from.
 const manifest = {

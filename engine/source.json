@@ -1,10 +1,10 @@
 {
   "note": "Written by npm run engine:sync; checked by npm run check:engine. Do not edit by hand.",
   "app": {
-    "commit": "f83027d5b5d74acec5b73291742c8b27eef7d365",
+    "commit": "9459e040153626930ab4c5f2641ba260628d75eb",
     "dirtyEngine": false
   },
-  "syncedAt": "2026-09-25T23:25:15.627Z",
+  "syncedAt": "2026-09-27T15:50:26.441Z",
   "programs": [
     0,
     3,
@@ -75,13 +75,15 @@
     "floortom_phat"
   ],
   "files": {
-    "engine/vendor/native_audio.cpp": "d80d6d676f4d95a619f0e60665389a5aa03521f2a4386028926c6b63825290b9",
+    "engine/vendor/native_audio.cpp": "9a11a726cf6edbcf0dca553e72e39a6c6c63e2509b81dea6c47fcfb2647b4483",
     "engine/vendor/tsf.h": "b1a65f3e44624a720db0906a4c3d75c0d7a03f408f50bc4bfd92d9008ac84e93",
-    "engine/web_glue.cpp": "4ca7669251697c4e7aabaa0b467a9c4dfb88800879c51ecba9da67a36f5bd129",
+    "engine/web_glue.cpp": "d66106d6a581b34b599728330d5a88e9c3b4ec7d29a57e0ddd47e9ef6ea9b81a",
     "engine/shim/aaudio/AAudio.h": "e05c86b807d44199f67776d9db135f20d0d0142f5a2c0ffc0b4807eaf6ee859d",
-    "public/engine/engine.wasm": "c813d69d95c868fe8b2b2405a55a3db51648a05147f09118bd92e40bbc7c0a55",
-    "public/engine/sounds.sf2": "4a13a97ea30c3bbe2acdcf5e5065362df09772413ce0f164b6f856291dfb0c65",
-    "public/engine/kit.json": "0e2f507feb6dce72916a314a5c2ec1c0c01e9e361b75fbd6835299499afb73fc",
+    "public/engine/engine.wasm": "e05f37b83650a92b6e9191c52dd237720b71302ccf7ec21d443a9bfd537d2c54",
+    "public/engine/sounds.sf2": "681632ea8c26ecea0963610ac8d8de6eb279556fbe790abb54324b4ac53e45d7",
+    "public/engine/sounds-full.sf2": "5c0970dc81fbd54e6b053b21c078c9c1a6d93689d1ebe28593c97590be21ca41",
+    "public/engine/presets.json": "c5d3da74cd0f4313cac36737c1985647e927bb290744f7963ec4f0549b999430",
+    "public/engine/kit.json": "f577445b11e7eb2b17fbbfd3bbf7ab2c86b69f72b745bd6a628e110302ec17b7",
     "public/engine/drums/kick.pcm": "43c665669d8a8d5d56bd65b17aebf816154d47ed06fc1040ffe37b18036d8950",
     "public/engine/drums/snare.pcm": "aa569669c427eb841a5b4189592de5aec42b603043d93b0f6db7acf09809c372",
     "public/engine/drums/stick.pcm": "8993f18dab1b76822da89629f724f3a6cd3a630bc00112320ac877f546eeb7aa",

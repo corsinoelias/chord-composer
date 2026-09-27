@@ -18,7 +18,7 @@ import { startedAppEngine } from './player';
 import { DEFAULT_MIX, getMix, isMixDefault, resetMix, setMaster, setPan } from './mix';
 import { type SongMixer } from '../songs';
 
-export const STRIP_TRACKS: Track[] = ['drums', 'piano', 'guitar', 'bass'];
+export const STRIP_TRACKS: Track[] = ['drums', 'piano', 'guitar', 'bass', 'synth'];
 
 /** Tone and compression for one channel. Flat and idle is what almost every channel is. */
 export interface ChannelStrip {
@@ -51,6 +51,7 @@ export const DEFAULT_EFFECTS_STATE: EffectsState = {
     piano: { ...FLAT_STRIP },
     guitar: { ...FLAT_STRIP },
     bass: { ...FLAT_STRIP },
+    synth: { ...FLAT_STRIP },
   },
   reverb: { size: 0.7, mix: 0 },
 };

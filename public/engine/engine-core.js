@@ -16,15 +16,18 @@ export const ARGS = {
   section: ['wg_section', 'iiii'],
   chord: ['wg_chord', 'iissii'],
   commitArrangement: ['wg_commit_arrangement', ''],
-  setStep: ['wg_set_step', 'issii'],
-  clearTrack: ['wg_clear_track', 'is'],
+  // The last argument of these four is the variation, 0 A or 1 B; left out, it is A.
+  setStep: ['wg_set_step', 'issiii'],
+  clearTrack: ['wg_clear_track', 'isi'],
   setProgram: ['wg_set_program', 'isi'],
   setTimbre: ['wg_set_timbre', 'isi'],
   setNoteLength: ['wg_set_note_length', 'isf'],
   setDrumSound: ['wg_set_drum_sound', 'isi'],
   setSilence: ['wg_set_silence', 'isi'],
-  setPatternBars: ['wg_set_pattern_bars', 'isi'],
-  setFill: ['wg_set_fill', 'iiia'],
+  setPatternBars: ['wg_set_pattern_bars', 'isii'],
+  setFill: ['wg_set_fill', 'iiiai'],
+  setVariation: ['wg_set_variation', 'ii'],
+  switchVariation: ['wg_switch_variation', 'i'],
   voicing: ['wg_voicing', 'isii'],
   mixer: ['wg_mixer', 'sfi'],
   pan: ['wg_pan', 'sf'],
@@ -35,6 +38,7 @@ export const ARGS = {
   stop: ['wg_stop', ''],
   previewClick: ['wg_preview_click', ''],
   previewChord: ['wg_preview_chord', 'iisis'],
+  previewStep: ['wg_preview_step', 'iisisi'],
   previewOff: ['wg_preview_off', 's'],
   previewDrum: ['wg_preview_drum', 'is'],
   previewNote: ['wg_preview_note', 'isif'],
@@ -86,6 +90,8 @@ export async function createEngine(wasmBytes, wasi = {}) {
     give,
     cstr,
     loadSoundFont(sf2) { return e.wg_load_soundfont(give(sf2), sf2.byteLength) === 1; },
+    /** Plays [sf2] from now on instead of the font loaded first. */
+    replaceSoundFont(sf2) { return e.wg_replace_soundfont(give(sf2), sf2.byteLength) === 1; },
     /** [kit]: [{ slot, gain, pcm }] — slots and gains from kit.json. */
     loadKit(kit) {
       let ok = 0;

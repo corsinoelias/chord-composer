@@ -42,15 +42,17 @@ export interface EngineState {
   fillByHand: number;
   /** Whether this bar is one the fill plays over — by hand, at the end of a part or on a phrase. */
   fillBar: boolean;
-  /** MIDI notes each melodic track is holding: piano, guitar, bass. */
-  sounding: [number[], number[], number[]];
+  /** MIDI notes each melodic track is holding: piano, guitar, bass, synth. */
+  sounding: [number[], number[], number[], number[]];
   /** MIDI notes each melodic track struck since the last state. */
-  struck: [number[], number[], number[]];
-  /** Kit pieces struck since the last state (bit per row; +16 when hard). */
+  struck: [number[], number[], number[], number[]];
+  /** Rows of the kit struck since the last state: bit n for DRUM_ROWS[n]. */
   drumStruck: number;
-  /** Held peaks: drums, piano, guitar, bass, master (linear 0-1). */
+  /** The same rows, where the hit was a hard one. */
+  drumStruckHard: number;
+  /** Held peaks: drums, piano, guitar, bass, synth, master (linear 0-1). */
   levels: number[];
-  /** Compressor gain reduction per bus, dB. */
+  /** Compressor gain reduction per bus (drums, piano, guitar, bass, synth), dB. */
   reductions: number[];
   /** Silence heard while the song played: a healthy engine stays at 0. */
   dropMs: number;
@@ -75,6 +77,38 @@ function notesOf(words: Int32Array | number[], track: number): number[] {
 }
 
 let assetCache: Promise<{ wasm: ArrayBuffer; sf2: ArrayBuffer; kit: KitEntry[]; kits: DrumKit[] }> | null = null;
+let fullFontCache: Promise<ArrayBuffer> | null = null;
+let presetCache: Promise<[number, string][]> | null = null;
+/**
+ * Whether the page moved the engine to the whole SoundFont. From then on every engine this
+ * page starts, and every export, uses it: a song given a sound only it has must sound the
+ * same in the file.
+ */
+let usingFullFont = false;
+
+function loadFullFont(): Promise<ArrayBuffer> {
+  fullFontCache ??= fetch(url('public/engine/sounds-full.sf2')).then((r) => {
+    if (!r.ok) throw new Error(`sounds-full.sf2: ${r.status}`);
+    return r.arrayBuffer();
+  });
+  return fullFontCache;
+}
+
+/**
+ * Every melodic instrument of the whole SoundFont, [program, name], by program: the General
+ * MIDI number plus 128 × the bank, as the engine takes it. Read from a small list, so the
+ * names are there before the font itself has downloaded.
+ */
+export function soundFontPresets(): Promise<[number, string][]> {
+  presetCache ??= fetch(url('public/engine/presets.json')).then((r) => {
+    if (!r.ok) throw new Error(`presets.json: ${r.status}`);
+    return r.json() as Promise<[number, string][]>;
+  });
+  return presetCache;
+}
+
+/** The programs the short font has; any other needs the whole one. */
+export const SHORT_FONT_PROGRAMS = new Set<number>((manifest as { programs?: number[] }).programs ?? []);
 const pcmCache = new Map<number, Promise<ArrayBuffer>>();
 
 function loadAssets() {
@@ -161,7 +195,7 @@ export class AppEngine {
     // cached here for the export Worker and the next engine.
     const kit = entries.map((k, i) => ({ slot: k.slot, gain: k.gain, pcm: pcm[i].slice(0) }));
     const wasm = assets.wasm.slice(0);
-    const sf2 = (ownSf2 ?? assets.sf2).slice(0);
+    const sf2 = (ownSf2 ?? (usingFullFont ? await loadFullFont() : assets.sf2)).slice(0);
     node.port.postMessage({ type: 'init', wasm, sf2, kit }, [wasm, sf2, ...kit.map((k) => k.pcm)]);
     const info = await ready;
     if (!info.fontOk) throw new Error('the engine could not read its SoundFont');
@@ -174,6 +208,24 @@ export class AppEngine {
   static preload(): Promise<void> {
     return loadAssets().then(() => undefined);
   }
+
+  /**
+   * Moves this engine to the whole SoundFont (downloading it the first time), so a sound
+   * from "All sounds…" plays. Resolves once the engine is playing from it.
+   */
+  async useFullSoundFont(): Promise<void> {
+    if (this.fullFont) return this.fullFont;
+    this.fullFont = (async () => {
+      const sf2 = (await loadFullFont()).slice(0);
+      const reply = await this.ask({ type: 'font', sf2 }, [sf2]) as { ok: boolean };
+      if (!reply.ok) throw new Error('the engine could not read the whole SoundFont');
+      usingFullFont = true;
+    })();
+    this.fullFont.catch(() => { this.fullFont = null; });
+    return this.fullFont;
+  }
+
+  private fullFont: Promise<void> | null = null;
 
   /** Loads more of the kit's recordings (slot numbers from kit.json), once each. */
   async ensureSlots(slots: number[]): Promise<void> {
@@ -259,11 +311,11 @@ export class AppEngine {
     this.node.port.postMessage({ type: 'ops', ops });
   }
 
-  private ask(message: Record<string, unknown>): Promise<unknown> {
+  private ask(message: Record<string, unknown>, transfer: Transferable[] = []): Promise<unknown> {
     const id = this.nextId++;
     return new Promise((resolve) => {
       this.replies.set(id, resolve);
-      this.node.port.postMessage({ ...message, id });
+      this.node.port.postMessage({ ...message, id }, transfer);
     });
   }
 
@@ -284,9 +336,10 @@ export class AppEngine {
         chordStep: (data.positionHi as number) & 0xffff,
         fillByHand: ((data.positionHi as number) >> 16) & 0x3,
         fillBar: (((data.positionHi as number) >> 18) & 1) === 1,
-        sounding: [notesOf(sounding, 0), notesOf(sounding, 1), notesOf(sounding, 2)],
-        struck: [notesOf(struck, 0), notesOf(struck, 1), notesOf(struck, 2)],
+        sounding: [notesOf(sounding, 0), notesOf(sounding, 1), notesOf(sounding, 2), notesOf(sounding, 3)],
+        struck: [notesOf(struck, 0), notesOf(struck, 1), notesOf(struck, 2), notesOf(struck, 3)],
         drumStruck: data.drumStruck as number,
+        drumStruckHard: data.drumStruckHi as number,
         levels: data.levels as number[],
         reductions: data.reductions as number[],
         dropMs: data.dropMs as number,
@@ -321,7 +374,7 @@ export async function exportCommandsWav(commands: EngineCommand[], steps: number
   const pcm = await Promise.all(entries.map(loadPcm));
   const kit = entries.map((k, i) => ({ slot: k.slot, gain: k.gain, pcm: pcm[i].slice(0) }));
   const wasm = assets.wasm.slice(0);
-  const sf2 = assets.sf2.slice(0);
+  const sf2 = (usingFullFont ? await loadFullFont() : assets.sf2).slice(0);
   const worker = new Worker('/engine/export-worker.js', { type: 'module' });
   try {
     const result = await new Promise<{ wav: Uint8Array<ArrayBuffer>; frames: number; ms: number }>((resolve, reject) => {

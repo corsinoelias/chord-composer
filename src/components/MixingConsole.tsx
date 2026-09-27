@@ -695,7 +695,7 @@ export function MixingConsole({ open, onOpenChange, instruments = [], onInstrume
                 label="Master"
                 value={mix.master}
                 color="var(--cp-tx)"
-                level={levels[4] ?? 0}
+                level={levels[levels.length - 1] ?? 0}
                 onChange={handleMaster}
               />
               <span className="cp-mono text-[11px] font-bold">{dbOf(mix.master)}</span>

@@ -42,13 +42,31 @@ constexpr int kMaxSteps = kMaxStepsPerBar * kMaxBars;
 // Every piece of the kit, by the index the engine keeps it at. Must match drumRows in
 // constants.dart: the first four are the rows the grid started with, so a song sent by an
 // older build lands on the same ones.
-constexpr int kDrumRows = 11;
-// A fill's lanes: the kit's rows, then one per melodic track (piano, guitar, bass), so a
-// fill can be the bass walking up or the piano stopping on the four, not only the drummer.
-constexpr int kFillRows = kDrumRows + 3;
+//
+// Then twelve rows of hand percussion — congas, bongos, timbales, cowbell, claves, shakers —
+// that a Latin groove or an imported keyboard rhythm plays on top of the kit, or instead
+// of it. Unlike the kit's rows they are not named after a piece: each plays whatever
+// sound the song gives it, from the SoundFont's percussion kit (kGmPercFirst).
+constexpr int kDrumRows = 24;
+// The melodic tracks: piano, guitar, bass and synth, in that order everywhere — channel,
+// bus, pattern lane and fill row. The synth came last so the three before it kept the
+// indices songs and the web already used; bass is still 2, which the voicing reads.
+constexpr int kTracks = 4;
+constexpr int kBassTrack = 2;
+// The mix: the kit on bus 0, each melodic track on bus track + 1. The master level is
+// reported after the last bus.
+constexpr int kBuses = kTracks + 1;
+// silent_ and patternBars_ keep the kit after the melodic tracks.
+constexpr int kDrumsSlot = kTracks;
+// A fill's lanes: the kit's rows, then one per melodic track, so a fill can be the bass
+// walking up or the piano stopping on the four, not only the drummer.
+constexpr int kFillRows = kDrumRows + kTracks;
 constexpr int kDrumFillMask = (1 << kDrumRows) - 1;
+// The clap is last so every piece before it kept its row: songs are sent by name, the
+// web by index.
 constexpr const char* kDrumRowNames[kDrumRows] = {
-    "kick", "snare", "hihat", "rim", "hihatOpen", "hihatFoot", "tom1", "tom2", "floorTom", "ride", "crash"};
+    "kick", "snare", "hihat", "rim", "hihatOpen", "hihatFoot", "tom1", "tom2", "floorTom", "ride", "crash", "clap",
+    "perc1", "perc2", "perc3", "perc4", "perc5", "perc6", "perc7", "perc8", "perc9", "perc10", "perc11", "perc12"};
 constexpr int kCrashRow = 10;
 // A part marks the end of every eighth bar with its fill. Must match phraseBars in
 // constants.dart.
@@ -59,6 +77,11 @@ constexpr int kPhraseBars = 8;
 constexpr int kStepsPerQuarter = 4;
 constexpr int kVoices = 64;
 constexpr int kSections = 32;
+// Two variations per section, A and B, as a home keyboard's rhythm has: each its own
+// groove, its own bar count and its own fill. Pattern storage is by slot, section * kBanks
+// + bank; the sound of a section (timbre, program, register, silence) is the same for both.
+constexpr int kBanks = 2;
+constexpr int kSlots = kSections * kBanks;
 constexpr int kChordsPerSection = 32;
 constexpr int kKsMax = 1024;  // Karplus-Strong delay line: enough for 47 Hz at 48 kHz.
 constexpr int kSineSize = 2048;
@@ -70,7 +93,7 @@ enum Timbre { kSine = 0, kFmEp, kPartials, kOrgan, kPad, kSaw, kPluck, kMuted, k
 // Starting General MIDI program per melodic track; the UI can change each of them,
 // because how loud and how bright a sampled instrument sounds is a property of the
 // program, not something to be guessed at.
-constexpr int kGmProgram[3] = {0, 25, 33};  // grand piano, steel guitar, finger bass
+constexpr int kGmProgram[kTracks] = {0, 25, 33, 81};  // grand piano, steel guitar, finger bass, saw lead
 // Drum generators. Any of the four drum rows can host any of them. The ids from
 // kSampledFirst on are played from a recording instead of synthesised, so the two
 // kinds sit in the same list and can be swapped lane by lane to compare them.
@@ -92,6 +115,15 @@ enum DrumSound {
   kDrumSoundCount
 };
 constexpr int kSampleSlots = kDrumSoundCount - kSampledFirst;
+// A drum sound from here on is General MIDI percussion note (sound - kGmPercFirst), played
+// on the SoundFont's drum kit rather than from a recording of our own: the bank already
+// carries every conga, bongo, timbale, shaker and bell a keyboard rhythm asks for. Its
+// channel is the one after the melodic tracks, and it is mixed into the kit's bus.
+constexpr int kGmPercFirst = 100;
+constexpr int kGmPercChannel = kTracks;
+// The SoundFont's kit sits well under our levelled recordings; this brings it up to them.
+constexpr float kGmPercGain = 1.6f;
+static_assert(kDrumSoundCount <= kGmPercFirst, "drum sound ids would collide with GM percussion");
 constexpr int kNoRow = -1;  // a drum voice on no lane of the kit: the metronome and the count-in
 constexpr int kClickBeep = -1;  // the metronome's own sine pip rather than a drum sound
 constexpr int kMaxCountInBeats = 7;  // position() has three bits for it; maxCountInBeats in Dart
@@ -106,11 +138,12 @@ constexpr int kDrumVoices = 32;
 // How long a voice takes to go quiet when it is choked or given up: short enough to
 // read as a damped drum, long enough not to click.
 constexpr float kChokeSeconds = .008f;
-// Which voices the callback should drop, one bit per melodic track and a fourth for the
-// kit. Set from the platform thread and honoured in the callback, because the voices
-// belong to the callback and clearing them from anywhere else is a race.
-constexpr int kClearDrums = 1 << 3;
-constexpr int kClearEverything = 0b1111;
+// Which voices the callback should drop, one bit per melodic track and one more, after
+// them, for the kit. Set from the platform thread and honoured in the callback, because
+// the voices belong to the callback and clearing them from anywhere else is a race.
+// (kTracks is defined above: piano, guitar, bass, synth.)
+constexpr int kClearDrums = 1 << kTracks;
+constexpr int kClearEverything = (kClearDrums << 1) - 1;
 
 // What a melodic step plays. Until now a step only said *when*, never *what*, so every
 // chord came out as a block with all its notes stacked on the same instant. Saying
@@ -128,6 +161,14 @@ enum Degree { kRest = 0, kChordAll, kRoot, kThird, kFifth, kSeventh, kExtension,
 //   bits 16-19 second degree    bits 20-23 second octave + 8   bit 24 accent
 //   bits 25-26 alteration       bits 27-28 second alteration (0 as written, 1 flat, 2 sharp)
 inline int stepVelocity(int packed) { return packed & 0xff; }
+// A percussion hit can name its own tone, a General MIDI note in the byte a melodic step
+// keeps its second note in (which a drum never has): the conga row playing an open, a
+// muted and a low conga, as the one player does. 0 and anything past 127 — a plain hit
+// carries 0x80 there — mean the row's own sound.
+inline int stepTone(int packed) {
+  const int tone = (packed >> 16) & 0xff;
+  return tone >= 1 && tone <= 127 ? tone : 0;
+}
 inline int stepDegree(int packed) { return (packed >> 8) & 0xf; }
 inline int stepOctave(int packed) { return ((packed >> 12) & 0xf) - 8; }
 inline int stepDegree2(int packed) { return (packed >> 16) & 0xf; }
@@ -145,7 +186,9 @@ int noteIndex(const char* value) {
   return 0;
 }
 
-int instrumentIndex(const char* track) { return strcmp(track, "piano") == 0 ? 0 : strcmp(track, "guitar") == 0 ? 1 : 2; }
+int instrumentIndex(const char* track) {
+  return strcmp(track, "piano") == 0 ? 0 : strcmp(track, "guitar") == 0 ? 1 : strcmp(track, "synth") == 0 ? 3 : kBassTrack;
+}
 // -1 for a name this build does not have, which every caller ignores. Anything unknown
 // used to land on the rim: hits nobody wrote, on a lane nobody chose.
 int drumRowIndex(const char* row) {
@@ -295,7 +338,9 @@ constexpr float kDrumLaneSpread[kDrumRows] = {
     0.0f, 0.0f, .22f, -.28f,  // kick, snare, hihat, rim
     .22f, .22f,               // open hat and pedal, where the hats are
     .12f, -.06f, -.24f,       // the toms, high to low, across the kit
-    -.32f, .30f};             // the ride on one side, the crash on the other
+    -.32f, .30f,              // the ride on one side, the crash on the other
+    -.12f};                   // the clap, beside the snare it doubles
+// The percussion rows are panned inside tsf, as one channel: see kGmPercChannel.
 
 /// A decoded drum recording. The pointer is published after the length so the audio
 /// callback either sees nothing or sees a sample that is fully written; loading happens
@@ -639,17 +684,18 @@ class Engine {
  public:
   Engine() {
     buildSineTable();
-    gains_[0].store(.9f); gains_[1].store(.7f); gains_[2].store(.7f); gains_[3].store(.9f);
+    const float gain[kBuses] = {.9f, .7f, .7f, .9f, .7f};
+    for (int bus = 0; bus < kBuses; ++bus) gains_[bus].store(gain[bus]);
     for (auto& p : pan_) p.store(0.0f);
     // The windows the hardcoded anchors used to mean: piano around C4, guitar a fourth
     // below, bass two octaves under that.
     // Per section, because a verse and a chorus can play the same track with another
     // instrument, in another register, held or clipped. Every section starts on the
     // same values; what makes one different is pushed from Dart, already resolved.
-    const int low[3] = {60, 55, 40};
-    const int timbre[3] = {kSine, kSaw, kSine};
+    const int low[kTracks] = {60, 55, 40, 60};
+    const int timbre[kTracks] = {kSine, kSaw, kSine, kSaw};
     for (int s = 0; s < kSections; ++s) {
-      for (int i = 0; i < 3; ++i) {
+      for (int i = 0; i < kTracks; ++i) {
         voiceLow_[s][i].store(low[i]);
         voiceHigh_[s][i].store(low[i] + 23);
         timbre_[s][i].store(timbre[i]);
@@ -660,17 +706,18 @@ class Engine {
     // The synthesised kit until Dart says otherwise, with the pieces it has no voice for
     // borrowing the nearest one it has — the same kit as drumKits[0] in constants.dart.
     const int kit[kDrumRows] = {kKick, kSnare, kHatClosed, kRim, kHatOpen, kHatClosed,
-                                kTom,  kTom,   kTom,       kHatClosed, kHatOpen};
+                                kTom,  kTom,   kTom,       kHatClosed, kHatOpen, kClap};
     for (int s = 0; s < kSections; ++s) {
       for (int row = 0; row < kDrumRows; ++row) drumSound_[s][row].store(kit[row]);
       // By track, not by piece: these two are about the drums as a whole.
-      for (int track = 0; track < 4; ++track) {
-        silent_[s][track].store(false);
-        patternBars_[s][track].store(1);
-      }
+      for (int track = 0; track <= kDrumsSlot; ++track) silent_[s][track].store(false);
+      activeBank_[s].store(0);
     }
-    // No fill anywhere until Dart sends one.
-    for (int s = 0; s < kSections; ++s) {
+    for (int s = 0; s < kSlots; ++s) {
+      for (int track = 0; track <= kDrumsSlot; ++track) patternBars_[s][track].store(1);
+    }
+    // No fill anywhere until Dart sends one, in either variation.
+    for (int s = 0; s < kSlots; ++s) {
       fillFrom_[s].store(0);
       fillMask_[s].store(0);
       for (auto& lane : fill_[s]) for (auto& step : lane) step.store(0);
@@ -802,7 +849,9 @@ class Engine {
     if (const int only = loopOnly_.load(std::memory_order_relaxed); only >= 0) sectionIndex_ = only;
     crashPending_ = false;
     fillRequest_.store(false, std::memory_order_relaxed);
+    variationRequest_.store(-1, std::memory_order_relaxed);
     manualFill_ = 0;
+    pendingBank_ = -1;
     for (auto& bottom : lastBottom_) bottom = 0;
     lastChord_ = -1;
     reportedPosition_.store(0, std::memory_order_release);
@@ -860,6 +909,17 @@ class Engine {
     clearVoices_.fetch_or(kClearEverything, std::memory_order_release);
   }
 
+  /// Puts a track's channel on its instrument. A program is the General MIDI number plus
+  /// 128 × the bank, so a SoundFont's variations — its second piano, the keyboard's own
+  /// guitar — can be chosen as well as its General MIDI set. A bank the SoundFont does not
+  /// have falls back to the instrument's General MIDI sound.
+  static void applyProgram(tsf* font, int channel, int program) {
+    const int bank = program >> 7, number = program & 127;
+    if (bank == 0 || !tsf_channel_set_bank_preset(font, channel, bank, number)) {
+      tsf_channel_set_presetnumber(font, channel, number, 0);
+    }
+  }
+
   /// Points each channel at its General MIDI program and matches the stream rate.
   /// Safe to call again: the bank may finish loading after playback has started.
   void configureSoundFont() {
@@ -867,15 +927,20 @@ class Engine {
     if (!font) return;
     tsf_set_output(font, TSF_STEREO_INTERLEAVED, sampleRate_, 0);
     const int at = (sectionIndex_ < 0 || sectionIndex_ >= kSections) ? 0 : sectionIndex_;
-    for (int track = 0; track < 3; ++track) {
+    for (int track = 0; track < kTracks; ++track) {
       const int program = program_[at][track].load(std::memory_order_acquire);
-      tsf_channel_set_presetnumber(font, track, program, 0);
+      applyProgram(font, track, program);
       appliedProgram_[track] = program;
       tsf_channel_set_volume(font, track, gains_[track + 1].load());
       // Creating a channel centres it, so a pan set before the bank finished loading
       // has to be put back or it is silently lost.
       tsf_channel_set_pan(font, track, (pan_[track + 1].load() + 1.0f) * .5f);
     }
+    // The percussion channel plays the bank's standard kit. Its level is the kit's bus,
+    // applied in the mix, so its own volume stays at unity.
+    tsf_channel_set_presetnumber(font, kGmPercChannel, 0, 1);
+    tsf_channel_set_volume(font, kGmPercChannel, 1.0f);
+    tsf_channel_set_pan(font, kGmPercChannel, (pan_[0].load() + 1.0f) * .5f);
   }
 
   void setBpm(float value) { bpm_.store(fmaxf(40, fminf(200, value))); }
@@ -903,24 +968,45 @@ class Engine {
   // arrangement without sharing a groove. Melodic tracks still have one lane each: the
   // row argument names a drum row and is ignored elsewhere, because the pitch always
   // comes from the chord and never from the grid.
-  void setStep(int section, const char* track, const char* row, int step, int value) {
+  void setStep(int section, const char* track, const char* row, int step, int value, int bank = 0) {
     if (step < 0 || step >= kMaxSteps || section < 0 || section >= kSections) return;
+    const int slot = slotOf(section, bank);
     if (strcmp(track, "drums") == 0) {
       const int index = drumRowIndex(row);
-      if (index >= 0) drums_[section][index][step].store(value);
+      if (index >= 0) drums_[slot][index][step].store(value);
     }
-    else instruments_[section][instrumentIndex(track)][step].store(value);
+    else instruments_[slot][instrumentIndex(track)][step].store(value);
   }
-  void clearTrack(int section, const char* track) {
+  void clearTrack(int section, const char* track, int bank = 0) {
     if (section < 0 || section >= kSections) return;
+    const int slot = slotOf(section, bank);
     if (strcmp(track, "drums") == 0) {
-      for (auto& row : drums_[section]) for (auto& step : row) step.store(0, std::memory_order_release);
+      for (auto& row : drums_[slot]) for (auto& step : row) step.store(0, std::memory_order_release);
       return;
     }
     const int instrument = instrumentIndex(track);
-    for (auto& step : instruments_[section][instrument]) step.store(0, std::memory_order_release);
-    clearVoices_.fetch_or(1 << instrument, std::memory_order_release);
+    for (auto& step : instruments_[slot][instrument]) step.store(0, std::memory_order_release);
+    // Only the bank that is sounding can leave notes hanging.
+    if (activeBank_[section].load(std::memory_order_relaxed) == bank) {
+      clearVoices_.fetch_or(1 << instrument, std::memory_order_release);
+    }
   }
+  /// Where a section's bank lives in the pattern storage.
+  static int slotOf(int section, int bank) { return section * kBanks + (bank == 1 ? 1 : 0); }
+  /// The slot a section plays from now.
+  int playSlot(int section) const {
+    return slotOf(section, activeBank_[section].load(std::memory_order_acquire));
+  }
+  /// Which variation a section plays, now: the song's own choice, or a part edited while
+  /// the transport is parked. While playing, switchVariation is the musical way.
+  void setVariation(int section, int bank) {
+    if (section < 0 || section >= kSections) return;
+    activeBank_[section].store(bank == 1 ? 1 : 0, std::memory_order_release);
+  }
+  /// The VARIATION buttons of a home keyboard: the part sounding moves to [bank], through
+  /// that variation's fill — the rest of this bar, or the next bar whole when this one has
+  /// less than a beat left — and plays it from the next bar line. Taken by the callback.
+  void switchVariation(int bank) { variationRequest_.store(bank == 1 ? 1 : 0, std::memory_order_release); }
   // A single relaxed store is the whole cost of switching a sound while playing.
   // The callback picks the new value up at the next note-on; nothing is reallocated.
   /// How long a note on this track is held in this section, in steps. Zero or less
@@ -951,7 +1037,9 @@ class Engine {
     if (section < 0 || section >= kSections) return;
     const int index = drumRowIndex(row);
     if (index < 0) return;
-    drumSound_[section][index].store(std::max(0, std::min<int>(kDrumSoundCount - 1, value)), std::memory_order_release);
+    const bool percussion = value >= kGmPercFirst && value < kGmPercFirst + 128;
+    drumSound_[section][index].store(percussion ? value : std::max(0, std::min<int>(kDrumSoundCount - 1, value)),
+                                     std::memory_order_release);
   }
 
   /// Whether a part sounds a track at all. The pattern is untouched: it is written and
@@ -963,17 +1051,17 @@ class Engine {
   /// so a three-bar pattern would repeat its first bar twice every time the counter
   /// came round. Every pattern in the transcriptions we read was a power of two
   /// anyway, which is not a coincidence — phrases come in twos.
-  void setPatternBars(int section, const char* track, int bars) {
+  void setPatternBars(int section, const char* track, int bars, int bank = 0) {
     if (section < 0 || section >= kSections) return;
-    const int index = strcmp(track, "drums") == 0 ? 3 : instrumentIndex(track);
+    const int index = strcmp(track, "drums") == 0 ? kDrumsSlot : instrumentIndex(track);
     const int clamped = std::max(1, std::min(kMaxBars, bars));
-    patternBars_[section][index].store(clamped >= 4 ? 4 : (clamped >= 2 ? 2 : 1),
+    patternBars_[slotOf(section, bank)][index].store(clamped >= 4 ? 4 : (clamped >= 2 ? 2 : 1),
                                       std::memory_order_release);
   }
 
   void setSilence(int section, const char* track, bool silent) {
     if (section < 0 || section >= kSections) return;
-    const int index = strcmp(track, "drums") == 0 ? 3 : instrumentIndex(track);
+    const int index = strcmp(track, "drums") == 0 ? kDrumsSlot : instrumentIndex(track);
     silent_[section][index].store(silent, std::memory_order_release);
   }
 
@@ -985,17 +1073,18 @@ class Engine {
   ///
   /// The mask goes down first and comes back up last, so the callback — which only reads
   /// lanes the mask names — never plays a bar that is half the old fill and half the new.
-  void setFill(int section, int from, int mask, const int* steps, int count) {
+  void setFill(int section, int from, int mask, const int* steps, int count, int bank = 0) {
     if (section < 0 || section >= kSections) return;
-    fillMask_[section].store(0, std::memory_order_release);
+    const int slot = slotOf(section, bank);
+    fillMask_[slot].store(0, std::memory_order_release);
     for (int row = 0; row < kFillRows; ++row) {
       for (int step = 0; step < kMaxStepsPerBar; ++step) {
         const int at = row * kMaxStepsPerBar + step;
-        fill_[section][row][step].store(at < count ? steps[at] : 0, std::memory_order_release);
+        fill_[slot][row][step].store(at < count ? steps[at] : 0, std::memory_order_release);
       }
     }
-    fillFrom_[section].store(std::max(0, std::min(kMaxStepsPerBar, from)), std::memory_order_release);
-    fillMask_[section].store(mask & ((1 << kFillRows) - 1), std::memory_order_release);
+    fillFrom_[slot].store(std::max(0, std::min(kMaxStepsPerBar, from)), std::memory_order_release);
+    fillMask_[slot].store(mask & ((1 << kFillRows) - 1), std::memory_order_release);
   }
   // Java writes the inactive buffer and publishes it atomically on commit.
   // The audio callback therefore never locks or reads a partially edited song.
@@ -1059,25 +1148,39 @@ class Engine {
     // SoundFont voices are mixed inside tsf, so a fader has to reach it as well.
     tsf* font = soundFont.load(std::memory_order_acquire);
     if (font) {
-      const int channel = strcmp(track, "piano") == 0 ? 0 : strcmp(track, "guitar") == 0 ? 1
-                        : strcmp(track, "bass") == 0 ? 2 : -1;
+      const int channel = melodicChannel(track);
       if (channel >= 0) tsf_channel_set_volume(font, channel, v);
     }
-    if (strcmp(track, "drums") == 0) gains_[0].store(v); else if (strcmp(track, "piano") == 0) gains_[1].store(v); else if (strcmp(track, "guitar") == 0) gains_[2].store(v); else if (strcmp(track, "bass") == 0) gains_[3].store(v); else master_.store(v);
+    const int bus = busOf(track);
+    if (bus >= 0) gains_[bus].store(v); else master_.store(v);
   }
 
   /// -1 hard left, 0 centre, 1 hard right. The melodic tracks are panned twice over:
   /// here for the procedural timbres, and inside tsf for the sampled ones, because a
   /// SoundFont voice is mixed to stereo before we ever see it.
+  /// A track's bus by name: the kit 0, each melodic track its index + 1; -1 for anything
+  /// else, which the mixer takes as the master.
+  static int busOf(const char* track) {
+    if (strcmp(track, "drums") == 0) return 0;
+    const int channel = melodicChannel(track);
+    return channel < 0 ? -1 : channel + 1;
+  }
+  /// A melodic track's SoundFont channel and lane index by name, or -1.
+  static int melodicChannel(const char* track) {
+    if (strcmp(track, "piano") == 0) return 0;
+    if (strcmp(track, "guitar") == 0) return 1;
+    if (strcmp(track, "bass") == 0) return kBassTrack;
+    if (strcmp(track, "synth") == 0) return 3;
+    return -1;
+  }
+
   void pan(const char* track, float value) {
     const float v = fmaxf(-1.0f, fminf(1.0f, value));
-    const int index = strcmp(track, "drums") == 0 ? 0 : strcmp(track, "piano") == 0 ? 1
-                    : strcmp(track, "guitar") == 0 ? 2 : strcmp(track, "bass") == 0 ? 3 : -1;
+    const int index = busOf(track);
     if (index < 0) return;
     pan_[index].store(v);
-    if (index == 0) return;
     tsf* font = soundFont.load(std::memory_order_acquire);
-    if (font) tsf_channel_set_pan(font, index - 1, (v + 1.0f) * .5f);
+    if (font) tsf_channel_set_pan(font, index == 0 ? kGmPercChannel : index - 1, (v + 1.0f) * .5f);
   }
 
   /// Where one melodic track plays. This used to carry how many tones sounded and
@@ -1107,7 +1210,7 @@ class Engine {
   }
 
   uint32_t soundingWord(int track, int word) const {
-    if (track < 0 || track > 2 || word < 0 || word >= kNoteWords) return 0;
+    if (track < 0 || track >= kTracks || word < 0 || word >= kNoteWords) return 0;
     return sounding_[track][word].load(std::memory_order_relaxed);
   }
 
@@ -1116,13 +1219,13 @@ class Engine {
   /// chord for a whole bar, so its keys stayed lit the entire time and there was no
   /// way to see it play at all.
   uint32_t struckWord(int track, int word) {
-    if (track < 0 || track > 2 || word < 0 || word >= kNoteWords) return 0;
+    if (track < 0 || track >= kTracks || word < 0 || word >= kNoteWords) return 0;
     return struck_[track][word].exchange(0, std::memory_order_relaxed);
   }
 
   /// The pieces of the kit struck since this was last asked, and asking clears them: bit n
   /// for kDrumRowNames[n], and bit n + 16 as well when the hit was a hard one.
-  uint32_t drumStruckWord() { return drumStruck_.exchange(0, std::memory_order_relaxed); }
+  uint64_t drumStruckWord() { return drumStruck_.exchange(0, std::memory_order_relaxed); }
 
   /// Sounds one piece of the kit on the sound a section gives it. Queued for the callback
   /// rather than triggered here: the drum voices belong to it, and taking one from the
@@ -1148,11 +1251,7 @@ class Engine {
   /// the coefficients are rebuilt inside the audio callback, where nothing else can be
   /// reading them.
   void strip(const char* track, float low, float mid, float high, float threshold, float ratio) {
-    const int bus = strcmp(track, "drums") == 0    ? 0
-                    : strcmp(track, "piano") == 0  ? 1
-                    : strcmp(track, "guitar") == 0 ? 2
-                    : strcmp(track, "bass") == 0   ? 3
-                                                   : -1;
+    const int bus = busOf(track);
     if (bus < 0) return;
     stripLow_[bus].store(fmaxf(-24.0f, fminf(24.0f, low)));
     stripMid_[bus].store(fmaxf(-24.0f, fminf(24.0f, mid)));
@@ -1214,18 +1313,49 @@ class Engine {
     addChord(at, chord, 1.0f, index, timbre);
   }
 
+  /// Sounds one cell of a melodic lane — [packed], as a step holds it — over [root] and
+  /// [type], the chord it falls under: the note, octave and register the song will play
+  /// there, through the same path a step takes when it plays. Held until [previewOff].
+  void previewStep(int section, int root, const char* type, int bass, const char* track, int packed) {
+    if (!openStream()) return;
+    const int index = instrumentIndex(track);
+    const int degree = stepDegree(packed);
+    if (degree == kRest || stepVelocity(packed) <= 0) return;
+    retrigger(index);
+    Chord chord;
+    chord.root = ((root % 12) + 12) % 12;
+    chord.type = chordTypeIndex(type);
+    chord.bass = bass;
+    const int at = std::max(0, std::min(kSections - 1, section));
+    if (!sequencing_.load(std::memory_order_acquire)) applyPrograms(at);
+    const int timbre = timbre_[at][index].load(std::memory_order_acquire);
+    const float velocity = stepVelocity(packed) / 255.0f;
+    if (degree == kChordAll) {
+      addChord(at, chord, velocity, index, timbre);
+      return;
+    }
+    const float gain = velocity * (index == kBassTrack ? 1.0f : .66f);
+    const int note = chordTone(at, chord, degree, index, stepOctave(packed), stepAlter(packed));
+    addVoice(at, hzFromMidi(note), gain, index, timbre, note);
+    const int degree2 = stepDegree2(packed);
+    if (degree2 != kRest && degree2 != kChordAll) {
+      const int note2 = chordTone(at, chord, degree2, index, stepOctave2(packed), stepAlter2(packed));
+      addVoice(at, hzFromMidi(note2), gain * .8f, index, timbre, note2);
+    }
+  }
+
   /// Lets go of whatever [preview] is holding.
   void previewOff(const char* track) { releaseTrack(instrumentIndex(track)); }
 
   /// How far a channel's compressor is pulling it down right now, in decibels.
   /// The held peak of a bus (0–3) or of the master (4), linear, 0–1.
   float level(int bus) const {
-    if (bus < 0 || bus > 4) return 0;
+    if (bus < 0 || bus > kBuses) return 0;
     return levels_[bus].load(std::memory_order_relaxed);
   }
 
   float gainReduction(int bus) const {
-    if (bus < 0 || bus > 3) return 0;
+    if (bus < 0 || bus >= kBuses) return 0;
     return reduction_[bus].load(std::memory_order_relaxed);
   }
 
@@ -1445,15 +1575,15 @@ class Engine {
   /// is nothing, and a scan cannot drift out of step with the voices the way a pair of
   /// incremental updates can.
   void publishSoundingNotes() {
-    uint32_t mask[3][kNoteWords] = {};
+    uint32_t mask[kTracks][kNoteWords] = {};
     for (const auto& v : voices_) {
       if (!v.active || v.note < kNoteFloor) continue;
-      if (v.track < 0 || v.track > 2) continue;
+      if (v.track < 0 || v.track >= kTracks) continue;
       const int bit = v.note - kNoteFloor;
       if (bit >= kNoteWords * 32) continue;
       mask[v.track][bit / 32] |= 1u << (bit % 32);
     }
-    for (int track = 0; track < 3; ++track) {
+    for (int track = 0; track < kTracks; ++track) {
       for (int word = 0; word < kNoteWords; ++word) {
         sounding_[track][word].store(mask[track][word], std::memory_order_relaxed);
       }
@@ -1469,7 +1599,8 @@ class Engine {
     // Gains are read once per block and applied while rendering rather than baked
     // into the voice at note-on, so a fader move is audible on notes already ringing.
     const float drumGain = gains_[0].load();
-    const float trackGain[3] = {gains_[1].load(), gains_[2].load(), gains_[3].load()};
+    float trackGain[kTracks];
+    for (int track = 0; track < kTracks; ++track) trackGain[track] = gains_[track + 1].load();
     const float master = master_.load();
     // Up to twice unity: a click is for playing along to, and in headphones over a full
     // song it often has to be louder than the song.
@@ -1477,11 +1608,11 @@ class Engine {
     // Pan is resolved once per block into plain gains. Two trig calls per lane per
     // block is nothing; two per voice per sample would not be.
     const float drumPan = pan_[0].load();
-    float drumL[kDrumRows], drumR[kDrumRows], panL[3], panR[3];
+    float drumL[kDrumRows], drumR[kDrumRows], panL[kTracks], panR[kTracks];
     for (int row = 0; row < kDrumRows; ++row) {
       panGains(fmaxf(-1.0f, fminf(1.0f, drumPan + kDrumLaneSpread[row])), drumL[row], drumR[row]);
     }
-    for (int track = 0; track < 3; ++track) panGains(pan_[track + 1].load(), panL[track], panR[track]);
+    for (int track = 0; track < kTracks; ++track) panGains(pan_[track + 1].load(), panL[track], panR[track]);
     // Reverb settings are applied here rather than from the platform thread, so the
     // filters are never rewritten underneath the loop that is reading them.
     if (reverbDirty_.exchange(false, std::memory_order_acq_rel)) {
@@ -1502,15 +1633,15 @@ class Engine {
       // One buffer per melodic channel rather than one mixed one, so each instrument
       // can be given its own tone and compression. Every voice is still rendered
       // exactly once — see tsf_render_float_channel.
-      for (int track = 0; track < 3; ++track) {
-        tsf_render_float_channel(font, track, sfScratch_[track], rendered, 0);
+      for (int channel = 0; channel <= kGmPercChannel; ++channel) {
+        tsf_render_float_channel(font, channel, sfScratch_[channel], rendered, 0);
       }
     }
     // Strip settings are applied here, not from the platform thread, so a coefficient
     // set is never half-written underneath the loop reading it — the same reason the
     // reverb is configured here.
     if (stripsDirty_.exchange(false, std::memory_order_acq_rel)) {
-      for (int bus = 0; bus < 4; ++bus) {
+      for (int bus = 0; bus < kBuses; ++bus) {
         strips_[bus].configure(static_cast<float>(sampleRate_), stripLow_[bus].load(),
                                stripMid_[bus].load(), stripHigh_[bus].load(),
                                stripThreshold_[bus].load(), stripRatio_[bus].load());
@@ -1521,7 +1652,7 @@ class Engine {
     // rendered is a song being played. An export renders these same blocks with no
     // stream at all and its own budget of steps, so it advances on that instead.
     // The loudest sample each bus and the master reach in this block, for the meters.
-    float peak[5] = {0, 0, 0, 0, 0};
+    float peak[kBuses + 1] = {};
     const bool advance = sequencing_.load(std::memory_order_relaxed) || stepBudget_ >= 0;
     for (int i = 0; i < frames; ++i) {
       if (advance && framesToStep_-- <= 0) {
@@ -1543,18 +1674,20 @@ class Engine {
       // Four buses — drums, piano, guitar, bass — kept apart until each has been
       // through its own strip. They used to be summed as they were produced, which is
       // why there was nowhere to put a per-instrument EQ.
-      float busL[4] = {0, 0, 0, 0}, busR[4] = {0, 0, 0, 0};
+      float busL[kBuses] = {}, busR[kBuses] = {};
       float clicked = 0;
       drums(drumGain, drumL, drumR, busL[0], busR[0], clicked);
       voices(trackGain, panL, panR, font, busL, busR);
       if (i < rendered) {
-        for (int track = 0; track < 3; ++track) {
+        for (int track = 0; track < kTracks; ++track) {
           busL[track + 1] += sfScratch_[track][i * 2];
           busR[track + 1] += sfScratch_[track][i * 2 + 1];
         }
+        busL[0] += sfScratch_[kGmPercChannel][i * 2] * drumGain * kGmPercGain;
+        busR[0] += sfScratch_[kGmPercChannel][i * 2 + 1] * drumGain * kGmPercGain;
       }
       float left = 0, right = 0;
-      for (int bus = 0; bus < 4; ++bus) {
+      for (int bus = 0; bus < kBuses; ++bus) {
         strips_[bus].process(busL[bus], busR[bus]);
         peak[bus] = fmaxf(peak[bus], fmaxf(fabsf(busL[bus]), fabsf(busR[bus])));
         left += busL[bus];
@@ -1575,19 +1708,19 @@ class Engine {
       // beat simply vanished. On its own gain it stays where you put it.
       clicked *= clickGain;
       const float mixL = tanhf(left * master), mixR = tanhf(right * master);
-      peak[4] = fmaxf(peak[4], fmaxf(fabsf(mixL), fabsf(mixR)));
+      peak[kBuses] = fmaxf(peak[kBuses], fmaxf(fabsf(mixL), fabsf(mixR)));
       output[i * 2] = fmaxf(-1.0f, fminf(1.0f, mixL + clicked));
       output[i * 2 + 1] = fmaxf(-1.0f, fminf(1.0f, mixR + clicked));
     }
     // Published once a block rather than once a sample: the meter is read at 8 Hz and
     // an atomic store per sample per bus would cost more than the compressor does.
-    for (int bus = 0; bus < 4; ++bus) {
+    for (int bus = 0; bus < kBuses; ++bus) {
       reduction_[bus].store(strips_[bus].reduction, std::memory_order_relaxed);
     }
     // Held peaks that fall back over about a quarter of a second, so a meter read a few
     // times a second still shows the hit that happened between two reads.
     const float fall = expf(-static_cast<float>(frames) / (0.25f * sampleRate_));
-    for (int bus = 0; bus < 5; ++bus) {
+    for (int bus = 0; bus <= kBuses; ++bus) {
       levels_[bus].store(fmaxf(levels_[bus].load(std::memory_order_relaxed) * fall, peak[bus]),
                          std::memory_order_relaxed);
     }
@@ -1595,8 +1728,8 @@ class Engine {
   /// Where in a track's lane this step of this bar falls. The step counter never
   /// leaves the bar; the bar counter walks across the pattern and wraps at its length,
   /// so a two-bar part and a one-bar part are always on the same beat of their own bar.
-  int laneStep(int section, int track, int step) const {
-    const int bars = patternBars_[section][track].load(std::memory_order_relaxed);
+  int laneStep(int slot, int track, int step) const {
+    const int bars = patternBars_[slot][track].load(std::memory_order_relaxed);
     const int bar = bars <= 1 ? 0 : (barIndex_ % bars);
     const int at = bar * stepsPerBar_.load(std::memory_order_relaxed) + step;
     return at < kMaxSteps ? at : step;
@@ -1697,8 +1830,17 @@ class Engine {
     // fill, from the fill's own start when that is still to come — the groove plays on
     // until then — or from this step when it has passed. With less than a beat of the bar
     // left it would be a stumble, not a fill, so it waits and plays the next bar whole.
-    const int fillStart = fillFrom_[sectionIndex_].load(std::memory_order_acquire);
-    if (fillRequest_.exchange(false, std::memory_order_acq_rel) && manualFill_ == 0 && stepBudget_ < 0) {
+    // The slot this step plays from: the section's variation as it stands at this step.
+    const int slot = playSlot(sectionIndex_);
+    // A variation asked for with its button: through its fill, into it at the bar line —
+    // the same timing as a fill asked for by hand, with the fill taken from where it goes.
+    const int wantBank = variationRequest_.exchange(-1, std::memory_order_acq_rel);
+    const bool toVariation = wantBank >= 0 && stepBudget_ < 0 &&
+                             wantBank != activeBank_[sectionIndex_].load(std::memory_order_acquire);
+    if ((fillRequest_.exchange(false, std::memory_order_acq_rel) || toVariation) && manualFill_ == 0 && stepBudget_ < 0) {
+      manualSlot_ = toVariation ? slotOf(sectionIndex_, wantBank) : slot;
+      pendingBank_ = toVariation ? wantBank : -1;
+      const int fillStart = fillFrom_[manualSlot_].load(std::memory_order_acquire);
       const int bar = stepsPerBar_.load(std::memory_order_relaxed);
       const int perBeat = std::max(1, stepsPerBeat_.load(std::memory_order_relaxed));
       if (step >= fillStart && step >= bar - perBeat) {
@@ -1711,28 +1853,31 @@ class Engine {
     // Inside a bar the fill plays over, it takes over the lanes it writes from the step it
     // starts on — kit and melodic tracks alike. Everywhere else this is the groove as ever.
     const bool byHand = manualFill_ == kFillPlaying;
+    const int fillSlot = byHand ? manualSlot_ : slot;
     const int inFill = byHand ? step : fillStep(arrangement);
     const bool filling = inFill >= 0 && inFill < kMaxStepsPerBar &&
-                         inFill >= (byHand ? manualFrom_ : fillStart);
+                         inFill >= (byHand ? manualFrom_ : fillFrom_[slot].load(std::memory_order_acquire));
     // Whether this bar is one the fill plays over — at the end of the part, on a phrase,
     // or by hand — so the screen can follow the fill's cells rather than the groove's.
     // The whole bar, not only from the fill's start: the playhead walks up to where it
     // comes in. A part with no fill has no fill bar.
-    const bool fillBar = (byHand || inFill >= 0) && fillMask_[sectionIndex_].load(std::memory_order_acquire) != 0;
-    const int fillMask = filling ? fillMask_[sectionIndex_].load(std::memory_order_acquire) : 0;
-    if (!silent_[sectionIndex_][3].load(std::memory_order_acquire)) {
+    const bool fillBar = (byHand || inFill >= 0) && fillMask_[fillSlot].load(std::memory_order_acquire) != 0;
+    const int fillMask = filling ? fillMask_[fillSlot].load(std::memory_order_acquire) : 0;
+    if (!silent_[sectionIndex_][kDrumsSlot].load(std::memory_order_acquire)) {
       if (crash) {
         triggerDrum(drumSound_[sectionIndex_][kCrashRow].load(std::memory_order_acquire), .85f, kCrashRow);
       }
-      const int at = laneStep(sectionIndex_, 3, step);
+      const int at = laneStep(slot, kDrumsSlot, step);
       const int mask = fillMask;
       for (int row = 0; row < kDrumRows; ++row) {
         const int packed = (mask & (1 << row))
-                               ? fill_[sectionIndex_][row][inFill].load(std::memory_order_acquire)
-                               : drums_[sectionIndex_][row][at].load();
+                               ? fill_[fillSlot][row][inFill].load(std::memory_order_acquire)
+                               : drums_[slot][row][at].load();
         const float velocity = stepVelocity(packed) / 255.0f;
         if (velocity > 0) {
-          triggerDrum(drumSound_[sectionIndex_][row].load(std::memory_order_acquire), velocity, row);
+          const int tone = stepTone(packed);
+          triggerDrum(tone ? kGmPercFirst + tone : drumSound_[sectionIndex_][row].load(std::memory_order_acquire),
+                      velocity, row);
         }
       }
     }
@@ -1757,12 +1902,12 @@ class Engine {
       if (chordId != lastChord_) { releaseMelodic(); lastChord_ = chordId; }
       applyPrograms(sectionIndex_);
       const Chord& c = section.chords[chordIndex_];
-      for (int track = 0; track < 3; ++track) {
+      for (int track = 0; track < kTracks; ++track) {
         if (silent_[sectionIndex_][track].load(std::memory_order_acquire)) continue;
         const int fillRow = kDrumRows + track;
         const int packed = (fillMask & (1 << fillRow))
-                               ? fill_[sectionIndex_][fillRow][inFill].load(std::memory_order_acquire)
-                               : instruments_[sectionIndex_][track][laneStep(sectionIndex_, track, step)].load();
+                               ? fill_[fillSlot][fillRow][inFill].load(std::memory_order_acquire)
+                               : instruments_[slot][track][laneStep(slot, track, step)].load();
         const int degree = stepDegree(packed);
         float velocity = stepVelocity(packed) / 255.0f;
         if (velocity <= 0 || degree == kRest) continue;
@@ -1774,7 +1919,7 @@ class Engine {
         } else {
           // A single tone carries the level a whole chord would have had, so swapping
           // a block chord for an arpeggio does not drop the track in the mix.
-          const float gain = velocity * (track == 2 ? 1.0f : .66f);
+          const float gain = velocity * (track == kBassTrack ? 1.0f : .66f);
           const int note = chordTone(sectionIndex_, c, degree, track, stepOctave(packed), stepAlter(packed));
           addVoice(sectionIndex_, hzFromMidi(note), gain, track, timbre, note);
           // A second tone in the same step: root and octave together is what a boogie
@@ -1803,7 +1948,7 @@ class Engine {
           // step — this part's downbeat — lands on a crash. Not when that fill crashed
           // already: a second crash a beat after the first is a stumble, not an arrival.
           // Only a fill the drummer plays: the bass walking up alone is not an arrival on the kit.
-          const int leaving = fillMask_[sectionIndex_].load(std::memory_order_acquire) & kDrumFillMask;
+          const int leaving = fillMask_[slot].load(std::memory_order_acquire) & kDrumFillMask;
           crashPending_ = leaving != 0 && !(leaving & (1 << kCrashRow));
           // On repeat, the part comes round again instead of handing over to the next.
           const int only = loopOnly_.load(std::memory_order_relaxed);
@@ -1837,9 +1982,14 @@ class Engine {
       ++sectionBar_;
       if (manualFill_ == kFillPlaying) {
         manualFill_ = 0;
+        // Through the fill and into the variation asked for.
+        if (pendingBank_ >= 0 && sectionIndex_ < kSections) {
+          activeBank_[sectionIndex_].store(pendingBank_, std::memory_order_release);
+        }
+        pendingBank_ = -1;
       } else if (manualFill_ == kFillArmed) {
         manualFill_ = kFillPlaying;
-        manualFrom_ = fillFrom_[sectionIndex_ < kSections ? sectionIndex_ : 0].load(std::memory_order_acquire);
+        manualFrom_ = fillFrom_[manualSlot_].load(std::memory_order_acquire);
       }
     }
   }
@@ -1852,7 +2002,7 @@ class Engine {
     // A slash chord names the note that goes underneath. On the bass track the root
     // degree is what "the chord's own note" means, so that is where the named one goes;
     // every other degree still stacks from the real root.
-    const int rootClass = (track == 2 && degree == kRoot && chord.bass >= 0)
+    const int rootClass = (track == kBassTrack && degree == kRoot && chord.bass >= 0)
                               ? chord.bass % 12
                               : chord.root % 12;
     // The root goes in the range and the asked-for tone is stacked above it, the same
@@ -2166,10 +2316,10 @@ class Engine {
     if (section < 0 || section >= kSections) return;
     tsf* font = soundFont.load(std::memory_order_acquire);
     if (!font) return;
-    for (int track = 0; track < 3; ++track) {
+    for (int track = 0; track < kTracks; ++track) {
       const int program = program_[section][track].load(std::memory_order_relaxed);
       if (program == appliedProgram_[track]) continue;
-      tsf_channel_set_presetnumber(font, track, program, 0);
+      applyProgram(font, track, program);
       appliedProgram_[track] = program;
     }
   }
@@ -2194,7 +2344,7 @@ class Engine {
       if (v.active && v.track == track && v.sustain > 0.0f) releaseVoice(v, font);
     }
   }
-  void releaseMelodic() { for (int track = 0; track < 3; ++track) releaseTrack(track); }
+  void releaseMelodic() { for (int track = 0; track < kTracks; ++track) releaseTrack(track); }
 
   /// A lane hitting again is a new note, so whatever that track was holding lets go.
   void retrigger(int track) { releaseTrack(track); ++generation_[track]; }
@@ -2251,6 +2401,17 @@ class Engine {
   }
 
   void triggerDrum(int sound, float velocity, int row) {
+    if (sound >= kGmPercFirst) {
+      // Struck on the SoundFont's kit. Struck again, the note is let go first, so a
+      // conga played in sixteenths does not pile up voices.
+      if (tsf* font = soundFont.load(std::memory_order_acquire)) {
+        const int note = sound - kGmPercFirst;
+        tsf_channel_note_off(font, kGmPercChannel, note);
+        tsf_channel_note_on(font, kGmPercChannel, note, fminf(1.0f, velocity));
+      }
+      markStruck(row, velocity);
+      return;
+    }
     const float choke = 1.0f / (kChokeSeconds * sampleRate_);
     if (isHat(sound)) {
       for (auto& voice : drumVoices_) if (voice.active && isHat(voice.sound)) fadeOut(voice, choke);
@@ -2272,10 +2433,13 @@ class Engine {
     d.active = true; d.sound = sound; d.amp = velocity; d.row = row; d.serial = ++drumSerial_;
     // Told to the screen as well as to the pool, so the kit under the grid lights what was
     // hit — fills and the crash into a part included, which the grid never shows.
-    if (row >= 0 && row < kDrumRows) {
-      drumStruck_.fetch_or((1u << row) | (velocity >= .7f ? 1u << (row + 16) : 0u),
-                           std::memory_order_relaxed);
-    }
+    markStruck(row, velocity);
+  }
+  /// Bit n for kDrumRowNames[n], and bit n + 32 as well when the hit was a hard one.
+  void markStruck(int row, float velocity) {
+    if (row < 0 || row >= kDrumRows) return;
+    drumStruck_.fetch_or((uint64_t{1} << row) | (velocity >= .7f ? uint64_t{1} << (row + 32) : 0),
+                         std::memory_order_relaxed);
   }
   float renderDrum(DrumVoice& d, float n, float hp, float inv) {
     if (d.sound >= kSampledFirst) return renderSampledDrum(d);
@@ -2369,11 +2533,11 @@ class Engine {
 #endif
   AAudioStream* stream_ = nullptr; int sampleRate_ = 48000, currentStep_ = 0, sectionIndex_ = 0, chordIndex_ = 0, chordStep_ = 0, loopCount_ = 0, editingArrangement_ = 1; float stepFrames_ = 3000, framesToStep_ = 0, lastNoise_ = 0; uint32_t noise_ = 1;
   Reverb reverb_;
-  std::atomic<float> pan_[4]; std::atomic<float> reverbSize_{.7f}, reverbMix_{.18f}; std::atomic<bool> reverbDirty_{true};
-  std::atomic<int> voiceLow_[kSections][3]{}; std::atomic<int> voiceHigh_[kSections][3]{};
-  std::atomic<uint32_t> sounding_[3][kNoteWords]{};
-  std::atomic<uint32_t> struck_[3][kNoteWords]{};
-  std::atomic<uint32_t> drumStruck_{0};
+  std::atomic<float> pan_[kBuses]; std::atomic<float> reverbSize_{.7f}, reverbMix_{.18f}; std::atomic<bool> reverbDirty_{true};
+  std::atomic<int> voiceLow_[kSections][kTracks]{}; std::atomic<int> voiceHigh_[kSections][kTracks]{};
+  std::atomic<uint32_t> sounding_[kTracks][kNoteWords]{};
+  std::atomic<uint32_t> struck_[kTracks][kNoteWords]{};
+  std::atomic<uint64_t> drumStruck_{0};
   // Pieces tapped on the kit and waiting for the callback, one bit per row, with the
   // section whose sounds they play. A mask rather than one slot: two fingers landing in
   // the same block used to overwrite each other, and only the last was heard.
@@ -2388,13 +2552,19 @@ class Engine {
   int countInSteps_ = 0, countInTotal_ = 0;
   std::atomic<int> countInBeat_{0};
   std::atomic<int> stepsPerBar_{16}, stepsPerBeat_{kStepsPerQuarter};
-  std::atomic<int> patternBars_[kSections][4]{};  // by section, then track; drums last
+  std::atomic<int> patternBars_[kSlots][kTracks + 1]{};  // by slot, then track; drums last
   // Each section's fill: one bar per piece, the step it starts on, and which pieces it
   // writes.
-  std::atomic<int> fill_[kSections][kFillRows][kMaxStepsPerBar]{};
-  std::atomic<int> fillFrom_[kSections]{}, fillMask_[kSections]{};
-  std::atomic<float> gateSteps_[kSections][3]{};  // 0 is hold, as the engine always did
-  std::atomic<float> bpm_{95}, swing_{1.0f}, gains_[4], master_{.7f}; std::atomic<int> drums_[kSections][kDrumRows][kMaxSteps]; std::atomic<int> instruments_[kSections][3][kMaxSteps]; std::atomic<int> timbre_[kSections][3], program_[kSections][3], drumSound_[kSections][kDrumRows]; std::atomic<bool> silent_[kSections][4]{}; Voice voices_[kVoices]; DrumVoice drumVoices_[kDrumVoices]; uint32_t drumSerial_ = 0; Arrangement arrangements_[2]; std::atomic<int> activeArrangement_{0}; std::atomic<int64_t> reportedPosition_{0}; std::atomic<int> clearVoices_{0};
+  std::atomic<int> fill_[kSlots][kFillRows][kMaxStepsPerBar]{};
+  std::atomic<int> fillFrom_[kSlots]{}, fillMask_[kSlots]{};
+  // Which variation each section plays (0 A, 1 B).
+  std::atomic<int> activeBank_[kSections]{};
+  // The VARIATION buttons: the bank asked for (-1 none), and, once taken, the bank the
+  // part moves to at the end of the fill bar (-1 none). The fill by hand reads manualSlot_.
+  std::atomic<int> variationRequest_{-1};
+  int pendingBank_ = -1, manualSlot_ = 0;
+  std::atomic<float> gateSteps_[kSections][kTracks]{};  // 0 is hold, as the engine always did
+  std::atomic<float> bpm_{95}, swing_{1.0f}, gains_[kBuses], master_{.7f}; std::atomic<int> drums_[kSlots][kDrumRows][kMaxSteps]; std::atomic<int> instruments_[kSlots][kTracks][kMaxSteps]; std::atomic<int> timbre_[kSections][kTracks], program_[kSections][kTracks], drumSound_[kSections][kDrumRows]; std::atomic<bool> silent_[kSections][kTracks + 1]{}; Voice voices_[kVoices]; DrumVoice drumVoices_[kDrumVoices]; uint32_t drumSerial_ = 0; Arrangement arrangements_[2]; std::atomic<int> activeArrangement_{0}; std::atomic<int64_t> reportedPosition_{0}; std::atomic<int> clearVoices_{0};
   /// Whether the sequencer is running — which is not the same as whether the output is
   /// open. The stream stays up between Stop and the next thing that wants to be heard,
   /// so `stream_ != nullptr` stopped being an answer to "is the song playing".
@@ -2415,20 +2585,20 @@ class Engine {
   bool crashPending_ = false;
   std::atomic<float> exportProgress_{0};
   float exportScratch_[kExportBlock * 2]{};
-  int lastBottom_[3]{};  // bottom note of the previous chord per track, for voice leading
-  int generation_[3]{};  // bumped on every retrigger, stamped into each voice
+  int lastBottom_[kTracks]{};  // bottom note of the previous chord per track, for voice leading
+  int generation_[kTracks]{};  // bumped on every retrigger, stamped into each voice
   int lastChord_ = -1;   // packed section<<8|chord, to notice a chord change
   // What each tsf channel is actually set to. The sampled instrument belongs to the
   // channel and there are three of them for the whole song, so entering a section that
   // plays a different one has to move the channel — and only then, because the preset
   // lookup is a search and this runs in the callback.
-  int appliedProgram_[3] = {-1, -1, -1};
-  float sfScratch_[3][kSfScratch * 2]{};  // stereo interleaved, one per melodic channel
-  Strip strips_[4];                       // drums, piano, guitar, bass
-  std::atomic<float> stripLow_[4]{}, stripMid_[4]{}, stripHigh_[4]{}, stripThreshold_[4]{};
-  std::atomic<float> stripRatio_[4]{};
-  std::atomic<float> reduction_[4]{};
-  std::atomic<float> levels_[5]{};
+  int appliedProgram_[kTracks] = {-1, -1, -1, -1};
+  float sfScratch_[kTracks + 1][kSfScratch * 2]{};  // stereo interleaved, one per melodic channel and the percussion
+  Strip strips_[kBuses];                  // drums, piano, guitar, bass, synth
+  std::atomic<float> stripLow_[kBuses]{}, stripMid_[kBuses]{}, stripHigh_[kBuses]{}, stripThreshold_[kBuses]{};
+  std::atomic<float> stripRatio_[kBuses]{};
+  std::atomic<float> reduction_[kBuses]{};
+  std::atomic<float> levels_[kBuses + 1]{};
   std::atomic<int> loopOnly_{-1};
   // The Fill-in button: asked for from the platform thread, then the callback's own. 0 is
   // no fill by hand, kFillArmed one waiting for the next bar, kFillPlaying one sounding
@@ -2471,8 +2641,8 @@ extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainAct
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetBpm(JNIEnv*, jobject, jfloat bpm) { engine.setBpm(bpm); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetSwing(JNIEnv*, jobject, jfloat value) { engine.setSwing(value); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetMeter(JNIEnv*, jobject, jint stepsPerBar, jint stepsPerBeat) { engine.setMeter(stepsPerBar, stepsPerBeat); }
-extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetStep(JNIEnv* env, jobject, jint section, jstring track, jstring row, jint step, jint value) { const char* t=chars(env,track); const char* r=chars(env,row); engine.setStep(section,t,r,step,value); release(env,track,t); release(env,row,r); }
-extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeClearTrack(JNIEnv* env, jobject, jint section, jstring track) { const char* t=chars(env,track); engine.clearTrack(section,t); release(env,track,t); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetStep(JNIEnv* env, jobject, jint section, jstring track, jstring row, jint step, jint value, jint bank) { const char* t=chars(env,track); const char* r=chars(env,row); engine.setStep(section,t,r,step,value,bank); release(env,track,t); release(env,row,r); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeClearTrack(JNIEnv* env, jobject, jint section, jstring track, jint bank) { const char* t=chars(env,track); engine.clearTrack(section,t,bank); release(env,track,t); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetProgram(JNIEnv* env, jobject, jint section, jstring track, jint program) { const char* t=chars(env,track); engine.setProgram(section,t,program); release(env,track,t); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetTimbre(JNIEnv* env, jobject, jint section, jstring track, jint value) { const char* t=chars(env,track); engine.setTimbre(section,t,value); release(env,track,t); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetNoteLength(JNIEnv* env, jobject, jint section, jstring track, jfloat steps) { const char* t=chars(env,track); engine.setNoteLength(section,t,steps); release(env,track,t); }
@@ -2482,6 +2652,27 @@ extern "C" JNIEXPORT jboolean JNICALL Java_com_eliascorsino_chord_1sequencer_Mai
   const bool ok = sampleBank.load(slot, reinterpret_cast<const int16_t*>(raw), bytes / 2, gain);
   env->ReleaseByteArrayElements(pcm, raw, JNI_ABORT);
   return ok;
+}
+/// Every instrument of the SoundFont that is loaded — not its drum kits — as
+/// "bank|number|name", for the screen to list by the names the SoundFont gives them.
+extern "C" JNIEXPORT jobjectArray JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativePresets(JNIEnv* env, jobject) {
+  jclass string = env->FindClass("java/lang/String");
+  tsf* font = soundFont.load(std::memory_order_acquire);
+  if (!font) return env->NewObjectArray(0, string, nullptr);
+  int count = 0;
+  for (int i = 0; i < font->presetNum; ++i) if (font->presets[i].bank < 128) ++count;
+  jobjectArray out = env->NewObjectArray(count, string, nullptr);
+  int at = 0;
+  for (int i = 0; i < font->presetNum; ++i) {
+    const tsf_preset& p = font->presets[i];
+    if (p.bank >= 128) continue;
+    char line[64];
+    snprintf(line, sizeof line, "%d|%d|%s", p.bank, p.preset, p.presetName);
+    jstring s = env->NewStringUTF(line);
+    env->SetObjectArrayElement(out, at++, s);
+    env->DeleteLocalRef(s);
+  }
+  return out;
 }
 extern "C" JNIEXPORT jboolean JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeLoadSoundFont(JNIEnv* env, jobject, jbyteArray sf2) {
   if (soundFont.load(std::memory_order_acquire)) return true;  // load once
@@ -2496,11 +2687,11 @@ extern "C" JNIEXPORT jboolean JNICALL Java_com_eliascorsino_chord_1sequencer_Mai
 }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetDrumSound(JNIEnv* env, jobject, jint section, jstring row, jint value) { const char* r=chars(env,row); engine.setDrumSound(section,r,value); release(env,row,r); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetSilence(JNIEnv* env, jobject, jint section, jstring track, jboolean silent) { const char* t=chars(env,track); engine.setSilence(section,t,silent); release(env,track,t); }
-extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetPatternBars(JNIEnv* env, jobject, jint section, jstring track, jint bars) { const char* t=chars(env,track); engine.setPatternBars(section,t,bars); release(env,track,t); }
-extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetFill(JNIEnv* env, jobject, jint section, jint from, jint mask, jintArray steps) {
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetPatternBars(JNIEnv* env, jobject, jint section, jstring track, jint bars, jint bank) { const char* t=chars(env,track); engine.setPatternBars(section,t,bars,bank); release(env,track,t); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetFill(JNIEnv* env, jobject, jint section, jint from, jint mask, jintArray steps, jint bank) {
   const jsize count = env->GetArrayLength(steps);
   jint* raw = env->GetIntArrayElements(steps, nullptr);
-  engine.setFill(section, from, mask, reinterpret_cast<const int*>(raw), count);
+  engine.setFill(section, from, mask, reinterpret_cast<const int*>(raw), count, bank);
   env->ReleaseIntArrayElements(steps, raw, JNI_ABORT);
 }
 
@@ -2527,15 +2718,18 @@ extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainAct
 extern "C" JNIEXPORT jfloat JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeGainReduction(JNIEnv*, jobject, jint bus) { return engine.gainReduction(bus); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeLoopOnly(JNIEnv*, jobject, jint index) { engine.loopOnly(index); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeFillNow(JNIEnv*, jobject) { engine.fillNow(); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetVariation(JNIEnv*, jobject, jint section, jint bank) { engine.setVariation(section, bank); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSwitchVariation(JNIEnv*, jobject, jint bank) { engine.switchVariation(bank); }
 extern "C" JNIEXPORT jfloat JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeLevel(JNIEnv*, jobject, jint bus) { return engine.level(bus); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetMetronome(JNIEnv*, jobject, jboolean enabled, jfloat volume, jint sound, jboolean accent, jint division) { engine.metronome(enabled,volume,sound,accent,division); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativePreviewMetronome(JNIEnv*, jobject) { engine.previewClick(); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativePreviewStep(JNIEnv* env, jobject, jint section, jint root, jstring type, jint bass, jstring track, jint packed) { const char* ty=chars(env,type); const char* tr=chars(env,track); engine.previewStep(section,root,ty,bass,tr,packed); release(env,type,ty); release(env,track,tr); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativePreviewChord(JNIEnv* env, jobject, jint section, jint root, jstring type, jint bass, jstring track) { const char* ty=chars(env,type); const char* tr=chars(env,track); engine.preview(section,root,ty,bass,tr); release(env,type,ty); release(env,track,tr); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativePreviewOff(JNIEnv* env, jobject, jstring track) { const char* t=chars(env,track); engine.previewOff(t); release(env,track,t); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetVoicing(JNIEnv* env, jobject, jint section, jstring track, jint low, jint high) { const char* t=chars(env,track); engine.voicing(section,t,low,high); release(env,track,t); }
 extern "C" JNIEXPORT jint JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSounding(JNIEnv*, jobject, jint track, jint word) { return static_cast<jint>(engine.soundingWord(track,word)); }
 extern "C" JNIEXPORT jint JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeStruck(JNIEnv*, jobject, jint track, jint word) { return static_cast<jint>(engine.struckWord(track,word)); }
-extern "C" JNIEXPORT jint JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeDrumStruck(JNIEnv*, jobject) { return static_cast<jint>(engine.drumStruckWord()); }
+extern "C" JNIEXPORT jlong JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeDrumStruck(JNIEnv*, jobject) { return static_cast<jlong>(engine.drumStruckWord()); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativePreviewDrum(JNIEnv* env, jobject, jint section, jstring row) { const char* r=chars(env,row); engine.previewDrum(section,r); release(env,row,r); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeOpenAudio(JNIEnv*, jobject) { engine.openStream(); }
 // Called straight from Dart through dart:ffi, so a tap on the kit does not wait on a

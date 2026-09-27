@@ -57,6 +57,19 @@ WG(wg_load_sample) int wg_load_sample(int slot, void* pcm, int bytes, float gain
   free(pcm);
   return ok ? 1 : 0;
 }
+/// Swaps the font the engine plays for [data] (from wg_alloc, taken over like wg_load_soundfont's):
+/// the web starts on a short font and moves to the whole one when "All sounds…" is opened or a
+/// song asks for a sound the short one lacks. Notes the old font was holding stop; everything
+/// on this side runs on the one thread, so nothing is rendering from it while it is closed.
+WG(wg_replace_soundfont) int wg_replace_soundfont(void* data, int bytes) {
+  tsf* font = tsf_load_memory(data, bytes);
+  free(data);
+  if (!font) return 0;
+  tsf* old = soundFont.exchange(font);
+  engine.configureSoundFont();
+  if (old) tsf_close(old);
+  return 1;
+}
 WG(wg_has_instruments) int wg_has_instruments() { return engine.hasInstruments() ? 1 : 0; }
 
 // ── Output ──
@@ -91,15 +104,22 @@ WG(wg_begin_arrangement) void wg_begin_arrangement(int count) { engine.beginArra
 WG(wg_section) void wg_section(int index, int loop, int infinite, int chordCount) { engine.section(index, loop, infinite != 0, chordCount); }
 WG(wg_chord) void wg_chord(int section, int index, const char* root, const char* type, int halfBeats, int bass) { engine.chord(section, index, root, type, halfBeats, bass); }
 WG(wg_commit_arrangement) void wg_commit_arrangement() { engine.commitArrangement(); }
-WG(wg_set_step) void wg_set_step(int section, const char* track, const char* row, int step, int value) { engine.setStep(section, track, row, step, value); }
-WG(wg_clear_track) void wg_clear_track(int section, const char* track) { engine.clearTrack(section, track); }
+// [bank] is the variation a pattern belongs to: 0 A, 1 B. The sound of a section is the same
+// for both, so only patterns, bar counts and fills take one.
+WG(wg_set_step) void wg_set_step(int section, const char* track, const char* row, int step, int value, int bank) { engine.setStep(section, track, row, step, value, bank); }
+WG(wg_clear_track) void wg_clear_track(int section, const char* track, int bank) { engine.clearTrack(section, track, bank); }
 WG(wg_set_program) void wg_set_program(int section, const char* track, int program) { engine.setProgram(section, track, program); }
 WG(wg_set_timbre) void wg_set_timbre(int section, const char* track, int value) { engine.setTimbre(section, track, value); }
 WG(wg_set_note_length) void wg_set_note_length(int section, const char* track, float steps) { engine.setNoteLength(section, track, steps); }
 WG(wg_set_drum_sound) void wg_set_drum_sound(int section, const char* row, int value) { engine.setDrumSound(section, row, value); }
 WG(wg_set_silence) void wg_set_silence(int section, const char* track, int silent) { engine.setSilence(section, track, silent != 0); }
-WG(wg_set_pattern_bars) void wg_set_pattern_bars(int section, const char* track, int bars) { engine.setPatternBars(section, track, bars); }
-WG(wg_set_fill) void wg_set_fill(int section, int from, int mask, const int* steps, int count) { engine.setFill(section, from, mask, steps, count); }
+WG(wg_set_pattern_bars) void wg_set_pattern_bars(int section, const char* track, int bars, int bank) { engine.setPatternBars(section, track, bars, bank); }
+WG(wg_set_fill) void wg_set_fill(int section, int from, int mask, const int* steps, int count, int bank) { engine.setFill(section, from, mask, steps, count, bank); }
+/// Which variation a section plays from now on, parked or not.
+WG(wg_set_variation) void wg_set_variation(int section, int bank) { engine.setVariation(section, bank); }
+/// The keyboard's VARIATION button: the sounding part goes through the new variation's fill
+/// and into it at the bar line, on the engine's clock.
+WG(wg_switch_variation) void wg_switch_variation(int bank) { engine.switchVariation(bank); }
 WG(wg_voicing) void wg_voicing(int section, const char* track, int low, int high) { engine.voicing(section, track, low, high); }
 
 // ── Mix ──
@@ -114,6 +134,9 @@ WG(wg_metronome) void wg_metronome(int enabled, float volume, int sound, int acc
 // ── Previews ──
 WG(wg_preview_click) void wg_preview_click() { engine.previewClick(); }
 WG(wg_preview_chord) void wg_preview_chord(int section, int root, const char* type, int bass, const char* track) { engine.preview(section, root, type, bass, track); }
+/// One cell of a melodic lane — [packed] as a step holds it — over the chord it falls under,
+/// as the song will play it there. previewOff(track) lets go of it.
+WG(wg_preview_step) void wg_preview_step(int section, int root, const char* type, int bass, const char* track, int packed) { engine.previewStep(section, root, type, bass, track, packed); }
 WG(wg_preview_off) void wg_preview_off(const char* track) { engine.previewOff(track); }
 WG(wg_preview_drum) void wg_preview_drum(int section, const char* row) { engine.previewDrum(section, row); }
 /// One note on a melodic track, on the sound [section] gives it: what preview() does for a
@@ -131,7 +154,11 @@ WG(wg_preview_note) void wg_preview_note(int section, const char* track, int mid
 // ── What is sounding ──
 WG(wg_sounding) int wg_sounding(int track, int word) { return static_cast<int>(engine.soundingWord(track, word)); }
 WG(wg_struck) int wg_struck(int track, int word) { return static_cast<int>(engine.struckWord(track, word)); }
-WG(wg_drum_struck) int wg_drum_struck() { return static_cast<int>(engine.drumStruckWord()); }
+// The kit's hits since the last read, 64 bits (bit n for kDrumRowNames[n], n + 32 when hard) in
+// two halves. Reading the low half takes the word; the high half is what it left.
+static uint64_t drumStruckTaken = 0;
+WG(wg_drum_struck) int wg_drum_struck() { drumStruckTaken = engine.drumStruckWord(); return static_cast<int>(drumStruckTaken & 0xffffffff); }
+WG(wg_drum_struck_hi) int wg_drum_struck_hi() { return static_cast<int>(drumStruckTaken >> 32); }
 
 // ── Load (the engine's own meters; its clock in a worklet is Date.now(), so coarse) ──
 WG(wg_load_average) float wg_load_average() { return engine.loadAverage(); }

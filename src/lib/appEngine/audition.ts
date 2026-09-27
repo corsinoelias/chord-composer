@@ -103,7 +103,7 @@ const CHORDS: [string, string][] = [['C', 'maj'], ['A', 'min'], ['F', 'maj'], ['
  * audio_engine.dart); the bass an octave below the app's E2, which is where the web plays it
  * (fromSong.ts) — heard at E2 in the first audition, every bass sounded thin.
  */
-const LOW: Record<MelodicTrack, number> = { piano: 60, guitar: 55, bass: 28 };
+const LOW: Record<MelodicTrack, number> = { piano: 60, guitar: 55, bass: 28, synth: 60 };
 
 function fragment(c: Candidate, e: AppEngine): EngineCommand[] {
   const cmds: EngineCommand[] = [

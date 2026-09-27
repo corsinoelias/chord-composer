@@ -6,14 +6,26 @@
  * is also what the export Worker replays to render the same song to a file.
  */
 
-export type Track = 'drums' | 'piano' | 'guitar' | 'bass';
+export type Track = 'drums' | 'piano' | 'guitar' | 'bass' | 'synth';
 export type MelodicTrack = Exclude<Track, 'drums'>;
 
-/** Pieces of the kit, by the name the engine keeps them under (kDrumRowNames). */
+/**
+ * Pieces of the kit, by the name the engine keeps them under (kDrumRowNames): the kit, the
+ * clap, then twelve rows of hand percussion. A percussion row is not named after a piece: it
+ * plays whatever General MIDI percussion note the song gives it (GM_PERC_FIRST + note), and a
+ * step may carry its own note (packDrumStep).
+ */
 export const DRUM_ROWS = [
-  'kick', 'snare', 'hihat', 'rim', 'hihatOpen', 'hihatFoot', 'tom1', 'tom2', 'floorTom', 'ride', 'crash',
+  'kick', 'snare', 'hihat', 'rim', 'hihatOpen', 'hihatFoot', 'tom1', 'tom2', 'floorTom', 'ride', 'crash', 'clap',
+  'perc1', 'perc2', 'perc3', 'perc4', 'perc5', 'perc6', 'perc7', 'perc8', 'perc9', 'perc10', 'perc11', 'perc12',
 ] as const;
 export type DrumRow = (typeof DRUM_ROWS)[number];
+/** The kit's rows, without the hand percussion. */
+export const KIT_ROWS = DRUM_ROWS.slice(0, 12) as readonly DrumRow[];
+/** The hand percussion rows. */
+export const PERC_ROWS = DRUM_ROWS.slice(12) as readonly DrumRow[];
+/** A drum sound id from here on is General MIDI percussion note (id - GM_PERC_FIRST). */
+export const GM_PERC_FIRST = 100;
 
 /** Melodic timbres (enum Timbre). kSampled plays the track's General MIDI program. */
 export const TIMBRE = {
@@ -31,6 +43,16 @@ export const DEGREE = { rest: 0, chord: 1, root: 2, third: 3, fifth: 4, seventh:
 export const SYNTH_DRUM = { kick: 0, k808: 1, tom: 2, snare: 3, clap: 4, rim: 5, hatClosed: 6, hatOpen: 7, cowbell: 8 } as const;
 export const SAMPLED_FIRST = 9;
 export const sampledDrum = (slot: number) => SAMPLED_FIRST + slot;
+/**
+ * A drum step: its velocity (0-255), and on a percussion row the General MIDI note it plays
+ * when that is not the row's own sound (bits 16-23, stepTone), as the app writes it.
+ */
+export function packDrumStep(velocity: number, gmNote = 0): number {
+  if (velocity <= 0) return 0;
+  const v = Math.max(1, Math.min(255, Math.round(velocity)));
+  return v | ((gmNote & 0x7f) << 16);
+}
+
 /** The metronome's own sine pip rather than a drum sound. */
 export const CLICK_BEEP = -1;
 
@@ -63,15 +85,20 @@ export type EngineCommand =
   | ['section', number, number, boolean, number]
   | ['chord', number, number, string, string, number, number]
   | ['commitArrangement']
-  | ['setStep', number, Track, string, number, number]
-  | ['clearTrack', number, Track]
+  /** The last number of these four is the variation: 0 A (when left out) or 1 B. */
+  | ['setStep', number, Track, string, number, number, number?]
+  | ['clearTrack', number, Track, number?]
   | ['setProgram', number, MelodicTrack, number]
   | ['setTimbre', number, MelodicTrack, number]
   | ['setNoteLength', number, MelodicTrack, number]
   | ['setDrumSound', number, DrumRow, number]
   | ['setSilence', number, Track, boolean]
-  | ['setPatternBars', number, Track, number]
-  | ['setFill', number, number, number, number[] | Int32Array]
+  | ['setPatternBars', number, Track, number, number?]
+  | ['setFill', number, number, number, number[] | Int32Array, number?]
+  /** Which variation a section plays from now on (0 A, 1 B). */
+  | ['setVariation', number, number]
+  /** The VARIATION button: the sounding part goes through the fill into the other one at the bar line. */
+  | ['switchVariation', number]
   | ['voicing', number, MelodicTrack, number, number]
   | ['mixer', Track | 'master', number, boolean]
   | ['pan', Track, number]
@@ -82,6 +109,8 @@ export type EngineCommand =
   | ['stop']
   | ['previewClick']
   | ['previewChord', number, number, string, number, MelodicTrack]
+  /** One cell of a melodic lane (packed as a step) over a chord: [section, root, quality, bass, track, packed]. */
+  | ['previewStep', number, number, string, number, MelodicTrack, number]
   | ['previewOff', MelodicTrack]
   | ['previewDrum', number, DrumRow]
   | ['previewNote', number, MelodicTrack, number, number]
@@ -89,7 +118,8 @@ export type EngineCommand =
 
 /** Commands that act rather than describe the song; a file export leaves them out. */
 export const TRANSIENT = new Set<EngineCommand[0]>([
-  'start', 'stop', 'previewClick', 'previewChord', 'previewOff', 'previewDrum', 'previewNote', 'resetLoad',
+  'start', 'stop', 'previewClick', 'previewChord', 'previewOff', 'previewDrum', 'previewNote', 'previewStep', 'resetLoad',
+  'switchVariation',
 ]);
 
 /** A chord for ['chord', …]: the root as the engine spells it (sharps). */

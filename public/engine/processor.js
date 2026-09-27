@@ -13,7 +13,8 @@ import { createEngine } from './engine-core.js';
 
 const QUANTUM = 128;
 const NOTE_WORDS = 3;   // kNoteWords: notes from MIDI 24 upward, 32 per word
-const TRACKS = 3;       // piano, guitar, bass
+const TRACKS = 4;       // piano, guitar, bass, synth (kTracks)
+const BUSES = 5;        // kBuses: the kit, then each melodic track; the master is reported after them
 
 class EngineProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -24,6 +25,7 @@ class EngineProcessor extends AudioWorkletProcessor {
     this.stateEvery = Math.max(1, Math.round(sampleRate / QUANTUM / 30));
     this.struck = new Int32Array(TRACKS * NOTE_WORDS);
     this.drumStruck = 0;
+    this.drumStruckHi = 0;
     // Dropouts heard while the song plays: blocks of true silence after its first half
     // second. The page reports them; a healthy engine never has any.
     this.playedBlocks = 0;
@@ -43,13 +45,18 @@ class EngineProcessor extends AudioWorkletProcessor {
   async receive(msg) {
     if (msg.type === 'init') return this.init(msg);
     if (!this.engine) {
-      if (msg.type === 'ops' || msg.type === 'kit') this.pending.push(msg);
+      if (msg.type === 'ops' || msg.type === 'kit' || msg.type === 'font') this.pending.push(msg);
       return;
     }
     const e = this.engine.exports;
     switch (msg.type) {
       case 'ops': this.engine.apply(msg.ops); break;
       case 'kit': this.engine.loadKit(msg.kit); break;
+      case 'font': {
+        const ok = this.engine.replaceSoundFont(msg.sf2);
+        this.port.postMessage({ type: 'font', id: msg.id, ok });
+        break;
+      }
       case 'dump': this.port.postMessage({ type: 'history', id: msg.id, history: this.history }); break;
       case 'clearHistory': this.history = []; break;
       case 'resetDrops': this.dropMs = 0; this.dropLongestMs = 0; break;
@@ -134,6 +141,7 @@ class EngineProcessor extends AudioWorkletProcessor {
     // would never reach the page.
     for (let t = 0; t < TRACKS; t++) for (let w = 0; w < NOTE_WORDS; w++) this.struck[t * NOTE_WORDS + w] |= e.wg_struck(t, w);
     this.drumStruck |= e.wg_drum_struck();
+    this.drumStruckHi |= e.wg_drum_struck_hi();
 
     if (this.blocks % this.stateEvery === 0) {
       const sounding = new Int32Array(TRACKS * NOTE_WORDS);
@@ -147,13 +155,15 @@ class EngineProcessor extends AudioWorkletProcessor {
         sounding,
         struck: this.struck.slice(),
         drumStruck: this.drumStruck,
-        levels: [0, 1, 2, 3, 4].map((bus) => e.wg_level(bus)),
-        reductions: [0, 1, 2, 3].map((bus) => e.wg_gain_reduction(bus)),
+        drumStruckHi: this.drumStruckHi,
+        levels: Array.from({ length: BUSES + 1 }, (_, bus) => e.wg_level(bus)),
+        reductions: Array.from({ length: BUSES }, (_, bus) => e.wg_gain_reduction(bus)),
         dropMs: this.dropMs,
         dropLongestMs: this.dropLongestMs,
       });
       this.struck.fill(0);
       this.drumStruck = 0;
+      this.drumStruckHi = 0;
     }
     return true;
   }
