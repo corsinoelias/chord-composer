@@ -11,7 +11,7 @@ import { type AppFill, type AppPart, type AppPatterns, type AppStyle, type AppVa
 import { type Chord, type ChordQuality, type RootNote, type Accidental, createChord } from '../musicTheory';
 import { type Section, generateSectionId } from '../sections';
 import { effectiveVariation, toAppVariation } from '../groove';
-import { DRUM_ROWS, GM_PERC_FIRST, SAMPLED_FIRST, type EngineCommand, type MelodicTrack, type Track } from './commands';
+import { DRUM_ROWS, GM_PERC_FIRST, PERC_ROWS, SAMPLED_FIRST, type EngineCommand, type MelodicTrack, type Track } from './commands';
 
 const ENGINE_TRACKS: Track[] = ['drums', 'piano', 'guitar', 'bass', 'synth'];
 const MELODIC: MelodicTrack[] = ['piano', 'guitar', 'bass', 'synth'];
@@ -59,12 +59,29 @@ export function clearVariationB(c: EngineCommand[], s: number) {
 }
 
 /**
- * The kit's sounds for a section playing [style]: every row, the style's where it names one.
- * [slots] collects the recordings that have to be loaded.
+ * The drums a section plays: [rows], the kit picked for it (or the default one under the
+ * rhythm's own); [own], whether that is the rhythm's own kit; [song], the sound the song gave
+ * each hand-percussion row (the app's project.drumSounds).
  */
-function writeDrumSounds(c: EngineCommand[], s: number, style: AppStyle, kitRows: Record<string, number> | undefined, slots: Set<number>) {
+export interface KitChoice {
+  rows: Record<string, number> | undefined;
+  own: boolean;
+  song?: Record<string, number>;
+}
+
+/** A row's sound under [kit]: the song's for hand percussion, then the rhythm's, then the kit's. */
+export function drumSoundOf(style: Pick<AppStyle, 'drumSounds'>, kit: KitChoice, row: string): number | undefined {
+  if ((PERC_ROWS as readonly string[]).includes(row)) return kit.song?.[row] ?? style.drumSounds[row] ?? kit.rows?.[row];
+  return (kit.own ? style.drumSounds[row] : undefined) ?? kit.rows?.[row];
+}
+
+/**
+ * The kit's sounds for a section playing [style], every row as drumSoundOf has it. [slots]
+ * collects the recordings that have to be loaded.
+ */
+function writeDrumSounds(c: EngineCommand[], s: number, style: AppStyle, kit: KitChoice, slots: Set<number>) {
   for (const row of DRUM_ROWS) {
-    const sound = style.drumSounds[row] ?? kitRows?.[row];
+    const sound = drumSoundOf(style, kit, row);
     if (sound === undefined) continue;
     c.push(['setDrumSound', s, row, sound]);
     if (sound >= SAMPLED_FIRST && sound < GM_PERC_FIRST) slots.add(sound - SAMPLED_FIRST);
@@ -88,14 +105,14 @@ function writeTrackFeel(c: EngineCommand[], s: number, style: AppStyle) {
  */
 export function writeAppStyle(
   c: EngineCommand[], s: number, style: AppStyle, section: Pick<Section, 'stylePart' | 'groove' | 'variation'>,
-  kitRows: Record<string, number> | undefined, slots: Set<number>,
+  kit: KitChoice, slots: Set<number>,
 ) {
   const a = effectiveVariation(style, section, 'a');
   const b = effectiveVariation(style, section, 'b');
   writeVariation(c, s, a ? toAppVariation(a) : style.a, 0);
   writeVariation(c, s, b ? toAppVariation(b) : undefined, 1);
   c.push(['setVariation', s, b && section.variation === 1 ? 1 : 0]);
-  writeDrumSounds(c, s, style, kitRows, slots);
+  writeDrumSounds(c, s, style, kit, slots);
   writeTrackFeel(c, s, style);
 }
 
@@ -105,13 +122,13 @@ export function writeAppStyle(
  */
 export function writeAppPart(
   c: EngineCommand[], s: number, style: AppStyle, section: Pick<Section, 'stylePart' | 'groove'>,
-  kitRows: Record<string, number> | undefined, slots: Set<number>,
+  kit: KitChoice, slots: Set<number>,
 ) {
   const a = effectiveVariation(style, section, 'a');
   if (a) writePatterns(c, s, a.rows, a.bars, 0);
   c.push(appFillCommand(s, undefined, 0));
   clearVariationB(c, s);
-  writeDrumSounds(c, s, style, kitRows, slots);
+  writeDrumSounds(c, s, style, kit, slots);
   writeTrackFeel(c, s, style);
 }
 

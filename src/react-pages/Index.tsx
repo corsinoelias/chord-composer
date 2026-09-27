@@ -24,7 +24,7 @@ import { detectKey, keyLabel, relativeTonic, type DetectedKey, type KeyMode } fr
 import { keyPrefersFlats } from '@/lib/musicKeys';
 import { completeInstrumentStates, getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { ensureAppStyles, getAppStyle, songUsesAppStyles, type AppStyle } from '@/lib/appStyles';
-import { AppRhythmEditor } from '@/components/AppRhythmEditor';
+import { AppRhythmEditor, type SongSounds } from '@/components/AppRhythmEditor';
 import { appStyleInstruments, withAppStyleParts } from '@/lib/appStyleSong';
 import { type AppStyleApply } from '@/components/StyleSelector';
 import { getStyleByIdWithOverrides, resolveActiveStyle, MUSICAL_STYLES, getSlotsPerBar, type StylePattern } from '@/lib/styles';
@@ -38,7 +38,7 @@ import { currentSongMixer, loadSongMixer } from '@/lib/appEngine/effects';
 import { exportMidi } from '@/lib/midiExporter';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
-import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat, songNoteLengths, withNoteLengths, songSwing, withSwing, songMixer, withMixer } from '@/lib/songs';
+import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat, songNoteLengths, withNoteLengths, songSwing, withSwing, songMixer, withMixer, songDrumSounds, withDrumSounds } from '@/lib/songs';
 import { styleSwingRatio } from '@/lib/swing';
 import { type NoteLengths } from '@/lib/noteLengths';
 import { DEFAULT_CLICK, loadClickSettings, saveClickSettings, type ClickSettings } from '@/lib/clickSettings';
@@ -259,6 +259,15 @@ const Index = ({ songId }: IndexProps) => {
   const [editorDraft, setEditorDraft] = useState<Section[] | null>(null);
   const editorDraftRef = useRef<Section[] | null>(null);
   editorDraftRef.current = editorDraft;
+  /** The same for the sounds the editor is trying: the song's instruments and percussion sounds. */
+  const [editorSounds, setEditorSounds] = useState<SongSounds | null>(null);
+  const editorSoundsRef = useRef<SongSounds | null>(null);
+  editorSoundsRef.current = editorSounds;
+  // The sound the song gives each hand-percussion row of an app rhythm, as the app's
+  // project.drumSounds (saved as app.drumSounds). Applying an app rhythm starts it over.
+  const [drumSounds, setDrumSounds] = useState<Record<string, number>>({});
+  const drumSoundsRef = useRef(drumSounds);
+  drumSoundsRef.current = drumSounds;
   // How long each track's notes ring — the Android app's note length, saved where the app
   // keeps it (app.noteLengths). Empty: every track plays the web's own length.
   const [noteLengths, setNoteLengths] = useState<NoteLengths>({});
@@ -426,14 +435,16 @@ const Index = ({ songId }: IndexProps) => {
     if (!isPlaying) return;
     updatePlaybackOptions({
       bpm, styleId: selectedStyleId, customStyles, liveEditedStyle,
-      melodic: currentStyle.melodic, instruments, transposition,
+      melodic: currentStyle.melodic, instruments: editorSounds?.instruments ?? instruments, transposition,
       metronome: metronomeEnabled, loopingSectionIndex,
       sections: editorDraft ?? sections, noteLengths, swing,
+      drumSounds: editorSounds?.drumSounds ?? drumSounds,
     });
   }, [
     isPlaying, bpm, selectedStyleId, customStyles, liveEditedStyle,
     currentStyle.melodic, instruments, transposition, metronomeEnabled,
     loopingSectionIndex, updatePlaybackOptions, sections, noteLengths, swing, editorDraft,
+    editorSounds, drumSounds,
   ]);
 
   // Load song from URL param
@@ -464,6 +475,7 @@ const Index = ({ songId }: IndexProps) => {
           setMetronomeEnabled(song.metronomeEnabled);
           setNoteLengths(songNoteLengths(song));
           setSwing(songSwing(song));
+          setDrumSounds(songDrumSounds(song));
           // The mixer the song was left on — pan, master, tone, reverb — or the defaults for
           // anything it says nothing about, so none of the last song's mix is left behind.
           loadSongMixer(songMixer(song));
@@ -527,7 +539,7 @@ const Index = ({ songId }: IndexProps) => {
         return;
       }
       const song: Song = {
-        ...withMixer(withSwing(withNoteLengths(songExtrasRef.current, noteLengths), swing), currentSongMixer()),
+        ...withDrumSounds(withMixer(withSwing(withNoteLengths(songExtrasRef.current, noteLengths), swing), currentSongMixer()), drumSounds),
         schemaVersion: SONG_SCHEMA_VERSION,
         id: currentSongId,
         title: songTitle,
@@ -557,7 +569,7 @@ const Index = ({ songId }: IndexProps) => {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [isLoggedIn, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, noteLengths, swing, mixerRevision, songCreatedAt]);
+  }, [isLoggedIn, currentSongId, songTitle, sections, bpm, selectedStyleId, transposition, instruments, metronomeEnabled, noteLengths, swing, drumSounds, mixerRevision, songCreatedAt]);
 
   // Explicit save — turns the current in-progress work into a persisted song.
   // Never fires automatically: /chord-player/ stays a stable, stateless URL until the user asks to save.
@@ -565,7 +577,7 @@ const Index = ({ songId }: IndexProps) => {
     // A first save (or a visitor's fork) keeps whatever the opened song carried that this
     // editor does not model, like every later autosave does.
     const newSong: Song = {
-      ...withMixer(withSwing(withNoteLengths(songExtrasRef.current, noteLengths), swing), currentSongMixer()),
+      ...withDrumSounds(withMixer(withSwing(withNoteLengths(songExtrasRef.current, noteLengths), swing), currentSongMixer()), drumSounds),
       ...createSong(songTitle),
     };
     newSong.sections = sections;
@@ -589,7 +601,7 @@ const Index = ({ songId }: IndexProps) => {
       sharedBaselineRef.current = null;
     }
     setIsPublic(false);
-  }, [songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, instruments, noteLengths, swing, sharedSong]);
+  }, [songTitle, sections, bpm, selectedStyleId, transposition, metronomeEnabled, instruments, noteLengths, swing, drumSounds, sharedSong]);
 
   // Share — flips the song's is_public flag and hands back the link. Opt-in and
   // reversible; a saved song stays private until this runs.
@@ -756,7 +768,7 @@ const Index = ({ songId }: IndexProps) => {
     await play(currentSections, {
       bpm: bpmRef.current,
       metronome: metronomeRef.current,
-      instruments: instrumentsRef.current,
+      instruments: editorSoundsRef.current?.instruments ?? instrumentsRef.current,
       styleId: styleRef.current,
       transposition: transpositionRef.current,
       liveEditedStyle: liveEditedStyleRef.current,
@@ -766,6 +778,7 @@ const Index = ({ songId }: IndexProps) => {
       noteLengths: noteLengthsRef.current,
       click: clickRef.current,
       swing: swingRef.current,
+      drumSounds: editorSoundsRef.current?.drumSounds ?? drumSoundsRef.current,
       countIn,
     });
   }, [play]);
@@ -1201,7 +1214,7 @@ const Index = ({ songId }: IndexProps) => {
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
       // The file is what the player plays: the same engine, in a Worker.
       downloadBlob(await exportSongWav({
-        song: { sections, bpm, transposition, instrumentSettings: instruments, noteLengths, swing },
+        song: { sections, bpm, transposition, instrumentSettings: instruments, noteLengths, swing, drumSounds },
         style,
         lookup: makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle),
       }), `${filename}.wav`);
@@ -1216,7 +1229,7 @@ const Index = ({ songId }: IndexProps) => {
     } finally {
       setIsExporting(false);
     }
-  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, customStyles, noteLengths, swing, showExportSaveNudge]);
+  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, customStyles, noteLengths, swing, drumSounds, showExportSaveNudge]);
 
   const handleExportMidi = useCallback(() => {
     const hasChords = sections.some(s => s.chords.length > 0);
@@ -1507,6 +1520,8 @@ const Index = ({ songId }: IndexProps) => {
     if (!app) return;
     if (apply?.tempo ?? true) setBpm(app.bpm);
     setInstruments((prev) => appStyleInstruments(prev, app));
+    // Its percussion plays its own sounds again, as the app's applyUserStyle sets them.
+    setDrumSounds({});
     const key = keyBaseRef.current;
     const tonic = key?.pitchClass ?? 0;
     const minor = key?.mode === 'minor';
@@ -1934,8 +1949,11 @@ const Index = ({ songId }: IndexProps) => {
           initialSection={appEditor.section}
           transposition={transposition}
           instruments={instruments}
-          onSave={(next) => {
+          drumSounds={drumSounds}
+          onSave={(next, sounds) => {
             setSections(next);
+            setInstruments(sounds.instruments);
+            setDrumSounds(sounds.drumSounds);
             toast.success('Rhythm saved in the song');
           }}
           playing={isPlaying}
@@ -1947,7 +1965,7 @@ const Index = ({ songId }: IndexProps) => {
             if (start && !isPlaying) void startPlayback();
           }}
           onStop={stopPlaybackCompletely}
-          onDraft={setEditorDraft}
+          onDraft={(next, sounds) => { setEditorDraft(next); setEditorSounds(sounds); }}
         />
       )}
       <RhythmEditor

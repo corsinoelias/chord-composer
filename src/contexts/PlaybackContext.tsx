@@ -96,6 +96,8 @@ interface PlayOptions {
   sections?: Section[];
   // How long each track's notes ring (the app's note length, saved as app.noteLengths).
   noteLengths?: NoteLengths;
+  // The sound the song gives each hand-percussion row of an app rhythm (app.drumSounds).
+  drumSounds?: Record<string, number>;
   // Vocal/reference audio — a single file, sliced per section (keyed by Section.id) or
   // as one continuous span for the whole song. Decoded once per URL (see
   // audioTrackBufferRef) and muted while transposition !== 0 (local-only prototype).
@@ -215,6 +217,7 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
         noteLengths: opts.noteLengths,
         swing: opts.swing,
         click: opts.click,
+        drumSounds: opts.drumSounds,
       },
       style: opts.melodic ? { ...style, melodic: opts.melodic } : style,
       lookup: makeStyleLookup(opts.customStyles ?? getCustomStyles(), getStyleOverride, opts.liveEditedStyle),

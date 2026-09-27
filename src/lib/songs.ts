@@ -77,6 +77,28 @@ export function withNoteLengths(extras: Record<string, unknown>, lengths: NoteLe
   return next;
 }
 
+/**
+ * The sound the song gives each hand-percussion row of an app rhythm (percussion rows 'perc1'…,
+ * General MIDI percussion ids): the app's project.drumSounds, kept under app.drumSounds.
+ */
+export function songDrumSounds(song: unknown): Record<string, number> {
+  const raw = (song as { app?: { drumSounds?: unknown } })?.app?.drumSounds;
+  if (!raw || typeof raw !== 'object') return {};
+  return Object.fromEntries(Object.entries(raw as Record<string, unknown>)
+    .filter((e): e is [string, number] => typeof e[1] === 'number' && Number.isInteger(e[1])));
+}
+
+/** [extras] with the song's percussion sounds put in (or taken out when there are none). */
+export function withDrumSounds(extras: Record<string, unknown>, sounds: Record<string, number>): Record<string, unknown> {
+  const app = { ...((extras.app as Record<string, unknown> | undefined) ?? {}) };
+  if (Object.keys(sounds).length) app.drumSounds = { ...sounds };
+  else delete app.drumSounds;
+  const out = { ...extras };
+  if (Object.keys(app).length) out.app = app;
+  else delete out.app;
+  return out;
+}
+
 /** The song's own swing ratio (app.swing, 1-3, as the app clamps it), or undefined to play the rhythm's. */
 export function songSwing(song: unknown): number | undefined {
   const raw = (song as { app?: { swing?: unknown } })?.app?.swing;

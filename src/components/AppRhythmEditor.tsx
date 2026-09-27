@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Check, Copy, Play, Square, Trash2, VolumeX, X, Zap } from 'lucide-react';
+import { Check, ChevronDown, Copy, ListMusic, Play, Square, Trash2, VolumeX, X, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { type AppStyle, appStepsPerBar } from '@/lib/appStyles';
 import {
@@ -8,14 +8,18 @@ import {
 } from '@/lib/groove';
 import { type Section, type TrackId } from '@/lib/sections';
 import { type Chord } from '@/lib/musicTheory';
-import { getSoundType, soundTimbre, type InstrumentState } from '@/lib/instruments';
+import {
+  RHYTHM_KIT, getInstrumentConfig, getSoundType, gmProgramOf, soundIdForProgram, soundTimbre, type InstrumentState,
+} from '@/lib/instruments';
+import { AllSoundsDialog } from './AllSoundsDialog';
+import { drumSoundOf as kitSoundOf } from '@/lib/appEngine/fromAppStyle';
 import { fillNow, subscribeEngineState } from '@/lib/appEngine/player';
 import { previewAppCell } from '@/lib/appEngine/preview';
 import { loadKits, type DrumKit } from '@/lib/appEngine/host';
 import { engineChord } from '@/lib/appEngine/fromSong';
 import { DRUM_ROWS, GM_PERC_FIRST } from '@/lib/appEngine/commands';
 import {
-  CHORD_INTERVALS, DEG, GM_PERC_NAMES, ROW_TONE, STRENGTHS, TONE_LETTER, TONE_NAME, accent, hitTone, notesOf, notesOnRow, packHit,
+  CHORD_INTERVALS, DEG, GM_PERC_NAMES, PERC_CHOICES, ROW_TONE, STRENGTHS, TONE_LETTER, TONE_NAME, accent, hitTone, notesOf, notesOnRow, packHit,
   packNotes, percFamily, percTones, pitchName, rowOf, rowText, scaleOf, semitoneOf, strengthOf, toggleAccent, toneMark,
   vel, withVelocity, type StepNote,
 } from '@/lib/appEngine/steps';
@@ -61,6 +65,17 @@ interface Draft {
   silenced: Partial<Record<TrackId, boolean>>;
   /** Which variation the section plays in the song, when changed here. */
   plays?: 0 | 1;
+  /** The sounds this section plays instead of the song's (section.sounds). */
+  sounds: Partial<Record<TrackId, string>>;
+}
+
+/**
+ * What the song sounds with, as the editor can change it for the whole song: each track's
+ * sound (the kit for the drums) and each hand-percussion row's (the song's app.drumSounds).
+ */
+export interface SongSounds {
+  instruments: InstrumentState[];
+  drumSounds: Record<string, number>;
 }
 
 /** A row of the grid: a kit row, the whole chord, or a degree 1-8 with its alteration. */
@@ -77,8 +92,10 @@ export interface AppRhythmEditorProps {
   initialSection: number;
   transposition: number;
   instruments: InstrumentState[];
-  /** Save: the song's sections with the edited ones given their groove (and silences). */
-  onSave: (sections: Section[]) => void;
+  /** The sound the song gives each hand-percussion row (app.drumSounds). */
+  drumSounds: Record<string, number>;
+  /** Save: the song's sections with the edited ones given their groove (silences and sounds), and the song's sounds. */
+  onSave: (sections: Section[], sounds: SongSounds) => void;
   /** Whether the song is playing: the editor plays through the song's own player. */
   playing: boolean;
   /** The section the song loops on, if any. */
@@ -86,12 +103,15 @@ export interface AppRhythmEditorProps {
   /** Loops the song on a section (null: the whole song again); [start] plays it if it is stopped. */
   onLoop: (index: number | null, start?: boolean) => void;
   onStop: () => void;
-  /** While the editor is open, the song plays these sections instead of its own: what is being edited. Null gives it back. */
-  onDraft: (sections: Section[] | null) => void;
+  /**
+   * While the editor is open, the song plays these sections and sounds instead of its own:
+   * what is being edited. Null gives it back.
+   */
+  onDraft: (sections: Section[] | null, sounds: SongSounds | null) => void;
 }
 
 export function AppRhythmEditor(props: AppRhythmEditorProps) {
-  const { open, onClose, style, sections, editable, initialSection, transposition, instruments, onSave, playing, loopingIndex, onLoop, onStop, onDraft } = props;
+  const { open, onClose, style, sections, editable, initialSection, transposition, instruments, drumSounds, onSave, playing, loopingIndex, onLoop, onStop, onDraft } = props;
   const spb = appStepsPerBar(style);
   const stepsPerBeat = Math.max(1, Math.round(16 / style.meter.unit));
   const isMobile = useIsMobile();
@@ -115,6 +135,10 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const [pop, setPop] = useState<{ id: string; s: number; x: number; y: number } | null>(null);
   const [menu, setMenu] = useState<{ items: MenuItem[]; x: number; y: number } | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  /** The song's sounds as they are being tried: kept on Save, dropped on Cancel. */
+  const [songSounds, setSongSounds] = useState<SongSounds>({ instruments, drumSounds });
+  const [soundMenu, setSoundMenu] = useState<{ x: number; y: number } | null>(null);
+  const [allSounds, setAllSounds] = useState(false);
   const [kits, setKits] = useState<DrumKit[]>([]);
   const undo = useRef<string[]>([]);
   const redo = useRef<string[]>([]);
@@ -127,6 +151,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     setV(sections[initialSection]?.variation === 1 ? 'b' : 'a');
     setMode('groove'); setTab('drums'); setPage(0); setAdded(new Set()); setFocus(null); setPop(null); setMenu(null);
     setConfirmDiscard(false);
+    setSongSounds({ instruments, drumSounds }); setSoundMenu(null);
     undo.current = []; redo.current = [];
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { loadKits().then(setKits).catch(() => {}); }, []);
@@ -136,12 +161,14 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     a: effectiveVariation(style, sections[i], 'a'),
     b: effectiveVariation(style, sections[i], 'b'),
     silenced: { ...(sections[i]?.silenced ?? {}) },
+    sounds: { ...(sections[i]?.sounds ?? {}) },
   }, [drafts, sections, style]);
   const draft = draftOf(sec);
   const isPart = !!section?.stylePart;
   const variation = (draft[v] ?? draft.a)!;
   const base = useMemo(() => baseVariation(style, section ?? {}, v) ?? baseVariation(style, section ?? {}, 'a')!, [style, section, v]);
-  const dirty = Object.keys(drafts).length > 0;
+  const soundsChanged = songSounds.instruments !== instruments || songSounds.drumSounds !== drumSounds;
+  const dirty = Object.keys(drafts).length > 0 || soundsChanged;
 
   /** Every edit goes through here: undoable, and on the section on screen. */
   const change = useCallback((fn: (d: Draft) => void) => {
@@ -150,7 +177,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       if (undo.current.length > 100) undo.current.shift();
       redo.current = [];
       const d = draftOf(sec, prev);
-      const next: Draft = { a: d.a && cloneDense(d.a), b: d.b && cloneDense(d.b), silenced: { ...d.silenced }, plays: d.plays };
+      const next: Draft = { a: d.a && cloneDense(d.a), b: d.b && cloneDense(d.b), silenced: { ...d.silenced }, plays: d.plays, sounds: { ...d.sounds } };
       fn(next);
       return { ...prev, [sec]: next };
     });
@@ -193,12 +220,14 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       const off = Object.fromEntries(Object.entries(d.silenced).filter(([, on]) => on));
       if (Object.keys(off).length) out.silenced = off; else delete out.silenced;
       if (groove) out.groove = groove; else delete out.groove;
+      const own = Object.fromEntries(Object.entries(d.sounds).filter(([, id]) => id));
+      if (Object.keys(own).length) out.sounds = own; else delete out.sounds;
     }
     if (d?.plays !== undefined) out.variation = d.plays;
     if (audition && i === sec && !sct.stylePart) out.variation = v === 'b' && (d?.b ?? true) ? 1 : 0;
     return out;
   }), [sections, style, sec, v]);
-  useEffect(() => { if (open) onDraft(merged(drafts, true)); }, [open, drafts, merged]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) onDraft(merged(drafts, true), songSounds); }, [open, drafts, merged, songSounds]); // eslint-disable-line react-hooks/exhaustive-deps
   const [engine, setEngine] = useState<{ section: number; step: number; bar: number; fillBar: boolean; fillByHand: number } | null>(null);
   useEffect(() => {
     if (!open || !playing) { setEngine(null); return; }
@@ -230,7 +259,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   // taken off the page (Index unmounts it), whichever comes first; the latest callbacks, by ref.
   const giveBack = useRef(() => {});
   giveBack.current = () => {
-    onDraft(null);
+    onDraft(null, null);
     if (loopedByEditor.current) { onLoop(null); loopedByEditor.current = false; }
   };
   useEffect(() => { if (!open) giveBack.current(); }, [open]);
@@ -280,10 +309,51 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     const l = tab === 'drums' ? variation.rows.drums[lane.row] : variation.rows[tab]?.lane;
     return l?.[b * spb + s] ?? 0;
   };
-  const drumSoundOf = (row: string): number | undefined => {
-    if (style.drumSounds[row] !== undefined) return style.drumSounds[row];
-    const kitIndex = getSoundType('drums', instruments.find((i) => i.id === 'drums')?.soundTypeId ?? 'acoustic')?.kit ?? 2;
-    return kits[kitIndex]?.rows[row];
+  // ── Sounds: the section's own, else the song's (as being tried here) ──
+  const songSoundOf = (track: TrackId) => songSounds.instruments.find((i) => i.id === track)?.soundTypeId ?? '';
+  const soundIdOf = (track: TrackId) => draft.sounds[track] || songSoundOf(track);
+  const kitId = soundIdOf('drums');
+  const kitChoice = { rows: kits[getSoundType('drums', kitId)?.kit ?? 2]?.rows, own: kitId === RHYTHM_KIT, song: songSounds.drumSounds };
+  const drumSoundOf = (row: string): number | undefined => kitSoundOf(style, kitChoice, row);
+  /** The sound the rhythm itself gives [track], when it names one from the SoundFont. */
+  const rhythmSoundOf = (track: TrackId): string | undefined => {
+    if (track === 'drums') return RHYTHM_KIT;
+    const program = style.programs[track as keyof typeof style.programs];
+    return program === undefined || (style.timbres?.[track as keyof typeof style.programs] ?? 13) !== 13 ? undefined : soundIdForProgram(track, program);
+  };
+  /** Plays a hit or a chord on the sound just picked, when the song is not already playing it. */
+  const tryOut = (track: TrackId, id: string) => {
+    if (playing) return;
+    if (track === 'drums') {
+      const rows = kits[getSoundType('drums', id)?.kit ?? 2]?.rows;
+      const choice = { rows, own: id === RHYTHM_KIT, song: songSounds.drumSounds };
+      previewAppCell({ track: 'drums', row: 'snare', packed: packHit(205), drumSound: kitSoundOf(style, choice, 'snare') });
+      return;
+    }
+    const sound = getSoundType(track, id);
+    previewAppCell({
+      track, row: 'lane', packed: packNotes(205, [{ d: DEG.chord, o: 0, a: 0 }]), chord: chordAtStep(shownBar * spb),
+      transposition, timbre: soundTimbre(sound), program: sound?.program, low: style.voicings[track as keyof typeof style.voicings],
+    });
+  };
+  /** [id] on [track]: for the whole song (the section's own taken off, so it is heard), or for this section only. */
+  const pickSound = (track: TrackId, id: string, scope: 'song' | 'section') => {
+    if (scope === 'section') {
+      change((d) => { if (id === songSoundOf(track)) delete d.sounds[track]; else d.sounds[track] = id; });
+    } else {
+      setSongSounds((s) => ({ ...s, instruments: s.instruments.map((i) => (i.id === track ? { ...i, soundTypeId: id } : i)) }));
+      if (draft.sounds[track]) change((d) => { delete d.sounds[track]; });
+    }
+    tryOut(track, id);
+  };
+  /** A hand-percussion row's sound, for the whole song as the app keeps it; the rhythm's own takes the song's off. */
+  const pickRowSound = (row: string, sound: number) => {
+    setSongSounds((s) => {
+      const next = { ...s.drumSounds };
+      if (sound === style.drumSounds[row]) delete next[row]; else next[row] = sound;
+      return { ...s, drumSounds: next };
+    });
+    if (!playing) previewAppCell({ track: 'drums', row, packed: packHit(205), drumSound: sound });
   };
   const rowLabel = (row: string): { name: string; sub: string } => {
     if (!row.startsWith('perc')) return { name: ROW_NAMES[row] ?? row, sub: '' };
@@ -317,8 +387,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const audition = (lane: Lane, p: number, s: number) => {
     if (!p || playing) return;
     if (tab === 'drums') { previewAppCell({ track: 'drums', row: lane.row, packed: p, drumSound: drumSoundOf(lane.row) }); return; }
-    const inst = instruments.find((i) => i.id === tab);
-    const sound = getSoundType(tab, inst?.soundTypeId ?? '');
+    const sound = getSoundType(tab, soundIdOf(tab));
     const chord = chordAtStep((mode === 'fill' ? sectionBars - 1 : shownBar) * spb + s);
     previewAppCell({ track: tab, row: 'lane', packed: p, chord, transposition, timbre: soundTimbre(sound), program: sound?.program, low: style.voicings[tab] });
   };
@@ -426,7 +495,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
         const d = draftOf(i, prev);
         const x = d[v];
         if (!x) continue;
-        const copy: Draft = { a: d.a && cloneDense(d.a), b: d.b && cloneDense(d.b), silenced: { ...d.silenced } };
+        const copy: Draft = { a: d.a && cloneDense(d.a), b: d.b && cloneDense(d.b), silenced: { ...d.silenced }, plays: d.plays, sounds: { ...d.sounds } };
         copy[v]!.rows[tab] = JSON.parse(JSON.stringify(mine.rows[tab]));
         copy[v]!.bars[tab] = mine.bars[tab];
         next[i] = copy;
@@ -440,7 +509,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
 
   // ── Save and cancel ──
   const save = () => {
-    onSave(merged(drafts, false));
+    onSave(merged(drafts, false), songSounds);
     onClose();
   };
   const cancel = () => {
@@ -462,11 +531,28 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       else if (tab === 'drums' && x.rows.drums[lane.row]) x.rows.drums[lane.row] = x.rows.drums[lane.row].map(() => 0);
       else if (tab !== 'drums') x.rows[tab].lane = x.rows[tab].lane.map(() => 0);
     }) });
+    if (tab === 'drums' && lane.row.startsWith('perc')) {
+      items.push({ label: 'Change sound…', run: () => openRowSoundMenu(lane.row, x, y) });
+    }
     if (tab === 'drums' && !CORE.includes(lane.row)) {
       items.push({ label: 'Remove from the groove', run: () => {
         change((d) => { delete V(d).rows.drums[lane.row]; delete V(d).fill.lanes[lane.row]; });
         setAdded((a) => { const n = new Set(a); n.delete(lane.row); return n; });
       } });
+    }
+    setMenu({ items, x, y });
+  };
+  /** A percussion row's sound, as the app's "Change sound": for the whole song. */
+  const openRowSoundMenu = (row: string, x: number, y: number) => {
+    const now = drumSoundOf(row);
+    const own = style.drumSounds[row];
+    const mark = (sound: number) => (sound === now ? '✓ ' : '');
+    const items: MenuItem[] = [{ head: `${rowLabel(row).sub} · whole song` }];
+    if (own !== undefined) items.push({ label: `${mark(own)}The rhythm’s: ${GM_PERC_NAMES[own - GM_PERC_FIRST] ?? 'its own'}`, run: () => pickRowSound(row, own) });
+    for (const note of PERC_CHOICES) {
+      const sound = GM_PERC_FIRST + note;
+      if (sound === own) continue;
+      items.push({ label: `${mark(sound)}${GM_PERC_NAMES[note] ?? `Perc ${note}`}`, run: () => pickRowSound(row, sound) });
     }
     setMenu({ items, x, y });
   };
@@ -645,9 +731,15 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
               );
             })()}
             <div className="flex-1" />
-            <span className="cp-cap h-[34px] rounded-full px-3 text-[12.5px]" title="Change it in Instruments" style={{ background: 'var(--cp-s2)' }}>
-              {getSoundType(tab, instruments.find((i) => i.id === tab)?.soundTypeId ?? '')?.name ?? 'Sound'}
-            </span>
+            <button type="button" aria-label={`${trackName(tab)} sound`} aria-haspopup="menu"
+              title={draft.sounds[tab] ? 'This section’s own sound' : 'The song’s sound'}
+              onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setSoundMenu({ x: r.left, y: r.bottom }); }}
+              className="flex h-[34px] max-w-[240px] items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-semibold"
+              style={{ background: 'var(--cp-s2)', borderColor: draft.sounds[tab] ? 'var(--cp-ac)' : 'var(--cp-ln)', color: 'var(--cp-tx)' }}>
+              <span className="truncate">{getSoundType(tab, soundIdOf(tab))?.name ?? 'Sound'}</span>
+              {draft.sounds[tab] && <span className="shrink-0 text-[10.5px] font-bold" style={{ color: 'var(--cp-act)' }}>this section</span>}
+              <ChevronDown size={14} className="shrink-0" />
+            </button>
             {mode === 'groove' && (
               <select className="h-[34px] rounded-full border px-3 text-[12.5px] font-semibold" aria-label="Bars"
                 style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }}
@@ -859,6 +951,18 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           />
         )}
         {menu && <Menu items={menu.items} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}
+        {soundMenu && (
+          <SoundMenu key={tab} track={tab} x={soundMenu.x} y={soundMenu.y} onClose={() => setSoundMenu(null)}
+            songSound={songSoundOf(tab)} sectionSound={draft.sounds[tab]} sectionName={section?.name ?? ''}
+            rhythmSound={rhythmSoundOf(tab)}
+            onPick={(id, scope) => pickSound(tab, id, scope)}
+            onAllSounds={() => { setSoundMenu(null); setAllSounds(true); }} />
+        )}
+        {tab !== 'drums' && (
+          <AllSoundsDialog open={allSounds} onOpenChange={setAllSounds} track={tab} trackName={trackName(tab)}
+            currentSoundId={soundIdOf(tab)}
+            onPick={(program) => pickSound(tab, soundIdForProgram(tab, program), draft.sounds[tab] ? 'section' : 'song')} />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -886,6 +990,79 @@ function chordsOfSection(chords: Chord[], transposition: number) {
 }
 
 type MenuItem = { head: string } | { label: string; run: () => void };
+
+/**
+ * A track's sound, for the whole song (as the Instruments panel sets it) or for the section on
+ * screen only (as the section card's sounds): the list's sounds, the rhythm's own first, and
+ * every sound of the SoundFont behind "All sounds…". The kit's list, for the drums.
+ */
+function SoundMenu({ track, x, y, onClose, songSound, sectionSound, sectionName, rhythmSound, onPick, onAllSounds }: {
+  track: TrackId; x: number; y: number; onClose: () => void;
+  songSound: string; sectionSound?: string; sectionName: string; rhythmSound?: string;
+  onPick: (id: string, scope: 'song' | 'section') => void;
+  onAllSounds: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scope, setScope] = useState<'song' | 'section'>(sectionSound ? 'section' : 'song');
+  useEffect(() => {
+    const down = (e: PointerEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };
+    window.addEventListener('pointerdown', down);
+    window.addEventListener('keydown', key, true);
+    return () => { window.removeEventListener('pointerdown', down); window.removeEventListener('keydown', key, true); };
+  }, [onClose]);
+  const config = getInstrumentConfig(track);
+  const current = scope === 'section' ? sectionSound || songSound : songSound;
+  // The rhythm's own sound first, then one picked from "All sounds…", then the list.
+  const ids = [...new Set([
+    ...(rhythmSound ? [rhythmSound] : []),
+    ...(gmProgramOf(current) !== null ? [current] : []),
+    ...(config?.soundTypes.map((s) => s.id) ?? []),
+  ])];
+  const left = Math.min(window.innerWidth - 272, Math.max(12, x));
+  const top = Math.max(12, Math.min(window.innerHeight - 440, y + 6));
+  return (
+    <div ref={ref} role="menu" aria-label={`${config?.name ?? track} sound`} className="fixed z-[60] flex w-[260px] flex-col rounded-xl border p-1.5 shadow-xl"
+      style={{ left, top, background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)', maxHeight: 'min(430px, 80vh)' }}>
+      <div className="flex overflow-hidden rounded-[10px] border m-1" role="group" aria-label="Where the sound goes" style={{ borderColor: 'var(--cp-ln)' }}>
+        {(['song', 'section'] as const).map((k) => (
+          <button key={k} type="button" aria-pressed={scope === k} onClick={() => setScope(k)}
+            className="h-[30px] flex-1 truncate border-0 px-2 text-xs font-bold"
+            style={scope === k ? { background: 'var(--cp-ac)', color: '#fff' } : { background: 'transparent', color: 'var(--cp-mu)' }}>
+            {k === 'song' ? 'Whole song' : `Only ${sectionName || 'this section'}`}
+          </button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {scope === 'section' && sectionSound && (
+          <button type="button" role="menuitem" className="w-full rounded-lg border-0 bg-transparent px-2.5 py-2 text-left text-[13px] hover:bg-[var(--cp-s2)]"
+            style={{ color: 'var(--cp-act)' }} onClick={() => { onPick(songSound, 'section'); onClose(); }}>
+            Same as the song ({getSoundType(track, songSound)?.name ?? songSound})
+          </button>
+        )}
+        {ids.map((id) => {
+          const on = id === current;
+          return (
+            <button key={id} type="button" role="menuitemradio" aria-checked={on}
+              className="flex w-full items-center gap-2 rounded-lg border-0 px-2.5 py-2 text-left text-[13px] hover:bg-[var(--cp-s2)]"
+              style={{ background: on ? 'var(--cp-acs)' : 'transparent', color: 'var(--cp-tx)' }}
+              onClick={() => { onPick(id, scope); onClose(); }}>
+              <span className="min-w-0 flex-1 truncate">{getSoundType(track, id)?.name ?? id}</span>
+              {id === rhythmSound && <span className="shrink-0 text-[10.5px] font-bold" style={{ color: 'var(--cp-mu)' }}>{track === 'drums' ? '' : 'rhythm’s'}</span>}
+              {on && <Check size={15} className="shrink-0" style={{ color: 'var(--cp-act)' }} />}
+            </button>
+          );
+        })}
+      </div>
+      {track !== 'drums' && (
+        <button type="button" className="mt-1 flex items-center gap-1.5 rounded-lg border-0 bg-transparent px-2.5 py-2 text-left text-xs font-semibold hover:bg-[var(--cp-s2)]"
+          style={{ color: 'var(--cp-act)' }} onClick={onAllSounds}>
+          <ListMusic size={14} />All sounds…
+        </button>
+      )}
+    </div>
+  );
+}
 
 function Menu({ items, x, y, onClose }: { items: MenuItem[]; x: number; y: number; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);

@@ -1,7 +1,7 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { type InstrumentState, getInstrumentConfig, getSoundType, gmProgramOf, soundIdForProgram } from '@/lib/instruments';
+import { type InstrumentState, RHYTHM_KIT, getInstrumentConfig, getSoundType, gmProgramOf, soundIdForProgram } from '@/lib/instruments';
 import { AllSoundsDialog } from './AllSoundsDialog';
 import { type StylePattern, type InstrumentSounds } from '@/lib/styles';
 import { Piano, Guitar, Drum, Music, X, AudioWaveform, ListMusic } from 'lucide-react';
@@ -48,8 +48,11 @@ const InstrumentCard = memo(function InstrumentCard({
   onUpdate,
   noteLength,
   onNoteLength,
+  rhythmKit,
 }: {
   inst: InstrumentState;
+  /** The song plays a rhythm of the app's: its own kit is one of the choices. */
+  rhythmKit?: boolean;
   styleSoundId?: string;
   styleVolume?: number;
   onUpdate: (id: string, updates: Partial<InstrumentState>) => void;
@@ -60,6 +63,8 @@ const InstrumentCard = memo(function InstrumentCard({
   const [allSoundsOpen, setAllSoundsOpen] = useState(false);
   // A sound from "All sounds…" is not one of the list's: it is shown at the top of it.
   const extraSound = gmProgramOf(inst.soundTypeId) !== null ? getSoundType(inst.id, inst.soundTypeId) : undefined;
+  // A rhythm of the app's plays its own kit until another is picked.
+  const ownKit = inst.id === 'drums' && (rhythmKit || inst.soundTypeId === RHYTHM_KIT) ? getSoundType('drums', RHYTHM_KIT) : undefined;
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onUpdate(inst.id, { volume: parseInt(e.target.value, 10) / 100 });
@@ -134,6 +139,7 @@ const InstrumentCard = memo(function InstrumentCard({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="z-50">
+            {ownKit && <SelectItem value={ownKit.id}>{ownKit.name}</SelectItem>}
             {extraSound && <SelectItem value={extraSound.id}>{extraSound.name}</SelectItem>}
             {config.soundTypes.map(sound => (
               <SelectItem key={sound.id} value={sound.id}>
@@ -257,6 +263,7 @@ export const InstrumentsPanel = memo(function InstrumentsPanel({
               onUpdate={updateInstrument}
               noteLength={noteLengths?.[inst.id as MelodicId]}
               onNoteLength={onNoteLengthsChange ? setNoteLength : undefined}
+              rhythmKit={!!currentStyle?.engine}
             />
           ))}
         </div>

@@ -27,7 +27,7 @@
           "muted": { "type": "boolean" },
           "solo": { "type": "boolean" },
           "volume": { "type": "number", "minimum": 0, "maximum": 1 },
-          "soundTypeId": { "type": "string", "description": "An id from shared/catalog/sounds.json." }
+          "soundTypeId": { "type": "string", "description": "An id from shared/catalog/sounds.json, 'gm:<program>' for any SoundFont program, or 'rhythm' on the drums: the kit an app rhythm brings (its own sounds over the default kit)." }
         }
       }
     },
@@ -35,7 +35,10 @@
     "app": {
       "type": "object",
       "description": "What only the Flutter app models today (key, meter, mixer beyond volume, voicings, note lengths, per-section timbre/register overrides). The web keeps it untouched.",
-      "additionalProperties": true
+      "additionalProperties": true,
+      "properties": {
+        "drumSounds": { "type": "object", "description": "The sound the song gives each hand-percussion row of an app rhythm (perc1…perc12): 100 + a General MIDI percussion note. The app's project.drumSounds.", "additionalProperties": { "type": "integer" } }
+      }
     },
     "sections": {
       "type": "array",

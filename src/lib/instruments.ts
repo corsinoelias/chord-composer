@@ -177,7 +177,7 @@ export const LEGACY_SOUND_IDS: Record<InstrumentType, Record<string, string>> = 
 
 /** The id a sound saved before the shared list plays as; unknown ids fall back to the default. */
 export function migrateSoundId(instrumentId: InstrumentType, soundTypeId: string): string {
-  if (gmProgramOf(soundTypeId) !== null) return soundTypeId;
+  if (gmProgramOf(soundTypeId) !== null || (instrumentId === 'drums' && soundTypeId === RHYTHM_KIT)) return soundTypeId;
   const mapped = LEGACY_SOUND_IDS[instrumentId]?.[soundTypeId];
   if (mapped) return mapped;
   const instrument = getInstrumentConfig(instrumentId);
@@ -219,7 +219,17 @@ export function soundIdForProgram(instrumentId: InstrumentType, program: number)
   return listedSoundFor(instrumentId, program)?.id ?? gmSoundId(program);
 }
 
+/**
+ * The drums of a rhythm of the app's as the rhythm brings them: its own sound on every row it
+ * names one for (AppStyle.drumSounds), the default kit on the rest — what the app's
+ * applyUserStyle sets. Any kit of the list picked instead plays that kit's pieces; the hand
+ * percussion keeps its own. On one of the web's rhythms, which name no sounds, it is the
+ * default kit.
+ */
+export const RHYTHM_KIT = 'rhythm';
+
 export function getSoundType(instrumentId: InstrumentType, soundTypeId: string): SoundType | undefined {
+  if (instrumentId === 'drums' && soundTypeId === RHYTHM_KIT) return { id: RHYTHM_KIT, name: 'Rhythm’s own kit', octaveOffset: 0 };
   const program = gmProgramOf(soundTypeId);
   if (program !== null) {
     // In the register the track's own sounds play: the bass low, the rest from middle C.

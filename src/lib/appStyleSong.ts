@@ -4,16 +4,17 @@
  */
 import { type AppStyle } from './appStyles';
 import { appPartSections } from './appEngine/fromAppStyle';
-import { completeInstrumentStates, soundIdForProgram, type InstrumentState, type InstrumentType } from './instruments';
+import { RHYTHM_KIT, completeInstrumentStates, soundIdForProgram, type InstrumentState, type InstrumentType } from './instruments';
 import { type Section } from './sections';
 
 const MELODIC: InstrumentType[] = ['piano', 'guitar', 'bass', 'synth'];
 /** The engine's SoundFont timbre (TIMBRE.sampled): a rhythm names a program only for it. */
 const SAMPLED = 13;
 
-/** The song's tracks playing the rhythm's sounds; level, mute and solo stay as they were. */
+/** The song's tracks playing the rhythm's sounds, its kit included; level, mute and solo stay as they were. */
 export function appStyleInstruments(states: InstrumentState[], style: AppStyle): InstrumentState[] {
   return completeInstrumentStates(states).map((state) => {
+    if (state.id === 'drums') return { ...state, soundTypeId: RHYTHM_KIT };
     if (!MELODIC.includes(state.id)) return state;
     const program = style.programs[state.id];
     const timbre = style.timbres?.[state.id] ?? SAMPLED;

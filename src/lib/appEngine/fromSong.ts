@@ -25,6 +25,7 @@ import {
   type BassScaleData, type DegreeKey, type MelodicFill, type MelodicFillTrack,
 } from '../bassScale';
 import {
+  RHYTHM_KIT,
   getInstrumentConfig,
   getSoundType,
   isInstrumentAudible,
@@ -112,6 +113,8 @@ export interface SongInput {
   holdOpen?: boolean;
   /** How the click sounds — the person's own setting, not the song's (clickSettings.ts). */
   click?: ClickSettings;
+  /** The sound the song gives each hand-percussion row of an app rhythm (app.drumSounds). */
+  drumSounds?: Record<string, number>;
 }
 
 export interface EngineSong {
@@ -233,11 +236,17 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     const part = partOf(partStyle, section);
     const app = part ? partStyle : style.engine;
     const drumSetting = instruments.find((inst) => inst.id === 'drums');
-    const kitRows = kits[getSoundType('drums', playback?.sounds?.drums ?? drumSetting?.soundTypeId ?? defaultSound('drums'))?.kit ?? DEFAULT_KIT]?.rows;
+    // The section's own kit, else the song's; the rhythm's own plays its sounds over the default kit.
+    const kitId = playback?.sounds?.drums ?? drumSetting?.soundTypeId ?? defaultSound('drums');
+    const kit = {
+      rows: kits[getSoundType('drums', kitId)?.kit ?? DEFAULT_KIT]?.rows,
+      own: kitId === RHYTHM_KIT,
+      song: song.drumSounds,
+    };
     if (part && partStyle) {
-      writeAppPart(c, s, partStyle, section, kitRows, drumSlots);
+      writeAppPart(c, s, partStyle, section, kit, drumSlots);
     } else if (style.engine) {
-      writeAppStyle(c, s, style.engine, section, kitRows, drumSlots);
+      writeAppStyle(c, s, style.engine, section, kit, drumSlots);
     } else {
       writeWebStyle(s, section, style, playback, 0);
       // The section's own B, when it made one: another arrangement of the same part, in bank 1.
