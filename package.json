@@ -11,6 +11,7 @@
     "check:schema": "node scripts/check-schema.mjs",
     "check:engine": "node scripts/check-engine.mjs",
     "engine:sync": "node scripts/engine-sync.mjs",
+    "rhythms:sync": "node scripts/rhythms-sync.mjs",
     "lint": "eslint .",
     "test:tabtext": "tsx tests/tabtext/run-roundtrip.ts",
     "corpus:fetch": "node --env-file=.env tests/corpus/fetch-corpus.mjs",

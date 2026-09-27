@@ -9,6 +9,7 @@ import { type Section } from '@/lib/sections';
 import { type InstrumentState, getDefaultInstrumentStates } from '@/lib/instruments';
 import { type StylePattern, MUSICAL_STYLES, resolveActiveStyle, getSlotsPerBar } from '@/lib/styles';
 import { getStyleOverride, getCustomStyles } from '@/lib/customStyles';
+import { ensureAppStyles, songUsesAppStyles } from '@/lib/appStyles';
 import { type MelodicData } from '@/lib/bassScale';
 import { makeStyleLookup } from '@/lib/sectionPlayback';
 import { AppPlayback, startedAppEngine, type AppSong } from '@/lib/appEngine/player';
@@ -357,6 +358,9 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const once = !(options.loop ?? true);
+      // A rhythm of the app's is read from its file the first time: the song must not start
+      // on whatever style stands in for it until then.
+      if (songUsesAppStyles(sections, options.styleId)) await ensureAppStyles();
       const vocalBuffer = await decodeVocal(options);
       const style = resolveCurrentStyle();
       const stepsPerBeat = Math.max(1, Math.round(16 / (style.timeSignature?.denominator ?? 4)));

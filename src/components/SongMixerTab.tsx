@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Guitar, Drum, Piano, Music, Mic } from 'lucide-react';
+import { Guitar, Drum, Piano, Music, Mic, AudioWaveform } from 'lucide-react';
 import { VerticalFader } from '@/components/VerticalFader';
 import { type InstrumentState, type InstrumentType } from '@/lib/instruments';
 
@@ -25,6 +25,7 @@ const CHANNEL_LABEL: Record<InstrumentType, string> = {
   drums: 'Drums',
   guitar: 'Gtr',
   piano: 'Keys',
+  synth: 'Synth',
 };
 
 const CHANNEL_ICON: Record<InstrumentType, typeof Music> = {
@@ -32,6 +33,7 @@ const CHANNEL_ICON: Record<InstrumentType, typeof Music> = {
   drums: Drum,
   guitar: Guitar,
   piano: Piano,
+  synth: AudioWaveform,
 };
 
 // Fixed left-to-right order matching the reference mixer screenshots (Bass, Drums, Gtr, Keys),

@@ -171,6 +171,8 @@ export class AppPlayback {
     this.current = input;
     this.built = this.build(input, e);
     await e.ensureSlots(this.built.drumSlots);
+    // A sound only the whole SoundFont has: the engine moves to it before the first note.
+    if (this.built.needsFullSoundFont) await e.useFullSoundFont();
     // The mixer's effects go after the song, which starts dry.
     e.load([...this.built.commands, ...effectsCommands()]);
     this.sentSong = songPart(this.built.commands);
@@ -236,11 +238,12 @@ export class AppPlayback {
     }
     this.sentSong = song;
     await e.ensureSlots(this.built.drumSlots);
+    if (this.built.needsFullSoundFont) await e.useFullSoundFont();
     // Clearing a track drops its voices without telling the SoundFont, whose notes then ring
     // on to their natural end — seconds, for the grand piano: a second piano under the
     // first. Letting them go first ends them the way a new chord would.
     e.send([
-      ['previewOff', 'piano'], ['previewOff', 'guitar'], ['previewOff', 'bass'],
+      ['previewOff', 'piano'], ['previewOff', 'guitar'], ['previewOff', 'bass'], ['previewOff', 'synth'],
       ...this.built.commands,
       ...effectsCommands(),
       ['loopOnly', this.engineSection(input.loopingSectionIndex)],
@@ -376,7 +379,7 @@ function songPart(commands: EngineCommand[]): string {
 export async function exportSongWav(input: Pick<AppSong, 'song' | 'style' | 'lookup'>, tailSeconds = 2): Promise<Blob> {
   const built = songToEngine(input.song, input.style, input.lookup, await loadKits());
   const slots = [...new Set([...built.drumSlots, ...Array.from({ length: 12 }, (_, i) => i)])];
-  return (await exportCommandsWav([...built.commands, ...effectsCommands()], built.steps, tailSeconds, slots)).blob;
+  return (await exportCommandsWav([...built.commands, ...effectsCommands()], built.steps, tailSeconds, slots, built.needsFullSoundFont)).blob;
 }
 
 /** One bar with every track silenced: where a single pass ends. */
@@ -384,6 +387,6 @@ function silentBar(style: StylePattern): Section {
   return {
     ...createSection('End'),
     chords: [{ id: 'end', root: 'C', accidental: '', quality: 'maj', duration: getSlotsPerBar(style) / 4 }],
-    silenced: { drums: true, piano: true, guitar: true, bass: true },
+    silenced: { drums: true, piano: true, guitar: true, bass: true, synth: true },
   };
 }

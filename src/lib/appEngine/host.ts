@@ -368,13 +368,13 @@ export async function loadKits(): Promise<DrumKit[]> {
  * Renders [commands] to a WAV with the engine in a Worker: no AudioContext, nothing playing
  * needed. [slots] are the kit recordings the song uses (EngineSong.drumSlots).
  */
-export async function exportCommandsWav(commands: EngineCommand[], steps: number, tailSeconds: number, slots: number[]): Promise<ExportResult> {
+export async function exportCommandsWav(commands: EngineCommand[], steps: number, tailSeconds: number, slots: number[], fullFont = false): Promise<ExportResult> {
   const assets = await loadAssets();
   const entries = assets.kit.filter((k) => slots.includes(k.slot));
   const pcm = await Promise.all(entries.map(loadPcm));
   const kit = entries.map((k, i) => ({ slot: k.slot, gain: k.gain, pcm: pcm[i].slice(0) }));
   const wasm = assets.wasm.slice(0);
-  const sf2 = (usingFullFont ? await loadFullFont() : assets.sf2).slice(0);
+  const sf2 = (usingFullFont || fullFont ? await loadFullFont() : assets.sf2).slice(0);
   const worker = new Worker('/engine/export-worker.js', { type: 'module' });
   try {
     const result = await new Promise<{ wav: Uint8Array<ArrayBuffer>; frames: number; ms: number }>((resolve, reject) => {

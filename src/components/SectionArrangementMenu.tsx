@@ -30,6 +30,7 @@ const TRACK_LABELS: Record<TrackId, string> = {
   bass: 'Bass',
   piano: 'Piano',
   guitar: 'Guitar',
+  synth: 'Synth',
 };
 
 /** Each track keeps the colour it has in the canvas's arrangement view. */
@@ -38,6 +39,7 @@ const TRACK_COLORS: Record<TrackId, string> = {
   bass: 'var(--cp-sev)',
   piano: 'var(--cp-min)',
   guitar: 'var(--cp-ac)',
+  synth: 'var(--cp-aug)',
 };
 
 function DrumIcon({ size = 16 }: { size?: number }) {

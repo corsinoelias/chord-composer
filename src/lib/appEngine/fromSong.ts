@@ -45,8 +45,10 @@ import {
   type EngineCommand,
   type MelodicTrack,
 } from './commands';
-import { type DrumKit } from './host';
-import { getMix } from './mix';
+import { SHORT_FONT_PROGRAMS, type DrumKit } from './host';
+import { getMix, isMixDefault } from './mix';
+import { getAppStyle } from '../appStyles';
+import { clearVariationB, partOf, writeAppPart, writeAppStyle } from './fromAppStyle';
 import { type NoteLengths } from '../noteLengths';
 import { styleSwingRatio } from '../swing';
 import { DEFAULT_CLICK, type ClickSettings } from '../clickSettings';
@@ -79,9 +81,12 @@ const WEB_DRUMS: [web: string, row: DrumRow][] = [
  * not level with the rest"): the app's guitars strike softer, so matching the web was matching
  * a guitar nobody could hear.
  */
-const TRACK_TRIM: Record<TrackId, number> = { drums: 0.6, piano: 1, guitar: 1.66, bass: 0.46 };
+const TRACK_TRIM: Record<TrackId, number> = { drums: 0.6, piano: 1, guitar: 1.66, bass: 0.46, synth: 1 };
+/** The tracks the web's own rhythms write; the synth is only ever the app's rhythms'. */
 const MELODIC: MelodicTrack[] = ['piano', 'guitar', 'bass'];
-const TRACKS: TrackId[] = ['drums', 'piano', 'guitar', 'bass'];
+const TRACKS: TrackId[] = ['drums', 'piano', 'guitar', 'bass', 'synth'];
+/** The level the web's faders start at, which a rhythm of the app's own mix is heard at. */
+const FADER_DEFAULT = 0.7;
 
 /** The two qualities the engine spells differently from the web (it names them like the app). */
 const ENGINE_QUALITY: Record<string, string> = { min9: 'm9', min11: 'm11' };
@@ -125,6 +130,8 @@ export interface EngineSong {
   drumSlots: number[];
   /** What could not be carried across, for the lab to show. */
   notes: string[];
+  /** A track plays a program only the whole SoundFont has: play after AppEngine.useFullSoundFont(). */
+  needsFullSoundFont: boolean;
 }
 
 const defaultSound = (track: InstrumentType) => getInstrumentConfig(track)?.defaultSoundType ?? '';
@@ -184,7 +191,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   c.push(['setBpm', song.bpm], ['setMeter', slotsPerBar, stepsPerBeat]);
   // The song's own swing if it has one (the app's Straight/Light/Shuffle chip), else its
   // rhythm's feel — both as the engine's ratio between the two halves of the beat.
-  c.push(['setSwing', song.swing ?? styleSwingRatio(songStyle)]);
+  c.push(['setSwing', song.swing ?? (songStyle.engine ? songStyle.engine.swing ?? 1 : styleSwingRatio(songStyle))]);
 
   let steps = 0;
   const chordSteps: number[][] = [];
@@ -215,10 +222,31 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
   const click = song.click ?? DEFAULT_CLICK;
   // The click's own recording has to be loaded like any other (the beep is the engine's own).
   const drumSlots = new Set<number>(click.sound >= SAMPLED_FIRST ? [click.sound - SAMPLED_FIRST] : []);
+  const programsOutsideShortFont = new Set<number>();
   const arpeggioTracks = new Set<string>();
   sections.forEach((section, s) => {
     const playback = resolveSectionPlayback(section, songStyle, lookup);
     const style = playback?.style ?? songStyle;
+    // A rhythm of the app's plays as the app wrote it (fromAppStyle.ts), and so does a part of
+    // one's intro or ending; the kit's sounds and the register come with it.
+    const partStyle = section.stylePart ? getAppStyle(section.stylePart.styleId) : undefined;
+    const part = partOf(partStyle, section);
+    const app = part ? partStyle : style.engine;
+    const drumSetting = instruments.find((inst) => inst.id === 'drums');
+    const kitRows = kits[getSoundType('drums', playback?.sounds?.drums ?? drumSetting?.soundTypeId ?? defaultSound('drums'))?.kit ?? DEFAULT_KIT]?.rows;
+    if (part && partStyle) {
+      writeAppPart(c, s, partStyle, part, kitRows, drumSlots);
+    } else if (style.engine) {
+      writeAppStyle(c, s, style.engine, section.variation === 1 ? 1 : 0, kitRows, drumSlots);
+    } else {
+      writeWebStyle(s, style, playback);
+    }
+    writeSounds(s, playback, !!app);
+  });
+
+  /** A section on one of the web's own rhythms: its bars as generateBarPattern renders them. */
+  function writeWebStyle(s: number, style: StylePattern, playback: ReturnType<typeof resolveSectionPlayback>) {
+    const section = sections[s];
     const loopBars = engineBars(style.loopBars ?? 1);
     if ((style.loopBars ?? 1) === 3) notes.push(`${section.name}: a 3-bar groove plays as 4 bars in the engine`);
     // The bars exactly as the web renders them, fills aside (the engine plays those itself).
@@ -272,14 +300,24 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
         }
       }
     }
+    // The web's rhythms never write the synth or a variation B: whatever a rhythm of the
+    // app's left in this section's slots is cleared, so it cannot sound under this one.
+    c.push(['clearTrack', s, 'synth'], ['setPatternBars', s, 'synth', 1]);
+    clearVariationB(c, s);
+  }
 
-    // Sounds, register and silence.
+  /**
+   * Sounds, register and silence. On a rhythm of the app's the kit's sounds and the register
+   * were written with it (fromAppStyle.ts); the sound each track plays is still the song's.
+   */
+  function writeSounds(s: number, playback: ReturnType<typeof resolveSectionPlayback>, app: boolean) {
     for (const track of TRACKS) {
       const setting = instruments.find((inst) => inst.id === track);
       const soundId = playback?.sounds?.[track] ?? setting?.soundTypeId ?? defaultSound(track);
       const sound = getSoundType(track, soundId);
       if (!sound) notes.push(`${track} sound "${soundId}" is not in the list; it plays the default`);
       c.push(['setSilence', s, track, !!playback?.silenced?.[track]]);
+      if (track === 'drums' && app) continue;
       if (track === 'drums') {
         const kitIndex = sound?.kit ?? DEFAULT_KIT;
         const kit = kits[kitIndex] ?? kits[DEFAULT_KIT];
@@ -295,6 +333,8 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
       const voice = sound ?? getSoundType(track, defaultSound(track));
       c.push(['setTimbre', s, track, soundTimbre(voice)]);
       if (voice?.program !== undefined) c.push(['setProgram', s, track, voice.program]);
+      if (voice?.program !== undefined && !SHORT_FONT_PROGRAMS.has(voice.program)) programsOutsideShortFont.add(voice.program);
+      if (app) continue;
       // The web writes every chord with its root in the octave from C4, then moves the
       // sound by its octaveOffset (a bass sits one to three octaves down). The engine puts
       // the root at the bottom of the track's window, so the window starts there.
@@ -304,34 +344,47 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
       const low = 60 + 12 * (voice?.octaveOffset ?? 0);
       c.push(['voicing', s, track, low, low + 23]);
     }
-  });
+  }
   if (arpeggioTracks.size) notes.push(`arpeggios on ${[...arpeggioTracks].join(' and ')} play as block chords (no built-in style arpeggiates; only a custom one can)`);
 
   // ── The mix ──
   const mix = getMix();
   const volumes = songStyle.volumes as Record<string, number | undefined>;
+  const appMix = songStyle.engine;
   for (const track of TRACKS) {
     const setting = instruments.find((inst) => inst.id === track);
-    const styleVolume = volumes[track] ?? (track === 'guitar' ? volumes.piano : undefined) ?? 1;
-    // Then the sound itself: what it takes to be heard at the level of the track's own
-    // reference sound (docs/sonidos-comunes.md §7f, measured by npm run lab:gains), so
-    // changing sound changes the timbre and not the level. The engine has one fader per
-    // track, so a section that swaps the sound for itself keeps the mixer's.
     const soundId = setting?.soundTypeId ?? defaultSound(track);
-    const level = (setting?.volume ?? 1) * styleVolume * TRACK_TRIM[track] * relativeSoundGain(track, soundId);
+    let level: number;
+    if (appMix) {
+      // A rhythm of the app's comes with the app's own mix, which the engine plays as it is:
+      // the fader moves it from there, the default fader leaving it untouched.
+      level = (appMix.volumes[track] ?? 0.7) * ((setting?.volume ?? FADER_DEFAULT) / FADER_DEFAULT);
+    } else {
+      const styleVolume = volumes[track] ?? (track === 'guitar' ? volumes.piano : undefined) ?? 1;
+      // Then the sound itself: what it takes to be heard at the level of the track's own
+      // reference sound (docs/sonidos-comunes.md §7f, measured by npm run lab:gains), so
+      // changing sound changes the timbre and not the level. The engine has one fader per
+      // track, so a section that swaps the sound for itself keeps the mixer's.
+      level = (setting?.volume ?? 1) * styleVolume * TRACK_TRIM[track] * relativeSoundGain(track, soundId);
+    }
     const volume = Math.max(0, Math.min(1, level));
     const audible = setting ? isInstrumentAudible(setting, instruments) : true;
     c.push(['mixer', track, volume, !audible]);
   }
   c.push(['mixer', 'master', mix.master, false]);
-  for (const track of TRACKS) c.push(['pan', track, mix.pan[track]]);
+  // The rhythm's own placement, until the mixer's pans are moved.
+  const pans = appMix && isMixDefault() ? appMix.pans : mix.pan;
+  for (const track of TRACKS) c.push(['pan', track, pans[track] ?? mix.pan[track]]);
   // The same command carries the count-in, which the engine clicks with these settings too.
   c.push(['metronome', !!song.metronomeEnabled, click.volume, click.sound, click.accent, click.division]);
   // Dry, as the web always played (the mixer's reverb starts off, effects.ts), where the
   // engine's own default is a large room: left on, every note rang on for half a second.
   c.push(['reverb', 0.7, 0]);
 
-  return { commands: c, steps, chordSteps, sectionIndex, drumSlots: [...drumSlots].sort((a, b) => a - b), notes: [...noted] };
+  return {
+    commands: c, steps, chordSteps, sectionIndex, drumSlots: [...drumSlots].sort((a, b) => a - b), notes: [...noted],
+    needsFullSoundFont: programsOutsideShortFont.size > 0,
+  };
 }
 
 /**

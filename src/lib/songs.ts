@@ -124,7 +124,7 @@ export interface SongMixer {
   strips: Partial<Record<InstrumentType, SongStrip>>;
 }
 
-const MIX_TRACKS: InstrumentType[] = ['drums', 'piano', 'guitar', 'bass'];
+const MIX_TRACKS: InstrumentType[] = ['drums', 'piano', 'guitar', 'bass', 'synth'];
 const num = (v: unknown, min: number, max: number): number | undefined =>
   typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : undefined;
 
@@ -146,7 +146,7 @@ export function songMixer(song: unknown): Partial<SongMixer> {
       const value = num((json.pan as Record<string, unknown>)[track], -1, 1);
       if (value !== undefined) pan[track] = value;
     }
-    if (Object.keys(pan).length) out.pan = { drums: 0, piano: 0, guitar: 0, bass: 0, ...pan };
+    if (Object.keys(pan).length) out.pan = { drums: 0, piano: 0, guitar: 0, bass: 0, synth: 0, ...pan };
   }
   if (json.strips && typeof json.strips === 'object') {
     const strips: Partial<Record<InstrumentType, SongStrip>> = {};

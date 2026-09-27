@@ -243,6 +243,75 @@
   },
   "reference": "pick"
  },
+ "synth": {
+  "default": "saw-lead",
+  "sounds": [
+   {
+    "id": "saw-lead",
+    "name": "Saw lead",
+    "program": 81,
+    "octaveOffset": 0,
+    "gainDb": 0
+   },
+   {
+    "id": "square-lead",
+    "name": "Square lead",
+    "program": 80,
+    "octaveOffset": 0,
+    "gainDb": 0
+   },
+   {
+    "id": "pad",
+    "name": "Pad",
+    "program": 89,
+    "octaveOffset": 0,
+    "gainDb": 0
+   },
+   {
+    "id": "strings",
+    "name": "Strings",
+    "program": 48,
+    "octaveOffset": 0,
+    "gainDb": 0
+   },
+   {
+    "id": "synth-strings",
+    "name": "Synth strings",
+    "program": 50,
+    "octaveOffset": 0,
+    "gainDb": 0
+   },
+   {
+    "id": "brass",
+    "name": "Brass",
+    "program": 61,
+    "octaveOffset": 0,
+    "gainDb": 0
+   },
+   {
+    "id": "saw",
+    "name": "Saw",
+    "timbre": 5,
+    "octaveOffset": 0,
+    "gainDb": 0
+   },
+   {
+    "id": "square",
+    "name": "Square syn.",
+    "timbre": 12,
+    "octaveOffset": 0,
+    "gainDb": 0
+   },
+   {
+    "id": "pad-syn",
+    "name": "Pad syn.",
+    "timbre": 4,
+    "octaveOffset": 0,
+    "gainDb": 0
+   }
+  ],
+  "legacy": {}
+ },
  "drums": {
   "default": "acoustic",
   "sounds": [

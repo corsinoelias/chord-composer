@@ -14,7 +14,7 @@
 import { TIMBRE } from './appEngine/commands';
 import gainTable from './soundGains.json';
 
-export type InstrumentType = 'piano' | 'bass' | 'drums' | 'guitar';
+export type InstrumentType = 'piano' | 'bass' | 'drums' | 'guitar' | 'synth';
 
 export interface InstrumentConfig {
   id: InstrumentType;
@@ -104,6 +104,24 @@ export const INSTRUMENTS: InstrumentConfig[] = [
     ],
   },
   {
+    // The app's fourth melodic track: leads, pads, strings and brass over the band. The web's
+    // own rhythms leave it silent; the app's rhythms and the rhythm library write it.
+    id: 'synth',
+    name: 'Synth',
+    defaultSoundType: 'saw-lead',
+    soundTypes: [
+      { id: 'saw-lead', name: 'Saw lead', program: 81, octaveOffset: 0 },
+      { id: 'square-lead', name: 'Square lead', program: 80, octaveOffset: 0 },
+      { id: 'pad', name: 'Pad', program: 89, octaveOffset: 0 },
+      { id: 'strings', name: 'Strings', program: 48, octaveOffset: 0 },
+      { id: 'synth-strings', name: 'Synth strings', program: 50, octaveOffset: 0 },
+      { id: 'brass', name: 'Brass', program: 61, octaveOffset: 0 },
+      { id: 'saw', name: 'Saw', timbre: 5, octaveOffset: 0 },
+      { id: 'square', name: 'Square syn.', timbre: 12, octaveOffset: 0 },
+      { id: 'pad-syn', name: 'Pad syn.', timbre: 4, octaveOffset: 0 },
+    ],
+  },
+  {
     id: 'drums',
     name: 'Drums',
     // The kits are all recorded, and already level with each other (the app's drum_gains.dart),
@@ -154,10 +172,12 @@ export const LEGACY_SOUND_IDS: Record<InstrumentType, Record<string, string>> = 
     standard: 'acoustic2', analog: 'acoustic2', lofi: 'acoustic2', punch: 'electronic',
     rock: 'acoustic2', jazz: 'acoustic', electronic: 'electronic',
   },
+  synth: {},
 };
 
 /** The id a sound saved before the shared list plays as; unknown ids fall back to the default. */
 export function migrateSoundId(instrumentId: InstrumentType, soundTypeId: string): string {
+  if (gmProgramOf(soundTypeId) !== null) return soundTypeId;
   const mapped = LEGACY_SOUND_IDS[instrumentId]?.[soundTypeId];
   if (mapped) return mapped;
   const instrument = getInstrumentConfig(instrumentId);
@@ -169,7 +189,42 @@ export function getInstrumentConfig(id: InstrumentType): InstrumentConfig | unde
   return INSTRUMENTS.find(i => i.id === id);
 }
 
+/**
+ * Any instrument of the whole SoundFont, by program (the General MIDI number plus 128 × the
+ * bank): what "All sounds…" picks, and what a rhythm of the app's asks for when its sound is
+ * not one of the list's. Played from the whole font (AppEngine.useFullSoundFont) unless the
+ * short one happens to carry that program.
+ */
+export const gmSoundId = (program: number) => `gm:${program}`;
+export function gmProgramOf(soundTypeId: string): number | null {
+  const match = /^gm:(\d+)$/.exec(soundTypeId);
+  return match ? Number(match[1]) : null;
+}
+
+/** The SoundFont's own names for its instruments, once presets.json has been read. */
+const presetNames = new Map<number, string>();
+export function rememberPresetNames(list: [number, string][]): void {
+  for (const [program, name] of list) presetNames.set(program, name);
+}
+export const presetName = (program: number) =>
+  presetNames.get(program) ?? `Program ${(program % 128) + 1}${program >= 128 ? ` (bank ${program >> 7})` : ''}`;
+
+/** The list's own sound for [program] on [instrumentId], when it has one. */
+export function listedSoundFor(instrumentId: InstrumentType, program: number): SoundType | undefined {
+  return getInstrumentConfig(instrumentId)?.soundTypes.find((s) => s.program === program && !s.recorded);
+}
+
+/** The sound id that plays [program] on [instrumentId]: the list's own, or the SoundFont's. */
+export function soundIdForProgram(instrumentId: InstrumentType, program: number): string {
+  return listedSoundFor(instrumentId, program)?.id ?? gmSoundId(program);
+}
+
 export function getSoundType(instrumentId: InstrumentType, soundTypeId: string): SoundType | undefined {
+  const program = gmProgramOf(soundTypeId);
+  if (program !== null) {
+    // In the register the track's own sounds play: the bass low, the rest from middle C.
+    return { id: soundTypeId, name: presetName(program), program, octaveOffset: instrumentId === 'bass' ? -2 : 0 };
+  }
   const instrument = getInstrumentConfig(instrumentId);
   return instrument?.soundTypes.find(s => s.id === soundTypeId)
     ?? instrument?.soundTypes.find(s => s.id === LEGACY_SOUND_IDS[instrumentId]?.[soundTypeId]);

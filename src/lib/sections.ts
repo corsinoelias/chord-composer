@@ -9,8 +9,8 @@ import type { StylePattern, ArpeggioCell } from './styles';
 import type { ScaleVariation } from './bassScale';
 
 /** The four tracks a section can treat differently from the song. */
-export type TrackId = 'drums' | 'bass' | 'piano' | 'guitar';
-export const TRACK_IDS: TrackId[] = ['drums', 'bass', 'piano', 'guitar'];
+export type TrackId = 'drums' | 'bass' | 'piano' | 'guitar' | 'synth';
+export const TRACK_IDS: TrackId[] = ['drums', 'bass', 'piano', 'guitar', 'synth'];
 
 /**
  * One track's groove, written by hand for one section (see docs/plan-paridad-web-app.md,
@@ -47,6 +47,17 @@ export interface Section {
   silenced?: Partial<Record<TrackId, boolean>>;
   /** A different sound for a track in this section, by InstrumentConfig sound type id. */
   sounds?: Partial<Record<TrackId, string>>;
+  // ── A rhythm of the app's (appStyles.ts) ─────────
+  /**
+   * Which of the rhythm's two variations this section plays, as a home keyboard's VARIATION
+   * button: 0 (or absent) A, 1 B. Only rhythms that have a B offer it; the app keeps the same.
+   */
+  variation?: 0 | 1;
+  /**
+   * This section is a part of a rhythm's intro or ending, added with it ("Add intro and
+   * ending"): it plays that part's own patterns over its own chords, in the song's key.
+   */
+  stylePart?: { styleId: string; kind: 'intro' | 'ending'; index: number };
 }
 
 /** Whether a section changes anything about how the song is arranged. */

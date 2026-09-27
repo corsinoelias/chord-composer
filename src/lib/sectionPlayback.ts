@@ -41,6 +41,7 @@ const ROWS: Record<TrackId, readonly string[]> = {
   bass: ['bass'],
   piano: ['piano'],
   guitar: ['guitar'],
+  synth: ['synth'],
 };
 
 /** Repeats a pattern row written for `fromBars` bars until it covers `toBars`. */

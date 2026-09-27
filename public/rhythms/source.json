@@ -1,0 +1,15 @@
+{
+  "note": "Written by npm run rhythms:sync. Do not edit by hand.",
+  "app": "9459e040153626930ab4c5f2641ba260628d75eb",
+  "syncedAt": "2026-09-27T16:07:46.401Z",
+  "library": 177,
+  "styles": [
+    "app-salsa",
+    "app-bachata",
+    "app-bolero",
+    "app-norteno",
+    "app-worship",
+    "app-afrobeat",
+    "app-trap"
+  ]
+}

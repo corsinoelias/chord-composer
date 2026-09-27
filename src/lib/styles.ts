@@ -10,6 +10,7 @@
  * 
  * X = Strong hit (1.0), x = Ghost note (0.5), - = Silence (0)
  */
+import { appStylePattern, getAppStyle, isAppStyleId } from './appStyles';
 
 // Arpeggio types and settings
 export type ArpeggioType = 'up' | 'down' | 'updown' | 'random';
@@ -112,6 +113,11 @@ export interface StylePattern {
   instrumentSounds?: InstrumentSounds;
   // Melodic scale patterns for bass, piano, guitar (per-style variations)
   melodic?: import('./bassScale').MelodicData;
+  /**
+   * A rhythm of the app's (appStyles.ts): written for its engine, which plays it as it is. The
+   * web's own grids above are empty for one of these.
+   */
+  engine?: import('./appStyles').AppStyle;
 }
 
 // Convert slot (0-15) to beat position (0-3.9375)
@@ -1398,8 +1404,15 @@ export const MUSICAL_STYLES: StylePattern[] = [
  * Optionally pass custom styles to also search in them
  */
 export function getStyleById(id: string, customStyles: StylePattern[] = []): StylePattern | undefined {
-  // First check custom styles, then built-in
-  return customStyles.find(s => s.id === id) || MUSICAL_STYLES.find(s => s.id === id);
+  // First check custom styles, then built-in, then the app's rhythms once they are loaded
+  return customStyles.find(s => s.id === id) || MUSICAL_STYLES.find(s => s.id === id) || appStyleById(id);
+}
+
+/** One of the app's rhythms as a style, when it has been loaded (appStyles.ensureAppStyles). */
+function appStyleById(id: string): StylePattern | undefined {
+  if (!isAppStyleId(id)) return undefined;
+  const style = getAppStyle(id);
+  return style ? appStylePattern(style) : undefined;
 }
 
 /**
@@ -1413,7 +1426,7 @@ export function getStyleByIdWithOverrides(
 ): StylePattern | undefined {
   const override = overrideGetter(id);
   if (override) return override;
-  return customStyles.find(s => s.id === id) || MUSICAL_STYLES.find(s => s.id === id);
+  return customStyles.find(s => s.id === id) || MUSICAL_STYLES.find(s => s.id === id) || appStyleById(id);
 }
 
 /**
