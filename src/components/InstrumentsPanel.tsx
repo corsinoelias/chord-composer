@@ -1,9 +1,10 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { type InstrumentState, getInstrumentConfig } from '@/lib/instruments';
+import { type InstrumentState, getInstrumentConfig, getSoundType, gmProgramOf, soundIdForProgram } from '@/lib/instruments';
+import { AllSoundsDialog } from './AllSoundsDialog';
 import { type StylePattern, type InstrumentSounds } from '@/lib/styles';
-import { Piano, Guitar, Drum, Music, X } from 'lucide-react';
+import { Piano, Guitar, Drum, Music, X, AudioWaveform, ListMusic } from 'lucide-react';
 import { type NoteLengths } from '@/lib/noteLengths';
 
 type MelodicId = keyof NoteLengths;
@@ -36,6 +37,7 @@ const instrumentIcons: Record<string, typeof Piano> = {
   bass: Music,
   drums: Drum,
   guitar: Guitar,
+  synth: AudioWaveform,
 };
 
 // Memoized individual instrument card to prevent re-renders
@@ -55,6 +57,9 @@ const InstrumentCard = memo(function InstrumentCard({
   onNoteLength?: (id: MelodicId, steps: number | undefined) => void;
 }) {
   const config = getInstrumentConfig(inst.id);
+  const [allSoundsOpen, setAllSoundsOpen] = useState(false);
+  // A sound from "All sounds…" is not one of the list's: it is shown at the top of it.
+  const extraSound = gmProgramOf(inst.soundTypeId) !== null ? getSoundType(inst.id, inst.soundTypeId) : undefined;
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onUpdate(inst.id, { volume: parseInt(e.target.value, 10) / 100 });
@@ -129,6 +134,7 @@ const InstrumentCard = memo(function InstrumentCard({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="z-50">
+            {extraSound && <SelectItem value={extraSound.id}>{extraSound.name}</SelectItem>}
             {config.soundTypes.map(sound => (
               <SelectItem key={sound.id} value={sound.id}>
                 {sound.name}
@@ -137,6 +143,27 @@ const InstrumentCard = memo(function InstrumentCard({
             ))}
           </SelectContent>
         </Select>
+        {inst.id !== 'drums' && (
+          <>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 self-start border-0 bg-transparent p-0 text-xs font-semibold"
+              style={{ color: 'var(--cp-act)' }}
+              onClick={() => setAllSoundsOpen(true)}
+              disabled={inst.muted}
+            >
+              <ListMusic size={14} />All sounds…
+            </button>
+            <AllSoundsDialog
+              open={allSoundsOpen}
+              onOpenChange={setAllSoundsOpen}
+              track={inst.id}
+              trackName={config.name}
+              currentSoundId={inst.soundTypeId}
+              onPick={(program) => onUpdate(inst.id, { soundTypeId: soundIdForProgram(inst.id, program) })}
+            />
+          </>
+        )}
       </div>
 
       {inst.id !== 'drums' && onNoteLength && (

@@ -69,6 +69,8 @@ interface SectionCardProps {
   songKey?: DetectedKey | null;
   /** Beats in a bar: a chord takes one grid column per bar it lasts. */
   beatsPerBar?: number;
+  /** Plays variation A (0) or B (1) of its rhythm: offered when the rhythm has a B. */
+  onSectionVariationChange?: (sectionIndex: number, variation: 0 | 1) => void;
 }
 
 /**
@@ -111,6 +113,7 @@ export const SectionCard = memo(function SectionCard({
   songSounds,
   songKey = null,
   beatsPerBar = 4,
+  onSectionVariationChange,
 }: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
@@ -262,6 +265,30 @@ export const SectionCard = memo(function SectionCard({
         )}
 
         <div className="flex-grow" />
+
+        {/* A and B, as a home keyboard's VARIATION button: only a rhythm of the app's has a B.
+            While this section sounds, the change goes through the fill at the bar line. */}
+        {onSectionVariationChange && style?.engine?.b && !section.stylePart && (
+          <div className="flex overflow-hidden rounded-full" role="group" aria-label={`${section.name} variation`} style={{ border: '1px solid var(--cp-ln)' }}>
+            {([0, 1] as const).map((v) => {
+              const on = (section.variation ?? 0) === v;
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => onSectionVariationChange(sectionIndex, v)}
+                  aria-pressed={on}
+                  aria-label={`${section.name} plays variation ${v === 0 ? 'A' : 'B'}`}
+                  title={v === 0 ? 'Variation A' : 'Variation B'}
+                  className="h-7 w-7 border-0 text-xs font-bold"
+                  style={on ? { background: 'var(--cp-ac)', color: '#fff' } : { background: 'transparent', color: 'var(--cp-mu)' }}
+                >
+                  {v === 0 ? 'A' : 'B'}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <button
           className="cp-rep"

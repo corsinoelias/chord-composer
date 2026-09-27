@@ -55,6 +55,8 @@ const CHANNELS: { id: InstrumentType; name: string; color: string }[] = [
   { id: 'piano', name: 'Piano', color: '#E8B93E' },
   { id: 'guitar', name: 'Guitar', color: '#34C3B0' },
   { id: 'bass', name: 'Bass', color: '#8C7AE6' },
+  // Bus 4, after the bass: the app's fourth melodic track, which its rhythms write.
+  { id: 'synth', name: 'Synth', color: '#DD3C71' },
 ];
 
 const dbOf = (volume: number) =>
@@ -588,7 +590,7 @@ export function MixingConsole({ open, onOpenChange, instruments = [], onInstrume
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
           {/* The console: a strip per instrument, then the master */}
-          <div className="grid grid-cols-5 gap-1 px-2 pb-3 pt-3.5" style={cardStyle}>
+          <div className="grid grid-cols-6 gap-1 px-2 pb-3 pt-3.5" style={cardStyle}>
             {CHANNELS.map((ch, bus) => {
               const inst = instruments.find((i) => i.id === ch.id);
               if (!inst) return <div key={ch.id} />;

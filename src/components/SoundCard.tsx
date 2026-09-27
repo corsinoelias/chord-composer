@@ -1,12 +1,14 @@
 import { memo } from 'react';
 import { LayoutGrid, Plus, SlidersHorizontal } from 'lucide-react';
-import { StyleSelector } from './StyleSelector';
+import { StyleSelector, type AppStyleApply } from './StyleSelector';
 import { type StylePattern } from '@/lib/styles';
 
 interface SoundCardProps {
   selectedStyleId: string;
   customStyles: StylePattern[];
-  onStyleChange: (styleId: string) => void;
+  onStyleChange: (styleId: string, apply?: AppStyleApply) => void;
+  /** The song's tempo, for a rhythm of the app's to ask whether it should take its own. */
+  songBpm?: number;
   onOpenInstruments: () => void;
   onOpenRhythmEditor: () => void;
   onCreateNewRhythm?: () => void;
@@ -27,6 +29,7 @@ export const SoundCard = memo(function SoundCard({
   selectedStyleId,
   customStyles,
   onStyleChange,
+  songBpm,
   onOpenInstruments,
   onOpenRhythmEditor,
   onCreateNewRhythm,
@@ -56,6 +59,8 @@ export const SoundCard = memo(function SoundCard({
           onStyleChange={onStyleChange}
           customStyles={customStyles}
           onCreateNew={onCreateNewRhythm}
+          showAppStyles
+          songBpm={songBpm}
           variant="card"
         />
       </div>

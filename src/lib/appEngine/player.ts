@@ -25,7 +25,7 @@ const SONG_SECTIONS = 30;
  * which drops whatever the SoundFont was holding: toggling the click or a repeat used to cut
  * the chord that was ringing, because it went round by the same road as an edit.
  */
-const LIVE = new Set<EngineCommand[0]>(['mixer', 'pan', 'metronome', 'setBpm', 'setSwing']);
+const LIVE = new Set<EngineCommand[0]>(['mixer', 'pan', 'metronome', 'setBpm', 'setSwing', 'setVariation']);
 
 /** Where the song is, in the web engine's terms. */
 export interface AppPosition {
@@ -176,6 +176,7 @@ export class AppPlayback {
     // The mixer's effects go after the song, which starts dry.
     e.load([...this.built.commands, ...effectsCommands()]);
     this.sentSong = songPart(this.built.commands);
+    this.rememberVariations(this.built.commands);
     e.send([['loopOnly', this.engineSection(input.loopingSectionIndex)]]);
     this.unsubscribe?.();
     this.stopVocal();
@@ -237,6 +238,7 @@ export class AppPlayback {
       return;
     }
     this.sentSong = song;
+    this.rememberVariations(this.built.commands);
     await e.ensureSlots(this.built.drumSlots);
     if (this.built.needsFullSoundFont) await e.useFullSoundFont();
     // Clearing a track drops its voices without telling the SoundFont, whose notes then ring
@@ -252,14 +254,31 @@ export class AppPlayback {
 
   /**
    * Everything about the song that can change without the song changing: the mix, the click,
-   * the tempo, the feel and which part repeats. Sent on their own whenever nothing else moved,
-   * so a note that is ringing goes on ringing.
+   * the tempo, the feel, which part repeats and which variation each part plays. Sent on their
+   * own whenever nothing else moved, so a note that is ringing goes on ringing.
+   *
+   * A variation changed on the part that is sounding goes the way a home keyboard's VARIATION
+   * button does, and the app's: through the new variation's fill and into it at the bar line
+   * (switchVariation), on the engine's clock. Anywhere else it simply is that variation.
    */
   private liveCommands(input: AppSong): EngineCommand[] {
-    return [
-      ...(this.built?.commands ?? []).filter((c) => LIVE.has(c[0])),
-      ['loopOnly', this.engineSection(input.loopingSectionIndex)],
-    ];
+    const sounding = this.latest?.playing ? this.latest.section : -1;
+    const live = (this.built?.commands ?? []).filter((c) => LIVE.has(c[0])).map((c): EngineCommand => {
+      if (c[0] !== 'setVariation') return c;
+      const [, section, bank] = c;
+      const before = this.sentVariations.get(section);
+      this.sentVariations.set(section, bank);
+      return section === sounding && before !== undefined && before !== bank ? ['switchVariation', bank] : c;
+    });
+    return [...live, ['loopOnly', this.engineSection(input.loopingSectionIndex)]];
+  }
+
+  /** The variation each engine section was last told to play. */
+  private sentVariations = new Map<number, number>();
+
+  private rememberVariations(commands: EngineCommand[]): void {
+    this.sentVariations.clear();
+    for (const c of commands) if (c[0] === 'setVariation') this.sentVariations.set(c[1], c[2]);
   }
 
   send(commands: EngineCommand[]): void {

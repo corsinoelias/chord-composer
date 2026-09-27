@@ -13,7 +13,7 @@
     "createdAt": { "type": "string" },
     "updatedAt": { "type": "string" },
     "bpm": { "type": "number", "minimum": 20, "maximum": 300 },
-    "styleId": { "type": "string", "description": "A style id from shared/catalog/styles.json, a user style ('custom_…', in user_settings), or an alias from aliases.json." },
+    "styleId": { "type": "string", "description": "A style id from shared/catalog/styles.json, a user style ('custom_…', in user_settings), an alias from aliases.json, or one of the app's rhythms: 'lib-<n>' (the rhythm library) or 'app-<id>' (the app's own styles), both in public/rhythms/." },
     "transposition": { "type": "integer", "minimum": -12, "maximum": 12 },
     "metronomeEnabled": { "type": "boolean" },
     "instrumentSettings": {
@@ -43,7 +43,7 @@
     }
   },
   "definitions": {
-    "track": { "enum": ["drums", "bass", "piano", "guitar"] },
+    "track": { "enum": ["drums", "bass", "piano", "guitar", "synth"] },
     "chord": {
       "type": "object",
       "required": ["root", "accidental", "quality", "duration"],
@@ -85,7 +85,18 @@
         "trackStyles": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "string" } },
         "patterns": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "$ref": "#/definitions/trackPattern" } },
         "silenced": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "boolean" } },
-        "sounds": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "string" } }
+        "sounds": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "string" } },
+        "variation": { "enum": [0, 1], "description": "Which variation of the rhythm the section plays: 0 (or absent) A, 1 B. Only the app's rhythms (lib-N, app-id) have a B." },
+        "stylePart": {
+          "type": "object",
+          "description": "This section is a part of a rhythm's intro or ending, added with it: it plays that part's own patterns.",
+          "required": ["styleId", "kind", "index"],
+          "properties": {
+            "styleId": { "type": "string" },
+            "kind": { "enum": ["intro", "ending"] },
+            "index": { "type": "integer", "minimum": 0 }
+          }
+        }
       }
     }
   }

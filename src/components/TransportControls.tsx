@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { KeyControl } from './KeyControl';
-import { StyleSelector } from './StyleSelector';
+import { StyleSelector, type AppStyleApply } from './StyleSelector';
 import { type DetectedKey, type KeyMode } from '@/lib/keyDetect';
 import { type Section } from '@/lib/sections';
 import { type StylePattern } from '@/lib/styles';
@@ -85,7 +85,7 @@ interface TransportControlsProps {
 
   selectedStyleId: string;
   customStyles: StylePattern[];
-  onStyleChange: (styleId: string) => void;
+  onStyleChange: (styleId: string, apply?: AppStyleApply) => void;
 
   onOpenMixer: () => void;
   onOpenLibrary: () => void;
@@ -205,6 +205,8 @@ export const TransportControls = memo(function TransportControls(props: Transpor
           onStyleChange={onStyleChange}
           customStyles={customStyles}
           onCreateNew={onNewRhythm}
+          showAppStyles
+          songBpm={bpm}
           variant="pill"
         />
       </div>

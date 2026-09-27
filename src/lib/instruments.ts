@@ -283,3 +283,12 @@ export function isInstrumentAudible(instrument: InstrumentState, allInstruments:
 
   return true;
 }
+
+/**
+ * Every track of the list, the ones [states] names as it has them: a song saved before the
+ * synth was a track has none, and the mixer and the instruments panel need one to show.
+ */
+export function completeInstrumentStates(states: InstrumentState[]): InstrumentState[] {
+  const defaults = getDefaultInstrumentStates();
+  return [...states, ...defaults.filter((d) => !states.some((s) => s.id === d.id))];
+}

@@ -22,7 +22,10 @@ import { type Chord, generateChordId, chordToMidiNotes } from '@/lib/musicTheory
 import { type Section, createSection, getSectionDisplayName, sectionHasArrangement } from '@/lib/sections';
 import { detectKey, keyLabel, relativeTonic, type DetectedKey, type KeyMode } from '@/lib/keyDetect';
 import { keyPrefersFlats } from '@/lib/musicKeys';
-import { getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
+import { completeInstrumentStates, getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
+import { ensureAppStyles, getAppStyle, songUsesAppStyles } from '@/lib/appStyles';
+import { appStyleInstruments, withAppStyleParts } from '@/lib/appStyleSong';
+import { type AppStyleApply } from '@/components/StyleSelector';
 import { getStyleByIdWithOverrides, resolveActiveStyle, MUSICAL_STYLES, getSlotsPerBar, type StylePattern } from '@/lib/styles';
 import { getCustomStyles, getStyleOverride, saveStyleOverride, saveCustomStyle, isCustomStyle, initCustomStylesCache } from '@/lib/customStyles';
 import { playChordPreview } from '@/lib/appEngine/preview';
@@ -118,6 +121,12 @@ const editorSignature = (s: {
   transposition: number;
   metronomeEnabled: boolean;
 }) => JSON.stringify([s.title, s.sections, s.bpm, s.styleId, s.transposition, s.metronomeEnabled]);
+
+/**
+ * The app's rhythms play as the app wrote them, on grids the web's editor cannot show yet:
+ * opening it on one would show an empty grid whose edits are never heard, so it says so.
+ */
+const APP_RHYTHM_NOT_EDITABLE = "This rhythm plays as the app wrote it. Editing it here isn't available yet: pick one of the web's rhythms to edit its grid.";
 
 const Index = ({ songId }: IndexProps) => {
   const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
@@ -228,7 +237,7 @@ const Index = ({ songId }: IndexProps) => {
     return allStyles.find(s => s.id === initialId)?.bpm ?? 100;
   });
   const [instruments, setInstruments] = useState<InstrumentState[]>(
-    () => restoredDraft?.instruments ?? getDefaultInstrumentStates(),
+    () => completeInstrumentStates(restoredDraft?.instruments ?? getDefaultInstrumentStates()),
   );
   const [songTitle, setSongTitle] = useState(() => {
     if (restoredDraft) return restoredDraft.title;
@@ -311,10 +320,23 @@ const Index = ({ songId }: IndexProps) => {
   liveEditedStyleRef.current = liveEditedStyle;
   customStylesRef.current = customStyles;
 
+  // The app's rhythms are read from their file the first time a song names one; until then
+  // the style stands in for it, and this brings the real one in once it is there.
+  const [appStylesLoaded, setAppStylesLoaded] = useState(0);
+  useEffect(() => {
+    if (!songUsesAppStyles(sections, selectedStyleId)) return;
+    ensureAppStyles().then(() => setAppStylesLoaded((n) => n + 1)).catch(() => toast.error('Could not load the rhythm library.'));
+  }, [sections, selectedStyleId]);
+
   const currentStyle = useMemo(
     () => resolveActiveStyle(selectedStyleId, liveEditedStyle, customStyles, getStyleOverride),
-    [selectedStyleId, customStyles, liveEditedStyle],
+    // appStylesLoaded: the same id resolves to the app's rhythm once the list is in.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedStyleId, customStyles, liveEditedStyle, appStylesLoaded],
   );
+
+  const currentStyleRef = useRef(currentStyle);
+  currentStyleRef.current = currentStyle;
 
   // Keep melodicRef in sync so startPlayback always gets the current melodic data
   const melodicRef = useRef(currentStyle.melodic);
@@ -327,6 +349,9 @@ const Index = ({ songId }: IndexProps) => {
   // The reading in force: the user's pick if they made one, otherwise what was heard.
   // Its pitchClass is the tonic of the chords as stored, before transposition.
   const keyBase = keyOverride ?? detectedKey;
+  // For a rhythm's intro and ending, which are written into the key the song is in.
+  const keyBaseRef = useRef(keyBase);
+  keyBaseRef.current = keyBase;
   const soundingKey = keyBase ? keyLabel(keyBase.pitchClass + transposition, keyBase.mode) : undefined;
 
   const handleKeyModeChange = useCallback((mode: KeyMode) => {
@@ -441,7 +466,7 @@ const Index = ({ songId }: IndexProps) => {
           loadSongMixer(songMixer(song));
           setSongTitle(song.title);
           if (song.instrumentSettings.length > 0) {
-            setInstruments(song.instrumentSettings);
+            setInstruments(completeInstrumentStates(song.instrumentSettings));
           }
           if (isOwner) {
             setCurrentSongId(song.id);
@@ -1349,9 +1374,19 @@ const Index = ({ songId }: IndexProps) => {
   const handleEditSectionRhythm = useCallback((sectionIndex: number) => {
     const section = sections[sectionIndex];
     if (!section) return;
-    setSectionRhythmEdit({ index: sectionIndex, base: effectiveSectionStyle(section, currentStyle, sectionStyleLookup) });
+    const base = effectiveSectionStyle(section, currentStyle, sectionStyleLookup);
+    if (base.engine || section.stylePart) {
+      toast.info(APP_RHYTHM_NOT_EDITABLE);
+      return;
+    }
+    setSectionRhythmEdit({ index: sectionIndex, base });
     setRhythmEditorOpen(true);
   }, [sections, currentStyle, sectionStyleLookup]);
+
+  /** Variation A or B of the rhythm, for one section: kept with the song, as the app keeps it. */
+  const handleSectionABChange = useCallback((sectionIndex: number, variation: 0 | 1) => {
+    setSections(prev => prev.map((s, i) => i !== sectionIndex ? s : { ...s, variation }));
+  }, []);
 
   const handleSectionVariationChange = useCallback((sectionIndex: number, instrument: 'bass' | 'piano' | 'guitar', variationId: string) => {
     setSections(prev => prev.map((s, i) => i !== sectionIndex ? s : {
@@ -1429,13 +1464,29 @@ const Index = ({ songId }: IndexProps) => {
     }
   }, [isLoggedIn, handleSaveNewSong]);
 
-  const handleStyleChange = useCallback((id: string) => {
+  const handleStyleChange = useCallback((id: string, apply?: AppStyleApply) => {
     setSelectedStyleId(id);
     setLiveEditedStyle(null);
     analytics.styleChanged(id);
+    // One of the app's rhythms brings its band with it, as it does in the app: its sounds,
+    // its tempo unless the song keeps its own, and its intro and ending if asked for.
+    const app = getAppStyle(id);
+    if (!app) return;
+    if (apply?.tempo ?? true) setBpm(app.bpm);
+    setInstruments((prev) => appStyleInstruments(prev, app));
+    const key = keyBaseRef.current;
+    const tonic = key?.pitchClass ?? 0;
+    const minor = key?.mode === 'minor';
+    setSections((prev) => withAppStyleParts(prev, app, apply?.introAndEnding ?? false, {
+      tonic, minor, flats: keyPrefersFlats(keyLabel(tonic, key?.mode ?? 'major')),
+    }));
   }, []);
 
   const handleOpenRhythmEditor = useCallback(() => {
+    if (currentStyleRef.current.engine) {
+      toast.info(APP_RHYTHM_NOT_EDITABLE);
+      return;
+    }
     setLiveEditedStyle(null);
     setEditingNewStyle(null);
     setRhythmEditorOpen(true);
@@ -1679,6 +1730,7 @@ const Index = ({ songId }: IndexProps) => {
                       onEditSectionRhythm={handleEditSectionRhythm}
                       songKey={keyBase}
                       beatsPerBar={getSlotsPerBar(currentStyle) / 4}
+                      onSectionVariationChange={handleSectionABChange}
                     />
                   </div>
                 ))}
@@ -1736,6 +1788,7 @@ const Index = ({ songId }: IndexProps) => {
             selectedStyleId={selectedStyleId}
             customStyles={customStyles}
             onStyleChange={handleStyleChange}
+            songBpm={bpm}
             onOpenInstruments={() => setInstrumentsPanelOpen(true)}
             onOpenRhythmEditor={handleOpenRhythmEditor}
             onCreateNewRhythm={() => setCreateRhythmModalOpen(true)}
