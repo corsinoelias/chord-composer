@@ -26,7 +26,8 @@
     "test:melodic": "tsx tests/melodic/altered-degrees.ts && tsx tests/melodic/melodic-fill.ts",
     "test:groove": "tsx tests/groove/groove.ts && tsx tests/groove/variations.ts && tsx tests/groove/sounds.ts && tsx tests/groove/parts.ts",
     "lab:audition": "node scripts/lab-audition.mjs",
-    "lab:gains": "node scripts/measure-list-gains.mjs"
+    "lab:gains": "node scripts/measure-list-gains.mjs",
+    "variations:export": "tsx scripts/variations-export.ts"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",

@@ -438,7 +438,7 @@ function writeVariation(c: EngineCommand[], s: number, track: MelodicTrack, vari
  * (every tone of the chord) wins, and otherwise the lowest two degrees that sound, each
  * with its octave and its alteration. Shared by a variation and a fill's melodic bar.
  */
-function degreeSlots(data: Pick<MelodicFill, 'pattern' | 'chordHit' | 'octaveOffsets'>): (i: number) => number {
+export function degreeSlots(data: Pick<MelodicFill, 'pattern' | 'chordHit' | 'octaveOffsets'>): (i: number) => number {
   const degrees = degreeKeysOf(data.pattern);
   const octave = (d: DegreeKey) => data.octaveOffsets?.[d] ?? 0;
   const step = (d: DegreeKey) => SCALE_DEGREE_1 + parseDegreeKey(d)!.degree - 1;
