@@ -178,7 +178,7 @@ export const SectionCard = memo(function SectionCard({
     silenced: section.silenced,
     sounds: section.sounds,
   };
-  const summary = availableStyles ? arrangementSummary(arrangement, availableStyles) : null;
+  const summary = availableStyles ? arrangementSummary({ ...arrangement, partSounds: section.partSounds }, availableStyles) : null;
   const canOpenOptions = !!onArrangementChange && !!availableStyles && !!(songStyle ?? style);
 
   // A chord takes a column per bar it lasts; "+ Chord" and "Suggest" fill what is left of

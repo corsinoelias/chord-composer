@@ -55,7 +55,6 @@ import { TransportControls } from '@/components/TransportControls';
 import { ChordEditModal } from '@/components/ChordEditModal';
 import { RhythmEditor } from '@/components/RhythmEditor';
 import { CreateRhythmModal } from '@/components/CreateRhythmModal';
-import { InstrumentsPanel } from '@/components/InstrumentsPanel';
 import { ChordBlock } from '@/components/ChordBlock';
 import { ChordPreviewCard } from '@/components/ChordPreviewCard';
 import { SoundCard } from '@/components/SoundCard';
@@ -285,7 +284,6 @@ const Index = ({ songId }: IndexProps) => {
   const [previewChord, setPreviewChord] = useState<Chord | null>(null);
   const [editingChord, setEditingChord] = useState<{ sectionIndex: number; chordIndex: number; chord: Chord } | null>(null);
   const [addChordSection, setAddChordSection] = useState<{ index: number; name: string } | null>(null);
-  const [instrumentsPanelOpen, setInstrumentsPanelOpen] = useState(false);
   const [rhythmEditorOpen, setRhythmEditorOpen] = useState(false);
   // What the loaded song carries that this editor does not model (the app's key, meter,
   // mixer…). Written back untouched on every save — see unknownSongFields.
@@ -437,7 +435,7 @@ const Index = ({ songId }: IndexProps) => {
       bpm, styleId: selectedStyleId, customStyles, liveEditedStyle,
       melodic: currentStyle.melodic, instruments: editorSounds?.instruments ?? instruments, transposition,
       metronome: metronomeEnabled, loopingSectionIndex,
-      sections: editorDraft ?? sections, noteLengths, swing,
+      sections: editorDraft ?? sections, noteLengths: editorSounds?.noteLengths ?? noteLengths, swing,
       drumSounds: editorSounds?.drumSounds ?? drumSounds,
     });
   }, [
@@ -775,7 +773,7 @@ const Index = ({ songId }: IndexProps) => {
       customStyles: customStylesRef.current,
       loopingSectionIndex: loopIdx,
       melodic: melodicRef.current,
-      noteLengths: noteLengthsRef.current,
+      noteLengths: editorSoundsRef.current?.noteLengths ?? noteLengthsRef.current,
       click: clickRef.current,
       swing: swingRef.current,
       drumSounds: editorSoundsRef.current?.drumSounds ?? drumSoundsRef.current,
@@ -1513,7 +1511,7 @@ const Index = ({ songId }: IndexProps) => {
       customStyles: customStylesRef.current,
       loopingSectionIndex: loopingSectionRef.current,
       melodic: melodicRef.current,
-      noteLengths: noteLengthsRef.current,
+      noteLengths: editorSoundsRef.current?.noteLengths ?? noteLengthsRef.current,
       click: clickRef.current,
     }).catch(() => {});
     setShowCountdown(true);
@@ -1763,7 +1761,6 @@ const Index = ({ songId }: IndexProps) => {
           onOpenMixer={() => setMixingConsoleOpen(true)}
           onOpenLibrary={handleBackToSongs}
           onOpenTemplates={() => setTemplatesModalOpen(true)}
-          onOpenInstruments={() => setInstrumentsPanelOpen(true)}
           onOpenRhythmEditor={handleOpenRhythmEditor}
           onNewRhythm={() => setCreateRhythmModalOpen(true)}
           onExport={handleExport}
@@ -1885,7 +1882,7 @@ const Index = ({ songId }: IndexProps) => {
             customStyles={customStyles}
             onStyleChange={handleStyleChange}
             songBpm={bpm}
-            onOpenInstruments={() => setInstrumentsPanelOpen(true)}
+            onOpenMixer={() => setMixingConsoleOpen(true)}
             onOpenRhythmEditor={handleOpenRhythmEditor}
             onCreateNewRhythm={() => setCreateRhythmModalOpen(true)}
             sectionsWithOwnRhythm={sectionsWithOwnRhythm}
@@ -1970,16 +1967,6 @@ const Index = ({ songId }: IndexProps) => {
         contextLabel={addChordSection ? `${addChordSection.name} · new chord` : undefined}
       />
 
-      <InstrumentsPanel
-        open={instrumentsPanelOpen}
-        onClose={() => setInstrumentsPanelOpen(false)}
-        instruments={instruments}
-        onInstrumentChange={handleInstrumentsChange}
-        currentStyle={currentStyle}
-        noteLengths={noteLengths}
-        onNoteLengthsChange={setNoteLengths}
-      />
-
       {appEditor && (
         <AppRhythmEditor
           open={!!appEditor}
@@ -1991,10 +1978,12 @@ const Index = ({ songId }: IndexProps) => {
           transposition={transposition}
           instruments={instruments}
           drumSounds={drumSounds}
+          noteLengths={noteLengths}
           onSave={(next, sounds) => {
             setSections(next);
             setInstruments(sounds.instruments);
             setDrumSounds(sounds.drumSounds);
+            setNoteLengths(sounds.noteLengths);
             toast.success('Rhythm saved in the song');
           }}
           playing={isPlaying}
@@ -2023,7 +2012,20 @@ const Index = ({ songId }: IndexProps) => {
         isNewStyle={!!editingNewStyle}
         // Its sound picker is the song's, as the Instruments panel: what is picked is heard.
         songSounds={Object.fromEntries(instruments.map((i) => [i.id, i.soundTypeId]))}
-        onSongSound={(track, soundId) => setInstruments((prev) => prev.map((i) => (i.id === track ? { ...i, soundTypeId: soundId } : i)))}
+        onSongSound={(track, soundId) => {
+          setInstruments((prev) => prev.map((i) => (i.id === track ? { ...i, soundTypeId: soundId } : i)));
+          // The whole song's, heard everywhere this editor's rhythms play: a web rhythm's
+          // section keeps no sound of its own for the track (an app rhythm's parts do, and
+          // are edited in their own editor).
+          setSections((prev) => prev.map((s) => {
+            if (appStyleOfSection(s) || !s.partSounds) return s;
+            const partSounds = Object.fromEntries(Object.entries(s.partSounds)
+              .map(([k, p]) => [k, Object.fromEntries(Object.entries(p ?? {}).filter(([t]) => t !== track))])
+              .filter(([, p]) => Object.keys(p).length));
+            const { partSounds: _old, ...rest } = s;
+            return Object.keys(partSounds).length ? { ...rest, partSounds } : rest;
+          }));
+        }}
         // In section mode the edit stays inside the editor until saved: previewing it live
         // would make the whole song play the section's groove.
         onStyleChange={sectionRhythmEdit ? undefined : setLiveEditedStyle}

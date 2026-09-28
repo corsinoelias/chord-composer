@@ -112,6 +112,25 @@ export function sectionPartOf(section: Pick<Section, 'stylePart' | 'part' | 'var
 }
 export const SECTION_PART_LABEL: Record<SectionPartKey, string> = { intro: 'Intro', a: 'A', b: 'B', ending: 'Ending' };
 
+/**
+ * A section's own sounds (section.sounds, what the section menu set before the rhythm
+ * editor's pill became the one place for a sound) given to each of its parts that has none
+ * of its own for that track, and taken off the section. It sounds the same, and the pill
+ * shows and changes what plays. A section with none comes back as it is.
+ */
+export function foldSectionSounds<T extends Section>(section: T): T {
+  const own = Object.fromEntries(Object.entries(section.sounds ?? {}).filter(([, id]) => id)) as Partial<Record<TrackId, string>>;
+  if (!Object.keys(own).length) {
+    if (!section.sounds) return section;
+    const { sounds: _gone, ...rest } = section;
+    return rest as T;
+  }
+  const { sounds: _folded, ...rest } = section;
+  const parts: NonNullable<Section['partSounds']> = { ...(section.partSounds ?? {}) };
+  for (const k of ['intro', 'a', 'b', 'ending'] as SectionPartKey[]) parts[k] = { ...own, ...(parts[k] ?? {}) };
+  return { ...rest, partSounds: parts } as T;
+}
+
 export function sectionHasArrangement(section: Section): boolean {
   const any = (o?: object) => !!o && Object.keys(o).length > 0;
   return !!section.styleId || any(section.trackStyles) || any(section.patterns)

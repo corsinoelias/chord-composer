@@ -9,7 +9,8 @@ interface SoundCardProps {
   onStyleChange: (styleId: string, apply?: AppStyleApply) => void;
   /** The song's tempo, for a rhythm of the app's to ask whether it should take its own. */
   songBpm?: number;
-  onOpenInstruments: () => void;
+  /** The mixer: each instrument's volume, mute and solo (its sound is the rhythm editor's). */
+  onOpenMixer: () => void;
   onOpenRhythmEditor: () => void;
   onCreateNewRhythm?: () => void;
   /** How many sections play something other than the song's rhythm. */
@@ -30,7 +31,7 @@ export const SoundCard = memo(function SoundCard({
   customStyles,
   onStyleChange,
   songBpm,
-  onOpenInstruments,
+  onOpenMixer,
   onOpenRhythmEditor,
   onCreateNewRhythm,
   sectionsWithOwnRhythm,
@@ -89,13 +90,13 @@ export const SoundCard = memo(function SoundCard({
       )}
 
       <div className="grid grid-cols-3 gap-2">
-        <button className={tile} style={tileStyle} onClick={onOpenInstruments}>
-          <SlidersHorizontal size={18} style={{ color: 'var(--cp-act)' }} />
-          Instruments
-        </button>
         <button className={tile} style={tileStyle} onClick={onOpenRhythmEditor}>
           <LayoutGrid size={18} style={{ color: 'var(--cp-act)' }} />
           Edit Rhythm
+        </button>
+        <button className={tile} style={tileStyle} onClick={onOpenMixer}>
+          <SlidersHorizontal size={18} style={{ color: 'var(--cp-act)' }} />
+          Mixer
         </button>
         {onCreateNewRhythm && (
           <button className={tile} style={tileStyle} onClick={onCreateNewRhythm}>

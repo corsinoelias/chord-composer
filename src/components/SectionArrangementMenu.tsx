@@ -115,7 +115,7 @@ function clean(a: SectionArrangement): SectionArrangement {
 }
 
 /** A short summary of what differs, for the chip on the section header. */
-export function arrangementSummary(a: SectionArrangement, styles: StylePattern[]): string | null {
+export function arrangementSummary(a: SectionArrangement & Pick<Section, 'partSounds'>, styles: StylePattern[]): string | null {
   if (!sectionHasArrangement(a as Section)) return null;
   const parts: string[] = [];
   const name = (id: string) => styles.find((s) => s.id === id)?.name ?? id;
@@ -124,7 +124,8 @@ export function arrangementSummary(a: SectionArrangement, styles: StylePattern[]
   if (a.patterns && Object.keys(a.patterns).length) parts.push('edited groove');
   const off = TRACK_IDS.filter((t) => a.silenced?.[t]);
   if (off.length) parts.push(`no ${off.map((t) => TRACK_LABELS[t].toLowerCase()).join('/')}`);
-  if (a.sounds && Object.keys(a.sounds).length) parts.push('own sounds');
+  // Its own sounds: the section's (from before), or a part's (the rhythm editor's pill).
+  if ((a.sounds && Object.keys(a.sounds).length) || Object.values(a.partSounds ?? {}).some((p) => Object.keys(p ?? {}).length)) parts.push('own sounds');
   return parts.join(' · ');
 }
 
@@ -287,9 +288,8 @@ export function SectionArrangementMenu({
             const variation = variationPickers?.find((v) => v.key === track);
             const isOpen = expanded === track;
             const differs = !!ownSound || !!arrangement.trackStyles?.[track] || !!arrangement.patterns?.[track];
-            const soundName = (id: string | undefined) =>
-              config?.soundTypes.find((s) => s.id === id)?.name;
-            const canExpand = !off && (!!config?.soundTypes.length || !!variation);
+            // Its sound is the rhythm editor's (the pill, part by part): here, its variation and rhythm.
+            const canExpand = !off;
 
             return (
               <div
@@ -330,7 +330,7 @@ export function SectionArrangementMenu({
                       )}
                       {off
                         ? 'Muted in this section'
-                        : [soundName(ownSound ?? songSounds?.[track] ?? config?.defaultSoundType), variation && variation.variations.find(v => v.id === variation.activeId)?.name]
+                        : [variation && variation.variations.find(v => v.id === variation.activeId)?.name]
                             .filter(Boolean)
                             .join(' · ')}
                     </span>
@@ -342,7 +342,7 @@ export function SectionArrangementMenu({
                       style={{ width: 28, height: 28 }}
                       onClick={() => setExpanded(isOpen ? null : track)}
                       aria-expanded={isOpen}
-                      aria-label={`${TRACK_LABELS[track]} sound and variation`}
+                      aria-label={`${TRACK_LABELS[track]} variation and rhythm`}
                     >
                       <ChevronDown
                         size={16}
@@ -364,28 +364,6 @@ export function SectionArrangementMenu({
                 {isOpen && canExpand && (
                   <div className="flex flex-col gap-3 px-3 pb-3.5 pt-0.5">
                     <div className="flex gap-2.5">
-                      <label className="flex min-w-0 flex-1 flex-col gap-1.5">
-                        <span className="flex items-baseline justify-between gap-1.5">
-                          <span className="cp-lbl" style={{ fontSize: 10 }}>Sound</span>
-                          {songSounds?.[track] && (
-                            <span className="truncate text-[11px]" style={{ color: 'var(--cp-mu)' }}>
-                              Song: {soundName(songSounds[track])}
-                            </span>
-                          )}
-                        </span>
-                        <select
-                          className={selectClass}
-                          style={selectStyle}
-                          value={ownSound ?? ''}
-                          onChange={(e) => set({ sounds: { ...arrangement.sounds, [track]: e.target.value || undefined } })}
-                        >
-                          <option value="">Same as the song</option>
-                          {config?.soundTypes.map((s) => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
-                      </label>
-
                       {variation && onVariationChange && (
                         <label className="flex min-w-0 flex-1 flex-col gap-1.5">
                           <span className="cp-lbl" style={{ fontSize: 10 }}>Variation</span>

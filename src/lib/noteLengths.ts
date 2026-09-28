@@ -5,3 +5,16 @@
  * keeps the web's own length: 3 steps, 2 for a plain root-note bass.
  */
 export type NoteLengths = Partial<Record<'piano' | 'guitar' | 'bass', number>>;
+
+/**
+ * How long each note rings, the Android app's choices (constants.dart noteLengths) plus the
+ * web's own length, which is what every song had before and stays the default. In steps.
+ */
+export const NOTE_LENGTH_CHOICES: { steps: number | undefined; label: string; title: string }[] = [
+  { steps: undefined, label: 'Normal', title: 'The style’s own length' },
+  { steps: 0.5, label: 'Short', title: 'Half a sixteenth' },
+  { steps: 1, label: '1/16', title: 'A sixteenth' },
+  { steps: 2, label: '1/8', title: 'An eighth' },
+  { steps: 4, label: '1/4', title: 'A quarter' },
+  { steps: 0, label: 'Held', title: 'Until the next note or chord' },
+];

@@ -18,7 +18,7 @@ import { appPartSections } from '../../src/lib/appEngine/fromAppStyle';
 import { appStylePattern, categoryGenre, type AppStyle } from '../../src/lib/appStyles';
 import { getStyleById, type StylePattern } from '../../src/lib/styles';
 import { createChord } from '../../src/lib/musicTheory';
-import { type Section } from '../../src/lib/sections';
+import { foldSectionSounds, type Section } from '../../src/lib/sections';
 import { getDefaultInstrumentStates } from '../../src/lib/instruments';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -108,6 +108,14 @@ for (const [name, style, base, part, sounds, expect] of cases) {
   const added = appPartSections(withParts, 'intro', 0, false, false)[0];
   const d = await heard(appStylePattern(withParts), added, 'a', band);
   check('an intro the rhythm added', d > HEARD, `distance ${d.toFixed(1)}`);
+}
+
+// A section's own sounds (the old section menu's) moved to its parts sound the same, A and B.
+for (const variation of [0, 1] as const) {
+  const old = section({ variation, sounds: { bass: 'slap', drums: 'ap1' } });
+  const style = appStylePattern(salsa);
+  const d = distance(await render([old], style), await render([foldSectionSounds(old)], style));
+  check(`a section's own sounds, moved to its parts, on ${variation ? 'B' : 'A'}`, d === 0, `distance ${d.toFixed(1)}`);
 }
 
 console.log(`${checks - failed}/${checks} listening checks passed`);

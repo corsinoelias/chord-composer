@@ -90,7 +90,6 @@ interface TransportControlsProps {
   onOpenMixer: () => void;
   onOpenLibrary: () => void;
   onOpenTemplates: () => void;
-  onOpenInstruments: () => void;
   onOpenRhythmEditor: () => void;
   onNewRhythm: () => void;
   onExport: () => void;
@@ -120,7 +119,7 @@ export const TransportControls = memo(function TransportControls(props: Transpor
     keyBase, transposition, onTranspositionChange, onKeyModeChange, onKeyPick,
     metronomeEnabled, onMetronomeToggle, click, onClickChange,
     selectedStyleId, customStyles, onStyleChange,
-    onOpenMixer, onOpenLibrary, onOpenTemplates, onOpenInstruments, onOpenRhythmEditor, onNewRhythm,
+    onOpenMixer, onOpenLibrary, onOpenTemplates, onOpenRhythmEditor, onNewRhythm,
     onExport, onExportMidi,
   } = props;
 
@@ -289,9 +288,6 @@ export const TransportControls = memo(function TransportControls(props: Transpor
                 <FileMusic size={15} className="mr-2" />Templates
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onOpenInstruments}>
-                <SlidersHorizontal size={15} className="mr-2" />Instruments
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={onOpenRhythmEditor}>
                 <LayoutGrid size={15} className="mr-2" />Edit rhythm
               </DropdownMenuItem>

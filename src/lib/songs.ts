@@ -4,7 +4,7 @@
  * Defines the Song data model and utility functions
  */
 
-import type { Section } from './sections';
+import { foldSectionSounds, type Section } from './sections';
 import { migrateSoundId, type InstrumentState, type InstrumentType } from './instruments';
 import type { MelodicData, DegreePattern } from './bassScale';
 import { type NoteLengths } from './noteLengths';
@@ -309,6 +309,9 @@ export function migrateLegacySong(raw: unknown): Song {
     }
     r.schemaVersion = SONG_SCHEMA_VERSION;
   }
+
+  // The rhythm editor's pill is the one place for a sound: a section's own moves to its parts.
+  if (Array.isArray(r.sections)) r.sections = (r.sections as Section[]).map((s) => (s ? foldSectionSounds(s) : s));
 
   return r as unknown as Song;
 }

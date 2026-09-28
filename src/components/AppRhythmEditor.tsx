@@ -6,7 +6,8 @@ import {
   GROOVE_TRACKS, cloneDense, differs, effectiveVariation, baseVariation, partView, resizeLane, sectionGrooveOf,
   type DenseVariation, type GrooveTrack,
 } from '@/lib/groove';
-import { SECTION_PART_LABEL, sectionPartOf, type Section, type SectionPartKey, type TrackId } from '@/lib/sections';
+import { SECTION_PART_LABEL, foldSectionSounds, sectionPartOf, type Section, type SectionPartKey, type TrackId } from '@/lib/sections';
+import { NOTE_LENGTH_CHOICES, type NoteLengths } from '@/lib/noteLengths';
 import { type Chord } from '@/lib/musicTheory';
 import {
   RHYTHM_KIT, getInstrumentConfig, getSoundType, gmProgramOf, soundIdForProgram, soundTimbre, type InstrumentState,
@@ -88,6 +89,8 @@ const ownSounds = (p: Partial<Record<TrackId, string>> | undefined) =>
 export interface SongSounds {
   instruments: InstrumentState[];
   drumSounds: Record<string, number>;
+  /** How long each melodic track's notes ring (app.noteLengths): ⋯ › Notes. */
+  noteLengths: NoteLengths;
 }
 
 /** A row of the grid: a kit row, the whole chord, or a degree 1-8 with its alteration. */
@@ -120,6 +123,8 @@ export interface AppRhythmEditorProps {
   instruments: InstrumentState[];
   /** The sound the song gives each hand-percussion row (app.drumSounds). */
   drumSounds: Record<string, number>;
+  /** How long each melodic track's notes ring, for the song. */
+  noteLengths: NoteLengths;
   /** Save: the song's sections with the edited ones given their groove (silences and sounds), and the song's sounds. */
   onSave: (sections: Section[], sounds: SongSounds) => void;
   /** Whether the song is playing: the editor plays through the song's own player. */
@@ -137,7 +142,7 @@ export interface AppRhythmEditorProps {
 }
 
 export function AppRhythmEditor(props: AppRhythmEditorProps) {
-  const { open, onClose, style, sections, editable, initialSection, transposition, instruments, drumSounds, onSave, playing, loopingIndex, onLoop, onStop, onDraft } = props;
+  const { open, onClose, style, sections, editable, initialSection, transposition, instruments, drumSounds, noteLengths, onSave, playing, loopingIndex, onLoop, onStop, onDraft } = props;
   const spb = appStepsPerBar(style);
   const stepsPerBeat = Math.max(1, Math.round(16 / style.meter.unit));
   const isMobile = useIsMobile();
@@ -164,7 +169,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   /** Leaving with changes: the question of what to do with them is on screen. */
   const [leaving, setLeaving] = useState(false);
   /** The song's sounds as they are being tried: kept on Save, dropped on Cancel. */
-  const [songSounds, setSongSounds] = useState<SongSounds>({ instruments, drumSounds });
+  const [songSounds, setSongSounds] = useState<SongSounds>({ instruments, drumSounds, noteLengths });
   const [soundMenu, setSoundMenu] = useState<{ x: number; y: number; above: number } | null>(null);
   const [allSounds, setAllSounds] = useState(false);
   const [kits, setKits] = useState<DrumKit[]>([]);
@@ -179,7 +184,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     setV(startKey(sections[initialSection]));
     setMode('groove'); setTab('drums'); setPage(0); setAdded(new Set()); setFocus(null); setPop(null); setMenu(null);
     setLeaving(false); setShare(true);
-    setSongSounds({ instruments, drumSounds }); setSoundMenu(null);
+    setSongSounds({ instruments, drumSounds, noteLengths }); setSoundMenu(null);
     undo.current = []; redo.current = [];
     // The section loops while it is open, as the app's editor does: what you edit is what
     // keeps sounding, and nothing stops for it. Closing gives the loop back (giveBack).
@@ -188,15 +193,17 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   useEffect(() => { loadKits().then(setKits).catch(() => {}); }, []);
 
   const section = sections[sec];
+  /** A section as the editor reads it: its own sounds already on its parts (foldSectionSounds). */
+  const folded = useMemo(() => sections.map((s) => (s ? foldSectionSounds(s) : s)), [sections]);
   const draftOf = useCallback((i: number, from: Record<number, Draft> = drafts): Draft => from[i] ?? {
     a: effectiveVariation(style, sections[i], 'a'),
     b: effectiveVariation(style, sections[i], 'b'),
     intro: sections[i]?.stylePart ? null : effectiveVariation(style, partView(style, sections[i] ?? {}, 'intro'), 'a'),
     ending: sections[i]?.stylePart ? null : effectiveVariation(style, partView(style, sections[i] ?? {}, 'ending'), 'a'),
     silenced: { ...(sections[i]?.silenced ?? {}) },
-    sounds: { ...(sections[i]?.sounds ?? {}) },
-    partSounds: clonePartSounds(sections[i]?.partSounds),
-  }, [drafts, sections, style]);
+    sounds: { ...(folded[i]?.sounds ?? {}) },
+    partSounds: clonePartSounds(folded[i]?.partSounds),
+  }, [drafts, sections, folded, style]);
   const draft = draftOf(sec);
   const isPart = !!section?.stylePart;
   const variation = (draft[v] ?? draft.a)!;
@@ -205,7 +212,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     : baseVariation(style, section ?? {}, v) ?? baseVariation(style, section ?? {}, 'a')!), [style, section, v]);
   /** No fill here: an intro or an ending, the section's own or one the rhythm added. */
   const noFill = isPart || isPartKey(v);
-  const soundsChanged = songSounds.instruments !== instruments || songSounds.drumSounds !== drumSounds;
+  const soundsChanged = songSounds.instruments !== instruments || songSounds.drumSounds !== drumSounds || songSounds.noteLengths !== noteLengths;
   const dirty = Object.keys(drafts).length > 0 || soundsChanged;
 
   /** Every edit goes through here: undoable, and on the section on screen. */
@@ -541,8 +548,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     const s = sections[i];
     if (!s || s.stylePart) return null;
     const g = isPartKey(k) ? effectiveVariation(style, partView(style, s, k), 'a') : effectiveVariation(style, s, k);
-    return g ? JSON.stringify([g, ownSounds(s.partSounds?.[k])]) : null;
-  }, [sections, style]);
+    return g ? JSON.stringify([g, ownSounds(folded[i]?.partSounds?.[k])]) : null;
+  }, [sections, folded, style]);
   /** The sections that play the part on screen as this one does, this one first. */
   const sharers = useMemo(() => {
     const mine = origPart(sec, v);
@@ -683,6 +690,19 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       for (const n of [1, 2, 4] as const) items.push({ label: `${bars === n ? '✓ ' : ''}${n} bar${n > 1 ? 's' : ''}`, run: () => setBars(n) });
       items.push({ head: trackName(tab) });
     } else items.push({ head: `${trackName(tab)} · fill` });
+    if (tab === 'piano' || tab === 'guitar' || tab === 'bass') {
+      // How long its notes ring, for the whole song, as the app's Notes.
+      const now = songSounds.noteLengths[tab];
+      items.push({ head: `${trackName(tab)} · notes` });
+      for (const o of NOTE_LENGTH_CHOICES) {
+        items.push({ label: `${now === o.steps ? '✓ ' : ''}${o.label}`, run: () => setSongSounds((s) => {
+          const next = { ...s.noteLengths };
+          if (o.steps === undefined) delete next[tab]; else next[tab] = o.steps;
+          return { ...s, noteLengths: next };
+        }) });
+      }
+      items.push({ head: trackName(tab) });
+    }
     items.push({ label: silenced ? 'Play it here again' : 'Silence it here', run: () => change((d) => { d.silenced[tab] = !d.silenced[tab]; }) });
     items.push({ label: mode === 'fill' ? 'Clear its fill' : 'Clear', run: clearTrack });
     if (!isPart && hasB && !isPartKey(v)) items.push({ label: `Copy from ${v === 'a' ? 'B' : 'A'}`, run: copyOther });
