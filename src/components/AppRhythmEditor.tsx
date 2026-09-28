@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Bookmark, BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, Link2, ListMusic, MoreHorizontal, Play, Repeat, Square, Trash2, Unlink, VolumeX, X, Zap } from 'lucide-react';
+import { ArrowLeftRight, Bookmark, BookmarkPlus, Check, Copy, Hand, Layers, Piano, RotateCcw, Shuffle, ChevronDown, ChevronLeft, ChevronRight, Link2, ListMusic, MoreHorizontal, Play, Repeat, Square, Trash2, Unlink, VolumeX, X, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { type AppStyle, appStepsPerBar } from '@/lib/appStyles';
 import {
@@ -219,7 +219,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { loadKits().then(setKits).catch(() => {}); }, []);
   /** A panel over the editor: the kit to play by hand, or the keyboard with every track's range. */
-  const [panel, setPanel] = useState<'kit' | 'keys' | null>(null);
+  const [panel, setPanel] = useState<'kit' | 'keys' | 'more' | null>(null);
   /** The instrument the big keyboard shows: its notes, in its window. */
   const [keyTrack, setKeyTrack] = useState<KeyTrack>('piano');
   const openKeys = () => { if (tab !== 'drums') setKeyTrack(tab as KeyTrack); setPanel('keys'); };
@@ -411,7 +411,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   };
   /** The sound the rhythm itself gives [track], when it names one from the SoundFont. */
   const rhythmSoundOf = (track: TrackId): string | undefined => {
-    if (track === 'drums') return Object.keys(style.drumSounds).length ? RHYTHM_KIT : undefined;
+    if (track === 'drums') return undefined;
     const program = style.programs[track as keyof typeof style.programs];
     return program === undefined || (style.timbres?.[track as keyof typeof style.programs] ?? 13) !== 13 ? undefined : soundIdForProgram(track, program);
   };
@@ -763,39 +763,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const hasB = !!draft.b;
 
   const plays = draft.plays ?? startKey(section);
-  /** The ⋯ menu: what the track on screen can do beyond its cells, in the app's order. */
-  const openMore = (x: number, y: number) => {
-    const items: MenuItem[] = [{ head: mode === 'fill' ? `${trackName(tab)} · fill` : trackName(tab) }];
-    if (mode === 'groove') {
-      items.push({ head: 'Bars' });
-      for (const n of [1, 2, 4] as const) items.push({ label: `${bars === n ? '✓ ' : ''}${n} bar${n > 1 ? 's' : ''}`, run: () => setBars(n) });
-    }
-    if (tab !== 'drums') {
-      // How long its notes ring, for the whole song, as the app's Notes.
-      const now = songSounds.noteLengths[tab];
-      items.push({ head: 'Notes' });
-      for (const o of NOTE_LENGTH_CHOICES) {
-        items.push({ label: `${now === o.steps ? '✓ ' : ''}${o.label}`, run: () => setSongSounds((s) => {
-          const next = { ...s.noteLengths };
-          if (o.steps === undefined) delete next[tab]; else next[tab] = o.steps;
-          return { ...s, noteLengths: next };
-        }) });
-      }
-    }
-    items.push({ head: '' });
-    items.push({ label: silenced ? '✓ Muted here' : 'Mute here', run: () => change((d) => { d.silenced[tab] = !d.silenced[tab]; }) });
-    items.push(tab === 'drums'
-      ? { label: 'Play the pieces', run: () => setPanel('kit') }
-      : { label: 'Keyboard and range', run: openKeys });
-    if (Object.values(variation.rows[tab] ?? {}).some((l) => l.some(Boolean))) items.push({ label: 'Save as a pattern', run: () => askSave() });
-    if (mode === 'groove') items.push({ label: 'Random', run: randomPattern, hold: scramble, title: 'Hold: cells at random' });
-    if (edited) items.push({ label: 'Same as the rest', run: backToRhythm });
-    if (mode === 'groove') items.push({ label: 'Clear', run: clearTrack, danger: true });
-    else if (fillKeys.some((k) => (tab === 'drums' ? !isTrackKey(k) : k === tab))) items.push({ label: 'No fill', run: noFillHere, title: 'This instrument keeps its groove through the fill' });
-    if (!isPart && hasB && !isPartKey(v)) items.push({ head: '' }, { label: `Copy from ${v === 'a' ? 'B' : 'A'}`, run: copyOther });
-    if (!isPart && plays !== v) items.push({ label: `Play ${SECTION_PART_LABEL[v]} in ${section.name}`, run: () => change((d) => { d.plays = v; }) });
-    setMenu({ items, x, y });
-  };
+  /** The ⋯ sheet: what the track on screen can do beyond its cells, as the app's (below). */
+  const openMore = () => setPanel('more');
   /** Name what the track plays, to find it in the strip in every song. */
   const askSave = () => {
     const n = mine.filter((p) => p.tab === tab).length + 1;
@@ -850,7 +819,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             <DialogDescription className="sr-only">The rhythm of {section.name}, part by part and track by track</DialogDescription>
           </div>
           <button type="button" className="cp-icb" aria-label="More" title="More" aria-haspopup="menu"
-            onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openMore(r.right - 230, r.bottom); }}><MoreHorizontal size={20} /></button>
+            onClick={openMore}><MoreHorizontal size={20} /></button>
           <button type="button" className="cp-btn" style={{ background: 'var(--cp-ac)', borderColor: 'var(--cp-ac)', color: '#fff' }} onClick={save}><Check size={15} />Save</button>
         </div>
 
@@ -928,7 +897,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setSoundMenu({ x: r.left, y: r.bottom, above: r.top }); }}
             className="flex h-9 min-w-0 flex-1 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold"
             style={{ background: 'var(--cp-s2)', borderColor: partSoundOf(tab) ? 'var(--cp-ac)' : 'var(--cp-ln)', color: 'var(--cp-tx)' }}>
-            <span className="min-w-0 truncate">{getSoundType(tab, soundIdOf(tab))?.name ?? 'Sound'}</span>
+            <span className="min-w-0 truncate">{soundIdOf(tab) === RHYTHM_KIT ? 'Drums' : getSoundType(tab, soundIdOf(tab))?.name ?? 'Sound'}</span>
             <span className="flex-1" />
             <ChevronDown size={15} className="shrink-0" style={{ color: 'var(--cp-mu)' }} />
           </button>
@@ -1026,10 +995,13 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                   const tone = iv.includes(((semi % 12) + 12) % 12);
                   tag = (
                     <button type="button" className={`flex items-center gap-1.5 rounded-[9px] border bg-transparent text-left ${slim ? 'h-[18px] px-1.5' : 'h-full min-h-[28px] sm:min-h-[34px] px-2'}`}
-                      style={{ borderColor: lane.a ? 'var(--cp-ln)' : lane.color, background: tone ? `color-mix(in srgb, ${lane.color} 24%, transparent)` : 'transparent', color: 'var(--cp-tx)', opacity: dim ? 0.45 : 1 }}
+                      // A note of the chord on screen shows in its number's colour, not as a filled block: while
+                      // the grid follows the music the chord changes every bar, and whole labels
+                      // switching colour at each one read as the grid flickering.
+                      style={{ borderColor: lane.a ? 'var(--cp-ln)' : lane.color, background: 'transparent', color: 'var(--cp-tx)', opacity: dim ? 0.45 : 1 }}
                       onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openLaneMenu(lane, r.left, r.bottom); }}
                       title={`Degree ${rowText(lane.k!, lane.a!)} of the ${chordLabel} scale${tone ? ' · a note of the chord' : ''}`}>
-                      <b className={slim ? 'text-[11px]' : 'min-w-[20px] text-[13px]'}>{rowText(lane.k!, lane.a!)}</b>
+                      <b className={slim ? 'text-[11px]' : 'min-w-[20px] text-[13px]'} style={{ color: tone ? `color-mix(in srgb, ${lane.color} 70%, var(--cp-tx))` : 'var(--cp-tx)', transition: 'color 250ms ease' }}>{rowText(lane.k!, lane.a!)}</b>
                       <small className={slim ? 'text-[9px]' : 'text-[9.5px] font-semibold'} style={{ color: 'var(--cp-mu)' }}>{pitchName(ref.root + semi)}</small>
                     </button>
                   );
@@ -1205,6 +1177,72 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             </div>
           </Panel>
         )}
+        {panel === 'more' && (() => {
+          const close = () => setPanel(null);
+          const then = (run: () => void) => () => { close(); run(); };
+          const hasCells = Object.values(variation.rows[tab] ?? {}).some((l) => l.some(Boolean));
+          const inFill = fillKeys.some((k) => (tab === 'drums' ? !isTrackKey(k) : k === tab));
+          return (
+            <Panel title={mode === 'fill' ? `${trackName(tab)} · fill` : trackName(tab)} onClose={close} narrow>
+              {mode === 'groove' && (
+                <div className="flex min-h-[44px] items-center gap-3 px-1">
+                  <span className="flex-1 text-[15px] font-semibold">Bars</span>
+                  <div className="flex overflow-hidden rounded-[10px] border" role="group" aria-label="Bars" style={{ borderColor: 'var(--cp-ln)' }}>
+                    {([1, 2, 4] as const).map((n) => (
+                      <button key={n} type="button" aria-pressed={bars === n} onClick={() => setBars(n)}
+                        className="h-9 w-11 border-0 text-[13px] font-bold"
+                        style={{ fontFamily: 'var(--cp-mono, monospace)', ...(bars === n ? { background: 'var(--cp-tx)', color: 'var(--cp-s1)' } : { background: 'transparent', color: 'var(--cp-tx2)' }) }}>{n}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {tab !== 'drums' && (
+                <label className="flex min-h-[44px] items-center gap-3 px-1">
+                  <span className="flex-1 text-[15px] font-semibold">Notes</span>
+                  <select className="h-9 rounded-full border px-3 text-[13px] font-semibold"
+                    style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }}
+                    value={String(songSounds.noteLengths[tab as KeyTrack] ?? '')}
+                    onChange={(e) => {
+                      const steps = e.target.value === '' ? undefined : Number(e.target.value);
+                      setSongSounds((s) => {
+                        const next = { ...s.noteLengths };
+                        if (steps === undefined) delete next[tab as KeyTrack]; else next[tab as KeyTrack] = steps;
+                        return { ...s, noteLengths: next };
+                      });
+                    }}>
+                    {NOTE_LENGTH_CHOICES.map((o) => <option key={o.label} value={o.steps === undefined ? '' : String(o.steps)} title={o.title}>{o.label}</option>)}
+                  </select>
+                </label>
+              )}
+              <button type="button" role="switch" aria-checked={silenced} onClick={() => change((d) => { d.silenced[tab] = !d.silenced[tab]; })}
+                className="flex min-h-[44px] items-center gap-3 border-0 bg-transparent px-1 text-left">
+                <span className="flex-1 text-[15px] font-semibold" style={{ color: 'var(--cp-tx)' }}>Mute</span>
+                <span className={`cp-sw ${silenced ? 'cp-on' : ''}`} aria-hidden="true" />
+              </button>
+              <div role="separator" className="h-px" style={{ background: 'var(--cp-ln)' }} />
+              <div className="grid">
+                {tab === 'drums'
+                  ? <SheetItem icon={<Hand size={19} />} label="Play the pieces" onClick={() => setPanel('kit')} />
+                  : <SheetItem icon={<Piano size={19} />} label="Keyboard and range" onClick={openKeys} />}
+                {hasCells && <SheetItem icon={<BookmarkPlus size={19} />} label="Save as a pattern" onClick={then(askSave)} />}
+                {mode === 'groove' && <SheetItem icon={<Shuffle size={19} />} label="Random" title="Hold: cells at random" onClick={then(randomPattern)} onHold={then(scramble)} />}
+                {edited && <SheetItem icon={<RotateCcw size={19} />} label="Same as the rest" onClick={then(backToRhythm)} />}
+                {mode === 'groove'
+                  ? <SheetItem icon={<Trash2 size={19} />} label="Clear" danger onClick={then(clearTrack)} />
+                  : inFill && <SheetItem icon={<Layers size={19} />} label="No fill" title="This instrument keeps its groove through the fill" onClick={then(noFillHere)} />}
+              </div>
+              {((!isPart && hasB && !isPartKey(v)) || (!isPart && plays !== v)) && (
+                <>
+                  <div role="separator" className="h-px" style={{ background: 'var(--cp-ln)' }} />
+                  <div className="grid">
+                    {!isPart && hasB && !isPartKey(v) && <SheetItem icon={<Copy size={19} />} label={`Copy from ${v === 'a' ? 'B' : 'A'}`} onClick={then(copyOther)} />}
+                    {!isPart && plays !== v && <SheetItem icon={<ArrowLeftRight size={19} />} label={`Play ${SECTION_PART_LABEL[v]} in ${section.name}`} onClick={then(() => change((d) => { d.plays = v; }))} />}
+                  </div>
+                </>
+              )}
+            </Panel>
+          );
+        })()}
         {panel === 'kit' && (
           <Panel title="Play the pieces" onClose={() => setPanel(null)}>
             <Kit playing={playing} drumSoundOf={drumSoundOf}
@@ -1322,7 +1360,7 @@ function SoundMenu({ track, x, y, above, onClose, underSound, partSound, partNam
     ...(rhythmSound ? [rhythmSound] : []),
     ...(gmProgramOf(current) !== null ? [current] : []),
     ...(config?.soundTypes.map((s) => s.id) ?? []),
-  ])];
+  ])].filter((id) => id !== RHYTHM_KIT);
   const place = usePlaced(ref, x, y, above);
   return (
     <div ref={ref} role="menu" aria-label={`${config?.name ?? track} sound`} className="fixed z-[60] flex w-[260px] max-w-[calc(100vw-16px)] flex-col rounded-xl border p-1.5 shadow-xl"
@@ -1449,9 +1487,12 @@ function RangeBar({ low, color, label, height, onChange, className = '' }: {
         onPointerMove={(e) => {
           const d = drag.current;
           if (!d) return;
-          setMoving(clampLow(d.low0 + Math.round(((e.clientX - d.x0) / d.w) * (KEY_HI - KEY_LO + 1))));
+          const next = clampLow(d.low0 + Math.round(((e.clientX - d.x0) / d.w) * (KEY_HI - KEY_LO + 1)));
+          // Each semitone it crosses goes out at once, as the app's bar does: the keys and
+          // the sound follow the drag, not only the release.
+          if (next !== moving) { setMoving(next); onChange(next); }
         }}
-        onPointerUp={() => { if (moving !== null && moving !== low) onChange(moving); drag.current = null; setMoving(null); }}
+        onPointerUp={() => { drag.current = null; setMoving(null); }}
         onPointerCancel={() => { drag.current = null; setMoving(null); }}
         onKeyDown={(e) => {
           const step = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
@@ -1464,11 +1505,11 @@ function RangeBar({ low, color, label, height, onChange, className = '' }: {
 }
 
 /** A panel over the editor, closed by its ✕, Esc or a tap beside it. */
-function Panel({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+function Panel({ title, onClose, children, narrow = false }: { title: string; onClose: () => void; children: React.ReactNode; narrow?: boolean }) {
   return (
     <div className="absolute inset-0 z-[65] flex items-end justify-center p-0 sm:items-center sm:p-4" style={{ background: 'rgba(0,0,0,.4)' }}
       onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div role="dialog" aria-label={title} className="grid max-h-[92%] w-full max-w-[720px] gap-3 overflow-y-auto rounded-t-2xl border p-4 shadow-xl sm:rounded-2xl"
+      <div role="dialog" aria-label={title} className={`grid max-h-[92%] w-full ${narrow ? 'max-w-[380px] gap-1.5' : 'max-w-[720px] gap-3'} overflow-y-auto rounded-t-2xl border p-4 shadow-xl sm:rounded-2xl`}
         style={{ background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)' }}>
         <div className="flex items-center gap-2">
           <b className="flex-1 text-base">{title}</b>
@@ -1552,6 +1593,26 @@ function Kit({ playing, drumSoundOf, pads }: { playing: boolean; drumSoundOf: (r
         </div>
       )}
     </div>
+  );
+}
+
+/** A line of an options sheet: an icon and what it does; one with [onHold] does that on a long press (or a right click). */
+function SheetItem({ icon, label, onClick, onHold, danger = false, title }: {
+  icon: React.ReactNode; label: string; onClick: () => void; onHold?: () => void; danger?: boolean; title?: string;
+}) {
+  const timer = useRef<number | null>(null);
+  const held = useRef(false);
+  const stop = () => { if (timer.current) window.clearTimeout(timer.current); };
+  return (
+    <button type="button" title={title}
+      className="flex min-h-[46px] items-center gap-3.5 rounded-lg border-0 bg-transparent px-1.5 text-left text-[15px] font-semibold hover:bg-[var(--cp-s2)]"
+      style={{ color: danger ? 'var(--cp-dg)' : 'var(--cp-tx)' }}
+      onPointerDown={onHold ? () => { held.current = false; timer.current = window.setTimeout(() => { held.current = true; onHold(); }, 480); } : undefined}
+      onPointerUp={stop} onPointerLeave={stop}
+      onContextMenu={onHold ? (e) => { e.preventDefault(); stop(); onHold(); } : undefined}
+      onClick={() => { if (held.current) { held.current = false; return; } onClick(); }}>
+      <span className="grid w-6 place-items-center" style={{ color: danger ? 'var(--cp-dg)' : 'var(--cp-mu)' }}>{icon}</span>{label}
+    </button>
   );
 }
 
