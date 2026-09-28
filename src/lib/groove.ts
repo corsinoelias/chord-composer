@@ -42,7 +42,16 @@ export interface SectionGroove {
    * B is asked for: it starts as a copy of A, and [b] keeps what differs from the rhythm's A.
    */
   bCreated?: true;
+  /**
+   * The section's own intro and ending (Section.part): what differs from the rhythm's intro
+   * or ending — or, for a rhythm without one, from its A, which is what it starts as.
+   */
+  intro?: GrooveVariation;
+  ending?: GrooveVariation;
 }
+
+/** The parts of a rhythm besides its groove. */
+export type PartKey = 'intro' | 'ending';
 
 /** A variation spelled out in full: every row of every track as a lane of steps. What the editor edits. */
 export interface DenseVariation {
@@ -91,8 +100,23 @@ export function baseVariation(style: AppStyle, section: Pick<Section, 'stylePart
     : undefined;
   // A part of an intro or an ending has one variation and no fill.
   if (part) return v === 'a' ? dense(part.patterns, part.patternBars, undefined, spb) : null;
+  // A section asked for an intro or an ending the rhythm does not bring: it starts as the
+  // rhythm's A, without its fill, the way a B the rhythm lacks starts as A.
+  if (section.stylePart?.styleId === style.id) return v === 'a' ? dense(style.a.patterns, style.a.patternBars, undefined, spb) : null;
   const variation: AppVariation | undefined = v === 'a' ? style.a : style.b;
   return variation ? dense(variation.patterns, variation.patternBars, variation.fill, spb) : null;
+}
+
+/**
+ * A section seen as its own intro or ending: the rhythm's first intro (or ending) part, with
+ * what this section changed of it — what baseVariation and effectiveVariation read.
+ */
+export function partView(style: AppStyle, section: Pick<Section, 'groove'>, kind: PartKey): Pick<Section, 'stylePart' | 'groove'> {
+  const edits = section.groove?.styleId === style.id ? section.groove[kind] : undefined;
+  return {
+    stylePart: { styleId: style.id, kind, index: 0 },
+    groove: edits ? { styleId: style.id, a: edits } : undefined,
+  };
 }
 
 /** [base] with a section's edits of it laid over. */
@@ -184,7 +208,8 @@ export function grooveOf(edited: DenseVariation, base: DenseVariation): GrooveVa
 
 /** A section's groove from its edited variations, or undefined when neither differs from the rhythm. */
 export function sectionGrooveOf(
-  style: AppStyle, section: Pick<Section, 'stylePart'>, edited: Partial<Record<VariationKey, DenseVariation | null>>,
+  style: AppStyle, section: Pick<Section, 'stylePart'> & Partial<Pick<Section, 'groove'>>,
+  edited: Partial<Record<VariationKey | PartKey, DenseVariation | null>>,
 ): SectionGroove | undefined {
   const out: SectionGroove = { styleId: style.id };
   for (const v of ['a', 'b'] as const) {
@@ -196,7 +221,20 @@ export function sectionGrooveOf(
   }
   // A B the section made is kept even while it is still the same as A: it exists.
   if (!style.b && !section.stylePart && edited.b) out.bCreated = true;
-  return out.a || out.b || out.bCreated ? out : undefined;
+  // Its own intro and ending, as edited here, or as they were when not opened this time.
+  if (!section.stylePart) {
+    for (const kind of ['intro', 'ending'] as const) {
+      const e = edited[kind];
+      if (e) {
+        const base = baseVariation(style, partView(style, {}, kind), 'a');
+        const g = base ? grooveOf(e, base) : undefined;
+        if (g) out[kind] = g;
+      } else if (e === undefined && section.groove?.styleId === style.id && section.groove[kind]) {
+        out[kind] = section.groove[kind];
+      }
+    }
+  }
+  return out.a || out.b || out.bCreated || out.intro || out.ending ? out : undefined;
 }
 
 /** A dense variation as the engine writer takes it. */

@@ -3,10 +3,10 @@ import { Check, ChevronDown, Copy, ListMusic, Play, Square, Trash2, VolumeX, X, 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { type AppStyle, appStepsPerBar } from '@/lib/appStyles';
 import {
-  GROOVE_TRACKS, cloneDense, differs, effectiveVariation, baseVariation, resizeLane, sectionGrooveOf,
-  type DenseVariation, type GrooveTrack, type VariationKey,
+  GROOVE_TRACKS, cloneDense, differs, effectiveVariation, baseVariation, partView, resizeLane, sectionGrooveOf,
+  type DenseVariation, type GrooveTrack,
 } from '@/lib/groove';
-import { type Section, type TrackId } from '@/lib/sections';
+import { SECTION_PART_LABEL, sectionPartOf, type Section, type SectionPartKey, type TrackId } from '@/lib/sections';
 import { type Chord } from '@/lib/musicTheory';
 import {
   RHYTHM_KIT, getInstrumentConfig, getSoundType, gmProgramOf, soundIdForProgram, soundTimbre, type InstrumentState,
@@ -62,9 +62,12 @@ const rowColor = (r: string) => (r === 'kick' ? '#FF3849' : r === 'snare' ? '#F5
 interface Draft {
   a: DenseVariation | null;
   b: DenseVariation | null;
+  /** Its own intro and ending (section.part), spelled out like A and B. */
+  intro: DenseVariation | null;
+  ending: DenseVariation | null;
   silenced: Partial<Record<TrackId, boolean>>;
-  /** Which variation the section plays in the song, when changed here. */
-  plays?: 0 | 1;
+  /** Which part of the rhythm the section plays in the song, when changed here. */
+  plays?: SectionPartKey;
   /** The sounds this section plays instead of the song's (section.sounds). */
   sounds: Partial<Record<TrackId, string>>;
 }
@@ -80,6 +83,20 @@ export interface SongSounds {
 
 /** A row of the grid: a kit row, the whole chord, or a degree 1-8 with its alteration. */
 interface Lane { key: string; row: string; color: string; chord?: boolean; k?: number; a?: number }
+/** What a section opens on: the part it plays; an intro or ending the rhythm added is edited as its one variation. */
+const startKey = (s: Section | undefined): SectionPartKey => (!s || s.stylePart ? 'a' : sectionPartOf(s));
+/** A section made to play [k]: its intro or ending, or its groove on A or B. */
+function withPart(out: Section, k: SectionPartKey) {
+  if (k === 'intro' || k === 'ending') { out.part = k; return; }
+  delete out.part;
+  out.variation = k === 'b' ? 1 : 0;
+}
+const isPartKey = (k: SectionPartKey): k is 'intro' | 'ending' => k === 'intro' || k === 'ending';
+const cloneDraft = (d: Draft): Draft => ({
+  a: d.a && cloneDense(d.a), b: d.b && cloneDense(d.b), intro: d.intro && cloneDense(d.intro), ending: d.ending && cloneDense(d.ending),
+  silenced: { ...d.silenced }, plays: d.plays, sounds: { ...d.sounds },
+});
+
 const laneId = (l: Pick<Lane, 'key' | 'chord' | 'k' | 'a'>) => `${l.key}|${l.chord ? 'c' : ''}|${l.k ?? ''}|${l.a ?? ''}`;
 
 export interface AppRhythmEditorProps {
@@ -122,7 +139,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
 
   const [sec, setSec] = useState(initialSection);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
-  const [v, setV] = useState<VariationKey>('a');
+  /** The part being edited: the groove's A or B, or the section's intro or ending. */
+  const [v, setV] = useState<SectionPartKey>('a');
   const [mode, setMode] = useState<'groove' | 'fill'>('groove');
   const [tab, setTab] = useState<GrooveTrack>('drums');
   /** The page on screen: a bar of the pattern, or half of one on a phone. */
@@ -148,7 +166,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     if (!open) return;
     setSec(initialSection);
     setDrafts({});
-    setV(sections[initialSection]?.variation === 1 ? 'b' : 'a');
+    setV(startKey(sections[initialSection]));
     setMode('groove'); setTab('drums'); setPage(0); setAdded(new Set()); setFocus(null); setPop(null); setMenu(null);
     setConfirmDiscard(false);
     setSongSounds({ instruments, drumSounds }); setSoundMenu(null);
@@ -160,13 +178,19 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const draftOf = useCallback((i: number, from: Record<number, Draft> = drafts): Draft => from[i] ?? {
     a: effectiveVariation(style, sections[i], 'a'),
     b: effectiveVariation(style, sections[i], 'b'),
+    intro: sections[i]?.stylePart ? null : effectiveVariation(style, partView(style, sections[i] ?? {}, 'intro'), 'a'),
+    ending: sections[i]?.stylePart ? null : effectiveVariation(style, partView(style, sections[i] ?? {}, 'ending'), 'a'),
     silenced: { ...(sections[i]?.silenced ?? {}) },
     sounds: { ...(sections[i]?.sounds ?? {}) },
   }, [drafts, sections, style]);
   const draft = draftOf(sec);
   const isPart = !!section?.stylePart;
   const variation = (draft[v] ?? draft.a)!;
-  const base = useMemo(() => baseVariation(style, section ?? {}, v) ?? baseVariation(style, section ?? {}, 'a')!, [style, section, v]);
+  const base = useMemo(() => (isPartKey(v)
+    ? baseVariation(style, partView(style, {}, v), 'a')!
+    : baseVariation(style, section ?? {}, v) ?? baseVariation(style, section ?? {}, 'a')!), [style, section, v]);
+  /** No fill here: an intro or an ending, the section's own or one the rhythm added. */
+  const noFill = isPart || isPartKey(v);
   const soundsChanged = songSounds.instruments !== instruments || songSounds.drumSounds !== drumSounds;
   const dirty = Object.keys(drafts).length > 0 || soundsChanged;
 
@@ -177,7 +201,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       if (undo.current.length > 100) undo.current.shift();
       redo.current = [];
       const d = draftOf(sec, prev);
-      const next: Draft = { a: d.a && cloneDense(d.a), b: d.b && cloneDense(d.b), silenced: { ...d.silenced }, plays: d.plays, sounds: { ...d.sounds } };
+      const next = cloneDraft(d);
       fn(next);
       return { ...prev, [sec]: next };
     });
@@ -216,15 +240,16 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     const d = ds[i];
     const out: Section = { ...sct };
     if (d) {
-      const groove = sectionGrooveOf(style, sct, { a: d.a, b: d.b });
+      const groove = sectionGrooveOf(style, sct, { a: d.a, b: d.b, intro: d.intro, ending: d.ending });
       const off = Object.fromEntries(Object.entries(d.silenced).filter(([, on]) => on));
       if (Object.keys(off).length) out.silenced = off; else delete out.silenced;
       if (groove) out.groove = groove; else delete out.groove;
       const own = Object.fromEntries(Object.entries(d.sounds).filter(([, id]) => id));
       if (Object.keys(own).length) out.sounds = own; else delete out.sounds;
     }
-    if (d?.plays !== undefined) out.variation = d.plays;
-    if (audition && i === sec && !sct.stylePart) out.variation = v === 'b' && (d?.b ?? true) ? 1 : 0;
+    if (d?.plays !== undefined) withPart(out, d.plays);
+    // Heard while it is edited: the part on screen.
+    if (audition && i === sec && !sct.stylePart) withPart(out, v === 'b' && !(d?.b ?? true) ? 'a' : v);
     return out;
   }), [sections, style, sec, v]);
   useEffect(() => { if (open) onDraft(merged(drafts, true), songSounds); }, [open, drafts, merged, songSounds]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -268,8 +293,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const goToSection = (i: number) => {
     const target = sections[i];
     setSec(i); setPage(0); setFocus(null); setPop(null);
-    setV(target?.variation === 1 && !target.stylePart ? 'b' : 'a');
-    if (target?.stylePart) setMode('groove');
+    setV(startKey(target));
+    if (target?.stylePart || (target && isPartKey(startKey(target)))) setMode('groove');
   };
   // Following goes from section to section too, as the app's grid does.
   useEffect(() => {
@@ -394,6 +419,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   /** Writes one cell from what it shows now, and plays what was written. */
   const write = (lane: Lane, s: number, fn: (p: number) => number) => {
     const next = fn(valueAt(lane, s));
+    // Writing holds the page on the bar you are working on; the pill brings the music back.
+    if (playing) setFollow(false);
     if (mode === 'fill' && !fillWrites(lane.key)) toast(`${keyName(lane.key)} now plays its own fill: its groove bar was copied in`);
     change((d) => {
       const { arr, i } = laneFor(d, lane);
@@ -468,7 +495,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     } else for (const r of Object.keys(x.rows[tab])) x.rows[tab][r] = x.rows[tab][r].map(() => 0);
   });
   const copyOther = () => {
-    const other: VariationKey = v === 'a' ? 'b' : 'a';
+    if (isPartKey(v)) return;
+    const other = v === 'a' ? 'b' : 'a';
     change((d) => {
       const src = d[other];
       const dst = d[v];
@@ -495,14 +523,14 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
         const d = draftOf(i, prev);
         const x = d[v];
         if (!x) continue;
-        const copy: Draft = { a: d.a && cloneDense(d.a), b: d.b && cloneDense(d.b), silenced: { ...d.silenced }, plays: d.plays, sounds: { ...d.sounds } };
+        const copy = cloneDraft(d);
         copy[v]!.rows[tab] = JSON.parse(JSON.stringify(mine.rows[tab]));
         copy[v]!.bars[tab] = mine.bars[tab];
         next[i] = copy;
       }
       return next;
     });
-    toast(`${trackName(tab)} of ${v.toUpperCase()} now plays like this in every section with this rhythm`);
+    toast(`${trackName(tab)} of ${SECTION_PART_LABEL[v]} now plays like this in every section with this rhythm`);
   };
   const silenced = !!draft.silenced[tab];
   const edited = mode === 'fill' ? differs(variation, base, 'fill') : differs(variation, base, tab);
@@ -574,9 +602,14 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const playhead = (() => {
     if (!here || !engine) return -1;
     if (mode === 'fill') return engine.fillBar ? engine.step : -1;
-    if (engine.fillBar) return -1;
     return engine.bar % bars === shownBar ? engine.step : -1;
   })();
+  /** The fill is sounding over the bar the groove shows: what it rewrites there is not what is heard. */
+  const fillOver = mode === 'groove' && !noFill && !!engine?.fillBar && playhead >= 0;
+  /** Where the music is, as a page — for the pill that brings the grid back to it. */
+  const playingPage = !engine || engine.fillBar ? pageNow
+    : mode === 'fill' ? pageNow : (engine.bar % bars) * chunks + Math.min(chunks - 1, Math.floor(engine.step / per));
+  const away = playing && playingSection >= 0 && (!here || playingPage !== pageNow);
   // Following: the page moves to where the music is, bar and half bar, groove or fill.
   useEffect(() => {
     if (!here || !follow || !engine) return;
@@ -637,7 +670,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             </select>
           )}
           <div className="flex-1" />
-          {!isPart && (
+          {!noFill && (
             <button type="button" className="cp-btn" onClick={() => (playing ? fillNow() : toast('Start the loop to throw the fill in'))}
               title="The section plays its fill on the next bar"
               style={engine?.fillByHand === 2 ? { background: 'var(--cp-ac)', borderColor: 'var(--cp-ac)', color: '#fff' } : engine?.fillByHand === 1 ? { borderColor: 'var(--cp-ac)', color: 'var(--cp-act)' } : undefined}>
@@ -671,7 +704,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                 style={{ color: on ? 'var(--cp-tx)' : 'var(--cp-mu)', borderBottom: `2px solid ${on ? 'var(--cp-ac)' : 'transparent'}` }}>
                 <span className="h-2 w-2 rounded" style={{ background: t.color }} />{t.name}
                 {own && <span className="rounded-full px-1.5 text-[9.5px] font-extrabold" style={{ background: 'var(--cp-acs)', color: 'var(--cp-act)' }}>OWN</span>}
-                {inFill && !isPart && <Zap size={11} style={{ color: '#E8940F' }} aria-label="The fill plays this track" />}
+                {inFill && !noFill && <Zap size={11} style={{ color: '#E8940F' }} aria-label="The fill plays this track" />}
                 {draft.silenced[t.id] && <VolumeX size={12} aria-label="Silenced here" />}
               </button>
             );
@@ -682,25 +715,29 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           {/* Toolbar */}
           <div className="flex flex-wrap items-center gap-2.5 px-4 py-3">
             {!isPart && (
-              <div className="flex overflow-hidden rounded-[11px] border" role="group" aria-label="Variation" style={{ borderColor: 'var(--cp-ln)' }}>
-                {(['a', 'b'] as const).map((k) => (
-                  <button key={k} type="button" aria-pressed={v === k}
-                    onClick={() => {
-                      // No B yet: made from A, as the app makes it the first time it is asked for.
-                      if (k === 'b' && !hasB) {
-                        change((d) => { d.b = d.a && cloneDense(d.a); });
-                        toast('B created from A: change what you want in it');
-                      }
-                      setV(k); setPage(0);
-                      if (playing && here) toast(`Switching to ${k.toUpperCase()} through the fill, on the next bar`);
-                    }}
-                    className="h-[34px] min-w-[38px] border-0 px-3 text-[13px] font-extrabold disabled:opacity-40"
-                    style={v === k ? { background: 'var(--cp-ac)', color: '#fff' } : { background: 'transparent', color: 'var(--cp-mu)' }}
-                    title={k === 'b' && !hasB ? 'Make a variation B from A' : `Edit variation ${k.toUpperCase()}`}>{k.toUpperCase()}</button>
-                ))}
+              <div className="flex overflow-hidden rounded-[11px] border" role="group" aria-label="Part of the rhythm" style={{ borderColor: 'var(--cp-ln)' }}>
+                {(['intro', 'a', 'b', 'ending'] as const).map((k) => {
+                  const lacking = (k === 'intro' && !style.intro?.length) || (k === 'ending' && !style.ending?.length);
+                  return (
+                    <button key={k} type="button" aria-pressed={v === k}
+                      onClick={() => {
+                        // No B yet: made from A, as the app makes it the first time it is asked for.
+                        if (k === 'b' && !hasB) {
+                          change((d) => { d.b = d.a && cloneDense(d.a); });
+                          toast('B created from A: change what you want in it');
+                        }
+                        if (lacking && v !== k) toast(`This rhythm has no ${k}: it starts as A, without its fill`);
+                        if (isPartKey(k)) setMode('groove');
+                        setV(k); setPage(0);
+                      }}
+                      className="h-[34px] min-w-[38px] border-0 px-3 text-[13px] font-extrabold"
+                      style={v === k ? { background: 'var(--cp-ac)', color: '#fff' } : { background: 'transparent', color: 'var(--cp-mu)' }}
+                      title={k === 'b' && !hasB ? 'Make a variation B from A' : lacking ? `Make an ${k} from A` : `Edit ${SECTION_PART_LABEL[k]}`}>{SECTION_PART_LABEL[k]}</button>
+                  );
+                })}
               </div>
             )}
-            {!isPart && (
+            {!noFill && (
               <div className="flex overflow-hidden rounded-[11px] border" role="group" aria-label="Groove or fill" style={{ borderColor: 'var(--cp-ln)' }}>
                 {(['groove', 'fill'] as const).map((m) => (
                   <button key={m} type="button" aria-pressed={mode === m} onClick={() => { setMode(m); setFocus(null); }}
@@ -714,22 +751,22 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             )}
             <span className="text-xs" style={{ color: 'var(--cp-mu)' }}>
               {isPart ? `${section.stylePart!.kind === 'intro' ? 'Intro' : 'Ending'} part: one variation, no fill`
-                : engine?.fillBar ? 'The fill is playing'
-                  : mode === 'fill' ? 'The last bar of the section, and every 8 bars'
-                    : `Editing variation ${v.toUpperCase()}`}
+                : isPartKey(v) ? `Editing the ${v}: no fill, no B`
+                  : engine?.fillBar ? 'The fill is playing'
+                    : mode === 'fill' ? 'The last bar of the section, and every 8 bars'
+                      : `Editing variation ${v.toUpperCase()}`}
             </span>
-            {!isPart && hasB && (() => {
+            {!isPart && (() => {
               // What the section plays in the song is the section card's choice; said here, with a
               // way to make it the one being edited.
-              const plays = draft.plays ?? (section.variation === 1 ? 1 : 0);
-              const wanted = v === 'b' ? 1 : 0;
+              const plays = draft.plays ?? startKey(section);
               return (
                 <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--cp-mu)' }}>
-                  · this section plays {plays ? 'B' : 'A'}
-                  {plays !== wanted && (
+                  · this section plays {SECTION_PART_LABEL[plays]}
+                  {plays !== v && (
                     <button type="button" className="h-[26px] rounded-full border px-2 text-xs font-semibold"
                       style={{ borderColor: 'var(--cp-ln)', background: 'transparent', color: 'var(--cp-act)' }}
-                      onClick={() => change((d) => { d.plays = wanted; })}>Play {v.toUpperCase()} here</button>
+                      onClick={() => change((d) => { d.plays = v; })}>Play {SECTION_PART_LABEL[v]} here</button>
                   )}
                 </span>
               );
@@ -753,7 +790,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             )}
             <ToolButton pressed={silenced} onClick={() => change((d) => { d.silenced[tab] = !d.silenced[tab]; })} title="Keep the pattern, play nothing here"><VolumeX size={15} />Silence</ToolButton>
             <ToolButton onClick={clearTrack} title="Empty this track (Ctrl Z brings it back)"><Trash2 size={15} />Clear</ToolButton>
-            {!isPart && hasB && <ToolButton onClick={copyOther} title="Copy this track from the other variation"><Copy size={15} />Copy from {v === 'a' ? 'B' : 'A'}</ToolButton>}
+            {!isPart && hasB && !isPartKey(v) && <ToolButton onClick={copyOther} title="Copy this track from the other variation"><Copy size={15} />Copy from {v === 'a' ? 'B' : 'A'}</ToolButton>}
             {!isPart && editable.length > 1 && mode === 'groove' && <ToolButton onClick={applyToAll} title="Every section with this rhythm plays this track like this">Apply to every section</ToolButton>}
           </div>
 
@@ -784,28 +821,24 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                 </span>
                 {tab !== 'drums' && <span className="text-xs" style={{ color: 'var(--cp-mu)' }}>names over <b style={{ color: 'var(--cp-tx)' }}>{chordLabel}</b> (bar {shownSectionBar + 1})</span>}
                 <span className="flex-1" />
-                {playing && !here && playingSection >= 0 && (
-                  <span className="flex items-center gap-2 text-xs" style={{ color: 'var(--cp-mu)' }}>
-                    Playing: <b style={{ color: 'var(--cp-tx)' }}>{sections[playingSection]?.name}</b> · bar {(engine?.bar ?? 0) + 1}
-                    {editable.includes(playingSection) && (
-                      <button type="button" className="h-[26px] rounded-full border px-2 text-xs font-semibold" style={{ borderColor: 'var(--cp-ln)', background: 'transparent', color: 'var(--cp-act)' }}
-                        onClick={() => { setFollow(true); goToSection(playingSection); }}>Go there</button>
-                    )}
-                  </span>
-                )}
+                {/* The grid left the music — another page, another section, a cell written while it
+                    plays: the way back, as a map's button that recentres on where you are. */}
+                {away && (editable.includes(playingSection) ? (
+                  <button type="button" className="flex h-[30px] items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold"
+                    style={{ borderColor: 'var(--cp-ac)', background: 'var(--cp-acs)', color: 'var(--cp-act)' }}
+                    onClick={() => { setFollow(true); if (playingSection !== sec) goToSection(playingSection); else setPage(playingPage); }}>
+                    <span className="h-[7px] w-[7px] rounded-full" style={{ background: 'var(--cp-act)' }} />
+                    Playing {sections[playingSection]?.name} · bar {(engine?.bar ?? 0) + 1} · <b>Follow</b>
+                  </button>
+                ) : (
+                  <span className="text-xs" style={{ color: 'var(--cp-mu)' }}>Playing <b style={{ color: 'var(--cp-tx)' }}>{sections[playingSection]?.name}</b>, on another rhythm</span>
+                ))}
                 <button type="button" aria-pressed={loopHere} onClick={toggleLoop} title="The song plays this section round and round"
                   className="h-[30px] rounded-full border px-2.5 text-xs font-semibold"
                   style={loopHere ? { background: 'var(--cp-acs)', borderColor: 'var(--cp-ac)', color: 'var(--cp-act)' } : { background: 'transparent', borderColor: 'var(--cp-ln)', color: 'var(--cp-mu)' }}>
                   {loopHere ? '⟲ Looping here' : 'Loop here'}
                 </button>
-                {playing && (
-                  <button type="button" aria-pressed={follow} onClick={() => setFollow((on) => !on)}
-                    title="The grid moves to the bar that is playing"
-                    className="h-[30px] rounded-full border px-2.5 text-xs font-semibold"
-                    style={follow ? { background: 'var(--cp-acs)', borderColor: 'var(--cp-ac)', color: 'var(--cp-act)' } : { background: 'transparent', borderColor: 'var(--cp-ln)', color: 'var(--cp-mu)' }}>
-                    {follow ? '● Following' : 'Follow'}
-                  </button>
-                )}
+
                 {pageCount > 1 && (
                   <span className="ml-auto flex items-center gap-1.5 text-xs font-bold" style={{ color: 'var(--cp-tx2)' }}>
                     <button type="button" className="cp-icb" style={{ width: 30, height: 30 }} disabled={pageNow === 0} onClick={() => { setFollow(false); setPage(pageNow - 1); }} aria-label={chunks > 1 ? 'Previous page' : 'Previous bar'}>‹</button>
@@ -889,13 +922,15 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                             const o = here.find((n) => n.o);
                             if (o) octMark = o.o > 0 ? `+${o.o}` : `${o.o}`;
                           }
-                          const faded = mode === 'fill' && (s < from || !writes);
+                          const under = fillOver && fillWrites(lane.key) && s >= from;
+                          const faded = mode === 'fill' ? (s < from || !writes) : under;
+                          const ph = under ? -1 : playhead;
                           const alpha = [0.5, 0.7, 0.86, 1][on ? strengthOf(p) : 0];
                           const focused = focus?.li === li && focus?.s === s;
                           const cellStyle: CSSProperties = {
                             background: on ? `color-mix(in srgb, ${lane.color} ${Math.round(alpha * 100)}%, var(--cp-s2))` : 'var(--cp-s2)',
-                            opacity: faded && playhead !== s ? 0.32 : 1,
-                            boxShadow: playhead === s ? 'inset 0 0 0 2px var(--cp-tx)' : focused ? 'inset 0 0 0 2px var(--cp-ac)' : ring && on ? 'inset 0 0 0 2px #0B0D12' : undefined,
+                            opacity: faded && ph !== s ? 0.32 : 1,
+                            boxShadow: ph === s ? 'inset 0 0 0 2px var(--cp-tx)' : focused ? 'inset 0 0 0 2px var(--cp-ac)' : ring && on ? 'inset 0 0 0 2px #0B0D12' : undefined,
                             height: slim ? 18 : isMobile ? 28 : 36,
                             borderRadius: slim ? 5 : 8,
                           };

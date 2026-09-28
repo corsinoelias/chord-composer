@@ -6,7 +6,7 @@ import {
   SortableContext,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { type Section } from '@/lib/sections';
+import { SECTION_PART_LABEL, sectionPartOf, type Section, type SectionPartKey } from '@/lib/sections';
 import { type Chord } from '@/lib/musicTheory';
 import { type DetectedKey } from '@/lib/keyDetect';
 import { chordDegree } from '@/lib/keyPalette';
@@ -15,6 +15,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Copy, GripVertical, LayoutGrid, MoreHorizontal, Plus, Repeat, SlidersHorizontal, Trash2 } from 'lucide-react';
@@ -69,8 +70,10 @@ interface SectionCardProps {
   songKey?: DetectedKey | null;
   /** Beats in a bar: a chord takes one grid column per bar it lasts. */
   beatsPerBar?: number;
-  /** Plays variation A (0) or B (1) of its rhythm: offered when the rhythm has a B. */
-  onSectionVariationChange?: (sectionIndex: number, variation: 0 | 1) => void;
+  /** Which part of its rhythm the section plays: its intro, A, B or its ending. */
+  onSectionPartChange?: (sectionIndex: number, part: SectionPartKey) => void;
+  /** Which of the four parts the section's rhythm brings; the rest are made from A when asked for. */
+  rhythmParts?: Partial<Record<SectionPartKey, boolean>>;
 }
 
 /**
@@ -113,7 +116,8 @@ export const SectionCard = memo(function SectionCard({
   songSounds,
   songKey = null,
   beatsPerBar = 4,
-  onSectionVariationChange,
+  onSectionPartChange,
+  rhythmParts,
 }: SectionCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(section.name);
@@ -266,29 +270,50 @@ export const SectionCard = memo(function SectionCard({
 
         <div className="flex-grow" />
 
-        {/* A and B, as a home keyboard's VARIATION button: only a rhythm of the app's has a B.
-            While this section sounds, the change goes through the fill at the bar line. */}
-        {onSectionVariationChange && !section.stylePart && (
-          <div className="flex overflow-hidden rounded-full" role="group" aria-label={`${section.name} variation`} style={{ border: '1px solid var(--cp-ln)' }}>
-            {([0, 1] as const).map((v) => {
-              const on = (section.variation ?? 0) === v;
-              return (
+        {/* Which part of the rhythm it plays, as a keyboard's rhythm has them: Intro, A, B, Ending.
+            A reference, not a copy: under another rhythm it plays that one's. Between A and B,
+            while the section sounds, the change goes through the fill at the bar line. */}
+        {onSectionPartChange && (() => {
+          const now = sectionPartOf(section);
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button
-                  key={v}
                   type="button"
-                  onClick={() => onSectionVariationChange(sectionIndex, v)}
-                  aria-pressed={on}
-                  aria-label={`${section.name} plays variation ${v === 0 ? 'A' : 'B'}`}
-                  title={v === 0 ? 'Variation A' : 'Variation B'}
-                  className="h-7 w-7 border-0 text-xs font-bold"
-                  style={on ? { background: 'var(--cp-ac)', color: '#fff' } : { background: 'transparent', color: 'var(--cp-mu)' }}
+                  className="h-7 min-w-7 rounded-full px-2 text-xs font-bold"
+                  aria-label={`${section.name} plays ${SECTION_PART_LABEL[now]}. Change the part of the rhythm`}
+                  title="Part of the rhythm"
+                  style={now === 'a'
+                    ? { border: '1px solid var(--cp-ln)', background: 'transparent', color: 'var(--cp-mu)' }
+                    : { border: '1px solid var(--cp-ac)', background: 'var(--cp-acs)', color: 'var(--cp-act)' }}
                 >
-                  {v === 0 ? 'A' : 'B'}
+                  {SECTION_PART_LABEL[now]}
                 </button>
-              );
-            })}
-          </div>
-        )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="cp w-[260px]" style={{ background: 'var(--cp-s1)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }}>
+                <DropdownMenuLabel className="text-xs" style={{ color: 'var(--cp-mu)' }}>What «{section.name}» plays</DropdownMenuLabel>
+                {(['intro', 'a', 'b', 'ending'] as const).map((k) => {
+                  const has = rhythmParts?.[k] ?? (k === 'a');
+                  const text = {
+                    intro: has ? 'The rhythm’s way in, no fill' : 'This rhythm has none: made from A',
+                    a: 'The main pattern, usually verses',
+                    b: has ? 'Fuller, usually choruses' : 'Made from A the first time',
+                    ending: has ? 'The rhythm’s ending, no fill' : 'This rhythm has none: made from A',
+                  }[k];
+                  return (
+                    <DropdownMenuItem key={k} onSelect={() => onSectionPartChange(sectionIndex, k)} className="flex items-start gap-2.5 py-2">
+                      <span className="mt-0.5 grid h-6 min-w-10 place-items-center rounded-md text-[11px] font-extrabold"
+                        style={k === now ? { background: 'var(--cp-ac)', color: '#fff' } : { background: 'var(--cp-s2)', color: 'var(--cp-tx2)' }}>
+                        {SECTION_PART_LABEL[k]}
+                      </span>
+                      <span className="text-xs leading-snug" style={{ color: 'var(--cp-mu)' }}>{text}</span>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        })()}
 
         <button
           className="cp-rep"

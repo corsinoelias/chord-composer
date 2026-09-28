@@ -14,6 +14,7 @@
  */
 import { type Chord } from '../musicTheory';
 import { type Section, type TrackId, sectionB } from '../sections';
+import { partView } from '../groove';
 import {
   type StylePattern,
   generateBarPattern,
@@ -243,10 +244,19 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
       own: kitId === RHYTHM_KIT,
       song: song.drumSounds,
     };
+    // The section's own intro or ending (Section.part): the rhythm's, with its edits.
+    const ownPart = section.stylePart ? undefined : section.part;
     if (part && partStyle) {
       writeAppPart(c, s, partStyle, section, kit, drumSlots);
+    } else if (style.engine && ownPart) {
+      writeAppPart(c, s, style.engine, partView(style.engine, section, ownPart), kit, drumSlots);
     } else if (style.engine) {
       writeAppStyle(c, s, style.engine, section, kit, drumSlots);
+    } else if (ownPart) {
+      // The web's rhythms have no intro or ending: the groove, without its fill or a B.
+      writeWebStyle(s, section, style, playback, 0);
+      c.push(['setFill', s, 0, 0, [], 0]);
+      clearVariationB(c, s);
     } else {
       writeWebStyle(s, section, style, playback, 0);
       // The section's own B, when it made one: another arrangement of the same part, in bank 1.

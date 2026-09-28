@@ -109,6 +109,7 @@
         "patterns": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "$ref": "#/definitions/trackPattern" } },
         "silenced": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "boolean" } },
         "sounds": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "string" } },
+        "part": { "enum": ["intro", "ending"], "description": "The rhythm's intro or ending, played by this section instead of its groove (variation A or B stays for when it goes back). A reference: under another rhythm it plays that one's. The app keeps the same choice as Section.part." },
         "variation": { "enum": [0, 1], "description": "Which variation the section plays: 0 (or absent) A, 1 B. The app's rhythms bring a B (or the section makes one: groove.bCreated); on the web's own rhythms B is the section's alt." },
         "alt": {
           "type": "object",
@@ -138,7 +139,9 @@
             "styleId": { "type": "string" },
             "a": { "$ref": "#/definitions/grooveVariation" },
             "b": { "$ref": "#/definitions/grooveVariation" },
-            "bCreated": { "const": true, "description": "The rhythm has no B and the section made one from A." }
+            "bCreated": { "const": true, "description": "The rhythm has no B and the section made one from A." },
+            "intro": { "$ref": "#/definitions/grooveVariation", "description": "The section's own intro (part: intro), against the rhythm's first intro part or, without one, its A." },
+            "ending": { "$ref": "#/definitions/grooveVariation", "description": "The same for its ending." }
           }
         }
       }

@@ -23,6 +23,28 @@ export function appStyleInstruments(states: InstrumentState[], style: AppStyle):
   });
 }
 
+/** Section names that say which part of a rhythm they are, in Spanish and English — as the app reads them. */
+const INTRO_NAME = /^(intro|entrada|introducci)/i;
+const ENDING_NAME = /^(final|fin|outro|ending|coda|cierre)/i;
+const CHORUS_NAME = /^(coro|estribillo|chorus|refr)/i;
+
+/**
+ * [sections] with the part each name suggests, as the app does on applying a rhythm: a chorus
+ * plays B when the rhythm has one, and — unless the rhythm's own intro and ending were added —
+ * an "Intro" or "Final" plays the rhythm's. Only sections that have not chosen one already;
+ * suggested once, on applying, never behind your back afterwards.
+ */
+export function withPartsByName(sections: Section[], style: AppStyle, addedIntroAndEnding: boolean): Section[] {
+  return sections.map((s) => {
+    if (s.stylePart || s.part || s.variation === 1) return s;
+    const name = s.name.trim();
+    if (!addedIntroAndEnding && style.intro?.length && INTRO_NAME.test(name)) return { ...s, part: 'intro' };
+    if (!addedIntroAndEnding && style.ending?.length && ENDING_NAME.test(name)) return { ...s, part: 'ending' };
+    if (style.b && CHORUS_NAME.test(name)) return { ...s, variation: 1 };
+    return s;
+  });
+}
+
 /**
  * [sections] with the intro and ending an earlier rhythm added taken out, and [style]'s put in
  * when [add] — the app replaces them rather than piling up another pair. [key] is the song's:

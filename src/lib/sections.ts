@@ -54,6 +54,12 @@ export interface Section {
    */
   variation?: 0 | 1;
   /**
+   * The rhythm's intro or ending, played by this section instead of its groove (A or B,
+   * which [variation] keeps for when it goes back). A reference, not a copy: under another
+   * rhythm it plays that rhythm's intro. See docs and SectionCard's part menu.
+   */
+  part?: 'intro' | 'ending';
+  /**
    * This section is a part of a rhythm's intro or ending, added with it ("Add intro and
    * ending"): it plays that part's own patterns over its own chords, in the song's key.
    */
@@ -91,6 +97,15 @@ export function sectionB(section: Section): Section | null {
 }
 
 /** Whether a section changes anything about how the song is arranged. */
+/** The four parts of a keyboard's rhythm, and which one a section plays. */
+export type SectionPartKey = 'intro' | 'a' | 'b' | 'ending';
+export function sectionPartOf(section: Pick<Section, 'stylePart' | 'part' | 'variation'>): SectionPartKey {
+  if (section.stylePart) return section.stylePart.kind === 'intro' ? 'intro' : 'ending';
+  if (section.part) return section.part;
+  return section.variation === 1 ? 'b' : 'a';
+}
+export const SECTION_PART_LABEL: Record<SectionPartKey, string> = { intro: 'Intro', a: 'A', b: 'B', ending: 'Ending' };
+
 export function sectionHasArrangement(section: Section): boolean {
   const any = (o?: object) => !!o && Object.keys(o).length > 0;
   return !!section.styleId || any(section.trackStyles) || any(section.patterns)

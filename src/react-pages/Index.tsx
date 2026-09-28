@@ -19,13 +19,13 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { type Chord, generateChordId, chordToMidiNotes } from '@/lib/musicTheory';
-import { type Section, createSection, getSectionDisplayName, sectionHasArrangement, sectionB, arrangementOf } from '@/lib/sections';
+import { type Section, type SectionPartKey, createSection, getSectionDisplayName, sectionHasArrangement, sectionB, arrangementOf } from '@/lib/sections';
 import { detectKey, keyLabel, relativeTonic, type DetectedKey, type KeyMode } from '@/lib/keyDetect';
 import { keyPrefersFlats } from '@/lib/musicKeys';
 import { completeInstrumentStates, getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { ensureAppStyles, getAppStyle, songUsesAppStyles, type AppStyle } from '@/lib/appStyles';
 import { AppRhythmEditor, type SongSounds } from '@/components/AppRhythmEditor';
-import { appStyleInstruments, withAppStyleParts } from '@/lib/appStyleSong';
+import { appStyleInstruments, withAppStyleParts, withPartsByName } from '@/lib/appStyleSong';
 import { type AppStyleApply } from '@/components/StyleSelector';
 import { getStyleByIdWithOverrides, resolveActiveStyle, MUSICAL_STYLES, getSlotsPerBar, type StylePattern } from '@/lib/styles';
 import { getCustomStyles, getStyleOverride, saveStyleOverride, saveCustomStyle, isCustomStyle, initCustomStylesCache } from '@/lib/customStyles';
@@ -1395,6 +1395,11 @@ const Index = ({ songId }: IndexProps) => {
     if (section.stylePart) return getAppStyle(section.stylePart.styleId);
     return effectiveSectionStyle(section, currentStyle, sectionStyleLookup).engine;
   }, [currentStyle, sectionStyleLookup]);
+  /** Which of the four parts the rhythm a section plays brings: the rest are made from A when asked for. */
+  const rhythmPartsOf = useCallback((section: Section): Partial<Record<SectionPartKey, boolean>> => {
+    const app = appStyleOfSection(section);
+    return { intro: !!app?.intro?.length, a: true, b: app ? !!app.b : !!section.alt, ending: !!app?.ending?.length };
+  }, [appStyleOfSection]);
   const [appEditor, setAppEditor] = useState<{ style: AppStyle; section: number } | null>(null);
   const appEditable = useMemo(() => (appEditor
     ? sections.map((s, i) => (appStyleOfSection(s)?.id === appEditor.style.id ? i : -1)).filter((i) => i >= 0)
@@ -1414,6 +1419,40 @@ const Index = ({ songId }: IndexProps) => {
     setSectionRhythmEdit({ index: sectionIndex, base, variation });
     setRhythmEditorOpen(true);
   }, [sections, currentStyle, sectionStyleLookup, appStyleOfSection]);
+
+  /**
+   * Which part of the rhythm a section plays: its intro or ending (Section.part, a reference to
+   * whatever rhythm it plays), or its groove on A or B. An intro or ending the rhythm added
+   * becomes an ordinary section when it is set to A or B.
+   */
+  const handleSectionPartChange = useCallback((sectionIndex: number, part: SectionPartKey) => {
+    const section = sectionsRef.current[sectionIndex];
+    if (!section) return;
+    const app = appStyleOfSection(section);
+    if (part === 'intro' || part === 'ending') {
+      setSections(prev => prev.map((s, i) => {
+        if (i !== sectionIndex) return s;
+        const next: Section = { ...s, part };
+        // One the rhythm added keeps its chords and becomes the song's own section.
+        if (s.stylePart) { delete next.stylePart; delete next.groove; }
+        return next;
+      }));
+      if (!(part === 'intro' ? app?.intro?.length : app?.ending?.length)) {
+        toast(`This rhythm has no ${part}: it plays A without its fill. Change it in Edit rhythm`);
+      }
+      return;
+    }
+    if (section.part || section.stylePart) {
+      setSections(prev => prev.map((s, i) => {
+        if (i !== sectionIndex) return s;
+        const next: Section = { ...s };
+        delete next.part;
+        if (s.stylePart) { delete next.stylePart; delete next.groove; }
+        return next;
+      }));
+    }
+    handleSectionABChange(sectionIndex, part === 'b' ? 1 : 0);
+  }, [appStyleOfSection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Variation A or B of the rhythm, for one section: kept with the song, as the app keeps it. */
   const handleSectionABChange = useCallback((sectionIndex: number, variation: 0 | 1) => {
@@ -1525,9 +1564,10 @@ const Index = ({ songId }: IndexProps) => {
     const key = keyBaseRef.current;
     const tonic = key?.pitchClass ?? 0;
     const minor = key?.mode === 'minor';
-    setSections((prev) => withAppStyleParts(prev, app, apply?.introAndEnding ?? false, {
+    const add = apply?.introAndEnding ?? false;
+    setSections((prev) => withPartsByName(withAppStyleParts(prev, app, add, {
       tonic, minor, flats: keyPrefersFlats(keyLabel(tonic, key?.mode ?? 'major')),
-    }));
+    }), app, add));
   }, []);
 
   const handleOpenRhythmEditor = useCallback(() => {
@@ -1785,7 +1825,8 @@ const Index = ({ songId }: IndexProps) => {
                       onEditSectionRhythm={handleEditSectionRhythm}
                       songKey={keyBase}
                       beatsPerBar={getSlotsPerBar(currentStyle) / 4}
-                      onSectionVariationChange={handleSectionABChange}
+                      onSectionPartChange={handleSectionPartChange}
+                      rhythmParts={rhythmPartsOf(section)}
                     />
                   </div>
                 ))}
