@@ -1231,8 +1231,10 @@ class Engine {
   /// all, and open spacing cannot exist once every note is folded into one octave.
   void voicing(int section, const char* track, int low, int high) {
     (void)high;  // the window is always an octave; only where it starts is a choice
+    // Every melodic track has a register, the synth too: leaving it out here left the
+    // synth's range bar moving nothing.
     const int index = strcmp(track, "piano") == 0 ? 0 : strcmp(track, "guitar") == 0 ? 1
-                    : strcmp(track, "bass") == 0 ? 2 : -1;
+                    : strcmp(track, "bass") == 0 ? 2 : strcmp(track, "synth") == 0 ? 3 : -1;
     if (index < 0 || section < 0 || section >= kSections) return;
     // The window is one octave, always. Every note of a chord is folded into it, so a
     // wider one would let the voicing spread back out of the range and a narrower one

@@ -82,5 +82,14 @@ for (const variation of [0, 1] as const) {
   check('the rhythm\'s own register sounds as it did', same === 0, `distance ${same.toFixed(1)}`);
 }
 
+// The synth has a register too: its range bar moved it nowhere while the engine knew only
+// piano, guitar and bass.
+{
+  const afrobeat = appStylePattern(own.find((s) => s.id === 'app-afrobeat')!);
+  const plain = await render([section()], afrobeat);
+  const up = distance(plain, await render([section()], afrobeat, { voicings: { synth: 84 } }));
+  check('the synth\'s register', up > HEARD, `distance ${up.toFixed(1)}`);
+}
+
 console.log(`${checks - failed}/${checks} listening checks passed`);
 if (failed) process.exit(1);

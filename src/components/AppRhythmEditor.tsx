@@ -220,6 +220,9 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   useEffect(() => { loadKits().then(setKits).catch(() => {}); }, []);
   /** A panel over the editor: the kit to play by hand, or the keyboard with every track's range. */
   const [panel, setPanel] = useState<'kit' | 'keys' | null>(null);
+  /** The instrument the big keyboard shows: its notes, in its window. */
+  const [keyTrack, setKeyTrack] = useState<KeyTrack>('piano');
+  const openKeys = () => { if (tab !== 'drums') setKeyTrack(tab as KeyTrack); setPanel('keys'); };
 
   const section = sections[sec];
   /** A section as the editor reads it: its own sounds already on its parts (foldSectionSounds). */
@@ -779,7 +782,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     items.push({ label: silenced ? '✓ Muted here' : 'Mute here', run: () => change((d) => { d.silenced[tab] = !d.silenced[tab]; }) });
     items.push(tab === 'drums'
       ? { label: 'Play the pieces', run: () => setPanel('kit') }
-      : { label: 'Keyboard and range', run: () => setPanel('keys') });
+      : { label: 'Keyboard and range', run: openKeys });
     if (Object.values(variation.rows[tab] ?? {}).some((l) => l.some(Boolean))) items.push({ label: 'Save as a pattern', run: () => askSave() });
     if (mode === 'groove') items.push({ label: 'Random', run: randomPattern, hold: scramble, title: 'Hold: cells at random' });
     if (edited) items.push({ label: 'Same as the rest', run: backToRhythm });
@@ -1084,8 +1087,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             range — dragged, it moves where the instrument plays. A tap opens them large. */}
         {tab !== 'drums' && (
           <div className="px-3 pt-1.5 sm:px-4">
-            <button type="button" aria-label="Keyboard and range" onClick={() => setPanel('keys')} className="block w-full border-0 bg-transparent p-0">
-              <Keys lit={litKeys(tab as KeyTrack)} height={isMobile ? 34 : 40} />
+            <button type="button" aria-label="Keyboard and range" onClick={openKeys} className="block w-full border-0 bg-transparent p-0">
+              <Keys lit={litKeys(tab as KeyTrack)} height={isMobile ? 34 : 40} range={[lowOf(tab as KeyTrack), lowOf(tab as KeyTrack) + VOICING_SPAN - 1]} />
             </button>
             <RangeBar className="mt-1" low={lowOf(tab as KeyTrack)} color={trackColor(tab)} label={trackName(tab)} height={9} onChange={(low) => setLow(tab as KeyTrack, low)} />
           </div>
@@ -1178,13 +1181,16 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
 
         {panel === 'keys' && (
           <Panel title="Keyboard and range" onClose={() => setPanel(null)}>
-            <Keys lit={litKeys()} height={isMobile ? 72 : 96} />
+            <Keys lit={litKeys(keyTrack)} height={isMobile ? 72 : 96} range={[lowOf(keyTrack), lowOf(keyTrack) + VOICING_SPAN - 1]} />
             {KEY_TRACKS.map((t) => (
-              <div key={t} className="grid gap-1">
-                <span className="flex items-baseline gap-2 text-[12.5px]" style={{ fontWeight: t === tab ? 800 : 600, color: t === tab ? trackColor(t) : 'var(--cp-tx2)' }}>
+              <div key={t} className="grid gap-1" style={{ opacity: t === keyTrack ? 1 : 0.55 }}>
+                <button type="button" aria-pressed={t === keyTrack} onClick={() => setKeyTrack(t)}
+                  className="flex items-baseline gap-2 border-0 bg-transparent p-0 text-left text-[12.5px]"
+                  style={{ fontWeight: t === keyTrack ? 800 : 600, color: t === keyTrack ? trackColor(t) : 'var(--cp-tx2)' }}>
                   {trackName(t)}<span className="font-semibold" style={{ color: 'var(--cp-mu)', fontFamily: 'var(--cp-mono, monospace)' }}>{noteLabel(lowOf(t))}–{noteLabel(lowOf(t) + VOICING_SPAN - 1)}</span>
-                </span>
-                <RangeBar low={lowOf(t)} color={trackColor(t)} label={trackName(t)} height={22} onChange={(low) => setLow(t, low)} />
+                </button>
+                <RangeBar low={lowOf(t)} color={trackColor(t)} label={trackName(t)} height={22}
+                  onChange={(low) => { setKeyTrack(t); setLow(t, low); }} />
               </div>
             ))}
             <div className="flex items-center gap-2">
@@ -1392,12 +1398,23 @@ function useSounding(on: boolean): number[][] {
   return notes;
 }
 
-/** A keyboard: the keys [lit] in their track's colour. */
-function Keys({ lit, height }: { lit: Map<number, string>; height: number }) {
+/**
+ * A keyboard: the keys [lit] in their track's colour. With a [range], the track's two octaves
+ * stay bright and the keys outside them fade, so the bar under it and the keys read as one
+ * window; a note that sounds outside it — a ninth above the chord, an octave leap written in
+ * a step, which the engine leaves where they fall — is lit striped, there but out of place.
+ */
+function Keys({ lit, height, range }: { lit: Map<number, string>; height: number; range?: [number, number] }) {
+  const inside = (m: number) => !range || (m >= range[0] && m <= range[1]);
+  const paint = (m: number, base: string, faded: string) => {
+    const color = lit.get(m);
+    if (!color) return inside(m) ? base : faded;
+    return inside(m) ? color : `repeating-linear-gradient(135deg, ${color} 0 3px, ${faded} 3px 6px)`;
+  };
   return (
     <span className="relative block overflow-hidden rounded-md border" style={{ height, borderColor: 'var(--cp-ln2)', background: '#FFFFFF' }} aria-hidden="true">
-      {WHITES.map((m) => { const b = keyBox(m); return <span key={m} className="absolute bottom-0 top-0 border-r" style={{ left: `${b.left * 100}%`, width: `${b.width * 100}%`, borderColor: '#D5D8E0', background: lit.get(m) ?? '#FFFFFF' }} />; })}
-      {BLACKS.map((m) => { const b = keyBox(m); return <span key={m} className="absolute top-0" style={{ left: `${b.left * 100}%`, width: `${b.width * 100}%`, height: '62%', borderRadius: '0 0 2px 2px', background: lit.get(m) ?? '#23262E' }} />; })}
+      {WHITES.map((m) => { const b = keyBox(m); return <span key={m} className="absolute bottom-0 top-0 border-r" style={{ left: `${b.left * 100}%`, width: `${b.width * 100}%`, borderColor: '#D5D8E0', background: paint(m, '#FFFFFF', '#E3E5EA') }} />; })}
+      {BLACKS.map((m) => { const b = keyBox(m); return <span key={m} className="absolute top-0" style={{ left: `${b.left * 100}%`, width: `${b.width * 100}%`, height: '62%', borderRadius: '0 0 2px 2px', background: paint(m, '#23262E', '#8A8E99') }} />; })}
     </span>
   );
 }
