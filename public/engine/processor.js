@@ -9,7 +9,10 @@
 // quanta on this same thread, a batch at a time, so a song is never half-updated when the
 // next block renders. What the page needs to draw — position, notes sounding and struck,
 // drum hits, levels — comes back about 30 times a second.
-import { createEngine } from './engine-core.js';
+// engine-core.js is added to the worklet first (host.ts), each file with the engine's version
+// in its URL: a static import here would take whatever copy the browser kept, and an old
+// one reads the new engine's commands wrong (a sound's bank, say). A worklet cannot import().
+const createEngine = (...args) => globalThis.createAppEngine(...args);
 
 const QUANTUM = 128;
 const NOTE_WORDS = 3;   // kNoteWords: notes from MIDI 24 upward, 32 per word

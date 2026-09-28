@@ -3,7 +3,9 @@
 // It calls the engine's own exportWav — the same function the app uses, through the same
 // signal path as playback — so the file is what you heard. exportWav writes with fopen and
 // fseek; the WASI layer below keeps that file in memory and hands its bytes back.
-import { createEngine } from './engine-core.js';
+// With this worker's own version (host.ts), not whatever copy of it the browser kept.
+// Not awaited here: the page's message may come before it loads, and must find onmessage set.
+const core = import(`./engine-core.js${new URL(import.meta.url).search}`);
 
 const ERRNO = { SUCCESS: 0, BADF: 8, NOSYS: 52 };
 const PREOPEN_FD = 3;   // "/", the one directory the engine may open files in
@@ -93,6 +95,7 @@ function memoryFileSystem() {
 self.onmessage = async ({ data: { id, wasm, sf2, kit, commands, steps, tailSeconds } }) => {
   try {
     const fs = memoryFileSystem();
+    const { createEngine } = await core;
     const engine = await createEngine(wasm, fs.wasi);
     const e = engine.exports;
     e.wg_set_rate(48000);

@@ -63,6 +63,11 @@ export interface ExportResult { blob: Blob; frames: number; ms: number }
 
 const version = (file: string) => (manifest.files as Record<string, string>)[file]?.slice(0, 10) ?? manifest.syncedAt;
 const url = (file: string) => `/${file.replace(/^public\//, '')}?v=${version(file)}`;
+/**
+ * The engine's JavaScript, with the engine's version: the glue reads each command's arguments
+ * the way this engine.wasm takes them, so a copy of it kept from an older engine must not run.
+ */
+const engineCode = (file: string) => `/engine/${file}?v=${version('public/engine/engine.wasm')}`;
 
 const NOTE_FLOOR = 24;
 const NOTE_WORDS = 3;
@@ -179,7 +184,7 @@ export class AppEngine {
     const context = ctx ?? new AudioContext({ sampleRate: ENGINE_RATE, latencyHint: 'interactive' });
     const [assets] = await Promise.all([
       loadAssets(),
-      context.audioWorklet.addModule('/engine/processor.js'),
+      context.audioWorklet.addModule(engineCode('engine-core.js')).then(() => context.audioWorklet.addModule(engineCode('processor.js'))),
     ]);
     const entries = assets.kit.filter((k) => slots.includes(k.slot));
     const pcm = await Promise.all(entries.map(loadPcm));
@@ -375,7 +380,7 @@ export async function exportCommandsWav(commands: EngineCommand[], steps: number
   const kit = entries.map((k, i) => ({ slot: k.slot, gain: k.gain, pcm: pcm[i].slice(0) }));
   const wasm = assets.wasm.slice(0);
   const sf2 = (usingFullFont || fullFont ? await loadFullFont() : assets.sf2).slice(0);
-  const worker = new Worker('/engine/export-worker.js', { type: 'module' });
+  const worker = new Worker(engineCode('export-worker.js'), { type: 'module' });
   try {
     const result = await new Promise<{ wav: Uint8Array<ArrayBuffer>; frames: number; ms: number }>((resolve, reject) => {
       worker.onmessage = ({ data }) => (data.error ? reject(new Error(data.error)) : resolve(data));

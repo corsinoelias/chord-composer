@@ -53,6 +53,7 @@ const SCRATCH_SLOTS = 4;
  * Instantiates the engine. [wasi] supplies the WASI imports this host has: anything it
  * leaves out answers ENOSYS (52), which the engine never meets outside a file export.
  */
+/** Also on the worklet's global scope, where processor.js finds it (see there). */
 export async function createEngine(wasmBytes, wasi = {}) {
   let memory = null;
   const imports = new Proxy({}, {
@@ -128,3 +129,5 @@ export async function createEngine(wasmBytes, wasi = {}) {
     },
   };
 }
+
+globalThis.createAppEngine = createEngine;

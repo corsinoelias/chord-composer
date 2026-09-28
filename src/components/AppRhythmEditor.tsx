@@ -1102,12 +1102,6 @@ function SoundMenu({ track, x, y, above, onClose, underSound, partSound, partNam
       style={{ ...place, background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)', maxHeight: 'min(430px, calc(100dvh - 16px))' }}>
       <div className="px-2.5 pb-1 pt-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--cp-mu)' }}>{partName}</div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {partSound && (
-          <button type="button" role="menuitem" className="w-full rounded-lg border-0 bg-transparent px-2.5 py-2 text-left text-[13px] hover:bg-[var(--cp-s2)]"
-            style={{ color: 'var(--cp-act)' }} onClick={() => { onPick(underSound); onClose(); }}>
-            Same as the song ({getSoundType(track, underSound)?.name ?? underSound})
-          </button>
-        )}
         {ids.map((id) => {
           const on = id === current;
           return (
