@@ -89,6 +89,10 @@ for (const variation of [0, 1] as const) {
   const plain = await render([section()], afrobeat);
   const up = distance(plain, await render([section()], afrobeat, { voicings: { synth: 84 } }));
   check('the synth\'s register', up > HEARD, `distance ${up.toFixed(1)}`);
+  // And its note length: set and never applied while the engine gated piano, guitar and
+  // bass only, so every choice rang until the next note.
+  const short = distance(plain, await render([section()], afrobeat, { noteLengths: { synth: 0.5 } }));
+  check('the synth\'s note length', short > HEARD, `distance ${short.toFixed(1)}`);
 }
 
 console.log(`${checks - failed}/${checks} listening checks passed`);

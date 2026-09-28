@@ -2189,7 +2189,8 @@ class Engine {
     // guitar holds one chord for a whole bar, so its keys were lit the entire time and
     // there was no way to see it play at all. This is set on the strike and cleared
     // when the screen reads it.
-    if (track >= 0 && track <= 2 && midiNote >= kNoteFloor) {
+    // Every melodic track, the synth too (3): it was left out, and its keys never flashed.
+    if (track >= 0 && track < kTracks && midiNote >= kNoteFloor) {
       const int bit = midiNote - kNoteFloor;
       if (bit < kNoteWords * 32) {
         struck_[track][bit / 32].fetch_or(1u << (bit % 32), std::memory_order_relaxed);
@@ -2199,7 +2200,9 @@ class Engine {
     // How long this note is held, in steps, turned into frames at the tempo it was
     // struck at. A tempo change while it rings does not stretch it, which is what a
     // player would do: the note was already that long when it started.
-    if (track >= 0 && track <= 2) {
+    // The synth's notes too: its note length was set and never applied, so every choice
+    // rang until the next note.
+    if (track >= 0 && track < kTracks) {
       const float steps = gateSteps_[(section < 0 || section >= kSections) ? 0 : section][track].load(std::memory_order_relaxed);
       v.gate = steps > 0 ? static_cast<int>(steps * stepFrames_) : -1;
     }

@@ -4,7 +4,7 @@
  * until the track strikes again or the chord changes (the app's "Hold"). A track left out
  * keeps the web's own length: 3 steps, 2 for a plain root-note bass.
  */
-export type NoteLengths = Partial<Record<'piano' | 'guitar' | 'bass', number>>;
+export type NoteLengths = Partial<Record<'piano' | 'guitar' | 'bass' | 'synth', number>>;
 
 /**
  * Where each melodic track's register starts, as a MIDI note: the app's voicing, a window of

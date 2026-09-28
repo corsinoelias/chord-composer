@@ -59,7 +59,7 @@ export function songNoteLengths(song: unknown): NoteLengths {
   const raw = (song as { app?: { noteLengths?: Record<string, unknown> } })?.app?.noteLengths;
   const out: NoteLengths = {};
   if (!raw || typeof raw !== 'object') return out;
-  for (const track of ['piano', 'guitar', 'bass'] as const) {
+  for (const track of ['piano', 'guitar', 'bass', 'synth'] as const) {
     const steps = raw[track];
     if (typeof steps === 'number' && NOTE_LENGTH_STEPS.includes(steps)) out[track] = steps;
   }

@@ -291,7 +291,7 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     // What the song sets over its rhythm, as the app's project does: how long each track's
     // notes ring (⋯ › Notes) and where its register sits (Keyboard and range).
     for (const track of ['piano', 'guitar', 'bass', 'synth'] as const) {
-      const length = track === 'synth' ? undefined : song.noteLengths?.[track];
+      const length = song.noteLengths?.[track];
       if (length !== undefined) c.push(['setNoteLength', s, track, length]);
       const low = song.voicings?.[track];
       if (low !== undefined) c.push(['voicing', s, track, low, low + 23]);

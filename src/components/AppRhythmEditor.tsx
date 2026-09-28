@@ -770,7 +770,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       items.push({ head: 'Bars' });
       for (const n of [1, 2, 4] as const) items.push({ label: `${bars === n ? '✓ ' : ''}${n} bar${n > 1 ? 's' : ''}`, run: () => setBars(n) });
     }
-    if (tab === 'piano' || tab === 'guitar' || tab === 'bass') {
+    if (tab !== 'drums') {
       // How long its notes ring, for the whole song, as the app's Notes.
       const now = songSounds.noteLengths[tab];
       items.push({ head: 'Notes' });
