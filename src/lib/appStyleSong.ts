@@ -25,7 +25,7 @@ export function appStyleInstruments(states: InstrumentState[], style: AppStyle):
 
 /** Section names that say which part of a rhythm they are, in Spanish and English — as the app reads them. */
 const INTRO_NAME = /^(intro|entrada|introducci)/i;
-const ENDING_NAME = /^(final|fin|outro|ending|coda|cierre)/i;
+const ENDING_NAME = /^(final|fin\b|outro|ending|coda|cierre)/i;
 const CHORUS_NAME = /^(coro|estribillo|chorus|refr)/i;
 
 /**

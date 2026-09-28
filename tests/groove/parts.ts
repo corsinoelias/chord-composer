@@ -92,6 +92,8 @@ const variationOf = (c: EngineCommand[]) => c.filter((x) => x[0] === 'setVariati
   check('names suggest the parts', JSON.stringify(parts) === JSON.stringify(['intro', 'a', 'b', 'ending']), JSON.stringify(parts));
   const added = withPartsByName(song, withIntro, true).map(sectionPartOf);
   check('with the rhythm\'s own intro added, the song\'s stays A', JSON.stringify(added) === JSON.stringify(['a', 'a', 'b', 'a']), JSON.stringify(added));
+  const fin = withPartsByName([section({ name: 'Fin' }), section({ name: 'Finale grande' })], withIntro, false).map(sectionPartOf);
+  check('"Fin" is an ending too', fin[0] === 'ending', JSON.stringify(fin));
   const chosen = withPartsByName([section({ name: 'Coro', part: 'intro' })], withIntro, false).map(sectionPartOf);
   check('a part already chosen stays', chosen[0] === 'intro');
 }
