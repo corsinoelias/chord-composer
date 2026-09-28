@@ -103,6 +103,13 @@ interface RhythmEditorProps {
    * was edited in the one left (the parent saves it) and opens the other.
    */
   sectionVariation?: { value: 0 | 1; onSwitch: (to: 0 | 1, edited: StylePattern) => void };
+  /** The sound the song plays on each instrument (its instruments' soundTypeId). */
+  songSounds?: Partial<Record<InstrumentType, string>>;
+  /**
+   * A sound picked here, for the song: heard at once, as the Instruments panel changes it. The
+   * rhythm keeps it too, as the sound it starts a song with.
+   */
+  onSongSound?: (track: InstrumentType, soundId: string) => void;
 }
 
 // Migrate rhythm.bass/piano/guitar into melodic variations so they appear in their own tabs
@@ -186,16 +193,22 @@ function InstrumentMixControl({
   editedStyle,
   onChange,
   onSoundTypeChange,
+  songSounds,
+  onSongSound,
 }: {
   instType: InstrumentType;
   editedStyle: StylePattern;
   onChange: (updater: (prev: StylePattern) => StylePattern) => void;
   onSoundTypeChange?: () => void;
+  songSounds?: RhythmEditorProps['songSounds'];
+  onSongSound?: RhythmEditorProps['onSongSound'];
 }) {
   const config = INSTRUMENTS.find(i => i.id === instType);
   if (!config) return null;
 
-  const currentSoundId = editedStyle.instrumentSounds?.[instType] || config.defaultSoundType;
+  // What the song plays, when the song is there to ask: the sound the rhythm names is only
+  // where a song starts when the rhythm is applied to it.
+  const currentSoundId = songSounds?.[instType] || editedStyle.instrumentSounds?.[instType] || config.defaultSoundType;
   // Only `guitar` is optional on StylePattern.volumes — falls back to piano's
   // volume, matching the default this style would apply if unset.
   const currentVolume = editedStyle.volumes[instType] ?? editedStyle.volumes.piano;
@@ -226,6 +239,7 @@ function InstrumentMixControl({
             ...prev,
             instrumentSounds: { ...prev.instrumentSounds, [instType]: soundId },
           }));
+          onSongSound?.(instType, soundId);
           onSoundTypeChange?.();
         }}
       >
@@ -261,6 +275,8 @@ export function RhythmEditor({
   referenceQuality = 'maj',
   onSaveSection,
   sectionVariation,
+  songSounds,
+  onSongSound,
 }: RhythmEditorProps) {
   // Use centralized playback state
   const { state: playbackState, stop: stopMainPlayback } = usePlayback();
@@ -1215,7 +1231,8 @@ export function RhythmEditor({
             
             {/* Drums' own volume + kit selector — scoped to this tab only */}
             <div className="ml-auto">
-              <InstrumentMixControl instType="drums" editedStyle={editedStyle} onChange={setEditedStyle} onSoundTypeChange={() => { if (isLocalPlaying) startLocalPlayback(); }} />
+              <InstrumentMixControl instType="drums" editedStyle={editedStyle} onChange={setEditedStyle} onSoundTypeChange={() => { if (isLocalPlaying) startLocalPlayback(); }}
+                  songSounds={songSounds} onSongSound={onSongSound} />
             </div>
           </div>
 
@@ -1504,6 +1521,7 @@ export function RhythmEditor({
                   editedStyle={editedStyle}
                   onChange={setEditedStyle}
                   onSoundTypeChange={() => { if (isLocalPlaying) startLocalPlayback(); }}
+                  songSounds={songSounds} onSongSound={onSongSound}
                 />
               </div>
             </div>

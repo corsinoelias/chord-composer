@@ -2021,6 +2021,9 @@ const Index = ({ songId }: IndexProps) => {
         style={sectionRhythmEdit?.base ?? (editingNewStyle || currentStyle)}
         allStyles={[...customStyles, ...MUSICAL_STYLES]}
         isNewStyle={!!editingNewStyle}
+        // Its sound picker is the song's, as the Instruments panel: what is picked is heard.
+        songSounds={Object.fromEntries(instruments.map((i) => [i.id, i.soundTypeId]))}
+        onSongSound={(track, soundId) => setInstruments((prev) => prev.map((i) => (i.id === track ? { ...i, soundTypeId: soundId } : i)))}
         // In section mode the edit stays inside the editor until saved: previewing it live
         // would make the whole song play the section's groove.
         onStyleChange={sectionRhythmEdit ? undefined : setLiveEditedStyle}
