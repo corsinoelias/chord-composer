@@ -78,16 +78,32 @@ export function fitLane(lane: number[] | undefined, length: number): number[] {
 }
 
 /**
- * Whether a track spells [p]: the same bars and the same steps. A row one side does not name
- * counts as silent — a figure names the pieces it plays, a groove may name more — as the
- * app's sameTrack.
+ * [p] as it goes on a track of [bars] bars: its own bars repeated to the end, and the bars
+ * the track needs for it — more, when the pattern is longer (the app's fitPatternToBars). A
+ * figure is one bar: a track of two plays it twice, not once and then a bar of silence.
+ */
+export function fitToBars(p: StripPattern, bars: number, spb: number): { rows: Record<string, number[]>; bars: 1 | 2 | 4 } {
+  const target = (Math.max(bars, p.bars) >= 4 ? 4 : Math.max(bars, p.bars) >= 2 ? 2 : 1) as 1 | 2 | 4;
+  const period = p.bars * spb;
+  const rows = Object.fromEntries(Object.entries(p.rows).map(([row, lane]) => {
+    const own = fitLane(lane, period);
+    return [row, Array.from({ length: target * spb }, (_, i) => own[i % period])];
+  }));
+  return { rows, bars: target };
+}
+
+/**
+ * Whether a track spells [p] as applying it would write it: repeated over the track's bars.
+ * A row one side does not name counts as silent — a figure names the pieces it plays, a
+ * groove may name more — as the app's sameTrack.
  */
 export function spells(rows: Record<string, number[]> | undefined, bars: number, p: StripPattern, spb: number): boolean {
-  if (bars !== p.bars) return false;
+  const fitted = fitToBars(p, bars, spb);
+  if (fitted.bars !== bars) return false;
   const length = bars * spb;
-  for (const row of new Set([...Object.keys(rows ?? {}), ...Object.keys(p.rows)])) {
+  for (const row of new Set([...Object.keys(rows ?? {}), ...Object.keys(fitted.rows)])) {
     const a = fitLane(rows?.[row], length);
-    const b = fitLane(p.rows[row], length);
+    const b = fitLane(fitted.rows[row], length);
     if (a.some((v, i) => v !== b[i])) return false;
   }
   return true;

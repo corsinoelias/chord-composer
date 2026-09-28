@@ -9,7 +9,7 @@ import {
 import { SECTION_PART_LABEL, foldSectionSounds, sectionPartOf, type Section, type SectionPartKey, type TrackId } from '@/lib/sections';
 import { NOTE_LENGTH_CHOICES, VOICING_SPAN, type NoteLengths, type Voicings } from '@/lib/noteLengths';
 import {
-  fitLane, forgetPattern, loadFigures, previewOf, savePattern, savedPatterns, spells, type SavedPattern, type StripPattern,
+  fitToBars, forgetPattern, loadFigures, previewOf, savePattern, savedPatterns, spells, type SavedPattern, type StripPattern,
 } from '@/lib/patternStrip';
 import { type Chord } from '@/lib/musicTheory';
 import {
@@ -582,12 +582,16 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     if (mode === 'fill') x.fill = b.fill;
     else { x.rows[tab] = b.rows[tab]; x.bars[tab] = b.bars[tab]; }
   });
-  /** A pattern from the strip on the track: its rows and its bars, heard at once in the loop. */
+  /**
+   * A pattern from the strip on the track, heard at once in the loop: over every bar the track
+   * has, repeated — a longer one gives it the bars it needs (fitToBars).
+   */
   const applyPattern = (p: StripPattern) => {
     change((d) => {
       const x = V(d);
-      x.rows[tab] = Object.fromEntries(Object.entries(p.rows).map(([row, lane]) => [row, fitLane(lane, p.bars * spb)]));
-      x.bars[tab] = p.bars;
+      const fitted = fitToBars(p, x.bars[tab], spb);
+      x.rows[tab] = fitted.rows;
+      x.bars[tab] = fitted.bars;
     });
     setMode('groove'); setPage(0); setFocus(null);
   };
