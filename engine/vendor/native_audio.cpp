@@ -1506,7 +1506,10 @@ class Engine {
     clock_gettime(CLOCK_MONOTONIC, &began);
     const int clearMask = clearVoices_.exchange(0, std::memory_order_acq_rel);
     if (clearMask != 0) {
-      for (auto& voice : voices_) if (clearMask & (1 << voice.track)) voice.active = false;
+      // Through dropVoice: a SoundFont note has to be told to stop, or a pad or an organ
+      // held when a new rhythm was written over its track went on sounding until Stop.
+      tsf* font = soundFont.load(std::memory_order_acquire);
+      for (auto& voice : voices_) if (clearMask & (1 << voice.track)) dropVoice(voice, font);
       // Stop has to be silent immediately. It used to be silent because it closed the
       // stream; now that the stream stays open, a crash cymbal caught mid-ring would
       // otherwise go on ringing over a stopped song.
@@ -2117,7 +2120,20 @@ class Engine {
     for (int i = 0; i < kVoices; ++i) if (!voices_[i].active) return i;
     int quietest = 0; float lowest = voices_[0].gain * voices_[0].level;
     for (int i = 1; i < kVoices; ++i) { const float level = voices_[i].gain * voices_[i].level; if (level < lowest) { lowest = level; quietest = i; } }
+    // The note it was playing lets go too, or the SoundFont would keep it with no voice
+    // left to ever stop it.
+    dropVoice(voices_[quietest], soundFont.load(std::memory_order_acquire));
     return quietest;
+  }
+
+  /// Ends a voice now. A SoundFont note is released as well: the voice is only our side
+  /// of it, and a sustaining sample (a pad, an organ, strings) plays until it is told to
+  /// stop — dropping the voice alone left it sounding with nothing to end it.
+  void dropVoice(Voice& v, tsf* font) {
+    if (v.active && v.timbre == kSampled && font && v.sampleNote >= 0 && v.stage != kRelease) {
+      tsf_channel_note_off(font, v.track, v.sampleNote);
+    }
+    v.active = false;
   }
   void addVoice(int section, float frequency, float gain, int track, int timbre, int midiNote = -1) {
     const int index = allocateVoice();
@@ -2299,7 +2315,9 @@ class Engine {
       const float sample = renderVoice(v, ksBuffers[i]) * v.gain * v.level * trackGain[v.track];
       busL[v.track + 1] += sample * panL[v.track];
       busR[v.track + 1] += sample * panR[v.track];
+      const bool wasReleased = v.stage == kRelease;
       advanceEnvelope(v);
+      if (!v.active && !wasReleased) { v.active = true; dropVoice(v, font); }
       // The gate is what gives a track a note length of its own. Unlike a chord
       // change it applies to plucked timbres too: a staccato piano is the whole
       // point, and leaving those alone here would make the setting do nothing on
