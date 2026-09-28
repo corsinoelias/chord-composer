@@ -51,7 +51,7 @@ import { SHORT_FONT_PROGRAMS, type DrumKit } from './host';
 import { getMix, isMixDefault } from './mix';
 import { getAppStyle } from '../appStyles';
 import { clearVariationB, partOf, writeAppPart, writeAppStyle, writeDrumSounds } from './fromAppStyle';
-import { type NoteLengths } from '../noteLengths';
+import { type NoteLengths, type Voicings } from '../noteLengths';
 import { styleSwingRatio } from '../swing';
 import { DEFAULT_CLICK, type ClickSettings } from '../clickSettings';
 
@@ -116,6 +116,8 @@ export interface SongInput {
   click?: ClickSettings;
   /** The sound the song gives each hand-percussion row of an app rhythm (app.drumSounds). */
   drumSounds?: Record<string, number>;
+  /** Where each melodic track's register starts (app.voicings); absent, where the rhythm puts it. */
+  voicings?: Voicings;
 }
 
 export interface EngineSong {
@@ -279,6 +281,14 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     if (appDrums && kitB && kitB.id !== kit.id) writeDrumSounds(c, s, appDrums, kitB, drumSlots, 1);
     else if (appDrums) for (const row of DRUM_ROWS) c.push(['setDrumSound', s, row, -1, 1]);
     writeSounds(s, playback, !!app, section, bank0, hasB);
+    // What the song sets over its rhythm, as the app's project does: how long each track's
+    // notes ring (⋯ › Notes) and where its register sits (Keyboard and range).
+    for (const track of ['piano', 'guitar', 'bass', 'synth'] as const) {
+      const length = track === 'synth' ? undefined : song.noteLengths?.[track];
+      if (length !== undefined) c.push(['setNoteLength', s, track, length]);
+      const low = song.voicings?.[track];
+      if (low !== undefined) c.push(['voicing', s, track, low, low + 23]);
+    }
   });
 
   /**

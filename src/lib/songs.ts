@@ -7,7 +7,7 @@
 import { foldSectionSounds, type Section } from './sections';
 import { migrateSoundId, type InstrumentState, type InstrumentType } from './instruments';
 import type { MelodicData, DegreePattern } from './bassScale';
-import { type NoteLengths } from './noteLengths';
+import { VOICING_FLOOR, VOICING_TOP, type NoteLengths, type Voicings } from './noteLengths';
 
 /**
  * The shared song document (docs/plan-paridad-web-app.md, "SongDoc"): this shape, stored as
@@ -86,6 +86,34 @@ export function songDrumSounds(song: unknown): Record<string, number> {
   if (!raw || typeof raw !== 'object') return {};
   return Object.fromEntries(Object.entries(raw as Record<string, unknown>)
     .filter((e): e is [string, number] => typeof e[1] === 'number' && Number.isInteger(e[1])));
+}
+
+/** Where the song puts each melodic track's register (app.voicings[track].low), as the app saves it. */
+export function songVoicings(song: unknown): Voicings {
+  const raw = (song as { app?: { voicings?: Record<string, unknown> } })?.app?.voicings;
+  const out: Voicings = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const track of ['piano', 'guitar', 'bass', 'synth'] as const) {
+    const low = (raw[track] as { low?: unknown } | undefined)?.low;
+    if (typeof low === 'number' && Number.isInteger(low)) out[track] = Math.max(VOICING_FLOOR, Math.min(VOICING_TOP, low));
+  }
+  return out;
+}
+
+/** [extras] with the song's registers put in, keeping whatever else the app wrote beside them. */
+export function withVoicings(extras: Record<string, unknown>, voicings: Voicings): Record<string, unknown> {
+  const app = { ...((extras.app as Record<string, unknown> | undefined) ?? {}) };
+  const kept = { ...((app.voicings as Record<string, Record<string, unknown>> | undefined) ?? {}) };
+  for (const track of ['piano', 'guitar', 'bass', 'synth'] as const) {
+    if (voicings[track] === undefined) delete kept[track];
+    else kept[track] = { ...(kept[track] ?? {}), low: voicings[track] };
+  }
+  if (Object.keys(kept).length) app.voicings = kept;
+  else delete app.voicings;
+  const out = { ...extras };
+  if (Object.keys(app).length) out.app = app;
+  else delete out.app;
+  return out;
 }
 
 /** [extras] with the song's percussion sounds put in (or taken out when there are none). */

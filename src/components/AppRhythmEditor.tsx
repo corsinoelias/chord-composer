@@ -7,7 +7,7 @@ import {
   type DenseVariation, type GrooveTrack,
 } from '@/lib/groove';
 import { SECTION_PART_LABEL, foldSectionSounds, sectionPartOf, type Section, type SectionPartKey, type TrackId } from '@/lib/sections';
-import { NOTE_LENGTH_CHOICES, type NoteLengths } from '@/lib/noteLengths';
+import { NOTE_LENGTH_CHOICES, VOICING_SPAN, type NoteLengths, type Voicings } from '@/lib/noteLengths';
 import {
   fitLane, forgetPattern, loadFigures, previewOf, savePattern, savedPatterns, spells, type SavedPattern, type StripPattern,
 } from '@/lib/patternStrip';
@@ -94,6 +94,8 @@ export interface SongSounds {
   drumSounds: Record<string, number>;
   /** How long each melodic track's notes ring (app.noteLengths): ⋯ › Notes. */
   noteLengths: NoteLengths;
+  /** Where each melodic track's register starts (app.voicings): Keyboard and range. */
+  voicings: Voicings;
 }
 
 /** A row of the grid: a kit row, the whole chord, or a degree 1-8 with its alteration. */
@@ -128,6 +130,8 @@ export interface AppRhythmEditorProps {
   drumSounds: Record<string, number>;
   /** How long each melodic track's notes ring, for the song. */
   noteLengths: NoteLengths;
+  /** Where each melodic track's register starts, for the song. */
+  voicings: Voicings;
   /** Save: the song's sections with the edited ones given their groove (silences and sounds), and the song's sounds. */
   onSave: (sections: Section[], sounds: SongSounds) => void;
   /** Whether the song is playing: the editor plays through the song's own player. */
@@ -145,7 +149,7 @@ export interface AppRhythmEditorProps {
 }
 
 export function AppRhythmEditor(props: AppRhythmEditorProps) {
-  const { open, onClose, style, sections, editable, initialSection, transposition, instruments, drumSounds, noteLengths, onSave, playing, loopingIndex, onLoop, onStop, onDraft } = props;
+  const { open, onClose, style, sections, editable, initialSection, transposition, instruments, drumSounds, noteLengths, voicings, onSave, playing, loopingIndex, onLoop, onStop, onDraft } = props;
   const spb = appStepsPerBar(style);
   const stepsPerBeat = Math.max(1, Math.round(16 / style.meter.unit));
   const isMobile = useIsMobile();
@@ -182,7 +186,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     return () => { live = false; };
   }, [tab, spb]);
   /** The song's sounds as they are being tried: kept on Save, dropped on Cancel. */
-  const [songSounds, setSongSounds] = useState<SongSounds>({ instruments, drumSounds, noteLengths });
+  const [songSounds, setSongSounds] = useState<SongSounds>({ instruments, drumSounds, noteLengths, voicings });
   const [soundMenu, setSoundMenu] = useState<{ x: number; y: number; above: number } | null>(null);
   const [allSounds, setAllSounds] = useState(false);
   const [kits, setKits] = useState<DrumKit[]>([]);
@@ -197,13 +201,15 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     setV(startKey(sections[initialSection]));
     setMode('groove'); setTab('drums'); setPage(0); setAdded(new Set()); setFocus(null); setPop(null); setMenu(null);
     setLeaving(false); setShare(true);
-    setSongSounds({ instruments, drumSounds, noteLengths }); setSoundMenu(null);
+    setSongSounds({ instruments, drumSounds, noteLengths, voicings }); setPanel(null); setSoundMenu(null);
     undo.current = []; redo.current = [];
     // The section loops while it is open, as the app's editor does: what you edit is what
     // keeps sounding, and nothing stops for it. Closing gives the loop back (giveBack).
     if (loopingIndex !== initialSection) { onLoop(initialSection); loopedByEditor.current = true; }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { loadKits().then(setKits).catch(() => {}); }, []);
+  /** A panel over the editor: the kit to play by hand, or the keyboard with every track's range. */
+  const [panel, setPanel] = useState<'kit' | 'keys' | null>(null);
 
   const section = sections[sec];
   /** A section as the editor reads it: its own sounds already on its parts (foldSectionSounds). */
@@ -225,7 +231,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     : baseVariation(style, section ?? {}, v) ?? baseVariation(style, section ?? {}, 'a')!), [style, section, v]);
   /** No fill here: an intro or an ending, the section's own or one the rhythm added. */
   const noFill = isPart || isPartKey(v);
-  const soundsChanged = songSounds.instruments !== instruments || songSounds.drumSounds !== drumSounds || songSounds.noteLengths !== noteLengths;
+  const soundsChanged = songSounds.instruments !== instruments || songSounds.drumSounds !== drumSounds || songSounds.noteLengths !== noteLengths || songSounds.voicings !== voicings;
   const dirty = Object.keys(drafts).length > 0 || soundsChanged;
 
   /** Every edit goes through here: undoable, and on the section on screen. */
@@ -289,6 +295,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     return out;
   }), [sections, style, sec, v]);
   useEffect(() => { if (open) onDraft(merged(drafts, true), songSounds); }, [open, drafts, merged, songSounds]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** The notes each melodic track holds, while the song plays: the keys light with them. */
+  const sounding = useSounding(open && playing);
   const [engine, setEngine] = useState<{ section: number; step: number; bar: number; fillBar: boolean; fillByHand: number } | null>(null);
   useEffect(() => {
     if (!open || !playing) { setEngine(null); return; }
@@ -379,6 +387,15 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const kitId = soundIdOf('drums');
   const kitChoice = { rows: kits[getSoundType('drums', kitId)?.kit ?? 2]?.rows, own: kitId === RHYTHM_KIT, song: songSounds.drumSounds };
   const drumSoundOf = (row: string): number | undefined => kitSoundOf(style, kitChoice, row);
+  /** Where [t]'s register starts: the song's own, else the rhythm's, else the app's default. */
+  const lowOf = (t: KeyTrack) => songSounds.voicings[t] ?? style.voicings[t] ?? DEFAULT_LOW[t];
+  const setLow = (t: KeyTrack, low: number) => setSongSounds((s) => ({ ...s, voicings: { ...s.voicings, [t]: low } }));
+  /** The keys sounding, in the colour of the track that holds each; [only] a track's own. */
+  const litKeys = (only?: KeyTrack) => {
+    const lit = new Map<number, string>();
+    KEY_TRACKS.forEach((t, i) => { if (!only || t === only) for (const m of sounding[i] ?? []) if (!lit.has(m) || t === only) lit.set(m, trackColor(t)); });
+    return lit;
+  };
   /** The sound the rhythm itself gives [track], when it names one from the SoundFont. */
   const rhythmSoundOf = (track: TrackId): string | undefined => {
     if (track === 'drums') return RHYTHM_KIT;
@@ -750,6 +767,9 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     }
     items.push({ head: '' });
     items.push({ label: silenced ? '✓ Muted here' : 'Mute here', run: () => change((d) => { d.silenced[tab] = !d.silenced[tab]; }) });
+    items.push(tab === 'drums'
+      ? { label: 'Play the pieces', run: () => setPanel('kit') }
+      : { label: 'Keyboard and range', run: () => setPanel('keys') });
     if (Object.values(variation.rows[tab] ?? {}).some((l) => l.some(Boolean))) items.push({ label: 'Save as a pattern', run: () => askSave() });
     if (mode === 'groove') items.push({ label: 'Random', run: randomPattern, hold: scramble, title: 'Hold: cells at random' });
     if (edited) items.push({ label: 'Same as the rest', run: backToRhythm });
@@ -788,7 +808,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
         style={{ background: 'var(--cp-s1)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }}
         data-editor-root=""
         onEscapeKeyDown={(e) => {
-          if (pop || menu || soundMenu || leaving || ask) { e.preventDefault(); setPop(null); setMenu(null); setSoundMenu(null); setLeaving(false); setAsk(null); }
+          if (pop || menu || soundMenu || leaving || ask || panel) { e.preventDefault(); setPop(null); setMenu(null); setSoundMenu(null); setLeaving(false); setAsk(null); setPanel(null); }
         }}
         // Closed by Back, Save or Esc only: a tap beside it — or one that lands as a menu
         // closes and "All sounds…" opens, as a phone delivers it — must not throw the edits away.
@@ -1050,6 +1070,17 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           )}
         </div>
 
+        {/* The instrument's keys, thin: what sounds lights up, and the bar under them is its
+            range — dragged, it moves where the instrument plays. A tap opens them large. */}
+        {tab !== 'drums' && (
+          <div className="px-3 pt-1.5 sm:px-4">
+            <button type="button" aria-label="Keyboard and range" onClick={() => setPanel('keys')} className="block w-full border-0 bg-transparent p-0">
+              <Keys lit={litKeys(tab as KeyTrack)} height={isMobile ? 34 : 40} />
+            </button>
+            <RangeBar className="mt-1" low={lowOf(tab as KeyTrack)} color={trackColor(tab)} label={trackName(tab)} height={9} onChange={(low) => setLow(tab as KeyTrack, low)} />
+          </div>
+        )}
+
         {/* Patterns: yours, the rhythm's own, the figures. Tried by ear, a tap each, while the
             grid shows what changed — the app's strip, always on screen for that reason. */}
         {(() => {
@@ -1133,6 +1164,33 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
               </div>
             )}
           </div>
+        )}
+
+        {panel === 'keys' && (
+          <Panel title="Keyboard and range" onClose={() => setPanel(null)}>
+            <Keys lit={litKeys()} height={isMobile ? 72 : 96} />
+            {KEY_TRACKS.map((t) => (
+              <div key={t} className="grid gap-1">
+                <span className="flex items-baseline gap-2 text-[12.5px]" style={{ fontWeight: t === tab ? 800 : 600, color: t === tab ? trackColor(t) : 'var(--cp-tx2)' }}>
+                  {trackName(t)}<span className="font-semibold" style={{ color: 'var(--cp-mu)', fontFamily: 'var(--cp-mono, monospace)' }}>{noteLabel(lowOf(t))}–{noteLabel(lowOf(t) + VOICING_SPAN - 1)}</span>
+                </span>
+                <RangeBar low={lowOf(t)} color={trackColor(t)} label={trackName(t)} height={22} onChange={(low) => setLow(t, low)} />
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <span className="flex-1 text-xs" style={{ color: 'var(--cp-mu)' }}>Drag a bar to move where the instrument plays.</span>
+              {Object.keys(songSounds.voicings).length > 0 && (
+                <button type="button" className="cp-btn" onClick={() => setSongSounds((s) => ({ ...s, voicings: {} }))}>Where the rhythm puts them</button>
+              )}
+            </div>
+          </Panel>
+        )}
+        {panel === 'kit' && (
+          <Panel title="Play the pieces" onClose={() => setPanel(null)}>
+            <Kit playing={playing} drumSoundOf={drumSoundOf}
+              pads={[...new Set([...(variation.rows.drums.clap?.some(Boolean) ? ['clap'] : []), ...PERC_ROWS.filter((r) => variation.rows.drums[r]?.some(Boolean) || variation.fill.lanes[r]?.some(Boolean))])]
+                .map((r) => ({ row: r, name: r === 'clap' ? 'Clap' : rowLabel(r).name }))} />
+          </Panel>
         )}
 
         {/* Back with changes */}
@@ -1291,6 +1349,177 @@ function Menu({ items, x, y, onClose }: { items: MenuItem[]; x: number; y: numbe
           ? <div key={i} className="px-2.5 pb-1 pt-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--cp-mu)' }}>{it.head}</div>
           : <div key={i} role="separator" className="mx-2 my-1 h-px" style={{ background: 'var(--cp-ln)' }} />
         : <MenuButton key={i} item={it} onClose={onClose} />))}
+    </div>
+  );
+}
+
+type KeyTrack = 'piano' | 'guitar' | 'bass' | 'synth';
+const KEY_TRACKS: KeyTrack[] = ['piano', 'guitar', 'bass', 'synth'];
+/** Where each track's register starts when neither the song nor its rhythm says: the app's defaults. */
+const DEFAULT_LOW: Record<KeyTrack, number> = { piano: 60, guitar: 55, bass: 40, synth: 60 };
+/** The keyboard drawn: E1 to C7, room for the bass's lowest and the synth's highest. */
+const KEY_LO = 28;
+const KEY_HI = 96;
+const isBlack = (m: number) => [1, 3, 6, 8, 10].includes(m % 12);
+const WHITES = Array.from({ length: KEY_HI - KEY_LO + 1 }, (_, i) => KEY_LO + i).filter((m) => !isBlack(m));
+const BLACKS = Array.from({ length: KEY_HI - KEY_LO + 1 }, (_, i) => KEY_LO + i).filter(isBlack);
+/** Where key [m] sits across the keyboard, 0–1. */
+function keyBox(m: number) {
+  const w = 1 / WHITES.length;
+  const i = WHITES.filter((x) => x < m).length;
+  return isBlack(m) ? { left: (i - 0.3) * w, width: 0.6 * w } : { left: i * w, width: w };
+}
+const noteLabel = (m: number) => `${pitchName(m)}${Math.floor(m / 12) - 1}`;
+const clampLow = (n: number) => Math.max(KEY_LO, Math.min(KEY_HI - VOICING_SPAN + 1, n));
+
+/** The notes each melodic track holds, from the engine, while [on]. */
+function useSounding(on: boolean): number[][] {
+  const [notes, setNotes] = useState<number[][]>([[], [], [], []]);
+  useEffect(() => {
+    if (!on) { setNotes([[], [], [], []]); return; }
+    return subscribeEngineState((st) => setNotes((prev) => (JSON.stringify(prev) === JSON.stringify(st.sounding) ? prev : st.sounding.map((a) => [...a]))));
+  }, [on]);
+  return notes;
+}
+
+/** A keyboard: the keys [lit] in their track's colour. */
+function Keys({ lit, height }: { lit: Map<number, string>; height: number }) {
+  return (
+    <span className="relative block overflow-hidden rounded-md border" style={{ height, borderColor: 'var(--cp-ln2)', background: '#FFFFFF' }} aria-hidden="true">
+      {WHITES.map((m) => { const b = keyBox(m); return <span key={m} className="absolute bottom-0 top-0 border-r" style={{ left: `${b.left * 100}%`, width: `${b.width * 100}%`, borderColor: '#D5D8E0', background: lit.get(m) ?? '#FFFFFF' }} />; })}
+      {BLACKS.map((m) => { const b = keyBox(m); return <span key={m} className="absolute top-0" style={{ left: `${b.left * 100}%`, width: `${b.width * 100}%`, height: '62%', borderRadius: '0 0 2px 2px', background: lit.get(m) ?? '#23262E' }} />; })}
+    </span>
+  );
+}
+
+/**
+ * One track's range under the keys: two octaves from where it starts, dragged along them (the
+ * app's _RangeBar). The drag is added up from where it began, so small moves are not lost to
+ * rounding, and kept when let go; the arrow keys move it a semitone, with Shift an octave.
+ */
+function RangeBar({ low, color, label, height, onChange, className = '' }: {
+  low: number; color: string; label: string; height: number; onChange: (low: number) => void; className?: string;
+}) {
+  const drag = useRef<{ x0: number; low0: number; w: number } | null>(null);
+  const [moving, setMoving] = useState<number | null>(null);
+  const shown = moving ?? low;
+  const a = keyBox(clampLow(shown));
+  const b = keyBox(Math.min(KEY_HI, clampLow(shown) + VOICING_SPAN - 1));
+  return (
+    <div className={`relative rounded-full ${className}`} style={{ height, background: 'var(--cp-s2)' }}>
+      <button type="button" aria-label={`${label} range, ${noteLabel(shown)} to ${noteLabel(shown + VOICING_SPAN - 1)}`}
+        className="absolute bottom-0 top-0 rounded-full border-0 p-0"
+        style={{ left: `${a.left * 100}%`, width: `${(b.left + b.width - a.left) * 100}%`, background: color, cursor: moving === null ? 'grab' : 'grabbing', touchAction: 'none' }}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          drag.current = { x0: e.clientX, low0: low, w: e.currentTarget.parentElement!.getBoundingClientRect().width };
+          setMoving(low);
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d) return;
+          setMoving(clampLow(d.low0 + Math.round(((e.clientX - d.x0) / d.w) * (KEY_HI - KEY_LO + 1))));
+        }}
+        onPointerUp={() => { if (moving !== null && moving !== low) onChange(moving); drag.current = null; setMoving(null); }}
+        onPointerCancel={() => { drag.current = null; setMoving(null); }}
+        onKeyDown={(e) => {
+          const step = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+          if (!step) return;
+          e.preventDefault();
+          onChange(clampLow(low + step * (e.shiftKey ? 12 : 1)));
+        }} />
+    </div>
+  );
+}
+
+/** A panel over the editor, closed by its ✕, Esc or a tap beside it. */
+function Panel({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="absolute inset-0 z-[65] flex items-end justify-center p-0 sm:items-center sm:p-4" style={{ background: 'rgba(0,0,0,.4)' }}
+      onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div role="dialog" aria-label={title} className="grid max-h-[92%] w-full max-w-[720px] gap-3 overflow-y-auto rounded-t-2xl border p-4 shadow-xl sm:rounded-2xl"
+        style={{ background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)' }}>
+        <div className="flex items-center gap-2">
+          <b className="flex-1 text-base">{title}</b>
+          <button type="button" className="cp-icb" style={{ width: 32, height: 32 }} onClick={onClose} aria-label="Close"><X size={16} /></button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The kit seen from the stool (the app's DrumKitPanel): each piece lights as the engine strikes
+ * it, and a tap sounds it — near the edge, what a drummer plays there: the snare's rim, the
+ * open hat. Under it, the hand percussion the rhythm plays.
+ */
+const PIECES: { row: string; edge?: string; name: string; x: number; y: number; w: number; h: number; cymbal?: boolean; round?: boolean }[] = [
+  { row: 'crash', name: 'Crash', x: 12, y: 8, w: 76, h: 76, cymbal: true, round: true },
+  { row: 'hihat', edge: 'hihatOpen', name: 'Hi-hat', x: 20, y: 96, w: 64, h: 64, cymbal: true, round: true },
+  { row: 'tom1', name: 'Tom 1', x: 112, y: 14, w: 58, h: 58, round: true },
+  { row: 'tom2', name: 'Tom 2', x: 180, y: 14, w: 58, h: 58, round: true },
+  { row: 'snare', edge: 'rim', name: 'Snare', x: 98, y: 92, w: 68, h: 68, round: true },
+  { row: 'kick', name: 'Kick', x: 176, y: 110, w: 92, h: 44 },
+  { row: 'floorTom', name: 'Floor tom', x: 280, y: 94, w: 70, h: 70, round: true },
+  { row: 'ride', name: 'Ride', x: 262, y: 4, w: 84, h: 84, cymbal: true, round: true },
+  { row: 'hihatFoot', name: 'Pedal', x: 30, y: 166, w: 44, h: 12 },
+];
+function Kit({ playing, drumSoundOf, pads }: { playing: boolean; drumSoundOf: (row: string) => number | undefined; pads: { row: string; name: string }[] }) {
+  const [lit, setLit] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!playing) return;
+    return subscribeEngineState((st) => {
+      if (!st.drumStruck) return;
+      const now = performance.now();
+      setLit((prev) => {
+        const next = { ...prev };
+        DRUM_ROWS.forEach((row, i) => { if (st.drumStruck & (1 << i)) next[row] = now; });
+        return next;
+      });
+    });
+  }, [playing]);
+  // Lit for a moment, then out.
+  const [, tick] = useState(0);
+  useEffect(() => { const t = window.setInterval(() => tick((n) => n + 1), 90); return () => window.clearInterval(t); }, []);
+  const on = (row?: string) => !!row && performance.now() - (lit[row] ?? -1e9) < 180;
+  const strike = (row: string) => {
+    setLit((prev) => ({ ...prev, [row]: performance.now() }));
+    previewAppCell({ track: 'drums', row, packed: packHit(205), drumSound: drumSoundOf(row) });
+  };
+  return (
+    <div className="grid gap-3">
+      <div className="relative mx-auto w-full max-w-[380px]" style={{ aspectRatio: '360 / 184' }}>
+        {PIECES.map((p) => {
+          const hit = on(p.row) || on(p.edge);
+          return (
+            <button key={p.row} type="button" aria-label={p.name}
+              onPointerDown={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                const dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
+                const dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+                strike(p.edge && Math.hypot(dx, dy) > 0.72 ? p.edge : p.row);
+              }}
+              className="absolute grid place-items-center border-2 p-0 text-[10.5px] font-extrabold transition-colors"
+              style={{
+                left: `${(p.x / 360) * 100}%`, top: `${(p.y / 184) * 100}%`, width: `${(p.w / 360) * 100}%`, height: `${(p.h / 184) * 100}%`,
+                borderRadius: p.round ? '50%' : 12,
+                borderColor: hit ? '#E8283A' : 'var(--cp-ln2)',
+                background: hit ? 'color-mix(in srgb, #E8283A 22%, var(--cp-s1))' : p.cymbal ? 'color-mix(in srgb, #E8B93E 18%, var(--cp-s1))' : 'var(--cp-s2)',
+                color: 'var(--cp-tx2)',
+              }}>{p.name}</button>
+          );
+        })}
+      </div>
+      {pads.length > 0 && (
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(4, pads.length)}, minmax(0, 1fr))` }}>
+          {pads.map((p) => (
+            <button key={p.row} type="button" onPointerDown={() => strike(p.row)}
+              className="h-12 rounded-xl border-2 text-xs font-extrabold transition-colors"
+              style={{ borderColor: on(p.row) ? '#DE5AA0' : 'var(--cp-ln2)', background: on(p.row) ? 'color-mix(in srgb, #DE5AA0 22%, var(--cp-s1))' : 'var(--cp-s2)', color: 'var(--cp-tx2)' }}>{p.name}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

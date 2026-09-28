@@ -7,6 +7,17 @@
 export type NoteLengths = Partial<Record<'piano' | 'guitar' | 'bass', number>>;
 
 /**
+ * Where each melodic track's register starts, as a MIDI note: the app's voicing, a window of
+ * two octaves from there (Voicing.span), stored with the song as app.voicings. A track left
+ * out plays where its rhythm puts it.
+ */
+export type Voicings = Partial<Record<'piano' | 'guitar' | 'bass' | 'synth', number>>;
+/** A register's lowest start and its width, as the app's (noteFloor, noteCeiling, Voicing.span). */
+export const VOICING_FLOOR = 24;
+export const VOICING_SPAN = 24;
+export const VOICING_TOP = 108 - VOICING_SPAN;
+
+/**
  * How long each note rings, the Android app's choices (constants.dart noteLengths) plus the
  * web's own length, which is what every song had before and stays the default. In steps.
  */

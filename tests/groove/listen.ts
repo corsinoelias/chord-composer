@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { songToEngine } from '../../src/lib/appEngine/fromSong';
+import { songToEngine, type SongInput } from '../../src/lib/appEngine/fromSong';
 import { appPartSections } from '../../src/lib/appEngine/fromAppStyle';
 import { appStylePattern, categoryGenre, type AppStyle } from '../../src/lib/appStyles';
 import { getStyleById, type StylePattern } from '../../src/lib/styles';
@@ -49,8 +49,8 @@ const kit = kitFile.samples.map((k: { slot: number; name: string; gain: number }
   return { slot: k.slot, gain: k.gain, pcm: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) };
 });
 
-async function render(sections: Section[], style: StylePattern): Promise<Int16Array> {
-  const built = songToEngine({ sections, bpm: 120, instrumentSettings: getDefaultInstrumentStates() }, style, lookup, kitFile.kits);
+async function render(sections: Section[], style: StylePattern, song: Partial<SongInput> = {}): Promise<Int16Array> {
+  const built = songToEngine({ sections, bpm: 120, instrumentSettings: getDefaultInstrumentStates(), ...song }, style, lookup, kitFile.kits);
   const data = await new Promise<{ wav?: Uint8Array; error?: string }>((resolve) => {
     answer = resolve;
     void worker.onmessage({ data: { id: 1, wasm: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength), sf2: sf2.buffer.slice(sf2.byteOffset, sf2.byteOffset + sf2.byteLength), kit, commands: built.commands, steps: built.steps, tailSeconds: 0.2 } });
@@ -116,6 +116,19 @@ for (const variation of [0, 1] as const) {
   const style = appStylePattern(salsa);
   const d = distance(await render([old], style), await render([foldSectionSounds(old)], style));
   check(`a section's own sounds, moved to its parts, on ${variation ? 'B' : 'A'}`, d === 0, `distance ${d.toFixed(1)}`);
+}
+
+// What the song sets over its rhythm, heard on an app rhythm too: how long the bass's notes
+// ring (⋯ › Notes) and where its register sits (Keyboard and range).
+{
+  const style = appStylePattern(salsa);
+  const plain = await render([section()], style);
+  const short = distance(plain, await render([section()], style, { noteLengths: { bass: 0.5 } }));
+  check('the song\'s note length, on an app rhythm', short > HEARD, `distance ${short.toFixed(1)}`);
+  const lower = distance(plain, await render([section()], style, { voicings: { bass: 28 } }));
+  check('the song\'s register, on an app rhythm', lower > HEARD, `distance ${lower.toFixed(1)}`);
+  const same = distance(plain, await render([section()], style, { voicings: { bass: salsa.voicings.bass } }));
+  check('the rhythm\'s own register sounds as it did', same === 0, `distance ${same.toFixed(1)}`);
 }
 
 console.log(`${checks - failed}/${checks} listening checks passed`);
