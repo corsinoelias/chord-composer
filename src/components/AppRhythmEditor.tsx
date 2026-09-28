@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { ArrowLeftRight, Bookmark, BookmarkPlus, Check, Copy, Hand, Layers, Piano, RotateCcw, Shuffle, ChevronDown, ChevronLeft, ChevronRight, Link2, ListMusic, MoreHorizontal, Play, Repeat, Square, Trash2, Unlink, VolumeX, X, Zap } from 'lucide-react';
+import { ArrowLeftRight, Bookmark, BookmarkPlus, Check, Copy, Hand, Layers, Piano, RotateCcw, Shuffle, ChevronDown, ChevronLeft, ChevronRight, ListMusic, MoreHorizontal, Play, Repeat, Square, Trash2, VolumeX, X, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { type AppStyle, appStepsPerBar } from '@/lib/appStyles';
 import {
@@ -210,7 +210,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     setDrafts({});
     setV(startKey(sections[initialSection]));
     setMode('groove'); setTab('drums'); setPage(0); setAdded(new Set()); setFocus(null); setPop(null); setMenu(null);
-    setLeaving(false); setShare(true);
+    setLeaving(false);
     setSongSounds({ instruments, drumSounds, noteLengths, voicings }); setPanel(null); setSoundMenu(null);
     undo.current = []; redo.current = [];
     // The section loops while it is open, as the app's editor does: what you edit is what
@@ -631,17 +631,10 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     const g = isPartKey(k) ? effectiveVariation(styleAt(i), partView(styleAt(i), s, k), 'a') : effectiveVariation(styleAt(i), s, k);
     return g ? JSON.stringify([g, ownSounds(folded[i]?.partSounds?.[k])]) : null;
   }, [sections, folded, styleAt]);
-  /** The sections that play the part on screen as this one does, this one first. */
-  const sharers = useMemo(() => {
-    const mine = origPart(sec, v);
-    if (mine === null) return [sec];
-    return [sec, ...editable.filter((i) => i !== sec && origPart(i, v) === mine)];
-  }, [origPart, editable, sec, v]);
-  /** Whether Save gives what was edited to every section that shares the part, or keeps it here. */
-  const [share, setShare] = useState(true);
   /** [ds] with each edited part given to the sections that shared it when the editor opened. */
+  // Always: a part is one part, in every section that plays it (the app has no way to keep an
+  // edit to one section either).
   const withSharing = (ds: Record<number, Draft>): Record<number, Draft> => {
-    if (!share) return ds;
     const out = { ...ds };
     for (const [key, d] of Object.entries(ds)) {
       const i = Number(key);
@@ -777,15 +770,6 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     setAsk(null);
     toast(`“${name}” is in your patterns`);
   };
-  /** Where an edit goes: every section that shares the part, or this one only. */
-  const openShare = (x: number, y: number) => setMenu({
-    x, y,
-    items: [
-      { head: `${SECTION_PART_LABEL[v]} is the same in ${sharers.length} sections` },
-      { label: `${share ? '✓ ' : ''}Edit it in all ${sharers.length}`, run: () => setShare(true) },
-      { label: `${share ? '' : '✓ '}Only in ${section.name}`, run: () => setShare(false) },
-    ],
-  });
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) cancel(); }}>
@@ -823,7 +807,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           <button type="button" className="cp-btn" style={{ background: 'var(--cp-ac)', borderColor: 'var(--cp-ac)', color: '#fff' }} onClick={save}><Check size={15} />Save</button>
         </div>
 
-        {/* The part, and the sections that share it */}
+        {/* The part */}
         <div className="flex items-center gap-2 px-3 pt-3 sm:px-4">
           {isPart ? (
             <span className="flex-1 text-sm font-bold">{section.stylePart!.kind === 'intro' ? 'Intro' : 'Ending'}</span>
@@ -853,19 +837,6 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                 );
               })}
             </div>
-          )}
-          {sharers.length > 1 && (
-            <button type="button" aria-haspopup="menu"
-              aria-label={share ? `Edits reach all ${sharers.length} sections that play this part` : `Edits stay in ${section.name}`}
-              title={share ? `Edited in the ${sharers.length} sections that play it` : `Edited in ${section.name} only`}
-              onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openShare(r.right - 230, r.bottom); }}
-              className="flex h-9 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[13px] font-bold"
-              style={{
-                fontFamily: 'var(--cp-mono, monospace)',
-                ...(share ? { background: 'var(--cp-acs)', borderColor: 'var(--cp-ac)', color: 'var(--cp-act)' } : { background: 'var(--cp-s2)', borderColor: 'var(--cp-ln)', color: 'var(--cp-mu)' }),
-              }}>
-              {share ? <Link2 size={15} /> : <Unlink size={15} />}×{share ? sharers.length : 1}
-            </button>
           )}
         </div>
 
