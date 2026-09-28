@@ -238,8 +238,9 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     const app = part ? partStyle : style.engine;
     const drumSetting = instruments.find((inst) => inst.id === 'drums');
     // Which part of the rhythm bank 0 plays here, and whether bank 1 holds a B: each gets
-    // the sounds of its own part (Section.partSounds).
-    const bank0: SectionPartKey = section.stylePart ? (section.stylePart.kind === 'intro' ? 'intro' : 'ending') : section.part ?? 'a';
+    // the sounds of its own part (Section.partSounds). An intro or ending the rhythm added is
+    // a section of its own, edited as its one variation, A: its sounds are A's.
+    const bank0: SectionPartKey = section.stylePart ? 'a' : section.part ?? 'a';
     const hasB = !section.stylePart && !section.part
       && (style.engine ? !!effectiveVariation(style.engine, section, 'b') : !!sectionB(section));
     // The part's own kit, else the section's, else the song's; the rhythm's own plays its
