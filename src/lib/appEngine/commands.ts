@@ -88,10 +88,10 @@ export type EngineCommand =
   /** The last number of these four is the variation: 0 A (when left out) or 1 B. */
   | ['setStep', number, Track, string, number, number, number?]
   | ['clearTrack', number, Track, number?]
-  | ['setProgram', number, MelodicTrack, number]
-  | ['setTimbre', number, MelodicTrack, number]
+  | ['setProgram', number, MelodicTrack, number, bank?: number]
+  | ['setTimbre', number, MelodicTrack, number, bank?: number]
   | ['setNoteLength', number, MelodicTrack, number]
-  | ['setDrumSound', number, DrumRow, number]
+  | ['setDrumSound', number, DrumRow, number, bank?: number]
   | ['setSilence', number, Track, boolean]
   | ['setPatternBars', number, Track, number, number?]
   | ['setFill', number, number, number, number[] | Int32Array, number?]

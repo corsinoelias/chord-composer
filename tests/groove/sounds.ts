@@ -41,7 +41,7 @@ const withDrums = (id: string): InstrumentState[] =>
 const sounds = (instruments: InstrumentState[], s: Section = section(), drumSounds?: Record<string, number>) => {
   const out: Record<string, number> = {};
   const c = songToEngine({ sections: [s], bpm: 100, instrumentSettings: instruments, drumSounds }, appStylePattern(style), () => undefined, kits).commands;
-  for (const x of c) if (x[0] === 'setDrumSound' && x[1] === 0) out[x[2] as string] = x[3] as number;
+  for (const x of c) if (x[0] === 'setDrumSound' && x[1] === 0 && (x[4] ?? 0) === 0) out[x[2] as string] = x[3] as number;
   return out;
 };
 
@@ -71,6 +71,22 @@ check('song percussion sound, another kit', sounds(withDrums('ap1'), section(), 
 // A section's own kit wins over the song's.
 check('section kit over the song\'s', sounds(withDrums(RHYTHM_KIT), section({ sounds: { drums: 'ap1' } })).kick === kits[other.kit!].rows.kick);
 check('section back to the rhythm\'s kit', sounds(withDrums('ap1'), section({ sounds: { drums: RHYTHM_KIT } })).kick === style.drumSounds.kick);
+
+// Each part of the rhythm its own sound: B's piano in bank 1, A's in bank 0; with none of
+// its own, B follows A (-1).
+{
+  const programs = (sct: Section) => songToEngine({ sections: [sct], bpm: 100, instrumentSettings: withDrums(RHYTHM_KIT) }, appStylePattern(style), () => undefined, kits)
+    .commands.filter((x) => x[0] === 'setProgram' && x[1] === 0 && x[2] === 'piano').map((x) => [x[4] ?? 0, x[3]] as [number, number]);
+  const rhodes = getSoundType('piano', 'rhodes')!.program;
+  const own = programs(section({ partSounds: { b: { piano: 'rhodes' } } }));
+  check('B plays its own piano', own.some(([bank, p]) => bank === 1 && p === rhodes));
+  check('A keeps its piano', own.some(([bank, p]) => bank === 0 && p !== rhodes));
+  const none = programs(section());
+  check('B without its own follows A', none.some(([bank, p]) => bank === 1 && p === -1));
+  const kitB = songToEngine({ sections: [section({ partSounds: { b: { drums: 'ap1' } } })], bpm: 100, instrumentSettings: withDrums(RHYTHM_KIT) }, appStylePattern(style), () => undefined, kits)
+    .commands.find((x) => x[0] === 'setDrumSound' && x[1] === 0 && x[2] === 'kick' && x[4] === 1);
+  check('B plays its own kit', kitB?.[3] === kits[other.kit!].rows.kick);
+}
 
 console.log(`${checks - failed}/${checks} sound checks passed (${style.id}, ${perc})`);
 if (failed) process.exit(1);

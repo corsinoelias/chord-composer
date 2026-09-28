@@ -700,6 +700,8 @@ class Engine {
         voiceHigh_[s][i].store(low[i] + 23);
         timbre_[s][i].store(timbre[i]);
         program_[s][i].store(kGmProgram[i]);
+        timbreB_[s][i].store(-1);
+        programB_[s][i].store(-1);
         gateSteps_[s][i].store(0);
       }
     }
@@ -708,7 +710,10 @@ class Engine {
     const int kit[kDrumRows] = {kKick, kSnare, kHatClosed, kRim, kHatOpen, kHatClosed,
                                 kTom,  kTom,   kTom,       kHatClosed, kHatOpen, kClap};
     for (int s = 0; s < kSections; ++s) {
-      for (int row = 0; row < kDrumRows; ++row) drumSound_[s][row].store(kit[row]);
+      for (int row = 0; row < kDrumRows; ++row) {
+        drumSound_[s][row].store(kit[row]);
+        drumSoundB_[s][row].store(-1);
+      }
       // By track, not by piece: these two are about the drums as a whole.
       for (int track = 0; track <= kDrumsSlot; ++track) silent_[s][track].store(false);
       activeBank_[s].store(0);
@@ -928,7 +933,7 @@ class Engine {
     tsf_set_output(font, TSF_STEREO_INTERLEAVED, sampleRate_, 0);
     const int at = (sectionIndex_ < 0 || sectionIndex_ >= kSections) ? 0 : sectionIndex_;
     for (int track = 0; track < kTracks; ++track) {
-      const int program = program_[at][track].load(std::memory_order_acquire);
+      const int program = programAt(at, track);
       applyProgram(font, track, program);
       appliedProgram_[track] = program;
       tsf_channel_set_volume(font, track, gains_[track + 1].load());
@@ -1017,8 +1022,13 @@ class Engine {
     gateSteps_[section][instrumentIndex(track)].store(fminf(64.0f, steps), std::memory_order_relaxed);
   }
 
-  void setTimbre(int section, const char* track, int value) {
+  /// [bank] 1 is variation B's own sound; -1 there gives it back to A's.
+  void setTimbre(int section, const char* track, int value, int bank = 0) {
     if (section < 0 || section >= kSections) return;
+    if (bank == 1) {
+      timbreB_[section][instrumentIndex(track)].store(value < 0 ? -1 : std::min<int>(kTimbreCount - 1, value), std::memory_order_release);
+      return;
+    }
     timbre_[section][instrumentIndex(track)].store(std::max(0, std::min<int>(kTimbreCount - 1, value)), std::memory_order_release);
   }
 
@@ -1029,17 +1039,50 @@ class Engine {
   /// Only stored here, never applied: the channel and the record of what is in it
   /// belong to the audio callback, and writing them from this thread as well would be
   /// a race for the sake of saving one step of latency. The next step picks it up.
-  void setProgram(int section, const char* track, int program) {
+  void setProgram(int section, const char* track, int program, int bank = 0) {
     if (section < 0 || section >= kSections) return;
+    if (bank == 1) {
+      programB_[section][instrumentIndex(track)].store(program < 0 ? -1 : program, std::memory_order_release);
+      return;
+    }
     program_[section][instrumentIndex(track)].store(program, std::memory_order_release);
   }
-  void setDrumSound(int section, const char* row, int value) {
+  void setDrumSound(int section, const char* row, int value, int bank = 0) {
     if (section < 0 || section >= kSections) return;
     const int index = drumRowIndex(row);
     if (index < 0) return;
     const bool percussion = value >= kGmPercFirst && value < kGmPercFirst + 128;
-    drumSound_[section][index].store(percussion ? value : std::max(0, std::min<int>(kDrumSoundCount - 1, value)),
-                                     std::memory_order_release);
+    const int sound = percussion ? value : std::max(0, std::min<int>(kDrumSoundCount - 1, value));
+    if (bank == 1) {
+      drumSoundB_[section][index].store(value < 0 ? -1 : sound, std::memory_order_release);
+      return;
+    }
+    drumSound_[section][index].store(sound, std::memory_order_release);
+  }
+
+  // A section's sound in the variation it plays: B's own where it has one, A's otherwise.
+  // Read on every step, so a switch to B through the fill changes the sound on the same
+  // bar line as the pattern.
+  int timbreAt(int s, int track) const {
+    if (activeBank_[s].load(std::memory_order_relaxed) == 1) {
+      const int b = timbreB_[s][track].load(std::memory_order_acquire);
+      if (b >= 0) return b;
+    }
+    return timbre_[s][track].load(std::memory_order_acquire);
+  }
+  int programAt(int s, int track) const {
+    if (activeBank_[s].load(std::memory_order_relaxed) == 1) {
+      const int b = programB_[s][track].load(std::memory_order_acquire);
+      if (b >= 0) return b;
+    }
+    return program_[s][track].load(std::memory_order_acquire);
+  }
+  int drumSoundAt(int s, int row) const {
+    if (activeBank_[s].load(std::memory_order_relaxed) == 1) {
+      const int b = drumSoundB_[s][row].load(std::memory_order_acquire);
+      if (b >= 0) return b;
+    }
+    return drumSound_[s][row].load(std::memory_order_acquire);
   }
 
   /// Whether a part sounds a track at all. The pattern is untouched: it is written and
@@ -1309,7 +1352,7 @@ class Engine {
     // is previewing for. While the sequencer runs it owns that channel and this stays
     // out of the way; the next step would put it back regardless.
     if (!sequencing_.load(std::memory_order_acquire)) applyPrograms(at);
-    const int timbre = timbre_[at][index].load(std::memory_order_acquire);
+    const int timbre = timbreAt(at, index);
     addChord(at, chord, 1.0f, index, timbre);
   }
 
@@ -1328,7 +1371,7 @@ class Engine {
     chord.bass = bass;
     const int at = std::max(0, std::min(kSections - 1, section));
     if (!sequencing_.load(std::memory_order_acquire)) applyPrograms(at);
-    const int timbre = timbre_[at][index].load(std::memory_order_acquire);
+    const int timbre = timbreAt(at, index);
     const float velocity = stepVelocity(packed) / 255.0f;
     if (degree == kChordAll) {
       addChord(at, chord, velocity, index, timbre);
@@ -1521,7 +1564,7 @@ class Engine {
       const int section = previewSection_.load(std::memory_order_acquire);
       for (int row = 0; row < kDrumRows; ++row) {
         if (previews & (1u << row)) {
-          triggerDrum(drumSound_[section][row].load(std::memory_order_acquire), .9f, row);
+          triggerDrum(drumSoundAt(section, row), .9f, row);
         }
       }
     }
@@ -1868,7 +1911,7 @@ class Engine {
     const int fillMask = filling ? fillMask_[fillSlot].load(std::memory_order_acquire) : 0;
     if (!silent_[sectionIndex_][kDrumsSlot].load(std::memory_order_acquire)) {
       if (crash) {
-        triggerDrum(drumSound_[sectionIndex_][kCrashRow].load(std::memory_order_acquire), .85f, kCrashRow);
+        triggerDrum(drumSoundAt(sectionIndex_, kCrashRow), .85f, kCrashRow);
       }
       const int at = laneStep(slot, kDrumsSlot, step);
       const int mask = fillMask;
@@ -1879,7 +1922,7 @@ class Engine {
         const float velocity = stepVelocity(packed) / 255.0f;
         if (velocity > 0) {
           const int tone = stepTone(packed);
-          triggerDrum(tone ? kGmPercFirst + tone : drumSound_[sectionIndex_][row].load(std::memory_order_acquire),
+          triggerDrum(tone ? kGmPercFirst + tone : drumSoundAt(sectionIndex_, row),
                       velocity, row);
         }
       }
@@ -1915,7 +1958,7 @@ class Engine {
         float velocity = stepVelocity(packed) / 255.0f;
         if (velocity <= 0 || degree == kRest) continue;
         if (stepAccent(packed)) velocity = fminf(1.0f, velocity * 1.3f);
-        const int timbre = timbre_[sectionIndex_][track].load(std::memory_order_acquire);
+        const int timbre = timbreAt(sectionIndex_, track);
         retrigger(track);
         if (degree == kChordAll) {
           addChord(sectionIndex_, c, velocity, track, timbre);
@@ -2335,7 +2378,7 @@ class Engine {
     tsf* font = soundFont.load(std::memory_order_acquire);
     if (!font) return;
     for (int track = 0; track < kTracks; ++track) {
-      const int program = program_[section][track].load(std::memory_order_relaxed);
+      const int program = programAt(section, track);
       if (program == appliedProgram_[track]) continue;
       applyProgram(font, track, program);
       appliedProgram_[track] = program;
@@ -2582,7 +2625,7 @@ class Engine {
   std::atomic<int> variationRequest_{-1};
   int pendingBank_ = -1, manualSlot_ = 0;
   std::atomic<float> gateSteps_[kSections][kTracks]{};  // 0 is hold, as the engine always did
-  std::atomic<float> bpm_{95}, swing_{1.0f}, gains_[kBuses], master_{.7f}; std::atomic<int> drums_[kSlots][kDrumRows][kMaxSteps]; std::atomic<int> instruments_[kSlots][kTracks][kMaxSteps]; std::atomic<int> timbre_[kSections][kTracks], program_[kSections][kTracks], drumSound_[kSections][kDrumRows]; std::atomic<bool> silent_[kSections][kTracks + 1]{}; Voice voices_[kVoices]; DrumVoice drumVoices_[kDrumVoices]; uint32_t drumSerial_ = 0; Arrangement arrangements_[2]; std::atomic<int> activeArrangement_{0}; std::atomic<int64_t> reportedPosition_{0}; std::atomic<int> clearVoices_{0};
+  std::atomic<float> bpm_{95}, swing_{1.0f}, gains_[kBuses], master_{.7f}; std::atomic<int> drums_[kSlots][kDrumRows][kMaxSteps]; std::atomic<int> instruments_[kSlots][kTracks][kMaxSteps]; std::atomic<int> timbre_[kSections][kTracks], program_[kSections][kTracks], drumSound_[kSections][kDrumRows]; std::atomic<int> timbreB_[kSections][kTracks], programB_[kSections][kTracks], drumSoundB_[kSections][kDrumRows]; std::atomic<bool> silent_[kSections][kTracks + 1]{}; Voice voices_[kVoices]; DrumVoice drumVoices_[kDrumVoices]; uint32_t drumSerial_ = 0; Arrangement arrangements_[2]; std::atomic<int> activeArrangement_{0}; std::atomic<int64_t> reportedPosition_{0}; std::atomic<int> clearVoices_{0};
   /// Whether the sequencer is running — which is not the same as whether the output is
   /// open. The stream stays up between Stop and the next thing that wants to be heard,
   /// so `stream_ != nullptr` stopped being an answer to "is the song playing".
@@ -2661,8 +2704,8 @@ extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainAct
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetMeter(JNIEnv*, jobject, jint stepsPerBar, jint stepsPerBeat) { engine.setMeter(stepsPerBar, stepsPerBeat); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetStep(JNIEnv* env, jobject, jint section, jstring track, jstring row, jint step, jint value, jint bank) { const char* t=chars(env,track); const char* r=chars(env,row); engine.setStep(section,t,r,step,value,bank); release(env,track,t); release(env,row,r); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeClearTrack(JNIEnv* env, jobject, jint section, jstring track, jint bank) { const char* t=chars(env,track); engine.clearTrack(section,t,bank); release(env,track,t); }
-extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetProgram(JNIEnv* env, jobject, jint section, jstring track, jint program) { const char* t=chars(env,track); engine.setProgram(section,t,program); release(env,track,t); }
-extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetTimbre(JNIEnv* env, jobject, jint section, jstring track, jint value) { const char* t=chars(env,track); engine.setTimbre(section,t,value); release(env,track,t); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetProgram(JNIEnv* env, jobject, jint section, jstring track, jint program, jint bank) { const char* t=chars(env,track); engine.setProgram(section,t,program,bank); release(env,track,t); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetTimbre(JNIEnv* env, jobject, jint section, jstring track, jint value, jint bank) { const char* t=chars(env,track); engine.setTimbre(section,t,value,bank); release(env,track,t); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetNoteLength(JNIEnv* env, jobject, jint section, jstring track, jfloat steps) { const char* t=chars(env,track); engine.setNoteLength(section,t,steps); release(env,track,t); }
 extern "C" JNIEXPORT jboolean JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeLoadSample(JNIEnv* env, jobject, jint slot, jbyteArray pcm, jfloat gain) {
   const jsize bytes = env->GetArrayLength(pcm);
@@ -2703,7 +2746,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_com_eliascorsino_chord_1sequencer_Mai
   engine.configureSoundFont();
   return true;
 }
-extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetDrumSound(JNIEnv* env, jobject, jint section, jstring row, jint value) { const char* r=chars(env,row); engine.setDrumSound(section,r,value); release(env,row,r); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetDrumSound(JNIEnv* env, jobject, jint section, jstring row, jint value, jint bank) { const char* r=chars(env,row); engine.setDrumSound(section,r,value,bank); release(env,row,r); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetSilence(JNIEnv* env, jobject, jint section, jstring track, jboolean silent) { const char* t=chars(env,track); engine.setSilence(section,t,silent); release(env,track,t); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetPatternBars(JNIEnv* env, jobject, jint section, jstring track, jint bars, jint bank) { const char* t=chars(env,track); engine.setPatternBars(section,t,bars,bank); release(env,track,t); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetFill(JNIEnv* env, jobject, jint section, jint from, jint mask, jintArray steps, jint bank) {

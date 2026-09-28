@@ -108,10 +108,10 @@ WG(wg_commit_arrangement) void wg_commit_arrangement() { engine.commitArrangemen
 // for both, so only patterns, bar counts and fills take one.
 WG(wg_set_step) void wg_set_step(int section, const char* track, const char* row, int step, int value, int bank) { engine.setStep(section, track, row, step, value, bank); }
 WG(wg_clear_track) void wg_clear_track(int section, const char* track, int bank) { engine.clearTrack(section, track, bank); }
-WG(wg_set_program) void wg_set_program(int section, const char* track, int program) { engine.setProgram(section, track, program); }
-WG(wg_set_timbre) void wg_set_timbre(int section, const char* track, int value) { engine.setTimbre(section, track, value); }
+WG(wg_set_program) void wg_set_program(int section, const char* track, int program, int bank) { engine.setProgram(section, track, program, bank); }
+WG(wg_set_timbre) void wg_set_timbre(int section, const char* track, int value, int bank) { engine.setTimbre(section, track, value, bank); }
 WG(wg_set_note_length) void wg_set_note_length(int section, const char* track, float steps) { engine.setNoteLength(section, track, steps); }
-WG(wg_set_drum_sound) void wg_set_drum_sound(int section, const char* row, int value) { engine.setDrumSound(section, row, value); }
+WG(wg_set_drum_sound) void wg_set_drum_sound(int section, const char* row, int value, int bank) { engine.setDrumSound(section, row, value, bank); }
 WG(wg_set_silence) void wg_set_silence(int section, const char* track, int silent) { engine.setSilence(section, track, silent != 0); }
 WG(wg_set_pattern_bars) void wg_set_pattern_bars(int section, const char* track, int bars, int bank) { engine.setPatternBars(section, track, bars, bank); }
 WG(wg_set_fill) void wg_set_fill(int section, int from, int mask, const int* steps, int count, int bank) { engine.setFill(section, from, mask, steps, count, bank); }

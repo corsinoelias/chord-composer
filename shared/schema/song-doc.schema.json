@@ -109,6 +109,7 @@
         "patterns": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "$ref": "#/definitions/trackPattern" } },
         "silenced": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "boolean" } },
         "sounds": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "string" } },
+        "partSounds": { "type": "object", "description": "The sound each part of the rhythm plays in this section, by track (a kit id for the drums): over its sounds and the song's. Keys intro, a, b, ending. The engine plays A's and B's from its two banks.", "propertyNames": { "enum": ["intro", "a", "b", "ending"] }, "additionalProperties": { "type": "object", "propertyNames": { "$ref": "#/definitions/track" }, "additionalProperties": { "type": "string" } } },
         "part": { "enum": ["intro", "ending"], "description": "The rhythm's intro or ending, played by this section instead of its groove (variation A or B stays for when it goes back). A reference: under another rhythm it plays that one's. The app keeps the same choice as Section.part." },
         "variation": { "enum": [0, 1], "description": "Which variation the section plays: 0 (or absent) A, 1 B. The app's rhythms bring a B (or the section makes one: groove.bCreated); on the web's own rhythms B is the section's alt." },
         "alt": {

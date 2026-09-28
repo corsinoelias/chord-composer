@@ -16,13 +16,14 @@ export const ARGS = {
   section: ['wg_section', 'iiii'],
   chord: ['wg_chord', 'iissii'],
   commitArrangement: ['wg_commit_arrangement', ''],
-  // The last argument of these four is the variation, 0 A or 1 B; left out, it is A.
+  // The last argument of these seven is the variation, 0 A or 1 B; left out, it is A. On
+  // the three sounds, -1 gives B back to A's.
   setStep: ['wg_set_step', 'issiii'],
   clearTrack: ['wg_clear_track', 'isi'],
-  setProgram: ['wg_set_program', 'isi'],
-  setTimbre: ['wg_set_timbre', 'isi'],
+  setProgram: ['wg_set_program', 'isii'],
+  setTimbre: ['wg_set_timbre', 'isii'],
   setNoteLength: ['wg_set_note_length', 'isf'],
-  setDrumSound: ['wg_set_drum_sound', 'isi'],
+  setDrumSound: ['wg_set_drum_sound', 'isii'],
   setSilence: ['wg_set_silence', 'isi'],
   setPatternBars: ['wg_set_pattern_bars', 'isii'],
   setFill: ['wg_set_fill', 'iiiai'],

@@ -13,8 +13,8 @@
  * sounds, register and note lengths) comes across as the web wrote it.
  */
 import { type Chord } from '../musicTheory';
-import { type Section, type TrackId, sectionB } from '../sections';
-import { partView } from '../groove';
+import { type Section, type SectionPartKey, type TrackId, sectionB } from '../sections';
+import { effectiveVariation, partView } from '../groove';
 import {
   type StylePattern,
   generateBarPattern,
@@ -50,7 +50,7 @@ import {
 import { SHORT_FONT_PROGRAMS, type DrumKit } from './host';
 import { getMix, isMixDefault } from './mix';
 import { getAppStyle } from '../appStyles';
-import { clearVariationB, partOf, writeAppPart, writeAppStyle } from './fromAppStyle';
+import { clearVariationB, partOf, writeAppPart, writeAppStyle, writeDrumSounds } from './fromAppStyle';
 import { type NoteLengths } from '../noteLengths';
 import { styleSwingRatio } from '../swing';
 import { DEFAULT_CLICK, type ClickSettings } from '../clickSettings';
@@ -237,13 +237,18 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     const part = partOf(partStyle, section);
     const app = part ? partStyle : style.engine;
     const drumSetting = instruments.find((inst) => inst.id === 'drums');
-    // The section's own kit, else the song's; the rhythm's own plays its sounds over the default kit.
-    const kitId = playback?.sounds?.drums ?? drumSetting?.soundTypeId ?? defaultSound('drums');
-    const kit = {
-      rows: kits[getSoundType('drums', kitId)?.kit ?? DEFAULT_KIT]?.rows,
-      own: kitId === RHYTHM_KIT,
-      song: song.drumSounds,
+    // Which part of the rhythm bank 0 plays here, and whether bank 1 holds a B: each gets
+    // the sounds of its own part (Section.partSounds).
+    const bank0: SectionPartKey = section.stylePart ? (section.stylePart.kind === 'intro' ? 'intro' : 'ending') : section.part ?? 'a';
+    const hasB = !section.stylePart && !section.part
+      && (style.engine ? !!effectiveVariation(style.engine, section, 'b') : !!sectionB(section));
+    // The part's own kit, else the section's, else the song's; the rhythm's own plays its
+    // sounds over the default kit.
+    const kitOf = (part: SectionPartKey) => {
+      const id = section.partSounds?.[part]?.drums ?? playback?.sounds?.drums ?? drumSetting?.soundTypeId ?? defaultSound('drums');
+      return { rows: kits[getSoundType('drums', id)?.kit ?? DEFAULT_KIT]?.rows, own: id === RHYTHM_KIT, song: song.drumSounds, id };
     };
+    const kit = kitOf(bank0);
     // The section's own intro or ending (Section.part): the rhythm's, with its edits.
     const ownPart = section.stylePart ? undefined : section.part;
     if (part && partStyle) {
@@ -267,7 +272,12 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
       } else clearVariationB(c, s);
       c.push(['setVariation', s, b && section.variation === 1 ? 1 : 0]);
     }
-    writeSounds(s, playback, !!app);
+    // B's kit, where it has one of its own; bank 1 follows A's otherwise.
+    const appDrums = part && partStyle ? partStyle : style.engine;
+    const kitB = hasB ? kitOf('b') : undefined;
+    if (appDrums && kitB && kitB.id !== kit.id) writeDrumSounds(c, s, appDrums, kitB, drumSlots, 1);
+    else if (appDrums) for (const row of DRUM_ROWS) c.push(['setDrumSound', s, row, -1, 1]);
+    writeSounds(s, playback, !!app, section, bank0, hasB);
   });
 
   /**
@@ -338,30 +348,51 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
    * Sounds, register and silence. On a rhythm of the app's the kit's sounds and the register
    * were written with it (fromAppStyle.ts); the sound each track plays is still the song's.
    */
-  function writeSounds(s: number, playback: ReturnType<typeof resolveSectionPlayback>, app: boolean) {
+  function writeSounds(
+    s: number, playback: ReturnType<typeof resolveSectionPlayback>, app: boolean,
+    section: Section, bank0: SectionPartKey, hasB: boolean,
+  ) {
     for (const track of TRACKS) {
       const setting = instruments.find((inst) => inst.id === track);
-      const soundId = playback?.sounds?.[track] ?? setting?.soundTypeId ?? defaultSound(track);
+      // A part's sound: its own in this section, else the section's, else the song's.
+      const idFor = (part: SectionPartKey) =>
+        section.partSounds?.[part]?.[track] ?? playback?.sounds?.[track] ?? setting?.soundTypeId ?? defaultSound(track);
+      const soundId = idFor(bank0);
       const sound = getSoundType(track, soundId);
       if (!sound) notes.push(`${track} sound "${soundId}" is not in the list; it plays the default`);
       c.push(['setSilence', s, track, !!playback?.silenced?.[track]]);
       if (track === 'drums' && app) continue;
+      // B's own sound, when it differs from A's; -1 has bank 1 follow bank 0.
+      const idB = hasB ? idFor('b') : soundId;
       if (track === 'drums') {
-        const kitIndex = sound?.kit ?? DEFAULT_KIT;
-        const kit = kits[kitIndex] ?? kits[DEFAULT_KIT];
-        if (!kits[kitIndex]) notes.push(`drum kit "${soundId}" is not in the app; it plays ${kit?.name ?? 'the default kit'}`);
+        const rowsOf = (id: string) => {
+          const kitIndex = getSoundType('drums', id)?.kit ?? DEFAULT_KIT;
+          const kit = kits[kitIndex] ?? kits[DEFAULT_KIT];
+          if (!kits[kitIndex]) notes.push(`drum kit "${id}" is not in the app; it plays ${kit?.name ?? 'the default kit'}`);
+          return kit?.rows;
+        };
+        const rows = rowsOf(soundId);
+        const rowsB = idB !== soundId ? rowsOf(idB) : undefined;
         for (const row of DRUM_ROWS) {
-          const sound = kit?.rows[row];
-          if (sound === undefined) continue;
-          c.push(['setDrumSound', s, row, sound]);
-          if (sound >= SAMPLED_FIRST) drumSlots.add(sound - SAMPLED_FIRST);
+          const sound = rows?.[row];
+          if (sound !== undefined) {
+            c.push(['setDrumSound', s, row, sound, 0]);
+            if (sound >= SAMPLED_FIRST) drumSlots.add(sound - SAMPLED_FIRST);
+          }
+          const soundB = rowsB?.[row];
+          c.push(['setDrumSound', s, row, soundB ?? -1, 1]);
+          if (soundB !== undefined && soundB >= SAMPLED_FIRST) drumSlots.add(soundB - SAMPLED_FIRST);
         }
         continue;
       }
       const voice = sound ?? getSoundType(track, defaultSound(track));
-      c.push(['setTimbre', s, track, soundTimbre(voice)]);
-      if (voice?.program !== undefined) c.push(['setProgram', s, track, voice.program]);
+      c.push(['setTimbre', s, track, soundTimbre(voice), 0]);
+      if (voice?.program !== undefined) c.push(['setProgram', s, track, voice.program, 0]);
       if (voice?.program !== undefined && !SHORT_FONT_PROGRAMS.has(voice.program)) programsOutsideShortFont.add(voice.program);
+      const voiceB = idB !== soundId ? getSoundType(track, idB) ?? voice : undefined;
+      c.push(['setTimbre', s, track, voiceB ? soundTimbre(voiceB) : -1, 1]);
+      c.push(['setProgram', s, track, voiceB?.program ?? -1, 1]);
+      if (voiceB?.program !== undefined && !SHORT_FONT_PROGRAMS.has(voiceB.program)) programsOutsideShortFont.add(voiceB.program);
       if (app) continue;
       // The web writes every chord with its root in the octave from C4, then moves the
       // sound by its octaveOffset (a bass sits one to three octaves down). The engine puts

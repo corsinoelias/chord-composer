@@ -79,11 +79,11 @@ export function drumSoundOf(style: Pick<AppStyle, 'drumSounds'>, kit: KitChoice,
  * The kit's sounds for a section playing [style], every row as drumSoundOf has it. [slots]
  * collects the recordings that have to be loaded.
  */
-function writeDrumSounds(c: EngineCommand[], s: number, style: AppStyle, kit: KitChoice, slots: Set<number>) {
+export function writeDrumSounds(c: EngineCommand[], s: number, style: AppStyle, kit: KitChoice, slots: Set<number>, bank: 0 | 1 = 0) {
   for (const row of DRUM_ROWS) {
     const sound = drumSoundOf(style, kit, row);
     if (sound === undefined) continue;
-    c.push(['setDrumSound', s, row, sound]);
+    c.push(['setDrumSound', s, row, sound, bank]);
     if (sound >= SAMPLED_FIRST && sound < GM_PERC_FIRST) slots.add(sound - SAMPLED_FIRST);
   }
 }

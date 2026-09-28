@@ -60,6 +60,12 @@ export interface Section {
    */
   part?: 'intro' | 'ending';
   /**
+   * The sound each part of the rhythm plays in this section, by track (a kit for the drums):
+   * the chorus on B can bring the strings in while the verse on A keeps the piano. Over
+   * [sounds] and the song's. See appEngine/fromSong.ts, which gives the engine A's and B's.
+   */
+  partSounds?: Partial<Record<SectionPartKey, Partial<Record<TrackId, string>>>>;
+  /**
    * This section is a part of a rhythm's intro or ending, added with it ("Add intro and
    * ending"): it plays that part's own patterns over its own chords, in the song's key.
    */
@@ -109,7 +115,8 @@ export const SECTION_PART_LABEL: Record<SectionPartKey, string> = { intro: 'Intr
 export function sectionHasArrangement(section: Section): boolean {
   const any = (o?: object) => !!o && Object.keys(o).length > 0;
   return !!section.styleId || any(section.trackStyles) || any(section.patterns)
-    || Object.values(section.silenced ?? {}).some(Boolean) || any(section.sounds);
+    || Object.values(section.silenced ?? {}).some(Boolean) || any(section.sounds)
+    || Object.values(section.partSounds ?? {}).some(any);
 }
 
 export function generateSectionId(): string {
