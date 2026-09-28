@@ -171,6 +171,9 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     setConfirmDiscard(false);
     setSongSounds({ instruments, drumSounds }); setSoundMenu(null);
     undo.current = []; redo.current = [];
+    // The section loops while it is open, as the app's editor does: what you edit is what
+    // keeps sounding, and nothing stops for it. Closing gives the loop back (giveBack).
+    if (loopingIndex !== initialSection) { onLoop(initialSection); loopedByEditor.current = true; }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { loadKits().then(setKits).catch(() => {}); }, []);
 
