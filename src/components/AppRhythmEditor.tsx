@@ -581,6 +581,11 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     if (!pool.length) { scramble(); return; }
     applyPattern(pool[Math.floor(Math.random() * pool.length)]);
   };
+  /** The instrument keeps its groove through the fill: none of its lanes in it (the app's No fill). */
+  const noFillHere = () => {
+    change((d) => { const x = V(d); for (const k of Object.keys(x.fill.lanes)) if (tab === 'drums' ? !isTrackKey(k) : k === tab) delete x.fill.lanes[k]; });
+    toast(`${trackName(tab)} keeps its groove through the fill`);
+  };
   const silenced = !!draft.silenced[tab];
   const edited = mode === 'fill' ? differs(variation, base, 'fill') : differs(variation, base, tab);
 
@@ -748,7 +753,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     if (Object.values(variation.rows[tab] ?? {}).some((l) => l.some(Boolean))) items.push({ label: 'Save as a pattern', run: () => askSave() });
     if (mode === 'groove') items.push({ label: 'Random', run: randomPattern, hold: scramble, title: 'Hold: cells at random' });
     if (edited) items.push({ label: 'Same as the rest', run: backToRhythm });
-    items.push({ label: mode === 'fill' ? 'Clear its fill' : 'Clear', run: clearTrack, danger: true });
+    if (mode === 'groove') items.push({ label: 'Clear', run: clearTrack, danger: true });
+    else if (fillKeys.some((k) => (tab === 'drums' ? !isTrackKey(k) : k === tab))) items.push({ label: 'No fill', run: noFillHere, title: 'This instrument keeps its groove through the fill' });
     if (!isPart && hasB && !isPartKey(v)) items.push({ head: '' }, { label: `Copy from ${v === 'a' ? 'B' : 'A'}`, run: copyOther });
     if (!isPart && plays !== v) items.push({ label: `Play ${SECTION_PART_LABEL[v]} in ${section.name}`, run: () => change((d) => { d.plays = v; }) });
     setMenu({ items, x, y });
@@ -955,27 +961,26 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
               </div>
               {lanes.map((lane, li) => {
                 const writes = mode === 'fill' && fillWrites(lane.key);
+                // In the fill, what it does not rewrite keeps its groove: shown dim, as the app does.
+                const dim = (mode === 'fill' && !writes) || !!c;
                 const slim = tab !== 'drums' && !lane.chord && !!lane.a;
                 let tag: JSX.Element;
                 if (tab === 'drums') {
                   const lab = rowLabel(lane.row);
                   tag = (
                     <button type="button" className="flex h-full min-h-[28px] sm:min-h-[34px] flex-col justify-center rounded-[9px] border bg-transparent px-2 text-left text-[11.5px] font-bold leading-tight"
-                      style={{ borderColor: lane.color, background: `color-mix(in srgb, ${lane.color} 12%, transparent)`, color: 'var(--cp-tx)', opacity: c ? 0.55 : 1 }}
+                      style={{ borderColor: lane.color, background: `color-mix(in srgb, ${lane.color} 12%, transparent)`, color: 'var(--cp-tx)', opacity: dim ? 0.45 : 1 }}
                       onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openLaneMenu(lane, r.left, r.bottom); }} title={`${lab.name} · options`}>
                       <span className="truncate">{lab.name}</span>
-                      {mode === 'fill'
-                        ? <span className="text-[9px] font-extrabold uppercase" style={{ color: writes ? '#E8940F' : 'var(--cp-mu)' }}>{writes ? 'Fill' : 'Groove'}</span>
-                        : lab.sub && <small className="truncate text-[9.5px] font-semibold" style={{ color: 'var(--cp-mu)' }}>{lab.sub}</small>}
+                      {lab.sub && <small className="truncate text-[9.5px] font-semibold" style={{ color: 'var(--cp-mu)' }}>{lab.sub}</small>}
                     </button>
                   );
                 } else if (lane.chord) {
                   tag = (
                     <button type="button" className="flex h-full min-h-[28px] sm:min-h-[34px] items-center gap-1.5 rounded-[9px] border bg-transparent px-2 text-left"
-                      style={{ borderColor: lane.color, color: 'var(--cp-tx)', opacity: c ? 0.55 : 1 }}
+                      style={{ borderColor: lane.color, color: 'var(--cp-tx)', opacity: dim ? 0.45 : 1 }}
                       onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openLaneMenu(lane, r.left, r.bottom); }} title="The whole chord">
                       <b className="text-[13px]">●</b><small className="text-[9.5px] font-semibold" style={{ color: 'var(--cp-mu)' }}>{chordLabel}</small>
-                      {mode === 'fill' && <span className="text-[9px] font-extrabold uppercase" style={{ color: writes ? '#E8940F' : 'var(--cp-mu)' }}>{writes ? 'Fill' : 'Groove'}</span>}
                     </button>
                   );
                 } else {
@@ -984,7 +989,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                   const tone = iv.includes(((semi % 12) + 12) % 12);
                   tag = (
                     <button type="button" className={`flex items-center gap-1.5 rounded-[9px] border bg-transparent text-left ${slim ? 'h-[18px] px-1.5' : 'h-full min-h-[28px] sm:min-h-[34px] px-2'}`}
-                      style={{ borderColor: lane.a ? 'var(--cp-ln)' : lane.color, background: tone ? `color-mix(in srgb, ${lane.color} 24%, transparent)` : 'transparent', color: 'var(--cp-tx)', opacity: c ? 0.55 : 1 }}
+                      style={{ borderColor: lane.a ? 'var(--cp-ln)' : lane.color, background: tone ? `color-mix(in srgb, ${lane.color} 24%, transparent)` : 'transparent', color: 'var(--cp-tx)', opacity: dim ? 0.45 : 1 }}
                       onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openLaneMenu(lane, r.left, r.bottom); }}
                       title={`Degree ${rowText(lane.k!, lane.a!)} of the ${chordLabel} scale${tone ? ' · a note of the chord' : ''}`}>
                       <b className={slim ? 'text-[11px]' : 'min-w-[20px] text-[13px]'}>{rowText(lane.k!, lane.a!)}</b>
