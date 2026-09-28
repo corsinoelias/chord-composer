@@ -16,6 +16,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const pub = (f: string) => path.join(root, 'public', f);
 const read = (f: string) => JSON.parse(fs.readFileSync(pub(f), 'utf8'));
 const kitFile = read('engine/kit.json');
+/** The kits the engine plays, as the page loads them. */
+export const kits = kitFile.kits;
 export const library: AppStyle[] = read('rhythms/library.json').rhythms.map((r: { n: number; name: string; style: AppStyle }) => ({ ...r.style, id: `lib-${r.n}`, name: r.name, genre: 'x' }));
 export const own: AppStyle[] = read('rhythms/app-styles.json').styles.map((s: AppStyle & { category: string }) => ({ ...s, genre: categoryGenre(s.category) }));
 export const lookup = (id: string): StylePattern | undefined => {

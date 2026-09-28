@@ -238,12 +238,17 @@ export class AppPlayback {
       e.send(this.liveCommands(input));
       return;
     }
-    // Only cells changed — a step written in the rhythm editor, a fill: those alone go, and
-    // everything that is ringing goes on ringing. Resending the song would clear every track.
+    // Only cells or a section's settings changed — a step written in the rhythm editor, a
+    // fill, a range dragged, a sound picked: those alone go, and everything that is ringing
+    // goes on ringing. Resending the song would clear every track: the sound cut out at
+    // each semitone the range bar crossed.
     const delta = stepDelta(this.sentCommands, this.built.commands);
     this.sentSong = song;
     this.sentCommands = this.built.commands;
     if (delta) {
+      // A kit picked may bring recordings not loaded yet, a program the whole SoundFont.
+      await e.ensureSlots(this.built.drumSlots);
+      if (this.built.needsFullSoundFont) await e.useFullSoundFont();
       e.send([...delta, ...this.liveCommands(input)]);
       return;
     }
@@ -398,26 +403,45 @@ export class AppPlayback {
 }
 
 /**
- * The commands that turn [before] into [after] when the two differ only in steps and fills:
- * each step that changed (0 for one that went), each fill that changed. Null when anything
- * else differs, which needs the song sent again.
+ * A section's settings the engine keeps as plain values, read as each note is struck: where a
+ * track's register sits, how long its notes ring, its sound. Changing one needs no track
+ * cleared, so it goes on its own, as the app sends it (updateVoicing, updateProgram…).
  */
-function stepDelta(before: EngineCommand[], after: EngineCommand[]): EngineCommand[] | null {
+const SETTINGS = new Set<EngineCommand[0]>(['voicing', 'setNoteLength', 'setProgram', 'setTimbre', 'setDrumSound']);
+/** One setting's slot: the command, its section and track or row, and its bank. The last one sent wins. */
+const settingKey = (c: EngineCommand) => {
+  const x = c as unknown as unknown[];
+  const bank = c[0] === 'setProgram' || c[0] === 'setTimbre' || c[0] === 'setDrumSound' ? x[4] ?? 0 : 0;
+  return `${c[0]}|${x[1]}|${x[2]}|${bank}`;
+};
+
+/**
+ * The commands that turn [before] into [after] when the two differ only in steps, fills and
+ * a section's settings (SETTINGS): each step that changed (0 for one that went), each fill
+ * that changed, each setting whose last value changed. Null when anything else differs, which
+ * needs the song sent again.
+ */
+export function stepDelta(before: EngineCommand[], after: EngineCommand[]): EngineCommand[] | null {
   const cells = (list: EngineCommand[]) => {
     const steps = new Map<string, EngineCommand>();
     const fills = new Map<string, EngineCommand>();
+    const settings = new Map<string, EngineCommand>();
     const rest: EngineCommand[] = [];
     for (const c of list) {
       if (c[0] === 'setStep') steps.set(`${c[1]}|${c[2]}|${c[3]}|${c[4]}|${c[6] ?? 0}`, c);
       else if (c[0] === 'setFill') fills.set(`${c[1]}|${c[5] ?? 0}`, c);
+      else if (SETTINGS.has(c[0])) settings.set(settingKey(c), c);
       else if (!LIVE.has(c[0])) rest.push(c);
     }
-    return { steps, fills, rest };
+    return { steps, fills, settings, rest };
   };
   const a = cells(before);
   const b = cells(after);
   if (!before.length || JSON.stringify(a.rest) !== JSON.stringify(b.rest)) return null;
+  // A setting that went away has no value to send back: the song goes again.
+  for (const key of a.settings.keys()) if (!b.settings.has(key)) return null;
   const out: EngineCommand[] = [];
+  for (const [key, c] of b.settings) if (JSON.stringify(a.settings.get(key)) !== JSON.stringify(c)) out.push(c);
   for (const [key, c] of b.steps) {
     const old = a.steps.get(key);
     if (!old || old[5] !== c[5]) out.push(c);
