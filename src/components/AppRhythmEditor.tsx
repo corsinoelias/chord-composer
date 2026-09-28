@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Link2, ListMusic, MoreHorizontal, Play, Repeat, Square, Trash2, Unlink, VolumeX, X, Zap } from 'lucide-react';
+import { Bookmark, BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, Link2, ListMusic, MoreHorizontal, Play, Repeat, Square, Trash2, Unlink, VolumeX, X, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { type AppStyle, appStepsPerBar } from '@/lib/appStyles';
 import {
@@ -8,6 +8,9 @@ import {
 } from '@/lib/groove';
 import { SECTION_PART_LABEL, foldSectionSounds, sectionPartOf, type Section, type SectionPartKey, type TrackId } from '@/lib/sections';
 import { NOTE_LENGTH_CHOICES, type NoteLengths } from '@/lib/noteLengths';
+import {
+  fitLane, forgetPattern, loadFigures, previewOf, savePattern, savedPatterns, spells, type SavedPattern, type StripPattern,
+} from '@/lib/patternStrip';
 import { type Chord } from '@/lib/musicTheory';
 import {
   RHYTHM_KIT, getInstrumentConfig, getSoundType, gmProgramOf, soundIdForProgram, soundTimbre, type InstrumentState,
@@ -168,6 +171,16 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const [menu, setMenu] = useState<{ items: MenuItem[]; x: number; y: number } | null>(null);
   /** Leaving with changes: the question of what to do with them is on screen. */
   const [leaving, setLeaving] = useState(false);
+  /** The pattern strip: the app's figures for the track on screen, and yours (patternStrip.ts). */
+  const [figures, setFigures] = useState<StripPattern[]>([]);
+  const [mine, setMine] = useState<SavedPattern[]>(() => savedPatterns());
+  /** Naming what is on the track to keep it, or forgetting one of yours. */
+  const [ask, setAsk] = useState<{ kind: 'save'; name: string } | { kind: 'forget'; id: string; name: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadFigures(tab, spb).then((list) => { if (live) setFigures(list); }).catch(() => { if (live) setFigures([]); });
+    return () => { live = false; };
+  }, [tab, spb]);
   /** The song's sounds as they are being tried: kept on Save, dropped on Cancel. */
   const [songSounds, setSongSounds] = useState<SongSounds>({ instruments, drumSounds, noteLengths });
   const [soundMenu, setSoundMenu] = useState<{ x: number; y: number; above: number } | null>(null);
@@ -539,6 +552,35 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     if (mode === 'fill') x.fill = b.fill;
     else { x.rows[tab] = b.rows[tab]; x.bars[tab] = b.bars[tab]; }
   });
+  /** A pattern from the strip on the track: its rows and its bars, heard at once in the loop. */
+  const applyPattern = (p: StripPattern) => {
+    change((d) => {
+      const x = V(d);
+      x.rows[tab] = Object.fromEntries(Object.entries(p.rows).map(([row, lane]) => [row, fitLane(lane, p.bars * spb)]));
+      x.bars[tab] = p.bars;
+    });
+    setMode('groove'); setPage(0); setFocus(null);
+  };
+  /** Cells at random, on the chord's own notes: the app's scramble, held on Random. */
+  const scramble = () => change((d) => {
+    const x = V(d);
+    const n = x.bars[tab] * spb;
+    const hit = () => Math.random() < 0.3;
+    if (tab === 'drums') {
+      const rows = Object.keys(x.rows.drums).filter((r) => x.rows.drums[r]?.some(Boolean));
+      for (const r of rows.length ? rows : CORE) x.rows.drums[r] = Array.from({ length: n }, () => (hit() ? packHit(90 + Math.floor(Math.random() * 165)) : 0));
+    } else {
+      const tones = [DEG.chord, DEG.root, DEG.third, DEG.fifth, DEG.octave];
+      x.rows[tab] = { lane: Array.from({ length: n }, () => (hit() ? packNotes(120 + Math.floor(Math.random() * 120), [{ d: tones[Math.floor(Math.random() * tones.length)], o: 0, a: 0 }]) : 0)) };
+    }
+  });
+  /** A real groove, one of the figures, never the one already there: the app's Random. */
+  const randomPattern = () => {
+    const x = V(draft);
+    const pool = figures.filter((p) => !spells(x.rows[tab], x.bars[tab], p, spb));
+    if (!pool.length) { scramble(); return; }
+    applyPattern(pool[Math.floor(Math.random() * pool.length)]);
+  };
   const silenced = !!draft.silenced[tab];
   const edited = mode === 'fill' ? differs(variation, base, 'fill') : differs(variation, base, tab);
 
@@ -682,18 +724,17 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const hasB = !!draft.b;
 
   const plays = draft.plays ?? startKey(section);
-  /** The ⋯ menu: what the track on screen can do beyond its cells. */
+  /** The ⋯ menu: what the track on screen can do beyond its cells, in the app's order. */
   const openMore = (x: number, y: number) => {
-    const items: MenuItem[] = [];
+    const items: MenuItem[] = [{ head: mode === 'fill' ? `${trackName(tab)} · fill` : trackName(tab) }];
     if (mode === 'groove') {
-      items.push({ head: `${trackName(tab)} · bars` });
+      items.push({ head: 'Bars' });
       for (const n of [1, 2, 4] as const) items.push({ label: `${bars === n ? '✓ ' : ''}${n} bar${n > 1 ? 's' : ''}`, run: () => setBars(n) });
-      items.push({ head: trackName(tab) });
-    } else items.push({ head: `${trackName(tab)} · fill` });
+    }
     if (tab === 'piano' || tab === 'guitar' || tab === 'bass') {
       // How long its notes ring, for the whole song, as the app's Notes.
       const now = songSounds.noteLengths[tab];
-      items.push({ head: `${trackName(tab)} · notes` });
+      items.push({ head: 'Notes' });
       for (const o of NOTE_LENGTH_CHOICES) {
         items.push({ label: `${now === o.steps ? '✓ ' : ''}${o.label}`, run: () => setSongSounds((s) => {
           const next = { ...s.noteLengths };
@@ -701,14 +742,28 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           return { ...s, noteLengths: next };
         }) });
       }
-      items.push({ head: trackName(tab) });
     }
-    items.push({ label: silenced ? 'Play it here again' : 'Silence it here', run: () => change((d) => { d.silenced[tab] = !d.silenced[tab]; }) });
-    items.push({ label: mode === 'fill' ? 'Clear its fill' : 'Clear', run: clearTrack });
-    if (!isPart && hasB && !isPartKey(v)) items.push({ label: `Copy from ${v === 'a' ? 'B' : 'A'}`, run: copyOther });
-    if (edited) items.push({ label: 'Back to the rhythm as written', run: backToRhythm });
-    if (!isPart && plays !== v) items.push({ head: section.name }, { label: `Play ${SECTION_PART_LABEL[v]} in this section`, run: () => change((d) => { d.plays = v; }) });
+    items.push({ head: '' });
+    items.push({ label: silenced ? '✓ Muted here' : 'Mute here', run: () => change((d) => { d.silenced[tab] = !d.silenced[tab]; }) });
+    if (Object.values(variation.rows[tab] ?? {}).some((l) => l.some(Boolean))) items.push({ label: 'Save as a pattern', run: () => askSave() });
+    if (mode === 'groove') items.push({ label: 'Random', run: randomPattern, hold: scramble, title: 'Hold: cells at random' });
+    if (edited) items.push({ label: 'Same as the rest', run: backToRhythm });
+    items.push({ label: mode === 'fill' ? 'Clear its fill' : 'Clear', run: clearTrack, danger: true });
+    if (!isPart && hasB && !isPartKey(v)) items.push({ head: '' }, { label: `Copy from ${v === 'a' ? 'B' : 'A'}`, run: copyOther });
+    if (!isPart && plays !== v) items.push({ label: `Play ${SECTION_PART_LABEL[v]} in ${section.name}`, run: () => change((d) => { d.plays = v; }) });
     setMenu({ items, x, y });
+  };
+  /** Name what the track plays, to find it in the strip in every song. */
+  const askSave = () => {
+    const n = mine.filter((p) => p.tab === tab).length + 1;
+    setAsk({ kind: 'save', name: tab === 'drums' ? `My groove ${n}` : `My backing ${n}` });
+  };
+  const keepPattern = (name: string) => {
+    const x = V(draft);
+    savePattern({ name, tab, spb, bars: x.bars[tab], rows: JSON.parse(JSON.stringify(x.rows[tab])) });
+    setMine(savedPatterns());
+    setAsk(null);
+    toast(`“${name}” is in your patterns`);
   };
   /** Where an edit goes: every section that shares the part, or this one only. */
   const openShare = (x: number, y: number) => setMenu({
@@ -727,7 +782,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
         style={{ background: 'var(--cp-s1)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }}
         data-editor-root=""
         onEscapeKeyDown={(e) => {
-          if (pop || menu || soundMenu || leaving) { e.preventDefault(); setPop(null); setMenu(null); setSoundMenu(null); setLeaving(false); }
+          if (pop || menu || soundMenu || leaving || ask) { e.preventDefault(); setPop(null); setMenu(null); setSoundMenu(null); setLeaving(false); setAsk(null); }
         }}
         // Closed by Back, Save or Esc only: a tap beside it — or one that lands as a menu
         // closes and "All sounds…" opens, as a phone delivers it — must not throw the edits away.
@@ -990,6 +1045,44 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           )}
         </div>
 
+        {/* Patterns: yours, the rhythm's own, the figures. Tried by ear, a tap each, while the
+            grid shows what changed — the app's strip, always on screen for that reason. */}
+        {(() => {
+          const x = variation;
+          const rhythmChips: StripPattern[] = isPart || isPartKey(v)
+            ? [{ id: 'rhythm-part', name: isPart ? (section.stylePart!.kind === 'intro' ? 'Intro' : 'Ending') : SECTION_PART_LABEL[v], rows: base.rows[tab], bars: base.bars[tab] }]
+            : (['a', 'b'] as const).flatMap((k) => {
+              const b = baseVariation(style, section, k);
+              return b ? [{ id: `rhythm-${k}`, name: k.toUpperCase(), rows: b.rows[tab], bars: b.bars[tab] }] : [];
+            });
+          const yours = mine.filter((p) => p.tab === tab && p.spb === spb);
+          const groups = [
+            { label: 'Yours', list: yours as StripPattern[], mine: true },
+            { label: style.name, list: rhythmChips, mine: false },
+            { label: 'Figures', list: figures, mine: false },
+          ].filter((g) => g.list.length);
+          const chosen = [...yours, ...rhythmChips, ...figures].find((p) => spells(x.rows[tab], x.bars[tab], p, spb));
+          const worthSaving = !chosen && Object.values(x.rows[tab] ?? {}).some((l) => l.some(Boolean));
+          return (
+            <div className="flex items-center gap-1.5 overflow-x-auto border-t px-3 py-2 sm:px-4" style={{ borderColor: 'var(--cp-ln)' }} role="group" aria-label="Patterns">
+              {groups.map((g) => [
+                <span key={`h-${g.label}`} className="shrink-0 pl-1 text-[9.5px] font-extrabold uppercase tracking-wide" style={{ color: 'var(--cp-mu)' }}>{g.label}</span>,
+                ...g.list.map((p) => (
+                  <PatternChip key={p.id} name={p.name} preview={previewOf(p.rows)} color={trackColor(tab)} mine={g.mine} on={chosen === p}
+                    onPick={() => applyPattern(p)}
+                    onForget={g.mine ? () => setAsk({ kind: 'forget', id: p.id, name: p.name }) : undefined} />
+                )),
+              ])}
+              {worthSaving && (
+                <button type="button" onClick={askSave} className="flex h-[42px] shrink-0 items-center gap-1 rounded-xl border border-dashed bg-transparent px-3 text-[11px] font-extrabold"
+                  style={{ borderColor: 'var(--cp-ac)', color: 'var(--cp-act)' }} title="Save this pattern with a name">
+                  <BookmarkPlus size={14} />Save
+                </button>
+              )}
+            </div>
+          );
+        })()}
+
         {/* The loop: the fill thrown in, play, and round and round */}
         <div className="flex items-center justify-center gap-8 border-t px-4 py-2.5" style={{ borderColor: 'var(--cp-ln)' }}>
           <button type="button" className="cp-icb" disabled={noFill} aria-label="Fill now" title="The fill, on the next bar"
@@ -1005,6 +1098,37 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             <Repeat size={20} />
           </button>
         </div>
+
+        {ask && (
+          <div className="absolute inset-0 z-[70] grid place-items-center p-4" style={{ background: 'rgba(0,0,0,.45)' }}>
+            {ask.kind === 'save' ? (
+              <form role="dialog" aria-label={tab === 'drums' ? 'Save the groove' : 'Save the backing'} className="grid w-full max-w-[340px] gap-3 rounded-2xl border p-4 shadow-xl"
+                style={{ background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)' }}
+                onSubmit={(e) => { e.preventDefault(); const name = ask.name.trim(); if (name) keepPattern(name); }}>
+                <b className="text-base">{tab === 'drums' ? 'Save the groove' : 'Save the backing'}</b>
+                <label className="grid gap-1.5 text-xs font-semibold" style={{ color: 'var(--cp-mu)' }}>Name
+                  <input autoFocus value={ask.name} onChange={(e) => setAsk({ kind: 'save', name: e.target.value })} onFocus={(e) => e.currentTarget.select()}
+                    className="h-11 rounded-[10px] border px-3 text-[15px]" style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln2)', color: 'var(--cp-tx)' }} />
+                </label>
+                <div className="flex justify-end gap-2">
+                  <button type="button" className="cp-btn" onClick={() => setAsk(null)}>Cancel</button>
+                  <button type="submit" className="cp-btn" style={{ background: 'var(--cp-ac)', borderColor: 'var(--cp-ac)', color: '#fff' }}>Save</button>
+                </div>
+              </form>
+            ) : (
+              <div role="alertdialog" aria-label={`Forget “${ask.name}”?`} className="grid w-full max-w-[340px] gap-3 rounded-2xl border p-4 shadow-xl"
+                style={{ background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)' }}>
+                <b className="text-base">Forget “{ask.name}”?</b>
+                <p className="m-0 text-sm" style={{ color: 'var(--cp-mu)' }}>It leaves the list, in this and every other song. Anything already playing it stays as it is.</p>
+                <div className="flex justify-end gap-2">
+                  <button type="button" className="cp-btn" onClick={() => setAsk(null)}>Cancel</button>
+                  <button type="button" className="cp-btn" style={{ color: 'var(--cp-dg)' }}
+                    onClick={() => { forgetPattern(ask.id); setMine(savedPatterns()); setAsk(null); }}>Forget</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Back with changes */}
         {leaving && (
@@ -1063,7 +1187,7 @@ function chordName(c: Chord): string {
   const q: Record<string, string> = { maj: '', min: 'm', '7': '7', maj7: 'maj7', min7: 'm7', dim: 'dim', aug: 'aug', sus4: 'sus4', sus2: 'sus2' };
   return `${c.root}${c.accidental === '#' ? '♯' : c.accidental === 'b' ? '♭' : ''}${q[c.quality] ?? c.quality}`;
 }
-type MenuItem = { head: string } | { label: string; run: () => void };
+type MenuItem = { head: string } | { label: string; run: () => void; hold?: () => void; danger?: boolean; title?: string };
 
 /**
  * Where a pop-up opened at the screen point ([x], [y]) goes, whole on screen: under the point,
@@ -1158,10 +1282,52 @@ function Menu({ items, x, y, onClose }: { items: MenuItem[]; x: number; y: numbe
     <div ref={ref} role="menu" className="fixed z-[60] grid min-w-[210px] max-w-[calc(100vw-16px)] rounded-xl border p-1.5 shadow-xl"
       style={{ ...place, background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)', maxHeight: 'min(60vh, calc(100dvh - 16px))', overflowY: 'auto' }}>
       {items.map((it, i) => ('head' in it
-        ? <div key={i} className="px-2.5 pb-1 pt-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--cp-mu)' }}>{it.head}</div>
-        : <button key={i} role="menuitem" type="button" className="rounded-lg border-0 bg-transparent px-2.5 py-2 text-left text-[13px] hover:bg-[var(--cp-s2)]"
-            style={{ color: 'var(--cp-tx)' }} onClick={() => { onClose(); it.run(); }}>{it.label}</button>))}
+        ? it.head
+          ? <div key={i} className="px-2.5 pb-1 pt-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--cp-mu)' }}>{it.head}</div>
+          : <div key={i} role="separator" className="mx-2 my-1 h-px" style={{ background: 'var(--cp-ln)' }} />
+        : <MenuButton key={i} item={it} onClose={onClose} />))}
     </div>
+  );
+}
+
+/** A menu item: a tap runs it; one with a hold does that on a long press (or a right click). */
+function MenuButton({ item, onClose }: { item: Extract<MenuItem, { label: string }>; onClose: () => void }) {
+  const timer = useRef<number | null>(null);
+  const held = useRef(false);
+  const stop = () => { if (timer.current) window.clearTimeout(timer.current); };
+  const hold = () => { held.current = true; onClose(); item.hold!(); };
+  return (
+    <button role="menuitem" type="button" title={item.title} className="rounded-lg border-0 bg-transparent px-2.5 py-2 text-left text-[13px] hover:bg-[var(--cp-s2)]"
+      style={{ color: item.danger ? 'var(--cp-dg)' : 'var(--cp-tx)' }}
+      onPointerDown={item.hold ? () => { held.current = false; timer.current = window.setTimeout(hold, 480); } : undefined}
+      onPointerUp={stop} onPointerLeave={stop}
+      onContextMenu={item.hold ? (e) => { e.preventDefault(); stop(); hold(); } : undefined}
+      onClick={() => { if (held.current) { held.current = false; return; } onClose(); item.run(); }}>{item.label}</button>
+  );
+}
+
+/** A pattern in the strip: its name over a thumbnail of its first bar. One of yours is forgotten by a long press. */
+function PatternChip({ name, preview, color, mine, on, onPick, onForget }: {
+  name: string; preview: boolean[]; color: string; mine: boolean; on: boolean; onPick: () => void; onForget?: () => void;
+}) {
+  const timer = useRef<number | null>(null);
+  const held = useRef(false);
+  const stop = () => { if (timer.current) window.clearTimeout(timer.current); };
+  return (
+    <button type="button" aria-pressed={on} title={onForget ? `${name} · hold to forget` : name}
+      className="flex h-[42px] shrink-0 flex-col items-start justify-center gap-1 rounded-xl border px-2.5"
+      style={on ? { background: 'var(--cp-acs)', borderColor: 'var(--cp-ac)', borderWidth: 1.5, color: 'var(--cp-act)' } : { background: 'var(--cp-s1)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }}
+      onPointerDown={onForget ? () => { held.current = false; timer.current = window.setTimeout(() => { held.current = true; onForget(); }, 480); } : undefined}
+      onPointerUp={stop} onPointerLeave={stop}
+      onContextMenu={onForget ? (e) => { e.preventDefault(); stop(); onForget(); } : undefined}
+      onClick={() => { if (held.current) { held.current = false; return; } onPick(); }}>
+      <span className="flex items-center gap-1 whitespace-nowrap text-xs" style={{ fontWeight: on ? 800 : 700 }}>
+        {mine && <Bookmark size={10} style={{ color: 'var(--cp-mu)' }} fill="currentColor" />}{name}
+      </span>
+      <span className="flex h-[6px] w-[58px] gap-px" aria-hidden="true">
+        {preview.map((p, i) => <span key={i} className="flex-1 rounded-[1px]" style={{ background: p ? color : 'var(--cp-ln)' }} />)}
+      </span>
+    </button>
   );
 }
 

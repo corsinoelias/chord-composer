@@ -37,6 +37,8 @@ const out = path.join(root, 'public/rhythms');
 fs.mkdirSync(out, { recursive: true });
 fs.copyFileSync(path.join(app, 'assets/rhythm_library.json'), path.join(out, 'library.json'));
 fs.copyFileSync(path.join(app, 'build/web_styles.json'), path.join(out, 'app-styles.json'));
+// The figures of the rhythm editor's pattern strip, as the app builds them.
+fs.copyFileSync(path.join(app, 'build/web_patterns.json'), path.join(out, 'patterns.json'));
 
 const git = (...args) => execFileSync('git', ['-C', app, ...args]).toString().trim();
 const library = JSON.parse(fs.readFileSync(path.join(out, 'library.json'), 'utf8'));
