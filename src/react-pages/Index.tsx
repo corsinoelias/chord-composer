@@ -19,18 +19,21 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { type Chord, generateChordId, chordToMidiNotes } from '@/lib/musicTheory';
-import { type Section, type SectionPartKey, createSection, getSectionDisplayName, sectionHasArrangement, sectionB, arrangementOf } from '@/lib/sections';
+import { type Section, type SectionPartKey, createSection, getSectionDisplayName, sectionHasArrangement, arrangementOf } from '@/lib/sections';
 import { detectKey, keyLabel, relativeTonic, type DetectedKey, type KeyMode } from '@/lib/keyDetect';
 import { keyPrefersFlats } from '@/lib/musicKeys';
 import { completeInstrumentStates, getDefaultInstrumentStates, type InstrumentState } from '@/lib/instruments';
 import { ensureAppStyles, getAppStyle, songUsesAppStyles, type AppStyle } from '@/lib/appStyles';
 import { AppRhythmEditor, type SongSounds } from '@/components/AppRhythmEditor';
+import { webSectionAppStyle, webVariationLane } from '@/lib/appEngine/fromSong';
+import { type GrooveTrack } from '@/lib/groove';
+import { type StripPattern } from '@/lib/patternStrip';
 import { appStyleInstruments, withAppStyleParts, withPartsByName } from '@/lib/appStyleSong';
 import { type AppStyleApply } from '@/components/StyleSelector';
 import { getStyleByIdWithOverrides, resolveActiveStyle, MUSICAL_STYLES, getSlotsPerBar, type StylePattern } from '@/lib/styles';
 import { getCustomStyles, getStyleOverride, saveStyleOverride, saveCustomStyle, isCustomStyle, initCustomStylesCache } from '@/lib/customStyles';
 import { playChordPreview } from '@/lib/appEngine/preview';
-import { makeStyleLookup, effectiveSectionStyle, sectionPatternsFromStyle } from '@/lib/sectionPlayback';
+import { makeStyleLookup, effectiveSectionStyle } from '@/lib/sectionPlayback';
 import { type SectionArrangement } from '@/components/SectionArrangementMenu';
 import { downloadBlob } from '@/lib/mp3Encoder';
 import { exportSongWav } from '@/lib/appEngine/player';
@@ -296,7 +299,6 @@ const Index = ({ songId }: IndexProps) => {
   const newerFormatRef = useRef(false);
   // Set while the Rhythm Editor is editing one section's groove rather than a style.
   /** A section's rhythm on the web's editor: which section, what it starts from, and which variation (A or B). */
-  const [sectionRhythmEdit, setSectionRhythmEdit] = useState<{ index: number; base: StylePattern; variation: 0 | 1 } | null>(null);
   const [createRhythmModalOpen, setCreateRhythmModalOpen] = useState(false);
   const [editingNewStyle, setEditingNewStyle] = useState<StylePattern | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -1406,25 +1408,43 @@ const Index = ({ songId }: IndexProps) => {
     const app = appStyleOfSection(section);
     return { intro: !!app?.intro?.length, a: true, b: app ? !!app.b : !!section.alt, ending: !!app?.ending?.length };
   }, [appStyleOfSection]);
+  /**
+   * The rhythm a section is edited on: an app rhythm as it is; one of the web's read back from
+   * what the engine plays for the section (webSectionAppStyle) — per section, since a web
+   * section can pick its own variations — and kept until the song's rhythm changes.
+   */
+  const editorStyles = useMemo(() => new WeakMap<Section, AppStyle>(), [currentStyle, sectionStyleLookup]); // eslint-disable-line react-hooks/exhaustive-deps
+  const editorStyleOf = useCallback((section: Section): AppStyle => {
+    const app = appStyleOfSection(section);
+    if (app) return app;
+    let read = editorStyles.get(section);
+    if (!read) { read = webSectionAppStyle(section, currentStyle, sectionStyleLookup); editorStyles.set(section, read); }
+    return read;
+  }, [appStyleOfSection, editorStyles, currentStyle, sectionStyleLookup]);
+  const editorStyleOfRef = useRef(editorStyleOf);
+  editorStyleOfRef.current = editorStyleOf;
+  /** A web rhythm's own variations of a track (Var 1… All together), as the strip offers them. */
+  const variationsOf = useCallback((index: number, track: GrooveTrack): StripPattern[] => {
+    const section = sections[index];
+    if (!section || appStyleOfSection(section) || track === 'drums' || track === 'synth') return [];
+    const style = effectiveSectionStyle(section, currentStyle, sectionStyleLookup);
+    const spb = getSlotsPerBar(currentStyle);
+    return (style.melodic?.[track]?.variations ?? []).map((v) => {
+      const { lane, bars } = webVariationLane(v, spb);
+      return { id: `var-${track}-${v.id}`, name: v.name, rows: { lane }, bars };
+    });
+  }, [sections, appStyleOfSection, currentStyle, sectionStyleLookup]);
   const [appEditor, setAppEditor] = useState<{ style: AppStyle; section: number } | null>(null);
   const appEditable = useMemo(() => (appEditor
-    ? sections.map((s, i) => (appStyleOfSection(s)?.id === appEditor.style.id ? i : -1)).filter((i) => i >= 0)
-    : []), [appEditor, sections, appStyleOfSection]);
+    ? sections.map((s, i) => (editorStyleOf(s).id === appEditor.style.id ? i : -1)).filter((i) => i >= 0)
+    : []), [appEditor, sections, editorStyleOf]);
 
   const handleEditSectionRhythm = useCallback((sectionIndex: number) => {
     const section = sections[sectionIndex];
     if (!section) return;
-    const app = appStyleOfSection(section);
-    if (app) {
-      setAppEditor({ style: app, section: sectionIndex });
-      return;
-    }
-    // The variation the section plays is the one opened; the editor's A|B goes to the other.
-    const variation: 0 | 1 = section.alt && section.variation === 1 ? 1 : 0;
-    const base = effectiveSectionStyle(variation ? sectionB(section)! : section, currentStyle, sectionStyleLookup);
-    setSectionRhythmEdit({ index: sectionIndex, base, variation });
-    setRhythmEditorOpen(true);
-  }, [sections, currentStyle, sectionStyleLookup, appStyleOfSection]);
+    // Every rhythm, the app's and the web's, is edited here a section at a time.
+    setAppEditor({ style: editorStyleOf(section), section: sectionIndex });
+  }, [sections, editorStyleOf]);
 
   /**
    * Which part of the rhythm a section plays: its intro or ending (Section.part, a reference to
@@ -1579,15 +1599,16 @@ const Index = ({ songId }: IndexProps) => {
   }, []);
 
   const handleOpenRhythmEditor = useCallback(() => {
-    const app = currentStyleRef.current.engine;
-    if (app) {
-      // A rhythm of the app's is edited a section at a time: the one looping, else the first
-      // that plays it.
-      const all = sectionsRef.current;
+    // One of your own rhythms is edited as a rhythm, for every song that plays it (the old
+    // editor). Any other is edited a section at a time: the one looping, else the first
+    // that plays it.
+    const own = getCustomStyles().some((s) => s.id === currentStyleRef.current.id);
+    const all = sectionsRef.current;
+    if (!own && all.length) {
       const looping = loopingSectionRef.current;
       const first = looping !== null && looping !== undefined && all[looping] && !all[looping].styleId ? looping
         : Math.max(0, all.findIndex((s) => !s.stylePart && !s.styleId));
-      setAppEditor({ style: app, section: first });
+      setAppEditor({ style: editorStyleOfRef.current(all[first]), section: first });
       return;
     }
     setLiveEditedStyle(null);
@@ -1990,6 +2011,8 @@ const Index = ({ songId }: IndexProps) => {
           drumSounds={drumSounds}
           noteLengths={noteLengths}
           voicings={voicings}
+          styleOf={(i) => editorStyleOf(sections[i]) ?? appEditor.style}
+          variationsOf={variationsOf}
           onSave={(next, sounds) => {
             setSections(next);
             setInstruments(sounds.instruments);
@@ -2011,69 +2034,20 @@ const Index = ({ songId }: IndexProps) => {
         />
       )}
       <RhythmEditor
-        key={sectionRhythmEdit ? `section-${sectionRhythmEdit.index}-${sectionRhythmEdit.variation}` : 'song'}
         open={rhythmEditorOpen}
         onClose={() => {
           setRhythmEditorOpen(false);
           setEditingNewStyle(null);
           setLiveEditedStyle(null);
-          setSectionRhythmEdit(null);
         }}
-        style={sectionRhythmEdit?.base ?? (editingNewStyle || currentStyle)}
+        style={editingNewStyle || currentStyle}
         allStyles={[...customStyles, ...MUSICAL_STYLES]}
         isNewStyle={!!editingNewStyle}
-        // Its sound picker is the song's, as the Instruments panel: what is picked is heard.
+        // Its sound picker is the song's own under the rhythm: heard at once, as the rhythm's
+        // sounds are when it is applied. A part's own sound is the rhythm editor's pill.
         songSounds={Object.fromEntries(instruments.map((i) => [i.id, i.soundTypeId]))}
-        onSongSound={(track, soundId) => {
-          setInstruments((prev) => prev.map((i) => (i.id === track ? { ...i, soundTypeId: soundId } : i)));
-          // The whole song's, heard everywhere this editor's rhythms play: a web rhythm's
-          // section keeps no sound of its own for the track (an app rhythm's parts do, and
-          // are edited in their own editor).
-          setSections((prev) => prev.map((s) => {
-            if (appStyleOfSection(s) || !s.partSounds) return s;
-            const partSounds = Object.fromEntries(Object.entries(s.partSounds)
-              .map(([k, p]) => [k, Object.fromEntries(Object.entries(p ?? {}).filter(([t]) => t !== track))])
-              .filter(([, p]) => Object.keys(p).length));
-            const { partSounds: _old, ...rest } = s;
-            return Object.keys(partSounds).length ? { ...rest, partSounds } : rest;
-          }));
-        }}
-        // In section mode the edit stays inside the editor until saved: previewing it live
-        // would make the whole song play the section's groove.
-        onStyleChange={sectionRhythmEdit ? undefined : setLiveEditedStyle}
-        sectionVariation={sectionRhythmEdit ? {
-          value: sectionRhythmEdit.variation,
-          onSwitch: (to, edited) => {
-            // What was edited stays in the variation left; the other one opens, made from A the first time.
-            const { index, base, variation } = sectionRhythmEdit;
-            const next = sectionsRef.current.map((s, i) => {
-              if (i !== index) return s;
-              const kept = variation
-                ? { ...s, alt: { ...s.alt, patterns: sectionPatternsFromStyle(edited, base, sectionB(s)!) } }
-                : { ...s, patterns: sectionPatternsFromStyle(edited, base, s) };
-              if (to === 1 && !kept.alt) {
-                toast('B created from A: change what you want in it');
-                return { ...kept, alt: arrangementOf(kept) };
-              }
-              return kept;
-            });
-            setSections(next);
-            const target = next[index];
-            setSectionRhythmEdit({ index, variation: to, base: effectiveSectionStyle(to ? sectionB(target)! : target, currentStyle, sectionStyleLookup) });
-          },
-        } : undefined}
-        onSaveSection={sectionRhythmEdit ? (edited) => {
-          const { index, base, variation } = sectionRhythmEdit;
-          setSections(prev => prev.map((s, i) => {
-            if (i !== index) return s;
-            // Variation B keeps its grooves in the section's alt; A, as before, in the section.
-            return variation && s.alt
-              ? { ...s, alt: { ...s.alt, patterns: sectionPatternsFromStyle(edited, base, sectionB(s)!) } }
-              : { ...s, patterns: sectionPatternsFromStyle(edited, base, s) };
-          }));
-          setSectionRhythmEdit(null);
-          toast.success('Section rhythm saved');
-        } : undefined}
+        onSongSound={(track, soundId) => setInstruments((prev) => prev.map((i) => (i.id === track ? { ...i, soundTypeId: soundId } : i)))}
+        onStyleChange={setLiveEditedStyle}
         onStyleSelect={(styleId) => {
           setSelectedStyleId(styleId);
           setEditingNewStyle(null);

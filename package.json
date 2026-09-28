@@ -24,7 +24,7 @@
     "shared:export": "tsx scripts/export-shared.ts",
     "test:shared": "tsx tests/shared/roundtrip.ts",
     "test:melodic": "tsx tests/melodic/altered-degrees.ts && tsx tests/melodic/melodic-fill.ts",
-    "test:groove": "tsx tests/groove/groove.ts && tsx tests/groove/variations.ts && tsx tests/groove/sounds.ts && tsx tests/groove/parts.ts && tsx tests/groove/patterns.ts && tsx tests/groove/listen.ts",
+    "test:groove": "tsx tests/groove/groove.ts && tsx tests/groove/variations.ts && tsx tests/groove/sounds.ts && tsx tests/groove/parts.ts && tsx tests/groove/patterns.ts && tsx tests/groove/listen.ts && tsx tests/groove/webread.ts",
     "lab:audition": "node scripts/lab-audition.mjs",
     "lab:gains": "node scripts/measure-list-gains.mjs",
     "variations:export": "tsx scripts/variations-export.ts"

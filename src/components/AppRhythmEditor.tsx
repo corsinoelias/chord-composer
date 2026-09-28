@@ -146,12 +146,19 @@ export interface AppRhythmEditorProps {
    * what is being edited. Null gives it back.
    */
   onDraft: (sections: Section[] | null, sounds: SongSounds | null) => void;
+  /**
+   * The rhythm section [i] is edited on, when it is not [style] itself: one of the web's own,
+   * read back per section (webSectionAppStyle), since a web section can pick its own parts.
+   */
+  styleOf?: (section: number) => AppStyle;
+  /** The rhythm's own variations of a track (a web rhythm's Var 1… All together), for the strip. */
+  variationsOf?: (section: number, track: GrooveTrack) => StripPattern[];
 }
 
 export function AppRhythmEditor(props: AppRhythmEditorProps) {
-  const { open, onClose, style, sections, editable, initialSection, transposition, instruments, drumSounds, noteLengths, voicings, onSave, playing, loopingIndex, onLoop, onStop, onDraft } = props;
-  const spb = appStepsPerBar(style);
-  const stepsPerBeat = Math.max(1, Math.round(16 / style.meter.unit));
+  const { open, onClose, style: rhythm, styleOf, variationsOf, sections, editable, initialSection, transposition, instruments, drumSounds, noteLengths, voicings, onSave, playing, loopingIndex, onLoop, onStop, onDraft } = props;
+  const spb = appStepsPerBar(rhythm);
+  const stepsPerBeat = Math.max(1, Math.round(16 / rhythm.meter.unit));
   const isMobile = useIsMobile();
   // A page is the whole bar where it fits; on a phone, half of it (two beats in four), as the
   // app splits it — shown one at a time, never stacked, so the grid does not grow tall.
@@ -159,6 +166,9 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const chunks = Math.ceil(spb / per);
 
   const [sec, setSec] = useState(initialSection);
+  /** The rhythm section [i] is edited on; [style], the one on screen. */
+  const styleAt = useCallback((i: number): AppStyle => styleOf?.(i) ?? rhythm, [styleOf, rhythm]);
+  const style = styleAt(sec);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   /** The part being edited: the groove's A or B, or the section's intro or ending. */
   const [v, setV] = useState<SectionPartKey>('a');
@@ -215,14 +225,14 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   /** A section as the editor reads it: its own sounds already on its parts (foldSectionSounds). */
   const folded = useMemo(() => sections.map((s) => (s ? foldSectionSounds(s) : s)), [sections]);
   const draftOf = useCallback((i: number, from: Record<number, Draft> = drafts): Draft => from[i] ?? {
-    a: effectiveVariation(style, sections[i], 'a'),
-    b: effectiveVariation(style, sections[i], 'b'),
-    intro: sections[i]?.stylePart ? null : effectiveVariation(style, partView(style, sections[i] ?? {}, 'intro'), 'a'),
-    ending: sections[i]?.stylePart ? null : effectiveVariation(style, partView(style, sections[i] ?? {}, 'ending'), 'a'),
+    a: effectiveVariation(styleAt(i), sections[i], 'a'),
+    b: effectiveVariation(styleAt(i), sections[i], 'b'),
+    intro: sections[i]?.stylePart ? null : effectiveVariation(styleAt(i), partView(styleAt(i), sections[i] ?? {}, 'intro'), 'a'),
+    ending: sections[i]?.stylePart ? null : effectiveVariation(styleAt(i), partView(styleAt(i), sections[i] ?? {}, 'ending'), 'a'),
     silenced: { ...(sections[i]?.silenced ?? {}) },
     sounds: { ...(folded[i]?.sounds ?? {}) },
     partSounds: clonePartSounds(folded[i]?.partSounds),
-  }, [drafts, sections, folded, style]);
+  }, [drafts, sections, folded, styleAt]);
   const draft = draftOf(sec);
   const isPart = !!section?.stylePart;
   const variation = (draft[v] ?? draft.a)!;
@@ -280,7 +290,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     const d = ds[i];
     const out: Section = { ...sct };
     if (d) {
-      const groove = sectionGrooveOf(style, sct, { a: d.a, b: d.b, intro: d.intro, ending: d.ending });
+      const groove = sectionGrooveOf(styleAt(i), sct, { a: d.a, b: d.b, intro: d.intro, ending: d.ending });
       const off = Object.fromEntries(Object.entries(d.silenced).filter(([, on]) => on));
       if (Object.keys(off).length) out.silenced = off; else delete out.silenced;
       if (groove) out.groove = groove; else delete out.groove;
@@ -293,7 +303,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     // Heard while it is edited: the part on screen.
     if (audition && i === sec && !sct.stylePart) withPart(out, v === 'b' && !(d?.b ?? true) ? 'a' : v);
     return out;
-  }), [sections, style, sec, v]);
+  }), [sections, styleAt, sec, v]);
   useEffect(() => { if (open) onDraft(merged(drafts, true), songSounds); }, [open, drafts, merged, songSounds]); // eslint-disable-line react-hooks/exhaustive-deps
   /** The notes each melodic track holds, while the song plays: the keys light with them. */
   const sounding = useSounding(open && playing);
@@ -398,7 +408,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   };
   /** The sound the rhythm itself gives [track], when it names one from the SoundFont. */
   const rhythmSoundOf = (track: TrackId): string | undefined => {
-    if (track === 'drums') return RHYTHM_KIT;
+    if (track === 'drums') return Object.keys(style.drumSounds).length ? RHYTHM_KIT : undefined;
     const program = style.programs[track as keyof typeof style.programs];
     return program === undefined || (style.timbres?.[track as keyof typeof style.programs] ?? 13) !== 13 ? undefined : soundIdForProgram(track, program);
   };
@@ -611,9 +621,9 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const origPart = useCallback((i: number, k: SectionPartKey): string | null => {
     const s = sections[i];
     if (!s || s.stylePart) return null;
-    const g = isPartKey(k) ? effectiveVariation(style, partView(style, s, k), 'a') : effectiveVariation(style, s, k);
+    const g = isPartKey(k) ? effectiveVariation(styleAt(i), partView(styleAt(i), s, k), 'a') : effectiveVariation(styleAt(i), s, k);
     return g ? JSON.stringify([g, ownSounds(folded[i]?.partSounds?.[k])]) : null;
-  }, [sections, folded, style]);
+  }, [sections, folded, styleAt]);
   /** The sections that play the part on screen as this one does, this one first. */
   const sharers = useMemo(() => {
     const mine = origPart(sec, v);
@@ -1090,7 +1100,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             : (['a', 'b'] as const).flatMap((k) => {
               const b = baseVariation(style, section, k);
               return b ? [{ id: `rhythm-${k}`, name: k.toUpperCase(), rows: b.rows[tab], bars: b.bars[tab] }] : [];
-            });
+            }).concat(variationsOf?.(sec, tab) ?? []);
           const yours = mine.filter((p) => p.tab === tab && p.spb === spb);
           const groups = [
             { label: 'Yours', list: yours as StripPattern[], mine: true },

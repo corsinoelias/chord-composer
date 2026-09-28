@@ -92,17 +92,6 @@ interface RhythmEditorProps {
   onDelete?: (styleId: string) => void;
   referenceRootMidi?: number;
   referenceQuality?: string;
-  /**
-   * Section mode: Save hands the edited rhythm back for one section of the song instead of
-   * storing it as a style (see Index.tsx and sectionPlayback.ts's sectionPatternsFromStyle).
-   */
-  onSaveSection?: (style: StylePattern) => void;
-  /**
-   * Section mode: which variation of the section is being edited, A or B, and the way to the
-   * other — as a home keyboard's VARIATION button, and the app's editor. Switching keeps what
-   * was edited in the one left (the parent saves it) and opens the other.
-   */
-  sectionVariation?: { value: 0 | 1; onSwitch: (to: 0 | 1, edited: StylePattern) => void };
   /** The sound the song plays on each instrument (its instruments' soundTypeId). */
   songSounds?: Partial<Record<InstrumentType, string>>;
   /**
@@ -273,8 +262,6 @@ export function RhythmEditor({
   onDelete,
   referenceRootMidi = 60,
   referenceQuality = 'maj',
-  onSaveSection,
-  sectionVariation,
   songSounds,
   onSongSound,
 }: RhythmEditorProps) {
@@ -767,15 +754,6 @@ export function RhythmEditor({
 
   // Handle save - always show dialog for built-in styles
   const handleSaveClick = () => {
-    if (onSaveSection) {
-      stopLocalPlayback();
-      stopPreview();
-      onSaveSection(editedStyle);
-      setHasUnsavedChanges(false);
-      originalStyleRef.current = JSON.stringify(editedStyle);
-      onClose();
-      return;
-    }
     if (isEditingBuiltIn) {
       // Always show options for built-in styles
       setSaveDialogOpen(true);
@@ -1011,25 +989,6 @@ export function RhythmEditor({
                 />
               </div>
             </div>
-
-            {sectionVariation && (
-              <div className="flex shrink-0 overflow-hidden rounded-[11px] border" role="group" aria-label="Variation" style={{ borderColor: 'var(--cp-ln)' }}>
-                {([0, 1] as const).map((k) => (
-                  <button key={k} type="button" aria-pressed={sectionVariation.value === k}
-                    title={`Edit variation ${k ? 'B' : 'A'}`}
-                    onClick={() => {
-                      if (sectionVariation.value === k) return;
-                      stopLocalPlayback();
-                      setHasUnsavedChanges(false);
-                      sectionVariation.onSwitch(k, editedStyle);
-                    }}
-                    className="h-[34px] min-w-[38px] border-0 px-3 text-[13px] font-extrabold"
-                    style={sectionVariation.value === k ? { background: 'var(--cp-ac)', color: '#fff' } : { background: 'transparent', color: 'var(--cp-mu)' }}>
-                    {k ? 'B' : 'A'}
-                  </button>
-                ))}
-              </div>
-            )}
 
             <div className="cp-dv hidden sm:block" />
 

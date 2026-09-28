@@ -49,7 +49,7 @@ import {
 } from './commands';
 import { SHORT_FONT_PROGRAMS, type DrumKit } from './host';
 import { getMix, isMixDefault } from './mix';
-import { getAppStyle } from '../appStyles';
+import { getAppStyle, type AppFill, type AppPatterns, type AppStyle, type AppVariation } from '../appStyles';
 import { clearVariationB, partOf, writeAppPart, writeAppStyle, writeDrumSounds } from './fromAppStyle';
 import { type NoteLengths, type Voicings } from '../noteLengths';
 import { styleSwingRatio } from '../swing';
@@ -243,8 +243,10 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     // the sounds of its own part (Section.partSounds). An intro or ending the rhythm added is
     // a section of its own, edited as its one variation, A: its sounds are A's.
     const bank0: SectionPartKey = section.stylePart ? 'a' : section.part ?? 'a';
+    // A web rhythm's section edited in the rhythm editor plays from its read-back (below).
+    const read = !style.engine && !part && section.groove ? webSectionAppStyle(section, songStyle, lookup) : undefined;
     const hasB = !section.stylePart && !section.part
-      && (style.engine ? !!effectiveVariation(style.engine, section, 'b') : !!sectionB(section));
+      && (style.engine ?? read ? !!effectiveVariation((style.engine ?? read)!, section, 'b') : !!sectionB(section));
     // The part's own kit, else the section's, else the song's; the rhythm's own plays its
     // sounds over the default kit.
     const kitOf = (part: SectionPartKey) => {
@@ -260,6 +262,11 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
       writeAppPart(c, s, style.engine, partView(style.engine, section, ownPart), kit, drumSlots);
     } else if (style.engine) {
       writeAppStyle(c, s, style.engine, section, kit, drumSlots);
+    } else if (read) {
+      // Edited in the rhythm editor: the section as the web plays it, read back the way the
+      // app writes a rhythm (webSectionAppStyle), with the edits on it. Its sounds stay the web's.
+      if (ownPart) writeAppPart(c, s, read, partView(read, section, ownPart), kit, drumSlots);
+      else writeAppStyle(c, s, read, section, kit, drumSlots);
     } else if (ownPart) {
       // The web's rhythms have no intro or ending: the groove, without its fill or a B.
       writeWebStyle(s, section, style, playback, 0);
@@ -534,4 +541,70 @@ export function fillCommand(s: number, style: StylePattern, slotsPerBar: number,
     for (let i = 0; i < Math.min(slotsPerBar, MAX_STEPS_PER_BAR); i++) steps[index * MAX_STEPS_PER_BAR + i] = slot(i);
   });
   return ['setFill', s, mask ? Math.max(0, Math.min(slotsPerBar - 1, fill.position)) : 0, mask, Array.from(steps), bank];
+}
+
+/**
+ * A section on one of the web's own rhythms, read back as the app writes a rhythm (AppStyle):
+ * what the engine is told for it — its bars, its fill, its B — turned into the patterns, bars
+ * and fill of A and B. The rhythm editor edits it in that form (groove.ts), as it does the
+ * app's rhythms, and a section with edits plays from it: the steps it played before, plus what
+ * was changed. Its sounds are not in it; the web gives those as it always has.
+ */
+export function webSectionAppStyle(section: Section, songStyle: StylePattern, lookup: StyleLookup): AppStyle {
+  const style = resolveSectionPlayback(section, songStyle, lookup)?.style ?? songStyle;
+  const spb = getSlotsPerBar(songStyle);
+  // As it plays with no edits: its own chords do not change its steps, and one is all it needs.
+  const plain: Section = {
+    ...section, groove: undefined, part: undefined, partSounds: undefined, stylePart: undefined,
+    chords: [{ id: 'read', root: 'C', accidental: '', quality: 'maj', duration: 4 } as Chord],
+  };
+  const { commands } = songToEngine({ sections: [plain], bpm: songStyle.bpm || 120 }, songStyle, lookup, []);
+  const voicings: Record<string, number> = {};
+  const noteLengths: Record<string, number> = {};
+  const read = (bank: number): AppVariation => {
+    const patterns: AppPatterns = {};
+    const patternBars: Record<string, number> = {};
+    let fill: AppFill | undefined;
+    for (const command of commands) {
+      const x = command as unknown as [string, number, ...unknown[]];
+      if (x[1] !== 0) continue;
+      if (x[0] === 'setPatternBars' && ((x[4] as number | undefined) ?? 0) === bank) patternBars[x[2] as string] = x[3] as number;
+      else if (x[0] === 'setStep' && ((x[6] as number | undefined) ?? 0) === bank) {
+        const track = x[2] as string;
+        const row = track === 'drums' ? (x[3] as string) : 'lane';
+        const lanes = (patterns[track] ??= {});
+        (lanes[row] ??= [])[x[4] as number] = x[5] as number;
+      } else if (x[0] === 'setFill' && ((x[5] as number | undefined) ?? 0) === bank) {
+        const mask = x[3] as number;
+        const steps = x[4] as number[];
+        const lanes: Record<string, number[]> = {};
+        [...DRUM_ROWS, ...FILL_TRACKS].forEach((lane, i) => {
+          if (mask & (1 << i)) lanes[lane] = steps.slice(i * MAX_STEPS_PER_BAR, i * MAX_STEPS_PER_BAR + spb);
+        });
+        fill = Object.keys(lanes).length ? { from: x[2] as number, lanes } : undefined;
+      } else if (bank === 0 && x[0] === 'voicing') voicings[x[2] as string] = x[3] as number;
+      else if (bank === 0 && x[0] === 'setNoteLength') noteLengths[x[2] as string] = x[3] as number;
+    }
+    // The steps no command named are rests.
+    for (const lanes of Object.values(patterns)) for (const row of Object.keys(lanes)) lanes[row] = Array.from(lanes[row], (v) => v ?? 0);
+    return { patterns, patternBars, fill };
+  };
+  const a = read(0);
+  return {
+    id: `web-${style.id}`,
+    name: style.name,
+    genre: '',
+    bpm: songStyle.bpm || 120,
+    meter: { beats: songStyle.timeSignature?.numerator ?? 4, unit: songStyle.timeSignature?.denominator ?? 4 },
+    a,
+    b: sectionB(section) ? read(1) : undefined,
+    programs: {}, timbres: {}, drumSounds: {}, voicings, noteLengths, volumes: {}, pans: {},
+  };
+}
+
+/** One of a web rhythm's melodic variations (Var 1… All together) as a lane of packed steps and its bars. */
+export function webVariationLane(variation: BassScaleData, slotsPerBar: number): { lane: number[]; bars: 1 | 2 | 4 } {
+  const bars = engineBars(variation.loopBars ?? 1) as 1 | 2 | 4;
+  const slot = degreeSlots(variation);
+  return { lane: Array.from({ length: bars * slotsPerBar }, (_, i) => slot(i)), bars };
 }
