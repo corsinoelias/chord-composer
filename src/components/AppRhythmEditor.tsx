@@ -728,7 +728,10 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   /** Where the music is, as a page — for the pill that brings the grid back to it. */
   const playingPage = !engine || engine.fillBar ? pageNow
     : mode === 'fill' ? pageNow : (engine.bar % bars) * chunks + Math.min(chunks - 1, Math.floor(engine.step / per));
-  const away = playing && playingSection >= 0 && (!here || playingPage !== pageNow);
+  // While following, the grid is where the music is by definition: the effects below catch it up
+  // a frame late, and reading that frame as "away" flashed the pill — every half bar on a phone.
+  const away = playing && playingSection >= 0 && (!here || playingPage !== pageNow)
+    && (!follow || !editable.includes(playingSection));
   // Following: the page moves to where the music is, bar and half bar, groove or fill.
   useEffect(() => {
     if (!here || !follow || !engine) return;
