@@ -8,9 +8,11 @@ interface Props {
   /** Placement id: the utm_campaign, and the GA4 entry_point of the click. */
   from: string;
   class?: string;
+  /** Load the image at once: for a badge that is on screen when the page opens. */
+  eager?: boolean;
 }
 
-const { from, class: className } = Astro.props;
+const { from, class: className, eager = false } = Astro.props;
 ---
 
 <a
@@ -23,7 +25,7 @@ const { from, class: className } = Astro.props;
     width="646"
     height="250"
     alt="Get it on Google Play"
-    loading="lazy"
+    loading={eager ? 'eager' : 'lazy'}
     class="h-14 w-auto"
   />
 </a>

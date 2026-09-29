@@ -4,7 +4,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import GooglePlayBadge from '../../components/GooglePlayBadge.astro';
 import JsonLd from '@/components/schema/JsonLd.astro';
 import { buildBreadcrumbSchema, buildMobileApplicationSchema } from '@/components/schema/builders';
-import { APP, WEB, instrumentList } from '@/data/facts';
+import { APP, instrumentList } from '@/data/facts';
 
 // The site's page for the Chord Player mobile app (com.eliascorsino.chord_sequencer). The
 // URL names the app rather than the platform because an iOS build is planned; the copy
@@ -12,100 +12,137 @@ import { APP, WEB, instrumentList } from '@/data/facts';
 //
 // Every number on this page is the app's, from APP in src/data/facts.ts, which
 // tests/facts/facts.ts checks against the Flutter source. Not the web editor's: the two
-// differ, and the Play listing once copied the web's numbers.
+// differ, and the Play listing once copied the web's numbers. Every feature it names is in
+// the app too (loop: loopingSection; screen off: PlaybackService.kt; count-in and click:
+// settings_screen.dart; key: transpose and Apply key) — docs/ficha-play.md in the app's
+// repository maps each one to its code.
+//
+// It sells uses, not features: who the app is for comes first, each with the features that
+// make it work. The browser is presented as the same instrument, not as a rival: what the
+// two share is true today (one engine, the app's rhythms and sounds, one catalogue); what
+// they don't — songs do not sync between them yet — is said once, plainly.
+//
+// Each Play badge has its own `from`, so Play Console and GA4 can tell which one installs.
 const PAGE_URL = 'https://chordsequence.com/chord-player-app/';
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.eliascorsino.chord_sequencer';
 
 const description =
-  `Chord Player for Android: build a song section by section and hear it played by a full band in ${APP.rhythms} rhythms. Free, offline, no account.`;
+  `Chord Player for Android: write the chords, pick one of ${APP.rhythms} rhythms and a full band plays along. Loop a section, slow it down, change the key. Free, offline.`;
 
-const NUMBER_WORDS: Record<number, string> = { 4: 'four', 5: 'five', 6: 'six' };
 const band = instrumentList(APP.instruments);
-const Band = band[0].toUpperCase() + band.slice(1);
 
-const features = [
-  {
-    title: 'Songs, section by section',
-    text: `Intro, verse, chorus, ending: each section holds its own chords. ${APP.chordTypes} chord types, slash bass notes, half-beat lengths, and piano and guitar diagrams for every chord.`,
-  },
-  {
-    title: 'A band that plays along',
-    text: `${Band} in ${APP.rhythms} rhythms, from Salsa, Bachata and Reggaeton to Bossa Nova, Jazz and Trap. Nearly every one has an intro, an A and a B variation and an ending, and a Fill button plays a break when you want one.`,
-  },
-  {
-    title: 'Make the groove yours',
-    text: `Edit every instrument step by step, set each one's range on a keyboard, and play the drums by tapping the kit. ${APP.drumKits} drum kits, ${APP.percussionRows} rows of Latin and hand percussion, swing, and 4/4, 3/4, 6/8 or 5/4. Save a pattern once and use it in any song.`,
-  },
-  {
-    title: 'Mix it',
-    text: 'Volume, pan, EQ, compression and reverb for each instrument, so the band sits the way you want before you export.',
-  },
-  {
-    title: 'Export it',
-    text: 'M4A to share, WAV to keep editing, or MIDI to open the notes in your DAW.',
-  },
-  {
-    title: 'Start from something',
-    text: `Open one of ${APP.exampleSongs} songs or ${APP.progressions} classic progressions, or one from the chordsequence.com catalogue, and change it instead of starting from a blank page.`,
-  },
+// Stroke icons (Lucide shapes), drawn inline.
+const ICONS: Record<string, string> = {
+  loop: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+  gauge: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+  key: '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
+  timer: '<line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  drum: '<path d="m2 2 8 8"/><path d="m22 2-8 8"/><ellipse cx="12" cy="9" rx="10" ry="5"/><path d="M7 13.4v7.9"/><path d="M12 14v8"/><path d="M17 13.4v7.9"/><path d="M2 9v8a10 5 0 0 0 20 0V9"/>',
+  phone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
+  laptop: '<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/>',
+};
+
+const checks = ['Free', 'No account needed', 'Works offline', `Android ${APP.minAndroid} or later`, APP.languages.join(' and ')];
+
+// The uses, in the order the jump links and the page show them. `tint` is the instrument
+// colour of the app's theme (app_theme.dart) the card borrows; `ink` is that colour
+// darkened until text on the tint passes 4.5:1.
+const uses = [
+  { id: 'practice', label: 'Practice', dot: '#1783FF' },
+  { id: 'worship', label: 'Worship teams', dot: '#E8B93E' },
+  { id: 'latin', label: 'Latin & keyboard styles', dot: '#FF3849' },
+  { id: 'songwriters', label: 'Songwriters', dot: '#E0609A' },
+  { id: 'producers', label: 'Producers', dot: '#8C7AE6' },
+  { id: 'learners', label: 'Learners & teachers', dot: '#34C3B0' },
 ];
 
-// The screens, in the order someone meets them. Files live in /images/chord-player-app/ and
-// are 2x phone mockups (760x1600) of the real app, made by scripts/store-art.mjs --web from
-// the same captures as the Play listing.
-const shots = [
+const practiceTools = [
+  { icon: 'loop', title: 'Loop any section', text: 'It starts on the downbeat, round and round' },
+  { icon: 'gauge', title: `${APP.tempo.min} to ${APP.tempo.max} BPM`, text: 'Start slow, speed up as you get it' },
+  { icon: 'key', title: 'Any key', text: 'A new key, or a semitone at a time' },
+  { icon: 'timer', title: 'Click and count-in', text: 'An accent on the one, a bar to get ready' },
+  { icon: 'moon', title: 'Screen off, still playing', text: 'Play and stop from the notification' },
+  { icon: 'zap', title: 'Fill on demand', text: 'Tap it and the break lands on the next bar' },
+];
+
+// The practice card draws the app's transport rather than showing a screenshot of it.
+// Chord colours are the app's: major triads amber, minor blue (chordMajor / chordMinor).
+const practiceChords = [
+  { name: 'G', degree: 'I', playing: true, minor: false },
+  { name: 'D', degree: 'V', playing: false, minor: false },
+  { name: 'Em', degree: 'vi', playing: false, minor: true },
+  { name: 'C', degree: 'IV', playing: false, minor: false },
+];
+
+const smallUses = [
   {
-    src: 'song',
-    alt: 'The song screen of Chord Player: a salsa with Intro, Verse and Chorus sections and the sounding chord lit up',
-    caption: 'Your song, section by section. The chord that is playing lights up as it goes.',
-  },
-  {
-    src: 'rhythms',
-    alt: `The rhythm list, with ${APP.rhythms} rhythms, a search box and filters by genre and meter`,
-    caption: `${APP.rhythms} rhythms in one list, by genre and meter, with a search.`,
-  },
-  {
-    src: 'rhythm-editor',
-    alt: 'The rhythm editor on the drums: a step grid for the kit and the Latin percussion, with Intro, A, B and Ending tabs',
-    caption: 'Edit the groove step by step, for each part of the rhythm.',
-  },
-  {
-    src: 'rhythm-piano',
-    alt: 'The rhythm editor on the piano, with the notes of each step and a keyboard to set its range',
-    caption: 'Every instrument note by note, with its range on a keyboard.',
-  },
-  {
-    src: 'chord-editor',
-    alt: 'The chord editor, showing the chords of the key, the length of the chord and its bass note',
-    caption: 'Pick a chord from the key, from outside it, or spell it yourself.',
-  },
-  {
-    src: 'chord-diagram',
-    alt: 'A chord shown as a guitar shape and as keys on a piano',
-    caption: 'Every chord as a guitar shape and on the piano.',
-  },
-  {
-    src: 'mixer',
-    alt: 'The mixer, with a fader and level meter per instrument, pan knobs and an EQ curve',
-    caption: 'Level, pan, EQ, compression and reverb, per instrument.',
-  },
-  {
-    src: 'progressions',
+    id: 'songwriters', tag: 'Songwriters', tint: '#FBE7F0', ink: '#A3205C', shot: 'progressions',
     alt: 'Classic progressions to start from, each with its chords and what it sounds like',
-    caption: `${APP.progressions} classic progressions and ${APP.exampleSongs} songs to start from.`,
+    title: 'Catch the idea before it’s gone.',
+    text: 'Sections, a Suggest button for chords that fit your key, strings in the chorus and piano in the verse. Then an M4A for the band. No signal needed.',
+  },
+  {
+    id: 'producers', tag: 'Producers', tint: '#ECE9FB', ink: '#5140B8', shot: 'rhythm-piano',
+    alt: 'The rhythm editor on the piano, with the notes of each step and a keyboard to set its range',
+    title: 'Sketch it here, finish it in your DAW.',
+    text: 'Get the progression and the groove down on the train, note by note per instrument. Export MIDI for the notes or WAV for the audio.',
+  },
+  {
+    id: 'learners', tag: 'Learners & teachers', tint: '#DDF4F0', ink: '#0F766A', shot: 'chord-diagram',
+    alt: 'A chord shown as a guitar shape and as keys on a piano',
+    title: 'Hear what the theory means.',
+    text: `Every chord shows its degree, its guitar shape and its keys. Play a ii–V–I, then the Andalusian cadence, in any of ${APP.rhythms} rhythms.`,
   },
 ];
 
-// Only rows where the answer is certain for both. The web's own strengths are listed as
-// plainly as the app's: this page should send people to the right one, not only to Play.
-const comparison: { label: string; app: string; web: string }[] = [
-  { label: 'Works offline', app: 'Yes (the song catalogue needs a connection)', web: 'No' },
-  { label: 'Rhythms', app: String(APP.rhythms), web: String(WEB.rhythms) },
-  { label: 'Account', app: 'None, songs stay on your phone', web: 'Free account to save songs' },
-  { label: 'Export', app: APP.exports.join(', '), web: WEB.exports.join(', ') },
-  { label: 'Share a song by link', app: 'No', web: 'Yes' },
-  { label: 'iPhone and computer', app: 'No', web: 'Yes' },
+// Names as the app lists them (style_presets.dart and assets/rhythm_library.json).
+const genres = [
+  { name: 'Latin & Caribbean', dot: '#FF3849', items: ['Salsa', 'Bachata', 'Merengue', 'Cumbia', 'Vallenato', 'Norteño', 'Duranguense', 'Banda', 'Bolero', 'Reggaeton', 'Bossa Nova', 'Samba', 'Cha-Cha', 'Punta'] },
+  { name: 'Worship & Gospel', dot: '#E8B93E', items: ['Worship', 'Modern Worship', 'Fast Gospel', 'Slow Gospel'] },
+  { name: 'Pop, Rock & Soul', dot: '#3B8FFF', items: ['Pop', 'Pop Rock', '16 Beat', 'Shuffle Rock', 'Funk', 'R&B', '60’s Soul', 'Blues Shuffle'] },
+  { name: 'Jazz & Swing', dot: '#9C8CF0', items: ['Jazz Swing', 'Swing', 'Big Band', 'Jazz Waltz', 'Fox Trot'] },
+  { name: 'Dance & Hip-Hop', dot: '#E0609A', items: ['Trap', 'Hip-Hop', 'House', 'Afrobeat', 'Techno Pop', 'Disco Pop'] },
+  { name: 'Ballads, piano & world', dot: '#34C3B0', items: ['Piano Ballad', 'Stride Piano', 'Ragtime', 'Tango', 'Waltz', 'Bhangra', 'Enka'] },
 ];
+
+// The song's form as a rhythm plays it: flex weights are roughly how long each part lasts.
+const form = [
+  { label: 'Intro', note: 'the way in', grow: 'grow-[2]', bar: '#E8B93E', ink: '#E8B93E', fill: false },
+  { label: 'A · main', note: 'verse', grow: 'grow-[4]', bar: '#3B8FFF', ink: '#6FAEFF', fill: false },
+  { label: 'Fill', note: '', grow: 'grow', bar: '#FF3849', ink: '#FF7A86', fill: true },
+  { label: 'B · fuller', note: 'chorus', grow: 'grow-[4]', bar: '#9C8CF0', ink: '#B4A8F5', fill: false },
+  { label: 'Fill', note: '', grow: 'grow', bar: '#FF3849', ink: '#FF7A86', fill: true },
+  { label: 'Ending', note: 'the way out', grow: 'grow-[2]', bar: '#34C3B0', ink: '#5FD8C7', fill: false },
+];
+
+// What the app and Chord Player online share. Each is true of the code today: the web plays
+// the app's engine compiled to WebAssembly with its SoundFont (src/lib/appEngine/), its 24
+// styles and 177-rhythm library (public/rhythms/), and the app opens the site's public_songs.
+const shared = [
+  'The same audio engine and sounds',
+  `All ${APP.rhythms} of the app’s rhythms`,
+  `${APP.chordTypes} chord types, ${APP.instruments.length} instruments`,
+  'The chordsequence.com song catalogue',
+  'WAV and MIDI files that open anywhere',
+];
+
+const questions = [
+  ['Is it free?', 'Yes, the whole app. There is nothing to buy inside it and no account to make.'],
+  ['Does it work without a connection?', 'Yes. The sounds are on your phone, so writing a song and hearing the band work in a basement or on a plane. Only the song catalogue from chordsequence.com needs a connection.'],
+  ['Can I practise one part over and over?', `Loop any section on its own, set the tempo anywhere from ${APP.tempo.min} to ${APP.tempo.max} BPM and turn on a one-bar count-in.`],
+  ['Can I change the key?', 'Pick a new key for the whole song, or move it up and down a semitone at a time.'],
+  ['Does it keep playing with the screen off?', 'Yes, with play and stop in the notification.'],
+  ['Is there an iPhone version?', 'Not yet. On an iPhone or a computer, Chord Player runs in the browser instead.'],
+  ['Where do my songs live?', 'On your phone. Nothing is uploaded, and deleting the app deletes them with it.'],
+  ['Which languages does it speak?', 'English and Spanish. It follows your phone, and Android lets you set the app to one or the other on its own.'],
+];
+
+// A still waveform for the demo player; the script colours it as the song plays.
+const wave = [8,14,20,12,24,18,10,22,28,16,12,20,26,14,8,18,24,20,12,16,28,22,14,10,20,26,18,12,24,16,10,22,28,18,14,20,12,24,16,10,18,26,20,14,22,12,8,16];
 
 const appSchema = buildMobileApplicationSchema({
   url: PAGE_URL,
@@ -115,8 +152,10 @@ const appSchema = buildMobileApplicationSchema({
   operatingSystem: `Android ${APP.minAndroid} or later`,
   featureList: [
     `Song sections with ${APP.chordTypes} chord types`,
-    `${Band} in ${APP.rhythms} rhythms`,
+    `${band} in ${APP.rhythms} rhythms`,
     'Intro, A and B variations and ending for nearly every rhythm',
+    `Loop a section, tempo from ${APP.tempo.min} to ${APP.tempo.max} BPM, transpose, count-in`,
+    'Keeps playing with the screen off',
     'Step-by-step rhythm editor with a range keyboard per instrument',
     `${APP.drumKits} drum kits and ${APP.percussionRows} rows of Latin and hand percussion`,
     '4/4, 3/4, 6/8 and 5/4',
@@ -131,6 +170,9 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
   { name: 'Home', item: 'https://chordsequence.com/' },
   { name: 'Chord Player app', item: PAGE_URL },
 ]);
+
+const kicker = 'font-mono text-xs font-bold uppercase tracking-[0.12em]';
+const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text-foreground sm:text-5xl';
 ---
 
 <BaseLayout
@@ -143,213 +185,529 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
     <JsonLd schema={breadcrumbSchema} />
   </Fragment>
 
-  <main>
+  <main class="overflow-x-clip">
     <!-- ─── HERO ─────────────────────────────────────────────────────────── -->
-    <section class="relative overflow-hidden border-b border-border">
-      <div class="pointer-events-none absolute inset-0 -z-10">
-        <div class="absolute left-1/2 top-1/2 h-[420px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[130px]"></div>
-      </div>
-      <!-- The phone sits beside the words from lg up, and under them on a phone, where a
-           screenshot above the fold would push the download button off it. -->
-      <div class="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-14 pb-12 sm:px-6 sm:pt-20 sm:pb-14 lg:grid-cols-[1fr_auto] lg:gap-16">
-        <div class="text-center lg:text-left">
-          <img
-            src="/images/chord-player-app-icon.png"
-            width="96"
-            height="96"
-            alt="Chord Player app icon"
-            class="mx-auto mb-6 h-20 w-20 rounded-2xl border border-border shadow-sm lg:mx-0"
-          />
-          <h1 class="mb-5 font-serif text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
-            Chord Player for Android.<br />
-            <span class="text-primary">Build a song. Hear the band.</span>
-          </h1>
-          <p class="mx-auto max-w-xl text-lg text-muted-foreground lg:mx-0">
-            Write chord progressions on your phone and hear them played by {band}, even
-            with no connection.
-          </p>
-          <div class="mt-8 flex flex-col items-center gap-3 lg:items-start">
-            <GooglePlayBadge from="landing" />
-            <a href="/chord-player/" class="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-              On iPhone or a computer? Use Chord Player in your browser →
-            </a>
-          </div>
+    <!-- The demo sits under the badge: that the band sounds like a band is the one claim
+         nobody can check by reading, so it is in reach before any scrolling. On a phone the
+         screenshot comes after the words, where it cannot push the badge off the screen. -->
+    <section class="mx-auto grid max-w-[1200px] items-center gap-12 px-4 pb-12 pt-10 sm:px-6 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_500px] lg:gap-16 lg:pb-16">
+      <div class="flex flex-col gap-6 sm:gap-7">
+        <h1 class="flex flex-col gap-5">
+          <span class="flex items-center gap-3.5">
+            <img
+              src="/images/chord-player-app-icon.png"
+              width="96"
+              height="96"
+              alt=""
+              class="h-12 w-12 rounded-xl border border-border sm:h-14 sm:w-14"
+            />
+            <span class={`${kicker} text-primary`}>Chord Player for Android</span>
+          </span>
+          <span class="font-serif text-[2.6rem] font-semibold leading-[1.04] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
+            Your backing band,<br />in your pocket.
+          </span>
+        </h1>
+        <p class="max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+          Write the chords, pick one of {APP.rhythms} rhythms, from cumbia and bachata to
+          worship and jazz, and {band} play them with you. Loop a section, slow it down,
+          change the key.
+        </p>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-7" data-hero-cta>
+          <GooglePlayBadge from="landing_hero" eager class="-ml-2" />
+          <a href="#phone-and-browser" class="flex items-center gap-1.5 text-[15px] font-semibold text-muted-foreground transition-colors hover:text-primary">
+            On iPhone or a computer? Open it in your browser
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.arrow} /></svg>
+          </a>
         </div>
+
+        <!-- The demo: "Sunset Drive", the song in the screenshots, exported from the app with
+             its own M4A export (1.2.0, 2026-09-29). `preload="none"` keeps its 2.1 MB off
+             every page load. A new recording gets a new file name, so no browser keeps
+             playing the old one. -->
+        <div class="flex max-w-[520px] items-center gap-4 rounded-2xl border border-border bg-card p-4 pr-5 shadow-sm" data-demo>
+          <button
+            type="button"
+            class="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105"
+            aria-label="Play the salsa demo"
+            data-demo-toggle
+          >
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" data-demo-play><path d="M7 4.5v15l12.5-7.5z" /></svg>
+            <svg class="hidden h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" data-demo-pause><rect x="5" y="4" width="5" height="16" rx="1" /><rect x="14" y="4" width="5" height="16" rx="1" /></svg>
+          </button>
+          <div class="flex min-w-0 grow flex-col gap-2">
+            <div class="flex items-baseline justify-between gap-3">
+              <span class="text-[15px] font-semibold text-foreground">Hear it: “Sunset Drive” in Salsa</span>
+              <span class="font-mono text-xs text-muted-foreground" data-demo-time>1:28</span>
+            </div>
+            <div class="flex h-7 items-center gap-[3px] overflow-hidden" aria-hidden="true">
+              {wave.map((h) => (
+                <span class="w-1 shrink-0 rounded-sm bg-[#D9DCE3]" style={`height:${h}px`} data-demo-bar></span>
+              ))}
+            </div>
+            <span class="text-[12.5px] leading-snug text-muted-foreground">
+              Exported straight from the app. Congas, bongos and güiro included, nothing added afterwards.
+            </span>
+          </div>
+          <audio preload="none" src="/audio/chord-player-app-demo-salsa.m4a" data-demo-audio></audio>
+        </div>
+      </div>
+
+      <div class="relative mx-auto flex h-[440px] w-full max-w-[500px] items-start justify-center overflow-visible rounded-[32px] bg-[#EFE8FD] pt-8 sm:h-[560px] lg:h-[640px] lg:items-center lg:pt-0">
         <img
           src="/images/chord-player-app/song.webp"
           width="760"
           height="1600"
-          alt="Chord Player playing a song: Intro, Verse and Chorus, with the sounding chord lit up"
+          alt="Chord Player playing a salsa: Intro, Verse and Chorus, with the sounding chord lit up"
           fetchpriority="high"
-          class="mx-auto w-[220px] drop-shadow-2xl sm:w-[260px] lg:w-[300px]"
+          class="w-[220px] drop-shadow-[0_24px_40px_rgba(60,20,140,0.25)] sm:w-[260px] lg:w-[290px]"
         />
+        <div class="absolute left-3 top-24 hidden items-center gap-2.5 rounded-2xl bg-card px-4 py-3 shadow-[0_12px_32px_rgba(20,24,31,0.12)] sm:flex lg:-left-7 lg:top-28">
+          <span class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#E6F0FF] text-[#0B5FD6]">
+            <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.loop} /></svg>
+          </span>
+          <span class="flex flex-col"><span class="text-[13px] font-semibold text-foreground">Chorus on loop</span><span class="text-xs text-muted-foreground">until it’s in your hands</span></span>
+        </div>
+        <div class="absolute bottom-20 right-3 hidden items-center gap-2.5 rounded-2xl bg-card px-4 py-3 shadow-[0_12px_32px_rgba(20,24,31,0.12)] sm:flex lg:-right-6 lg:bottom-28">
+          <span class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#FDE7EA] text-[#C8102E]">
+            <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.drum} /></svg>
+          </span>
+          <span class="flex flex-col"><span class="text-[13px] font-semibold text-foreground">Salsa · 100 BPM</span><span class="text-xs text-muted-foreground">one of {APP.rhythms} rhythms</span></span>
+        </div>
       </div>
     </section>
 
     <!-- ─── CHECKS ───────────────────────────────────────────────────────── -->
-    <section class="border-b border-border bg-card/50">
-      <div class="mx-auto max-w-5xl px-4 py-5 sm:px-6">
-        <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-          {['Free', 'No account needed', 'Works offline', `Android ${APP.minAndroid} or later`].map((item) => (
-            <span class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <svg class="h-3.5 w-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-              {item}
-            </span>
-          ))}
+    <div class="mx-auto max-w-[1200px] px-4 sm:px-6">
+      <ul class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 rounded-2xl border border-border bg-card px-5 py-5 lg:justify-around">
+        {checks.map((item) => (
+          <li class="flex items-center gap-2 text-sm font-medium text-muted-foreground sm:text-[15px]">
+            <svg class="h-4 w-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.check} /></svg>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <!-- ─── MADE FOR ─────────────────────────────────────────────────────── -->
+    <section id="made-for" class="mx-auto flex max-w-[1200px] scroll-mt-20 flex-col gap-6 px-4 pt-20 sm:px-6 sm:pt-28">
+      <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
+        <div class="flex max-w-[700px] flex-col gap-3.5">
+          <p class={`${kicker} text-primary`}>Made for</p>
+          <h2 class={h2}>However you play, there’s a band for it.</h2>
         </div>
+        <nav aria-label="Uses" class="flex max-w-[480px] flex-wrap gap-2 lg:justify-end">
+          {uses.map((use) => (
+            <a href={`#${use.id}`} class="flex h-9 items-center gap-2 rounded-full border border-border bg-card px-3.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40">
+              <span class="h-2 w-2 rounded-full" style={`background:${use.dot}`}></span>{use.label}
+            </a>
+          ))}
+        </nav>
+      </div>
+
+      <!-- 1 · Practice -->
+      <article id="practice" class="grid scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
+        <div class="flex flex-col gap-5">
+          <span class="flex h-7 w-fit items-center rounded-full bg-[#E6F0FF] px-3 font-mono text-xs font-bold uppercase tracking-[0.08em] text-[#0B5FD6]">Practice</span>
+          <h3 class="font-serif text-3xl font-semibold leading-[1.12] text-foreground sm:text-[40px]">Practice with a band that never gets tired.</h3>
+          <p class="text-[17px] leading-relaxed text-muted-foreground">
+            Loop the chorus until it’s in your hands. Slow it down, move it to your key and
+            play along. Lock the phone: the band keeps going.
+          </p>
+          <ul class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+            {practiceTools.map((tool) => (
+              <li class="flex items-start gap-3">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-muted text-foreground">
+                  <svg class="h-[17px] w-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS[tool.icon]} /></svg>
+                </span>
+                <span class="flex flex-col gap-0.5">
+                  <span class="text-[15px] font-semibold text-foreground">{tool.title}</span>
+                  <span class="text-[13.5px] leading-snug text-muted-foreground">{tool.text}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <!-- The app's transport, drawn: slowed down, in G, the chorus looping. Decoration,
+             so hidden from screen readers; the list beside it says the same in words. -->
+        <div class="flex flex-col justify-center gap-4 rounded-3xl bg-[#E6F0FF] p-5 sm:p-9" aria-hidden="true">
+          <div class="flex flex-col gap-4 rounded-[22px] bg-card p-4 shadow-[0_16px_40px_rgba(11,40,90,0.14)] sm:p-5">
+            <div class="flex items-center gap-4">
+              <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary shadow-[0_0_0_8px_#EFE8FD] sm:h-16 sm:w-16"><span class="h-4 w-4 rounded-[3px] bg-white"></span></span>
+              <div class="flex grow flex-col gap-1.5">
+                <div class="flex items-center gap-2"><span class="font-mono text-[11px] font-bold tracking-[0.12em] text-muted-foreground">TEMPO</span><span class="rounded-md bg-muted px-2 py-0.5 font-mono text-[11px] font-bold text-muted-foreground">4/4</span></div>
+                <div class="flex items-baseline gap-1.5"><span class="font-mono text-3xl font-bold leading-none text-foreground sm:text-4xl">72</span><span class="text-[13px] text-muted-foreground">BPM · slowed from 96</span></div>
+                <div class="relative h-1.5 rounded-full bg-muted"><div class="h-1.5 w-1/5 rounded-full bg-primary"></div><span class="absolute left-[20%] top-[-5px] -ml-2 h-4 w-4 rounded-full border border-border bg-white"></span></div>
+              </div>
+            </div>
+            <div class="flex gap-2.5">
+              <span class="flex h-10 items-center gap-2.5 rounded-full bg-muted px-4 font-mono font-bold"><span class="text-muted-foreground">−</span><span class="text-primary">G</span><span class="text-muted-foreground">+</span></span>
+              <span class="flex h-10 items-center rounded-full border border-primary/30 bg-[#EFE8FD] px-3.5 text-sm font-semibold text-primary">Click</span>
+              <span class="flex h-10 grow items-center gap-2 rounded-full bg-muted px-3.5 text-sm font-semibold text-foreground"><span class="h-2 w-2 rounded-full bg-[#1783FF]"></span>Pop Rock</span>
+            </div>
+            <div class="overflow-hidden rounded-2xl border-2 border-[#1783FF]">
+              <div class="flex h-11 items-center justify-between bg-[#E6F0FF] px-3.5">
+                <span class="flex items-center gap-2 text-[15px] font-semibold text-foreground"><span class="h-2.5 w-2.5 rounded-[3px] bg-[#1783FF]"></span>Chorus</span>
+                <span class="flex h-[26px] items-center gap-1.5 rounded-full bg-[#1783FF] px-2.5 text-xs font-semibold text-white">
+                  <svg class="h-[13px] w-[13px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><Fragment set:html={ICONS.loop} /></svg>Looping
+                </span>
+              </div>
+              <div class="grid grid-cols-4 gap-2 p-3">
+                {practiceChords.map((chord) => (
+                  <span class:list={[
+                    'flex h-[60px] flex-col justify-between rounded-[10px] border px-2.5 py-2',
+                    chord.playing ? 'border-[#E5A50A] bg-[#FBBD23]' : chord.minor ? 'border-[#B9CCF3] bg-[#E8EFFC]' : 'border-[#F5DC9A] bg-[#FEF6DE]',
+                  ]}>
+                    <span class:list={['font-mono text-lg font-bold', chord.minor ? 'text-[#234A99]' : 'text-[#6B4A00]']}>{chord.name}</span>
+                    <span class:list={['text-xs', chord.minor ? 'text-[#4A6AA8]' : 'text-[#7A5E1A]']}>{chord.degree}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div class="flex h-11 items-center gap-2.5 self-center rounded-[14px] bg-[#14181F] pl-2.5 pr-4 text-[13px] text-white">
+            <img src="/images/chord-player-app-icon.png" width="96" height="96" alt="" loading="lazy" class="h-6 w-6 rounded-md" />
+            <span class="font-semibold">Chord Player</span><span class="text-[#A3AAB8]">Playing · Chorus</span>
+            <span class="h-[18px] w-px bg-[#3A414D]"></span>
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16" rx="1" /><rect x="14" y="4" width="5" height="16" rx="1" /></svg>
+          </div>
+        </div>
+      </article>
+
+      <!-- 2 · Worship teams -->
+      <article id="worship" class="grid scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
+        <div class="flex h-[340px] items-start justify-center overflow-hidden rounded-3xl bg-[#FBF3DC] pt-8 sm:h-[448px] sm:pt-10 lg:order-first">
+          <img src="/images/chord-player-app/chord-editor.webp" width="760" height="1600" loading="lazy"
+            alt="The chord editor, showing the chords of the key, the length of the chord and its bass note"
+            class="w-[240px] drop-shadow-[0_20px_36px_rgba(120,90,10,0.22)] sm:w-[300px]" />
+        </div>
+        <div class="order-first flex flex-col gap-5 lg:order-none">
+          <span class="flex h-7 w-fit items-center rounded-full bg-[#FBF3DC] px-3 font-mono text-xs font-bold uppercase tracking-[0.08em] text-[#8A6400]">Worship teams</span>
+          <h3 class="font-serif text-3xl font-semibold leading-[1.12] text-foreground sm:text-[40px]">Rehearse Sunday’s set in the singer’s key.</h3>
+          <p class="text-[17px] leading-relaxed text-muted-foreground">
+            Open a song from the chordsequence.com catalogue or write it in, pick Worship,
+            Modern Worship or Gospel, and move the whole song until it sits in the voice that
+            has to sing it.
+          </p>
+          <ul class="flex flex-col gap-3">
+            {[
+              'Change the key of the whole song, or step it a semitone at a time',
+              'Guitar shapes and piano keys for every chord, for whoever is playing',
+              'An intro and an ending, so the song starts and stops like a band',
+            ].map((line) => (
+              <li class="flex gap-2.5 text-[15.5px] leading-normal text-foreground">
+                <svg class="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#8A6400]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.check} /></svg>
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </article>
+
+      <!-- 3 · Latin & keyboard styles -->
+      <article id="latin" class="grid scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
+        <div class="flex flex-col gap-5">
+          <span class="flex h-7 w-fit items-center rounded-full bg-[#FDE7EA] px-3 font-mono text-xs font-bold uppercase tracking-[0.08em] text-[#B0102A]">Latin &amp; keyboard styles</span>
+          <h3 class="font-serif text-3xl font-semibold leading-[1.12] text-foreground sm:text-[40px]">An arranger keyboard, in your pocket.</h3>
+          <p class="text-[17px] leading-relaxed text-muted-foreground">
+            Cumbia, bachata, vallenato, norteño, bolero, salsa, played the way a keyboard plays
+            them: a way in, a groove for the verse, a fuller one for the chorus, a fill when you
+            call it and a proper ending.
+          </p>
+          <ul class="flex flex-col gap-3">
+            {[
+              `${APP.percussionRows} rows of hand percussion: congas, bongos, timbales, güiro, claves…`,
+              'Intro, A, B and Ending on nearly every rhythm; each section picks its part',
+              'Change any step of the groove, and tap the drums with your fingers',
+            ].map((line) => (
+              <li class="flex gap-2.5 text-[15.5px] leading-normal text-foreground">
+                <svg class="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#B0102A]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.check} /></svg>
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div class="flex h-[340px] items-start justify-center overflow-hidden rounded-3xl bg-[#FDE7EA] pt-8 sm:h-[448px] sm:pt-10">
+          <img src="/images/chord-player-app/rhythm-editor.webp" width="760" height="1600" loading="lazy"
+            alt="The rhythm editor on the drums: a step grid for the kit and the Latin percussion, with Intro, A, B and Ending tabs"
+            class="w-[240px] drop-shadow-[0_20px_36px_rgba(140,10,30,0.2)] sm:w-[300px]" />
+        </div>
+      </article>
+
+      <!-- 4-6 · Songwriters, producers, learners -->
+      <div class="grid gap-6 md:grid-cols-3">
+        {smallUses.map((use) => (
+          <article id={use.id} class="flex scroll-mt-20 flex-col overflow-hidden rounded-[28px] border border-border bg-card">
+            <div class="flex flex-col gap-3.5 px-7 pt-8 sm:px-9 sm:pt-9">
+              <span class="flex h-[26px] w-fit items-center rounded-full px-2.5 font-mono text-[11.5px] font-bold uppercase tracking-[0.08em]" style={`background:${use.tint};color:${use.ink}`}>{use.tag}</span>
+              <h3 class="font-serif text-[26px] font-semibold leading-[1.15] text-foreground sm:text-[28px]">{use.title}</h3>
+              <p class="text-[15.5px] leading-relaxed text-muted-foreground">{use.text}</p>
+            </div>
+            <div class="mx-6 mt-7 flex h-[280px] items-start justify-center overflow-hidden rounded-t-[20px] pt-7 sm:mx-7" style={`background:${use.tint}`}>
+              <img src={`/images/chord-player-app/${use.shot}.webp`} width="760" height="1600" loading="lazy" alt={use.alt}
+                class="w-[230px] drop-shadow-[0_16px_28px_rgba(20,24,31,0.18)]" />
+            </div>
+          </article>
+        ))}
       </div>
     </section>
 
-    <div class="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-      <!-- ─── FEATURES ─────────────────────────────────────────────────────── -->
-      <section>
-        <h2 class="mb-6 text-2xl font-bold tracking-tight text-foreground">What the app does</h2>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature) => (
-            <div class="rounded-xl border border-border bg-card p-6">
-              <h3 class="mb-2 font-semibold text-foreground">{feature.title}</h3>
-              <p class="text-sm leading-relaxed text-muted-foreground">{feature.text}</p>
+    <!-- ─── RHYTHMS ──────────────────────────────────────────────────────── -->
+    <section id="rhythms" class="mt-20 scroll-mt-16 bg-[#131720] text-[#F3F4F6] sm:mt-28">
+      <div class="mx-auto grid max-w-[1200px] items-start gap-14 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-20">
+        <div class="flex flex-col gap-7">
+          <p class={`${kicker} text-[#B89AF7]`}>{APP.rhythms} rhythms</p>
+          <h2 class="font-serif text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl">Every rhythm has a way in and a way out.</h2>
+          <p class="max-w-[640px] text-lg leading-relaxed text-[#B7BDC9]">
+            Nearly every rhythm brings an intro, an A and a B variation and an ending. Each
+            section of your song picks its part, and the Fill button throws in a break whenever
+            you want one.
+          </p>
+          <ol class="flex h-[76px] gap-1.5" aria-label="How a rhythm plays a song">
+            {form.map((part) => (
+              <li class:list={['flex basis-0 flex-col justify-between rounded-xl border-t-4 px-2.5 py-2.5 sm:px-3.5', part.grow, part.fill ? 'bg-[#3A1A22]' : 'bg-[#1D202B]']} style={`border-top-color:${part.bar}`}>
+                <span class="font-mono text-[10px] font-bold uppercase sm:text-[11px]" style={`color:${part.ink}`}>{part.label}</span>
+                {part.note && <span class="hidden text-[13px] text-[#B7BDC9] sm:block">{part.note}</span>}
+              </li>
+            ))}
+          </ol>
+          <div class="mt-2 grid gap-x-10 gap-y-7 sm:grid-cols-2">
+            {genres.map((genre) => (
+              <div class="flex flex-col gap-2.5">
+                <h3 class="flex items-center gap-2 text-[13px] font-semibold"><span class="h-2 w-2 rounded-full" style={`background:${genre.dot}`}></span>{genre.name}</h3>
+                <ul class="flex flex-wrap gap-1.5">
+                  {genre.items.map((item) => (
+                    <li class="flex h-[30px] items-center rounded-full border border-[#303441] bg-[#1D202B] px-3 text-[13.5px] text-[#DDE1E8]">{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <p class="flex flex-wrap gap-x-8 gap-y-2 text-sm text-[#B7BDC9]">
+            <span><span class="font-mono font-bold text-[#F3F4F6]">4/4 · 3/4 · 6/8 · 5/4</span></span>
+            <span><span class="font-mono font-bold text-[#F3F4F6]">Straight · Light · Shuffle</span> swing</span>
+            <span>A search box and favourites</span>
+          </p>
+        </div>
+        <figure class="flex flex-col items-center gap-5 lg:pt-6">
+          <img src="/images/chord-player-app/rhythms.webp" width="760" height="1600" loading="lazy"
+            alt={`The rhythm list, with ${APP.rhythms} rhythms, a search box and filters by genre and meter`}
+            class="w-[260px] drop-shadow-[0_30px_50px_rgba(0,0,0,0.5)] sm:w-[320px]" />
+          <figcaption class="max-w-[300px] text-center text-[13.5px] leading-normal text-[#9AA1AE]">One list, by genre and meter, with a search.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ─── MAKE IT YOURS ────────────────────────────────────────────────── -->
+    <section class="mx-auto grid max-w-[1200px] items-center gap-12 px-4 pt-20 sm:px-6 sm:pt-28 lg:grid-cols-[420px_minmax(0,1fr)] lg:gap-20">
+      <div class="flex h-[420px] items-start justify-center overflow-hidden rounded-[32px] bg-[#EFE8FD] pt-10 sm:h-[620px] sm:pt-12">
+        <img src="/images/chord-player-app/mixer.webp" width="760" height="1600" loading="lazy"
+          alt="The mixer, with a fader and level meter per instrument, pan knobs and an EQ curve"
+          class="w-[250px] drop-shadow-[0_24px_40px_rgba(60,20,140,0.25)] sm:w-[300px]" />
+      </div>
+      <div class="order-first flex flex-col gap-7 lg:order-none">
+        <p class={`${kicker} text-primary`}>Make it yours</p>
+        <h2 class={h2}>Start from a rhythm. End with your sound.</h2>
+        <div class="grid gap-4 sm:grid-cols-2">
+          {[
+            ['Every note, step by step', `${band[0].toUpperCase()}${band.slice(1)} on a step grid, each with its range on a keyboard.`],
+            [`${APP.sounds} sounds to choose from`, 'Pianos, Rhodes, organs, guitars, pads, strings, brass. A different one for each part of the song.'],
+            ['A mixer per instrument', 'Level, pan, mute and solo, three-band EQ, compression and reverb.'],
+            ['Take it anywhere', `${APP.exports[0]} to send, WAV to keep editing, MIDI to open the notes in your DAW.`],
+          ].map(([title, text]) => (
+            <div class="flex flex-col gap-1.5 rounded-[20px] border border-border bg-card p-5 sm:p-6">
+              <h3 class="text-base font-semibold text-foreground">{title}</h3>
+              <p class="text-[14.5px] leading-normal text-muted-foreground">{text}</p>
             </div>
           ))}
         </div>
-      </section>
-
-      <!-- ─── SCREENS ──────────────────────────────────────────────────────── -->
-      <!-- Real screenshots, not drawings: what the app looks like is most of what someone
-           wants to know before installing it. A grid at every width rather than a strip
-           that scrolls sideways — a half-cut phone at the edge reads as a broken image,
-           not as an invitation to swipe. -->
-      <section class="mt-16">
-        <h2 class="mb-2 text-2xl font-bold tracking-tight text-foreground">What it looks like</h2>
-        <p class="mb-6 text-muted-foreground">{shots.length} screens from the app, on a phone.</p>
-        <ul class="grid grid-cols-2 gap-x-5 gap-y-8 sm:gap-x-8 lg:grid-cols-4">
-          {shots.map((shot, i) => (
-            <li>
-              <img
-                src={`/images/chord-player-app/${shot.src}.webp`}
-                width="760"
-                height="1600"
-                alt={shot.alt}
-                loading={i === 0 ? 'eager' : 'lazy'}
-                class="mx-auto w-full max-w-[260px] drop-shadow-xl"
-              />
-              <p class="mx-auto mt-3 max-w-[260px] text-center text-sm leading-relaxed text-muted-foreground">
-                {shot.caption}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <!-- ─── HEAR IT ──────────────────────────────────────────────────────── -->
-      <!-- The one claim on this page nobody can check by reading: that the band sounds
-           like a band. This is the song in the screenshots above, exported from the app
-           itself with its own M4A export (1.2.0, 2026-09-29). `preload="none"` keeps its
-           2.1 MB off every page load — it is fetched when somebody presses play. A new
-           recording gets a new file name, so no browser keeps playing the old one. -->
-      <section class="mt-16 rounded-xl border border-border bg-card p-6 sm:p-8">
-        <h2 class="mb-2 text-2xl font-bold tracking-tight text-foreground">Hear the band</h2>
-        <p class="mb-5 text-muted-foreground">
-          "Sunset Drive" — the song in the screenshots, a salsa in three sections, exported
-          straight from the app. Nothing was added afterwards.
+        <p class="text-[15px] text-muted-foreground">
+          Not starting from scratch? Open one of {APP.exampleSongs} songs, {APP.progressions} classic
+          progressions or the chordsequence.com catalogue and change it.
         </p>
-        <audio
-          controls
-          preload="none"
-          src="/audio/chord-player-app-demo-salsa.m4a"
-          class="w-full"
-          onplay="if(typeof gtag!=='undefined')gtag('event','app_demo_played',{entry_point:'landing'})"
-        >
-          Your browser cannot play audio.
-        </audio>
-        <p class="mt-3 text-xs text-muted-foreground">
-          The Salsa rhythm's band, congas, bongos and güiro included, played from the chords in the app. 1:28 · M4A.
-        </p>
-      </section>
+      </div>
+    </section>
 
-      <!-- ─── HOW IT GOES ──────────────────────────────────────────────────── -->
-      <section class="mt-16">
-        <h2 class="mb-6 text-2xl font-bold tracking-tight text-foreground">How a song goes</h2>
-        <ol class="grid gap-4 sm:grid-cols-3">
-          {[
-            ['Write the chords', 'Add a section, tap to add chords, and set how long each one lasts. The app names the degree, so you can see the shape of what you wrote.'],
-            ['Pick how it plays', `Choose one of ${APP.rhythms} rhythms and the band plays your chords in it. Each section plays its intro, A, B or ending.`],
-            ['Shape it and take it', `Edit the pattern step by step, mix the ${NUMBER_WORDS[APP.instruments.length] ?? APP.instruments.length} instruments, and export M4A, WAV or MIDI.`],
-          ].map(([title, text], i) => (
-            <li class="rounded-xl border border-border bg-card p-6">
-              <span class="mb-3 flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                {i + 1}
-              </span>
-              <h3 class="mb-2 font-semibold text-foreground">{title}</h3>
-              <p class="text-sm leading-relaxed text-muted-foreground">{text}</p>
-            </li>
-          ))}
-        </ol>
-        <p class="mt-4 text-sm text-muted-foreground">
-          The app speaks English and Spanish, and follows whatever your phone is set to.
+    <!-- ─── PHONE AND BROWSER ────────────────────────────────────────────── -->
+    <section id="phone-and-browser" class="mx-auto flex max-w-[1200px] scroll-mt-16 flex-col items-center gap-12 px-4 pt-24 sm:px-6 sm:pt-36">
+      <div class="flex max-w-[820px] flex-col items-center gap-4 text-center">
+        <p class={`${kicker} text-primary`}>Phone and browser</p>
+        <h2 class={h2}>One Chord Player, wherever you are.</h2>
+        <p class="text-lg leading-relaxed text-muted-foreground">
+          The app and Chord Player online are the same instrument: one audio engine, the same
+          rhythms and sounds, the same song catalogue. Use the one in front of you.
         </p>
-      </section>
-
-      <!-- ─── APP OR BROWSER ───────────────────────────────────────────────── -->
-      <section class="mt-16">
-        <h2 class="mb-2 text-2xl font-bold tracking-tight text-foreground">App or browser?</h2>
-        <p class="mb-6 text-muted-foreground">
-          Same idea, two places to use it. Pick whichever fits where you play.
-        </p>
-        <div class="overflow-x-auto rounded-xl border border-border bg-card">
-          <table class="w-full min-w-[480px] text-left text-sm">
-            <thead class="border-b border-border text-foreground">
-              <tr>
-                <th class="px-5 py-3 font-semibold"></th>
-                <th class="px-5 py-3 font-semibold">Android app</th>
-                <th class="px-5 py-3 font-semibold">
-                  <a href="/chord-player/" class="hover:text-primary">Chord Player online</a>
-                </th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-border text-muted-foreground">
-              {comparison.map((row) => (
-                <tr>
-                  <th scope="row" class="px-5 py-3 font-medium text-foreground">{row.label}</th>
-                  <td class="px-5 py-3">{row.app}</td>
-                  <td class="px-5 py-3">{row.web}</td>
-                </tr>
+      </div>
+      <div class="grid w-full items-center gap-5 lg:grid-cols-[minmax(0,1fr)_380px_minmax(0,1fr)] lg:gap-0">
+        <div class="flex flex-col gap-4 rounded-[28px] border border-border bg-card p-7 sm:p-9">
+          <div class="flex items-center gap-3">
+            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EFE8FD] text-primary">
+              <svg class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.phone} /></svg>
+            </span>
+            <div class="flex flex-col"><h3 class="text-lg font-bold text-foreground">Android app</h3><span class="text-[13.5px] text-muted-foreground">Android {APP.minAndroid} or later</span></div>
+          </div>
+          <ul class="flex flex-col gap-2.5 text-[15px] text-foreground/80">
+            <li>Works offline, anywhere</li>
+            <li>No account; songs stay on your phone</li>
+            <li>Exports {APP.exports.join(', ')}</li>
+          </ul>
+          <GooglePlayBadge from="landing_both" class="-ml-2" />
+        </div>
+        <div class="relative flex items-center justify-center">
+          <span class="absolute inset-x-0 top-1/2 hidden h-0.5 bg-primary/30 lg:block" aria-hidden="true"></span>
+          <div class="relative flex w-full flex-col gap-3.5 rounded-[28px] bg-primary p-7 text-primary-foreground shadow-[0_20px_48px_rgba(106,31,234,0.3)] lg:w-[320px]">
+            <h3 class="font-mono text-[11.5px] font-bold uppercase tracking-[0.12em] text-white/80">Shared by both</h3>
+            <ul class="flex flex-col gap-3.5">
+              {shared.map((item) => (
+                <li class="flex items-start gap-2.5 text-[15px] leading-snug">
+                  <svg class="mt-px h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.check} /></svg>
+                  {item}
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </div>
         </div>
-      </section>
+        <div class="flex flex-col gap-4 rounded-[28px] border border-border bg-card p-7 sm:p-9">
+          <div class="flex items-center gap-3">
+            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EFE8FD] text-primary">
+              <svg class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.laptop} /></svg>
+            </span>
+            <div class="flex flex-col"><h3 class="text-lg font-bold text-foreground">Chord Player online</h3><span class="text-[13.5px] text-muted-foreground">iPhone, iPad, Mac, Windows</span></div>
+          </div>
+          <ul class="flex flex-col gap-2.5 text-[15px] text-foreground/80">
+            <li>Nothing to install</li>
+            <li>A free account saves your songs</li>
+            <li>Share a song with a link</li>
+          </ul>
+          <a href="/chord-player/" class="flex h-12 w-fit items-center gap-2 rounded-full border-[1.5px] border-foreground px-5 text-[15px] font-semibold text-foreground transition-colors hover:bg-foreground hover:text-background">
+            Open in your browser
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.arrow} /></svg>
+          </a>
+        </div>
+      </div>
+      <p class="text-center text-sm text-muted-foreground">
+        Songs you write stay where you wrote them: on your phone in the app, in your account on the web.
+      </p>
+    </section>
 
-      <!-- ─── QUESTIONS ────────────────────────────────────────────────────── -->
-      <!-- Visible questions and answers only. This site must never serialize them as
-           FAQPage JSON-LD — see the note in CLAUDE.md and scripts/check-schema.mjs. -->
-      <section class="mt-16">
-        <h2 class="mb-6 text-2xl font-bold tracking-tight text-foreground">Questions</h2>
-        <div class="divide-y divide-border rounded-xl border border-border bg-card">
-          {[
-            ['Is it free?', 'Yes, the whole app. There is nothing to buy inside it and no account to make.'],
-            ['Does it work without a connection?', 'Yes. The sounds are on your phone, so writing a song and hearing the band work in a basement or on a plane. Only the song catalogue from chordsequence.com needs a connection.'],
-            ['Is there an iPhone version?', 'Not yet. On an iPhone or a computer, Chord Player runs in the browser instead.'],
-            ['What can it export?', 'M4A to send to someone, WAV to keep editing, and MIDI to open the notes in a DAW.'],
-            ['Which languages does it speak?', 'English and Spanish. It follows your phone, and Android lets you set the app to one or the other on its own.'],
-            ['Where do my songs live?', 'On your phone. Nothing is uploaded, and deleting the app deletes them with it.'],
-          ].map(([question, answer]) => (
-            <div class="p-5">
-              <h3 class="mb-1 font-semibold text-foreground">{question}</h3>
-              <p class="text-sm leading-relaxed text-muted-foreground">{answer}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+    <!-- ─── QUESTIONS ────────────────────────────────────────────────────── -->
+    <!-- Visible questions and answers only. This site must never serialize them as
+         FAQPage JSON-LD — see the note in CLAUDE.md and scripts/check-schema.mjs. -->
+    <section id="questions" class="mx-auto grid max-w-[1200px] scroll-mt-16 gap-8 px-4 pt-24 sm:px-6 sm:pt-36 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-20">
+      <div class="flex flex-col gap-4">
+        <p class={`${kicker} text-primary`}>Questions</p>
+        <h2 class="font-serif text-4xl font-semibold leading-[1.1] text-foreground sm:text-[44px]">Before you install</h2>
+      </div>
+      <div class="grid border-t border-border md:grid-cols-2 md:gap-x-12">
+        {questions.map(([question, answer]) => (
+          <div class="flex flex-col gap-1.5 border-b border-border py-6">
+            <h3 class="text-[17px] font-semibold text-foreground">{question}</h3>
+            <p class="text-[15px] leading-relaxed text-muted-foreground">{answer}</p>
+          </div>
+        ))}
+      </div>
+    </section>
 
-      <!-- ─── CTA ──────────────────────────────────────────────────────────── -->
-      <section class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
-        <h2 class="mb-2 text-xl font-semibold text-foreground">Take your songs with you</h2>
-        <p class="mb-5 text-sm text-muted-foreground">Free on Google Play. No account, no connection needed.</p>
-        <div class="flex justify-center">
-          <GooglePlayBadge from="landing" />
+    <!-- ─── CTA ──────────────────────────────────────────────────────────── -->
+    <section class="mx-auto max-w-[1200px] px-4 pb-24 pt-24 sm:px-6 sm:pt-36" data-end-cta>
+      <div class="grid overflow-hidden rounded-[32px] bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div class="flex flex-col justify-center gap-4 p-8 sm:p-14 lg:px-[72px] lg:py-16">
+          <h2 class="font-serif text-4xl font-semibold leading-[1.06] tracking-tight sm:text-5xl">Your band is ready when you are.</h2>
+          <p class="text-lg text-white/85">Free on Google Play. No account, no connection needed.</p>
+          <div class="mt-1.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+            <GooglePlayBadge from="landing_end" class="-ml-2" />
+            <a href="/chord-player/" class="text-[15px] font-semibold text-white hover:underline">Or open it in your browser →</a>
+          </div>
         </div>
-      </section>
-    </div>
+        <div class="relative hidden lg:block" aria-hidden="true">
+          <img src="/images/chord-player-app/song.webp" width="760" height="1600" alt="" loading="lazy"
+            class="absolute left-5 top-12 w-[250px] rotate-6 drop-shadow-[0_24px_40px_rgba(0,0,0,0.3)]" />
+        </div>
+      </div>
+    </section>
   </main>
+
+  <!-- ─── STICKY INSTALL BAR (phones) ────────────────────────────────────── -->
+  <!-- A small bar, not an interstitial: it covers nothing until the hero's badge has
+       scrolled away, and hides again whenever the closing call to action is on screen. -->
+  <div
+    class="pointer-events-none fixed inset-x-3 bottom-4 z-40 translate-y-[calc(100%+1rem)] opacity-0 transition-all duration-300 lg:hidden"
+    data-sticky-cta
+  >
+    <div class="pointer-events-auto flex h-16 items-center gap-2.5 rounded-[18px] bg-[#14181F] pl-3 pr-2 text-white shadow-[0_12px_32px_rgba(20,24,31,0.3)]">
+      <img src="/images/chord-player-app-icon.png" width="96" height="96" alt="" loading="lazy" class="h-9 w-9 rounded-[9px]" />
+      <span class="flex grow flex-col"><span class="text-sm font-semibold">Chord Player</span><span class="text-xs text-[#A3AAB8]">Free · Offline · No account</span></span>
+      <a
+        href="/android/?from=landing_sticky"
+        class="flex h-11 items-center rounded-xl bg-primary px-[18px] text-sm font-semibold text-primary-foreground"
+        onclick="if(typeof gtag!=='undefined')gtag('event','app_cta_clicked',{entry_point:'landing_sticky'})"
+        tabindex="-1"
+        data-sticky-link
+      >Install</a>
+    </div>
+  </div>
 </BaseLayout>
+
+<script>
+  // The demo player: one button over a plain <audio>, the waveform filling as it plays.
+  const demo = document.querySelector<HTMLElement>('[data-demo]');
+  const audio = demo?.querySelector<HTMLAudioElement>('[data-demo-audio]');
+  if (demo && audio) {
+    const toggle = demo.querySelector<HTMLButtonElement>('[data-demo-toggle]')!;
+    const playIcon = demo.querySelector('[data-demo-play]')!;
+    const pauseIcon = demo.querySelector('[data-demo-pause]')!;
+    const time = demo.querySelector<HTMLElement>('[data-demo-time]')!;
+    const bars = [...demo.querySelectorAll<HTMLElement>('[data-demo-bar]')];
+    const total = time.textContent;
+    let reported = false;
+    const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+    toggle.addEventListener('click', () => {
+      if (audio.paused) void audio.play(); else audio.pause();
+    });
+    audio.addEventListener('play', () => {
+      playIcon.classList.add('hidden');
+      pauseIcon.classList.remove('hidden');
+      toggle.setAttribute('aria-label', 'Pause the salsa demo');
+      if (!reported) {
+        reported = true;
+        const w = window as unknown as { gtag?: (...args: unknown[]) => void };
+        w.gtag?.('event', 'app_demo_played', { entry_point: 'landing' });
+      }
+    });
+    audio.addEventListener('pause', () => {
+      playIcon.classList.remove('hidden');
+      pauseIcon.classList.add('hidden');
+      toggle.setAttribute('aria-label', 'Play the salsa demo');
+    });
+    audio.addEventListener('timeupdate', () => {
+      const done = audio.duration ? audio.currentTime / audio.duration : 0;
+      bars.forEach((bar, i) => { bar.style.backgroundColor = i / bars.length < done ? 'hsl(var(--primary))' : ''; });
+      time.textContent = audio.currentTime > 0 ? clock(audio.currentTime) : total;
+    });
+    audio.addEventListener('ended', () => { audio.currentTime = 0; });
+  }
+
+  // The sticky bar shows once the hero's badge is off screen, and not over the closing CTA.
+  const sticky = document.querySelector<HTMLElement>('[data-sticky-cta]');
+  const hero = document.querySelector('[data-hero-cta]');
+  const end = document.querySelector('[data-end-cta]');
+  if (sticky && hero && end && 'IntersectionObserver' in window) {
+    const link = sticky.querySelector<HTMLElement>('[data-sticky-link]')!;
+    const visible = new Map<Element, boolean>([[hero, true], [end, false]]);
+    const update = () => {
+      const show = !visible.get(hero) && !visible.get(end);
+      sticky.classList.toggle('translate-y-[calc(100%+1rem)]', !show);
+      sticky.classList.toggle('opacity-0', !show);
+      link.tabIndex = show ? 0 : -1;
+      sticky.toggleAttribute('inert', !show);
+    };
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => visible.set(entry.target, entry.isIntersecting));
+      update();
+    });
+    observer.observe(hero);
+    observer.observe(end);
+    update();
+  }
+</script>

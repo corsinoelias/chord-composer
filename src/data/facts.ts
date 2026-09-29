@@ -34,6 +34,10 @@ export const APP = {
   exampleSongs: 11,
   progressions: 8,
   exports: ['M4A', 'WAV', 'MIDI'] as const,
+  /** The tempo slider's range (transport_bar.dart). */
+  tempo: { min: 40, max: 200 },
+  /** The chosen sounds across the melodic tracks (timbreOptions in constants.dart). */
+  sounds: 35,
   languages: ['English', 'Spanish'] as const,
   minAndroid: '8.0',
 } as const;

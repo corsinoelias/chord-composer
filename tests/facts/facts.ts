@@ -34,7 +34,7 @@ const toLibrary = fs.readdirSync(learn).filter((f) => /\]\(\/app\/?\)/.test(fs.r
 check('articles linking the player to /app/', toLibrary, []);
 
 // ── App ──
-const app = path.resolve(root, '../../../../Projects/chord_sequencer');
+const app = process.env.APP_DIR ?? path.resolve(root, '../../../../Projects/chord_sequencer');
 if (!fs.existsSync(path.join(app, 'pubspec.yaml'))) {
   skipped++;
   console.log('- the app is not next to the site: its facts are not checked');
@@ -51,6 +51,10 @@ if (!fs.existsSync(path.join(app, 'pubspec.yaml'))) {
   check('app drum kits', APP.drumKits, count(constants, /^ {2}DrumKit\(/gm));
   check('app example songs', APP.exampleSongs, count(read('lib/core/data/song_seeds.dart'), /^ {2}SongSeed\(/gm));
   check('app progressions', APP.progressions, count(read('lib/core/data/progression_library.dart'), /^ {2}Progression\(/gm));
+  const transport = read('lib/features/transport/transport_bar.dart');
+  check('app tempo range', APP.tempo, { min: Number(transport.match(/min: (\d+),/)?.[1]), max: Number(transport.match(/max: (\d+),/)?.[1]) });
+  const timbres = constants.slice(constants.indexOf('const timbreOptions'), constants.indexOf('\n};', constants.indexOf('const timbreOptions')));
+  check('app sounds', APP.sounds, count(timbres, /SoundOption\(/g));
   check('app minimum Android', APP.minAndroid, read('android/app/build.gradle').includes('minSdkVersion 26') ? '8.0' : 'not API 26');
 }
 
