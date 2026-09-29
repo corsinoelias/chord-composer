@@ -20,11 +20,13 @@ export interface ClickSettings {
   division: 1 | 2;
 }
 
+/** As the app since 2026-09-29: the triangle and the tambourine are its gm_triangle and
+ * gm_tambourine recordings (slots 46 and 47 of kit.json), kept off the drum bus. */
 export const CLICK_SOUNDS: { id: number; label: string }[] = [
-  { id: sampledDrum(2), label: 'Stick' },
   { id: sampledDrum(36), label: 'Cowbell' },
-  { id: sampledDrum(9), label: 'Ride' },
   { id: CLICK_BEEP, label: 'Beep' },
+  { id: sampledDrum(46), label: 'Triangle' },
+  { id: sampledDrum(47), label: 'Tambourine' },
 ];
 
 /**

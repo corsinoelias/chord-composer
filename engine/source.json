@@ -1,10 +1,10 @@
 {
   "note": "Written by npm run engine:sync; checked by npm run check:engine. Do not edit by hand.",
   "app": {
-    "commit": "73685af68c2f730e5a19810ccde11f83ae5b97be",
+    "commit": "5f9845fdb89eb78c8c5acbb2a56b90a4be376a8e",
     "dirtyEngine": false
   },
-  "syncedAt": "2026-09-28T22:38:48.392Z",
+  "syncedAt": "2026-09-29T11:04:21.564Z",
   "programs": [
     0,
     3,
@@ -76,18 +76,20 @@
     "floortom_909",
     "tom1_phat",
     "tom2_phat",
-    "floortom_phat"
+    "floortom_phat",
+    "gm_triangle",
+    "gm_tambourine"
   ],
   "files": {
-    "engine/vendor/native_audio.cpp": "abddefd3f23a43d2b5424632f92b52d2acdecd7504be383ec5217d0325c58250",
+    "engine/vendor/native_audio.cpp": "ad3dd456b60bc22c43679b18a4bcf6ad20781b57728880296e465d3444e219c4",
     "engine/vendor/tsf.h": "b1a65f3e44624a720db0906a4c3d75c0d7a03f408f50bc4bfd92d9008ac84e93",
     "engine/web_glue.cpp": "534e10b1583c74b50c39b32b32409e578b6f147ab9a6d74c5f41b7046e986d1f",
     "engine/shim/aaudio/AAudio.h": "e05c86b807d44199f67776d9db135f20d0d0142f5a2c0ffc0b4807eaf6ee859d",
-    "public/engine/engine.wasm": "2f99a0c29b7a98dd27512aee07e271b13e7327bf7086d5dd9aba51a34268408e",
+    "public/engine/engine.wasm": "fc8e44a087fc999586d17891509a41b2f08a58e164902a8f3834b91e5dc7302b",
     "public/engine/sounds.sf2": "0110b7c2d7ab8c44dd0787bc2fe3da96c2a0037d023e8ebfd6c751ae11ea5b8f",
     "public/engine/sounds-full.sf2": "5c0970dc81fbd54e6b053b21c078c9c1a6d93689d1ebe28593c97590be21ca41",
     "public/engine/presets.json": "c5d3da74cd0f4313cac36737c1985647e927bb290744f7963ec4f0549b999430",
-    "public/engine/kit.json": "f577445b11e7eb2b17fbbfd3bbf7ab2c86b69f72b745bd6a628e110302ec17b7",
+    "public/engine/kit.json": "ada000c91397c26d66c8706f9cdb0b4274a92c0066440134dc990de947880a89",
     "public/engine/drums/kick.pcm": "43c665669d8a8d5d56bd65b17aebf816154d47ed06fc1040ffe37b18036d8950",
     "public/engine/drums/snare.pcm": "aa569669c427eb841a5b4189592de5aec42b603043d93b0f6db7acf09809c372",
     "public/engine/drums/stick.pcm": "8993f18dab1b76822da89629f724f3a6cd3a630bc00112320ac877f546eeb7aa",
@@ -133,6 +135,8 @@
     "public/engine/drums/floortom_909.pcm": "37954ed799b2b3de40b414d2dea000eaca52edc665b7d9500284645f586fd4cf",
     "public/engine/drums/tom1_phat.pcm": "353fed31dd739d953340f9bcdf21f57e51fa246d58e2863bcf5182c14e246cad",
     "public/engine/drums/tom2_phat.pcm": "b1d1e0c54aba3930880181e257724ca439c14bb747835c874e96684002e9fd22",
-    "public/engine/drums/floortom_phat.pcm": "6c36ef03b8b01e7e87420fe1ff927f90e3ce095d3b21363b5aacbc7abae195ef"
+    "public/engine/drums/floortom_phat.pcm": "6c36ef03b8b01e7e87420fe1ff927f90e3ce095d3b21363b5aacbc7abae195ef",
+    "public/engine/drums/gm_triangle.pcm": "8b4281ea2577930e8da1208c07d7f7606ed7c28bb118808330b94959c6faa241",
+    "public/engine/drums/gm_tambourine.pcm": "77282ee48a6a3f653f819be2c4b6a192bb7bbfd3446d6a817a6e9a46dd2383ee"
   }
 }

@@ -112,6 +112,7 @@ enum DrumSound {
   kSTom1Oak, kSTom2Oak, kSFloorTomOak,
   kSTom1909, kSTom2909, kSFloorTom909,
   kSTom1Phat, kSTom2Phat, kSFloorTomPhat,
+  kSTriangle, kSTambourine,  // metronome sounds only, like kSCountIn: metronomeSounds in Dart
   kDrumSoundCount
 };
 constexpr int kSampleSlots = kDrumSoundCount - kSampledFirst;
