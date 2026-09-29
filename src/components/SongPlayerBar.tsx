@@ -397,7 +397,7 @@ export function SongPlayerBar({
             {showWavExport && (
               <button
                 onClick={onExportWav}
-                disabled={isPlaying || isExportingWav || allChordsCount === 0}
+                disabled={isExportingWav || allChordsCount === 0}
                 title="Download WAV"
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >

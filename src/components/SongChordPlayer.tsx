@@ -1089,6 +1089,9 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
 
   // ── Export WAV ─────────────────────────────────────────────────────────────
   const handleExportWav = useCallback(async () => {
+    // The export renders in a Worker of its own, beside the engine that is playing. On a
+    // phone the two share too little CPU: the song stops rather than risk cutting out.
+    if (isPlaying && window.matchMedia('(pointer: coarse)').matches) stop();
     setIsExportingWav(true);
     const began = performance.now();
     try {
@@ -1107,7 +1110,7 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
     } finally {
       setIsExportingWav(false);
     }
-  }, [bpm, song, transpose, buildFullSongSections, instruments, resolvedStyle]);
+  }, [bpm, song, transpose, buildFullSongSections, instruments, resolvedStyle, isPlaying, stop]);
 
   // ── Export MIDI ────────────────────────────────────────────────────────────
   const handleExportMidi = useCallback(() => {
