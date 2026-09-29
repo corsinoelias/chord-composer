@@ -4,33 +4,37 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import GooglePlayBadge from '../../components/GooglePlayBadge.astro';
 import JsonLd from '@/components/schema/JsonLd.astro';
 import { buildBreadcrumbSchema, buildMobileApplicationSchema } from '@/components/schema/builders';
+import { APP, WEB, instrumentList } from '@/data/facts';
 
 // The site's page for the Chord Player mobile app (com.eliascorsino.chord_sequencer). The
 // URL names the app rather than the platform because an iOS build is planned; the copy
 // says Android only until that build exists. Not /app/: that path is the signed-in library.
 //
-// Every number and feature on this page is checked against the Flutter source, not
-// against the web editor — the two differ (15 chord types, not 37; 17 styles, not 13), and
-// the Play listing once copied the web's numbers. Change them here only together with the
-// app.
+// Every number on this page is the app's, from APP in src/data/facts.ts, which
+// tests/facts/facts.ts checks against the Flutter source. Not the web editor's: the two
+// differ, and the Play listing once copied the web's numbers.
 const PAGE_URL = 'https://chordsequence.com/chord-player-app/';
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.eliascorsino.chord_sequencer';
 
 const description =
-  'Chord Player for Android: build a song section by section and hear it played by drums, bass, piano and guitar in 17 styles. Free, offline, no account.';
+  `Chord Player for Android: build a song section by section and hear it played by a full band in ${APP.rhythms} rhythms. Free, offline, no account.`;
+
+const NUMBER_WORDS: Record<number, string> = { 4: 'four', 5: 'five', 6: 'six' };
+const band = instrumentList(APP.instruments);
+const Band = band[0].toUpperCase() + band.slice(1);
 
 const features = [
   {
     title: 'Songs, section by section',
-    text: 'Intro, verse, chorus: each section holds its own chords. 15 chord types, slash bass notes, half-beat lengths, and piano and guitar diagrams for every chord.',
+    text: `Intro, verse, chorus, ending: each section holds its own chords. ${APP.chordTypes} chord types, slash bass notes, half-beat lengths, and piano and guitar diagrams for every chord.`,
   },
   {
     title: 'A band that plays along',
-    text: 'Drums, bass, piano and guitar in 17 styles, from Reggaeton and Bossa Nova to Jazz Waltz and Slow 6/8, with a metronome and a count-in.',
+    text: `${Band} in ${APP.rhythms} rhythms, from Salsa, Bachata and Reggaeton to Bossa Nova, Jazz and Trap. Nearly every one has an intro, an A and a B variation and an ending, and a Fill button plays a break when you want one.`,
   },
   {
     title: 'Make the groove yours',
-    text: 'Edit every instrument on a step grid, add swing, and play in 4/4, 3/4, 6/8 or 5/4. Nine drum kits, and a pattern you save once can be reused in any song.',
+    text: `Edit every instrument step by step, set each one's range on a keyboard, and play the drums by tapping the kit. ${APP.drumKits} drum kits, ${APP.percussionRows} rows of Latin and hand percussion, swing, and 4/4, 3/4, 6/8 or 5/4. Save a pattern once and use it in any song.`,
   },
   {
     title: 'Mix it',
@@ -42,17 +46,33 @@ const features = [
   },
   {
     title: 'Start from something',
-    text: 'Open one of 11 songs, from Flowers to Easy on Me, or one of 8 classic progressions, and change it instead of starting from a blank page.',
+    text: `Open one of ${APP.exampleSongs} songs or ${APP.progressions} classic progressions, or one from the chordsequence.com catalogue, and change it instead of starting from a blank page.`,
   },
 ];
 
-// The screens, in the order someone meets them. Files live in
-// /images/chord-player-app/ and are 2x phone mockups (760x1600) of the real app.
+// The screens, in the order someone meets them. Files live in /images/chord-player-app/ and
+// are 2x phone mockups (760x1600) of the real app, made by scripts/store-art.mjs --web from
+// the same captures as the Play listing.
 const shots = [
   {
     src: 'song',
-    alt: 'The song screen of Chord Player, with Intro, Verse and Chorus sections and the sounding chord lit up',
+    alt: 'The song screen of Chord Player: a salsa with Intro, Verse and Chorus sections and the sounding chord lit up',
     caption: 'Your song, section by section. The chord that is playing lights up as it goes.',
+  },
+  {
+    src: 'rhythms',
+    alt: `The rhythm list, with ${APP.rhythms} rhythms, a search box and filters by genre and meter`,
+    caption: `${APP.rhythms} rhythms in one list, by genre and meter, with a search.`,
+  },
+  {
+    src: 'rhythm-editor',
+    alt: 'The rhythm editor on the drums: a step grid for the kit and the Latin percussion, with Intro, A, B and Ending tabs',
+    caption: 'Edit the groove step by step, for each part of the rhythm.',
+  },
+  {
+    src: 'rhythm-piano',
+    alt: 'The rhythm editor on the piano, with the notes of each step and a keyboard to set its range',
+    caption: 'Every instrument note by note, with its range on a keyboard.',
   },
   {
     src: 'chord-editor',
@@ -60,9 +80,9 @@ const shots = [
     caption: 'Pick a chord from the key, from outside it, or spell it yourself.',
   },
   {
-    src: 'rhythm-editor',
-    alt: 'The rhythm editor, with a step grid for kick, snare, hi-hat and ride and a drawing of the kit',
-    caption: 'Edit the groove step by step, one instrument at a time.',
+    src: 'chord-diagram',
+    alt: 'A chord shown as a guitar shape and as keys on a piano',
+    caption: 'Every chord as a guitar shape and on the piano.',
   },
   {
     src: 'mixer',
@@ -70,23 +90,19 @@ const shots = [
     caption: 'Level, pan, EQ, compression and reverb, per instrument.',
   },
   {
-    src: 'my-songs',
-    alt: 'The song library, with search, filters and songs to start from',
-    caption: 'Your songs, plus 11 to start from and 8 classic progressions.',
-  },
-  {
-    src: 'chord-diagram',
-    alt: 'A chord shown as a guitar shape and as keys on a piano',
-    caption: 'Every chord as a guitar shape and on the piano.',
+    src: 'progressions',
+    alt: 'Classic progressions to start from, each with its chords and what it sounds like',
+    caption: `${APP.progressions} classic progressions and ${APP.exampleSongs} songs to start from.`,
   },
 ];
 
 // Only rows where the answer is certain for both. The web's own strengths are listed as
 // plainly as the app's: this page should send people to the right one, not only to Play.
 const comparison: { label: string; app: string; web: string }[] = [
-  { label: 'Works offline', app: 'Yes', web: 'No' },
+  { label: 'Works offline', app: 'Yes (the song catalogue needs a connection)', web: 'No' },
+  { label: 'Rhythms', app: String(APP.rhythms), web: String(WEB.rhythms) },
   { label: 'Account', app: 'None, songs stay on your phone', web: 'Free account to save songs' },
-  { label: 'Export', app: 'M4A, WAV, MIDI', web: 'WAV, MIDI' },
+  { label: 'Export', app: APP.exports.join(', '), web: WEB.exports.join(', ') },
   { label: 'Share a song by link', app: 'No', web: 'Yes' },
   { label: 'iPhone and computer', app: 'No', web: 'Yes' },
 ];
@@ -96,16 +112,18 @@ const appSchema = buildMobileApplicationSchema({
   name: 'Chord Player',
   description,
   installUrl: PLAY_URL,
-  operatingSystem: 'Android 8.0 or later',
+  operatingSystem: `Android ${APP.minAndroid} or later`,
   featureList: [
-    'Song sections with 15 chord types',
-    'Drums, bass, piano and guitar in 17 styles',
-    'Step-grid rhythm editor with swing',
+    `Song sections with ${APP.chordTypes} chord types`,
+    `${Band} in ${APP.rhythms} rhythms`,
+    'Intro, A and B variations and ending for nearly every rhythm',
+    'Step-by-step rhythm editor with a range keyboard per instrument',
+    `${APP.drumKits} drum kits and ${APP.percussionRows} rows of Latin and hand percussion`,
     '4/4, 3/4, 6/8 and 5/4',
     'Per-instrument mixer with EQ, compression and reverb',
-    'M4A, WAV and MIDI export',
+    `${APP.exports.join(', ')} export`,
     'Works offline, no account',
-    'English and Spanish',
+    APP.languages.join(' and '),
   ],
 });
 
@@ -147,8 +165,8 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
             <span class="text-primary">Build a song. Hear the band.</span>
           </h1>
           <p class="mx-auto max-w-xl text-lg text-muted-foreground lg:mx-0">
-            Write chord progressions on your phone and hear them played by drums, bass, piano and
-            guitar, even with no connection.
+            Write chord progressions on your phone and hear them played by {band}, even
+            with no connection.
           </p>
           <div class="mt-8 flex flex-col items-center gap-3 lg:items-start">
             <GooglePlayBadge from="landing" />
@@ -172,7 +190,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
     <section class="border-b border-border bg-card/50">
       <div class="mx-auto max-w-5xl px-4 py-5 sm:px-6">
         <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-          {['Free', 'No account needed', 'Works offline', 'Android 8.0 or later'].map((item) => (
+          {['Free', 'No account needed', 'Works offline', `Android ${APP.minAndroid} or later`].map((item) => (
             <span class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <svg class="h-3.5 w-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
               {item}
@@ -203,8 +221,8 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
            not as an invitation to swipe. -->
       <section class="mt-16">
         <h2 class="mb-2 text-2xl font-bold tracking-tight text-foreground">What it looks like</h2>
-        <p class="mb-6 text-muted-foreground">Six screens from the app, on a phone.</p>
-        <ul class="grid grid-cols-2 gap-x-5 gap-y-8 sm:gap-x-8 lg:grid-cols-3">
+        <p class="mb-6 text-muted-foreground">{shots.length} screens from the app, on a phone.</p>
+        <ul class="grid grid-cols-2 gap-x-5 gap-y-8 sm:gap-x-8 lg:grid-cols-4">
           {shots.map((shot, i) => (
             <li>
               <img
@@ -254,8 +272,8 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
         <ol class="grid gap-4 sm:grid-cols-3">
           {[
             ['Write the chords', 'Add a section, tap to add chords, and set how long each one lasts. The app names the degree, so you can see the shape of what you wrote.'],
-            ['Pick how it plays', 'Choose a style and the band plays your chords in it. Any section can keep a groove of its own.'],
-            ['Shape it and take it', 'Edit the pattern step by step, mix the four instruments, and export M4A, WAV or MIDI.'],
+            ['Pick how it plays', `Choose one of ${APP.rhythms} rhythms and the band plays your chords in it. Each section plays its intro, A, B or ending.`],
+            ['Shape it and take it', `Edit the pattern step by step, mix the ${NUMBER_WORDS[APP.instruments.length] ?? APP.instruments.length} instruments, and export M4A, WAV or MIDI.`],
           ].map(([title, text], i) => (
             <li class="rounded-xl border border-border bg-card p-6">
               <span class="mb-3 flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
@@ -309,7 +327,7 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
         <div class="divide-y divide-border rounded-xl border border-border bg-card">
           {[
             ['Is it free?', 'Yes, the whole app. There is nothing to buy inside it and no account to make.'],
-            ['Does it work without a connection?', 'Yes. The sounds are on your phone, so writing a song and hearing the band work in a basement or on a plane.'],
+            ['Does it work without a connection?', 'Yes. The sounds are on your phone, so writing a song and hearing the band work in a basement or on a plane. Only the song catalogue from chordsequence.com needs a connection.'],
             ['Is there an iPhone version?', 'Not yet. On an iPhone or a computer, Chord Player runs in the browser instead.'],
             ['What can it export?', 'M4A to send to someone, WAV to keep editing, and MIDI to open the notes in a DAW.'],
             ['Which languages does it speak?', 'English and Spanish. It follows your phone, and Android lets you set the app to one or the other on its own.'],
