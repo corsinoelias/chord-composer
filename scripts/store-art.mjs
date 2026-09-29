@@ -62,7 +62,7 @@ const slides = [
   { shot: 'song', file: 'song', accent: '#8B5CF6',
     en: ['YOUR SONG', 'Write it.<br>Hear it.'], es: ['TU CANCIÓN', 'Escríbela.<br>Óyela.'] },
   { shot: 'rhythms', file: 'rhythms', accent: '#25DA67',
-    en: ['201 RHYTHMS', 'Salsa, bachata,<br>jazz, trap and more'], es: ['201 RITMOS', 'Salsa, bachata,<br>jazz, trap y más'] },
+    en: ['545 RHYTHMS', 'Salsa, funk, jazz,<br>ballads and more'], es: ['545 RITMOS', 'Salsa, funk, jazz,<br>baladas y más'] },
   { shot: 'rhythm-editor', file: 'rhythm-editor', accent: '#DF2060',
     en: ['THE GROOVE', 'Move a single<br>drum hit'], es: ['EL RITMO', 'Mueve un solo<br>golpe de batería'] },
   { shot: 'rhythm-piano', file: 'rhythm-piano', accent: '#FAB505',
