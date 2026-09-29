@@ -1,4 +1,4 @@
-// Builds the Google Play artwork for the Chord Player app — 7 phone screenshots per
+// Builds the Google Play artwork for the Chord Player app — 8 phone screenshots per
 // language plus the feature graphic — from the raw phone captures in
 // screenshots/chord-player-app/{en,es}/, and the website's phone mockups too.
 //
@@ -61,6 +61,12 @@ async function framed(shot, scale) {
 const slides = [
   { shot: 'song', file: 'song', accent: '#8B5CF6',
     en: ['YOUR SONG', 'Write it.<br>Hear it.'], es: ['TU CANCIÓN', 'Escríbela.<br>Óyela.'] },
+  { shot: 'rhythms', file: 'rhythms', accent: '#25DA67',
+    en: ['201 RHYTHMS', 'Salsa, bachata,<br>jazz, trap and more'], es: ['201 RITMOS', 'Salsa, bachata,<br>jazz, trap y más'] },
+  { shot: 'rhythm-editor', file: 'rhythm-editor', accent: '#DF2060',
+    en: ['THE GROOVE', 'Move a single<br>drum hit'], es: ['EL RITMO', 'Mueve un solo<br>golpe de batería'] },
+  { shot: 'rhythm-piano', file: 'rhythm-piano', accent: '#FAB505',
+    en: ['EVERY PART', 'Piano, bass, guitar,<br>synth: note by note'], es: ['CADA INSTRUMENTO', 'Piano, bajo, guitarra<br>y sinte, nota a nota'] },
   { shot: 'chord-editor', file: 'chord-editor', accent: '#2BD4BD',
     en: ['ANY CHORD', 'The right chord,<br>in your key'], es: ['CUALQUIER ACORDE', 'El acorde justo,<br>en tu tono'] },
   // The diagrams live at the foot of a sheet, so a whole phone would cut them off just
@@ -68,19 +74,17 @@ const slides = [
   // from the same capture and enlarged: the app's own pixels, at a size that reads.
   { shot: 'chord-diagram', file: 'chord-diagram', accent: '#FAB505', crop: { top: 1576, height: 600 },
     en: ['HOW TO PLAY IT', 'Piano and guitar<br>for every chord'], es: ['CÓMO SE TOCA', 'Piano y guitarra<br>en cada acorde'] },
-  { shot: 'rhythm-editor', file: 'rhythm-editor', accent: '#DF2060',
-    en: ['THE GROOVE', 'Move a single<br>drum hit'], es: ['EL RITMO', 'Mueve un solo<br>golpe de batería'] },
   { shot: 'mixer', file: 'mixer', accent: '#2662D9',
     en: ['THE MIX', 'Sit the band<br>where you want it'], es: ['LA MEZCLA', 'Coloca la banda<br>a tu gusto'] },
-  { shot: 'my-songs', file: 'my-songs', accent: '#25DA67',
-    en: ['YOUR LIBRARY', 'Every song,<br>always offline'], es: ['TUS CANCIONES', 'Todas contigo,<br>sin conexión'] },
-  { shot: 'examples', file: 'examples', accent: '#8B5CF6',
-    en: ['A HEAD START', '11 songs<br>to take apart'], es: ['EMPIEZA HECHO', '11 canciones<br>para desmontar'] },
+  // Progressions rather than the example songs: those carry real artists' names, which
+  // have no place in store art.
+  { shot: 'progressions', file: 'progressions', accent: '#8B5CF6',
+    en: ['A HEAD START', 'Progressions<br>ready to play'], es: ['EMPIEZA HECHO', 'Progresiones<br>listas para tocar'] },
 ];
 
 const feature = {
-  en: ['Build a song. Hear the band.', 'Drums, bass, piano and guitar play your chords', 'Free · Offline · No account'],
-  es: ['Escribe acordes. Oye la banda.', 'Batería, bajo, piano y guitarra tocan tus acordes', 'Gratis · Sin conexión · Sin cuenta'],
+  en: ['Build a song. Hear the band.', 'Drums, bass, piano, guitar and synth play your chords', 'Free · Offline · No account'],
+  es: ['Escribe acordes. Oye la banda.', 'Batería, bajo, piano, guitarra y sinte tocan tus acordes', 'Gratis · Sin conexión · Sin cuenta'],
 };
 
 const css = `
@@ -136,7 +140,7 @@ body { background: #0B0618 }
 .brand .name { font-size: 54px; font-weight: 700; letter-spacing: -.02em }
 .tagline { margin-top: 30px; font-size: 38px; font-weight: 600; line-height: 1.18;
   letter-spacing: -.015em; color: #F3E8FF }
-.band { margin-top: 16px; font-size: 24px; font-weight: 500; color: #CDBDF6; letter-spacing: -.01em }
+.band { margin-top: 16px; font-size: 24px; font-weight: 500; color: #CDBDF6; letter-spacing: -.01em; text-wrap: balance }
 .meta { margin-top: 26px; font-family: SpaceMono, monospace; font-weight: 700; font-size: 19px;
   letter-spacing: .12em; color: #C4B5FD; text-transform: uppercase }
 .feature .phone { left: auto; right: 54px; top: 74px; width: 300px; transform: rotate(-7deg);
@@ -146,6 +150,8 @@ body { background: #0B0618 }
 async function buildPlay(browser, lang, frames, tmp) {
   const out = path.join(SHOTS, `play-${lang === 'en' ? 'en' : 'es'}`);
   fs.mkdirSync(out, { recursive: true });
+  // The listing script uploads every PNG here: last time's slides must not linger.
+  for (const old of fs.readdirSync(out)) if (old.endsWith('.png')) fs.rmSync(path.join(out, old));
   const [tagline, band, meta] = feature[lang];
   const html = `<!doctype html><meta charset="utf-8"><style>${css}</style>` +
     slides.map((s, i) => `<div class="slide" id="s${i}" style="--accent:${s.accent};--glow:${s.accent}2E">
