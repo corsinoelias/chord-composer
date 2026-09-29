@@ -244,25 +244,26 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
       <!-- ─── HEAR IT ──────────────────────────────────────────────────────── -->
       <!-- The one claim on this page nobody can check by reading: that the band sounds
            like a band. This is the song in the screenshots above, exported from the app
-           itself with its own M4A export. `preload="none"` keeps its 2.4 MB off every
-           page load — it is fetched when somebody presses play. -->
+           itself with its own M4A export (1.2.0, 2026-09-29). `preload="none"` keeps its
+           2.1 MB off every page load — it is fetched when somebody presses play. A new
+           recording gets a new file name, so no browser keeps playing the old one. -->
       <section class="mt-16 rounded-xl border border-border bg-card p-6 sm:p-8">
         <h2 class="mb-2 text-2xl font-bold tracking-tight text-foreground">Hear the band</h2>
         <p class="mb-5 text-muted-foreground">
-          "Golden Hour" — the song in the screenshots, three sections in a pop ballad,
-          exported straight from the app. Nothing was added afterwards.
+          "Sunset Drive" — the song in the screenshots, a salsa in three sections, exported
+          straight from the app. Nothing was added afterwards.
         </p>
         <audio
           controls
           preload="none"
-          src="/audio/chord-player-app-demo.m4a"
+          src="/audio/chord-player-app-demo-salsa.m4a"
           class="w-full"
           onplay="if(typeof gtag!=='undefined')gtag('event','app_demo_played',{entry_point:'landing'})"
         >
           Your browser cannot play audio.
         </audio>
         <p class="mt-3 text-xs text-muted-foreground">
-          Drums, bass, piano and guitar, played from the chords in the app. 1:43 · M4A.
+          The Salsa rhythm's band, congas, bongos and güiro included, played from the chords in the app. 1:28 · M4A.
         </p>
       </section>
 
