@@ -179,6 +179,8 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
   title="Chord Player for Android — Free Chord Progression App"
   description={description}
   canonicalUrl={PAGE_URL}
+  ogImage="https://chordsequence.com/og/page/chord-player-app/"
+  ogImageAlt="Chord Player for Android: your backing band, in your pocket"
 >
   <Fragment slot="head">
     <JsonLd schema={appSchema} />
@@ -190,8 +192,8 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
     <!-- The demo sits under the badge: that the band sounds like a band is the one claim
          nobody can check by reading, so it is in reach before any scrolling. On a phone the
          screenshot comes after the words, where it cannot push the badge off the screen. -->
-    <section class="mx-auto grid max-w-[1200px] items-center gap-12 px-4 pb-12 pt-10 sm:px-6 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_500px] lg:gap-16 lg:pb-16">
-      <div class="flex flex-col gap-6 sm:gap-7">
+    <section class="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-12 px-4 pb-12 pt-10 sm:px-6 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_500px] lg:gap-16 lg:pb-16">
+      <div class="flex min-w-0 flex-col gap-6 sm:gap-7">
         <h1 class="flex flex-col gap-5">
           <span class="flex items-center gap-3.5">
             <img
@@ -305,7 +307,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
       </div>
 
       <!-- 1 · Practice -->
-      <article id="practice" class="grid scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
+      <article id="practice" class="grid grid-cols-1 scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
         <div class="flex flex-col gap-5">
           <span class="flex h-7 w-fit items-center rounded-full bg-[#E6F0FF] px-3 font-mono text-xs font-bold uppercase tracking-[0.08em] text-[#0B5FD6]">Practice</span>
           <h3 class="font-serif text-3xl font-semibold leading-[1.12] text-foreground sm:text-[40px]">Practice with a band that never gets tired.</h3>
@@ -313,7 +315,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
             Loop the chorus until it’s in your hands. Slow it down, move it to your key and
             play along. Lock the phone: the band keeps going.
           </p>
-          <ul class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+          <ul class="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
             {practiceTools.map((tool) => (
               <li class="flex items-start gap-3">
                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-muted text-foreground">
@@ -341,9 +343,9 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
               </div>
             </div>
             <div class="flex gap-2.5">
-              <span class="flex h-10 items-center gap-2.5 rounded-full bg-muted px-4 font-mono font-bold"><span class="text-muted-foreground">−</span><span class="text-primary">G</span><span class="text-muted-foreground">+</span></span>
-              <span class="flex h-10 items-center rounded-full border border-primary/30 bg-[#EFE8FD] px-3.5 text-sm font-semibold text-primary">Click</span>
-              <span class="flex h-10 grow items-center gap-2 rounded-full bg-muted px-3.5 text-sm font-semibold text-foreground"><span class="h-2 w-2 rounded-full bg-[#1783FF]"></span>Pop Rock</span>
+              <span class="flex h-10 shrink-0 items-center gap-2.5 rounded-full bg-muted px-4 font-mono font-bold"><span class="text-muted-foreground">−</span><span class="text-primary">G</span><span class="text-muted-foreground">+</span></span>
+              <span class="flex h-10 shrink-0 items-center rounded-full border border-primary/30 bg-[#EFE8FD] px-3.5 text-sm font-semibold text-primary">Click</span>
+              <span class="flex h-10 min-w-0 grow items-center gap-2 whitespace-nowrap rounded-full bg-muted px-3.5 text-sm font-semibold text-foreground"><span class="h-2 w-2 shrink-0 rounded-full bg-[#1783FF]"></span>Pop Rock</span>
             </div>
             <div class="overflow-hidden rounded-2xl border-2 border-[#1783FF]">
               <div class="flex h-11 items-center justify-between bg-[#E6F0FF] px-3.5">
@@ -365,7 +367,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
               </div>
             </div>
           </div>
-          <div class="flex h-11 items-center gap-2.5 self-center rounded-[14px] bg-[#14181F] pl-2.5 pr-4 text-[13px] text-white">
+          <div class="flex h-11 items-center gap-2.5 self-center whitespace-nowrap rounded-[14px] bg-[#14181F] pl-2.5 pr-4 text-[13px] text-white">
             <img src="/images/chord-player-app-icon.png" width="96" height="96" alt="" loading="lazy" class="h-6 w-6 rounded-md" />
             <span class="font-semibold">Chord Player</span><span class="text-[#A3AAB8]">Playing · Chorus</span>
             <span class="h-[18px] w-px bg-[#3A414D]"></span>
@@ -375,7 +377,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
       </article>
 
       <!-- 2 · Worship teams -->
-      <article id="worship" class="grid scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
+      <article id="worship" class="grid grid-cols-1 scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
         <div class="flex h-[340px] items-start justify-center overflow-hidden rounded-3xl bg-[#FBF3DC] pt-8 sm:h-[448px] sm:pt-10 lg:order-first">
           <img src="/images/chord-player-app/chord-editor.webp" width="760" height="1600" loading="lazy"
             alt="The chord editor, showing the chords of the key, the length of the chord and its bass note"
@@ -405,7 +407,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
       </article>
 
       <!-- 3 · Latin & keyboard styles -->
-      <article id="latin" class="grid scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
+      <article id="latin" class="grid grid-cols-1 scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
         <div class="flex flex-col gap-5">
           <span class="flex h-7 w-fit items-center rounded-full bg-[#FDE7EA] px-3 font-mono text-xs font-bold uppercase tracking-[0.08em] text-[#B0102A]">Latin &amp; keyboard styles</span>
           <h3 class="font-serif text-3xl font-semibold leading-[1.12] text-foreground sm:text-[40px]">An arranger keyboard, in your pocket.</h3>
@@ -435,7 +437,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
       </article>
 
       <!-- 4-6 · Songwriters, producers, learners -->
-      <div class="grid gap-6 md:grid-cols-3">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
         {smallUses.map((use) => (
           <article id={use.id} class="flex scroll-mt-20 flex-col overflow-hidden rounded-[28px] border border-border bg-card">
             <div class="flex flex-col gap-3.5 px-7 pt-8 sm:px-9 sm:pt-9">
@@ -454,7 +456,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
 
     <!-- ─── RHYTHMS ──────────────────────────────────────────────────────── -->
     <section id="rhythms" class="mt-20 scroll-mt-16 bg-[#131720] text-[#F3F4F6] sm:mt-28">
-      <div class="mx-auto grid max-w-[1200px] items-start gap-14 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-20">
+      <div class="mx-auto grid grid-cols-1 max-w-[1200px] items-start gap-14 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-20">
         <div class="flex flex-col gap-7">
           <p class={`${kicker} text-[#B89AF7]`}>{APP.rhythms} rhythms</p>
           <h2 class="font-serif text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl">Every rhythm has a way in and a way out.</h2>
@@ -471,7 +473,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
               </li>
             ))}
           </ol>
-          <div class="mt-2 grid gap-x-10 gap-y-7 sm:grid-cols-2">
+          <div class="mt-2 grid grid-cols-1 gap-x-10 gap-y-7 sm:grid-cols-2">
             {genres.map((genre) => (
               <div class="flex flex-col gap-2.5">
                 <h3 class="flex items-center gap-2 text-[13px] font-semibold"><span class="h-2 w-2 rounded-full" style={`background:${genre.dot}`}></span>{genre.name}</h3>
@@ -499,7 +501,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
     </section>
 
     <!-- ─── MAKE IT YOURS ────────────────────────────────────────────────── -->
-    <section class="mx-auto grid max-w-[1200px] items-center gap-12 px-4 pt-20 sm:px-6 sm:pt-28 lg:grid-cols-[420px_minmax(0,1fr)] lg:gap-20">
+    <section class="mx-auto grid grid-cols-1 max-w-[1200px] items-center gap-12 px-4 pt-20 sm:px-6 sm:pt-28 lg:grid-cols-[420px_minmax(0,1fr)] lg:gap-20">
       <div class="flex h-[420px] items-start justify-center overflow-hidden rounded-[32px] bg-[#EFE8FD] pt-10 sm:h-[620px] sm:pt-12">
         <img src="/images/chord-player-app/mixer.webp" width="760" height="1600" loading="lazy"
           alt="The mixer, with a fader and level meter per instrument, pan knobs and an EQ curve"
@@ -508,7 +510,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
       <div class="order-first flex flex-col gap-7 lg:order-none">
         <p class={`${kicker} text-primary`}>Make it yours</p>
         <h2 class={h2}>Start from a rhythm. End with your sound.</h2>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {[
             ['Every note, step by step', `${band[0].toUpperCase()}${band.slice(1)} on a step grid, each with its range on a keyboard.`],
             [`${APP.sounds} sounds to choose from`, 'Pianos, Rhodes, organs, guitars, pads, strings, brass. A different one for each part of the song.'],
@@ -538,7 +540,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
           rhythms and sounds, the same song catalogue. Use the one in front of you.
         </p>
       </div>
-      <div class="grid w-full items-center gap-5 lg:grid-cols-[minmax(0,1fr)_380px_minmax(0,1fr)] lg:gap-0">
+      <div class="grid grid-cols-1 w-full items-center gap-5 lg:grid-cols-[minmax(0,1fr)_380px_minmax(0,1fr)] lg:gap-0">
         <div class="flex flex-col gap-4 rounded-[28px] border border-border bg-card p-7 sm:p-9">
           <div class="flex items-center gap-3">
             <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EFE8FD] text-primary">
@@ -593,12 +595,12 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
     <!-- ─── QUESTIONS ────────────────────────────────────────────────────── -->
     <!-- Visible questions and answers only. This site must never serialize them as
          FAQPage JSON-LD — see the note in CLAUDE.md and scripts/check-schema.mjs. -->
-    <section id="questions" class="mx-auto grid max-w-[1200px] scroll-mt-16 gap-8 px-4 pt-24 sm:px-6 sm:pt-36 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-20">
+    <section id="questions" class="mx-auto grid grid-cols-1 max-w-[1200px] scroll-mt-16 gap-8 px-4 pt-24 sm:px-6 sm:pt-36 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-20">
       <div class="flex flex-col gap-4">
         <p class={`${kicker} text-primary`}>Questions</p>
         <h2 class="font-serif text-4xl font-semibold leading-[1.1] text-foreground sm:text-[44px]">Before you install</h2>
       </div>
-      <div class="grid border-t border-border md:grid-cols-2 md:gap-x-12">
+      <div class="grid grid-cols-1 border-t border-border md:grid-cols-2 md:gap-x-12">
         {questions.map(([question, answer]) => (
           <div class="flex flex-col gap-1.5 border-b border-border py-6">
             <h3 class="text-[17px] font-semibold text-foreground">{question}</h3>
@@ -610,7 +612,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
 
     <!-- ─── CTA ──────────────────────────────────────────────────────────── -->
     <section class="mx-auto max-w-[1200px] px-4 pb-24 pt-24 sm:px-6 sm:pt-36" data-end-cta>
-      <div class="grid overflow-hidden rounded-[32px] bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div class="grid grid-cols-1 overflow-hidden rounded-[32px] bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_300px]">
         <div class="flex flex-col justify-center gap-4 p-8 sm:p-14 lg:px-[72px] lg:py-16">
           <h2 class="font-serif text-4xl font-semibold leading-[1.06] tracking-tight sm:text-5xl">Your band is ready when you are.</h2>
           <p class="text-lg text-white/85">Free on Google Play. No account, no connection needed.</p>

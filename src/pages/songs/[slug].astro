@@ -695,6 +695,19 @@ const breadcrumbSchema = buildBreadcrumbSchema(canonicalUrl, [
                 </a>
               ))}
             </div>
+            <!-- The Android app, as a line under the grid: a tenth card would sit alone on
+                 the last row. It does not claim this song is in the app — not every song
+                 page comes from the catalogue the app reads. -->
+            <a
+              href="/chord-player-app/#practice"
+              class="group mt-2.5 flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 hover:bg-secondary/60 transition-colors"
+            >
+              <img src="/images/chord-player-app-icon.png" width="96" height="96" alt="" loading="lazy" class="w-[34px] h-[34px] rounded-[9px] border border-border shrink-0" />
+              <span class="min-w-0">
+                <b class="block text-sm font-semibold text-foreground">Chord Player for Android</b>
+                <span class="block text-[13px] text-muted-foreground">Practise it with a band on your phone: loop a section, slow it down, change the key. Works offline.</span>
+              </span>
+            </a>
           </section>
 
           <!-- Footer links: back to the list, and the report form (community songs). -->

@@ -27,6 +27,21 @@ const seoTitle = genre.seoTitle ?? `${displayTitle} — Play Free`;
 const generatorMetaDescription = genre.metaDescription
   ?? `${genre.name} chord progression generator — ${genre.progressions.length} progressions with real audio, playable in your browser. Customize key, tempo, and rhythm. Free, no account needed.`;
 
+// The Android app, for the genres someone practises with a band; the rest link nothing.
+const PRACTICE = { href: '/chord-player-app/#practice', title: 'Practise these with a band on your phone', text: 'Chord Player for Android: loop a section, slow it down, change the key. Free and offline.' };
+const APP_LINKS: Record<string, { href: string; title: string; text: string }> = {
+  worship: { href: '/chord-player-app/#worship', title: 'Rehearse the set in the singer’s key', text: 'Chord Player for Android: Worship and Gospel rhythms, transpose the whole song, practise offline.' },
+  gospel: { href: '/chord-player-app/#worship', title: 'Rehearse the set in the singer’s key', text: 'Chord Player for Android: Worship and Gospel rhythms, transpose the whole song, practise offline.' },
+  jazz: PRACTICE,
+  'ii-v-i': PRACTICE,
+  blues: PRACTICE,
+  '12-bar-blues': PRACTICE,
+  rock: PRACTICE,
+  pop: PRACTICE,
+  'neo-soul': PRACTICE,
+};
+const appLink = APP_LINKS[genre.slug];
+
 const firstProgression = genre.progressions[0];
 const editorUrl = `/chord-player/?chords=${firstProgression.chords.replace(/ /g, '-')}&bpm=${firstProgression.bpm}&style=${firstProgression.style}`;
 
@@ -205,6 +220,21 @@ const articleSchema = {
           ))}
         </div>
       </section>
+    )}
+
+    <!-- The Android app, for the genres a reader would practise with a band. Each points at
+         the landing's section for that reader, so the link says what it is for. -->
+    {appLink && (
+      <a
+        href={appLink.href}
+        class="group mt-16 flex items-center gap-4 rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
+      >
+        <img src="/images/chord-player-app-icon.png" width="96" height="96" alt="" loading="lazy" class="h-11 w-11 shrink-0 rounded-lg border border-border" />
+        <span class="min-w-0">
+          <span class="block font-semibold text-foreground transition-colors group-hover:text-primary">{appLink.title}</span>
+          <span class="block text-sm text-muted-foreground">{appLink.text}</span>
+        </span>
+      </a>
     )}
 
     <!-- Other genres -->

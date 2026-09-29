@@ -1,3 +1,5 @@
+import { APP } from '../../data/facts'
+
 export interface PageMeta {
   title: string
   tagline: string
@@ -49,6 +51,11 @@ export const PAGES_REGISTRY: Record<string, PageMeta> = {
     title: 'Online Metronome',
     tagline: 'Free browser metronome. Set BPM, tap tempo, and practice with subdivisions.',
     tags: ['Free', 'Tap Tempo', 'No Install'],
+  },
+  'chord-player-app': {
+    title: 'Chord Player for Android',
+    tagline: 'Your backing band, in your pocket. Loop, slow down, change the key. Free and offline.',
+    tags: [`${APP.rhythms} Rhythms`, 'Offline', 'No Account'],
   },
   'drum-machine': {
     title: 'Online Drum Machine',
