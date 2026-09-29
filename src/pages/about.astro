@@ -1,6 +1,7 @@
 ---
 export const prerender = true;
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { WEB } from '../data/facts';
 import { AUTHORS } from '../data/authors';
 import AppCta from '../components/AppCta.astro';
 
@@ -45,7 +46,7 @@ const tools = [
   {
     label: 'Chord Player',
     href: '/chord-player/',
-    desc: 'Build, play, and export chord progressions with 37 chord types and 13 rhythm styles.',
+    desc: `Build, play, and export songs with ${WEB.chordTypes} chord types and ${WEB.rhythms} rhythms.`,
     icon: 'M9 18V5l12-2v13M6 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm12-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   },
   {

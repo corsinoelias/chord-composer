@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
 import AppBanner from '../components/AppBanner.astro';
 import FeedbackModal from '../components/FeedbackModal';
+import { WEB } from '../data/facts';
 
 interface Props {
   title?: string;
@@ -21,7 +22,7 @@ interface Props {
 
 const {
   title = 'Free Chord Progression Generator — Build, Play & Export | Chord Sequence',
-  description = 'Free chord progression generator — build and play any progression with real instrument sounds. 37 chord types, 13+ styles (pop, jazz, worship, lo-fi). Transpose, export WAV. No account needed.',
+  description = `Free chord progression generator — build a song and hear a real band play it. ${WEB.chordTypes} chord types, ${WEB.rhythms} rhythms (pop, jazz, worship, Latin). Transpose, export WAV or MIDI. No account needed.`,
   canonicalUrl = 'https://chordsequence.com/',
   ogImage: ogImageProp,
   ogImageAlt = 'Chord Sequence — free online chord progression builder',
@@ -47,14 +48,14 @@ const webAppSchema = {
   image: 'https://chordsequence.com/og-image.jpg',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Free online chord progression builder: drag-and-drop sections, live rhythm playback, transposition, and one-click WAV export.',
+  description: 'Free online chord progression builder: song sections, live playback by a full band, transposition, and WAV or MIDI export.',
   featureList: [
     'Drag-and-drop chord sections',
-    'Live rhythm playback',
+    'Live playback by drums, bass, piano, guitar and synth',
     'Chord transposition',
-    'One-click WAV export',
-    '37 chord qualities',
-    '13 rhythm styles',
+    'WAV and MIDI export',
+    `${WEB.chordTypes} chord qualities`,
+    `${WEB.rhythms} rhythms with intros, variations and endings`,
   ],
   browserRequirements: 'Requires a modern browser with Web Audio API support',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
@@ -79,7 +80,7 @@ const orgSchema = {
   url: 'https://chordsequence.com',
   foundingDate: '2024',
   areaServed: 'Worldwide',
-  description: 'Free online chord progression builder for songwriters, producers, and music students. 37 chord types, 13+ rhythm styles, WAV export. No account required.',
+  description: `Free online chord progression builder for songwriters, producers, and music students. ${WEB.chordTypes} chord types, ${WEB.rhythms} rhythms, WAV and MIDI export. No account required.`,
   logo: { '@type': 'ImageObject', url: 'https://chordsequence.com/logo-schema.png', width: 696, height: 696 },
   parentOrganization: {
     '@type': 'Organization',

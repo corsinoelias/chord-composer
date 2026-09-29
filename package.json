@@ -27,7 +27,8 @@
     "test:groove": "tsx tests/groove/groove.ts && tsx tests/groove/variations.ts && tsx tests/groove/sounds.ts && tsx tests/groove/parts.ts && tsx tests/groove/patterns.ts && tsx tests/groove/delta.ts && tsx tests/groove/listen.ts && tsx tests/groove/webread.ts",
     "lab:audition": "node scripts/lab-audition.mjs",
     "lab:gains": "node scripts/measure-list-gains.mjs",
-    "variations:export": "tsx scripts/variations-export.ts"
+    "variations:export": "tsx scripts/variations-export.ts",
+    "test:facts": "tsx tests/facts/facts.ts"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",

@@ -1,6 +1,7 @@
 ---
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { WEB } from '../../data/facts';
 import ChordEmbedIsland from '../../components/ChordEmbedIsland.astro';
 import RelatedTools from '../../components/RelatedTools.astro';
 
@@ -32,7 +33,7 @@ const webAppSchema = {
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
   browserRequirements: 'Requires a modern browser with Web Audio API support',
-  description: 'Free online chord transposer. Shift any chord progression to any key by semitones. Supports all 37 chord types.',
+  description: `Free online chord transposer. Shift any chord progression to any key by semitones. Supports all ${WEB.chordTypes} chord types.`,
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   isPartOf: { '@type': 'WebSite', name: 'Chord Sequence', url: 'https://chordsequence.com' },
 };
@@ -72,7 +73,7 @@ const breadcrumbSchema = {
         Chord Transposer
       </h1>
       <p class="text-lg text-muted-foreground">
-        Shift any chord progression to any key — in real time. Supports all 37 chord types including 7ths, maj7, m7, dim, aug, and sus chords.
+        Shift any chord progression to any key — in real time. Supports all {WEB.chordTypes} chord types including 7ths, maj7, m7, dim, aug, and sus chords.
       </p>
     </header>
 

@@ -1,6 +1,7 @@
 ---
 export const prerender = true;
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { WEB } from '../data/facts';
 import YouTubeEmbed from '../components/YouTubeEmbed.astro';
 
 const canonicalUrl = 'https://chordsequence.com/best-chord-progression-generators/';
@@ -65,7 +66,7 @@ const faqData = [
     {
       '@type': 'Question',
       name: 'What is the best free chord progression generator?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Chord Sequence (chordsequence.com) is the most complete free option — it supports 37 chord types, 13 rhythm styles you can fully edit per instrument (drums, bass, piano, guitar), chord diagrams for piano, guitar, and ukulele, and WAV + MIDI export, all without an account. For AI-generated progressions, ChordSeq AI is also free and uses neural networks to suggest chords.' },
+      acceptedAnswer: { '@type': 'Answer', text: `Chord Sequence (chordsequence.com) is the most complete free option — it supports ${WEB.chordTypes} chord types, ${WEB.rhythms} rhythms you can fully edit per instrument (drums, bass, piano, guitar, synth), chord diagrams for piano, guitar, and ukulele, and WAV + MIDI export, all without an account. For AI-generated progressions, ChordSeq AI is also free and uses neural networks to suggest chords.` },
     },
     {
       '@type': 'Question',
@@ -75,7 +76,7 @@ const faqData = [
     {
       '@type': 'Question',
       name: 'Which chord progression generator is best for learning music theory?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Chord Sequence is built with music theory education in mind — it comes with free theory articles, an interactive circle of fifths, key detector, and chord transposer. You can hear any progression in real time across 13 rhythm styles, which accelerates understanding of how chords sound in context.' },
+      acceptedAnswer: { '@type': 'Answer', text: `Chord Sequence is built with music theory education in mind — it comes with free theory articles, an interactive circle of fifths, key detector, and chord transposer. You can hear any progression in real time across ${WEB.rhythms} rhythms, which accelerates understanding of how chords sound in context.` },
     },
 ];
 
@@ -93,17 +94,16 @@ const tools = [
     youtubeTitle: null,
     ours: true,
     description: [
-      'Chord Sequence is a <strong class="text-foreground">free browser-based chord progression builder</strong> that lets you compose, hear, and export chord progressions <strong class="text-foreground">without creating an account</strong>. It supports <strong class="text-foreground">37 chord types</strong> — from simple major and minor triads to maj7, m9, diminished, augmented, suspended, and add9 voicings — and plays them back with <strong class="text-foreground">real recorded samples across 13 rhythm styles</strong>: pop, rock, jazz, lo-fi, worship, Latin, and more.',
+      `Chord Sequence is a <strong class="text-foreground">free browser-based chord progression builder</strong> that lets you compose, hear, and export chord progressions <strong class="text-foreground">without creating an account</strong>. It supports <strong class="text-foreground">${WEB.chordTypes} chord types</strong> — from simple major and minor triads to maj7, m9, diminished, augmented, suspended, and add9 voicings — and plays them back with <strong class="text-foreground">a full band across ${WEB.rhythms} rhythms</strong>: pop, rock, jazz, lo-fi, worship, Latin, and more.`,
       'The drag-and-drop editor lets you build multi-section songs and switch keys in real time with the built-in transposer. Every rhythm style is fully editable, too — open the built-in <strong class="text-foreground">rhythm editor to tweak the drum, bass, piano, and guitar pattern</strong> for any section while the progression keeps playing, or start from a blank pattern and <strong class="text-foreground">save it as your own custom style</strong>.',
       'Each chord can also be viewed as a <strong class="text-foreground">diagram on piano, guitar, or ukulele</strong>, so you always know exactly what to play — not just how it sounds. When you\'re ready to move to a DAW, <strong class="text-foreground">export the whole thing as a WAV or MIDI file</strong>. It also includes three standalone music theory tools — an interactive circle of fifths, a chord transposer, and a key detector — plus a growing library of song chord charts with synchronized playback and free music theory articles.',
     ],
     strengths: [
-      '37 chord types including jazz voicings and extensions',
-      '13 rhythm styles with a live editor for drums, bass, piano, and guitar',
+      `${WEB.chordTypes} chord types including jazz voicings and extensions`,
+      `${WEB.rhythms} rhythms with a live editor for drums, bass, piano, guitar and synth`,
       'Create and save your own custom rhythm styles',
       'Chord diagrams for piano, guitar, and ukulele',
       'WAV and MIDI export ready for any DAW',
-      'Works offline after first load',
       'No account, no paywall, no ads',
       'Circle of fifths, transposer, and key detector included',
     ],
@@ -324,7 +324,7 @@ const tools = [
     <div class="mb-14 rounded-xl border border-primary/20 bg-primary/5 p-6">
       <p class="text-sm font-semibold text-primary uppercase tracking-wide mb-3">Quick summary</p>
       <ul class="space-y-2 text-sm text-muted-foreground">
-        <li><strong class="text-foreground">#1 Chord Sequence</strong> — Best free browser tool. 37 chord types, a live rhythm editor (drums/bass/piano/guitar), chord diagrams, WAV + MIDI export. No account.</li>
+        <li><strong class="text-foreground">#1 Chord Sequence</strong> — Best free browser tool. {WEB.chordTypes} chord types, a live rhythm editor (drums/bass/piano/guitar/synth), chord diagrams, WAV + MIDI export. No account.</li>
         <li><strong class="text-foreground">#2 ChordSeq AI</strong> — Free AI generator in the browser. Neural network chord suggestions, MIDI export.</li>
         <li><strong class="text-foreground">#3 DBDone AI Chords</strong> — Free DAW plugin with AI text prompts. VST3/AU/AAX, 60 credits free.</li>
         <li><strong class="text-foreground">#4 OneMotion Chord Player</strong> — Free browser tool for chord exploration. Good for beginners.</li>
@@ -518,12 +518,12 @@ const tools = [
     <div class="mt-16 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
       <h2 class="text-xl font-semibold text-foreground mb-2">Build your first progression now</h2>
       <p class="text-sm text-muted-foreground mb-5">
-        Chord Sequence is free, requires no account, and works in any browser. 37 chord types, a live rhythm editor, chord diagrams, WAV + MIDI export.
+        Chord Sequence is free, requires no account, and works in any browser. {WEB.chordTypes} chord types, a live rhythm editor, chord diagrams, WAV + MIDI export.
       </p>
       <a href="/chord-player/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors">
         Open Chord Player →
       </a>
-      <p class="mt-3 text-xs text-muted-foreground">No account · No credit card · Works offline</p>
+      <p class="mt-3 text-xs text-muted-foreground">No account · No credit card · Any browser</p>
     </div>
 
     <!-- Internal links -->

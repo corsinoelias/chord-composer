@@ -8,6 +8,7 @@ import type { ToolIconName } from '../components/toolIcons';
 import HeroDemo from '../components/home/HeroDemo';
 import ProgressionExplorer from '../components/home/ProgressionExplorer';
 import { GENRES } from '../data/progressions';
+import { WEB } from '../data/facts';
 
 // The home has one job: sound in one click, the Chord Player in two.
 //
@@ -55,7 +56,7 @@ const genres = GENRE_ORDER.flatMap((slug) => {
 // Chord Player leads on purpose: the anchor text names the destination, which is the fix for
 // this page outranking /chord-player/ for its own name.
 const tools = [
-  { title: 'Chord Player', desc: 'Play, listen, and practice chord progressions with real instrument sounds — piano, guitar, bass & drums.', href: '/chord-player/', icon: 'piano' },
+  { title: 'Chord Player', desc: 'Play, listen, and practice chord progressions played by a real band — drums, bass, piano, guitar and synth.', href: '/chord-player/', icon: 'piano' },
   { title: 'Chord Finder', desc: 'Find any chord on guitar, piano, or ukulele — see the fingering and hear it.', href: '/chord-lookup/', icon: 'chords' },
   { title: 'Chord Transposer', desc: 'Shift any chord or progression to any key instantly.', href: '/tools/chord-transposer/', icon: 'transpose' },
   { title: 'Circle of Fifths', desc: 'Interactive chart — click any key to see its diatonic chords.', href: '/tools/circle-of-fifths/', icon: 'circle' },
@@ -150,7 +151,7 @@ const webPageSchema = {
     <section class="border-b border-border bg-card/50">
       <div class="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-          {['100% Free', 'No account needed', '37 chord types', '13+ rhythm styles', 'MIDI & WAV export'].map((item) => (
+          {['100% Free', 'No account needed', `${WEB.chordTypes} chord types`, `${WEB.rhythms} rhythms`, 'MIDI & WAV export'].map((item) => (
             <span class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <svg class="h-3.5 w-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
               {item}

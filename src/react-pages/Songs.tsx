@@ -38,6 +38,7 @@ import { getTransposedChordName } from '@/lib/chordNotes';
 import { qualityClass } from '@/lib/chordColors';
 import { keyPrefersFlats } from '@/lib/musicKeys';
 import '@/styles/chord-player.css';
+import { WEB } from '@/data/facts';
 
 /** A chord family's hue, filled solid — the app's song strips and swatches. */
 const HUE: Record<string, string> = {
@@ -325,7 +326,7 @@ const Songs = () => {
             <div className="mt-14 grid w-full max-w-xl grid-cols-1 gap-3 text-left sm:grid-cols-3">
               {[
                 { Icon: LayoutGrid, title: 'Sections & chords', desc: 'Build verses and choruses, reorder them freely' },
-                { Icon: Waves, title: '20+ rhythm styles', desc: 'Pop, rock, jazz, Latin — with real audio' },
+                { Icon: Waves, title: `${WEB.rhythms} rhythms`, desc: 'Pop, rock, jazz, Latin — played by a full band' },
                 { Icon: Download, title: 'Export audio', desc: 'Download your song as a WAV file' },
               ].map(({ Icon, title, desc }) => (
                 <div key={title} className="p-4" style={card}>

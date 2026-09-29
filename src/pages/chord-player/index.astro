@@ -5,6 +5,7 @@ export const prerender = true;
 import '../../styles/chord-player.css';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import EditorApp from '../../components/EditorApp';
+import { WEB, instrumentList } from '../../data/facts';
 import {
   Plus,
   Sparkles,
@@ -61,15 +62,16 @@ const webAppSchema = {
   url: 'https://chordsequence.com/chord-player/',
   applicationCategory: 'MusicApplication',
   operatingSystem: 'Any',
-  description: 'Free online chord player with drag-and-drop sections, live rhythm playback, transposition, and one-click WAV export.',
+  description: 'Free online chord player with drag-and-drop sections, live playback by a full band, transposition, and WAV or MIDI export.',
   featureList: [
     'Drag-and-drop chord sections',
-    'Live rhythm playback with piano, guitar, bass, and drums',
-    '13+ rhythm styles across genres',
+    `Live playback by ${instrumentList(WEB.instruments)}`,
+    `${WEB.rhythms} rhythms across genres, with intros, A and B variations and endings`,
+    `${WEB.chordTypes} chord types`,
     'Chord progression suggestions by genre',
-    'Custom rhythm editor',
+    'Step-by-step rhythm editor for every instrument',
     'Transpose without re-entering chords',
-    'One-click WAV export',
+    'WAV and MIDI export',
   ],
   browserRequirements: 'Requires a modern browser with Web Audio API support',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
@@ -78,7 +80,7 @@ const webAppSchema = {
 
 <BaseLayout
   title="Chord Player Online – Play, Listen & Practice Chords for Free"
-  description="Free online chord player — hear any chord or progression played back with real piano, guitar, bass and drums. Pick a rhythm style, loop a section, and export to WAV."
+  description={`Free online chord player — hear any progression played by a real band in ${WEB.rhythms} rhythms. Loop a section, edit the groove, and export to WAV or MIDI.`}
   canonicalUrl="https://chordsequence.com/chord-player/"
   ogImage="https://chordsequence.com/images/blog/chord-sequence-editor.webp"
   ogImageAlt="Chord Player"

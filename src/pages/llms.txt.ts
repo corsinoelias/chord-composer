@@ -7,6 +7,7 @@ import { getCollection } from 'astro:content';
 import { getPublishedSongs } from '@/lib/publicSongs';
 import { SONGS, parseLyricLine, type Song, type SongSection } from '@/data/songs';
 import { GENRES } from '@/data/progressions';
+import { APP, WEB, instrumentList } from '@/data/facts';
 
 const SITE = 'https://chordsequence.com';
 
@@ -47,10 +48,10 @@ export const GET: APIRoute = async () => {
 
   const body = `# Chord Sequence
 
-> Chord Sequence (chordsequence.com) is a free online chord progression builder for songwriters, producers, and music students. Build progressions with drag-and-drop, hear them with real-time playback across 13+ rhythm styles, export as WAV, and explore ready-made genre libraries — no account or DAW required.
+> Chord Sequence (chordsequence.com) is a free online chord progression builder for songwriters, producers, and music students. Build progressions with drag-and-drop, hear them played by a band (${instrumentList(WEB.instruments)}) in ${WEB.rhythms} rhythms, export as WAV or MIDI, and explore ready-made genre libraries — no account or DAW required.
 
 ## Core Tool
-- [Chord Progression Builder](${SITE}/): The main app. Drag-and-drop chord editor with real-time playback, 37 chord types, key transposer, and WAV export. Free, no account required, works in any browser.
+- [Chord Progression Builder](${SITE}/chord-player/): The main app. Song editor built from sections (intro, verse, chorus, ending) with real-time playback by ${instrumentList(WEB.instruments)}, ${WEB.chordTypes} chord types, ${WEB.rhythms} rhythms with intro, A and B variations and endings, a step-by-step rhythm editor per instrument, a mixer, key transposer, and ${WEB.exports.join(' and ')} export. Free, no account required, works in any browser.
 
 ## Learn: Music Theory & Chord Progressions
 ${learnLines}
@@ -70,7 +71,7 @@ ${songLines}
 - [Key Detector](${SITE}/tools/key-detector/): Detect the key of any chord progression.
 - [Bass Tab Player](${SITE}/tools/bass-guitar-tab/): Free online 4-string bass tablature editor. Draw notes on any string and fret, real-time playback, Pick/Synth/Slap sounds, WAV export. No account required.
 - [Guitar Tab Player](${SITE}/tools/guitar-tab/): Free online 6-string guitar tablature editor. Draw and drag notes, Chord Helper for one-click chord insertion, capo support, ASCII/MIDI export. No account required.
-- [Chord Player for Android](${SITE}/chord-player-app/): Free native Android app of the Chord Player. Builds songs section by section, plays them with drums, bass, piano and guitar in 11 styles, works offline without an account, and exports M4A, WAV or MIDI.
+- [Chord Player for Android](${SITE}/chord-player-app/): Free native Android app of the Chord Player (version ${APP.version}, Android ${APP.minAndroid} or later, in ${APP.languages.join(' and ')}). Builds songs section by section and plays them with ${instrumentList(APP.instruments)} in ${APP.rhythms} rhythms, nearly all with an intro, A and B variations and an ending; ${APP.chordTypes} chord types, ${APP.drumKits} drum kits and ${APP.percussionRows} rows of Latin and hand percussion, a step-by-step rhythm editor with a range keyboard per instrument, a mixer, and ${APP.exports.join(', ')} export. Works offline and without an account; only the song catalogue from chordsequence.com needs a connection.
 
 ## About
 - [About Chord Sequence](${SITE}/about/): About the tool and its creator.
@@ -87,12 +88,13 @@ Content on this site (music theory articles, chord charts, tool descriptions) is
 
 ## Key Facts
 - 100% free, no account required
-- Works in-browser, no download or DAW needed
-- 37 chord types supported (major, minor, 7th, maj7, min7, diminished, augmented, suspended, and more)
-- 13+ rhythm styles with real audio samples (pop, rock, jazz, lo-fi, worship, Latin, and more)
-- WAV export for use in any DAW (Ableton, Logic, GarageBand, FL Studio)
-- Chord progressions stored in browser — private, no server uploads
-- Works offline after first load
+- Works in-browser, no download or DAW needed; a free Android app does the same offline
+- ${WEB.chordTypes} chord types supported (major, minor, 7th, maj7, min7, diminished, augmented, suspended, extensions and more)
+- ${WEB.rhythms} rhythms (pop, rock, jazz, gospel and worship, Latin and Caribbean, hip-hop, and more), played by ${instrumentList(WEB.instruments)}
+- Songs in sections, each playing the rhythm's intro, A, B or ending
+- WAV and MIDI export for use in any DAW (Ableton, Logic, GarageBand, FL Studio)
+- Building, playing and exporting need no account; a free account keeps your songs in a library and shares them by link
+- The web editor needs a connection; the Android app works offline
 `;
 
   return new Response(body, {

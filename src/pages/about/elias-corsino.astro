@@ -1,6 +1,7 @@
 ---
 export const prerender = true;
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { WEB } from '../../data/facts';
 import { AUTHORS } from '../../data/authors';
 import AppCta from '../../components/AppCta.astro';
 
@@ -302,9 +303,9 @@ const aboutPageSchema = {
       <h2 class="text-2xl font-bold text-foreground mt-10 mb-4">About Chord Sequence</h2>
       <p>
         Chord Sequence is a free, browser-based chord progression builder — no account, no
-        install, no credit card. Open it, add chords, hit play. It supports 37 chord types,
-        13+ rhythm styles with real audio samples, real-time transposition, and WAV export
-        ready to drop into any DAW.
+        install, no credit card. Open it, add chords, hit play. It supports {WEB.chordTypes} chord types,
+        {WEB.rhythms} rhythms played by a full band, real-time transposition, and WAV and MIDI
+        export ready to drop into any DAW.
       </p>
       <p>
         Everything runs in your browser — the audio engine, the transposition and the WAV
