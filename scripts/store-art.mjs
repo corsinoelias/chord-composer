@@ -82,12 +82,15 @@ const slides = [
     en: ['A HEAD START', 'Progressions<br>ready to play'], es: ['EMPIEZA HECHO', 'Progresiones<br>listas para tocar'] },
 ];
 
+// The feature graphic says one thing: the name, and a line. The phones say the rest.
 const feature = {
-  en: ['Build a song. Hear the band.', 'Drums, bass, piano, guitar and synth play your chords', 'Free · Offline · No account'],
-  es: ['Escribe acordes. Oye la banda.', 'Batería, bajo, piano, guitarra y sinte tocan tus acordes', 'Gratis · Sin conexión · Sin cuenta'],
+  en: 'Your chords, played by a band.',
+  es: 'Tus acordes, tocados por una banda.',
 };
 
 const css = `
+/* The name wants a heavier cut than the app's own Inter files carry. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@800&display=block');
 @font-face { font-family: Inter; src: url('${FONTS}/Inter-Regular.ttf'); font-weight: 400 }
 @font-face { font-family: Inter; src: url('${FONTS}/Inter-Medium.ttf'); font-weight: 500 }
 @font-face { font-family: Inter; src: url('${FONTS}/Inter-SemiBold.ttf'); font-weight: 600 }
@@ -130,21 +133,18 @@ body { background: #0B0618 }
 
 /* ── Feature graphic ─────────────────────────────────────────────────────────── */
 .feature { position: relative; width: 1024px; height: 500px; overflow: hidden;
-  background: radial-gradient(90% 140% at 78% 40%, #7C3AED 0%, rgba(124,58,237,0) 58%),
-              linear-gradient(120deg, #2A1160 0%, #180A3A 52%, #23114F 100%);
+  background: radial-gradient(70% 120% at 80% 30%, #3B1D8F 0%, rgba(59,29,143,0) 60%), #0E0A1F;
   font-family: Inter, sans-serif; color: #fff }
-.feature .grid { mask-image: linear-gradient(90deg, #000 0%, transparent 70%) }
-.feature .text { position: absolute; left: 72px; top: 96px; width: 560px }
-.brand { display: flex; align-items: center; gap: 20px }
-.brand img { width: 84px; height: 84px; border-radius: 20px; box-shadow: 0 10px 24px rgba(0,0,0,.45) }
-.brand .name { font-size: 54px; font-weight: 700; letter-spacing: -.02em }
-.tagline { margin-top: 30px; font-size: 38px; font-weight: 600; line-height: 1.18;
-  letter-spacing: -.015em; color: #F3E8FF }
-.band { margin-top: 16px; font-size: 24px; font-weight: 500; color: #CDBDF6; letter-spacing: -.01em; text-wrap: balance }
-.meta { margin-top: 26px; font-family: SpaceMono, monospace; font-weight: 700; font-size: 19px;
-  letter-spacing: .12em; color: #C4B5FD; text-transform: uppercase }
-.feature .phone { left: auto; right: 54px; top: 74px; width: 300px; transform: rotate(-7deg);
-  filter: drop-shadow(0 30px 50px rgba(0,0,0,.55)) }
+.feature .text { position: absolute; left: 72px; top: 150px; width: 470px }
+.brand { display: flex; align-items: center; gap: 18px }
+.brand img { width: 72px; height: 72px; border-radius: 18px }
+.brand .name { font-size: 60px; font-weight: 800; letter-spacing: -.035em; line-height: 1 }
+.tagline { margin-top: 22px; font-size: 27px; font-weight: 500; line-height: 1.25;
+  letter-spacing: -.015em; color: #C9C2E6 }
+/* Upright, and cut by the bottom edge: the song in front, its drums behind. */
+.feature .phone { transform: none; width: 250px; filter: drop-shadow(0 30px 40px rgba(0,0,0,.35)) }
+.feature .back { left: 600px; top: 92px; opacity: .96 }
+.feature .front { left: 742px; top: 46px }
 `;
 
 async function buildPlay(browser, lang, frames, tmp) {
@@ -152,7 +152,7 @@ async function buildPlay(browser, lang, frames, tmp) {
   fs.mkdirSync(out, { recursive: true });
   // The listing script uploads every PNG here: last time's slides must not linger.
   for (const old of fs.readdirSync(out)) if (old.endsWith('.png')) fs.rmSync(path.join(out, old));
-  const [tagline, band, meta] = feature[lang];
+  const tagline = feature[lang];
   const html = `<!doctype html><meta charset="utf-8"><style>${css}</style>` +
     slides.map((s, i) => `<div class="slide" id="s${i}" style="--accent:${s.accent};--glow:${s.accent}2E">
       <div class="grid"></div><div class="halo"></div>
@@ -165,14 +165,12 @@ async function buildPlay(browser, lang, frames, tmp) {
         : `<img class="phone" src="${url(frames[s.shot])}">`}
     </div>`).join('') +
     `<div class="feature" id="feature">
-      <div class="grid"></div>
       <div class="text">
         <div class="brand"><img src="${ICON}"><div class="name">Chord Player</div></div>
         <div class="tagline">${tagline}</div>
-        <div class="band">${band}</div>
-        <div class="meta">${meta}</div>
       </div>
-      <img class="phone" src="${url(frames.song)}">
+      <img class="phone back" src="${url(frames['rhythm-editor'])}">
+      <img class="phone front" src="${url(frames.song)}">
     </div>`;
 
   const file = path.join(tmp, `store-${lang}.html`);
