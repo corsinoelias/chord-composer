@@ -39,14 +39,7 @@ export function AccountSlot({ variant }: AccountSlotProps) {
   if (variant === 'mobile') {
     const initial = (displayName?.trim()?.[0] ?? '?').toUpperCase();
     return (
-      <div className="pt-3 pb-2 border-t border-border mt-3 space-y-2">
-        <a
-          href={ctaHref}
-          className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
-        >
-          <CtaIcon className="w-4 h-4" fill={isLoggedIn ? 'none' : 'currentColor'} />
-          {ctaLabel}
-        </a>
+      <div className="pt-3 pb-2 border-t border-border space-y-2">
         {isLoggedIn ? (
           <AccountMenu
             displayName={displayName}
@@ -88,22 +81,27 @@ export function AccountSlot({ variant }: AccountSlotProps) {
     );
   }
 
+  // The header's CTA at every width: full from 640px, a compact "Player" / "Library" beside
+  // the menu button on a phone, where the account itself lives in the menu sheet.
   return (
-    <div className="hidden sm:flex items-center gap-3">
+    <div className="flex items-center gap-3">
       <a
         href={ctaHref}
-        className="inline-flex items-center gap-1.5 px-5 py-3 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 sm:h-auto sm:px-5 sm:py-3 sm:text-sm"
       >
-        <CtaIcon className="w-3.5 h-3.5" fill={isLoggedIn ? 'none' : 'currentColor'} />
-        {ctaLabel}
+        <CtaIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5" fill={isLoggedIn ? 'none' : 'currentColor'} />
+        <span className="sm:hidden">{isLoggedIn ? 'Library' : 'Player'}</span>
+        <span className="hidden sm:inline">{ctaLabel}</span>
       </a>
       {isLoggedIn ? (
-        <AccountMenu displayName={displayName} trigger={<AccountAvatarButton displayName={displayName} />} />
+        <span className="hidden sm:inline-flex">
+          <AccountMenu displayName={displayName} trigger={<AccountAvatarButton displayName={displayName} />} />
+        </span>
       ) : (
         <button
           type="button"
           onClick={openAuthModal}
-          className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline"
         >
           Sign in
         </button>
