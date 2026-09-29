@@ -26,6 +26,13 @@ check('web rhythms', WEB.rhythms,
   MUSICAL_STYLES.length + json('public/rhythms/app-styles.json').styles.length + json('public/rhythms/library.json').rhythms.length);
 check('web instruments', [...WEB.instruments].sort(), getDefaultInstrumentStates().map((i) => i.id).sort());
 
+// ── Links ──
+// /app/ is the signed-in library: a reader without an account lands on "Sign in to see your
+// songs". Articles that mean the player link /chord-player/.
+const learn = path.join(root, 'src/content/learn');
+const toLibrary = fs.readdirSync(learn).filter((f) => /\]\(\/app\/?\)/.test(fs.readFileSync(path.join(learn, f), 'utf8')));
+check('articles linking the player to /app/', toLibrary, []);
+
 // ── App ──
 const app = path.resolve(root, '../../../../Projects/chord_sequencer');
 if (!fs.existsSync(path.join(app, 'pubspec.yaml'))) {
