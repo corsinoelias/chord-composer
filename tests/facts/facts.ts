@@ -48,7 +48,9 @@ if (!fs.existsSync(path.join(app, 'pubspec.yaml'))) {
   check('app rhythms', APP.rhythms,
     count(read('lib/core/data/style_presets.dart'), /^\s*StylePreset\(/gm) + JSON.parse(read('assets/rhythm_library.json')).rhythms.length);
   check('app percussion rows', APP.percussionRows, new Set(constants.match(/'perc\d+'/g)).size);
-  check('app drum kits', APP.drumKits, count(constants, /^ {2}DrumKit\(/gm));
+  // The kits the drums offer: every one in drumKits but those kept only for songs that play them.
+  const unoffered = (constants.match(/const unofferedDrumKits = \{([^}]*)\}/)?.[1].match(/'[^']+'/g) ?? []).length;
+  check('app drum kits', APP.drumKits, count(constants, /^ {2}DrumKit\(/gm) - unoffered);
   check('app example songs', APP.exampleSongs, count(read('lib/core/data/song_seeds.dart'), /^ {2}SongSeed\(/gm));
   check('app progressions', APP.progressions, count(read('lib/core/data/progression_library.dart'), /^ {2}Progression\(/gm));
   const transport = read('lib/features/transport/transport_bar.dart');

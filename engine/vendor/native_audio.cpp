@@ -116,11 +116,14 @@ enum DrumSound {
   kDrumSoundCount
 };
 constexpr int kSampleSlots = kDrumSoundCount - kSampledFirst;
-// A drum sound from here on is General MIDI percussion note (sound - kGmPercFirst), played
-// on the SoundFont's drum kit rather than from a recording of our own: the bank already
-// carries every conga, bongo, timbale, shaker and bell a keyboard rhythm asks for. Its
-// channel is the one after the melodic tracks, and it is mixed into the kit's bus.
+// A drum sound from here on is General MIDI percussion, played on one of the SoundFont's
+// drum kits rather than from a recording of our own: the bank already carries every conga,
+// bongo, timbale, shaker and bell a keyboard rhythm asks for, and its kits — jazz, brushes,
+// orchestra — sound like nothing we recorded. The sound is kGmPercFirst + 128 × kit + note,
+// the kit being its program in the drum bank; the Standard kit's are kGmPercFirst + note.
+// Its channel is the one after the melodic tracks, and it is mixed into the kit's bus.
 constexpr int kGmPercFirst = 100;
+constexpr int kGmPercLast = kGmPercFirst + 128 * 128 - 1;
 constexpr int kGmPercChannel = kTracks;
 // The SoundFont's kit sits well under our levelled recordings; this brings it up to them.
 constexpr float kGmPercGain = 1.6f;
@@ -942,9 +945,11 @@ class Engine {
       // has to be put back or it is silently lost.
       tsf_channel_set_pan(font, track, (pan_[track + 1].load() + 1.0f) * .5f);
     }
-    // The percussion channel plays the bank's standard kit. Its level is the kit's bus,
-    // applied in the mix, so its own volume stays at unity.
+    // The percussion channel starts on the bank's standard kit and changes kit as the
+    // sounds it is asked for do (triggerDrum). Its level is the kit's bus, applied in the
+    // mix, so its own volume stays at unity.
     tsf_channel_set_presetnumber(font, kGmPercChannel, 0, 1);
+    percKit_ = 0;
     tsf_channel_set_volume(font, kGmPercChannel, 1.0f);
     tsf_channel_set_pan(font, kGmPercChannel, (pan_[0].load() + 1.0f) * .5f);
   }
@@ -1052,7 +1057,7 @@ class Engine {
     if (section < 0 || section >= kSections) return;
     const int index = drumRowIndex(row);
     if (index < 0) return;
-    const bool percussion = value >= kGmPercFirst && value < kGmPercFirst + 128;
+    const bool percussion = value >= kGmPercFirst && value <= kGmPercLast;
     const int sound = percussion ? value : std::max(0, std::min<int>(kDrumSoundCount - 1, value));
     if (bank == 1) {
       drumSoundB_[section][index].store(value < 0 ? -1 : sound, std::memory_order_release);
@@ -1925,8 +1930,10 @@ class Engine {
         const float velocity = stepVelocity(packed) / 255.0f;
         if (velocity > 0) {
           const int tone = stepTone(packed);
-          triggerDrum(tone ? kGmPercFirst + tone : drumSoundAt(sectionIndex_, row),
-                      velocity, row);
+          const int own = drumSoundAt(sectionIndex_, row);
+          // A tone is a note of the kit the row plays, when it plays one of the SoundFont's.
+          const int kit = own >= kGmPercFirst && own <= kGmPercLast ? (own - kGmPercFirst) / 128 : 0;
+          triggerDrum(tone ? kGmPercFirst + kit * 128 + tone : own, velocity, row);
         }
       }
     }
@@ -2472,7 +2479,18 @@ class Engine {
       // Struck on the SoundFont's kit. Struck again, the note is let go first, so a
       // conga played in sixteenths does not pile up voices.
       if (tsf* font = soundFont.load(std::memory_order_acquire)) {
-        const int note = sound - kGmPercFirst;
+        const int note = (sound - kGmPercFirst) % 128;
+        const int kit = (sound - kGmPercFirst) / 128;
+        // One channel plays every kit: it changes kit when a note of another comes. A note
+        // already sounding keeps the kit it was struck on, so a Jazz kit's ride and the
+        // Standard kit's congas can share a bar. A kit the bank does not have plays on
+        // the standard one.
+        if (kit != percKit_) {
+          if (!tsf_channel_set_presetnumber(font, kGmPercChannel, kit, 1)) {
+            tsf_channel_set_presetnumber(font, kGmPercChannel, 0, 1);
+          }
+          percKit_ = kit;
+        }
         tsf_channel_note_off(font, kGmPercChannel, note);
         tsf_channel_note_on(font, kGmPercChannel, note, fminf(1.0f, velocity));
       }
@@ -2660,6 +2678,7 @@ class Engine {
   // plays a different one has to move the channel — and only then, because the preset
   // lookup is a search and this runs in the callback.
   int appliedProgram_[kTracks] = {-1, -1, -1, -1};
+  int percKit_ = 0;  // the drum-bank program the percussion channel is on; audio thread only
   float sfScratch_[kTracks + 1][kSfScratch * 2]{};  // stereo interleaved, one per melodic channel and the percussion
   Strip strips_[kBuses];                  // drums, piano, guitar, bass, synth
   std::atomic<float> stripLow_[kBuses]{}, stripMid_[kBuses]{}, stripHigh_[kBuses]{}, stripThreshold_[kBuses]{};

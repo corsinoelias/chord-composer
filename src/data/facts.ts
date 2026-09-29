@@ -14,7 +14,7 @@ export const WEB = {
   /** CHORD_QUALITIES in src/lib/musicTheory.ts. */
   chordTypes: 39,
   /** The editor's own styles (MUSICAL_STYLES) plus the app's styles and library it plays. */
-  rhythms: 204,
+  rhythms: 548,
   instruments: ['drums', 'bass', 'piano', 'guitar', 'synth'] as const,
   exports: ['WAV', 'MIDI'] as const,
 } as const;
@@ -24,12 +24,13 @@ export const APP = {
   version: '1.2.0',
   /** chordTypes in lib/core/music/constants.dart. */
   chordTypes: 39,
-  /** The app's 24 styles and the 177 of its rhythm library, in one list. */
-  rhythms: 201,
+  /** The app's 24 styles and the 521 of its rhythm library, in one list. */
+  rhythms: 545,
   instruments: ['drums', 'bass', 'piano', 'guitar', 'synth'] as const,
   /** Rows of hand percussion under the kit: congas, bongos, güiro, claves and more. */
   percussionRows: 12,
-  drumKits: 9,
+  /** The kits the drums offer (drumKits less unofferedDrumKits), the SoundFont's among them. */
+  drumKits: 16,
   /** Songs to start from (song_seeds.dart) and progressions (progression_library.dart). */
   exampleSongs: 11,
   progressions: 8,

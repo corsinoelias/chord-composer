@@ -29,7 +29,8 @@
     "lab:audition": "node scripts/lab-audition.mjs",
     "lab:gains": "node scripts/measure-list-gains.mjs",
     "variations:export": "tsx scripts/variations-export.ts",
-    "test:facts": "tsx tests/facts/facts.ts"
+    "test:facts": "tsx tests/facts/facts.ts",
+    "test:sounds": "tsx tests/sounds/families.ts"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",

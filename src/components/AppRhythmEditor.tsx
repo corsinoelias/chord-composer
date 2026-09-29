@@ -16,12 +16,14 @@ import {
   RHYTHM_KIT, getInstrumentConfig, getSoundType, gmProgramOf, soundIdForProgram, soundTimbre, type InstrumentState,
 } from '@/lib/instruments';
 import { AllSoundsDialog } from './AllSoundsDialog';
+import { useFavorites } from '@/lib/favorites';
+import { RECOMMENDED, soundSuitsTrack } from '@/lib/soundFamilies';
 import { drumSoundOf as kitSoundOf } from '@/lib/appEngine/fromAppStyle';
 import { fillNow, subscribeEngineState } from '@/lib/appEngine/player';
 import { previewAppCell } from '@/lib/appEngine/preview';
 import { loadKits, type DrumKit } from '@/lib/appEngine/host';
 import { engineChord } from '@/lib/appEngine/fromSong';
-import { DRUM_ROWS, GM_PERC_FIRST } from '@/lib/appEngine/commands';
+import { DRUM_ROWS, GM_PERC_FIRST, gmPercNote } from '@/lib/appEngine/commands';
 import {
   CHORD_INTERVALS, DEG, GM_PERC_NAMES, PERC_CHOICES, STRENGTHS, TONE_LETTER, TONE_NAME, accent, hitTone, notesOf, notesOnRow, packHit,
   packNotes, percFamily, percTones, pitchName, rowOf, rowText, scaleOf, semitoneOf, strengthOf, toggleAccent, toneMark,
@@ -426,7 +428,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     }
     const sound = getSoundType(track, id);
     previewAppCell({
-      track, row: 'lane', packed: packNotes(205, [{ d: DEG.chord, o: 0, a: 0 }]), chord: chordAtStep(shownBar * spb),
+      // The bar's chord on it — a bass its root, as the app sounds one (auditionSound).
+      track, row: 'lane', packed: packNotes(205, [{ d: track === 'bass' ? DEG.root : DEG.chord, o: 0, a: 0 }]), chord: chordAtStep(shownBar * spb),
       transposition, timbre: soundTimbre(sound), program: sound?.program, low: style.voicings[track as keyof typeof style.voicings],
     });
   };
@@ -453,7 +456,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   };
   const rowLabel = (row: string): { name: string; sub: string } => {
     if (!row.startsWith('perc')) return { name: ROW_NAMES[row] ?? row, sub: '' };
-    const note = (drumSoundOf(row) ?? GM_PERC_FIRST) - GM_PERC_FIRST;
+    const note = gmPercNote(drumSoundOf(row) ?? GM_PERC_FIRST);
     const lanesHere = [variation.rows.drums[row], variation.fill.lanes[row]].filter(Boolean) as number[][];
     const toned = lanesHere.some((l) => l.some((p) => p && hitTone(p)));
     const fam = percFamily(note);
@@ -695,7 +698,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     const own = style.drumSounds[row];
     const mark = (sound: number) => (sound === now ? '✓ ' : '');
     const items: MenuItem[] = [{ head: `${rowLabel(row).sub} · whole song` }];
-    if (own !== undefined) items.push({ label: `${mark(own)}The rhythm’s: ${GM_PERC_NAMES[own - GM_PERC_FIRST] ?? 'its own'}`, run: () => pickRowSound(row, own) });
+    if (own !== undefined) items.push({ label: `${mark(own)}The rhythm’s: ${GM_PERC_NAMES[gmPercNote(own)] ?? 'its own'}`, run: () => pickRowSound(row, own) });
     for (const note of PERC_CHOICES) {
       const sound = GM_PERC_FIRST + note;
       if (sound === own) continue;
@@ -1266,8 +1269,9 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
         )}
         {tab !== 'drums' && (
           <AllSoundsDialog open={allSounds} onOpenChange={setAllSounds} track={tab} trackName={trackName(tab)}
-            currentSoundId={soundIdOf(tab)}
-            onPick={(program) => pickSound(tab, soundIdForProgram(tab, program))} />
+            currentSoundId={soundIdOf(tab)} playing={playing}
+            onPick={(program) => pickSound(tab, soundIdForProgram(tab, program))}
+            onRestore={(id) => pickSound(tab, id)} />
         )}
       </DialogContent>
     </Dialog>
@@ -1329,18 +1333,36 @@ function SoundMenu({ track, x, y, above, onClose, underSound, partSound, partNam
   }, [onClose]);
   const config = getInstrumentConfig(track);
   const current = partSound || underSound;
-  // The rhythm's own sound first, then one picked from "All sounds…", then the list.
+  const [favorites] = useFavorites('sounds');
+  // As the app's soundOptionsWith: the rhythm's own sound, then one picked from "All
+  // sounds…", then your starred sounds and the recommended ones that suit the track, then
+  // the list — each sound once, a listed one under its own name.
+  const starredIds = track === 'drums' ? [] : [...favorites].map(Number)
+    .filter((p) => Number.isInteger(p) && soundSuitsTrack(track, p))
+    .sort((a, b) => (a % 128) - (b % 128) || a - b)
+    .map((p) => soundIdForProgram(track, p));
+  const recommendedIds = track === 'drums' ? [] : RECOMMENDED
+    .filter(([p]) => soundSuitsTrack(track, p))
+    .map(([p]) => soundIdForProgram(track, p));
   const ids = [...new Set([
     ...(rhythmSound ? [rhythmSound] : []),
     ...(gmProgramOf(current) !== null ? [current] : []),
+    ...starredIds,
+    ...recommendedIds,
     ...(config?.soundTypes.map((s) => s.id) ?? []),
   ])].filter((id) => id !== RHYTHM_KIT);
+  const starred = new Set(starredIds);
   const place = usePlaced(ref, x, y, above);
+  // Opened on the sound the part plays, not at the top of a long list.
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    listRef.current?.querySelector('[aria-checked="true"]')?.scrollIntoView({ block: 'center' });
+  }, []);
   return (
     <div ref={ref} role="menu" aria-label={`${config?.name ?? track} sound`} className="fixed z-[60] flex w-[260px] max-w-[calc(100vw-16px)] flex-col rounded-xl border p-1.5 shadow-xl"
       style={{ ...place, background: 'var(--cp-s1)', borderColor: 'var(--cp-ln2)', maxHeight: 'min(430px, calc(100dvh - 16px))' }}>
       <div className="px-2.5 pb-1 pt-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--cp-mu)' }}>{partName}</div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
         {ids.map((id) => {
           const on = id === current;
           return (
@@ -1348,7 +1370,7 @@ function SoundMenu({ track, x, y, above, onClose, underSound, partSound, partNam
               className="flex w-full items-center gap-2 rounded-lg border-0 px-2.5 py-2 text-left text-[13px] hover:bg-[var(--cp-s2)]"
               style={{ background: on ? 'var(--cp-acs)' : 'transparent', color: 'var(--cp-tx)' }}
               onClick={() => { onPick(id); onClose(); }}>
-              <span className="min-w-0 flex-1 truncate">{getSoundType(track, id)?.name ?? id}</span>
+              <span className="min-w-0 flex-1 truncate">{starred.has(id) ? '★ ' : ''}{getSoundType(track, id)?.name ?? id}</span>
               {id === rhythmSound && <span className="shrink-0 text-[10.5px] font-bold" style={{ color: 'var(--cp-mu)' }}>{track === 'drums' ? '' : 'rhythm’s'}</span>}
               {on && <Check size={15} className="shrink-0" style={{ color: 'var(--cp-act)' }} />}
             </button>
@@ -1728,7 +1750,7 @@ function CellPopover({ lane, s, x, y, p, tab, title, drumSound, chord, onWrite, 
       {label}
     </button>
   );
-  const own = drumSound !== undefined ? drumSound - GM_PERC_FIRST : 0;
+  const own = drumSound !== undefined && drumSound >= GM_PERC_FIRST ? gmPercNote(drumSound) : 0;
   const tones = isDrums && lane.row.startsWith('perc') && own > 0 ? percTones(own) : [];
   const keys: number[] = scale
     ? [DEG.chord, ...Array.from({ length: 8 }, (_, i) => DEG.scale1 + i)]

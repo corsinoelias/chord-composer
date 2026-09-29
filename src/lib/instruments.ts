@@ -135,6 +135,16 @@ export const INSTRUMENTS: InstrumentConfig[] = [
       { id: 'brutalist', name: 'Brutalist', kit: 6, octaveOffset: 0 },
       { id: 'chase', name: 'Chase', kit: 7, octaveOffset: 0 },
       { id: 'runit', name: 'Run It', kit: 8, octaveOffset: 0 },
+      // The SoundFont's own kits (soundFontKits in the app's constants.dart, 9-17 of drumKits).
+      { id: 'sf-standard', name: 'Standard Kit', kit: 9, octaveOffset: 0 },
+      { id: 'sf-room', name: 'Room Kit', kit: 10, octaveOffset: 0 },
+      { id: 'sf-power', name: 'Power Kit', kit: 11, octaveOffset: 0 },
+      { id: 'sf-electronic', name: 'Electronic Kit', kit: 12, octaveOffset: 0 },
+      { id: 'sf-808-909', name: '808/909 Kit', kit: 13, octaveOffset: 0 },
+      { id: 'sf-dance', name: 'Dance Kit', kit: 14, octaveOffset: 0 },
+      { id: 'sf-jazz', name: 'Jazz Kit', kit: 15, octaveOffset: 0 },
+      { id: 'sf-brush', name: 'Brush Kit', kit: 16, octaveOffset: 0 },
+      { id: 'sf-orchestral', name: 'Orchestral Kit', kit: 17, octaveOffset: 0 },
     ],
   },
 ];

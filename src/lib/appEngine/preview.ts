@@ -12,7 +12,7 @@
  */
 import { type Chord } from '../musicTheory';
 import { getSoundType } from '../instruments';
-import { DRUM_ROWS, GM_PERC_FIRST, SAMPLED_FIRST, type DrumRow, type EngineCommand, type MelodicTrack } from './commands';
+import { DRUM_ROWS, GM_PERC_FIRST, SAMPLED_FIRST, gmPercKit, type DrumRow, type EngineCommand, type MelodicTrack } from './commands';
 import { SHORT_FONT_PROGRAMS } from './host';
 import { hitTone } from './steps';
 import { engineChord } from './fromSong';
@@ -151,7 +151,9 @@ export function previewAppCell(cell: {
     if (e.ctx.state !== 'running') void e.ctx.resume();
     if (cell.track === 'drums') {
       const tone = hitTone(cell.packed);
-      const sound = tone ? GM_PERC_FIRST + tone : cell.drumSound;
+      // A tone is a note of the kit the row plays, when it plays one of the SoundFont's.
+      const kit = cell.drumSound !== undefined && cell.drumSound >= GM_PERC_FIRST ? gmPercKit(cell.drumSound) : 0;
+      const sound = tone ? GM_PERC_FIRST + kit * 128 + tone : cell.drumSound;
       if (sound === undefined) return;
       if (sound >= SAMPLED_FIRST && sound < GM_PERC_FIRST) await e.ensureSlots([sound - SAMPLED_FIRST]);
       // The preview section's kit is no longer the kit it had: the next kit preview puts it back.

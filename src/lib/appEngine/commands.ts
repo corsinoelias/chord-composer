@@ -24,8 +24,16 @@ export type DrumRow = (typeof DRUM_ROWS)[number];
 export const KIT_ROWS = DRUM_ROWS.slice(0, 12) as readonly DrumRow[];
 /** The hand percussion rows. */
 export const PERC_ROWS = DRUM_ROWS.slice(12) as readonly DrumRow[];
-/** A drum sound id from here on is General MIDI percussion note (id - GM_PERC_FIRST). */
+/**
+ * A drum sound id from here on is General MIDI percussion: GM_PERC_FIRST + 128 × kit + note,
+ * the kit being its program in the SoundFont's drum bank (0 Standard, 32 Jazz, 40 Brush…), as
+ * the app's gmPercussion. The Standard kit's are GM_PERC_FIRST + note.
+ */
 export const GM_PERC_FIRST = 100;
+/** The General MIDI note of a percussion id, whichever kit. */
+export const gmPercNote = (id: number): number => (id - GM_PERC_FIRST) % 128;
+/** The drum-bank program (kit) of a percussion id. */
+export const gmPercKit = (id: number): number => Math.floor((id - GM_PERC_FIRST) / 128);
 
 /** Melodic timbres (enum Timbre). kSampled plays the track's General MIDI program. */
 export const TIMBRE = {

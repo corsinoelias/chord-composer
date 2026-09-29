@@ -40,10 +40,12 @@ const PROGRAMS = [...new Set(['piano', 'guitar', 'bass', 'synth'].flatMap((track
   (catalog[track]?.sounds ?? []).map((sound) => sound.program),
 ).filter((program) => Number.isInteger(program) && program < RECORDED_FIRST))].sort((a, b) => a - b);
 /**
- * The General MIDI percussion kit (bank 128, preset 0): the hand percussion rows of the kit —
- * congas, bongos, timbales, güiro… — play its notes, so every font the web loads carries it.
+ * The General MIDI percussion kits: the Standard one (bank 128, preset 0), whose notes the
+ * hand percussion rows — congas, bongos, timbales, güiro… — play, and the others the app
+ * offers for the drums (soundFontKits in its constants.dart): Room, Power, Electronic,
+ * 808/909, Dance, Jazz, Brush, Orchestral. Every font the web loads carries them.
  */
-const PERCUSSION_KIT = '128:0';
+const PERCUSSION_KIT = [0, 8, 16, 24, 25, 26, 32, 40, 48].map((kit) => `128:${kit}`).join(',');
 /**
  * The whole font, for "All sounds…": every melodic preset of the app's GeneralUser.sf2 and
  * its variations, loaded only when that list is opened (or a song asks for a sound the
@@ -51,6 +53,18 @@ const PERCUSSION_KIT = '128:0';
  * General MIDI presets there are left out rather than have two presets answer to one number.
  */
 const RECORDED_PROGRAMS = [100, 101, 102, 103, 104];
+/**
+ * The sounds the app recommends (recommendedSounds in its constants.dart), [program, name] in
+ * its order: they head every track's lists on both sides. Those at the programs the web's
+ * recordings take are not the web's to offer. They are not added to the short font: all of
+ * them would put 8 MB on every visit (2026-09-30), and one the short font lacks loads the
+ * whole font when it is picked, as "All sounds…" does.
+ */
+const RECOMMENDED = [...(fs.readFileSync(path.join(app, 'lib/core/music/constants.dart'), 'utf8')
+  .match(/const recommendedSounds = <int, String>\{([\s\S]*?)\n\};/)?.[1] ?? '')
+  .matchAll(/(\d+):\s*'((?:[^'\\]|\\.)*)'/g)]
+  .map((m) => [Number(m[1]), m[2].replace(/\\'/g, "'")])
+  .filter(([program]) => !RECORDED_PROGRAMS.includes(program));
 const FULL = ['all', PERCUSSION_KIT, ...RECORDED_PROGRAMS.map((p) => `-${p}`)].join(',');
 /**
  * The longest a web note takes to die away once let go, in seconds. The app's SoundFont lets
@@ -143,8 +157,12 @@ const kits = [...kitsSource[1].matchAll(/DrumKit\('([^']+)',\s*\{([^}]*)\}/g)].m
 if (!kits.length) fail('drumKits had no kits');
 const samples = DRUMS.map((name, slot) => ({ slot, name, gain: gains[name] ?? 1.0 }));
 fs.writeFileSync(path.join(out, 'kit.json'), `${JSON.stringify({ samples, kits })}\n`);
+// The recommended sounds, bundled with the page (src/lib/soundFamilies.ts): the short lists
+// name them before any font has loaded.
+if (RECOMMENDED.length < 50) fail(`read only ${RECOMMENDED.length} recommended sounds from the app`);
+fs.writeFileSync(path.join(root, 'src/data/recommendedSounds.json'), `${JSON.stringify(RECOMMENDED)}\n`);
 
-/** [program, name] for every preset of bank < 128 in [file], by program. */
+/** [program, name] for every instrument of [file] — its kits (banks 120 and 128) are not — by program. */
 function presetsOf(file) {
   const b = fs.readFileSync(file);
   let off = 12;
@@ -165,7 +183,7 @@ function presetsOf(file) {
   const list = [];
   for (let at = phdr.at; at + 38 <= phdr.at + phdr.size - 38; at += 38) {
     const bank = b.readUInt16LE(at + 22);
-    if (bank >= 128) continue;
+    if (bank >= 120) continue;
     const name = b.toString('latin1', at, at + 20).split(String.fromCharCode(0))[0].trim();
     list.push([bank * 128 + b.readUInt16LE(at + 20), name]);
   }

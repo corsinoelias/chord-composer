@@ -70,15 +70,25 @@ export interface AppStyle {
 }
 
 /**
- * The genres of the list, in its order: the library's, which are the wider set. The library
- * is ordered by genre already, so a rhythm's number says which it is.
+ * The genres of the list, in its order: the library's, which are the wider set. A rhythm of
+ * the library says its genre (by the ids of GENRE_IDS, as the app's rhythmGenres); the
+ * Casio rhythms, which were numbered by genre, may leave it to their number.
  */
 export const GENRES = [
-  'Pop', 'Rock & Blues', 'Dance & Hip-Hop', 'Jazz & Swing', 'Europe', 'Latin & Caribbean',
-  'Gospel', 'World', 'Country & Christmas', 'Orchestra', 'Ballads', 'Piano',
+  'Pop', 'Rock & Blues', 'Soul, Funk & R&B', 'Dance & Hip-Hop', 'Jazz & Swing', 'Europe',
+  'Latin & Caribbean', 'Gospel', 'World', 'Country & Christmas', 'Orchestra & Film', 'Ballads', 'Piano',
 ] as const;
 
-export function libraryGenre(n: number): string {
+/** The genre ids the library stores, as the app names them (lib/core/data/rhythm_library.dart). */
+const GENRE_IDS: Record<string, string> = {
+  pop: 'Pop', rock: 'Rock & Blues', soul: 'Soul, Funk & R&B', dance: 'Dance & Hip-Hop',
+  jazz: 'Jazz & Swing', europe: 'Europe', latin: 'Latin & Caribbean', gospel: 'Gospel',
+  world: 'World', country: 'Country & Christmas', orchestra: 'Orchestra & Film', ballads: 'Ballads',
+  piano: 'Piano',
+};
+
+export function libraryGenre(n: number, genre?: string): string {
+  if (genre && GENRE_IDS[genre]) return GENRE_IDS[genre];
   if (n <= 17) return 'Pop';
   if (n <= 29) return 'Rock & Blues';
   if (n <= 38) return 'Dance & Hip-Hop';
@@ -88,7 +98,7 @@ export function libraryGenre(n: number): string {
   if (n <= 94) return 'Gospel';
   if (n <= 139) return 'World';
   if (n <= 147) return 'Country & Christmas';
-  if (n <= 149) return 'Orchestra';
+  if (n <= 149) return 'Orchestra & Film';
   if (n <= 160) return 'Ballads';
   return 'Piano';
 }
@@ -98,7 +108,8 @@ export function categoryGenre(category: string): string {
   switch (category) {
     case 'Latin': case 'Reggae': return 'Latin & Caribbean';
     case 'Rock': case 'Blues': case 'Metal': return 'Rock & Blues';
-    case 'Funk': case 'Soul': case 'Disco': case 'HipHop': case 'Dance': case 'LoFi': return 'Dance & Hip-Hop';
+    case 'Funk': case 'Soul': return 'Soul, Funk & R&B';
+    case 'Disco': case 'HipHop': case 'Dance': case 'LoFi': return 'Dance & Hip-Hop';
     case 'Jazz': return 'Jazz & Swing';
     case 'Gospel': return 'Gospel';
     case 'Country': return 'Country & Christmas';
@@ -126,12 +137,12 @@ export function ensureAppStyles(): Promise<AppStyle[]> {
     for (const s of (own?.styles ?? []) as (Omit<AppStyle, 'genre'> & { category: string })[]) {
       list.push({ ...s, genre: categoryGenre(s.category) });
     }
-    for (const r of (library?.rhythms ?? []) as { n: number; name: string; style: Omit<AppStyle, 'id' | 'name' | 'genre'> }[]) {
+    for (const r of (library?.rhythms ?? []) as { n: number; name: string; genre?: string; style: Omit<AppStyle, 'id' | 'name' | 'genre'> }[]) {
       list.push({
         ...r.style,
         id: `lib-${r.n}`,
         name: r.name,
-        genre: libraryGenre(r.n),
+        genre: libraryGenre(r.n, r.genre),
         // The endings were named in Spanish when the library was built.
         ending: r.style.ending?.map((part, i) => ({ ...part, name: i === 0 ? 'Ending' : `Ending ${i + 1}` })),
       });

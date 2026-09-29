@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Check, CheckCircle2, Info, Loader2, Search, Star, Trash2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
@@ -63,6 +63,24 @@ interface RhythmBrowserProps {
  * the meters as chips, favourites a star away. The web's rhythms and yours go on the song at
  * once, as they always did; one of the app's first shows what it brings.
  */
+/** A name cut into words and numbers, so "Salsa 2" comes before "Salsa 10" (the app's compareNatural). */
+const naturalKey = (name: string): (string | number)[] =>
+  (name.toLowerCase().match(/\d+|\D+/g) ?? []).map((part) => (/^\d/.test(part) ? Number(part) : part));
+function compareKeys(x: (string | number)[], y: (string | number)[]): number {
+  for (let i = 0; i < x.length && i < y.length; i++) {
+    const a = x[i], b = y[i];
+    const c = typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b));
+    if (c) return c;
+  }
+  return x.length - y.length;
+}
+/** The app's own styles as they come, then the library's rhythms by name. */
+function byName(styles: AppStyle[]): AppStyle[] {
+  const library = styles.filter((s) => s.id.startsWith('lib-')).map((s) => [s, naturalKey(s.name)] as const)
+    .sort((a, b) => compareKeys(a[1], b[1])).map(([s]) => s);
+  return [...styles.filter((s) => !s.id.startsWith('lib-')), ...library];
+}
+
 export function RhythmBrowser(props: RhythmBrowserProps) {
   const { open, onOpenChange, selectedStyleId, builtIn, customStyles, showCustom, showAppStyles, songBpm, onStyleChange, onDeleteCustom } = props;
   const [appStyles, setAppStyles] = useState<AppStyle[] | null>(null);
@@ -72,6 +90,9 @@ export function RhythmBrowser(props: RhythmBrowserProps) {
   const [starredOnly, setStarredOnly] = useState(false);
   const [meter, setMeter] = useState<string | null>(null);
   const [detail, setDetail] = useState<AppStyle | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  /** Whether the list has been brought to the song's rhythm since it opened. */
+  const placed = useRef(false);
   const [favorites, toggleFavorite] = useFavorites('styles');
 
   useEffect(() => {
@@ -81,6 +102,7 @@ export function RhythmBrowser(props: RhythmBrowserProps) {
   // Each opening starts on the whole list, as the app's sheet does: not on the last rhythm
   // looked at, nor on the last search.
   useEffect(() => {
+    placed.current = false;
     if (!open) return;
     setDetail(null);
     setQuery('');
@@ -93,12 +115,13 @@ export function RhythmBrowser(props: RhythmBrowserProps) {
     const all: Entry[] = [
       ...(showCustom ? customStyles : []).map((s) => ({ id: s.id, name: s.name, genre: MY_RHYTHMS, meter: meterOf(s), bpm: s.bpm, custom: true })),
       ...builtIn.map((s) => ({ id: s.id, name: s.name, genre: categoryGenre(s.category), meter: meterOf(s), bpm: s.bpm, custom: false })),
-      ...(showAppStyles ? appStyles ?? [] : []).map((s) => ({
+      ...(showAppStyles ? byName(appStyles ?? []) : []).map((s) => ({
         id: s.id, name: s.name, genre: s.genre, meter: `${s.meter.beats}/${s.meter.unit}`, bpm: s.bpm, custom: false, app: s,
       })),
     ];
     const order = [MY_RHYTHMS, ...GENRES];
-    // By genre, and within one in the order they came: the web's, then the app's, then the library's.
+    // By genre, and within one in the order they came: the web's, then the app's, then the
+    // library's by name, as the app lists them.
     return all
       .map((e, i) => [e, i] as const)
       .sort(([a, i], [b, j]) => (order.indexOf(a.genre) - order.indexOf(b.genre)) || i - j)
@@ -123,6 +146,16 @@ export function RhythmBrowser(props: RhythmBrowserProps) {
       && words.every((w) => plain(`${e.name} ${e.genre}`).includes(w)));
   }, [entries, query, genre, meter, starredOnly, favorites]);
 
+  // Opened, the list starts on the song's rhythm — once it is in the list, which for one of
+  // the library's is when the library has come.
+  useEffect(() => {
+    if (!open || detail || placed.current || !shown.some((e) => e.id === selectedStyleId)) return;
+    placed.current = true;
+    requestAnimationFrame(() => {
+      listRef.current?.querySelector(`[data-style="${CSS.escape(selectedStyleId)}"]`)?.scrollIntoView({ block: 'center' });
+    });
+  }, [open, detail, shown, selectedStyleId]);
+
   const pick = (e: Entry) => {
     if (e.app) {
       setDetail(e.app);
@@ -132,11 +165,16 @@ export function RhythmBrowser(props: RhythmBrowserProps) {
     onOpenChange(false);
   };
 
+  // Opened, the list starts on the song's rhythm; searched or filtered, from the top of what it finds.
+  const toTop = () => {
+    placed.current = true;
+    listRef.current?.scrollTo({ top: 0 });
+  };
   const chip = (key: string, label: React.ReactNode, on: boolean, onClick: () => void) => (
     <button
       key={key}
       type="button"
-      onClick={onClick}
+      onClick={() => { toTop(); onClick(); }}
       aria-pressed={on}
       className="flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-semibold"
       style={on
@@ -181,14 +219,14 @@ export function RhythmBrowser(props: RhythmBrowserProps) {
                 <Search size={16} />
                 <input
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => { toTop(); setQuery(e.target.value); }}
                   placeholder="Search: salsa, waltz, ballad…"
                   aria-label="Search rhythms"
                   className="flex-1 border-0 bg-transparent text-sm outline-none"
                   style={{ color: 'var(--cp-tx)' }}
                 />
                 {query && (
-                  <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="border-0 bg-transparent p-0" style={{ color: 'var(--cp-mu)' }}>
+                  <button type="button" onClick={() => { toTop(); setQuery(''); }} aria-label="Clear search" className="border-0 bg-transparent p-0" style={{ color: 'var(--cp-mu)' }}>
                     <X size={15} />
                   </button>
                 )}
@@ -203,7 +241,7 @@ export function RhythmBrowser(props: RhythmBrowserProps) {
               {chip('meter-any', 'Any meter', meter === null, () => setMeter(null))}
               {meters.map((m) => chip(`meter-${m}`, m, meter === m, () => setMeter(m)))}
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+            <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
               {shown.length === 0 ? (
                 <p className="px-6 py-12 text-center text-sm" style={{ color: 'var(--cp-fa)' }}>
                   {starredOnly && favorites.size === 0 ? "Tap a rhythm's star and it will be here." : 'No rhythm matches'}
@@ -213,7 +251,7 @@ export function RhythmBrowser(props: RhythmBrowserProps) {
                 const on = e.id === selectedStyleId;
                 const starred = favorites.has(e.id);
                 return (
-                  <div key={e.id}>
+                  <div key={e.id} data-style={e.id}>
                     {heading && <div className="cp-lbl px-3 pb-1 pt-3">{e.genre}</div>}
                     <div
                       className="flex items-center gap-1 rounded-xl pl-3"

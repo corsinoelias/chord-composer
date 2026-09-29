@@ -8,11 +8,13 @@ import { useCallback, useEffect, useState } from 'react';
  * of finding something again, not part of the song, so starring one does not rewrite it in
  * the cloud or change when it was last edited.
  */
-export type FavoriteKind = 'songs' | 'styles';
+export type FavoriteKind = 'songs' | 'styles' | 'sounds';
 
+/** Sounds are kept by program (the General MIDI number plus 128 × the bank), as text. */
 const KEYS: Record<FavoriteKind, string> = {
   songs: 'cs_favorite_songs',
   styles: 'cs_favorite_styles',
+  sounds: 'cs_favorite_sounds',
 };
 const EVENT = 'favoritesChanged';
 
