@@ -9,7 +9,6 @@ import { WEB, instrumentList } from '../../data/facts';
 import {
   Plus,
   Sparkles,
-  Shuffle,
   Repeat,
   Settings2,
   Sliders,
@@ -28,19 +27,19 @@ import {
 const faqs = [
   {
     q: 'Do I need an account to use it?',
-    a: 'No — you can build and play chord patterns without signing up. An account is only needed if you want to save a pattern so you can find it again later.',
+    a: 'No — you can build, play and export a song without signing up. An account is only needed to keep songs in your library and share them by link.',
   },
   {
     q: 'Is it free?',
-    a: 'Yes. Every feature is free, including downloading your pattern as a WAV file. No paywall, no limit on how much you can make.',
+    a: 'Yes. Every feature is free, including downloading your song as a WAV or MIDI file. No paywall, no limit on how much you can make.',
   },
   {
     q: 'Can I change the instruments and sounds?',
-    a: 'Yes — open "Instruments" to pick piano, guitar, bass, and drum sounds, silence or spotlight any one of them, and adjust how loud each one is.',
+    a: 'Yes — Edit Rhythm picks the sound of each instrument (the drum kit, piano, guitar, bass and synth) for every part of the rhythm, and the Mixer mutes, solos and levels any of them.',
   },
   {
     q: 'Can I export what I make?',
-    a: 'Yes — the WAV button turns your pattern into a real sound file you can download, at whatever speed and style you last had it set to.',
+    a: 'Yes — Export WAV turns your song into a real sound file, at whatever speed and rhythm you last had it set to, and Export MIDI gives you the notes to open in any DAW.',
   },
 ];
 
@@ -243,8 +242,8 @@ const webAppSchema = {
           <p class="cp-lead">
             A chord is a group of notes played at the same time — like pressing a few piano keys
             together so they ring out as one sound. A chord player lets you pick a sequence of
-            chords, choose a speed and a style, and hear them played back with real piano, guitar,
-            bass, and drum sounds — like a full band playing your idea out loud. No sheet music
+            chords, choose a speed and a style, and hear them played back by drums, bass, piano,
+            guitar and synth — like a full band playing your idea out loud. No sheet music
             and no instrument needed — just click and listen.
           </p>
         </div>
@@ -259,11 +258,11 @@ const webAppSchema = {
         <ol class="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <li class="flex flex-col gap-3.5">
             <span class="cp-num">01</span>
-            <p class="cp-body"><b>Pick a speed and a style.</b> Try pop, rock, hip-hop, or reggae — each comes with its own drumbeat, so the same chords feel completely different.</p>
+            <p class="cp-body"><b>Pick a speed and a rhythm.</b> There are {WEB.rhythms}, from pop and rock to salsa and reggae — each with its own drums, bass and chords, so the same progression feels completely different.</p>
           </li>
           <li class="flex flex-col gap-3.5">
             <span class="cp-num">02</span>
-            <p class="cp-body"><b>Add your chords.</b> <span class="cp-uc"><Plus className="cp-uc-i" />Add Chord</span> one at a time, <span class="cp-uc"><Sparkles className="cp-uc-i" />Suggest</span> for progressions real songs use, or hit <span class="cp-uc"><Shuffle className="cp-uc-i" />Random</span> and let the tool surprise you.</p>
+            <p class="cp-body"><b>Add your chords.</b> <span class="cp-uc"><Plus className="cp-uc-i" />Add Chord</span> one at a time, <span class="cp-uc"><Sparkles className="cp-uc-i" />Suggest</span> for progressions real songs use — or a random one, and let the tool surprise you.</p>
           </li>
           <li class="flex flex-col gap-3.5">
             <span class="cp-num">03</span>
@@ -284,24 +283,24 @@ const webAppSchema = {
         </div>
         <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
           <div class="flex flex-col gap-3">
-            <span class="cp-tl"><Settings2 className="h-[18px] w-[18px]" /></span>
-            <h3 class="text-base font-bold">Instruments</h3>
-            <p class="cp-body text-[13.5px]">Mute a track or drag its volume up or down. Piano, guitar, bass, and drums each get their own controls.</p>
-          </div>
-          <div class="flex flex-col gap-3">
-            <span class="cp-tl"><Sliders className="h-[18px] w-[18px]" /></span>
-            <h3 class="text-base font-bold">Mix</h3>
-            <p class="cp-body text-[13.5px]">A real console: 3-band EQ, reverb, and compression for the whole mix.</p>
-          </div>
-          <div class="flex flex-col gap-3">
             <span class="cp-tl"><Music2 className="h-[18px] w-[18px]" /></span>
-            <h3 class="text-base font-bold">Section variations</h3>
-            <p class="cp-body text-[13.5px]">Each section's Options panel gives its piano, bass, or guitar its own melodic pattern.</p>
+            <h3 class="text-base font-bold">Parts of the rhythm</h3>
+            <p class="cp-body text-[13.5px]">Each section plays the rhythm's Intro, A, B or Ending. Tap the letter on a section to choose.</p>
           </div>
           <div class="flex flex-col gap-3">
             <span class="cp-tl"><Grid3X3 className="h-[18px] w-[18px]" /></span>
             <h3 class="text-base font-bold">Edit Rhythm</h3>
-            <p class="cp-body text-[13.5px]">Edit the current drum pattern, or <span class="cp-uc"><Plus className="cp-uc-i" />New</span> to build one from scratch.</p>
+            <p class="cp-body text-[13.5px]">Every part step by step for drums, piano, guitar, bass and synth, each with its own sound, plus a Fill. <span class="cp-uc"><Plus className="cp-uc-i" />New</span> builds one from scratch.</p>
+          </div>
+          <div class="flex flex-col gap-3">
+            <span class="cp-tl"><Sliders className="h-[18px] w-[18px]" /></span>
+            <h3 class="text-base font-bold">Mixer</h3>
+            <p class="cp-body text-[13.5px]">Volume, pan, mute and solo for each instrument, with its own EQ and compressor, and reverb for the whole mix.</p>
+          </div>
+          <div class="flex flex-col gap-3">
+            <span class="cp-tl"><Settings2 className="h-[18px] w-[18px]" /></span>
+            <h3 class="text-base font-bold">Section options</h3>
+            <p class="cp-body text-[13.5px]">Give a section a rhythm of its own, or switch any instrument off for it.</p>
           </div>
           <div class="flex flex-col gap-3">
             <span class="cp-tl"><ArrowUpDown className="h-[18px] w-[18px]" /></span>
@@ -321,11 +320,11 @@ const webAppSchema = {
           <div class="flex flex-col gap-[18px]">
             <div class="flex items-start gap-4">
               <span class="cp-tl"><Save className="h-[18px] w-[18px]" /></span>
-              <div class="flex flex-col gap-1"><h3 class="text-base font-bold">Save</h3><p class="cp-body">Keeps your pattern in your library. Free account required.</p></div>
+              <div class="flex flex-col gap-1"><h3 class="text-base font-bold">Save</h3><p class="cp-body">Keeps your song in your library, ready to share by link. Free account required.</p></div>
             </div>
             <div class="flex items-start gap-4">
               <span class="cp-tl"><Download className="h-[18px] w-[18px]" /></span>
-              <div class="flex flex-col gap-1"><h3 class="text-base font-bold">WAV export</h3><p class="cp-body">A real audio file of your pattern, ready to use anywhere.</p></div>
+              <div class="flex flex-col gap-1"><h3 class="text-base font-bold">WAV and MIDI export</h3><p class="cp-body">A real audio file of your song, or its notes for your DAW.</p></div>
             </div>
           </div>
         </div>
