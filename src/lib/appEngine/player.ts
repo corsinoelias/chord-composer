@@ -428,7 +428,11 @@ export function stepDelta(before: EngineCommand[], after: EngineCommand[]): Engi
     const settings = new Map<string, EngineCommand>();
     const rest: EngineCommand[] = [];
     for (const c of list) {
-      if (c[0] === 'setStep') steps.set(`${c[1]}|${c[2]}|${c[3]}|${c[4]}|${c[6] ?? 0}`, c);
+      // Only the kit has rows: a melodic track is one lane whatever the row says. The web's
+      // rhythm writes it as '' and the same section edited in the rhythm editor as 'lane' —
+      // keyed apart, the first edit set every note and then zeroed it: piano, guitar and
+      // bass fell silent.
+      if (c[0] === 'setStep') steps.set(`${c[1]}|${c[2]}|${c[2] === 'drums' ? c[3] : ''}|${c[4]}|${c[6] ?? 0}`, c);
       else if (c[0] === 'setFill') fills.set(`${c[1]}|${c[5] ?? 0}`, c);
       else if (SETTINGS.has(c[0])) settings.set(settingKey(c), c);
       else if (!LIVE.has(c[0])) rest.push(c);
@@ -442,14 +446,15 @@ export function stepDelta(before: EngineCommand[], after: EngineCommand[]): Engi
   for (const key of a.settings.keys()) if (!b.settings.has(key)) return null;
   const out: EngineCommand[] = [];
   for (const [key, c] of b.settings) if (JSON.stringify(a.settings.get(key)) !== JSON.stringify(c)) out.push(c);
-  for (const [key, c] of b.steps) {
-    const old = a.steps.get(key);
-    if (!old || old[5] !== c[5]) out.push(c);
-  }
+  // The steps that went first, then the ones set: where both name one cell, the value stays.
   for (const [key, c] of a.steps) {
     if (b.steps.has(key)) continue;
     const [, s, track, row, step, , bank] = c as Extract<EngineCommand, ['setStep', ...unknown[]]>;
     out.push(['setStep', s, track, row, step, 0, bank]);
+  }
+  for (const [key, c] of b.steps) {
+    const old = a.steps.get(key);
+    if (!old || old[5] !== c[5]) out.push(c);
   }
   for (const [key, c] of b.fills) if (JSON.stringify(a.fills.get(key)) !== JSON.stringify(c)) out.push(c);
   return out;
