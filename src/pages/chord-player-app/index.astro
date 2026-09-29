@@ -23,11 +23,14 @@ import { APP, instrumentList } from '@/data/facts';
 // they don't — songs do not sync between them yet — is said once, plainly.
 //
 // Each Play badge has its own `from`, so Play Console and GA4 can tell which one installs.
+// The title leads with "Chord Player App": Search Console (2026-08-31 to 09-27) showed
+// "chord player app" as the page's main query, 30 impressions at position 7.6 and no
+// clicks, with "chord progression app android" at 10.5 and "chord progression app" at 27.
 const PAGE_URL = 'https://chordsequence.com/chord-player-app/';
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.eliascorsino.chord_sequencer';
 
 const description =
-  `Chord Player for Android: write the chords, pick one of ${APP.rhythms} rhythms and a full band plays along. Loop a section, slow it down, change the key. Free, offline.`;
+  `The Chord Player app for Android: write the chords, pick one of ${APP.rhythms} rhythms and a full band plays along. Loop, slow down, change the key. Free and offline.`;
 
 const band = instrumentList(APP.instruments);
 
@@ -176,7 +179,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
 ---
 
 <BaseLayout
-  title="Chord Player for Android — Free Chord Progression App"
+  title="Chord Player App for Android — Free Chord Progression App"
   description={description}
   canonicalUrl={PAGE_URL}
   ogImage="https://chordsequence.com/og/page/chord-player-app/"
@@ -203,7 +206,7 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
               alt=""
               class="h-12 w-12 rounded-xl border border-border sm:h-14 sm:w-14"
             />
-            <span class={`${kicker} text-primary`}>Chord Player for Android</span>
+            <span class={`${kicker} text-primary`}>The Chord Player app for Android</span>
           </span>
           <span class="font-serif text-[2.6rem] font-semibold leading-[1.04] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
             Your backing band,<br />in your pocket.
