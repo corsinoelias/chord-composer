@@ -14,6 +14,7 @@ npx tsc --noEmit      # TypeScript-only type check (faster for catching errors)
 npm run seed          # Seed songs to Supabase (requires .env)
 npm run engine:sync   # Copy the Android app's audio engine into engine/vendor/ and build public/engine/ (needs wasi-sdk + Chromium for the recordings)
 npm run check:engine  # Fails if engine/ or public/engine/ differ from engine/source.json; wired into netlify.toml's build
+npm run check:landing-fit  # Fails if a block of /chord-player-app/ outgrows one screen at any of 10 sizes; needs a running server (npm run dev) and Chromium, not in the build
 
 # Search Console (impressions, average position, CTR -- the half GA4 cannot see)
 node scripts/gsc.mjs compare              # this 28d window vs the previous one

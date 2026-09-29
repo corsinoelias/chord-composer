@@ -30,6 +30,15 @@ import { APP, instrumentList } from '@/data/facts';
 // track app" 720 a month, "chord progression app" 320, "worship backing tracks app" 170,
 // against 110 for "chord player app". Android stays in the description and the H1, not the
 // title, to keep it under 60 characters.
+//
+// LAYOUT: every block marked data-fit is at most one screen tall — the viewport minus the
+// 65px sticky navbar — at every size from a 360x740 phone to a 1920x1080 desktop, and
+// data-fit-lg holds the same from 1024px up. Heights that must give are tied to the screen
+// with svh (not vh: on a phone vh ignores the address bar), and short desktop screens
+// (1280x720, 1024x768) get a compact type scale through `max-height` media queries.
+// Nothing is removed to fit: what does not fit is folded (tabs, a carousel, <details>) and
+// stays in the HTML. `npm run check:landing-fit` measures all of it against a running
+// server and fails when a block outgrows its screen.
 const PAGE_URL = 'https://chordsequence.com/chord-player-app/';
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.eliascorsino.chord_sequencer';
 
@@ -51,21 +60,11 @@ const ICONS: Record<string, string> = {
   drum: '<path d="m2 2 8 8"/><path d="m22 2-8 8"/><ellipse cx="12" cy="9" rx="10" ry="5"/><path d="M7 13.4v7.9"/><path d="M12 14v8"/><path d="M17 13.4v7.9"/><path d="M2 9v8a10 5 0 0 0 20 0V9"/>',
   phone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
   laptop: '<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
 };
 
-const checks = ['Free', 'No account needed', 'Works offline', `Android ${APP.minAndroid} or later`, APP.languages.join(' and ')];
-
-// The uses, in the order the jump links and the page show them. `tint` is the instrument
-// colour of the app's theme (app_theme.dart) the card borrows; `ink` is that colour
-// darkened until text on the tint passes 4.5:1.
-const uses = [
-  { id: 'practice', label: 'Practice', dot: '#1783FF' },
-  { id: 'worship', label: 'Worship teams', dot: '#E8B93E' },
-  { id: 'latin', label: 'Latin & keyboard styles', dot: '#FF3849' },
-  { id: 'songwriters', label: 'Songwriters', dot: '#E0609A' },
-  { id: 'producers', label: 'Producers', dot: '#8C7AE6' },
-  { id: 'learners', label: 'Learners & teachers', dot: '#34C3B0' },
-];
+// The hero's checks. The first three are the ones a phone shows; the rest need the room.
+const checks = ['Free', 'No account', 'Works offline', `Android ${APP.minAndroid}+`, APP.languages.join(' and ')];
 
 const practiceTools = [
   { icon: 'loop', title: 'Loop any section', text: 'It starts on the downbeat, round and round' },
@@ -76,7 +75,7 @@ const practiceTools = [
   { icon: 'zap', title: 'Fill on demand', text: 'Tap it and the break lands on the next bar' },
 ];
 
-// The practice card draws the app's transport rather than showing a screenshot of it.
+// The practice panel draws the app's transport rather than showing a screenshot of it.
 // Chord colours are the app's: major triads amber, minor blue (chordMajor / chordMinor).
 const practiceChords = [
   { name: 'G', degree: 'I', playing: true, minor: false },
@@ -85,28 +84,89 @@ const practiceChords = [
   { name: 'C', degree: 'IV', playing: false, minor: false },
 ];
 
-const smallUses = [
+// The six uses: tabs from 768px up, a swiped carousel below. `tint` is the instrument
+// colour of the app's theme (app_theme.dart) the panel borrows; `ink` is that colour darkened
+// until text on the tint passes 4.5:1. `short` is what a phone shows; `text` and `bullets`
+// are there too, folded away below 768px. The ids are the anchors other pages link to
+// (/chord-player-app/#worship): the script opens the tab or card an anchor names.
+type Use = {
+  id: string; label: string; dot: string; tint: string; ink: string;
+  title: string; short: string; text: string; bullets: string[];
+  shot?: string; alt?: string;
+};
+const uses: Use[] = [
   {
-    id: 'songwriters', tag: 'Songwriters', tint: '#FBE7F0', ink: '#A3205C', shot: 'progressions',
-    alt: 'Classic progressions to start from, each with its chords and what it sounds like',
+    id: 'practice', label: 'Practice', dot: '#1783FF', tint: '#E6F0FF', ink: '#0B5FD6',
+    title: 'Practice with a band that never gets tired.',
+    short: 'Loop the chorus, slow it down, move it to your key and play along.',
+    text: 'Loop the chorus until it’s in your hands. Slow it down, move it to your key and play along. Lock the phone: the band keeps going.',
+    bullets: [],
+  },
+  {
+    id: 'worship', label: 'Worship teams', dot: '#E8B93E', tint: '#FBF3DC', ink: '#8A6400',
+    title: 'Rehearse Sunday’s set in the singer’s key.',
+    short: 'Worship backing tracks for the set, in the key of the voice that sings it.',
+    text: 'Make the worship backing tracks for the set yourself: open a song from the chordsequence.com catalogue or write it in, pick Worship, Modern Worship or Gospel, and move the whole song until it sits in the voice that has to sing it.',
+    bullets: [
+      'Change the key of the whole song, or step it a semitone at a time',
+      'Guitar shapes and piano keys for every chord, for whoever is playing',
+      'An intro and an ending, so the song starts and stops like a band',
+    ],
+    shot: 'chord-editor', alt: 'The chord editor, showing the chords of the key, the length of the chord and its bass note',
+  },
+  {
+    id: 'latin', label: 'Latin & keyboard styles', dot: '#FF3849', tint: '#FDE7EA', ink: '#B0102A',
+    title: 'An arranger keyboard, in your pocket.',
+    short: 'Cumbia, bachata, vallenato, norteño, salsa: intro, verse, chorus, fill and ending.',
+    text: 'Cumbia, bachata, vallenato, norteño, bolero, salsa, played the way a keyboard plays them: a way in, a groove for the verse, a fuller one for the chorus, a fill when you call it and a proper ending.',
+    bullets: [
+      `${APP.percussionRows} rows of hand percussion: congas, bongos, timbales, güiro, claves…`,
+      'Intro, A, B and Ending on nearly every rhythm; each section picks its part',
+      'Change any step of the groove, and tap the drums with your fingers',
+    ],
+    shot: 'rhythm-editor', alt: 'The rhythm editor on the drums: a step grid for the kit and the Latin percussion, with Intro, A, B and Ending tabs',
+  },
+  {
+    id: 'songwriters', label: 'Songwriters', dot: '#E0609A', tint: '#FBE7F0', ink: '#A3205C',
     title: 'Catch the idea before it’s gone.',
-    text: 'Sections, a Suggest button for chords that fit your key, strings in the chorus and piano in the verse. Then an M4A for the band. No signal needed.',
+    short: 'Sections, chords that fit your key, and an M4A for the band. No signal needed.',
+    text: 'Write it section by section, let Suggest offer chords that fit your key, give the chorus strings and the verse piano, then send the band an M4A. No signal needed.',
+    bullets: [
+      'A Suggest button for a progression in your key',
+      'A different sound for each part of the song',
+      'Export M4A to share, WAV to keep editing',
+    ],
+    shot: 'progressions', alt: 'Classic progressions to start from, each with its chords and what it sounds like',
   },
   {
-    id: 'producers', tag: 'Producers', tint: '#ECE9FB', ink: '#5140B8', shot: 'rhythm-piano',
-    alt: 'The rhythm editor on the piano, with the notes of each step and a keyboard to set its range',
+    id: 'producers', label: 'Producers', dot: '#8C7AE6', tint: '#ECE9FB', ink: '#5140B8',
     title: 'Sketch it here, finish it in your DAW.',
+    short: 'The progression and the groove on the train, then MIDI or WAV for your DAW.',
     text: 'Get the progression and the groove down on the train, note by note per instrument. Export MIDI for the notes or WAV for the audio.',
+    bullets: [
+      `${band[0].toUpperCase()}${band.slice(1)} on a step grid`,
+      'Each instrument’s range set on a keyboard',
+      '4/4, 3/4, 6/8 and 5/4, straight or swung',
+    ],
+    shot: 'rhythm-piano', alt: 'The rhythm editor on the piano, with the notes of each step and a keyboard to set its range',
   },
   {
-    id: 'learners', tag: 'Learners & teachers', tint: '#DDF4F0', ink: '#0F766A', shot: 'chord-diagram',
-    alt: 'A chord shown as a guitar shape and as keys on a piano',
+    id: 'learners', label: 'Learners & teachers', dot: '#34C3B0', tint: '#DDF4F0', ink: '#0F766A',
     title: 'Hear what the theory means.',
+    short: 'Every chord with its degree, its guitar shape and its keys, in any rhythm.',
     text: `Every chord shows its degree, its guitar shape and its keys. Play a ii–V–I, then the Andalusian cadence, in any of ${APP.rhythms} rhythms.`,
+    bullets: [
+      'The degree of every chord in the key',
+      'Guitar shapes and piano keys for each chord',
+      `${APP.progressions} classic progressions, from the ii–V–I to the Andalusian cadence`,
+    ],
+    shot: 'chord-diagram', alt: 'A chord shown as a guitar shape and as keys on a piano',
   },
 ];
 
-// Names as the app lists them (style_presets.dart and assets/rhythm_library.json).
+// Names as the app lists them (style_presets.dart and assets/rhythm_library.json). The
+// first four groups show their first six; the rest of them and the last two groups are
+// folded into "More genres", so the section stays one screen tall.
 const genres = [
   { name: 'Latin & Caribbean', dot: '#FF3849', items: ['Salsa', 'Bachata', 'Merengue', 'Cumbia', 'Vallenato', 'Norteño', 'Duranguense', 'Banda', 'Bolero', 'Reggaeton', 'Bossa Nova', 'Samba', 'Cha-Cha', 'Punta'] },
   { name: 'Worship & Gospel', dot: '#E8B93E', items: ['Worship', 'Modern Worship', 'Fast Gospel', 'Slow Gospel'] },
@@ -114,6 +174,14 @@ const genres = [
   { name: 'Jazz & Swing', dot: '#9C8CF0', items: ['Jazz Swing', 'Swing', 'Big Band', 'Jazz Waltz', 'Fox Trot'] },
   { name: 'Dance & Hip-Hop', dot: '#E0609A', items: ['Trap', 'Hip-Hop', 'House', 'Afrobeat', 'Techno Pop', 'Disco Pop'] },
   { name: 'Ballads, piano & world', dot: '#34C3B0', items: ['Piano Ballad', 'Stride Piano', 'Ragtime', 'Tango', 'Waltz', 'Bhangra', 'Enka'] },
+];
+const SHOWN_PER_GENRE = 6;
+const shownGenres = genres.slice(0, 4).map((g) => ({ ...g, items: g.items.slice(0, SHOWN_PER_GENRE) }));
+const moreGenres = [
+  ...genres.slice(0, 4)
+    .filter((g) => g.items.length > SHOWN_PER_GENRE)
+    .map((g) => ({ ...g, name: `More ${g.name}`, items: g.items.slice(SHOWN_PER_GENRE) })),
+  ...genres.slice(4),
 ];
 
 // The song's form as a rhythm plays it: flex weights are roughly how long each part lasts.
@@ -124,6 +192,13 @@ const form = [
   { label: 'B · fuller', note: 'chorus', grow: 'grow-[4]', bar: '#9C8CF0', ink: '#B4A8F5', fill: false },
   { label: 'Fill', note: '', grow: 'grow', bar: '#FF3849', ink: '#FF7A86', fill: true },
   { label: 'Ending', note: 'the way out', grow: 'grow-[2]', bar: '#34C3B0', ink: '#5FD8C7', fill: false },
+];
+
+const yours = [
+  ['Every note, step by step', `${band[0].toUpperCase()}${band.slice(1)} on a step grid, each with its range on a keyboard.`],
+  [`${APP.sounds} sounds to choose from`, 'Pianos, Rhodes, organs, guitars, pads, strings, brass. A different one for each part.'],
+  ['A mixer per instrument', 'Level, pan, mute and solo, three-band EQ, compression and reverb.'],
+  ['Take it anywhere', `${APP.exports[0]} to send, WAV to keep editing, MIDI to open the notes in your DAW.`],
 ];
 
 // What the app and Chord Player online share. Each is true of the code today: the web plays
@@ -179,7 +254,15 @@ const breadcrumbSchema = buildBreadcrumbSchema(PAGE_URL, [
 ]);
 
 const kicker = 'font-mono text-xs font-bold uppercase tracking-[0.12em]';
-const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text-foreground sm:text-5xl';
+// Section titles shrink on short desktop screens (1280x720, 1024x768), where the full size
+// would push the section past one screen.
+const h2 = 'font-serif text-[1.75rem] max-md:[@media(max-height:760px)]:text-[1.5rem] font-semibold leading-[1.1] tracking-tight text-foreground sm:text-4xl lg:text-5xl lg:[@media(max-height:800px)]:text-4xl';
+// Vertical rhythm of a one-screen section: the padding gives way on short screens first.
+// Phones with a short screen (a 360x740 Android, the smallest common one) get a compact
+// step of their own, written out in full because Tailwind only sees literal class names.
+const screenPad = 'py-6 max-md:[@media(max-height:760px)]:py-4 md:py-[clamp(1.5rem,6svh,4.5rem)]';
+// Tighter, for the two sections with the most in them (the uses and the rhythms).
+const screenPadTight = 'py-6 max-md:[@media(max-height:760px)]:py-4 md:py-[clamp(1rem,4svh,4rem)]';
 ---
 
 <BaseLayout
@@ -194,38 +277,40 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
     <JsonLd schema={breadcrumbSchema} />
   </Fragment>
 
-  <main class="overflow-x-clip">
+  <main class="overflow-x-clip" data-landing>
     <!-- ─── HERO ─────────────────────────────────────────────────────────── -->
-    <!-- The demo sits under the badge: that the band sounds like a band is the one claim
-         nobody can check by reading, so it is in reach before any scrolling. On a phone the
-         screenshot comes after the words, where it cannot push the badge off the screen. -->
-    <section class="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-12 px-4 pb-12 pt-10 sm:px-6 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_500px] lg:gap-16 lg:pb-16">
-      <div class="flex min-w-0 flex-col gap-6 sm:gap-7">
-        <h1 class="flex flex-col gap-5">
-          <span class="flex items-center gap-3.5">
+    <!-- From 1024px the words and the phone share one screen. Below that they are two:
+         the words, the badge and the demo first — the badge is always on the first screen —
+         then the phone. Every size in the column is tied to the screen's height, so a
+         1024x768 laptop sees the badge too. -->
+    <section class="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-4 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_minmax(0,480px)] lg:min-h-[calc(100svh-65px)] lg:py-6" data-fit-lg data-snap data-hero>
+      <div class="flex min-w-0 flex-col justify-center gap-[clamp(0.9rem,2.6svh,1.75rem)] [@media(max-height:700px)]:gap-3 py-6 [@media(max-height:700px)]:py-4 lg:py-0" data-fit data-snap>
+        <h1 class="flex flex-col gap-[clamp(0.75rem,2svh,1.25rem)]">
+          <span class="flex items-center gap-3">
             <img
               src="/images/chord-player-app-icon.png"
               width="96"
               height="96"
               alt=""
-              class="h-12 w-12 rounded-xl border border-border sm:h-14 sm:w-14"
+              class="h-11 w-11 rounded-xl border border-border lg:h-[clamp(2.75rem,6svh,3.5rem)] lg:w-[clamp(2.75rem,6svh,3.5rem)]"
             />
             <span class={`${kicker} text-primary`}>The Chord Player app for Android</span>
           </span>
-          <span class="font-serif text-[2.6rem] font-semibold leading-[1.04] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
+          <span class="font-serif text-[2.1rem] [@media(max-height:700px)]:text-[1.85rem] font-semibold leading-[1.04] tracking-tight text-foreground sm:text-5xl lg:text-[clamp(2.5rem,min(8.5svh,5.2vw),4.5rem)]">
             Your backing band,<br />in your pocket.
           </span>
         </h1>
-        <p class="max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+        <p class="max-w-xl text-base [@media(max-height:700px)]:text-[15px] leading-relaxed [@media(max-height:700px)]:leading-normal text-muted-foreground sm:text-lg lg:[@media(min-height:860px)]:text-xl">
           Turn your chords into a backing track: pick one of {APP.rhythms} rhythms, from cumbia
           and bachata to worship and jazz, and {band} play them with you. Loop a section, slow
           it down, change the key.
         </p>
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-7" data-hero-cta>
+        <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-7" data-hero-cta>
           <GooglePlayBadge from="landing_hero" eager class="-ml-2" />
-          <a href="#phone-and-browser" class="flex items-center gap-1.5 text-[15px] font-semibold text-muted-foreground transition-colors hover:text-primary">
-            On iPhone or a computer? Open it in your browser
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.arrow} /></svg>
+          <a href="#phone-and-browser" class="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary sm:text-[15px]">
+            <span class="sm:hidden">On iPhone or a computer? Use the browser</span>
+            <span class="hidden sm:inline">On iPhone or a computer? Open it in your browser</span>
+            <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.arrow} /></svg>
           </a>
         </div>
 
@@ -233,50 +318,59 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
              its own M4A export (1.2.0, 2026-09-29). `preload="none"` keeps its 2.1 MB off
              every page load. A new recording gets a new file name, so no browser keeps
              playing the old one. -->
-        <div class="flex max-w-[520px] items-center gap-4 rounded-2xl border border-border bg-card p-4 pr-5 shadow-sm" data-demo>
+        <div class="flex max-w-[520px] items-center gap-3.5 rounded-2xl border border-border bg-card p-3 pr-4 shadow-sm sm:gap-4 sm:p-4 sm:pr-5" data-demo>
           <button
             type="button"
-            class="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105"
+            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 sm:h-[52px] sm:w-[52px]"
             aria-label="Play the salsa demo"
             data-demo-toggle
           >
             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" data-demo-play><path d="M7 4.5v15l12.5-7.5z" /></svg>
             <svg class="hidden h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" data-demo-pause><rect x="5" y="4" width="5" height="16" rx="1" /><rect x="14" y="4" width="5" height="16" rx="1" /></svg>
           </button>
-          <div class="flex min-w-0 grow flex-col gap-2">
+          <div class="flex min-w-0 grow flex-col gap-1.5 sm:gap-2">
             <div class="flex items-baseline justify-between gap-3">
-              <span class="text-[15px] font-semibold text-foreground">Hear it: “Sunset Drive” in Salsa</span>
+              <span class="text-sm font-semibold text-foreground sm:text-[15px]">Hear it: “Sunset Drive” in Salsa</span>
               <span class="font-mono text-xs text-muted-foreground" data-demo-time>1:28</span>
             </div>
-            <div class="flex h-7 items-center gap-[3px] overflow-hidden" aria-hidden="true">
+            <div class="flex h-6 items-center gap-[3px] overflow-hidden sm:h-7" aria-hidden="true">
               {wave.map((h) => (
                 <span class="w-1 shrink-0 rounded-sm bg-[#D9DCE3]" style={`height:${h}px`} data-demo-bar></span>
               ))}
             </div>
-            <span class="text-[12.5px] leading-snug text-muted-foreground">
-              Exported straight from the app. Congas, bongos and güiro included, nothing added afterwards.
+            <span class="text-xs leading-snug text-muted-foreground [@media(max-height:700px)]:hidden sm:text-[12.5px]">
+              Exported straight from the app, nothing added afterwards.
             </span>
           </div>
           <audio preload="none" src="/audio/chord-player-app-demo-salsa.m4a" data-demo-audio></audio>
         </div>
+
+        <ul class="flex flex-wrap gap-x-5 gap-y-1.5" aria-label="At a glance">
+          {checks.map((item, i) => (
+            <li class:list={['items-center gap-1.5 text-[13px] font-medium text-muted-foreground sm:text-sm', i < 3 ? 'flex' : 'hidden sm:flex']}>
+              <svg class="h-3.5 w-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.check} /></svg>
+              {item}
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <div class="relative mx-auto flex h-[440px] w-full max-w-[500px] items-start justify-center overflow-visible rounded-[32px] bg-[#EFE8FD] pt-8 sm:h-[560px] lg:h-[640px] lg:items-center lg:pt-0">
+      <div class="relative mx-auto flex h-[min(calc(100svh-65px-2rem),560px)] w-full max-w-[480px] items-center justify-center rounded-[32px] bg-[#EFE8FD] lg:h-[min(calc(100svh-65px-3.5rem),640px)]" data-fit data-snap>
         <img
           src="/images/chord-player-app/song.webp"
           width="760"
           height="1600"
           alt="Chord Player playing a salsa: Intro, Verse and Chorus, with the sounding chord lit up"
           fetchpriority="high"
-          class="w-[220px] drop-shadow-[0_24px_40px_rgba(60,20,140,0.25)] sm:w-[260px] lg:w-[290px]"
+          class="h-[calc(100%-3rem)] w-auto max-w-none drop-shadow-[0_24px_40px_rgba(60,20,140,0.25)]"
         />
-        <div class="absolute left-3 top-24 hidden items-center gap-2.5 rounded-2xl bg-card px-4 py-3 shadow-[0_12px_32px_rgba(20,24,31,0.12)] sm:flex lg:-left-7 lg:top-28">
+        <div class="absolute left-3 top-[14%] hidden items-center gap-2.5 rounded-2xl bg-card px-4 py-3 shadow-[0_12px_32px_rgba(20,24,31,0.12)] sm:flex xl:-left-7">
           <span class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#E6F0FF] text-[#0B5FD6]">
             <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.loop} /></svg>
           </span>
           <span class="flex flex-col"><span class="text-[13px] font-semibold text-foreground">Chorus on loop</span><span class="text-xs text-muted-foreground">until it’s in your hands</span></span>
         </div>
-        <div class="absolute bottom-20 right-3 hidden items-center gap-2.5 rounded-2xl bg-card px-4 py-3 shadow-[0_12px_32px_rgba(20,24,31,0.12)] sm:flex lg:-right-6 lg:bottom-28">
+        <div class="absolute bottom-[14%] right-3 hidden items-center gap-2.5 rounded-2xl bg-card px-4 py-3 shadow-[0_12px_32px_rgba(20,24,31,0.12)] sm:flex xl:-right-6">
           <span class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#FDE7EA] text-[#C8102E]">
             <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.drum} /></svg>
           </span>
@@ -285,252 +379,236 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
       </div>
     </section>
 
-    <!-- ─── CHECKS ───────────────────────────────────────────────────────── -->
-    <div class="mx-auto max-w-[1200px] px-4 sm:px-6">
-      <ul class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 rounded-2xl border border-border bg-card px-5 py-5 lg:justify-around">
-        {checks.map((item) => (
-          <li class="flex items-center gap-2 text-sm font-medium text-muted-foreground sm:text-[15px]">
-            <svg class="h-4 w-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.check} /></svg>
-            {item}
-          </li>
-        ))}
-      </ul>
-    </div>
-
     <!-- ─── MADE FOR ─────────────────────────────────────────────────────── -->
-    <section id="made-for" class="mx-auto flex max-w-[1200px] scroll-mt-20 flex-col gap-6 px-4 pt-20 sm:px-6 sm:pt-28">
-      <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
-        <div class="flex max-w-[700px] flex-col gap-3.5">
-          <p class={`${kicker} text-primary`}>Made for</p>
-          <h2 class={h2}>However you play, there’s a band for it.</h2>
-        </div>
-        <nav aria-label="Uses" class="flex max-w-[480px] flex-wrap gap-2 lg:justify-end">
-          {uses.map((use) => (
-            <a href={`#${use.id}`} class="flex h-9 items-center gap-2 rounded-full border border-border bg-card px-3.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40">
-              <span class="h-2 w-2 rounded-full" style={`background:${use.dot}`}></span>{use.label}
-            </a>
-          ))}
-        </nav>
+    <!-- Six uses in one screen. From 768px: a tab list and one panel. Below: a carousel
+         swiped sideways, one card per swipe, the same list above it as its index. Every
+         panel is in the HTML either way; only what is shown changes. -->
+    <section id="made-for" class={`mx-auto flex max-w-[1200px] flex-col gap-[clamp(0.75rem,2.5svh,1.5rem)] px-4 sm:px-6 ${screenPadTight}`} data-fit data-snap data-uses>
+      <div class="flex flex-col gap-2">
+        <p class={`${kicker} text-primary`}>Made for</p>
+        <h2 class={h2}>However you play, there’s a band for it.</h2>
       </div>
 
-      <!-- 1 · Practice -->
-      <article id="practice" class="grid grid-cols-1 scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
-        <div class="flex flex-col gap-5">
-          <span class="flex h-7 w-fit items-center rounded-full bg-[#E6F0FF] px-3 font-mono text-xs font-bold uppercase tracking-[0.08em] text-[#0B5FD6]">Practice</span>
-          <h3 class="font-serif text-3xl font-semibold leading-[1.12] text-foreground sm:text-[40px]">Practice with a band that never gets tired.</h3>
-          <p class="text-[17px] leading-relaxed text-muted-foreground">
-            Loop the chorus until it’s in your hands. Slow it down, move it to your key and
-            play along. Lock the phone: the band keeps going.
-          </p>
-          <ul class="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-            {practiceTools.map((tool) => (
-              <li class="flex items-start gap-3">
-                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-muted text-foreground">
-                  <svg class="h-[17px] w-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS[tool.icon]} /></svg>
-                </span>
-                <span class="flex flex-col gap-0.5">
-                  <span class="text-[15px] font-semibold text-foreground">{tool.title}</span>
-                  <span class="text-[13.5px] leading-snug text-muted-foreground">{tool.text}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <div
+        role="tablist"
+        aria-label="Uses"
+        class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden"
+      >
+        {uses.map((use, i) => (
+          <button
+            type="button"
+            role="tab"
+            id={`tab-${use.id}`}
+            aria-controls={use.id}
+            aria-selected={i === 0 ? 'true' : 'false'}
+            tabindex={i === 0 ? 0 : -1}
+            data-use-tab={use.id}
+            class="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-border bg-card px-3.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 aria-selected:border-foreground aria-selected:bg-foreground aria-selected:text-background"
+          >
+            <span class="h-2 w-2 rounded-full" style={`background:${use.dot}`}></span>{use.label}
+          </button>
+        ))}
+      </div>
 
-        <!-- The app's transport, drawn: slowed down, in G, the chorus looping. Decoration,
-             so hidden from screen readers; the list beside it says the same in words. -->
-        <div class="flex flex-col justify-center gap-4 rounded-3xl bg-[#E6F0FF] p-5 sm:p-9" aria-hidden="true">
-          <div class="flex flex-col gap-4 rounded-[22px] bg-card p-4 shadow-[0_16px_40px_rgba(11,40,90,0.14)] sm:p-5">
-            <div class="flex items-center gap-4">
-              <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary shadow-[0_0_0_8px_#EFE8FD] sm:h-16 sm:w-16"><span class="h-4 w-4 rounded-[3px] bg-white"></span></span>
-              <div class="flex grow flex-col gap-1.5">
-                <div class="flex items-center gap-2"><span class="font-mono text-[11px] font-bold tracking-[0.12em] text-muted-foreground">TEMPO</span><span class="rounded-md bg-muted px-2 py-0.5 font-mono text-[11px] font-bold text-muted-foreground">4/4</span></div>
-                <div class="flex items-baseline gap-1.5"><span class="font-mono text-3xl font-bold leading-none text-foreground sm:text-4xl">72</span><span class="text-[13px] text-muted-foreground">BPM · slowed from 96</span></div>
-                <div class="relative h-1.5 rounded-full bg-muted"><div class="h-1.5 w-1/5 rounded-full bg-primary"></div><span class="absolute left-[20%] top-[-5px] -ml-2 h-4 w-4 rounded-full border border-border bg-white"></span></div>
+      <div
+        class="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:scroll-px-6 sm:px-6 md:mx-0 md:block md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden"
+        data-use-track
+      >
+        {uses.map((use, i) => (
+          <article
+            id={use.id}
+            role="tabpanel"
+            aria-labelledby={`tab-${use.id}`}
+            data-use-panel
+            data-active={i === 0 ? '' : undefined}
+            class="flex w-[86%] shrink-0 snap-start flex-col gap-3 rounded-[24px] border border-border bg-card p-4 sm:w-[70%] sm:p-5 md:w-auto md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] md:items-center md:gap-8 md:rounded-[28px] md:p-[clamp(1.25rem,4svh,3rem)] lg:gap-14"
+          >
+            <div class="flex min-w-0 flex-col gap-2.5 md:gap-[clamp(0.6rem,2svh,1.1rem)]">
+              <span class="flex h-[26px] w-fit items-center rounded-full px-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] md:h-7 md:px-3 md:text-xs" style={`background:${use.tint};color:${use.ink}`}>{use.label}</span>
+              <h3 class="font-serif text-[1.3rem] font-semibold leading-[1.12] text-foreground sm:text-[1.45rem] md:text-[clamp(1.6rem,4.6svh,2.4rem)]">{use.title}</h3>
+              <p class="text-[15px] leading-snug text-muted-foreground lg:hidden">{use.short}</p>
+              <p class="hidden text-base leading-relaxed text-muted-foreground lg:block lg:[@media(min-height:860px)]:text-[17px] lg:[@media(max-height:800px)]:text-[15px]">{use.text}</p>
+              {use.id === 'practice' ? (
+                <>
+                  <ul class="hidden flex-wrap gap-1.5 sm:flex md:hidden">
+                    {practiceTools.slice(0, 3).map((tool) => (
+                      <li class="flex h-7 items-center gap-1.5 rounded-full bg-muted px-2.5 text-[13px] font-medium text-foreground">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS[tool.icon]} /></svg>
+                        {tool.title}
+                      </li>
+                    ))}
+                  </ul>
+                  <ul class="hidden gap-x-6 gap-y-[clamp(0.5rem,1.6svh,0.9rem)] md:grid md:grid-cols-2">
+                    {practiceTools.map((tool) => (
+                      <li class="flex items-start gap-3">
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-muted text-foreground">
+                          <svg class="h-[17px] w-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS[tool.icon]} /></svg>
+                        </span>
+                        <span class="flex flex-col">
+                          <span class="text-[15px] font-semibold text-foreground">{tool.title}</span>
+                          <span class="hidden text-[13.5px] leading-snug text-muted-foreground lg:block lg:[@media(max-height:800px)]:hidden">{tool.text}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <ul class="hidden flex-col gap-[clamp(0.4rem,1.4svh,0.75rem)] md:flex">
+                  {use.bullets.map((line) => (
+                    <li class="flex gap-2.5 text-[15px] leading-normal text-foreground lg:[@media(max-height:800px)]:text-sm">
+                      <svg class="mt-0.5 h-[18px] w-[18px] shrink-0" style={`color:${use.ink}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.check} /></svg>
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {use.id === 'practice' ? (
+              <!-- The app's transport, drawn: slowed down, in G, the chorus looping. Decoration,
+                   so hidden from screen readers; the list beside it says the same in words. -->
+              <div class="flex flex-col justify-center gap-3 rounded-2xl p-3 md:h-[min(calc(100svh-21rem),440px)] md:rounded-3xl md:p-5" style={`background:${use.tint}`} aria-hidden="true">
+                <div class="flex flex-col gap-3 rounded-[18px] bg-card p-3 shadow-[0_16px_40px_rgba(11,40,90,0.14)] md:p-4">
+                  <div class="flex items-center gap-3.5">
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary shadow-[0_0_0_6px_#EFE8FD] md:h-14 md:w-14"><span class="h-3.5 w-3.5 rounded-[3px] bg-white md:h-4 md:w-4"></span></span>
+                    <div class="flex grow flex-col gap-1">
+                      <div class="flex items-baseline gap-1.5"><span class="font-mono text-2xl font-bold leading-none text-foreground md:text-3xl">72</span><span class="text-xs text-muted-foreground md:text-[13px]">BPM<span class="hidden sm:inline"> · slowed from 96</span></span></div>
+                      <div class="relative h-1.5 rounded-full bg-muted"><div class="h-1.5 w-1/5 rounded-full bg-primary"></div></div>
+                    </div>
+                    <span class="flex h-9 shrink-0 items-center gap-2 rounded-full bg-muted px-3 font-mono text-sm font-bold"><span class="text-muted-foreground">−</span><span class="text-primary">G</span><span class="text-muted-foreground">+</span></span>
+                  </div>
+                  <div class="overflow-hidden rounded-xl border-2 border-[#1783FF]">
+                    <div class="flex h-9 items-center justify-between bg-[#E6F0FF] px-3">
+                      <span class="flex items-center gap-2 text-sm font-semibold text-foreground"><span class="h-2.5 w-2.5 rounded-[3px] bg-[#1783FF]"></span>Chorus</span>
+                      <span class="flex h-6 items-center gap-1.5 rounded-full bg-[#1783FF] px-2.5 text-xs font-semibold text-white">
+                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><Fragment set:html={ICONS.loop} /></svg>Looping
+                      </span>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1.5 p-2 md:gap-2 md:p-2.5">
+                      {practiceChords.map((chord) => (
+                        <span class:list={[
+                          'flex h-12 flex-col justify-between rounded-lg border px-2 py-1.5 md:h-[52px]',
+                          chord.playing ? 'border-[#E5A50A] bg-[#FBBD23]' : chord.minor ? 'border-[#B9CCF3] bg-[#E8EFFC]' : 'border-[#F5DC9A] bg-[#FEF6DE]',
+                        ]}>
+                          <span class:list={['font-mono text-base font-bold leading-none', chord.minor ? 'text-[#234A99]' : 'text-[#6B4A00]']}>{chord.name}</span>
+                          <span class:list={['text-[11px] leading-none', chord.minor ? 'text-[#4A6AA8]' : 'text-[#7A5E1A]']}>{chord.degree}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div class="hidden h-10 items-center gap-2.5 self-center whitespace-nowrap rounded-[14px] bg-[#14181F] pl-2.5 pr-4 text-[13px] text-white md:flex">
+                  <img src="/images/chord-player-app-icon.png" width="96" height="96" alt="" loading="lazy" class="h-6 w-6 rounded-md" />
+                  <span class="font-semibold">Chord Player</span><span class="text-[#A3AAB8]">Playing · Chorus</span>
+                  <span class="h-[18px] w-px bg-[#3A414D]"></span>
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16" rx="1" /><rect x="14" y="4" width="5" height="16" rx="1" /></svg>
+                </div>
               </div>
-            </div>
-            <div class="flex gap-2.5">
-              <span class="flex h-10 shrink-0 items-center gap-2.5 rounded-full bg-muted px-4 font-mono font-bold"><span class="text-muted-foreground">−</span><span class="text-primary">G</span><span class="text-muted-foreground">+</span></span>
-              <span class="flex h-10 shrink-0 items-center rounded-full border border-primary/30 bg-[#EFE8FD] px-3.5 text-sm font-semibold text-primary">Click</span>
-              <span class="flex h-10 min-w-0 grow items-center gap-2 whitespace-nowrap rounded-full bg-muted px-3.5 text-sm font-semibold text-foreground"><span class="h-2 w-2 shrink-0 rounded-full bg-[#1783FF]"></span>Pop Rock</span>
-            </div>
-            <div class="overflow-hidden rounded-2xl border-2 border-[#1783FF]">
-              <div class="flex h-11 items-center justify-between bg-[#E6F0FF] px-3.5">
-                <span class="flex items-center gap-2 text-[15px] font-semibold text-foreground"><span class="h-2.5 w-2.5 rounded-[3px] bg-[#1783FF]"></span>Chorus</span>
-                <span class="flex h-[26px] items-center gap-1.5 rounded-full bg-[#1783FF] px-2.5 text-xs font-semibold text-white">
-                  <svg class="h-[13px] w-[13px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><Fragment set:html={ICONS.loop} /></svg>Looping
-                </span>
+            ) : (
+              <div class="flex h-[26svh] items-start justify-center overflow-hidden rounded-2xl pt-[5%] md:h-[min(calc(100svh-21rem),440px)] md:rounded-3xl" style={`background:${use.tint}`}>
+                <img
+                  src={`/images/chord-player-app/${use.shot}.webp`}
+                  width="760"
+                  height="1600"
+                  loading="lazy"
+                  alt={use.alt}
+                  class="h-[125%] w-auto max-w-none drop-shadow-[0_18px_32px_rgba(20,24,31,0.18)]"
+                />
               </div>
-              <div class="grid grid-cols-4 gap-2 p-3">
-                {practiceChords.map((chord) => (
-                  <span class:list={[
-                    'flex h-[60px] flex-col justify-between rounded-[10px] border px-2.5 py-2',
-                    chord.playing ? 'border-[#E5A50A] bg-[#FBBD23]' : chord.minor ? 'border-[#B9CCF3] bg-[#E8EFFC]' : 'border-[#F5DC9A] bg-[#FEF6DE]',
-                  ]}>
-                    <span class:list={['font-mono text-lg font-bold', chord.minor ? 'text-[#234A99]' : 'text-[#6B4A00]']}>{chord.name}</span>
-                    <span class:list={['text-xs', chord.minor ? 'text-[#4A6AA8]' : 'text-[#7A5E1A]']}>{chord.degree}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div class="flex h-11 items-center gap-2.5 self-center whitespace-nowrap rounded-[14px] bg-[#14181F] pl-2.5 pr-4 text-[13px] text-white">
-            <img src="/images/chord-player-app-icon.png" width="96" height="96" alt="" loading="lazy" class="h-6 w-6 rounded-md" />
-            <span class="font-semibold">Chord Player</span><span class="text-[#A3AAB8]">Playing · Chorus</span>
-            <span class="h-[18px] w-px bg-[#3A414D]"></span>
-            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16" rx="1" /><rect x="14" y="4" width="5" height="16" rx="1" /></svg>
-          </div>
-        </div>
-      </article>
-
-      <!-- 2 · Worship teams -->
-      <article id="worship" class="grid grid-cols-1 scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
-        <div class="flex h-[340px] items-start justify-center overflow-hidden rounded-3xl bg-[#FBF3DC] pt-8 sm:h-[448px] sm:pt-10 lg:order-first">
-          <img src="/images/chord-player-app/chord-editor.webp" width="760" height="1600" loading="lazy"
-            alt="The chord editor, showing the chords of the key, the length of the chord and its bass note"
-            class="w-[240px] drop-shadow-[0_20px_36px_rgba(120,90,10,0.22)] sm:w-[300px]" />
-        </div>
-        <div class="order-first flex flex-col gap-5 lg:order-none">
-          <span class="flex h-7 w-fit items-center rounded-full bg-[#FBF3DC] px-3 font-mono text-xs font-bold uppercase tracking-[0.08em] text-[#8A6400]">Worship teams</span>
-          <h3 class="font-serif text-3xl font-semibold leading-[1.12] text-foreground sm:text-[40px]">Rehearse Sunday’s set in the singer’s key.</h3>
-          <p class="text-[17px] leading-relaxed text-muted-foreground">
-            Make the worship backing tracks for the set yourself: open a song from the
-            chordsequence.com catalogue or write it in, pick Worship, Modern Worship or Gospel,
-            and move the whole song until it sits in the voice that has to sing it.
-          </p>
-          <ul class="flex flex-col gap-3">
-            {[
-              'Change the key of the whole song, or step it a semitone at a time',
-              'Guitar shapes and piano keys for every chord, for whoever is playing',
-              'An intro and an ending, so the song starts and stops like a band',
-            ].map((line) => (
-              <li class="flex gap-2.5 text-[15.5px] leading-normal text-foreground">
-                <svg class="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#8A6400]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.check} /></svg>
-                {line}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </article>
-
-      <!-- 3 · Latin & keyboard styles -->
-      <article id="latin" class="grid grid-cols-1 scroll-mt-20 items-center gap-10 rounded-[28px] border border-border bg-card p-6 sm:p-10 lg:grid-cols-2 lg:gap-16 lg:p-14">
-        <div class="flex flex-col gap-5">
-          <span class="flex h-7 w-fit items-center rounded-full bg-[#FDE7EA] px-3 font-mono text-xs font-bold uppercase tracking-[0.08em] text-[#B0102A]">Latin &amp; keyboard styles</span>
-          <h3 class="font-serif text-3xl font-semibold leading-[1.12] text-foreground sm:text-[40px]">An arranger keyboard, in your pocket.</h3>
-          <p class="text-[17px] leading-relaxed text-muted-foreground">
-            Cumbia, bachata, vallenato, norteño, bolero, salsa, played the way a keyboard plays
-            them: a way in, a groove for the verse, a fuller one for the chorus, a fill when you
-            call it and a proper ending.
-          </p>
-          <ul class="flex flex-col gap-3">
-            {[
-              `${APP.percussionRows} rows of hand percussion: congas, bongos, timbales, güiro, claves…`,
-              'Intro, A, B and Ending on nearly every rhythm; each section picks its part',
-              'Change any step of the groove, and tap the drums with your fingers',
-            ].map((line) => (
-              <li class="flex gap-2.5 text-[15.5px] leading-normal text-foreground">
-                <svg class="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#B0102A]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.check} /></svg>
-                {line}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div class="flex h-[340px] items-start justify-center overflow-hidden rounded-3xl bg-[#FDE7EA] pt-8 sm:h-[448px] sm:pt-10">
-          <img src="/images/chord-player-app/rhythm-editor.webp" width="760" height="1600" loading="lazy"
-            alt="The rhythm editor on the drums: a step grid for the kit and the Latin percussion, with Intro, A, B and Ending tabs"
-            class="w-[240px] drop-shadow-[0_20px_36px_rgba(140,10,30,0.2)] sm:w-[300px]" />
-        </div>
-      </article>
-
-      <!-- 4-6 · Songwriters, producers, learners -->
-      <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {smallUses.map((use) => (
-          <article id={use.id} class="flex scroll-mt-20 flex-col overflow-hidden rounded-[28px] border border-border bg-card">
-            <div class="flex flex-col gap-3.5 px-7 pt-8 sm:px-9 sm:pt-9">
-              <span class="flex h-[26px] w-fit items-center rounded-full px-2.5 font-mono text-[11.5px] font-bold uppercase tracking-[0.08em]" style={`background:${use.tint};color:${use.ink}`}>{use.tag}</span>
-              <h3 class="font-serif text-[26px] font-semibold leading-[1.15] text-foreground sm:text-[28px]">{use.title}</h3>
-              <p class="text-[15.5px] leading-relaxed text-muted-foreground">{use.text}</p>
-            </div>
-            <div class="mx-6 mt-7 flex h-[280px] items-start justify-center overflow-hidden rounded-t-[20px] pt-7 sm:mx-7" style={`background:${use.tint}`}>
-              <img src={`/images/chord-player-app/${use.shot}.webp`} width="760" height="1600" loading="lazy" alt={use.alt}
-                class="w-[230px] drop-shadow-[0_16px_28px_rgba(20,24,31,0.18)]" />
-            </div>
+            )}
           </article>
         ))}
       </div>
     </section>
 
     <!-- ─── RHYTHMS ──────────────────────────────────────────────────────── -->
-    <section id="rhythms" class="mt-20 scroll-mt-16 bg-[#131720] text-[#F3F4F6] sm:mt-28">
-      <div class="mx-auto grid grid-cols-1 max-w-[1200px] items-start gap-14 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-20">
-        <div class="flex flex-col gap-7">
+    <section id="rhythms" class="bg-[#131720] text-[#F3F4F6]" data-snap>
+      <div class={`mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] lg:gap-16 ${screenPadTight}`} data-fit>
+        <div class="flex min-w-0 flex-col gap-3 max-md:[@media(max-height:760px)]:gap-2.5 md:gap-[clamp(0.75rem,2.4svh,1.5rem)]">
           <p class={`${kicker} text-[#B89AF7]`}>{APP.rhythms} rhythms</p>
-          <h2 class="font-serif text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl">Every rhythm has a way in and a way out.</h2>
-          <p class="max-w-[640px] text-lg leading-relaxed text-[#B7BDC9]">
+          <h2 class="font-serif text-[1.75rem] max-md:[@media(max-height:760px)]:text-[1.5rem] font-semibold leading-[1.1] tracking-tight sm:text-4xl lg:text-5xl lg:[@media(max-height:800px)]:text-4xl">Every rhythm has a way in and a way out.</h2>
+          <p class="max-w-[640px] text-[15px] leading-relaxed text-[#B7BDC9] sm:hidden">
+            Nearly every rhythm brings an intro, an A and a B and an ending; Fill throws in a break.
+          </p>
+          <p class="hidden max-w-[640px] text-base leading-relaxed text-[#B7BDC9] sm:block lg:[@media(min-height:860px)]:text-lg">
             Nearly every rhythm brings an intro, an A and a B variation and an ending. Each
             section of your song picks its part, and the Fill button throws in a break whenever
             you want one.
           </p>
-          <ol class="flex h-[76px] gap-1.5" aria-label="How a rhythm plays a song">
+          <ol class="flex h-14 gap-1 sm:h-[68px] sm:gap-1.5" aria-label="How a rhythm plays a song">
             {form.map((part) => (
-              <li class:list={['flex basis-0 flex-col justify-between rounded-xl border-t-4 px-2.5 py-2.5 sm:px-3.5', part.grow, part.fill ? 'bg-[#3A1A22]' : 'bg-[#1D202B]']} style={`border-top-color:${part.bar}`}>
+              <li class:list={['flex basis-0 flex-col justify-between rounded-lg border-t-4 px-2 py-2 sm:rounded-xl sm:px-3', part.grow, part.fill ? 'bg-[#3A1A22]' : 'bg-[#1D202B]']} style={`border-top-color:${part.bar}`}>
                 <span class="font-mono text-[10px] font-bold uppercase sm:text-[11px]" style={`color:${part.ink}`}>{part.label}</span>
                 {part.note && <span class="hidden text-[13px] text-[#B7BDC9] sm:block">{part.note}</span>}
               </li>
             ))}
           </ol>
-          <div class="mt-2 grid grid-cols-1 gap-x-10 gap-y-7 sm:grid-cols-2">
-            {genres.map((genre) => (
-              <div class="flex flex-col gap-2.5">
+          <!-- Below 640px each genre is one line that scrolls sideways, so the four groups
+               cost four lines; from 640px they wrap in two columns. -->
+          <div class="grid gap-x-10 gap-y-[clamp(0.6rem,2svh,1.25rem)] sm:grid-cols-2">
+            {shownGenres.map((genre) => (
+              <div class="flex min-w-0 flex-col gap-1.5 sm:gap-2">
                 <h3 class="flex items-center gap-2 text-[13px] font-semibold"><span class="h-2 w-2 rounded-full" style={`background:${genre.dot}`}></span>{genre.name}</h3>
-                <ul class="flex flex-wrap gap-1.5">
+                <ul class="-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
                   {genre.items.map((item) => (
-                    <li class="flex h-[30px] items-center rounded-full border border-[#303441] bg-[#1D202B] px-3 text-[13.5px] text-[#DDE1E8]">{item}</li>
+                    <li class="flex h-7 shrink-0 items-center whitespace-nowrap rounded-full border border-[#303441] bg-[#1D202B] px-2.5 text-[13px] text-[#DDE1E8]">{item}</li>
                   ))}
                 </ul>
               </div>
             ))}
           </div>
-          <p class="flex flex-wrap gap-x-8 gap-y-2 text-sm text-[#B7BDC9]">
-            <span><span class="font-mono font-bold text-[#F3F4F6]">4/4 · 3/4 · 6/8 · 5/4</span></span>
+          <details class="group">
+            <summary class="flex w-fit cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-[#B89AF7] [&::-webkit-details-marker]:hidden">
+              More genres
+              <svg class="h-4 w-4 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.chevron} /></svg>
+            </summary>
+            <div class="mt-3 grid gap-x-10 gap-y-4 sm:grid-cols-2">
+              {moreGenres.map((genre) => (
+                <div class="flex flex-col gap-2">
+                  <h3 class="flex items-center gap-2 text-[13px] font-semibold"><span class="h-2 w-2 rounded-full" style={`background:${genre.dot}`}></span>{genre.name}</h3>
+                  <ul class="flex flex-wrap gap-1.5">
+                    {genre.items.map((item) => (
+                      <li class="flex h-7 items-center rounded-full border border-[#303441] bg-[#1D202B] px-2.5 text-[13px] text-[#DDE1E8]">{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </details>
+          <p class="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[#B7BDC9] sm:text-sm">
+            <span class="font-mono font-bold text-[#F3F4F6]">4/4 · 3/4 · 6/8 · 5/4</span>
             <span><span class="font-mono font-bold text-[#F3F4F6]">Straight · Light · Shuffle</span> swing</span>
-            <span>A search box and favourites</span>
           </p>
         </div>
-        <figure class="flex flex-col items-center gap-5 lg:pt-6">
+        <figure class="hidden flex-col items-center gap-4 lg:flex">
           <img src="/images/chord-player-app/rhythms.webp" width="760" height="1600" loading="lazy"
             alt={`The rhythm list, with ${APP.rhythms} rhythms, a search box and filters by genre and meter`}
-            class="w-[260px] drop-shadow-[0_30px_50px_rgba(0,0,0,0.5)] sm:w-[320px]" />
-          <figcaption class="max-w-[300px] text-center text-[13.5px] leading-normal text-[#9AA1AE]">One list, by genre and meter, with a search.</figcaption>
+            class="h-[min(calc(100svh-65px-9rem),600px)] w-auto drop-shadow-[0_30px_50px_rgba(0,0,0,0.5)]" />
+          <figcaption class="text-center text-[13px] text-[#9AA1AE]">One list, by genre and meter, with a search and favourites.</figcaption>
         </figure>
       </div>
     </section>
 
     <!-- ─── MAKE IT YOURS ────────────────────────────────────────────────── -->
-    <section class="mx-auto grid grid-cols-1 max-w-[1200px] items-center gap-12 px-4 pt-20 sm:px-6 sm:pt-28 lg:grid-cols-[420px_minmax(0,1fr)] lg:gap-20">
-      <div class="flex h-[420px] items-start justify-center overflow-hidden rounded-[32px] bg-[#EFE8FD] pt-10 sm:h-[620px] sm:pt-12">
+    <!-- The mixer screenshot is left out below 768px: with it the section is two screens. -->
+    <section class={`mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-8 px-4 sm:px-6 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:gap-16 ${screenPad}`} data-fit data-snap>
+      <div class="hidden h-[min(calc(100svh-65px-8rem),600px)] items-start justify-center overflow-hidden rounded-[32px] bg-[#EFE8FD] pt-[6%] md:flex">
         <img src="/images/chord-player-app/mixer.webp" width="760" height="1600" loading="lazy"
           alt="The mixer, with a fader and level meter per instrument, pan knobs and an EQ curve"
-          class="w-[250px] drop-shadow-[0_24px_40px_rgba(60,20,140,0.25)] sm:w-[300px]" />
+          class="h-[115%] w-auto max-w-none drop-shadow-[0_24px_40px_rgba(60,20,140,0.25)]" />
       </div>
-      <div class="order-first flex flex-col gap-7 lg:order-none">
+      <div class="flex min-w-0 flex-col gap-[clamp(0.9rem,2.8svh,1.75rem)] max-md:[@media(max-height:760px)]:gap-3">
         <p class={`${kicker} text-primary`}>Make it yours</p>
         <h2 class={h2}>Start from a rhythm. End with your sound.</h2>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {[
-            ['Every note, step by step', `${band[0].toUpperCase()}${band.slice(1)} on a step grid, each with its range on a keyboard.`],
-            [`${APP.sounds} sounds to choose from`, 'Pianos, Rhodes, organs, guitars, pads, strings, brass. A different one for each part of the song.'],
-            ['A mixer per instrument', 'Level, pan, mute and solo, three-band EQ, compression and reverb.'],
-            ['Take it anywhere', `${APP.exports[0]} to send, WAV to keep editing, MIDI to open the notes in your DAW.`],
-          ].map(([title, text]) => (
-            <div class="flex flex-col gap-1.5 rounded-[20px] border border-border bg-card p-5 sm:p-6">
-              <h3 class="text-base font-semibold text-foreground">{title}</h3>
-              <p class="text-[14.5px] leading-normal text-muted-foreground">{text}</p>
+        <div class="grid gap-2.5 max-md:[@media(max-height:760px)]:gap-2 sm:grid-cols-2 sm:gap-4">
+          {yours.map(([title, text]) => (
+            <div class="flex flex-col gap-1 rounded-2xl border border-border bg-card px-4 py-3 max-md:[@media(max-height:760px)]:py-2 sm:rounded-[20px] sm:p-5">
+              <h3 class="text-[15px] font-semibold text-foreground sm:text-base">{title}</h3>
+              <p class="text-[13.5px] leading-snug text-muted-foreground sm:text-[14.5px]">{text}</p>
             </div>
           ))}
         </div>
-        <p class="text-[15px] text-muted-foreground">
+        <p class="text-sm text-muted-foreground sm:text-[15px]">
           Not starting from scratch? Open one of {APP.exampleSongs} songs, {APP.progressions} classic
           progressions or the chordsequence.com catalogue and change it.
         </p>
@@ -538,127 +616,162 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
     </section>
 
     <!-- ─── PHONE AND BROWSER ────────────────────────────────────────────── -->
-    <section id="phone-and-browser" class="mx-auto flex max-w-[1200px] scroll-mt-16 flex-col items-center gap-12 px-4 pt-24 sm:px-6 sm:pt-36">
-      <div class="flex max-w-[820px] flex-col items-center gap-4 text-center">
+    <section id="phone-and-browser" class={`mx-auto flex max-w-[1200px] flex-col items-center gap-4 max-md:[@media(max-height:760px)]:gap-3 px-4 sm:px-6 md:gap-[clamp(1rem,3.5svh,2.5rem)] ${screenPad}`} data-fit data-snap>
+      <div class="flex max-w-[820px] flex-col gap-2.5 md:items-center md:text-center">
         <p class={`${kicker} text-primary`}>Phone and browser</p>
         <h2 class={h2}>One Chord Player, wherever you are.</h2>
-        <p class="text-lg leading-relaxed text-muted-foreground">
+        <p class="text-[15px] leading-relaxed text-muted-foreground sm:hidden">
+          The same instrument in the app and in the browser. Use the one in front of you.
+        </p>
+        <p class="hidden leading-relaxed text-muted-foreground sm:block sm:text-base lg:[@media(min-height:860px)]:text-lg">
           The app and Chord Player online are the same instrument: one audio engine, the same
           rhythms and sounds, the same song catalogue. Use the one in front of you.
         </p>
       </div>
-      <div class="grid grid-cols-1 w-full items-center gap-5 lg:grid-cols-[minmax(0,1fr)_380px_minmax(0,1fr)] lg:gap-0">
-        <div class="flex flex-col gap-4 rounded-[28px] border border-border bg-card p-7 sm:p-9">
-          <div class="flex items-center gap-3">
-            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EFE8FD] text-primary">
-              <svg class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.phone} /></svg>
-            </span>
-            <div class="flex flex-col"><h3 class="text-lg font-bold text-foreground">Android app</h3><span class="text-[13.5px] text-muted-foreground">Android {APP.minAndroid} or later</span></div>
-          </div>
-          <ul class="flex flex-col gap-2.5 text-[15px] text-foreground/80">
-            <li>Works offline, anywhere</li>
-            <li>No account; songs stay on your phone</li>
-            <li>Exports {APP.exports.join(', ')}</li>
-          </ul>
-          <GooglePlayBadge from="landing_both" class="-ml-2" />
-        </div>
-        <div class="relative flex items-center justify-center">
+      <div class="grid w-full grid-cols-1 items-center gap-3 md:grid-cols-2 md:gap-5 lg:grid-cols-[minmax(0,1fr)_340px_minmax(0,1fr)] lg:gap-0">
+        <div class="relative flex items-center justify-center md:col-span-2 lg:order-2 lg:col-span-1">
           <span class="absolute inset-x-0 top-1/2 hidden h-0.5 bg-primary/30 lg:block" aria-hidden="true"></span>
-          <div class="relative flex w-full flex-col gap-3.5 rounded-[28px] bg-primary p-7 text-primary-foreground shadow-[0_20px_48px_rgba(106,31,234,0.3)] lg:w-[320px]">
-            <h3 class="font-mono text-[11.5px] font-bold uppercase tracking-[0.12em] text-white/80">Shared by both</h3>
-            <ul class="flex flex-col gap-3.5">
+          <div class="relative flex w-full flex-col gap-2 rounded-[24px] bg-primary p-4 max-md:[@media(max-height:760px)]:py-3 text-primary-foreground sm:p-5 shadow-[0_20px_48px_rgba(106,31,234,0.3)] sm:gap-3 lg:w-[300px] lg:rounded-[28px] lg:p-6">
+            <h3 class="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white/80">Shared by both</h3>
+            <ul class="flex flex-col gap-1.5 max-md:[@media(max-height:760px)]:gap-1 sm:gap-3">
               {shared.map((item) => (
-                <li class="flex items-start gap-2.5 text-[15px] leading-snug">
-                  <svg class="mt-px h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.check} /></svg>
+                <li class="flex items-start gap-2 text-[13px] leading-snug sm:gap-2.5 sm:text-[15px]">
+                  <svg class="mt-px h-4 w-4 shrink-0 sm:h-[18px] sm:w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.check} /></svg>
                   {item}
                 </li>
               ))}
             </ul>
           </div>
         </div>
-        <div class="flex flex-col gap-4 rounded-[28px] border border-border bg-card p-7 sm:p-9">
+        <div class="flex items-center justify-between gap-3 rounded-[20px] border border-border bg-card p-3 sm:flex-col sm:items-start sm:justify-start sm:rounded-[24px] sm:p-6 lg:order-1 lg:rounded-[28px] lg:p-8">
           <div class="flex items-center gap-3">
-            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EFE8FD] text-primary">
-              <svg class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.laptop} /></svg>
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFE8FD] text-primary">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.phone} /></svg>
             </span>
-            <div class="flex flex-col"><h3 class="text-lg font-bold text-foreground">Chord Player online</h3><span class="text-[13.5px] text-muted-foreground">iPhone, iPad, Mac, Windows</span></div>
+            <div class="flex flex-col"><h3 class="text-base font-bold text-foreground sm:text-lg">Android app</h3><span class="text-[13px] text-muted-foreground">Offline, no account, {APP.exports.join(', ')}</span></div>
           </div>
-          <ul class="flex flex-col gap-2.5 text-[15px] text-foreground/80">
+          <ul class="hidden flex-col gap-2 text-[15px] text-foreground/80 lg:flex">
+            <li>Works offline, anywhere</li>
+            <li>No account; songs stay on your phone</li>
+            <li>Android {APP.minAndroid} or later</li>
+          </ul>
+          <GooglePlayBadge from="landing_both" class="-mr-1.5 shrink-0 sm:-ml-2 sm:mr-0 [&_img]:h-11 sm:[&_img]:h-14" />
+        </div>
+        <div class="flex items-center justify-between gap-3 rounded-[20px] border border-border bg-card p-3 sm:flex-col sm:items-start sm:justify-start sm:rounded-[24px] sm:p-6 lg:order-3 lg:rounded-[28px] lg:p-8">
+          <div class="flex items-center gap-3">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFE8FD] text-primary">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.laptop} /></svg>
+            </span>
+            <div class="flex flex-col"><h3 class="text-base font-bold text-foreground sm:text-lg">Chord Player online</h3><span class="text-[13px] text-muted-foreground"><span class="sm:hidden">iPhone and computers</span><span class="hidden sm:inline">iPhone, iPad, Mac, Windows</span></span></div>
+          </div>
+          <ul class="hidden flex-col gap-2 text-[15px] text-foreground/80 lg:flex">
             <li>Nothing to install</li>
             <li>A free account saves your songs</li>
             <li>Share a song with a link</li>
           </ul>
-          <a href="/chord-player/" class="flex h-12 w-fit items-center gap-2 rounded-full border-[1.5px] border-foreground px-5 text-[15px] font-semibold text-foreground transition-colors hover:bg-foreground hover:text-background">
-            Open in your browser
+          <a href="/chord-player/" class="flex h-11 w-fit shrink-0 items-center gap-2 rounded-full border-[1.5px] border-foreground px-4 text-sm font-semibold text-foreground transition-colors hover:bg-foreground hover:text-background sm:px-5 sm:text-[15px]">
+            <span class="sm:hidden">Open</span><span class="hidden sm:inline">Open in your browser</span>
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.arrow} /></svg>
           </a>
         </div>
       </div>
-      <p class="text-center text-sm text-muted-foreground">
+      <p class="text-center text-xs text-muted-foreground sm:text-sm">
         Songs you write stay where you wrote them: on your phone in the app, in your account on the web.
       </p>
     </section>
 
     <!-- ─── QUESTIONS ────────────────────────────────────────────────────── -->
-    <!-- Visible questions and answers only. This site must never serialize them as
-         FAQPage JSON-LD — see the note in CLAUDE.md and scripts/check-schema.mjs. -->
-    <section id="questions" class="mx-auto grid grid-cols-1 max-w-[1200px] scroll-mt-16 gap-8 px-4 pt-24 sm:px-6 sm:pt-36 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-20">
-      <div class="flex flex-col gap-4">
+    <!-- Closed accordions, so eight questions take one screen. Visible questions and answers
+         only: this site must never serialize them as FAQPage JSON-LD — see the note in
+         CLAUDE.md and scripts/check-schema.mjs. -->
+    <section id="questions" class={`mx-auto grid max-w-[1200px] grid-cols-1 gap-5 px-4 sm:px-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-20 ${screenPad}`} data-fit data-snap>
+      <div class="flex flex-col gap-2">
         <p class={`${kicker} text-primary`}>Questions</p>
-        <h2 class="font-serif text-4xl font-semibold leading-[1.1] text-foreground sm:text-[44px]">Before you install</h2>
+        <h2 class={h2}>Before you install</h2>
       </div>
-      <div class="grid grid-cols-1 border-t border-border md:grid-cols-2 md:gap-x-12">
+      <div class="border-t border-border">
         {questions.map(([question, answer]) => (
-          <div class="flex flex-col gap-1.5 border-b border-border py-6">
-            <h3 class="text-[17px] font-semibold text-foreground">{question}</h3>
-            <p class="text-[15px] leading-relaxed text-muted-foreground">{answer}</p>
-          </div>
+          <details class="group border-b border-border">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 py-[clamp(0.7rem,2svh,1.1rem)] [&::-webkit-details-marker]:hidden">
+              <h3 class="text-[15px] font-semibold text-foreground sm:text-base">{question}</h3>
+              <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><Fragment set:html={ICONS.chevron} /></svg>
+            </summary>
+            <p class="pb-4 text-[15px] leading-relaxed text-muted-foreground">{answer}</p>
+          </details>
         ))}
       </div>
     </section>
 
     <!-- ─── CTA ──────────────────────────────────────────────────────────── -->
-    <section class="mx-auto max-w-[1200px] px-4 pb-24 pt-24 sm:px-6 sm:pt-36" data-end-cta>
-      <div class="grid grid-cols-1 overflow-hidden rounded-[32px] bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div class="flex flex-col justify-center gap-4 p-8 sm:p-14 lg:px-[72px] lg:py-16">
-          <h2 class="font-serif text-4xl font-semibold leading-[1.06] tracking-tight sm:text-5xl">Your band is ready when you are.</h2>
-          <p class="text-lg text-white/85">Free on Google Play. No account, no connection needed.</p>
-          <div class="mt-1.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+    <section class="mx-auto max-w-[1200px] px-4 pb-24 sm:px-6 lg:pb-16" data-end-cta data-fit data-snap>
+      <div class="grid grid-cols-1 overflow-hidden rounded-[28px] bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_300px] lg:rounded-[32px]">
+        <div class="flex flex-col justify-center gap-3.5 p-6 sm:p-12 lg:px-[72px] lg:py-14">
+          <h2 class="font-serif text-[1.75rem] font-semibold leading-[1.08] tracking-tight sm:text-5xl">Your band is ready when you are.</h2>
+          <p class="text-base text-white/85 sm:text-lg">Free on Google Play. No account, no connection needed.</p>
+          <div class="mt-1 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-6">
             <GooglePlayBadge from="landing_end" class="-ml-2" />
             <a href="/chord-player/" class="text-[15px] font-semibold text-white hover:underline">Or open it in your browser →</a>
           </div>
         </div>
         <div class="relative hidden lg:block" aria-hidden="true">
           <img src="/images/chord-player-app/song.webp" width="760" height="1600" alt="" loading="lazy"
-            class="absolute left-5 top-12 w-[250px] rotate-6 drop-shadow-[0_24px_40px_rgba(0,0,0,0.3)]" />
+            class="absolute left-5 top-10 w-[240px] rotate-6 drop-shadow-[0_24px_40px_rgba(0,0,0,0.3)]" />
         </div>
       </div>
     </section>
   </main>
 
   <!-- ─── STICKY INSTALL BAR (phones) ────────────────────────────────────── -->
-  <!-- A small bar, not an interstitial: it covers nothing until the hero's badge has
-       scrolled away, and hides again whenever the closing call to action is on screen. -->
+  <!-- Android only (the script removes it anywhere else). A small bar, not an
+       interstitial: it covers nothing until the hero's badge has
+       scrolled away, and hides again whenever the closing call to action is on screen. While
+       it shows it takes the bottom 68px of the screen (56px tall, 12px up), and every section
+       it can cover is sized to fit above it — check:landing-fit counts it. -->
   <div
-    class="pointer-events-none fixed inset-x-3 bottom-4 z-40 translate-y-[calc(100%+1rem)] opacity-0 transition-all duration-300 lg:hidden"
+    class="pointer-events-none fixed inset-x-3 bottom-3 z-40 translate-y-[calc(100%+1rem)] opacity-0 transition-all duration-300 lg:hidden"
     data-sticky-cta
+    inert
   >
-    <div class="pointer-events-auto flex h-16 items-center gap-2.5 rounded-[18px] bg-[#14181F] pl-3 pr-2 text-white shadow-[0_12px_32px_rgba(20,24,31,0.3)]">
-      <img src="/images/chord-player-app-icon.png" width="96" height="96" alt="" loading="lazy" class="h-9 w-9 rounded-[9px]" />
+    <div class="pointer-events-auto flex h-14 items-center gap-2.5 rounded-2xl bg-[#14181F] pl-2.5 pr-1.5 text-white shadow-[0_12px_32px_rgba(20,24,31,0.3)]">
+      <img src="/images/chord-player-app-icon.png" width="96" height="96" alt="" loading="lazy" class="h-8 w-8 rounded-lg" />
       <span class="flex grow flex-col"><span class="text-sm font-semibold">Chord Player</span><span class="text-xs text-[#A3AAB8]">Free · Offline · No account</span></span>
       <a
         href="/android/?from=landing_sticky"
-        class="flex h-11 items-center rounded-xl bg-primary px-[18px] text-sm font-semibold text-primary-foreground"
+        class="flex h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
         onclick="if(typeof gtag!=='undefined')gtag('event','app_cta_clicked',{entry_point:'landing_sticky'})"
-        tabindex="-1"
-        data-sticky-link
       >Install</a>
     </div>
   </div>
 </BaseLayout>
 
+<style is:global>
+  /* Sections settle into the screen as you scroll, without holding the scroll: `proximity`
+     only snaps when a section edge is already close. `scroll-padding-top` keeps the snapped
+     edge under the 65px sticky navbar rather than behind it. Scoped to this page by :has(). */
+  html:has(main[data-landing]) {
+    scroll-snap-type: y proximity;
+    scroll-padding-top: 65px;
+  }
+  main[data-landing] [data-snap] {
+    scroll-snap-align: start;
+  }
+  /* The uses, from 768px: one panel at a time. Without JavaScript the first shows, and an
+     anchor from another page (#worship) still opens its own through :target. */
+  @media (min-width: 768px) {
+    main[data-landing] [data-use-panel]:not([data-active]) {
+      display: none;
+    }
+    main[data-landing] [data-use-panel]:target {
+      display: grid;
+    }
+    main[data-landing] [data-use-track]:has(:target) [data-use-panel][data-active]:not(:target) {
+      display: none;
+    }
+  }
+</style>
+
 <script>
-  // The demo player: one button over a plain <audio>, the waveform filling as it plays.
+  // ── The demo player: one button over a plain <audio>, the waveform filling as it plays.
   const demo = document.querySelector<HTMLElement>('[data-demo]');
   const audio = demo?.querySelector<HTMLAudioElement>('[data-demo-audio]');
   if (demo && audio) {
@@ -697,18 +810,88 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
     audio.addEventListener('ended', () => { audio.currentTime = 0; });
   }
 
-  // The sticky bar shows once the hero's badge is off screen, and not over the closing CTA.
-  const sticky = document.querySelector<HTMLElement>('[data-sticky-cta]');
+  // ── The uses: tabs from 768px, a carousel below, one list of buttons driving both.
+  const uses = document.querySelector<HTMLElement>('[data-uses]');
+  if (uses) {
+    const track = uses.querySelector<HTMLElement>('[data-use-track]')!;
+    const tabs = [...uses.querySelectorAll<HTMLButtonElement>('[data-use-tab]')];
+    const panels = [...uses.querySelectorAll<HTMLElement>('[data-use-panel]')];
+    const wide = window.matchMedia('(min-width: 768px)');
+
+    const select = (id: string) => {
+      tabs.forEach((tab) => {
+        const on = tab.dataset.useTab === id;
+        tab.setAttribute('aria-selected', String(on));
+        tab.tabIndex = on ? 0 : -1;
+        // Keep the selected tab in view by scrolling the tab row only: scrollIntoView would
+        // scroll the page too, and did, on load, as the first card came into view.
+        if (on && !wide.matches) {
+          const row = tab.parentElement!;
+          const left = tab.offsetLeft - row.offsetLeft;
+          if (left < row.scrollLeft || left + tab.offsetWidth > row.scrollLeft + row.clientWidth) {
+            row.scrollTo({ left: left - 16, behavior: 'smooth' });
+          }
+        }
+      });
+      panels.forEach((panel) => panel.toggleAttribute('data-active', panel.id === id));
+    };
+    // A tap: on a wide screen, show the panel; on a phone, slide the carousel to its card.
+    const open = (id: string, focus = false) => {
+      if (!wide.matches) {
+        const panel = panels.find((p) => p.id === id);
+        if (panel) track.scrollTo({ left: panel.offsetLeft - track.offsetLeft - parseFloat(getComputedStyle(track).paddingLeft), behavior: 'smooth' });
+      }
+      select(id);
+      if (focus) tabs.find((t) => t.dataset.useTab === id)?.focus();
+    };
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => open(tab.dataset.useTab!));
+      tab.addEventListener('keydown', (e) => {
+        const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        const edge = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : -1;
+        if (!step && edge < 0) return;
+        e.preventDefault();
+        const next = edge >= 0 ? edge : (i + step + tabs.length) % tabs.length;
+        open(tabs[next].dataset.useTab!, true);
+      });
+    });
+
+    // On a phone the swipe is the input: whichever card is mostly on screen is selected.
+    const seen = new IntersectionObserver((entries) => {
+      if (wide.matches) return;
+      const best = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (best) select((best.target as HTMLElement).id);
+    }, { root: track, threshold: [0.6] });
+    panels.forEach((panel) => seen.observe(panel));
+
+    // An anchor from another page (/chord-player-app/#worship) opens its use, and shows the
+    // section from its title, under the navbar. Run again on load: the browser's own jump to
+    // the anchor comes after this script and would leave the title behind the navbar.
+    const fromHash = () => {
+      const id = decodeURIComponent(location.hash.slice(1));
+      if (!panels.some((p) => p.id === id)) return;
+      open(id);
+      const nav = document.querySelector('header')?.getBoundingClientRect().height ?? 0;
+      window.scrollTo({ top: uses.getBoundingClientRect().top + window.scrollY - nav });
+    };
+    window.addEventListener('hashchange', fromHash);
+    fromHash();
+    window.addEventListener('load', () => requestAnimationFrame(fromHash), { once: true });
+  }
+
+  // ── The sticky bar: Android only, like the site's app banner (AppBanner.astro) — on an
+  // iPhone or a computer it would be a Play Store button that leads nowhere. It shows once
+  // the hero's badge is off screen, and not over the closing call to action.
+  let sticky = document.querySelector<HTMLElement>('[data-sticky-cta]');
+  if (sticky && !/Android/i.test(navigator.userAgent)) { sticky.remove(); sticky = null; }
   const hero = document.querySelector('[data-hero-cta]');
   const end = document.querySelector('[data-end-cta]');
   if (sticky && hero && end && 'IntersectionObserver' in window) {
-    const link = sticky.querySelector<HTMLElement>('[data-sticky-link]')!;
     const visible = new Map<Element, boolean>([[hero, true], [end, false]]);
     const update = () => {
       const show = !visible.get(hero) && !visible.get(end);
       sticky.classList.toggle('translate-y-[calc(100%+1rem)]', !show);
       sticky.classList.toggle('opacity-0', !show);
-      link.tabIndex = show ? 0 : -1;
       sticky.toggleAttribute('inert', !show);
     };
     const observer = new IntersectionObserver((entries) => {
@@ -717,6 +900,5 @@ const h2 = 'font-serif text-4xl font-semibold leading-[1.08] tracking-tight text
     });
     observer.observe(hero);
     observer.observe(end);
-    update();
   }
 </script>

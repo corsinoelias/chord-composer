@@ -8,6 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
+    "check:landing-fit": "node scripts/check-landing-fit.mjs",
     "check:schema": "node scripts/check-schema.mjs",
     "check:engine": "node scripts/check-engine.mjs",
     "engine:sync": "node scripts/engine-sync.mjs",
