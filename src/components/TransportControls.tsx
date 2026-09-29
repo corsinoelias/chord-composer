@@ -295,7 +295,7 @@ export const TransportControls = memo(function TransportControls(props: Transpor
                 <Plus size={15} className="mr-2" />New rhythm
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onExport} disabled={!hasChords || isPlaying || isExporting}>
+              <DropdownMenuItem onClick={onExport} disabled={!hasChords || isExporting}>
                 <Download size={15} className="mr-2" />Export WAV
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onExportMidi} disabled={!hasChords}>

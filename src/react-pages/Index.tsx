@@ -1210,6 +1210,9 @@ const Index = ({ songId }: IndexProps) => {
   const handleExport = useCallback(async () => {
     const hasChords = sections.some(s => s.chords.length > 0);
     if (!hasChords) return;
+    // The export renders in a Worker of its own, beside the engine that is playing. On a
+    // phone the two share too little CPU: the song stops rather than risk cutting out.
+    if (isPlaying && window.matchMedia('(pointer: coarse)').matches) stopPlayback();
 
     setIsExporting(true);
     // One toast for the whole export, replaced in place. Previously 'Rendering audio...'
@@ -1237,7 +1240,7 @@ const Index = ({ songId }: IndexProps) => {
     } finally {
       setIsExporting(false);
     }
-  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, customStyles, noteLengths, swing, drumSounds, voicings, showExportSaveNudge]);
+  }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, customStyles, noteLengths, swing, drumSounds, voicings, showExportSaveNudge, isPlaying, stopPlayback]);
 
   const handleExportMidi = useCallback(() => {
     const hasChords = sections.some(s => s.chords.length > 0);
@@ -1735,7 +1738,7 @@ const Index = ({ songId }: IndexProps) => {
           <button
             className="cp-icb"
             onClick={handleExport}
-            disabled={!hasChords || isPlaying || isExporting}
+            disabled={!hasChords || isExporting}
             data-tour="export-button"
             aria-label="Export WAV"
             title="Export WAV"
