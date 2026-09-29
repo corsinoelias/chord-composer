@@ -283,8 +283,8 @@ const screenPadTight = 'py-6 max-md:[@media(max-height:760px)]:py-4 md:py-[clamp
          the words, the badge and the demo first — the badge is always on the first screen —
          then the phone. Every size in the column is tied to the screen's height, so a
          1024x768 laptop sees the badge too. -->
-    <section class="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-4 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_minmax(0,480px)] lg:min-h-[calc(100svh-65px)] lg:py-6" data-fit-lg data-snap data-hero>
-      <div class="flex min-w-0 flex-col justify-center gap-[clamp(0.9rem,2.6svh,1.75rem)] [@media(max-height:700px)]:gap-3 py-6 [@media(max-height:700px)]:py-4 lg:py-0" data-fit data-snap>
+    <section class="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-4 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_minmax(0,480px)] lg:min-h-[calc(100svh-65px)] lg:py-6" data-fit-lg data-hero>
+      <div class="flex min-w-0 flex-col justify-center gap-[clamp(0.9rem,2.6svh,1.75rem)] [@media(max-height:700px)]:gap-3 py-6 [@media(max-height:700px)]:py-4 lg:py-0" data-fit>
         <h1 class="flex flex-col gap-[clamp(0.75rem,2svh,1.25rem)]">
           <span class="flex items-center gap-3">
             <img
@@ -355,7 +355,7 @@ const screenPadTight = 'py-6 max-md:[@media(max-height:760px)]:py-4 md:py-[clamp
         </ul>
       </div>
 
-      <div class="relative mx-auto flex h-[min(calc(100svh-65px-2rem),560px)] w-full max-w-[480px] items-center justify-center rounded-[32px] bg-[#EFE8FD] lg:h-[min(calc(100svh-65px-3.5rem),640px)]" data-fit data-snap>
+      <div class="relative mx-auto flex h-[min(calc(100svh-65px-2rem),560px)] w-full max-w-[480px] items-center justify-center rounded-[32px] bg-[#EFE8FD] lg:h-[min(calc(100svh-65px-3.5rem),640px)]" data-fit>
         <img
           src="/images/chord-player-app/song.webp"
           width="760"
@@ -383,7 +383,7 @@ const screenPadTight = 'py-6 max-md:[@media(max-height:760px)]:py-4 md:py-[clamp
     <!-- Six uses in one screen. From 768px: a tab list and one panel. Below: a carousel
          swiped sideways, one card per swipe, the same list above it as its index. Every
          panel is in the HTML either way; only what is shown changes. -->
-    <section id="made-for" class={`mx-auto flex max-w-[1200px] flex-col gap-[clamp(0.75rem,2.5svh,1.5rem)] px-4 sm:px-6 ${screenPadTight}`} data-fit data-snap data-uses>
+    <section id="made-for" class={`mx-auto flex max-w-[1200px] flex-col gap-[clamp(0.75rem,2.5svh,1.5rem)] px-4 sm:px-6 ${screenPadTight}`} data-fit data-uses>
       <div class="flex flex-col gap-2">
         <p class={`${kicker} text-primary`}>Made for</p>
         <h2 class={h2}>However you play, there’s a band for it.</h2>
@@ -522,7 +522,7 @@ const screenPadTight = 'py-6 max-md:[@media(max-height:760px)]:py-4 md:py-[clamp
     </section>
 
     <!-- ─── RHYTHMS ──────────────────────────────────────────────────────── -->
-    <section id="rhythms" class="bg-[#131720] text-[#F3F4F6]" data-snap>
+    <section id="rhythms" class="bg-[#131720] text-[#F3F4F6]">
       <div class={`mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] lg:gap-16 ${screenPadTight}`} data-fit>
         <div class="flex min-w-0 flex-col gap-3 max-md:[@media(max-height:760px)]:gap-2.5 md:gap-[clamp(0.75rem,2.4svh,1.5rem)]">
           <p class={`${kicker} text-[#B89AF7]`}>{APP.rhythms} rhythms</p>
@@ -591,7 +591,7 @@ const screenPadTight = 'py-6 max-md:[@media(max-height:760px)]:py-4 md:py-[clamp
 
     <!-- ─── MAKE IT YOURS ────────────────────────────────────────────────── -->
     <!-- The mixer screenshot is left out below 768px: with it the section is two screens. -->
-    <section class={`mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-8 px-4 sm:px-6 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:gap-16 ${screenPad}`} data-fit data-snap>
+    <section class={`mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-8 px-4 sm:px-6 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:gap-16 ${screenPad}`} data-fit>
       <div class="hidden h-[min(calc(100svh-65px-8rem),600px)] items-start justify-center overflow-hidden rounded-[32px] bg-[#EFE8FD] pt-[6%] md:flex">
         <img src="/images/chord-player-app/mixer.webp" width="760" height="1600" loading="lazy"
           alt="The mixer, with a fader and level meter per instrument, pan knobs and an EQ curve"
@@ -616,7 +616,7 @@ const screenPadTight = 'py-6 max-md:[@media(max-height:760px)]:py-4 md:py-[clamp
     </section>
 
     <!-- ─── PHONE AND BROWSER ────────────────────────────────────────────── -->
-    <section id="phone-and-browser" class={`mx-auto flex max-w-[1200px] flex-col items-center gap-4 max-md:[@media(max-height:760px)]:gap-3 px-4 sm:px-6 md:gap-[clamp(1rem,3.5svh,2.5rem)] ${screenPad}`} data-fit data-snap>
+    <section id="phone-and-browser" class={`mx-auto flex max-w-[1200px] flex-col items-center gap-4 max-md:[@media(max-height:760px)]:gap-3 px-4 sm:px-6 md:gap-[clamp(1rem,3.5svh,2.5rem)] ${screenPad}`} data-fit>
       <div class="flex max-w-[820px] flex-col gap-2.5 md:items-center md:text-center">
         <p class={`${kicker} text-primary`}>Phone and browser</p>
         <h2 class={h2}>One Chord Player, wherever you are.</h2>
@@ -684,7 +684,7 @@ const screenPadTight = 'py-6 max-md:[@media(max-height:760px)]:py-4 md:py-[clamp
     <!-- Closed accordions, so eight questions take one screen. Visible questions and answers
          only: this site must never serialize them as FAQPage JSON-LD — see the note in
          CLAUDE.md and scripts/check-schema.mjs. -->
-    <section id="questions" class={`mx-auto grid max-w-[1200px] grid-cols-1 gap-5 px-4 sm:px-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-20 ${screenPad}`} data-fit data-snap>
+    <section id="questions" class={`mx-auto grid max-w-[1200px] grid-cols-1 gap-5 px-4 sm:px-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-20 ${screenPad}`} data-fit>
       <div class="flex flex-col gap-2">
         <p class={`${kicker} text-primary`}>Questions</p>
         <h2 class={h2}>Before you install</h2>
@@ -703,7 +703,7 @@ const screenPadTight = 'py-6 max-md:[@media(max-height:760px)]:py-4 md:py-[clamp
     </section>
 
     <!-- ─── CTA ──────────────────────────────────────────────────────────── -->
-    <section class="mx-auto max-w-[1200px] px-4 pb-24 sm:px-6 lg:pb-16" data-end-cta data-fit data-snap>
+    <section class="mx-auto max-w-[1200px] px-4 pb-24 sm:px-6 lg:pb-16" data-end-cta data-fit>
       <div class="grid grid-cols-1 overflow-hidden rounded-[28px] bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_300px] lg:rounded-[32px]">
         <div class="flex flex-col justify-center gap-3.5 p-6 sm:p-12 lg:px-[72px] lg:py-14">
           <h2 class="font-serif text-[1.75rem] font-semibold leading-[1.08] tracking-tight sm:text-5xl">Your band is ready when you are.</h2>
@@ -745,15 +745,12 @@ const screenPadTight = 'py-6 max-md:[@media(max-height:760px)]:py-4 md:py-[clamp
 </BaseLayout>
 
 <style is:global>
-  /* Sections settle into the screen as you scroll, without holding the scroll: `proximity`
-     only snaps when a section edge is already close. `scroll-padding-top` keeps the snapped
-     edge under the 65px sticky navbar rather than behind it. Scoped to this page by :has(). */
+  /* No scroll snapping. `scroll-snap-type: y proximity` was here until 2026-09-29: small
+     wheel and trackpad steps landed "close" to the hero's edge and the browser pulled the
+     page back to it, twelve steps in a row, so the page could hardly be scrolled at all.
+     `scroll-padding-top` stays: it keeps an anchor (#worship) under the 65px navbar. */
   html:has(main[data-landing]) {
-    scroll-snap-type: y proximity;
     scroll-padding-top: 65px;
-  }
-  main[data-landing] [data-snap] {
-    scroll-snap-align: start;
   }
   /* The uses, from 768px: one panel at a time. Without JavaScript the first shows, and an
      anchor from another page (#worship) still opens its own through :target. */
