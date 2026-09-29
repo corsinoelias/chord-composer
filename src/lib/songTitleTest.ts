@@ -11,6 +11,12 @@
 // A, B, B, A, A, B, B, A… so both arms hold big and small pages (A 84.8k impressions,
 // B 80.4k). A song not listed here — new or community songs — gets B and is not part of
 // the reading. Read it with matched page+query pairs at the same position, never raw CTR.
+//
+// Confound, 2026-09-29: the navbar's song links changed mid-test (Navbar.astro). Arm A
+// gained a link from every page for oceans, goodness-of-god and great-are-you-lord; arm B
+// lost it for alleluia, hay-poder and holy-forever, and kept center, washed and gained
+// jesus-be-the-name. Leave those eight songs out of the reading, or read before/after
+// 2026-09-29 separately.
 export const TITLE_TEST_STARTED = '2026-09-24';
 
 export const TITLE_TEST_A = new Set([

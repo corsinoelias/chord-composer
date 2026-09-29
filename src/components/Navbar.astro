@@ -13,9 +13,14 @@ import { AccountSlot } from './AccountSlot';
 //   phone layout, so a short phone label would be the anchor text that counts.
 // - Nothing here links /app/ (the signed-in library, out of the sitemap): AccountSlot shows
 //   "My library" to signed-in visitors only, on the client.
-// - The five songs get a link from every page, the strongest internal link a song page can
-//   have: pick them with Search Console (pages at positions ~5-15 with the most impressions)
-//   and change them monthly at most, not daily.
+// - The songs get a link from every page, the strongest internal link a song page can have:
+//   pick them with Search Console (pages at positions ~5-15 with the most impressions) and
+//   change them monthly at most, not daily. The current six were picked 2026-09-29 from
+//   the 28 days to 09-27: Center (15.3k impressions, position 6.0) and Washed (17.0k, 6.7)
+//   stayed; Oceans (25.0k, 6.5), Goodness of God (15.6k, 8.3), Jesus Be the Name (13.8k,
+//   7.2) and Great Are You Lord (13.7k, 7.3) came in for Alleluia (4.5k), Hay Poder (1.2k)
+//   and Holy Forever (not in the top 25). The song title A/B test (songTitleTest.ts) was
+//   running: this moved three sitewide links from its arm B to arm A, noted there.
 //
 // Accessibility: sections open with a click, Enter or Space (hover also opens them on a
 // mouse), Escape closes and returns focus, arrow keys move along the row, and every trigger
@@ -36,12 +41,15 @@ interface LinkGroup {
 
 const path = Astro.url.pathname;
 
-const songs: (NavLink & { artist: string; key: string })[] = [
-  { label: 'Center', artist: 'Bethel Music', key: 'A', href: '/songs/center-bethel-music/' },
-  { label: 'Alleluia', artist: 'Elevation Worship', key: 'B', href: '/songs/alleluia-elevation-worship/' },
+// `key` only where it is known here (src/data/songs.ts or the chart itself); a song kept only
+// in Supabase shows no key rather than a guessed one.
+const songs: (NavLink & { artist: string; key?: string })[] = [
+  { label: 'Oceans (Where Feet May Fail)', artist: 'Hillsong United', key: 'D', href: '/songs/oceans-hillsong-united/' },
   { label: 'Washed', artist: 'Elevation Rhythm', key: 'B', href: '/songs/washed-elevation-rhythm/' },
-  { label: 'Hay Poder | Yeshua', artist: 'Averly Morillo', key: 'F#', href: '/songs/hay-poder-yeshua-averly-morillo/' },
-  { label: 'Holy Forever', artist: 'Chris Tomlin', key: 'C', href: '/songs/holy-forever-chris-tomlin/' },
+  { label: 'Goodness of God', artist: 'Bethel Music', key: 'C', href: '/songs/goodness-of-god-bethel-music/' },
+  { label: 'Center', artist: 'Bethel Music', key: 'A', href: '/songs/center-bethel-music/' },
+  { label: 'Jesus Be the Name', artist: 'Elevation Worship', key: 'Db', href: '/songs/jesus-be-the-name-elevation-worship/' },
+  { label: 'Great Are You Lord', artist: 'All Sons & Daughters', key: 'G', href: '/songs/great-are-you-lord-all-sons-daughters/' },
 ];
 const songLinks: NavLink[] = [
   { label: 'All song charts', href: '/songs/' },
@@ -233,7 +241,9 @@ const groupLabel = 'font-mono text-[11px] font-bold uppercase tracking-[0.12em] 
                                 <span class="flex flex-col">
                                   <span class="text-[15px] font-semibold text-foreground lg:text-[14.5px]">{song.label} — {song.artist}</span>
                                 </span>
-                                <span class="flex h-6 shrink-0 items-center rounded-md bg-muted px-2 font-mono text-[11px] font-bold text-muted-foreground" aria-label={`Key of ${song.key}`}>{song.key}</span>
+                                {song.key && (
+                                  <span class="flex h-6 shrink-0 items-center rounded-md bg-muted px-2 font-mono text-[11px] font-bold text-muted-foreground" aria-label={`Key of ${song.key}`}>{song.key}</span>
+                                )}
                               </a>
                             </li>
                           ))}
@@ -447,13 +457,20 @@ const groupLabel = 'font-mono text-[11px] font-bold uppercase tracking-[0.12em] 
     if (to && !nav.contains(to)) closeSections();
   });
 
-  // ── The phone sheet: the page underneath stops scrolling while it is open.
+  // ── The phone sheet: the page underneath stops scrolling while it is open. Locking the
+  // page (overflow: hidden on <html>) also stops the sticky header from sticking — it went
+  // back to the top of the page, off screen, whenever the menu opened after a scroll. So
+  // while the sheet is open the header is fixed to the screen instead, and the body keeps
+  // its height in padding so nothing underneath moves.
   function setSheet(open: boolean) {
     nav.classList.toggle('hidden', !open);
     menuBtn.setAttribute('aria-expanded', String(open));
     menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
     hamburger?.classList.toggle('hidden', open);
     closeIcon?.classList.toggle('hidden', !open);
+    const height = open ? header.getBoundingClientRect().height : 0;
+    Object.assign(header.style, open ? { position: 'fixed', top: '0', left: '0', right: '0' } : { position: '', top: '', left: '', right: '' });
+    document.body.style.paddingTop = open ? `${height}px` : '';
     document.documentElement.style.overflow = open ? 'hidden' : '';
   }
   menuBtn.addEventListener('click', () => setSheet(nav.classList.contains('hidden')));
