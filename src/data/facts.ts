@@ -21,7 +21,7 @@ export const WEB = {
 
 /** The Android app, com.eliascorsino.chord_sequencer, as published on Google Play. */
 export const APP = {
-  version: '1.2.0',
+  version: '1.3.0',
   /** chordTypes in lib/core/music/constants.dart. */
   chordTypes: 39,
   /** The app's 24 styles and the 521 of its rhythm library, in one list. */
@@ -37,8 +37,10 @@ export const APP = {
   exports: ['M4A', 'WAV', 'MIDI'] as const,
   /** The tempo slider's range (transport_bar.dart). */
   tempo: { min: 40, max: 200 },
-  /** The chosen sounds across the melodic tracks (timbreOptions in constants.dart). */
-  sounds: 35,
+  /** The sounds the app recommends, first in every list (recommendedSounds in constants.dart). */
+  recommendedSounds: 68,
+  /** Every instrument of its SoundFont, sorted by family — the kits are the drums'. */
+  soundBank: 261,
   languages: ['English', 'Spanish'] as const,
   minAndroid: '8.0',
 } as const;

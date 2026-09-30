@@ -165,15 +165,16 @@ const uses: Use[] = [
 ];
 
 // Names as the app lists them (style_presets.dart and assets/rhythm_library.json). The
-// first four groups show their first six; the rest of them and the last two groups are
+// first four groups show their first six; the rest of them and the last three groups are
 // folded into "More genres", so the section stays one screen tall.
 const genres = [
   { name: 'Latin & Caribbean', dot: '#FF3849', items: ['Salsa', 'Bachata', 'Merengue', 'Cumbia', 'Vallenato', 'Norteño', 'Duranguense', 'Banda', 'Bolero', 'Reggaeton', 'Bossa Nova', 'Samba', 'Cha-Cha', 'Punta'] },
-  { name: 'Worship & Gospel', dot: '#E8B93E', items: ['Worship', 'Modern Worship', 'Fast Gospel', 'Slow Gospel'] },
-  { name: 'Pop, Rock & Soul', dot: '#3B8FFF', items: ['Pop', 'Pop Rock', '16 Beat', 'Shuffle Rock', 'Funk', 'R&B', '60’s Soul', 'Blues Shuffle'] },
-  { name: 'Jazz & Swing', dot: '#9C8CF0', items: ['Jazz Swing', 'Swing', 'Big Band', 'Jazz Waltz', 'Fox Trot'] },
+  { name: 'Worship & Gospel', dot: '#E8B93E', items: ['Worship', 'Modern Worship', 'Gospel Swing', 'Gospel Funk', 'Fast Gospel', 'Slow Gospel', 'Amazing Gospel'] },
+  { name: 'Soul, Funk & R&B', dot: '#FF8A3D', items: ['Funk', 'Soul', 'R&B', 'Kool Funk', 'Motor City 1', 'Jazz Funk', 'Modern R&B 1', '60’s Soul'] },
+  { name: 'Pop & Rock', dot: '#3B8FFF', items: ['Pop', 'Pop Rock', '16 Beat', 'Rock & Roll', 'Shuffle Rock', 'Blues Shuffle', 'Twist', 'Surf Rock', 'Hard Rock'] },
+  { name: 'Jazz & Swing', dot: '#9C8CF0', items: ['Jazz Swing', 'Swing', 'Big Band', 'BeBop', 'Django', 'Dixieland', 'Jazz Waltz', 'Fox Trot'] },
   { name: 'Dance & Hip-Hop', dot: '#E0609A', items: ['Trap', 'Hip-Hop', 'House', 'Afrobeat', 'Techno Pop', 'Disco Pop'] },
-  { name: 'Ballads, piano & world', dot: '#34C3B0', items: ['Piano Ballad', 'Stride Piano', 'Ragtime', 'Tango', 'Waltz', 'Bhangra', 'Enka'] },
+  { name: 'Ballads, film & world', dot: '#34C3B0', items: ['Piano Ballad', 'Power Ballad', 'Hollywood 1', 'Broadway', 'Stride Piano', 'Ragtime', 'Tango', 'Waltz', 'Polka', 'Bhangra', 'Enka'] },
 ];
 const SHOWN_PER_GENRE = 6;
 const shownGenres = genres.slice(0, 4).map((g) => ({ ...g, items: g.items.slice(0, SHOWN_PER_GENRE) }));
@@ -196,14 +197,14 @@ const form = [
 
 const yours = [
   ['Every note, step by step', `${band[0].toUpperCase()}${band.slice(1)} on a step grid, each with its range on a keyboard.`],
-  [`${APP.sounds} sounds to choose from`, 'Pianos, Rhodes, organs, guitars, pads, strings, brass. A different one for each part.'],
+  [`${APP.recommendedSounds} recommended sounds, ${APP.soundBank} in all`, 'Sorted by family, your favourites starred, heard the moment you tap them. A different one for each part.'],
   ['A mixer per instrument', 'Level, pan, mute and solo, three-band EQ, compression and reverb.'],
   ['Take it anywhere', `${APP.exports[0]} to send, WAV to keep editing, MIDI to open the notes in your DAW.`],
 ];
 
 // What the app and Chord Player online share. Each is true of the code today: the web plays
 // the app's engine compiled to WebAssembly with its SoundFont (src/lib/appEngine/), its 24
-// styles and 177-rhythm library (public/rhythms/), and the app opens the site's public_songs.
+// styles and 521-rhythm library (public/rhythms/), and the app opens the site's public_songs.
 const shared = [
   'The same audio engine and sounds',
   `All ${APP.rhythms} of the app’s rhythms`,
@@ -239,7 +240,7 @@ const appSchema = buildMobileApplicationSchema({
     `Loop a section, tempo from ${APP.tempo.min} to ${APP.tempo.max} BPM, transpose, count-in`,
     'Keeps playing with the screen off',
     'Step-by-step rhythm editor with a range keyboard per instrument',
-    `${APP.drumKits} drum kits and ${APP.percussionRows} rows of Latin and hand percussion`,
+    `${APP.drumKits} drum kits, jazz, brushes and orchestra among them, and ${APP.percussionRows} rows of Latin and hand percussion`,
     '4/4, 3/4, 6/8 and 5/4',
     'Per-instrument mixer with EQ, compression and reverb',
     `${APP.exports.join(', ')} export`,

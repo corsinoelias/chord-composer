@@ -55,8 +55,16 @@ if (!fs.existsSync(path.join(app, 'pubspec.yaml'))) {
   check('app progressions', APP.progressions, count(read('lib/core/data/progression_library.dart'), /^ {2}Progression\(/gm));
   const transport = read('lib/features/transport/transport_bar.dart');
   check('app tempo range', APP.tempo, { min: Number(transport.match(/min: (\d+),/)?.[1]), max: Number(transport.match(/max: (\d+),/)?.[1]) });
-  const timbres = constants.slice(constants.indexOf('const timbreOptions'), constants.indexOf('\n};', constants.indexOf('const timbreOptions')));
-  check('app sounds', APP.sounds, count(timbres, /SoundOption\(/g));
+  const recommended = constants.slice(constants.indexOf('const recommendedSounds'), constants.indexOf('\n};', constants.indexOf('const recommendedSounds')));
+  check('app recommended sounds', APP.recommendedSounds, count(recommended, /^\s+\d+: '/gm));
+  // The SoundFont's presets below its drum banks (120 and 128): "Todos los sonidos".
+  const sf2 = fs.readFileSync(path.join(app, 'assets/sf2/GeneralUser.sf2'));
+  const phdr = sf2.indexOf('phdr');
+  let instruments = 0;
+  for (let at = phdr + 8; at + 38 <= phdr + 8 + sf2.readUInt32LE(phdr + 4) - 38; at += 38) {
+    if (sf2.readUInt16LE(at + 22) < 120) instruments++;
+  }
+  check('app sound bank', APP.soundBank, instruments);
   check('app minimum Android', APP.minAndroid, read('android/app/build.gradle').includes('minSdkVersion 26') ? '8.0' : 'not API 26');
 }
 
