@@ -119,9 +119,13 @@ export const notesOnRow = (p: number, k: number, a: number) =>
 const NOTE_NAMES = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 export const pitchName = (pc: number) => NOTE_NAMES[((pc % 12) + 12) % 12];
 
-/** Percussion: what a General MIDI note is called, and the instrument its tones belong to. */
+/**
+ * Percussion: what a General MIDI note is called, and the instrument its tones belong to.
+ * The app's names (gmPercussionNames in constants.dart, in English).
+ */
 export const GM_PERC_NAMES: Record<number, string> = {
-  35: 'Kick 2', 37: 'Side stick', 39: 'Clap', 54: 'Tambourine', 56: 'Cowbell', 58: 'Vibraslap', 60: 'High bongo', 61: 'Low bongo',
+  27: 'High Q', 28: 'Slap', 31: 'Sticks', 33: 'Click', 34: 'Metronome bell',
+  35: 'Kick 2', 37: 'Side stick', 39: 'Hand clap GM', 52: 'China', 53: 'Ride bell', 54: 'Tambourine', 55: 'Splash', 56: 'Cowbell', 58: 'Vibraslap', 60: 'High bongo', 61: 'Low bongo',
   62: 'Muted conga', 63: 'Open conga', 64: 'Low conga', 65: 'High timbale', 66: 'Low timbale', 67: 'High agogo',
   68: 'Low agogo', 69: 'Cabasa', 70: 'Maracas', 71: 'Short whistle', 72: 'Long whistle', 73: 'Short güiro',
   74: 'Long güiro', 75: 'Claves', 76: 'High woodblock', 77: 'Low woodblock', 78: 'Muted cuica', 79: 'Open cuica',
@@ -141,5 +145,8 @@ export const percTones = (note: number) => {
 };
 /** The letter a tone is told apart by on its cell: H open or high, M muted, L low. */
 export const toneMark = (note: number) => ({ 63: 'H', 60: 'H', 65: 'H', 67: 'H', 76: 'H', 78: 'H', 81: 'H', 87: 'H', 71: 'H', 73: 'H', 62: 'M', 80: 'M', 86: 'M', 79: 'M', 64: 'L', 61: 'L', 66: 'L', 68: 'L', 77: 'L', 72: 'L', 74: 'L' } as Record<number, string>)[note] ?? '';
-/** The percussion a row can be given, in the order the app offers it. */
-export const PERC_CHOICES = [62, 60, 65, 56, 75, 73, 70, 69, 54, 82, 67, 76, 80, 78, 86, 85, 83];
+/** The percussion a row can be given, in the order the app offers it (gmPercussionOrder), Latin first. */
+export const PERC_CHOICES = [
+  63, 62, 64, 60, 61, 65, 66, 56, 75, 70, 69, 82, 73, 74, 54, 67, 68, 76, 77, 78, 79, 80, 81,
+  83, 84, 85, 86, 87, 71, 72, 58, 53, 55, 52, 39, 37, 31, 33, 34, 27, 28,
+];

@@ -58,7 +58,7 @@ const KIT_ORDER = ['kick', 'snare', 'rim', 'clap', 'hihat', 'hihatOpen', 'hihatF
 const PERC_ROWS = DRUM_ROWS.filter((r) => r.startsWith('perc'));
 const CORE = ['kick', 'snare', 'hihat'];
 const ROW_NAMES: Record<string, string> = {
-  kick: 'Kick', snare: 'Snare', rim: 'Rim', clap: 'Clap', hihat: 'Hi-hat', hihatOpen: 'Open hat', hihatFoot: 'Hat pedal',
+  kick: 'Kick', snare: 'Snare', rim: 'Rim', clap: 'Clap', hihat: 'Hi-hat', hihatOpen: 'Open hi-hat', hihatFoot: 'Hi-hat pedal',
   tom1: 'Tom 1', tom2: 'Tom 2', floorTom: 'Floor tom', ride: 'Ride', crash: 'Crash',
 };
 const rowColor = (r: string) => (r === 'kick' ? '#FF3849' : r === 'snare' ? '#F5A524'

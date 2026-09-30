@@ -69,9 +69,25 @@ export interface KitChoice {
   song?: Record<string, number>;
 }
 
-/** A row's sound under [kit]: the song's for hand percussion, then the rhythm's, then the kit's. */
+/**
+ * What a hand-percussion row plays when neither the song nor the rhythm says: the app's
+ * defaultPercussion (constants.dart), a Latin section — open, muted and low conga, the
+ * bongos, the timbales, cowbell, claves, maracas, shaker, tambourine. Most library rhythms
+ * name only the rows they play, so without these a row added in the editor had no name and
+ * no sound of its own: the shaker the app offers on Perc 11 was nowhere.
+ */
+export const DEFAULT_PERCUSSION: Record<string, number> = {
+  perc1: GM_PERC_FIRST + 63, perc2: GM_PERC_FIRST + 62, perc3: GM_PERC_FIRST + 64,
+  perc4: GM_PERC_FIRST + 60, perc5: GM_PERC_FIRST + 61, perc6: GM_PERC_FIRST + 65,
+  perc7: GM_PERC_FIRST + 66, perc8: GM_PERC_FIRST + 56, perc9: GM_PERC_FIRST + 75,
+  perc10: GM_PERC_FIRST + 70, perc11: GM_PERC_FIRST + 82, perc12: GM_PERC_FIRST + 54,
+};
+
+/** A row's sound under [kit]: the song's for hand percussion, then the rhythm's, then the kit's, then the app's default. */
 export function drumSoundOf(style: Pick<AppStyle, 'drumSounds'>, kit: KitChoice, row: string): number | undefined {
-  if ((PERC_ROWS as readonly string[]).includes(row)) return kit.song?.[row] ?? style.drumSounds[row] ?? kit.rows?.[row];
+  if ((PERC_ROWS as readonly string[]).includes(row)) {
+    return kit.song?.[row] ?? style.drumSounds[row] ?? kit.rows?.[row] ?? DEFAULT_PERCUSSION[row];
+  }
   return (kit.own ? style.drumSounds[row] : undefined) ?? kit.rows?.[row];
 }
 
