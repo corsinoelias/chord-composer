@@ -330,6 +330,12 @@ struct Voice {
   // or the chord changes. Counted here rather than scheduled, because a note that is
   // stolen or stopped early has to take its own gate with it.
   int gate = -1;
+  // Which cell of which variation struck it, and the SoundFont program it sounds, so a
+  // held pad can tell the lane coming round to that same cell again (see tieHeld).
+  // -1 for a note no lane cell struck: a preview, or a fill.
+  int laneStep = -1, laneSlot = -1, program = -1;
+  // Set by tieHeld for the one step it covers: the retrigger that follows leaves it be.
+  bool tied = false;
 };
 // serial orders voices by when they were struck; fade and fadeStep carry a voice that
 // has been choked down to silence instead of cutting it off.
@@ -929,6 +935,27 @@ class Engine {
     }
   }
 
+  /// Whether the preset [channel] now plays holds a note for as long as it is told to:
+  /// some sample of it loops and its envelope stays up (at -20 dB or more) while the key
+  /// is down. Asked of the SoundFont rather than of the General MIDI number, which only
+  /// says what family a sound belongs to: Howling Winds is "Seashore"'s variation, and
+  /// it holds where Seashore itself fades; the violin holds on its looped layers under
+  /// an attack that does not loop. No piano, guitar, harp or plucked bass passes.
+  static bool channelHolds(tsf* font, int channel) {
+    if (!font->channels || channel >= font->channels->channelNum) return false;
+    const int index = font->channels->channels[channel].presetIndex;
+    if (index < 0 || index >= font->presetNum) return false;
+    const tsf_preset& preset = font->presets[index];
+    for (int r = 0; r < preset.regionNum; ++r) {
+      const tsf_region& region = preset.regions[r];
+      if (region.loop_mode != TSF_LOOPMODE_NONE && region.loop_start < region.loop_end &&
+          region.ampenv.sustain >= .1f) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Points each channel at its General MIDI program and matches the stream rate.
   /// Safe to call again: the bank may finish loading after playback has started.
   void configureSoundFont() {
@@ -940,6 +967,7 @@ class Engine {
       const int program = programAt(at, track);
       applyProgram(font, track, program);
       appliedProgram_[track] = program;
+      programHolds_[track] = channelHolds(font, track);
       tsf_channel_set_volume(font, track, gains_[track + 1].load());
       // Creating a channel centres it, so a pan set before the bank finished loading
       // has to be put back or it is silently lost.
@@ -988,7 +1016,10 @@ class Engine {
     }
     else instruments_[slot][instrumentIndex(track)][step].store(value);
   }
-  void clearTrack(int section, const char* track, int bank = 0) {
+  /// With [keep], what the track is sounding is left alone: the lane is about to be
+  /// written straight back, as a resync does. A held note whose cell does not come back
+  /// lets go when the lane reaches that cell and finds it empty.
+  void clearTrack(int section, const char* track, int bank = 0, bool keep = false) {
     if (section < 0 || section >= kSections) return;
     const int slot = slotOf(section, bank);
     if (strcmp(track, "drums") == 0) {
@@ -998,7 +1029,7 @@ class Engine {
     const int instrument = instrumentIndex(track);
     for (auto& step : instruments_[slot][instrument]) step.store(0, std::memory_order_release);
     // Only the bank that is sounding can leave notes hanging.
-    if (activeBank_[section].load(std::memory_order_relaxed) == bank) {
+    if (!keep && activeBank_[section].load(std::memory_order_relaxed) == bank) {
       clearVoices_.fetch_or(1 << instrument, std::memory_order_release);
     }
   }
@@ -1955,36 +1986,68 @@ class Engine {
       // harmony under the new one. Detected here, before this step fires, so the
       // release never lands on notes that were just triggered.
       const int chordId = (sectionIndex_ << 8) | chordIndex_;
-      if (chordId != lastChord_) { releaseMelodic(); lastChord_ = chordId; }
-      applyPrograms(sectionIndex_);
       const Chord& c = section.chords[chordIndex_];
+      if (chordId != lastChord_) {
+        // The same chord written again in the same part is not a change of harmony: a
+        // pad held over C | C | C | C is one long C, not four.
+        const bool same = lastChord_ >= 0 && (lastChord_ >> 8) == sectionIndex_ &&
+                          lastHarmony_.root == c.root && lastHarmony_.type == c.type &&
+                          lastHarmony_.bass == c.bass;
+        if (!same) releaseMelodic();
+        lastChord_ = chordId; lastHarmony_ = c;
+      }
+      applyPrograms(sectionIndex_);
       for (int track = 0; track < kTracks; ++track) {
-        if (silent_[sectionIndex_][track].load(std::memory_order_acquire)) continue;
+        // A muted track lets go of what it is holding. Skipping its steps alone left a
+        // held pad sounding for good: with nothing struck and the chord unchanged, there
+        // was nothing left to ever release it.
+        if (silent_[sectionIndex_][track].load(std::memory_order_acquire)) {
+          releaseTrack(track);
+          continue;
+        }
         const int fillRow = kDrumRows + track;
-        const int packed = (fillMask & (1 << fillRow))
+        const int lane = (fillMask & (1 << fillRow)) ? -1 : laneStep(slot, track, step);
+        const int packed = lane < 0
                                ? fill_[fillSlot][fillRow][inFill].load(std::memory_order_acquire)
-                               : instruments_[slot][track][laneStep(slot, track, step)].load();
+                               : instruments_[slot][track][lane].load();
         const int degree = stepDegree(packed);
         float velocity = stepVelocity(packed) / 255.0f;
-        if (velocity <= 0 || degree == kRest) continue;
+        if (velocity <= 0 || degree == kRest) {
+          // The lane back at the cell that struck a held note, and the cell is empty now:
+          // the note was taken out of the rhythm, so it stops.
+          if (lane >= 0) releaseLeftCell(track, slot, lane);
+          continue;
+        }
         if (stepAccent(packed)) velocity = fminf(1.0f, velocity * 1.3f);
         const int timbre = timbreAt(sectionIndex_, track);
-        retrigger(track);
+        // What this cell sounds, worked out before anything is struck, so the notes a
+        // held pad is already sounding can be kept rather than cut and struck again.
+        int notes[kMaxChordVoices];
+        float gains[kMaxChordVoices];
+        int count = 0;
         if (degree == kChordAll) {
-          addChord(sectionIndex_, c, velocity, track, timbre);
+          count = chordVoices(sectionIndex_, c, velocity, track, notes, gains);
         } else {
           // A single tone carries the level a whole chord would have had, so swapping
           // a block chord for an arpeggio does not drop the track in the mix.
           const float gain = velocity * (track == kBassTrack ? 1.0f : .66f);
-          const int note = chordTone(sectionIndex_, c, degree, track, stepOctave(packed), stepAlter(packed));
-          addVoice(sectionIndex_, hzFromMidi(note), gain, track, timbre, note);
+          notes[count] = chordTone(sectionIndex_, c, degree, track, stepOctave(packed), stepAlter(packed));
+          gains[count++] = gain;
           // A second tone in the same step: root and octave together is what a boogie
           // bass does, and it is not the same as the two alternating.
           const int degree2 = stepDegree2(packed);
           if (degree2 != kRest && degree2 != kChordAll) {
-            const int note2 = chordTone(sectionIndex_, c, degree2, track, stepOctave2(packed), stepAlter2(packed));
-            addVoice(sectionIndex_, hzFromMidi(note2), gain * .8f, track, timbre, note2);
+            notes[count] = chordTone(sectionIndex_, c, degree2, track, stepOctave2(packed), stepAlter2(packed));
+            gains[count++] = gain * .8f;
           }
+        }
+        bool tied[kMaxChordVoices] = {};
+        if (lane >= 0) tieHeld(track, timbre, slot, lane, notes, count, tied);
+        retrigger(track);
+        for (int i = 0; i < count; ++i) {
+          if (tied[i]) continue;
+          Voice& v = addVoice(sectionIndex_, hzFromMidi(notes[i]), gains[i], track, timbre, notes[i]);
+          v.laneStep = lane; v.laneSlot = slot;
         }
       }
       // Length arrives in half beats so a chord can land on the offbeat. The halving
@@ -2123,12 +2186,45 @@ class Engine {
     // A♯m9 the ninth came down onto 72, a semitone under the minor third at 73. A tone
     // that has to move to fit is a tone in the wrong place, and a ninth sounding a
     // little above the drawn register is what a ninth actually is.
-    const int rootNote = window.low + ((chord.root % 12 - window.low) % 12 + 12) % 12;
-    for (int i = 0; i < count; ++i) notes[i] = rootNote + type.intervals[i];
-    // Ascending, so the caller and the keyboard both see a chord rather than a set.
-    for (int i = 1; i < count; ++i) {
-      for (int j = i; j > 0 && notes[j] < notes[j - 1]; --j) {
-        const int swap = notes[j]; notes[j] = notes[j - 1]; notes[j - 1] = swap;
+    //
+    // Stacked from the root alone, though, a range starting on D put C E G up at C4
+    // — nearly an octave above where the range begins — when E3 G3 C4 was sitting right
+    // there. So the chord is inverted: of the root position and each inversion (the
+    // lower tones carried up an octave, one at a time), the one that starts nearest the
+    // bottom of the range is played. That is also what makes a progression move the
+    // way a keyboard player's hands do, C E G to C F A to D G B, instead of the whole
+    // chord climbing with every root.
+    //
+    // Not every inversion, though: one that puts two tones a semitone apart where the
+    // root position had none is the cluster above coming back — every inversion of a
+    // major seventh has its seventh right under the root — so those are passed over.
+    // Nor on the bass, whose chord keeps its root at the bottom, nor under a slash chord,
+    // whose named note has to be the one underneath. Nor a ninth or anything above it:
+    // folded down into one octave, C9 came out D E G A♯ C, a cluster of whole tones
+    // where the root position spreads it out.
+    const bool invert = track != kBassTrack && chord.bass < 0 && count > 1 &&
+                        type.intervals[count - 1] < 12;
+    const int rootGap = narrowestGap(type.intervals, count);
+    int best = -1;
+    for (int k = 0; k < (invert ? count : 1); ++k) {
+      int candidate[kMaxChordVoices];
+      const int bottomClass = (chord.root + type.intervals[k]) % 12;
+      const int bottom = window.low + ((bottomClass - window.low) % 12 + 12) % 12;
+      for (int i = 0; i < count; ++i) {
+        // A ninth is fourteen above the root, so carrying the root over it takes more
+        // than one octave.
+        int above = type.intervals[i] - type.intervals[k];
+        while (above < 0) above += 12;
+        candidate[i] = bottom + above;
+      }
+      sortNotes(candidate, count);
+      if (k > 0) {
+        const int gap = narrowestGap(candidate, count);
+        if (gap < 2 && gap < rootGap) continue;
+      }
+      if (best < 0 || candidate[0] < notes[0]) {
+        best = k;
+        for (int i = 0; i < count; ++i) notes[i] = candidate[i];
       }
     }
     previousBottom = notes[0];
@@ -2151,15 +2247,69 @@ class Engine {
     }
     return count;
   }
-  void addChord(int section, const Chord& chord, float gain, int track, int timbre) {
-    int notes[kMaxChordVoices];
+  // Ascending, so the caller and the keyboard both see a chord rather than a set.
+  static void sortNotes(int* notes, int count) {
+    for (int i = 1; i < count; ++i) {
+      for (int j = i; j > 0 && notes[j] < notes[j - 1]; --j) {
+        const int swap = notes[j]; notes[j] = notes[j - 1]; notes[j - 1] = swap;
+      }
+    }
+  }
+  /// The smallest distance between two neighbouring notes of an ascending chord.
+  static int narrowestGap(const int* notes, int count) {
+    int gap = 127;
+    for (int i = 1; i < count; ++i) gap = std::min(gap, notes[i] - notes[i - 1]);
+    return gap;
+  }
+  /// The notes of [chord] as [track] voices it, each with the level it is struck at.
+  int chordVoices(int section, const Chord& chord, float gain, int track, int* notes, float* gains) {
     const int count = voiceChord(section, chord, track, notes);
     // Spread over sqrt(count), not count. Notes at different pitches sum incoherently,
     // so dividing by three left a triad audibly quieter than a single note. With the
     // SoundFont it was worse than a level problem: this gain is the note-on velocity,
     // so every chord note was firing a softer sample and changing timbre too.
     const float perVoice = gain * .66f / sqrtf(static_cast<float>(count));
-    for (int i = 0; i < count; ++i) addVoice(section, hzFromMidi(notes[i]), perVoice, track, timbre, notes[i]);
+    for (int i = 0; i < count; ++i) gains[i] = perVoice;
+    return count;
+  }
+  void addChord(int section, const Chord& chord, float gain, int track, int timbre) {
+    int notes[kMaxChordVoices];
+    float gains[kMaxChordVoices];
+    const int count = chordVoices(section, chord, gain, track, notes, gains);
+    for (int i = 0; i < count; ++i) addVoice(section, hzFromMidi(notes[i]), gains[i], track, timbre, notes[i]);
+  }
+
+  /// Whether [track]'s sound holds its note for as long as it is told to rather than
+  /// dying away on its own: the synth's organ and pad, and whatever SoundFont preset the
+  /// SoundFont itself says sustains (channelHolds) — strings, pads, organs, winds, and
+  /// the wind, rain and atmospheres a worship pad is made of. A piano or a guitar struck
+  /// again is struck again: a tied one would fade out and never come back.
+  ///
+  /// It was a list of General MIDI numbers, which left Howling Winds out. On the phone
+  /// that went unnoticed — its 6 s tail covered the note struck again under it — but the
+  /// web, whose tails are cut short, dropped out on every bar.
+  bool holdsItsNote(int timbre, int track) const {
+    if (timbre == kOrgan || timbre == kPad) return true;
+    return timbre == kSampled && programHolds_[track];
+  }
+
+  /// A held note on a sustaining sound, struck by the very cell that is striking it
+  /// again, is the lane coming round with nothing else played in between: one note held
+  /// across the loop. Striking it again restarted a pad's slow attack on every pass,
+  /// and the note dipped and swelled back each time the pattern wrapped. Such a voice
+  /// is kept — marked for the retrigger that follows — and its note in [notes] is
+  /// marked in [tied] so it is not struck twice. Anything that differs lets go as ever:
+  /// another cell, another variation, another sound, a note with a length of its own.
+  void tieHeld(int track, int timbre, int slot, int lane, const int* notes, int count, bool* tied) {
+    if (!holdsItsNote(timbre, track)) return;
+    for (auto& v : voices_) {
+      if (!v.active || v.track != track || v.stage == kRelease || v.gate >= 0) continue;
+      if (v.timbre != timbre || v.laneStep != lane || v.laneSlot != slot) continue;
+      if (timbre == kSampled && v.program != appliedProgram_[track]) continue;
+      for (int i = 0; i < count; ++i) {
+        if (!tied[i] && notes[i] == v.note) { tied[i] = true; v.tied = true; break; }
+      }
+    }
   }
   float noise() { noise_ = noise_ * 1664525u + 1013904223u; return (static_cast<int>(noise_ >> 9) / 4194304.0f) - 1.0f; }
   // One-pole coefficient for a cutoff in Hz. Getting the 2*pi wrong here drops the
@@ -2188,7 +2338,7 @@ class Engine {
     }
     v.active = false;
   }
-  void addVoice(int section, float frequency, float gain, int track, int timbre, int midiNote = -1) {
+  Voice& addVoice(int section, float frequency, float gain, int track, int timbre, int midiNote = -1) {
     const int index = allocateVoice();
     Voice& v = voices_[index];
     v = {};
@@ -2258,7 +2408,7 @@ class Engine {
         // points shape it, so our voice only exists to remember what to release.
         tsf* font = soundFont.load(std::memory_order_acquire);
         if (font) {
-          v.sampleNote = midiNote;
+          v.sampleNote = midiNote; v.program = track >= 0 && track < kTracks ? appliedProgram_[track] : -1;
           tsf_channel_note_on(font, track, midiNote, fminf(1.0f, gain));
           v.decay = coefFor(30.0f); v.sustain = 1.0f; v.release = coefFor(.001f);
         } else {
@@ -2268,6 +2418,7 @@ class Engine {
         break;
       }
     }
+    return v;
   }
   float renderVoice(Voice& v, float* ks) {
     switch (v.timbre) {
@@ -2395,6 +2546,7 @@ class Engine {
       if (program == appliedProgram_[track]) continue;
       applyProgram(font, track, program);
       appliedProgram_[track] = program;
+      programHolds_[track] = channelHolds(font, track);
     }
   }
 
@@ -2412,13 +2564,27 @@ class Engine {
   /// Sends a track's sustaining notes into release. Voices that are already decaying to
   /// silence are left alone: cutting a ringing pluck short sounds worse than letting it
   /// ring across the chord change, which is what a real player does.
+  /// A voice tieHeld kept is left sounding, once.
   void releaseTrack(int track) {
     tsf* font = soundFont.load(std::memory_order_acquire);
     for (auto& v : voices_) {
-      if (v.active && v.track == track && v.sustain > 0.0f) releaseVoice(v, font);
+      if (!v.active || v.track != track) continue;
+      if (v.tied) { v.tied = false; continue; }
+      if (v.sustain > 0.0f) releaseVoice(v, font);
     }
   }
   void releaseMelodic() { for (int track = 0; track < kTracks; ++track) releaseTrack(track); }
+
+  /// Lets go of the held notes the cell [lane] of variation [slot] struck.
+  void releaseLeftCell(int track, int slot, int lane) {
+    tsf* font = soundFont.load(std::memory_order_acquire);
+    for (auto& v : voices_) {
+      if (v.active && v.track == track && v.laneStep == lane && v.laneSlot == slot &&
+          v.sustain > 0.0f) {
+        releaseVoice(v, font);
+      }
+    }
+  }
 
   /// A lane hitting again is a new note, so whatever that track was holding lets go.
   void retrigger(int track) { releaseTrack(track); ++generation_[track]; }
@@ -2673,11 +2839,13 @@ class Engine {
   int lastBottom_[kTracks]{};  // bottom note of the previous chord per track, for voice leading
   int generation_[kTracks]{};  // bumped on every retrigger, stamped into each voice
   int lastChord_ = -1;   // packed section<<8|chord, to notice a chord change
+  Chord lastHarmony_;    // what that chord was, so the same chord again is not a change
   // What each tsf channel is actually set to. The sampled instrument belongs to the
   // channel and there are three of them for the whole song, so entering a section that
   // plays a different one has to move the channel — and only then, because the preset
   // lookup is a search and this runs in the callback.
   int appliedProgram_[kTracks] = {-1, -1, -1, -1};
+  bool programHolds_[kTracks] = {};  // whether that program sustains (channelHolds)
   int percKit_ = 0;  // the drum-bank program the percussion channel is on; audio thread only
   float sfScratch_[kTracks + 1][kSfScratch * 2]{};  // stereo interleaved, one per melodic channel and the percussion
   Strip strips_[kBuses];                  // drums, piano, guitar, bass, synth
@@ -2728,7 +2896,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainAct
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetSwing(JNIEnv*, jobject, jfloat value) { engine.setSwing(value); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetMeter(JNIEnv*, jobject, jint stepsPerBar, jint stepsPerBeat) { engine.setMeter(stepsPerBar, stepsPerBeat); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetStep(JNIEnv* env, jobject, jint section, jstring track, jstring row, jint step, jint value, jint bank) { const char* t=chars(env,track); const char* r=chars(env,row); engine.setStep(section,t,r,step,value,bank); release(env,track,t); release(env,row,r); }
-extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeClearTrack(JNIEnv* env, jobject, jint section, jstring track, jint bank) { const char* t=chars(env,track); engine.clearTrack(section,t,bank); release(env,track,t); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeClearTrack(JNIEnv* env, jobject, jint section, jstring track, jint bank, jboolean keep) { const char* t=chars(env,track); engine.clearTrack(section,t,bank,keep); release(env,track,t); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetProgram(JNIEnv* env, jobject, jint section, jstring track, jint program, jint bank) { const char* t=chars(env,track); engine.setProgram(section,t,program,bank); release(env,track,t); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetTimbre(JNIEnv* env, jobject, jint section, jstring track, jint value, jint bank) { const char* t=chars(env,track); engine.setTimbre(section,t,value,bank); release(env,track,t); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetNoteLength(JNIEnv* env, jobject, jint section, jstring track, jfloat steps) { const char* t=chars(env,track); engine.setNoteLength(section,t,steps); release(env,track,t); }

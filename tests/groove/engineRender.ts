@@ -36,6 +36,8 @@ const worker = (globalThis as unknown as { self: { onmessage: (e: { data: object
 
 const wasm = fs.readFileSync(pub('engine/engine.wasm'));
 const sf2 = fs.readFileSync(pub('engine/sounds.sf2'));
+/** The whole font, for a song with a sound the short one lacks, as the player moves to it. */
+const sf2Full = fs.readFileSync(pub('engine/sounds-full.sf2'));
 const kit = kitFile.samples.map((k: { slot: number; name: string; gain: number }) => {
   const b = fs.readFileSync(pub(`engine/drums/${k.name}.pcm`));
   return { slot: k.slot, gain: k.gain, pcm: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) };
@@ -46,7 +48,8 @@ export async function render(sections: Section[], style: StylePattern, song: Par
   const built = songToEngine({ sections, bpm: 120, instrumentSettings: getDefaultInstrumentStates(), ...song }, style, lookup, kitFile.kits);
   const data = await new Promise<{ wav?: Uint8Array; error?: string }>((resolve) => {
     answer = resolve;
-    void worker.onmessage({ data: { id: 1, wasm: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength), sf2: sf2.buffer.slice(sf2.byteOffset, sf2.byteOffset + sf2.byteLength), kit, commands: built.commands, steps: built.steps, tailSeconds: 0.2 } });
+    const font = built.needsFullSoundFont ? sf2Full : sf2;
+    void worker.onmessage({ data: { id: 1, wasm: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength), sf2: font.buffer.slice(font.byteOffset, font.byteOffset + font.byteLength), kit, commands: built.commands, steps: built.steps, tailSeconds: 0.2 } });
   });
   if (!data.wav) throw new Error(data.error ?? 'nothing rendered');
   return new Int16Array(data.wav.buffer.slice(data.wav.byteOffset + 44, data.wav.byteOffset + data.wav.byteLength));
