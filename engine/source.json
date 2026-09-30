@@ -1,10 +1,10 @@
 {
   "note": "Written by npm run engine:sync; checked by npm run check:engine. Do not edit by hand.",
   "app": {
-    "commit": "c2d65ae959e691c6542a83f19195fd0d6b59d709",
-    "dirtyEngine": true
+    "commit": "1bed57cd19940c1ba1ba87f2a5e0b40a679c614b",
+    "dirtyEngine": false
   },
-  "syncedAt": "2026-09-30T14:49:53.658Z",
+  "syncedAt": "2026-09-30T23:33:08.127Z",
   "programs": [
     0,
     3,
