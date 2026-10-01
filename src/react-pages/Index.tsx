@@ -36,9 +36,8 @@ import { playChordPreview } from '@/lib/appEngine/preview';
 import { makeStyleLookup, effectiveSectionStyle } from '@/lib/sectionPlayback';
 import { type SectionArrangement } from '@/components/SectionArrangementMenu';
 import { downloadBlob } from '@/lib/mp3Encoder';
-import { exportSongWav } from '@/lib/appEngine/player';
+import { exportSongMidi, exportSongWav } from '@/lib/appEngine/player';
 import { currentSongMixer, loadSongMixer } from '@/lib/appEngine/effects';
-import { exportMidi } from '@/lib/midiExporter';
 import { chordNameParts, partsText, useChordDisplay } from '@/lib/chordDisplay';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
@@ -1243,12 +1242,19 @@ const Index = ({ songId }: IndexProps) => {
     }
   }, [sections, bpm, instruments, selectedStyleId, songTitle, transposition, liveEditedStyle, customStyles, noteLengths, swing, drumSounds, voicings, showExportSaveNudge, isPlaying, stopPlayback]);
 
-  const handleExportMidi = useCallback(() => {
+  const handleExportMidi = useCallback(async () => {
     const hasChords = sections.some(s => s.chords.length > 0);
     if (!hasChords) return;
     try {
       const filename = songTitle.trim().replace(/[^a-zA-Z0-9-_\s]/g, '').replace(/\s+/g, '_') || 'chord-progression';
-      exportMidi(sections, bpm, transposition, filename);
+      // Every track, as the app exports it: drums on channel 10 and one per instrument, read
+      // from what the engine plays (the rhythm, its parts and fills, silences, lengths).
+      const style = resolveActiveStyle(selectedStyleId, liveEditedStyle, customStyles, getStyleOverride);
+      downloadBlob(await exportSongMidi({
+        song: { sections, bpm, transposition, instrumentSettings: instruments, noteLengths, swing, drumSounds, voicings },
+        style,
+        lookup: makeStyleLookup(customStyles, getStyleOverride, liveEditedStyle),
+      }, songTitle.trim() || 'Chord progression'), `${filename}.mid`);
       toast.success('MIDI exported', { id: EXPORT_TOAST_ID, duration: 2000 });
       analytics.exportMidi();
       showExportSaveNudge();
@@ -1256,7 +1262,7 @@ const Index = ({ songId }: IndexProps) => {
       console.error('MIDI export failed:', error);
       toast.error('MIDI export failed. Please try again.', { id: EXPORT_TOAST_ID, duration: 5000 });
     }
-  }, [sections, bpm, transposition, songTitle, showExportSaveNudge]);
+  }, [sections, bpm, transposition, songTitle, showExportSaveNudge, selectedStyleId, liveEditedStyle, customStyles, instruments, noteLengths, swing, drumSounds, voicings]);
 
   const hasChords = sections.some(s => s.chords.length > 0);
 

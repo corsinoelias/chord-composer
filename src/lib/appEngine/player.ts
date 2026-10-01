@@ -11,6 +11,7 @@ import { AppEngine, exportCommandsWav, loadKits, type EngineState } from './host
 import { songToEngine, type EngineSong, type SongInput } from './fromSong';
 import { type EngineCommand } from './commands';
 import { effectsCommands } from './effects';
+import { midiFromEngine } from './midiFromEngine';
 import { type StylePattern, getSlotsPerBar } from '../styles';
 import { createSection, type Section } from '../sections';
 import { type StyleLookup } from '../sectionPlayback';
@@ -474,6 +475,15 @@ export async function exportSongWav(input: Pick<AppSong, 'song' | 'style' | 'loo
   const built = songToEngine(input.song, input.style, input.lookup, await loadKits());
   const slots = [...new Set([...built.drumSlots, ...Array.from({ length: 12 }, (_, i) => i)])];
   return (await exportCommandsWav([...built.commands, ...effectsCommands()], built.steps, tailSeconds, slots, built.needsFullSoundFont)).blob;
+}
+
+/**
+ * [input] as a Standard MIDI File, every track of it, as the app exports one: read from the
+ * same commands the engine plays, so the file is the song that is heard.
+ */
+export async function exportSongMidi(input: Pick<AppSong, 'song' | 'style' | 'lookup'>, name: string): Promise<Blob> {
+  const built = songToEngine(input.song, input.style, input.lookup, await loadKits());
+  return new Blob([new Uint8Array(midiFromEngine(built.commands, name))], { type: 'audio/midi' });
 }
 
 /** One bar with every track silenced: where a single pass ends. */

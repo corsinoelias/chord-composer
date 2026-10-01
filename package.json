@@ -31,7 +31,8 @@
     "variations:export": "tsx scripts/variations-export.ts",
     "test:facts": "tsx tests/facts/facts.ts",
     "test:sounds": "tsx tests/sounds/families.ts",
-    "test:chords": "tsx tests/chords/display.ts"
+    "test:chords": "tsx tests/chords/display.ts",
+    "test:midi": "tsx tests/midi/export.ts && tsx tests/midi/parity.ts"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",
