@@ -33,6 +33,7 @@ export const ARGS = {
   mixer: ['wg_mixer', 'sfi'],
   pan: ['wg_pan', 'sf'],
   reverb: ['wg_reverb', 'ff'],
+  fade: ['wg_fade', 'f'],
   strip: ['wg_strip', 'sfffff'],
   metronome: ['wg_metronome', 'ififi'],
   start: ['wg_start', 'i'],

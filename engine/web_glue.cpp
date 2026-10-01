@@ -126,6 +126,8 @@ WG(wg_voicing) void wg_voicing(int section, const char* track, int low, int high
 WG(wg_mixer) void wg_mixer(const char* track, float volume, int mute) { engine.mixer(track, volume, mute != 0); }
 WG(wg_pan) void wg_pan(const char* track, float value) { engine.pan(track, value); }
 WG(wg_reverb) void wg_reverb(float size, float mix) { engine.reverb(size, mix); }
+// The whole song down to silence over [seconds] (Terminar); 0 or less takes it back.
+WG(wg_fade) void wg_fade(float seconds) { engine.fade(seconds); }
 WG(wg_strip) void wg_strip(const char* track, float low, float mid, float high, float threshold, float ratio) { engine.strip(track, low, mid, high, threshold, ratio); }
 WG(wg_level) float wg_level(int bus) { return engine.level(bus); }
 WG(wg_gain_reduction) float wg_gain_reduction(int bus) { return engine.gainReduction(bus); }

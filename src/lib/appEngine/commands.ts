@@ -100,7 +100,8 @@ export type EngineCommand =
   | ['setTimbre', number, MelodicTrack, number, bank?: number]
   | ['setNoteLength', number, MelodicTrack, number]
   | ['setDrumSound', number, DrumRow, number, bank?: number]
-  | ['setSilence', number, Track, boolean]
+  /** A whole track, or one piece of the kit (a DrumRow), silent in a section: written, not heard. */
+  | ['setSilence', number, Track | DrumRow, boolean]
   | ['setPatternBars', number, Track, number, number?]
   | ['setFill', number, number, number, number[] | Int32Array, number?]
   /** Which variation a section plays from now on (0 A, 1 B). */
@@ -111,6 +112,8 @@ export type EngineCommand =
   | ['mixer', Track | 'master', number, boolean]
   | ['pan', Track, number]
   | ['reverb', number, number]
+  /** Finish: the whole song down to silence over [seconds]; 0 takes it back. Stopping is the caller's. */
+  | ['fade', number]
   | ['strip', Track, number, number, number, number, number]
   | ['metronome', boolean, number, number, boolean, number]
   | ['start', number]
@@ -127,7 +130,7 @@ export type EngineCommand =
 /** Commands that act rather than describe the song; a file export leaves them out. */
 export const TRANSIENT = new Set<EngineCommand[0]>([
   'start', 'stop', 'previewClick', 'previewChord', 'previewOff', 'previewDrum', 'previewNote', 'previewStep', 'resetLoad',
-  'switchVariation',
+  'switchVariation', 'fade',
 ]);
 
 /** A chord for ['chord', …]: the root as the engine spells it (sharps). */

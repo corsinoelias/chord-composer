@@ -28,6 +28,7 @@ import { chordPosition, useGlide } from '@/lib/playbackPosition';
 import { SWING_OPTIONS, swingOption } from '@/lib/swing';
 import { CLICK_SOUNDS, type ClickSettings } from '@/lib/clickSettings';
 import { ChordSymbolsPicker } from './ChordSymbolsPicker';
+import { FADE_LENGTHS, setFadeLength, useFadeLength } from '@/lib/fadeLength';
 
 /** Metronome glyph — lucide has no metronome/pendulum icon, so this draws one:
  *  a trapezoidal body with a swung pendulum rod. Stroke style matches lucide
@@ -62,6 +63,10 @@ interface TransportControlsProps {
   hasChords: boolean;
   onPlay: () => void;
   onStop: () => void;
+  /** Finish, in progress: when it began and how long it takes, for the draining button. */
+  fade: { startedAt: number; seconds: number } | null;
+  onFade: (seconds: number) => void;
+  onCancelFade: () => void;
 
   bpm: number;
   onBpmChange: (bpm: number) => void;
@@ -115,7 +120,7 @@ interface TransportControlsProps {
  */
 export const TransportControls = memo(function TransportControls(props: TransportControlsProps) {
   const {
-    isPlaying, isExporting, hasChords, onPlay, onStop,
+    isPlaying, isExporting, hasChords, onPlay, onStop, fade, onFade, onCancelFade,
     bpm, onBpmChange, meter, swingRatio, onSwingChange,
     keyBase, transposition, onTranspositionChange, onKeyModeChange, onKeyPick,
     metronomeEnabled, onMetronomeToggle, click, onClickChange,
@@ -125,6 +130,7 @@ export const TransportControls = memo(function TransportControls(props: Transpor
   } = props;
 
   const bpmPercent = `${((bpm - BPM_MIN) / (BPM_MAX - BPM_MIN)) * 100}%`;
+  const fadeLength = useFadeLength();
 
   const capsules = (
     <>
@@ -216,18 +222,40 @@ export const TransportControls = memo(function TransportControls(props: Transpor
   return (
     <div className="px-3 pt-1 lg:px-8 lg:pt-2">
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={isPlaying ? onStop : onPlay}
-          disabled={!hasChords || isExporting}
-          data-tour="play-button"
-          className={`cp-play ${isPlaying ? 'cp-on' : ''}`}
-          aria-label={isPlaying ? 'Stop' : 'Play'}
-        >
-          {isPlaying
-            ? <Square size={20} fill="currentColor" strokeWidth={0} />
-            : <Play size={24} fill="currentColor" strokeWidth={0} className="ml-[3px]" />}
-        </button>
+        {/* While it plays, Play becomes one pill in two: ■ stops at once, the curve finishes
+            with a fade (and drains as it goes; touched again, it takes the fade back) —
+            the app's Detener | Terminar. */}
+        {isPlaying ? (
+          <div className="cp-split" data-tour="play-button">
+            <button type="button" className="cp-split-stop" onClick={onStop} aria-label="Stop" title="Stop">
+              <Square size={20} fill="currentColor" strokeWidth={0} />
+            </button>
+            <button
+              type="button"
+              className={`cp-split-fade ${fade ? 'cp-fading' : ''}`}
+              onClick={() => (fade ? onCancelFade() : onFade(fadeLength))}
+              aria-label={fade ? 'Cancel' : 'Finish'}
+              title={fade ? 'Cancel' : 'Finish'}
+            >
+              {fade && <i key={fade.startedAt} style={{ animationDuration: `${fade.seconds}s` }} />}
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden>
+                <path d="M3 6 C9 6 13 18 21 18 L21 19 L3 19 Z" fill="currentColor" opacity=".32" />
+                <path d="M3 6 C9 6 13 18 21 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onPlay}
+            disabled={!hasChords || isExporting}
+            data-tour="play-button"
+            className="cp-play"
+            aria-label="Play"
+          >
+            <Play size={24} fill="currentColor" strokeWidth={0} className="ml-[3px]" />
+          </button>
+        )}
 
         {/* Tempo: meter and feel ride the label line so they cost no height. The meter belongs
             to the rhythm; the feel is the song's own pick, as the app's swing chip. */}
@@ -283,6 +311,16 @@ export const TransportControls = memo(function TransportControls(props: Transpor
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
               <ChordSymbolsPicker />
+              <div className="flex items-center justify-between gap-2 px-2 pb-2" onClick={(e) => e.stopPropagation()}>
+                <span className="text-[13px]">Fade-out</span>
+                <div className="cp-seg cp-seg-sm" role="group" aria-label="Fade-out length">
+                  {FADE_LENGTHS.map((s) => (
+                    <button key={s} type="button" className={fadeLength === s ? 'cp-on' : ''} aria-pressed={fadeLength === s} onClick={() => setFadeLength(s)}>
+                      {s} s
+                    </button>
+                  ))}
+                </div>
+              </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onOpenLibrary}>
                 <FolderOpen size={15} className="mr-2" />My songs

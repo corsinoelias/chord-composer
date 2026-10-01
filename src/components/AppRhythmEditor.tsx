@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { ArrowLeftRight, Bookmark, BookmarkPlus, Check, Copy, Hand, Layers, Piano, RotateCcw, Shuffle, ChevronDown, ChevronLeft, ChevronRight, ListMusic, MoreHorizontal, Play, Repeat, Square, Trash2, VolumeX, X, Zap } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { ArrowLeftRight, Bookmark, BookmarkPlus, Check, Copy, Hand, Layers, Piano, Shuffle, ChevronDown, ChevronLeft, ChevronRight, ListMusic, MoreHorizontal, Play, Repeat, Square, Trash2, Volume2, VolumeX, X, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { type AppStyle, appStepsPerBar } from '@/lib/appStyles';
 import {
@@ -78,8 +78,15 @@ interface Draft {
   sounds: Partial<Record<TrackId, string>>;
   /** Each part's own sounds (section.partSounds): the chorus on B can bring in the strings. */
   partSounds: PartSounds;
+  /** Each part's silenced pieces of the kit (section.partMuted): written, not heard, in that part only. */
+  muted: PartMuted;
 }
 type PartSounds = Partial<Record<SectionPartKey, Partial<Record<TrackId, string>>>>;
+type PartMuted = Partial<Record<SectionPartKey, string[]>>;
+const cloneMuted = (m: PartMuted | undefined): PartMuted =>
+  Object.fromEntries(Object.entries(m ?? {}).map(([k, rows]) => [k, [...(rows ?? [])]]));
+/** A part's silenced pieces in one order, for comparing two of them. */
+const mutedKey = (rows: string[] | undefined) => [...(rows ?? [])].sort();
 const PARTS: SectionPartKey[] = ['intro', 'a', 'b', 'ending'];
 const clonePartSounds = (p: PartSounds | undefined): PartSounds =>
   Object.fromEntries(Object.entries(p ?? {}).map(([k, v]) => [k, { ...v }]));
@@ -114,6 +121,7 @@ const isPartKey = (k: SectionPartKey): k is 'intro' | 'ending' => k === 'intro' 
 const cloneDraft = (d: Draft): Draft => ({
   a: d.a && cloneDense(d.a), b: d.b && cloneDense(d.b), intro: d.intro && cloneDense(d.intro), ending: d.ending && cloneDense(d.ending),
   silenced: { ...d.silenced }, plays: d.plays, sounds: { ...d.sounds }, partSounds: clonePartSounds(d.partSounds),
+  muted: cloneMuted(d.muted),
 });
 
 const laneId = (l: Pick<Lane, 'key' | 'chord' | 'k' | 'a'>) => `${l.key}|${l.chord ? 'c' : ''}|${l.k ?? ''}|${l.a ?? ''}`;
@@ -185,6 +193,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   /** The open cell window, by row (not position: an accidental moves a note to a row that did not exist). */
   const [pop, setPop] = useState<{ id: string; s: number; x: number; y: number } | null>(null);
   const [menu, setMenu] = useState<{ items: MenuItem[]; x: number; y: number } | null>(null);
+  /** Copying: what has been chosen as Desde and Hacia, and which of the two the next tap fills. */
+  const [copy, setCopy] = useState<CopyDraft | null>(null);
   /** Leaving with changes: the question of what to do with them is on screen. */
   const [leaving, setLeaving] = useState(false);
   /** The pattern strip: the app's figures for the track on screen, and yours (patternStrip.ts). */
@@ -211,7 +221,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     setSec(initialSection);
     setDrafts({});
     setV(startKey(sections[initialSection]));
-    setMode('groove'); setTab('drums'); setPage(0); setAdded(new Set()); setFocus(null); setPop(null); setMenu(null);
+    setMode('groove'); setTab('drums'); setPage(0); setAdded(new Set()); setFocus(null); setPop(null); setMenu(null); setCopy(null);
     setLeaving(false);
     setSongSounds({ instruments, drumSounds, noteLengths, voicings }); setPanel(null); setSoundMenu(null);
     undo.current = []; redo.current = [];
@@ -237,6 +247,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     silenced: { ...(sections[i]?.silenced ?? {}) },
     sounds: { ...(folded[i]?.sounds ?? {}) },
     partSounds: clonePartSounds(folded[i]?.partSounds),
+    muted: cloneMuted(sections[i]?.partMuted),
   }, [drafts, sections, folded, styleAt]);
   const draft = draftOf(sec);
   const isPart = !!section?.stylePart;
@@ -303,6 +314,8 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       if (Object.keys(own).length) out.sounds = own; else delete out.sounds;
       const parts = Object.fromEntries(Object.entries(d.partSounds).map(([k, p]) => [k, ownSounds(p)]).filter(([, p]) => Object.keys(p).length));
       if (Object.keys(parts).length) out.partSounds = parts; else delete out.partSounds;
+      const muted = Object.fromEntries(Object.entries(d.muted).filter(([, rows]) => rows && rows.length));
+      if (Object.keys(muted).length) out.partMuted = muted; else delete out.partMuted;
     }
     if (d?.plays !== undefined) withPart(out, d.plays);
     // Heard while it is edited: the part on screen.
@@ -567,23 +580,21 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       for (const k of Object.keys(x.fill.lanes)) if (tab === 'drums' ? !isTrackKey(k) : k === tab) x.fill.lanes[k] = new Array(spb).fill(0);
     } else for (const r of Object.keys(x.rows[tab])) x.rows[tab][r] = x.rows[tab][r].map(() => 0);
   });
-  const copyOther = () => {
-    if (isPartKey(v)) return;
-    const other = v === 'a' ? 'b' : 'a';
-    change((d) => {
-      const src = d[other];
-      const dst = d[v];
-      if (!src || !dst) return;
-      dst.rows[tab] = JSON.parse(JSON.stringify(src.rows[tab]));
-      dst.bars[tab] = src.bars[tab];
-    });
-    toast(`${trackName(tab)} copied from ${other.toUpperCase()}`);
-  };
-  const backToRhythm = () => change((d) => {
+
+  /** The pieces silenced in the part on screen: written, not heard, here only — fill included. */
+  const mutedRows = new Set(draft.muted[v] ?? []);
+  const toggleRowMute = (row: string) => change((d) => {
+    const rows = new Set(d.muted[v] ?? []);
+    if (rows.has(row)) rows.delete(row); else rows.add(row);
+    d.muted[v] = [...rows];
+  });
+  /**
+   * The part's fill as a whole, on its own page: off, the last bar keeps the groove; on, the
+   * rhythm's fill comes back. The same as the app's "Fill in this part".
+   */
+  const setFillOn = (on: boolean) => change((d) => {
     const x = V(d);
-    const b = cloneDense(base);
-    if (mode === 'fill') x.fill = b.fill;
-    else { x.rows[tab] = b.rows[tab]; x.bars[tab] = b.bars[tab]; }
+    x.fill = on ? cloneDense(base).fill : { from: x.fill.from, lanes: {} };
   });
   /**
    * A pattern from the strip on the track, heard at once in the loop: over every bar the track
@@ -624,7 +635,6 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     toast(`${trackName(tab)} keeps its groove through the fill`);
   };
   const silenced = !!draft.silenced[tab];
-  const edited = mode === 'fill' ? differs(variation, base, 'fill') : differs(variation, base, tab);
 
   // ── Sharing: sections that play the same part edit it together, as the app does ──
   /** A section's [k] as it was when the editor opened, pattern and sound: what sharing compares. Null: it has none. */
@@ -632,7 +642,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     const s = sections[i];
     if (!s || s.stylePart) return null;
     const g = isPartKey(k) ? effectiveVariation(styleAt(i), partView(styleAt(i), s, k), 'a') : effectiveVariation(styleAt(i), s, k);
-    return g ? JSON.stringify([g, ownSounds(folded[i]?.partSounds?.[k])]) : null;
+    return g ? JSON.stringify([g, ownSounds(folded[i]?.partSounds?.[k]), mutedKey(s.partMuted?.[k])]) : null;
   }, [sections, folded, styleAt]);
   /** [ds] with each edited part given to the sections that shared it when the editor opened. */
   // Always: a part is one part, in every section that plays it (the app has no way to keep an
@@ -643,17 +653,63 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       const i = Number(key);
       for (const k of PARTS) {
         const was = origPart(i, k);
-        if (was === null || !d[k] || JSON.stringify([d[k], ownSounds(d.partSounds[k])]) === was) continue;
+        if (was === null || !d[k] || JSON.stringify([d[k], ownSounds(d.partSounds[k]), mutedKey(d.muted[k])]) === was) continue;
         for (const j of editable) {
           if (j === i || origPart(j, k) !== was) continue;
           const copy = cloneDraft(out[j] ?? draftOf(j, {}));
           copy[k] = cloneDense(d[k]!);
           copy.partSounds[k] = { ...(d.partSounds[k] ?? {}) };
+          copy.muted[k] = [...(d.muted[k] ?? [])];
           out[j] = copy;
         }
       }
     }
     return out;
+  };
+
+  // ── Copy: Desde [ ] → Hacia [ ] (the app's "Copiar desde…") ──
+  /** Sections this one can copy from: the others on a rhythm of the same bar length. */
+  const copySections = editable.filter((i) => i !== sec && appStepsPerBar(styleAt(i)) === spb);
+  const pickName = (p: CopyPick) => (p.kind === 'part' ? SECTION_PART_LABEL[p.part]
+    : p.kind === 'section' ? sections[p.index]?.name ?? '' : `Bar ${p.bar + 1}`);
+  const choose = (p: CopyPick) => {
+    if (!copy || !copyAllows(copy, p)) return;
+    if (copy.slot === 'to') { setCopy({ ...copy, to: p }); return; }
+    // Hacia is never guessed: a part or one of its bars are both somewhere to copy to.
+    const next: CopyDraft = { from: p, slot: 'to' };
+    setCopy({ ...next, to: copy.to && copyAllows(next, copy.to) ? copy.to : undefined });
+  };
+  /** Copies Desde over Hacia, exactly: every instrument, its bars, sounds, silenced pieces and fill. */
+  const confirmCopy = () => {
+    if (!copy || !copyReady(copy)) return;
+    const from = copy.from!, to = copy.to!;
+    const label = `${pickName(from)} → ${pickName(to)}`;
+    if (from.kind === 'bar' && to.kind === 'bar') {
+      change((d) => {
+        const x = V(d);
+        for (const track of GROOVE_TRACKS) {
+          const n = x.bars[track];
+          if (from.bar >= n || to.bar >= n) continue;
+          for (const lane of Object.values(x.rows[track] ?? {})) {
+            for (let i = 0; i < spb; i++) lane[to.bar * spb + i] = lane[from.bar * spb + i];
+          }
+        }
+      });
+      setMode('groove'); setPage(to.bar * chunks);
+    } else if (to.kind === 'part') {
+      const there = from.kind === 'section' ? draftOf(from.index) : draft;
+      const part = from.kind === 'section' ? (there.plays ?? startKey(sections[from.index])) : (from as { part: SectionPartKey }).part;
+      const src = there[part] ?? there.a;
+      if (!src) return;
+      change((d) => {
+        d[to.part] = cloneDense(src);
+        d.partSounds[to.part] = { ...(there.partSounds[part] ?? {}) };
+        d.muted[to.part] = [...(there.muted[part] ?? [])];
+      });
+      setMode('groove'); setV(to.part); setPage(0);
+    }
+    setCopy(null);
+    toast(`Copied: ${label}`, { action: { label: 'Undo', onClick: () => doUndo() } });
   };
 
   // ── Save, and leaving ──
@@ -670,6 +726,10 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   // ── Menus ──
   const openLaneMenu = (lane: Lane, x: number, y: number) => {
     const items: MenuItem[] = [{ head: keyName(lane.key) }];
+    if (tab === 'drums') {
+      const off = mutedRows.has(lane.row);
+      items.push({ label: off ? `Unmute in ${SECTION_PART_LABEL[v]}` : `Mute in ${SECTION_PART_LABEL[v]}`, run: () => toggleRowMute(lane.row) });
+    }
     if (mode === 'fill' && fillWrites(lane.key)) {
       items.push({ label: 'Keep groove here (out of the fill)', run: () => change((d) => { delete V(d).fill.lanes[lane.key]; }) });
     } else if (mode === 'fill') {
@@ -790,8 +850,40 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
         // closes and "All sounds…" opens, as a phone delivers it — must not throw the edits away.
         onInteractOutside={(e) => e.preventDefault()}
       >
+        {copy && (
+          <div className="grid gap-2 border-b px-3 py-2.5 sm:px-4" style={{ borderColor: 'var(--cp-ln)' }}>
+            <div className="flex items-center gap-2.5">
+              <Copy size={20} style={{ color: 'var(--cp-ac)' }} aria-hidden="true" />
+              <b className="flex-1 text-xl">Copy</b>
+              <button type="button" className="cp-btn" onClick={() => setCopy(null)}>Cancel</button>
+            </div>
+            <div className="flex items-end gap-2 rounded-2xl border p-3" style={{ borderColor: 'var(--cp-ln)', background: 'var(--cp-s1)' }}>
+              {(['from', 'to'] as const).map((slot, n) => {
+                const pick = copy[slot];
+                const active = copy.slot === slot;
+                return (
+                  <Fragment key={slot}>
+                    {n === 1 && <ChevronRight size={20} className="mb-3 shrink-0" style={{ color: 'var(--cp-mu)' }} aria-hidden="true" />}
+                    <div className="grid min-w-0 flex-1 gap-1">
+                      <span className="text-xs font-bold" style={{ color: 'var(--cp-mu)' }}>{slot === 'from' ? 'From' : 'To'}</span>
+                      <button type="button" aria-pressed={active} onClick={() => setCopy({ ...copy, slot })}
+                        className="h-11 truncate rounded-xl px-2 text-[15px] font-bold"
+                        style={{
+                          border: `2px solid ${active ? 'var(--cp-ac)' : pick ? 'transparent' : 'var(--cp-ln)'}`,
+                          background: pick ? (slot === 'from' ? 'var(--cp-ac)' : 'var(--cp-acs)') : 'transparent',
+                          color: pick ? (slot === 'from' ? '#fff' : 'var(--cp-act)') : 'var(--cp-mu)',
+                        }}>
+                        {pick ? pickName(pick) : 'Choose'}
+                      </button>
+                    </div>
+                  </Fragment>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {/* Header: back, where you are, ⋯ and Save */}
-        <div className="flex items-center gap-1.5 border-b px-2 py-2 sm:px-3" style={{ borderColor: 'var(--cp-ln)' }}>
+        <div className={`${copy ? 'hidden' : 'flex'} items-center gap-1.5 border-b px-2 py-2 sm:px-3`} style={{ borderColor: 'var(--cp-ln)' }}>
           <button type="button" className="cp-icb" onClick={cancel} aria-label="Back" title="Back"><ChevronLeft size={22} /></button>
           <div className="flex min-w-0 flex-1 flex-col">
             {editable.length > 1 ? (
@@ -821,6 +913,19 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
             <div className="grid flex-1 grid-cols-4 overflow-hidden rounded-[11px] border" role="group" aria-label="Part of the rhythm" style={{ borderColor: 'var(--cp-ln)' }}>
               {PARTS.map((k) => {
                 const lacking = (k === 'intro' && !style.intro?.length) || (k === 'ending' && !style.ending?.length);
+                if (copy) {
+                  const pick: CopyPick = { kind: 'part', part: k };
+                  const isFrom = samePick(copy.from, pick);
+                  const isTo = samePick(copy.to, pick);
+                  const ok = copyAllows(copy, pick) && (k !== 'b' || hasB);
+                  return (
+                    <button key={k} type="button" disabled={!ok} aria-pressed={isFrom || isTo} onClick={() => choose(pick)}
+                      className="relative h-9 border-0 px-2 text-[13px] font-extrabold"
+                      style={{ opacity: ok ? 1 : 0.3, ...(isFrom ? { background: 'var(--cp-ac)', color: '#fff' } : isTo ? { background: 'var(--cp-acs)', color: 'var(--cp-act)', boxShadow: 'inset 0 0 0 2px var(--cp-ac)' } : { background: 'transparent', color: 'var(--cp-mu)' }) }}>
+                      {SECTION_PART_LABEL[k]}
+                    </button>
+                  );
+                }
                 return (
                   <button key={k} type="button" aria-pressed={v === k}
                     onClick={() => {
@@ -846,6 +951,24 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           )}
         </div>
 
+        {copy && copySections.length > 0 && (
+          <div className="flex items-center gap-2.5 overflow-x-auto px-3 pt-2.5 sm:px-4">
+            <span className="shrink-0 text-xs font-bold" style={{ color: 'var(--cp-mu)' }}>Other sections</span>
+            {copySections.map((i) => {
+              const pick: CopyPick = { kind: 'section', index: i };
+              const isFrom = samePick(copy.from, pick);
+              const ok = copyAllows(copy, pick);
+              return (
+                <button key={i} type="button" disabled={!ok} onClick={() => choose(pick)}
+                  className="h-10 shrink-0 rounded-full border px-3.5 text-sm font-bold"
+                  style={{ opacity: ok ? 1 : 0.3, ...(isFrom ? { background: 'var(--cp-ac)', borderColor: 'var(--cp-ac)', color: '#fff' } : { background: 'var(--cp-s2)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }) }}>
+                  {sections[i].name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* The tracks */}
         <div className="flex gap-1.5 px-3 pt-2.5 sm:px-4" role="tablist" aria-label="Track">
           {TRACK_TABS.map((t) => {
@@ -861,7 +984,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                 <span className="hidden truncate md:inline">{t.name}</span>
                 {own && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full" style={{ background: 'var(--cp-act)' }} aria-hidden="true" />}
                 {inFill && !noFill && <Zap size={10} className="absolute bottom-1 right-1" style={{ color: '#E8940F' }} aria-hidden="true" />}
-                {draft.silenced[t.id] && <VolumeX size={11} className="absolute left-1.5 top-1.5" aria-label="Silenced here" />}
+                {draft.silenced[t.id] && <VolumeX size={12} className="absolute left-1.5 top-1.5" style={{ color: '#FF9500' }} aria-label="Silenced here" />}
               </button>
             );
           })}
@@ -881,6 +1004,19 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           {Array.from({ length: bars }, (_, b) => {
             const on = mode === 'groove' && shownBar === b;
             const sounding = here && !!engine && !engine.fillBar && engine.bar % bars === b && !on;
+            if (copy) {
+              const pick: CopyPick = { kind: 'bar', bar: b };
+              const isFrom = samePick(copy.from, pick);
+              const isTo = samePick(copy.to, pick);
+              const ok = copyAllows(copy, pick);
+              return (
+                <button key={b} type="button" disabled={!ok} aria-label={`Bar ${b + 1}`} onClick={() => choose(pick)}
+                  className="h-9 w-9 shrink-0 rounded-[10px] border-0 text-[13px] font-bold"
+                  style={{ fontFamily: 'var(--cp-mono, monospace)', opacity: ok ? 1 : 0.3, ...(isFrom ? { background: 'var(--cp-ac)', color: '#fff' } : isTo ? { background: 'var(--cp-acs)', color: 'var(--cp-act)', boxShadow: 'inset 0 0 0 2px var(--cp-ac)' } : { background: 'var(--cp-s2)', color: 'var(--cp-tx2)' }) }}>
+                  {b + 1}
+                </button>
+              );
+            }
             return (
               <button key={b} type="button" aria-pressed={on} aria-label={`Bar ${b + 1}`} title={`Bar ${b + 1}`}
                 onClick={() => { setMode('groove'); setFollow(false); setFocus(null); setPage(b * chunks); }}
@@ -891,12 +1027,12 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
               </button>
             );
           })}
-          {!noFill && (
+          {!noFill && !copy && (
             <button type="button" aria-pressed={mode === 'fill'} title="The fill: the last bar, its own way"
               onClick={() => { setMode('fill'); setFocus(null); setPage(0); }}
               className="relative flex h-9 shrink-0 items-center gap-1 rounded-[10px] border-0 px-2.5 text-[13px] font-bold"
               style={mode === 'fill' ? { background: '#E8940F', color: '#fff' } : { background: 'color-mix(in srgb, #E8940F 14%, transparent)', color: '#E8940F' }}>
-              <Zap size={14} />Fill
+              <Zap size={14} />{fillKeys.length ? 'Fill' : 'No fill'}
               {engine?.fillBar && mode !== 'fill' && <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full" style={{ background: '#E8940F' }} aria-label="The fill is playing" />}
             </button>
           )}
@@ -915,6 +1051,15 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           ) : (
             <div className="mb-2 text-xs" style={{ color: 'var(--cp-mu)' }}>Playing <b style={{ color: 'var(--cp-tx)' }}>{sections[playingSection]?.name}</b>, on another rhythm</div>
           ))}
+          {mode === 'fill' && (
+            <button type="button" role="switch" aria-checked={fillKeys.length > 0} onClick={() => setFillOn(fillKeys.length === 0)}
+              className="mb-2.5 flex min-h-[48px] w-full items-center gap-2.5 rounded-xl border px-3 text-left"
+              style={{ borderColor: 'var(--cp-ln)', background: 'var(--cp-s1)' }}>
+              <Zap size={18} style={{ color: '#E8940F' }} aria-hidden="true" />
+              <span className="flex-1 text-[15px] font-semibold" style={{ color: 'var(--cp-tx)' }}>Fill in this part</span>
+              <span className={`cp-sw ${fillKeys.length ? 'cp-on' : ''}`} aria-hidden="true" />
+            </button>
+          )}
           {[shownChunk].map((c) => (
             <div key={c} className="grid gap-1.5">
               <div className="grid items-center" style={{ gridTemplateColumns: cols, columnGap: gap }}>
@@ -950,11 +1095,12 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                 let tag: JSX.Element;
                 if (tab === 'drums') {
                   const lab = rowLabel(lane.row);
+                  const off = mutedRows.has(lane.row);
                   tag = (
                     <button type="button" className="flex h-full min-h-[28px] sm:min-h-[34px] flex-col justify-center rounded-[9px] border bg-transparent px-2 text-left text-[11.5px] font-bold leading-tight"
-                      style={{ borderColor: lane.color, background: `color-mix(in srgb, ${lane.color} 12%, transparent)`, color: 'var(--cp-tx)', opacity: dim ? 0.45 : 1 }}
-                      onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openLaneMenu(lane, r.left, r.bottom); }} title={`${lab.name} · options`}>
-                      <span className="truncate">{lab.name}</span>
+                      style={{ borderColor: off ? 'var(--cp-ln)' : lane.color, background: off ? 'transparent' : `color-mix(in srgb, ${lane.color} 12%, transparent)`, color: 'var(--cp-tx)', opacity: dim ? 0.45 : 1 }}
+                      onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openLaneMenu(lane, r.left, r.bottom); }} title={off ? `${lab.name} · silenced in ${SECTION_PART_LABEL[v]}` : `${lab.name} · options`}>
+                      <span className="flex items-center gap-1 truncate">{off && <VolumeX size={11} className="shrink-0" style={{ color: '#FF9500' }} aria-label="Silenced" />}{lab.name}</span>
                       {lab.sub && <small className="truncate text-[9.5px] font-semibold" style={{ color: 'var(--cp-mu)' }}>{lab.sub}</small>}
                     </button>
                   );
@@ -984,7 +1130,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                   );
                 }
                 return (
-                  <div key={`${lane.key}-${lane.k ?? ''}-${lane.a ?? ''}-${lane.chord ? 'c' : ''}`} className="grid items-center" style={{ gridTemplateColumns: cols, columnGap: gap, marginBottom: lane.chord ? 6 : 0 }}>
+                  <div key={`${lane.key}-${lane.k ?? ''}-${lane.a ?? ''}-${lane.chord ? 'c' : ''}`} className="grid items-center" style={{ gridTemplateColumns: cols, columnGap: gap, marginBottom: lane.chord ? 6 : 0, opacity: tab === 'drums' && mutedRows.has(lane.row) ? 0.4 : 1 }}>
                     {tag}
                     {Array.from({ length: Math.min(per, spb - c * per) }, (_, i) => {
                       const s = c * per + i;
@@ -1085,8 +1231,17 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           );
         })()}
 
+        {copy && (
+          <div className="border-t px-4 py-3" style={{ borderColor: 'var(--cp-ln)' }}>
+            <button type="button" disabled={!copyReady(copy)} onClick={confirmCopy}
+              className="h-14 w-full rounded-full border-0 text-base font-extrabold"
+              style={{ background: 'var(--cp-ac)', color: '#fff', opacity: copyReady(copy) ? 1 : 0.4 }}>
+              {copyReady(copy) ? `Copy ${pickName(copy.from!)} to ${pickName(copy.to!)}` : 'Copy'}
+            </button>
+          </div>
+        )}
         {/* The loop: the fill thrown in, play, and round and round */}
-        <div className="flex items-center justify-center gap-8 border-t px-4 py-2.5" style={{ borderColor: 'var(--cp-ln)' }}>
+        <div className={`${copy ? 'hidden' : 'flex'} items-center justify-center gap-8 border-t px-4 py-2.5`} style={{ borderColor: 'var(--cp-ln)' }}>
           <button type="button" className="cp-icb" disabled={noFill} aria-label="Fill now" title="The fill, on the next bar"
             onClick={() => (playing ? fillNow() : toast('Play the loop to throw the fill in'))}
             style={{ width: 46, height: 46, borderRadius: 23, ...(engine?.fillByHand === 2 ? { background: '#E8940F', color: '#fff' } : { color: '#E8940F', background: engine?.fillByHand === 1 ? 'color-mix(in srgb, #E8940F 18%, transparent)' : 'transparent' }) }}>
@@ -1161,6 +1316,19 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           const inFill = fillKeys.some((k) => (tab === 'drums' ? !isTrackKey(k) : k === tab));
           return (
             <Panel title={mode === 'fill' ? `${trackName(tab)} · fill` : trackName(tab)} onClose={close} narrow>
+              {/* The three used most, as big buttons with their name under the icon. */}
+              <div className="mb-1 grid gap-2" style={{ gridTemplateColumns: `repeat(${mode === 'fill' ? 2 : 3}, minmax(0, 1fr))` }}>
+                <QuickTile icon={silenced ? <VolumeX size={22} /> : <Volume2 size={22} />} label={silenced ? 'Muted' : 'Mute'} active={silenced}
+                  onClick={() => change((d) => { d.silenced[tab] = !d.silenced[tab]; })} />
+                {mode === 'fill'
+                  ? <QuickTile icon={<Layers size={22} />} label="No fill" title="This instrument keeps its groove through the fill" onClick={then(noFillHere)} />
+                  : (
+                    <>
+                      <QuickTile icon={<Copy size={22} />} label="Copy from…" onClick={then(() => setCopy({ slot: 'from' }))} />
+                      <QuickTile icon={<Shuffle size={22} />} label="Random" title="Hold: cells at random" onClick={then(randomPattern)} onHold={then(scramble)} />
+                    </>
+                  )}
+              </div>
               {mode === 'groove' && (
                 <div className="flex min-h-[44px] items-center gap-3 px-1">
                   <span className="flex-1 text-[15px] font-semibold">Bars</span>
@@ -1191,30 +1359,20 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
                   </select>
                 </label>
               )}
-              <button type="button" role="switch" aria-checked={silenced} onClick={() => change((d) => { d.silenced[tab] = !d.silenced[tab]; })}
-                className="flex min-h-[44px] items-center gap-3 border-0 bg-transparent px-1 text-left">
-                <span className="flex-1 text-[15px] font-semibold" style={{ color: 'var(--cp-tx)' }}>Mute</span>
-                <span className={`cp-sw ${silenced ? 'cp-on' : ''}`} aria-hidden="true" />
-              </button>
               <div role="separator" className="h-px" style={{ background: 'var(--cp-ln)' }} />
               <div className="grid">
                 {tab === 'drums'
                   ? <SheetItem icon={<Hand size={19} />} label="Play the pieces" onClick={() => setPanel('kit')} />
                   : <SheetItem icon={<Piano size={19} />} label="Keyboard and range" onClick={openKeys} />}
                 {hasCells && <SheetItem icon={<BookmarkPlus size={19} />} label="Save as a pattern" onClick={then(askSave)} />}
-                {mode === 'groove' && <SheetItem icon={<Shuffle size={19} />} label="Random" title="Hold: cells at random" onClick={then(randomPattern)} onHold={then(scramble)} />}
-                {edited && <SheetItem icon={<RotateCcw size={19} />} label="Same as the rest" onClick={then(backToRhythm)} />}
-                {mode === 'groove'
-                  ? <SheetItem icon={<Trash2 size={19} />} label="Clear" danger onClick={then(clearTrack)} />
-                  : inFill && <SheetItem icon={<Layers size={19} />} label="No fill" title="This instrument keeps its groove through the fill" onClick={then(noFillHere)} />}
+                {!isPart && plays !== v && <SheetItem icon={<ArrowLeftRight size={19} />} label={`Play ${SECTION_PART_LABEL[v]} in ${section.name}`} onClick={then(() => change((d) => { d.plays = v; }))} />}
               </div>
-              {((!isPart && hasB && !isPartKey(v)) || (!isPart && plays !== v)) && (
+              {/* Last and apart, where a slip of the thumb does not land on it. On the fill it
+                  leaves the instrument silent there, not given back to its groove. */}
+              {(mode === 'groove' || inFill) && (
                 <>
                   <div role="separator" className="h-px" style={{ background: 'var(--cp-ln)' }} />
-                  <div className="grid">
-                    {!isPart && hasB && !isPartKey(v) && <SheetItem icon={<Copy size={19} />} label={`Copy from ${v === 'a' ? 'B' : 'A'}`} onClick={then(copyOther)} />}
-                    {!isPart && plays !== v && <SheetItem icon={<ArrowLeftRight size={19} />} label={`Play ${SECTION_PART_LABEL[v]} in ${section.name}`} onClick={then(() => change((d) => { d.plays = v; }))} />}
-                  </div>
+                  <SheetItem icon={<Trash2 size={19} />} label="Clear" danger onClick={then(clearTrack)} />
                 </>
               )}
             </Panel>
@@ -1593,6 +1751,44 @@ function Kit({ playing, drumSoundOf, pads }: { playing: boolean; drumSoundOf: (r
 }
 
 /** A line of an options sheet: an icon and what it does; one with [onHold] does that on a long press (or a right click). */
+/** What a copy goes from or to: a part of this section, another section (as it plays), or a bar. */
+type CopyPick = { kind: 'part'; part: SectionPartKey } | { kind: 'section'; index: number } | { kind: 'bar'; bar: number };
+interface CopyDraft { from?: CopyPick; to?: CopyPick; slot: 'from' | 'to' }
+const samePick = (a?: CopyPick, b?: CopyPick) => !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
+/** Anything as Desde; as Hacia, a part when Desde is a part or a section, a bar when it is a bar, never Desde itself. */
+function copyAllows(d: CopyDraft, p: CopyPick): boolean {
+  if (d.slot === 'from') return true;
+  if (p.kind === 'section' || samePick(p, d.from)) return false;
+  if (!d.from) return true;
+  return (d.from.kind === 'bar') === (p.kind === 'bar');
+}
+function copyReady(d: CopyDraft): boolean {
+  const { from, to } = d;
+  if (!from || !to || samePick(from, to) || to.kind === 'section') return false;
+  return (from.kind === 'bar') === (to.kind === 'bar');
+}
+
+/** One of the ⋯ sheet's most used actions: a big button with its name under its icon, lit while it is on. */
+function QuickTile({ icon, label, onClick, onHold, active = false, title }: {
+  icon: React.ReactNode; label: string; onClick: () => void; onHold?: () => void; active?: boolean; title?: string;
+}) {
+  const timer = useRef<number | null>(null);
+  const held = useRef(false);
+  const stop = () => { if (timer.current) window.clearTimeout(timer.current); };
+  return (
+    <button type="button" title={title} aria-pressed={active}
+      className="grid h-[76px] place-items-center content-center gap-1.5 rounded-2xl border-0 text-[13px] font-bold"
+      style={active ? { background: '#FF9500', color: '#fff' } : { background: 'var(--cp-s2)', color: 'var(--cp-tx)' }}
+      onPointerDown={onHold ? () => { held.current = false; timer.current = window.setTimeout(() => { held.current = true; onHold(); }, 480); } : undefined}
+      onPointerUp={stop} onPointerLeave={stop}
+      onContextMenu={onHold ? (e) => { e.preventDefault(); stop(); onHold(); } : undefined}
+      onClick={() => { if (held.current) { held.current = false; return; } onClick(); }}>
+      <span style={{ color: active ? '#fff' : 'var(--cp-mu)' }}>{icon}</span>
+      <span className="max-w-full truncate px-1">{label}</span>
+    </button>
+  );
+}
+
 function SheetItem({ icon, label, onClick, onHold, danger = false, title }: {
   icon: React.ReactNode; label: string; onClick: () => void; onHold?: () => void; danger?: boolean; title?: string;
 }) {

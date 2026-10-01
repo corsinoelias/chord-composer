@@ -1303,6 +1303,42 @@ input.cp-rg:disabled {
 }
 .cp-play:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* While playing: ■ | Finish, one pill in two halves */
+.cp-split {
+  height: 56px;
+  border-radius: 28px;
+  display: flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  gap: 2px;
+  background: var(--cp-s1);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--cp-ac) 16%, transparent), 0 8px 24px color-mix(in srgb, var(--cp-ac) 45%, transparent);
+}
+.cp-split button {
+  position: relative;
+  width: 58px;
+  border: 0;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+.cp-split-stop { background: var(--cp-ac); }
+.cp-split-fade { background: color-mix(in srgb, var(--cp-ac) 78%, #000); }
+.cp-split-fade.cp-fading { background: color-mix(in srgb, var(--cp-ac) 50%, #000); }
+.cp-split-fade svg { position: relative; }
+/* The level, draining from full to nothing as the song fades */
+.cp-split-fade i {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--cp-ac) 78%, #000);
+  transform-origin: bottom;
+  animation: cp-drain linear forwards;
+}
+@keyframes cp-drain { from { transform: scaleY(1); } to { transform: scaleY(0); } }
+
 /* Meter and swing chips on the tempo label line; the swing one opens a menu */
 .cp-mini-btn { cursor: pointer; }
 .cp-mini-btn:hover { border-color: var(--cp-ln2); color: var(--cp-tx); }

@@ -42,6 +42,14 @@ interface PlaybackContextValue {
   // keepContext is accepted for callers written for the old web engine and ignored: the app's
   // engine never closes its AudioContext, so every stop is immediate and cheap.
   stop: (opts?: { keepContext?: boolean }) => void;
+  /**
+   * Finish: the song comes down to silence over [seconds] and then stops, as the app's
+   * Terminar does. [fade] says when it began, for the button that drains with it.
+   */
+  fade: { startedAt: number; seconds: number } | null;
+  fadeOut: (seconds: number) => void;
+  /** Takes the fade back: the level returns and the song goes on. */
+  cancelFade: () => void;
   setBpm: (bpm: number) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
   setClickSettings: (click: ClickSettings) => void;
@@ -296,7 +304,16 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
 
   // keepContext is kept for callers written for the web engine; the engine never closes its
   // context, so every stop is the quick kind now.
+  const [fade, setFade] = useState<{ startedAt: number; seconds: number } | null>(null);
+  const fadeTimer = useRef<number | null>(null);
+  const clearFadeTimer = () => {
+    if (fadeTimer.current !== null) window.clearTimeout(fadeTimer.current);
+    fadeTimer.current = null;
+  };
+
   const stop = useCallback((_opts?: { keepContext?: boolean }) => {
+    clearFadeTimer();
+    setFade(null);
     // Always, not only when this provider started it: the page has one engine, and a Stop
     // must silence it whoever set it going.
     appRef.current.stop();
@@ -354,6 +371,9 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     sectionsRef.current = sections;
     optionsRef.current = options;
     if (!sections.some(s => (s?.chords?.length ?? 0) > 0)) return;
+    // A new start is at full level: the engine resets its fade, and so does the button.
+    clearFadeTimer();
+    setFade(null);
 
     // Tell every other PlaybackProvider instance on the page that we're now the
     // active player, so their own UI (Play/Stop button, chord highlighting) resets
@@ -417,6 +437,20 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /** The click's own settings: sent on their own, so nothing playing is cut short. */
+  const fadeOut = useCallback((seconds: number) => {
+    appRef.current.send([['fade', seconds]]);
+    clearFadeTimer();
+    // Stopped once it is silent; the engine only lowers the level.
+    fadeTimer.current = window.setTimeout(() => { fadeTimer.current = null; stop(); }, seconds * 1000 + 100);
+    setFade({ startedAt: performance.now(), seconds });
+  }, [stop]);
+
+  const cancelFade = useCallback(() => {
+    appRef.current.send([['fade', 0]]);
+    clearFadeTimer();
+    setFade(null);
+  }, []);
+
   const setClickSettings = useCallback((click: ClickSettings) => {
     if (!optionsRef.current) return;
     optionsRef.current.click = click;
@@ -473,6 +507,9 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
     play,
     warmup,
     stop,
+    fade,
+    fadeOut,
+    cancelFade,
     setBpm,
     setMetronomeEnabled,
     setClickSettings,

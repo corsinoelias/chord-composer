@@ -66,6 +66,11 @@ export interface Section {
    */
   partSounds?: Partial<Record<SectionPartKey, Partial<Record<TrackId, string>>>>;
   /**
+   * Pieces of the kit (drum rows) each part leaves out in this section: still written, not
+   * heard, fill included — the app's per-part mute (SectionSounds.mutedRows).
+   */
+  partMuted?: Partial<Record<SectionPartKey, string[]>>;
+  /**
    * This section is a part of a rhythm's intro or ending, added with it ("Add intro and
    * ending"): it plays that part's own patterns over its own chords, in the song's key.
    */

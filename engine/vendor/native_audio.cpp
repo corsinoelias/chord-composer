@@ -336,6 +336,8 @@ struct Voice {
   int laneStep = -1, laneSlot = -1, program = -1;
   // Set by tieHeld for the one step it covers: the retrigger that follows leaves it be.
   bool tied = false;
+  // Steps in a row its cell has been found empty or gone (see releaseOrphans).
+  int orphanSteps = 0;
 };
 // serial orders voices by when they were struck; fade and fadeStep carry a voice that
 // has been choked down to silence instead of cutting it off.
@@ -726,6 +728,7 @@ class Engine {
       }
       // By track, not by piece: these two are about the drums as a whole.
       for (int track = 0; track <= kDrumsSlot; ++track) silent_[s][track].store(false);
+      for (auto& row : rowSilent_[s]) row.store(false);
       activeBank_[s].store(0);
     }
     for (int s = 0; s < kSlots; ++s) {
@@ -885,6 +888,8 @@ class Engine {
     if (!openStream()) return false;
     silenceAll();
     resetTransport();
+    // A song that ended in a fade starts again at full level.
+    fadeRequest_.store(kFadeReset, std::memory_order_release);
     const int beats = std::max(0, std::min(kMaxCountInBeats, countInBeats));
     countInTotal_ = countInSteps_ = beats * std::max(1, stepsPerBeat_.load(std::memory_order_relaxed));
     countInBeat_.store(beats, std::memory_order_release);
@@ -898,6 +903,8 @@ class Engine {
   void stop() {
     sequencing_.store(false, std::memory_order_release);
     silenceAll();
+    // Whatever a fade left down comes back up, the voices gone, for what is heard next.
+    fadeRequest_.store(kFadeBack, std::memory_order_release);
   }
 
   /// Hands the output back. Called when the app has been quiet for a while or has gone
@@ -1139,8 +1146,14 @@ class Engine {
                                       std::memory_order_release);
   }
 
+  /// [track] may also name one piece of the kit — the snare, a percussion row — which
+  /// then stays written and simply is not heard in this section, its fill included.
   void setSilence(int section, const char* track, bool silent) {
     if (section < 0 || section >= kSections) return;
+    if (const int row = drumRowIndex(track); row >= 0) {
+      rowSilent_[section][row].store(silent, std::memory_order_release);
+      return;
+    }
     const int index = strcmp(track, "drums") == 0 ? kDrumsSlot : instrumentIndex(track);
     silent_[section][index].store(silent, std::memory_order_release);
   }
@@ -1223,6 +1236,16 @@ class Engine {
     loadQuietMax_.store(0, std::memory_order_relaxed);
   }
   bool playing() const { return sequencing_.load(std::memory_order_acquire); }
+
+  /// Brings the whole song — every track, the reverb's tail and the click — down to
+  /// silence over [seconds], the way a band ends on a held chord rather than a cut. It
+  /// only lowers the level: stopping the song once it is silent is up to the caller,
+  /// which is also what knows when the song is over. [seconds] of 0 or less takes the
+  /// fade back, the level returning in a fraction of a second.
+  void fade(float seconds) {
+    if (seconds > 0) fadeSeconds_.store(seconds, std::memory_order_relaxed);
+    fadeRequest_.store(seconds > 0 ? kFadeOut : kFadeBack, std::memory_order_release);
+  }
   void mixer(const char* track, float volume, bool mute) {
     float v = mute ? 0 : fmaxf(0, fminf(1, volume));
     // SoundFont voices are mixed inside tsf, so a fader has to reach it as well.
@@ -1467,6 +1490,10 @@ class Engine {
     if (!file) { exporting_.store(false, std::memory_order_release); return 0; }
 
     sampleRate_ = kSampleRate;
+    // The stream is closed, so nothing else is reading these: a file is never faded.
+    fading_ = false;
+    fadeGain_ = 1.0f;
+    fadeRequest_.store(kFadeNone, std::memory_order_release);
     reverb_.prepare(static_cast<float>(sampleRate_));
     reverb_.configure(reverbSize_.load(), reverbMix_.load());
     reverbDirty_.store(false, std::memory_order_release);
@@ -1687,6 +1714,25 @@ class Engine {
     float trackGain[kTracks];
     for (int track = 0; track < kTracks; ++track) trackGain[track] = gains_[track + 1].load();
     const float master = master_.load();
+    switch (fadeRequest_.exchange(kFadeNone, std::memory_order_acq_rel)) {
+      case kFadeOut:
+        fadeTotal_ = std::max(1, static_cast<int>(fadeSeconds_.load(std::memory_order_relaxed) * sampleRate_));
+        // From wherever the level is now, so a fade asked for again does not jump up first.
+        fadeLeft_ = static_cast<int>(fadeTotal_ * sqrtf(fmaxf(0.0f, fminf(1.0f, fadeGain_))));
+        fading_ = true;
+        break;
+      case kFadeBack:
+        fading_ = false;
+        break;
+      case kFadeReset:
+        fading_ = false;
+        fadeGain_ = 1.0f;
+        break;
+      default:
+        break;
+    }
+    // Back up from a fade taken back over about a quarter of a second: a jump would click.
+    const float fadeRecover = 1.0f / (.25f * sampleRate_);
     // Up to twice unity: a click is for playing along to, and in headphones over a full
     // song it often has to be louder than the song.
     const float clickGain = clickVolume_.load(std::memory_order_relaxed) * 2.0f;
@@ -1778,6 +1824,19 @@ class Engine {
         left += busL[bus];
         right += busR[bus];
       }
+      // The fade: the square of the time left, which falls slowly at first and then
+      // quickly, the way the ear hears a level go — a straight line sounded as if the
+      // song held on and then dropped out at the end. Applied before the reverb, so
+      // its tail fades with the song: after it, stopping let a full-level tail out.
+      if (fading_) {
+        if (fadeLeft_ > 0) --fadeLeft_;
+        const float share = static_cast<float>(fadeLeft_) / fadeTotal_;
+        fadeGain_ = share * share;
+      } else if (fadeGain_ < 1.0f) {
+        fadeGain_ = fminf(1.0f, fadeGain_ + fadeRecover);
+      }
+      left *= fadeGain_;
+      right *= fadeGain_;
       float wetL = 0, wetR = 0;
       reverb_.process(left, right, wetL, wetR);
       left += wetL; right += wetR;
@@ -1791,7 +1850,7 @@ class Engine {
       // before both, at a fifth of full scale, so it followed the master fader down and was
       // squashed along with a loud song — and a sine pip under a kick landing on the same
       // beat simply vanished. On its own gain it stays where you put it.
-      clicked *= clickGain;
+      clicked *= clickGain * fadeGain_;
       const float mixL = tanhf(left * master), mixR = tanhf(right * master);
       peak[kBuses] = fmaxf(peak[kBuses], fmaxf(fabsf(mixL), fabsf(mixR)));
       output[i * 2] = fmaxf(-1.0f, fminf(1.0f, mixL + clicked));
@@ -1949,12 +2008,13 @@ class Engine {
     const bool fillBar = (byHand || inFill >= 0) && fillMask_[fillSlot].load(std::memory_order_acquire) != 0;
     const int fillMask = filling ? fillMask_[fillSlot].load(std::memory_order_acquire) : 0;
     if (!silent_[sectionIndex_][kDrumsSlot].load(std::memory_order_acquire)) {
-      if (crash) {
+      if (crash && !rowSilent_[sectionIndex_][kCrashRow].load(std::memory_order_acquire)) {
         triggerDrum(drumSoundAt(sectionIndex_, kCrashRow), .85f, kCrashRow);
       }
       const int at = laneStep(slot, kDrumsSlot, step);
       const int mask = fillMask;
       for (int row = 0; row < kDrumRows; ++row) {
+        if (rowSilent_[sectionIndex_][row].load(std::memory_order_acquire)) continue;
         const int packed = (mask & (1 << row))
                                ? fill_[fillSlot][row][inFill].load(std::memory_order_acquire)
                                : drums_[slot][row][at].load();
@@ -2005,6 +2065,7 @@ class Engine {
           releaseTrack(track);
           continue;
         }
+        releaseOrphans(track, slot);
         const int fillRow = kDrumRows + track;
         const int lane = (fillMask & (1 << fillRow)) ? -1 : laneStep(slot, track, step);
         const int packed = lane < 0
@@ -2012,12 +2073,7 @@ class Engine {
                                : instruments_[slot][track][lane].load();
         const int degree = stepDegree(packed);
         float velocity = stepVelocity(packed) / 255.0f;
-        if (velocity <= 0 || degree == kRest) {
-          // The lane back at the cell that struck a held note, and the cell is empty now:
-          // the note was taken out of the rhythm, so it stops.
-          if (lane >= 0) releaseLeftCell(track, slot, lane);
-          continue;
-        }
+        if (velocity <= 0 || degree == kRest) continue;
         if (stepAccent(packed)) velocity = fminf(1.0f, velocity * 1.3f);
         const int timbre = timbreAt(sectionIndex_, track);
         // What this cell sounds, worked out before anything is struck, so the notes a
@@ -2575,12 +2631,30 @@ class Engine {
   }
   void releaseMelodic() { for (int track = 0; track < kTracks; ++track) releaseTrack(track); }
 
-  /// Lets go of the held notes the cell [lane] of variation [slot] struck.
-  void releaseLeftCell(int track, int slot, int lane) {
+  /// A held note lives as long as the cell that struck it still holds a note in what the
+  /// track plays now. Waiting for the lane to come round to that cell and find it empty —
+  /// what this replaced — never happened when the cell had gone altogether: a pad struck
+  /// in bar 2 of a two-bar intro went on for good under a one-bar ending, whose lane never
+  /// reaches bar 2, and the same under B, which reads another slot.
+  ///
+  /// Gone for two steps running, not one: rewriting a lane (switching part, discarding
+  /// edits) clears it and writes it back, and a step landing in between would cut the very
+  /// note that is coming straight back.
+  void releaseOrphans(int track, int slot) {
     tsf* font = soundFont.load(std::memory_order_acquire);
+    const int length = patternBars_[slot][track].load(std::memory_order_relaxed) *
+                       stepsPerBar_.load(std::memory_order_relaxed);
     for (auto& v : voices_) {
-      if (v.active && v.track == track && v.laneStep == lane && v.laneSlot == slot &&
-          v.sustain > 0.0f) {
+      if (!v.active || v.track != track || v.laneStep < 0 || v.stage == kRelease || v.gate >= 0 ||
+          v.sustain <= 0.0f) {
+        continue;
+      }
+      const int packed = v.laneSlot == slot && v.laneStep < length && v.laneStep < kMaxSteps
+                             ? instruments_[slot][track][v.laneStep].load(std::memory_order_relaxed)
+                             : 0;
+      if (stepVelocity(packed) > 0 && stepDegree(packed) != kRest) {
+        v.orphanSteps = 0;
+      } else if (++v.orphanSteps >= 2) {
         releaseVoice(v, font);
       }
     }
@@ -2815,7 +2889,7 @@ class Engine {
   std::atomic<int> variationRequest_{-1};
   int pendingBank_ = -1, manualSlot_ = 0;
   std::atomic<float> gateSteps_[kSections][kTracks]{};  // 0 is hold, as the engine always did
-  std::atomic<float> bpm_{95}, swing_{1.0f}, gains_[kBuses], master_{.7f}; std::atomic<int> drums_[kSlots][kDrumRows][kMaxSteps]; std::atomic<int> instruments_[kSlots][kTracks][kMaxSteps]; std::atomic<int> timbre_[kSections][kTracks], program_[kSections][kTracks], drumSound_[kSections][kDrumRows]; std::atomic<int> timbreB_[kSections][kTracks], programB_[kSections][kTracks], drumSoundB_[kSections][kDrumRows]; std::atomic<bool> silent_[kSections][kTracks + 1]{}; Voice voices_[kVoices]; DrumVoice drumVoices_[kDrumVoices]; uint32_t drumSerial_ = 0; Arrangement arrangements_[2]; std::atomic<int> activeArrangement_{0}; std::atomic<int64_t> reportedPosition_{0}; std::atomic<int> clearVoices_{0};
+  std::atomic<float> bpm_{95}, swing_{1.0f}, gains_[kBuses], master_{.7f}; std::atomic<int> drums_[kSlots][kDrumRows][kMaxSteps]; std::atomic<int> instruments_[kSlots][kTracks][kMaxSteps]; std::atomic<int> timbre_[kSections][kTracks], program_[kSections][kTracks], drumSound_[kSections][kDrumRows]; std::atomic<int> timbreB_[kSections][kTracks], programB_[kSections][kTracks], drumSoundB_[kSections][kDrumRows]; std::atomic<bool> silent_[kSections][kTracks + 1]{}; std::atomic<bool> rowSilent_[kSections][kDrumRows]{}; Voice voices_[kVoices]; DrumVoice drumVoices_[kDrumVoices]; uint32_t drumSerial_ = 0; Arrangement arrangements_[2]; std::atomic<int> activeArrangement_{0}; std::atomic<int64_t> reportedPosition_{0}; std::atomic<int> clearVoices_{0};
   /// Whether the sequencer is running — which is not the same as whether the output is
   /// open. The stream stays up between Stop and the next thing that wants to be heard,
   /// so `stream_ != nullptr` stopped being an answer to "is the song playing".
@@ -2854,6 +2928,13 @@ class Engine {
   std::atomic<float> reduction_[kBuses]{};
   std::atomic<float> levels_[kBuses + 1]{};
   std::atomic<int> loopOnly_{-1};
+  // The fade (see fade()): asked for from the platform thread, carried out by the callback.
+  static constexpr int kFadeNone = 0, kFadeOut = 1, kFadeBack = 2, kFadeReset = 3;
+  std::atomic<int> fadeRequest_{kFadeNone};
+  std::atomic<float> fadeSeconds_{4.0f};
+  float fadeGain_ = 1.0f;
+  int fadeTotal_ = 1, fadeLeft_ = 0;
+  bool fading_ = false;
   // The Fill-in button: asked for from the platform thread, then the callback's own. 0 is
   // no fill by hand, kFillArmed one waiting for the next bar, kFillPlaying one sounding
   // from manualFrom_ to the end of this bar. Reported with the position (bits 48-49).
@@ -2993,4 +3074,5 @@ extern "C" __attribute__((visibility("default"), used)) int32_t chord_audio_prev
 extern "C" JNIEXPORT jint JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeExportWav(JNIEnv* env, jobject, jstring path, jint steps, jfloat tail) { const char* p=chars(env,path); const int frames=engine.exportWav(p,steps,tail); release(env,path,p); return frames; }
 extern "C" JNIEXPORT jfloat JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeExportProgress(JNIEnv*, jobject) { return engine.exportProgress(); }
 extern "C" JNIEXPORT jboolean JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeHasInstruments(JNIEnv*, jobject) { return engine.hasInstruments(); }
+extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeFade(JNIEnv*, jobject, jfloat seconds) { engine.fade(seconds); }
 #endif  // CHORD_AUDIO_WEB

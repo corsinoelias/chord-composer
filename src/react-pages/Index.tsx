@@ -127,7 +127,7 @@ const editorSignature = (s: {
 
 const Index = ({ songId }: IndexProps) => {
   const { showOnboarding, dismissOnboarding } = useFirstTimeUser();
-  const { state: playbackState, play, warmup, stop: stopPlayback, updatePlaybackOptions, setClickSettings } = usePlayback();
+  const { state: playbackState, play, warmup, stop: stopPlayback, fade, fadeOut, cancelFade, updatePlaybackOptions, setClickSettings } = usePlayback();
   const { isPlaying, currentChordIndex } = playbackState;
   // `currentStep` is intentionally NOT read here — it changes ~6.7x/sec and reading it
   // at this top level would re-render the entire editor tree every 16th note (the cause
@@ -1761,6 +1761,9 @@ const Index = ({ songId }: IndexProps) => {
           hasChords={hasChords}
           onPlay={handlePlayWithCountdown}
           onStop={stopPlaybackCompletely}
+          fade={fade}
+          onFade={fadeOut}
+          onCancelFade={cancelFade}
           bpm={bpm}
           onBpmChange={setBpm}
           meter={

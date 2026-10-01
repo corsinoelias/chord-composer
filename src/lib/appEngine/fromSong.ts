@@ -13,7 +13,7 @@
  * sounds, register and note lengths) comes across as the web wrote it.
  */
 import { type Chord } from '../musicTheory';
-import { type Section, type SectionPartKey, type TrackId, sectionB } from '../sections';
+import { type Section, type SectionPartKey, type TrackId, sectionB, sectionPartOf } from '../sections';
 import { effectiveVariation, partView } from '../groove';
 import {
   type StylePattern,
@@ -379,6 +379,9 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
       const sound = getSoundType(track, soundId);
       if (!sound) notes.push(`${track} sound "${soundId}" is not in the list; it plays the default`);
       c.push(['setSilence', s, track, !!playback?.silenced?.[track]]);
+      // The pieces the part this section plays (A, B, its intro or ending) leaves out: written,
+      // not heard, its fill included.
+      if (track === 'drums') for (const row of DRUM_ROWS) c.push(['setSilence', s, row, !!section.partMuted?.[sectionPartOf(section)]?.includes(row)]);
       if (track === 'drums' && app) continue;
       // B's own sound, when it differs from A's; -1 has bank 1 follow bank 0.
       const idB = hasB ? idFor('b') : soundId;

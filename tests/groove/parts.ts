@@ -98,5 +98,15 @@ const variationOf = (c: EngineCommand[]) => c.filter((x) => x[0] === 'setVariati
   check('a part already chosen stays', chosen[0] === 'intro');
 }
 
+// 6. A piece silenced in a part (section.partMuted): written, not heard — only while that part plays.
+{
+  const muted = { a: ['snare'] } as Section['partMuted'];
+  const silence = (s: Section) => songToEngine({ sections: [s], bpm: 100 }, appStylePattern(withIntro), () => undefined, []).commands
+    .filter((x) => x[0] === 'setSilence' && x[2] === 'snare').map((x) => x[3]);
+  check('a muted piece is silent in its part', silence(section({ partMuted: muted })).includes(true));
+  check('and heard in another', !silence(section({ partMuted: muted, variation: 1 })).includes(true));
+  check('nothing muted, nothing silent', !silence(section()).includes(true));
+}
+
 console.log(`${checks - failed}/${checks} part checks passed (${withIntro.id}, ${noIntro.id})`);
 if (failed) process.exit(1);
