@@ -506,14 +506,25 @@ input.cp-rg:disabled {
 .cp-ch .cp-cn {
   font-family: 'Space Mono', ui-monospace, monospace;
   font-weight: 700;
-  font-size: 20px;
+  font-size: 23px;
   line-height: 1;
+  padding-top: 3px;
   color: var(--cp-tx);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
 }
+
+.cp-ch .cp-cn .cp-up {
+  position: relative;
+  top: -0.55em;
+  vertical-align: baseline;
+  line-height: 0;
+}
+.cp-ch .cp-cn .cp-acc { font-size: 0.62em; }
+.cp-ch .cp-cn .cp-ext { font-size: 0.55em; margin-left: 1px; }
+.cp-ch .cp-cn .cp-min-m { font-size: 0.78em; }
 
 .cp-ch .cp-cb {
   font-family: 'Space Mono', ui-monospace, monospace;
@@ -548,7 +559,7 @@ input.cp-rg:disabled {
 
 @media (min-width: 1024px) {
   .cp-ch { min-height: 76px; padding: 10px 12px 9px; }
-  .cp-ch .cp-cn { font-size: 23px; }
+  .cp-ch .cp-cn { font-size: 26px; }
 }
 
 /* Beat dots along the bottom of a chord */
@@ -1765,3 +1776,29 @@ input.cp-rg:disabled {
   background: #1B1E26;
 }
 .cp-mkeys .cp-b.cp-on { background: var(--cp-min); }
+
+/* Chord symbols (the app's Ajustes › Cifrado): four tiles, each with its own sign */
+.cp-nt {
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--cp-ln);
+  background: var(--cp-s1, transparent);
+  color: var(--cp-tx);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cp-nt:hover { border-color: var(--cp-ln2); }
+.cp-nt.cp-on {
+  background: var(--cp-acs);
+  border: 1.5px solid color-mix(in srgb, var(--cp-ac) 45%, transparent);
+  color: var(--cp-ac);
+}
+.cp-nt-sign { font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; }
+.cp-nt-sign sup { font-size: 0.62em; }
+.cp-nt-stack { display: inline-flex; flex-direction: column; font-size: 9px; line-height: 1; margin-left: 1px; }
+.cp-nt-sol { align-items: center; font-weight: 600; }
+.cp-seg button.cp-sign { font-size: 16px; }

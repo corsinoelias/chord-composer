@@ -9,7 +9,6 @@ import {
 import { SECTION_PART_LABEL, sectionPartOf, type Section, type SectionPartKey } from '@/lib/sections';
 import { type Chord } from '@/lib/musicTheory';
 import { type DetectedKey } from '@/lib/keyDetect';
-import { chordDegree } from '@/lib/keyPalette';
 import { type StylePattern } from '@/lib/styles';
 import {
   DropdownMenu,
@@ -441,7 +440,7 @@ export const SectionCard = memo(function SectionCard({
                   transposition={transposition}
                   preferFlats={preferFlats}
                   isOutOfScale={false}
-                  degree={chordDegree(chord, songKey)}
+                  songKey={songKey}
                 />
               );
             })}

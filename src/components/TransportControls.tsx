@@ -27,6 +27,7 @@ import { type StylePattern } from '@/lib/styles';
 import { chordPosition, useGlide } from '@/lib/playbackPosition';
 import { SWING_OPTIONS, swingOption } from '@/lib/swing';
 import { CLICK_SOUNDS, type ClickSettings } from '@/lib/clickSettings';
+import { ChordSymbolsPicker } from './ChordSymbolsPicker';
 
 /** Metronome glyph — lucide has no metronome/pendulum icon, so this draws one:
  *  a trapezoidal body with a swung pendulum rod. Stroke style matches lucide
@@ -280,7 +281,9 @@ export const TransportControls = memo(function TransportControls(props: Transpor
                 <MoreVertical size={20} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-60">
+              <ChordSymbolsPicker />
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onOpenLibrary}>
                 <FolderOpen size={15} className="mr-2" />My songs
               </DropdownMenuItem>

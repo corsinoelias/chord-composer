@@ -1,16 +1,9 @@
 import { memo, useMemo } from 'react';
 import { type Chord } from '@/lib/musicTheory';
-import { getTransposedChordName } from '@/lib/chordNotes';
 import { BeatDots } from './BeatDots';
 import { qualityClass } from '@/lib/chordColors';
-
-/** Split a transposed chord name into [chordPart, bassNotePart | null] */
-function splitChordName(chord: Chord, transposition: number, preferFlats: boolean): [string, string | null] {
-  const full = getTransposedChordName(chord, transposition, preferFlats, true)
-  const slash = full.indexOf('/')
-  if (slash === -1) return [full, null]
-  return [full.slice(0, slash), full.slice(slash)]  // bass part keeps the '/'
-}
+import { chordNameParts, useChordDisplay } from '@/lib/chordDisplay';
+import { type DetectedKey } from '@/lib/keyDetect';
 
 interface ChordBlockProps {
   chord: Chord;
@@ -27,10 +20,10 @@ interface ChordBlockProps {
   /** The drag overlay renders at a fixed size instead of filling its grid cell. */
   fixedWidth?: boolean;
   /**
-   * Where the chord sits in the song's key ("vi", "♭VII"), as the Android app shows it
-   * under every chord. Borrowed chords read the same, only quieter.
+   * The song's key as stored, for writing the chord as a number or a numeral (the app's
+   * Ajustes › Cifrado). Without it those fall back to the chord's name.
    */
-  degree?: { numeral: string; borrowed: boolean } | null;
+  songKey?: DetectedKey | null;
 }
 
 export const ChordBlock = memo(function ChordBlock({
@@ -44,14 +37,15 @@ export const ChordBlock = memo(function ChordBlock({
   bpm = 120,
   rawIndex = 0,
   fixedWidth = false,
-  degree = null,
+  songKey = null,
 }: ChordBlockProps) {
   const quality = useMemo(() => qualityClass(chord.quality), [chord.quality]);
-  // A chord written as a flat keeps reading as one even in a sharp key: someone who
-  // typed Ab should not be shown G#.
-  const [chordPart, bassPart] = useMemo(
-    () => splitChordName(chord, transposition, preferFlats || chord.accidental === 'b'),
-    [chord, transposition, preferFlats],
+  const display = useChordDisplay();
+  // One name, in the notation chosen, set as a chord chart sets it: the root large, its
+  // accidental and extension small and raised, the bass quieter after it.
+  const p = useMemo(
+    () => chordNameParts(chord, display, { transposition, keyFlats: preferFlats, key: songKey }),
+    [chord, display, transposition, preferFlats, songKey],
   );
 
   return (
@@ -64,13 +58,16 @@ export const ChordBlock = memo(function ChordBlock({
         opacity: isOutOfScale && !isPlaying ? 0.4 : undefined,
       }}
     >
-      <span className="flex min-w-0 max-w-full items-baseline gap-1">
-        <span className="cp-cn">{chordPart}</span>
-        {bassPart && <span className="cp-cb">{bassPart}</span>}
+      <span className="flex min-w-0 max-w-full items-baseline">
+        <span className="cp-cn">
+          {p.before && <sup className="cp-up cp-acc">{p.before}</sup>}
+          {p.root}
+          {p.accidental && <sup className="cp-up cp-acc">{p.accidental}</sup>}
+          {p.minor && <span className="cp-min-m">{p.minor}</span>}
+          {p.extension && <sup className="cp-up cp-ext">{p.extension}</sup>}
+        </span>
+        {p.bass && <span className="cp-cb">{p.bass}</span>}
       </span>
-      {degree && (
-        <span className={`cp-deg ${degree.borrowed ? 'cp-bor' : ''}`}>{degree.numeral}</span>
-      )}
       <BeatDots
         duration={chord.duration ?? 4}
         isActive={isPlaying}

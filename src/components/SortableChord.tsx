@@ -3,6 +3,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Copy, X } from 'lucide-react';
 import { type Chord } from '@/lib/musicTheory';
 import { ChordBlock } from './ChordBlock';
+import { type DetectedKey } from '@/lib/keyDetect';
 
 interface SortableChordProps {
   chord: Chord;
@@ -21,8 +22,8 @@ interface SortableChordProps {
   /** Tempo and playback index, so the beat dots fill themselves while the chord sounds. */
   bpm?: number;
   rawIndex?: number | string;
-  /** The chord's numeral in the song's key, shown under its name. */
-  degree?: { numeral: string; borrowed: boolean } | null;
+  /** The song's key as stored, for numbers and numerals. */
+  songKey?: DetectedKey | null;
   /** Grid columns the chord takes: one per bar it lasts. */
   span?: number;
 }
@@ -42,7 +43,7 @@ export function SortableChord({
   isOutOfScale = false,
   bpm = 120,
   rawIndex = 0,
-  degree = null,
+  songKey = null,
   span = 1,
 }: SortableChordProps) {
   const {
@@ -110,7 +111,7 @@ export function SortableChord({
           isOutOfScale={isOutOfScale}
           bpm={bpm}
           rawIndex={rawIndex}
-          degree={degree}
+          songKey={songKey}
         />
       </button>
 

@@ -1874,6 +1874,7 @@ const Index = ({ songId }: IndexProps) => {
                   isPlaying={false}
                   transposition={transposition}
                   preferFlats={preferFlats}
+                  songKey={keyBase}
                   isDragging
                   fixedWidth
                 />
