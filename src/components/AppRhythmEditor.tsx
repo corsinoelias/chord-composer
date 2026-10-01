@@ -30,7 +30,6 @@ import {
   vel, withVelocity, type StepNote,
 } from '@/lib/appEngine/steps';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { toast } from 'sonner';
 import '@/styles/chord-player.css';
 
 /**
@@ -80,6 +79,8 @@ interface Draft {
   partSounds: PartSounds;
   /** Each part's silenced pieces of the kit (section.partMuted): written, not heard, in that part only. */
   muted: PartMuted;
+  /** How long each melodic track's notes ring in this section alone (section.noteLengths). */
+  noteLengths: NoteLengths;
 }
 type PartSounds = Partial<Record<SectionPartKey, Partial<Record<TrackId, string>>>>;
 type PartMuted = Partial<Record<SectionPartKey, string[]>>;
@@ -122,6 +123,7 @@ const cloneDraft = (d: Draft): Draft => ({
   a: d.a && cloneDense(d.a), b: d.b && cloneDense(d.b), intro: d.intro && cloneDense(d.intro), ending: d.ending && cloneDense(d.ending),
   silenced: { ...d.silenced }, plays: d.plays, sounds: { ...d.sounds }, partSounds: clonePartSounds(d.partSounds),
   muted: cloneMuted(d.muted),
+  noteLengths: { ...d.noteLengths },
 });
 
 const laneId = (l: Pick<Lane, 'key' | 'chord' | 'k' | 'a'>) => `${l.key}|${l.chord ? 'c' : ''}|${l.k ?? ''}|${l.a ?? ''}`;
@@ -195,6 +197,20 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
   const [menu, setMenu] = useState<{ items: MenuItem[]; x: number; y: number } | null>(null);
   /** Copying: what has been chosen as Desde and Hacia, and which of the two the next tap fills. */
   const [copy, setCopy] = useState<CopyDraft | null>(null);
+  /**
+   * The editor's own note at the bottom, in place of the page's toasts: the editor is a modal
+   * dialog, which takes every click outside it, so an Undo in a page toast could be seen and
+   * never pressed.
+   */
+  const [snack, setSnack] = useState<{ text: string; action?: { label: string; onClick: () => void }; at: number } | null>(null);
+  const toast = useCallback((text: string, opts?: { action?: { label: string; onClick: () => void } }) => {
+    setSnack({ text, action: opts?.action, at: Date.now() });
+  }, []);
+  useEffect(() => {
+    if (!snack) return;
+    const timer = window.setTimeout(() => setSnack(null), snack.action ? 6000 : 3000);
+    return () => window.clearTimeout(timer);
+  }, [snack]);
   /** Leaving with changes: the question of what to do with them is on screen. */
   const [leaving, setLeaving] = useState(false);
   /** The pattern strip: the app's figures for the track on screen, and yours (patternStrip.ts). */
@@ -221,7 +237,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     setSec(initialSection);
     setDrafts({});
     setV(startKey(sections[initialSection]));
-    setMode('groove'); setTab('drums'); setPage(0); setAdded(new Set()); setFocus(null); setPop(null); setMenu(null); setCopy(null);
+    setMode('groove'); setTab('drums'); setPage(0); setAdded(new Set()); setFocus(null); setPop(null); setMenu(null); setCopy(null); setSnack(null);
     setLeaving(false);
     setSongSounds({ instruments, drumSounds, noteLengths, voicings }); setPanel(null); setSoundMenu(null);
     undo.current = []; redo.current = [];
@@ -248,6 +264,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     sounds: { ...(folded[i]?.sounds ?? {}) },
     partSounds: clonePartSounds(folded[i]?.partSounds),
     muted: cloneMuted(sections[i]?.partMuted),
+    noteLengths: { ...(sections[i]?.noteLengths ?? {}) },
   }, [drafts, sections, folded, styleAt]);
   const draft = draftOf(sec);
   const isPart = !!section?.stylePart;
@@ -316,6 +333,7 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
       if (Object.keys(parts).length) out.partSounds = parts; else delete out.partSounds;
       const muted = Object.fromEntries(Object.entries(d.muted).filter(([, rows]) => rows && rows.length));
       if (Object.keys(muted).length) out.partMuted = muted; else delete out.partMuted;
+      if (Object.keys(d.noteLengths).length) out.noteLengths = { ...d.noteLengths }; else delete out.noteLengths;
     }
     if (d?.plays !== undefined) withPart(out, d.plays);
     // Heard while it is edited: the part on screen.
@@ -635,6 +653,37 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     toast(`${trackName(tab)} keeps its groove through the fill`);
   };
   const silenced = !!draft.silenced[tab];
+  /** This section's own length for the track on screen, when it has one. */
+  const ownLength = tab === 'drums' ? undefined : draft.noteLengths[tab as KeyTrack];
+  /**
+   * Notes, as the app sets them: a section with its own length changes that one; otherwise
+   * the whole song changes, with a note offering to keep the change to this section alone.
+   */
+  const setNotes = (steps: number | undefined) => {
+    if (tab === 'drums') return;
+    const track = tab as KeyTrack;
+    if (ownLength !== undefined) {
+      change((d) => { if (steps === undefined) delete d.noteLengths[track]; else d.noteLengths[track] = steps; });
+      return;
+    }
+    const before = songSounds.noteLengths[track];
+    const write = (lengths: NoteLengths, value: number | undefined) => {
+      const next = { ...lengths };
+      if (value === undefined) delete next[track]; else next[track] = value;
+      return next;
+    };
+    setSongSounds((s) => ({ ...s, noteLengths: write(s.noteLengths, steps) }));
+    if (steps === undefined) return;
+    toast(`${trackName(tab)} notes changed in the whole song`, {
+      action: {
+        label: `Only in ${section.name}`,
+        onClick: () => {
+          setSongSounds((s) => ({ ...s, noteLengths: write(s.noteLengths, before) }));
+          change((d) => { d.noteLengths[track] = steps; });
+        },
+      },
+    });
+  };
 
   // ── Sharing: sections that play the same part edit it together, as the app does ──
   /** A section's [k] as it was when the editor opened, pattern and sound: what sharing compares. Null: it has none. */
@@ -1231,6 +1280,18 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
           );
         })()}
 
+        {snack && (
+          <div key={snack.at} role="status" className="absolute bottom-[88px] left-1/2 z-[80] flex w-max max-w-[calc(100%-32px)] -translate-x-1/2 items-center gap-4 rounded-xl py-2.5 pl-4 pr-2 shadow-xl"
+            style={{ background: 'var(--cp-tx)', color: 'var(--cp-s1)' }}>
+            <span className="text-sm">{snack.text}</span>
+            {snack.action && (
+              <button type="button" className="shrink-0 rounded-lg border-0 bg-transparent px-2 py-1 text-sm font-bold" style={{ color: 'var(--cp-acs)' }}
+                onClick={() => { snack.action!.onClick(); setSnack(null); }}>
+                {snack.action.label}
+              </button>
+            )}
+          </div>
+        )}
         {copy && (
           <div className="border-t px-4 py-3" style={{ borderColor: 'var(--cp-ln)' }}>
             <button type="button" disabled={!copyReady(copy)} onClick={confirmCopy}
@@ -1343,18 +1404,20 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
               )}
               {tab !== 'drums' && (
                 <label className="flex min-h-[44px] items-center gap-3 px-1">
-                  <span className="flex-1 text-[15px] font-semibold">Notes</span>
+                  <span className="flex flex-1 flex-col">
+                    <span className="text-[15px] font-semibold">Notes</span>
+                    {ownLength !== undefined && (
+                      <button type="button" className="w-fit border-0 bg-transparent p-0 text-left text-xs font-semibold" style={{ color: 'var(--cp-act)' }}
+                        title="Give it back to the song's length"
+                        onClick={(e) => { e.preventDefault(); change((d) => { delete d.noteLengths[tab as KeyTrack]; }); }}>
+                        Only in {section.name} · ✕
+                      </button>
+                    )}
+                  </span>
                   <select className="h-9 rounded-full border px-3 text-[13px] font-semibold"
                     style={{ background: 'var(--cp-s2)', borderColor: 'var(--cp-ln)', color: 'var(--cp-tx)' }}
-                    value={String(songSounds.noteLengths[tab as KeyTrack] ?? '')}
-                    onChange={(e) => {
-                      const steps = e.target.value === '' ? undefined : Number(e.target.value);
-                      setSongSounds((s) => {
-                        const next = { ...s.noteLengths };
-                        if (steps === undefined) delete next[tab as KeyTrack]; else next[tab as KeyTrack] = steps;
-                        return { ...s, noteLengths: next };
-                      });
-                    }}>
+                    value={String(ownLength ?? songSounds.noteLengths[tab as KeyTrack] ?? '')}
+                    onChange={(e) => setNotes(e.target.value === '' ? undefined : Number(e.target.value))}>
                     {NOTE_LENGTH_CHOICES.map((o) => <option key={o.label} value={o.steps === undefined ? '' : String(o.steps)} title={o.title}>{o.label}</option>)}
                   </select>
                 </label>

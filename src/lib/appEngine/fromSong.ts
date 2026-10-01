@@ -291,7 +291,8 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
     // What the song sets over its rhythm, as the app's project does: how long each track's
     // notes ring (⋯ › Notes) and where its register sits (Keyboard and range).
     for (const track of ['piano', 'guitar', 'bass', 'synth'] as const) {
-      const length = song.noteLengths?.[track];
+      // The section's own length first, then the song's.
+      const length = section.noteLengths?.[track] ?? song.noteLengths?.[track];
       if (length !== undefined) c.push(['setNoteLength', s, track, length]);
       const low = song.voicings?.[track];
       if (low !== undefined) c.push(['voicing', s, track, low, low + 23]);
@@ -329,10 +330,10 @@ export function songToEngine(song: SongInput, songStyle: StylePattern, lookup: S
           ? resolveVariation(songStyle.melodic[track], section[`${track}VariationId` as const])
           : null;
       if (variation) {
-        writeVariation(c, s, track, variation, slotsPerBar, song.noteLengths?.[track] ?? 3, bank);
+        writeVariation(c, s, track, variation, slotsPerBar, section.noteLengths?.[track] ?? song.noteLengths?.[track] ?? 3, bank);
       } else {
         c.push(['setPatternBars', s, track, loopBars, bank]);
-        if (bank === 0) c.push(['setNoteLength', s, track, song.noteLengths?.[track] ?? (track === 'bass' ? 2 : 3)]);
+        if (bank === 0) c.push(['setNoteLength', s, track, section.noteLengths?.[track] ?? song.noteLengths?.[track] ?? (track === 'bass' ? 2 : 3)]);
         bars.forEach((bar, b) => {
           const lane = (bar as unknown as Record<string, number[] | undefined>)[track];
           lane?.forEach((v, i) => {

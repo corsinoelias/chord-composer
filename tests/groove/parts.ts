@@ -108,5 +108,16 @@ const variationOf = (c: EngineCommand[]) => c.filter((x) => x[0] === 'setVariati
   check('nothing muted, nothing silent', !silence(section()).includes(true));
 }
 
+// 7. A section's own note length (section.noteLengths) over the song's; the others keep the song's.
+{
+  const lengths = songToEngine(
+    { sections: [section({ noteLengths: { piano: 0 } }), section({ id: 's2' })], bpm: 100, noteLengths: { piano: 4 } },
+    appStylePattern(withIntro), () => undefined, [],
+  ).commands.filter((x) => x[0] === 'setNoteLength' && x[2] === 'piano');
+  const last = (s: number) => lengths.filter((x) => x[1] === s).at(-1)?.[3];
+  check("a section's own length wins", last(0) === 0, String(last(0)));
+  check("the next keeps the song's", last(1) === 4, String(last(1)));
+}
+
 console.log(`${checks - failed}/${checks} part checks passed (${withIntro.id}, ${noIntro.id})`);
 if (failed) process.exit(1);

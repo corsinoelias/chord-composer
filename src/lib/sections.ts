@@ -71,6 +71,11 @@ export interface Section {
    */
   partMuted?: Partial<Record<SectionPartKey, string[]>>;
   /**
+   * How long each melodic track's notes ring in this section, over the song's (app.noteLengths),
+   * in sixteenths, 0 held: the app's "Only in this section" after changing Notes.
+   */
+  noteLengths?: Partial<Record<'piano' | 'guitar' | 'bass' | 'synth', number>>;
+  /**
    * This section is a part of a rhythm's intro or ending, added with it ("Add intro and
    * ending"): it plays that part's own patterns over its own chords, in the song's key.
    */
