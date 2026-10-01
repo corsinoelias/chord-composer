@@ -5,7 +5,7 @@
  *
  *   npm run test:chords
  */
-import { chordNameParts, partsText, type ChordDisplay } from '../../src/lib/chordDisplay';
+import { chordNameParts, keyNameAs, partsText, type ChordDisplay } from '../../src/lib/chordDisplay';
 import { type Chord } from '../../src/lib/musicTheory';
 import { type DetectedKey } from '../../src/lib/keyDetect';
 
@@ -39,6 +39,11 @@ eq(write(chord('B', 'b', 'maj'), 'chord', 'sharp'), 'A♯', 'sharps forced');
 eq(write(fSharpM7, 'number', 'flat'), '6m7', 'numbers ignore the forced flats');
 eq(write(fSharpM7, 'chord', 'auto', 2), 'G♯m7', 'letters move with the transposition');
 eq(write(fSharpM7, 'roman', 'auto', 2), 'VIm7', 'numerals do not');
+
+eq(keyNameAs(9, false, 'A', { notation: 'solfege', accidentals: 'auto' }), 'La', 'a key in Do Re Mi');
+eq(keyNameAs(4, true, 'Em', { notation: 'solfege', accidentals: 'auto' }), 'Mim', 'a minor key in Do Re Mi');
+eq(keyNameAs(6, false, 'F#', { notation: 'chord', accidentals: 'flat' }), 'Gb', 'a key with flats forced');
+eq(keyNameAs(6, false, 'F#', { notation: 'roman', accidentals: 'flat' }), 'F#', 'numerals keep the key as it is');
 
 if (failures.length) {
   console.error(failures.join('\n'));

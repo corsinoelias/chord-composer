@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
+import { keyNameAs, useChordDisplay } from '@/lib/chordDisplay';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -63,7 +64,9 @@ export function KeyControl({
   // place the label is named from.
   const baseTonic = base ? base.pitchClass : null;
   const soundingTonic = baseTonic === null ? null : mod12(baseTonic + transposition);
-  const label = soundingTonic === null ? '—' : keyLabel(soundingTonic, mode);
+  // Written as the chords are (the chord symbols setting): La in Do Re Mi, Gb when flats are forced.
+  const display = useChordDisplay();
+  const label = soundingTonic === null ? '—' : keyNameAs(soundingTonic, mode === 'minor', keyLabel(soundingTonic, mode), display);
   const offset = transposition > 0 ? `+${transposition}` : `${transposition}`;
 
   const names = mode === 'minor' ? MINOR_KEY_NAMES : MAJOR_KEY_NAMES;

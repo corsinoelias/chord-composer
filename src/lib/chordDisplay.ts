@@ -150,3 +150,20 @@ export function chordNameParts(
     bass: bassPc === null ? '' : '/' + name(bassPc).join(''),
   };
 }
+
+/**
+ * A key as the transport writes it, the way the app's spellKey does: the key's own spelling
+ * (Eb, F#m) unless sharps or flats are forced, and Do Re Mi when that is the notation.
+ * Numbers and numerals still name the key in letters: a 1 needs to know what it is 1 of.
+ */
+export function keyNameAs(pitchClass: number, minor: boolean, own: string, display: ChordDisplay): string {
+  const tonic = own.replace(/m$/, '');
+  let root = tonic[0] as RootNote;
+  let accidental = tonic.slice(1);
+  if (display.accidentals !== 'auto' && !isNumeric(display)) {
+    const s = spellPitchClass(pitchClass, display.accidentals === 'flat');
+    root = s.root;
+    accidental = s.accidental;
+  }
+  return (display.notation === 'solfege' ? SOLFEGE[root] : root) + accidental + (minor ? 'm' : '');
+}
