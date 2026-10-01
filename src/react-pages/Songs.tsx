@@ -25,7 +25,7 @@ import {
   ArrowRight, Copy, Download, FolderOpen, LayoutGrid, Loader2, LogIn, MoreVertical, Music2, Play,
   Plus, Search, Square, Star, Trash2, Waves,
 } from 'lucide-react';
-import { useFavorites } from '@/lib/favorites';
+import { useCatalogFavorites, useFavorites } from '@/lib/favorites';
 import { toast } from 'sonner';
 import { useFirstTimeUser } from '@/hooks/useFirstTimeUser';
 import { useAccountState } from '@/hooks/useAccountState';
@@ -127,6 +127,8 @@ const Songs = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<Song | null>(null);
   const [activeSong, setActiveSong] = useState<Song | null>(null);
   const [favorites, toggleFavorite] = useFavorites('songs');
+  /** Catalogue songs starred on their pages: listed under Favourites, as the app does. */
+  const [catalogStars, toggleCatalogStar] = useCatalogFavorites();
 
   const { state: playbackState, play, stop } = usePlayback();
   const isLoading = authLoading || songsLoading;
@@ -264,6 +266,35 @@ const Songs = () => {
       <Plus size={20} />
     </button>
   );
+
+  /** The catalogue's songs you starred, under your own, as the app lists them (its "Chord Sequence" group, under the site's name). */
+  const catalogList = (search: string) => {
+    const query = search.trim().toLowerCase();
+    const starredHere = catalogStars.filter((s) => !query
+      || [s.title, s.artist ?? '', s.songKey ?? ''].some((text) => text.toLowerCase().includes(query)));
+    if (!starredHere.length) return null;
+    return (
+      <>
+        <span className="cp-lbl mt-2">ChordSequence · {starredHere.length}</span>
+        <div className="flex flex-col gap-2.5">
+          {starredHere.map((s) => (
+            <div key={s.slug} className="flex items-center gap-1 py-2.5 pl-3 pr-1" style={card}>
+              <a href={`/songs/${s.slug}/`} className="flex min-w-0 flex-1 items-center gap-3 no-underline" style={{ color: 'inherit' }}>
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl" style={{ background: 'var(--cp-s2)', color: 'var(--cp-mu)' }} aria-hidden="true">
+                  <Music2 size={20} />
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                  <span className="truncate text-[15px] font-semibold">{s.title}</span>
+                  <span className="truncate text-[11px]" style={{ color: 'var(--cp-fa)' }}>{[s.artist, s.songKey].filter(Boolean).join(' · ')}</span>
+                </span>
+              </a>
+              <StarButton on title={s.title} onToggle={() => toggleCatalogStar(s)} />
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="cp min-h-[70vh]">
@@ -464,7 +495,7 @@ const Songs = () => {
                   );
                 })}
               </div>
-            ) : (
+            ) : filter === 'favorites' && catalogStars.length > 0 && !searchQuery.trim() ? null : (
               <div className="py-16 text-center text-sm" style={{ color: 'var(--cp-mu)' }}>
                 {searchQuery.trim()
                   ? <>No songs matching "<span style={{ color: 'var(--cp-tx)' }}>{searchQuery}</span>"</>
@@ -473,8 +504,13 @@ const Songs = () => {
                     : `No songs edited in the last ${RECENT_DAYS} days`}
               </div>
             )}
+
+            {filter === 'favorites' && catalogList(searchQuery)}
           </>
         )}
+
+        {/* Signed out, or no songs of your own yet: the catalogue's songs you starred still show. */}
+        {!isLoading && (!isLoggedIn || songs.length === 0) && catalogList('')}
 
         <AuthModal
           open={authModalOpen}

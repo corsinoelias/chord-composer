@@ -59,3 +59,61 @@ export function useFavorites(kind: FavoriteKind): [Set<string>, (id: string) => 
   const toggle = useCallback((id: string) => setFavorites(toggleFavorite(kind, id)), [kind]);
   return [favorites, toggle];
 }
+
+// ── Songs of the public catalogue ─────────────────────────────────────────────────
+
+/**
+ * A song of the catalogue (/songs/…), starred from its page, as the app stars them
+ * (`catalog-<slug>` in its favourites). Kept with what My songs shows of it, since that page
+ * does not load the catalogue: the title, the artist and the key it was in when starred.
+ */
+export interface CatalogFavorite {
+  slug: string;
+  title: string;
+  artist?: string;
+  songKey?: string;
+}
+
+const CATALOG_KEY = 'cs_favorite_catalog';
+
+export function getCatalogFavorites(): CatalogFavorite[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CATALOG_KEY) ?? '[]');
+    return Array.isArray(raw)
+      ? raw.filter((s): s is CatalogFavorite => !!s && typeof s.slug === 'string' && typeof s.title === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function toggleCatalogFavorite(song: CatalogFavorite): CatalogFavorite[] {
+  const now = getCatalogFavorites();
+  // Newest first, as a star is usually given to the song you just played.
+  const next = now.some((s) => s.slug === song.slug) ? now.filter((s) => s.slug !== song.slug) : [song, ...now];
+  try {
+    localStorage.setItem(CATALOG_KEY, JSON.stringify(next));
+  } catch { /* storage blocked: the star holds for this visit */ }
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: 'catalog' }));
+  return next;
+}
+
+/** The starred catalogue songs, kept current across the page and other tabs. */
+export function useCatalogFavorites(): [CatalogFavorite[], (song: CatalogFavorite) => void] {
+  // Empty on the first render, read after mount: the server's HTML has no stars to match.
+  const [songs, setSongs] = useState<CatalogFavorite[]>([]);
+  useEffect(() => {
+    const read = () => setSongs(getCatalogFavorites());
+    read();
+    const onChange = (e: Event) => { if ((e as CustomEvent).detail === 'catalog') read(); };
+    const onStorage = (e: StorageEvent) => { if (e.key === CATALOG_KEY) read(); };
+    window.addEventListener(EVENT, onChange);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(EVENT, onChange);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+  const toggle = useCallback((song: CatalogFavorite) => setSongs(toggleCatalogFavorite(song)), []);
+  return [songs, toggle];
+}

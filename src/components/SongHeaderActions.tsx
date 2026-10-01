@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Share2, Printer, Image as ImageIcon, Pencil, MoreHorizontal, Flag } from 'lucide-react';
+import { Share2, Printer, Image as ImageIcon, Pencil, MoreHorizontal, Flag, Star } from 'lucide-react';
+import { useCatalogFavorites } from '@/lib/favorites';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { openFeedback } from '@/lib/feedback';
 import { parseLyricLine, type Song } from '@/data/songs';
@@ -41,6 +42,9 @@ const iconButtonClass =
 const labelClass = 'hidden sm:inline text-[13px] font-medium';
 
 export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Props) {
+  // The song's star, as the app gives catalogue songs one: it shows in My songs › Favourites.
+  const [starred, toggleStar] = useCatalogFavorites();
+  const isStarred = starred.some((s) => s.slug === song.slug);
   const [transpose, setTranspose] = useState(0);
   // The PNG export is a picture of the chart, so it has to be spelled the way the chart on
   // screen is — otherwise someone reading in numbers downloads an image in letters.
@@ -103,6 +107,17 @@ export default function SongHeaderActions({ song, isCommunity, isLocalhost }: Pr
   const pdfHref = `/songs/pdf/${song.slug}/${transpose !== 0 ? `?transpose=${transpose}` : ''}`;
   return (
     <div className="flex items-center gap-1.5 shrink-0">
+      <button
+        type="button"
+        onClick={() => toggleStar({ slug: song.slug, title: song.title, artist: song.artist || undefined, songKey: song.key || undefined })}
+        aria-pressed={isStarred}
+        aria-label={isStarred ? 'Remove from favourites' : 'Add to favourites'}
+        title={isStarred ? 'Remove from favourites' : 'Add to favourites'}
+        className={iconButtonClass}
+        style={isStarred ? { color: 'var(--cp-maj, #E8B93E)' } : undefined}
+      >
+        <Star className="w-4 h-4 shrink-0" fill={isStarred ? 'currentColor' : 'none'} />
+      </button>
       <button onClick={handleShare} title={shareTitle} className={iconButtonClass}>
         <Share2 className="w-4 h-4 shrink-0" />
         <span className={labelClass}>{shareTitle}</span>
