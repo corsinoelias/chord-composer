@@ -263,9 +263,9 @@ export class AppEngine {
     this.send([['stop'], ...commands]);
   }
 
-  async play(countInBeats = 0): Promise<void> {
+  async play(countInBeats = 0, riseSeconds = 0): Promise<void> {
     if (this.ctx.state !== 'running') await this.ctx.resume();
-    this.send([['start', countInBeats]]);
+    this.send([['start', countInBeats, riseSeconds]]);
   }
 
   stop(): void {

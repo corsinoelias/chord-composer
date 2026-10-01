@@ -1338,6 +1338,12 @@ input.cp-rg:disabled {
   animation: cp-drain linear forwards;
 }
 @keyframes cp-drain { from { transform: scaleY(1); } to { transform: scaleY(0); } }
+/* The same half while the song comes in: the level fills from the bottom */
+.cp-split-fade i.cp-fill { animation-name: cp-fill; }
+@keyframes cp-fill { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+/* Stopped, the pill has no ring: only the live Play wears one */
+.cp-split-idle { box-shadow: 0 8px 24px color-mix(in srgb, var(--cp-ac) 32%, transparent); }
+.cp-split button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Meter and swing chips on the tempo label line; the swing one opens a menu */
 .cp-mini-btn { cursor: pointer; }

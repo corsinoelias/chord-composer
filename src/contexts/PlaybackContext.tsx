@@ -46,7 +46,7 @@ interface PlaybackContextValue {
    * Finish: the song comes down to silence over [seconds] and then stops, as the app's
    * Terminar does. [fade] says when it began, for the button that drains with it.
    */
-  fade: { startedAt: number; seconds: number } | null;
+  fade: FadeState | null;
   fadeOut: (seconds: number) => void;
   /** Takes the fade back: the level returns and the song goes on. */
   cancelFade: () => void;
@@ -73,6 +73,12 @@ interface PlaybackContextValue {
   getPlaybackPosition: () => number;
 }
 
+/**
+ * A fade under way: an ending going down to silence, or — [rising] — the song coming in from
+ * it. [pending]: the rise waits for the count-in to end, so the level is at nothing.
+ */
+export interface FadeState { startedAt: number; seconds: number; rising?: boolean; pending?: boolean }
+
 interface PlayOptions {
   bpm: number;
   metronome: boolean;
@@ -97,6 +103,9 @@ interface PlayOptions {
   // Count one bar in on the engine's cowbell before the song (4 beats in 4/4, 6 in 6/8), on
   // the engine's own clock so the song lands on the beat after — see CountdownOverlay.
   countIn?: boolean;
+  // Start from silence and come up over this many seconds, from the song's first step (after
+  // any count-in); the engine does the rising, and the click does not follow it.
+  riseSeconds?: number;
   // The song's own swing ratio (the app's Straight/Light/Shuffle), or absent for the rhythm's.
   swing?: number;
   // How the click sounds: the person's own setting (clickSettings.ts), not the song's.
@@ -304,12 +313,40 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
 
   // keepContext is kept for callers written for the web engine; the engine never closes its
   // context, so every stop is the quick kind now.
-  const [fade, setFade] = useState<{ startedAt: number; seconds: number } | null>(null);
+  const [fade, setFade] = useState<FadeState | null>(null);
   const fadeTimer = useRef<number | null>(null);
   const clearFadeTimer = () => {
     if (fadeTimer.current !== null) window.clearTimeout(fadeTimer.current);
     fadeTimer.current = null;
   };
+
+  // A rise waiting for the count-in: once the engine reports the song under way the level
+  // starts to fill, and the fade closes after its length.
+  useEffect(() => {
+    if (!fade?.pending) return;
+    let raf = 0;
+    let closer: number | undefined;
+    const seconds = fade.seconds;
+    const tick = () => {
+      const s = startedAppEngine()?.state;
+      if (s?.playing && s.countInBeats === 0) {
+        setFade({ startedAt: performance.now(), seconds, rising: true });
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); if (closer !== undefined) window.clearTimeout(closer); };
+  }, [fade?.pending, fade?.seconds]);
+
+  // A rise that is under way closes itself after its length. Replaced by an ending, or taken
+  // back, the fade changes and this timer goes with it.
+  useEffect(() => {
+    if (!fade?.rising || fade.pending) return;
+    const left = fade.seconds * 1000 - (performance.now() - fade.startedAt);
+    const closer = window.setTimeout(() => setFade((f) => (f?.rising ? null : f)), Math.max(0, left));
+    return () => window.clearTimeout(closer);
+  }, [fade?.rising, fade?.pending, fade?.startedAt, fade?.seconds]);
 
   const stop = useCallback((_opts?: { keepContext?: boolean }) => {
     clearFadeTimer();
@@ -403,7 +440,11 @@ export function PlaybackProvider({ children }: { children: React.ReactNode }) {
           muted: () => (optionsRef.current?.transposition ?? 0) !== 0 || !!optionsRef.current?.vocalMuted,
           volume: () => optionsRef.current?.vocalVolume ?? 1,
         } : undefined,
-      }, countInBeats);
+      }, countInBeats, options.riseSeconds ?? 0);
+      // The button shows the level coming up: waiting while the count-in plays, filling after.
+      if (options.riseSeconds && options.riseSeconds > 0) {
+        setFade({ startedAt: performance.now(), seconds: options.riseSeconds, rising: true, pending: countInBeats > 0 });
+      }
       setState(prev => ({
         ...prev,
         isPlaying: true,

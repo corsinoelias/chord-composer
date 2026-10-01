@@ -64,6 +64,7 @@ import { SoundCard } from '@/components/SoundCard';
 import { sectionColorMap } from '@/lib/sectionColors';
 import { GuidedTour } from '@/components/GuidedTour';
 import { CountdownOverlay } from '@/components/CountdownOverlay';
+import { getFadeInLength } from '@/lib/fadeInLength';
 import { ProgressionTemplatesModal } from '@/components/ProgressionTemplatesModal';
 import { ShortcutsHelp } from '@/components/ShortcutsHelp';
 import type { ChordView } from '@/hooks/useSyncedChordView';
@@ -754,7 +755,7 @@ const Index = ({ songId }: IndexProps) => {
     return () => window.removeEventListener('customStylesChanged', handleCustomStylesChanged);
   }, []);
 
-  const startPlayback = useCallback(async (countIn = false) => {
+  const startPlayback = useCallback(async (countIn = false, riseSeconds = 0) => {
     const currentSections = editorDraftRef.current ?? sectionsRef.current;
     const loopIdx = loopingSectionRef.current;
 
@@ -788,6 +789,7 @@ const Index = ({ songId }: IndexProps) => {
       drumSounds: editorSoundsRef.current?.drumSounds ?? drumSoundsRef.current,
       voicings: editorSoundsRef.current?.voicings ?? voicingsRef.current,
       countIn,
+      riseSeconds,
     });
   }, [play]);
 
@@ -1540,7 +1542,7 @@ const Index = ({ songId }: IndexProps) => {
   };
 
   // Countdown playback - starts countdown then plays
-  const handlePlayWithCountdown = useCallback(() => {
+  const handlePlayWithCountdown = useCallback((rise = false) => {
     if (!hasChords || isExporting) return;
     analytics.playProgression(selectedStyleId);
     // Opens the engine from this tap (the audio may only start from one). The count-in is the
@@ -1560,7 +1562,7 @@ const Index = ({ songId }: IndexProps) => {
       click: clickRef.current,
     }).catch(() => {});
     setShowCountdown(true);
-    void startPlayback(true);
+    void startPlayback(true, rise ? getFadeInLength() : 0);
   }, [hasChords, isExporting, selectedStyleId, warmup, startPlayback]);
 
   const handleCountdownComplete = useCallback(() => {
@@ -1652,7 +1654,7 @@ const Index = ({ songId }: IndexProps) => {
   useKeyboardShortcuts({
     isPlaying,
     bpm,
-    onPlay: hasChords ? handlePlayWithCountdown : () => {},
+    onPlay: hasChords ? () => handlePlayWithCountdown() : () => {},
     onStop: stopPlaybackCompletely,
     onBpmChange: setBpm,
     onMetronomeToggle: () => setMetronomeEnabled(prev => {
@@ -1773,7 +1775,8 @@ const Index = ({ songId }: IndexProps) => {
           isPlaying={isPlaying}
           isExporting={isExporting}
           hasChords={hasChords}
-          onPlay={handlePlayWithCountdown}
+          onPlay={() => handlePlayWithCountdown()}
+          onPlayRise={() => handlePlayWithCountdown(true)}
           onStop={stopPlaybackCompletely}
           fade={fade}
           onFade={fadeOut}

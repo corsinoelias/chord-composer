@@ -116,7 +116,7 @@ export type EngineCommand =
   | ['fade', number]
   | ['strip', Track, number, number, number, number, number]
   | ['metronome', boolean, number, number, boolean, number]
-  | ['start', number]
+  | ['start', number, number]
   | ['stop']
   | ['previewClick']
   | ['previewChord', number, number, string, number, MelodicTrack]

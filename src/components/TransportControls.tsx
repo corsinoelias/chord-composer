@@ -29,6 +29,8 @@ import { SWING_OPTIONS, swingOption } from '@/lib/swing';
 import { CLICK_SOUNDS, type ClickSettings } from '@/lib/clickSettings';
 import { ChordSymbolsPicker } from './ChordSymbolsPicker';
 import { FADE_LENGTHS, setFadeLength, useFadeLength } from '@/lib/fadeLength';
+import { FADE_IN_LENGTHS, setFadeInLength, useFadeInLength } from '@/lib/fadeInLength';
+import type { FadeState } from '@/contexts/PlaybackContext';
 
 /** Metronome glyph — lucide has no metronome/pendulum icon, so this draws one:
  *  a trapezoidal body with a swung pendulum rod. Stroke style matches lucide
@@ -54,6 +56,16 @@ export function MetronomeIcon({ size = 18, className }: { size?: number; classNa
   );
 }
 
+/** The fade mark: a level falling away, or coming up from nothing, with the area under it shaded. */
+function FadeCurve({ rising }: { rising: boolean }) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden style={{ position: 'relative' }}>
+      <path d={rising ? 'M3 18 C11 18 15 6 21 6 L21 19 L3 19 Z' : 'M3 6 C9 6 13 18 21 18 L21 19 L3 19 Z'} fill="currentColor" opacity=".32" />
+      <path d={rising ? 'M3 18 C11 18 15 6 21 6' : 'M3 6 C9 6 13 18 21 18'} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const BPM_MIN = 40;
 const BPM_MAX = 200;
 
@@ -62,9 +74,11 @@ interface TransportControlsProps {
   isExporting: boolean;
   hasChords: boolean;
   onPlay: () => void;
+  /** Play from silence, coming up over the fade-in length: the right half of the stopped pill. */
+  onPlayRise: () => void;
   onStop: () => void;
-  /** Finish, in progress: when it began and how long it takes, for the draining button. */
-  fade: { startedAt: number; seconds: number } | null;
+  /** Finish, or the song coming in, in progress: when it began and how long it takes, for the draining (or filling) button. */
+  fade: FadeState | null;
   onFade: (seconds: number) => void;
   onCancelFade: () => void;
 
@@ -120,7 +134,7 @@ interface TransportControlsProps {
  */
 export const TransportControls = memo(function TransportControls(props: TransportControlsProps) {
   const {
-    isPlaying, isExporting, hasChords, onPlay, onStop, fade, onFade, onCancelFade,
+    isPlaying, isExporting, hasChords, onPlay, onPlayRise, onStop, fade, onFade, onCancelFade,
     bpm, onBpmChange, meter, swingRatio, onSwingChange,
     keyBase, transposition, onTranspositionChange, onKeyModeChange, onKeyPick,
     metronomeEnabled, onMetronomeToggle, click, onClickChange,
@@ -131,6 +145,7 @@ export const TransportControls = memo(function TransportControls(props: Transpor
 
   const bpmPercent = `${((bpm - BPM_MIN) / (BPM_MAX - BPM_MIN)) * 100}%`;
   const fadeLength = useFadeLength();
+  const fadeInLength = useFadeInLength();
 
   const capsules = (
     <>
@@ -234,27 +249,40 @@ export const TransportControls = memo(function TransportControls(props: Transpor
               type="button"
               className={`cp-split-fade ${fade ? 'cp-fading' : ''}`}
               onClick={() => (fade ? onCancelFade() : onFade(fadeLength))}
-              aria-label={fade ? 'Cancel' : 'Finish'}
-              title={fade ? 'Cancel' : 'Finish'}
+              // While the count-in plays the song has not begun: there is nothing to take back yet.
+              disabled={!!fade?.pending}
+              aria-label={fade?.rising ? 'Full volume now' : fade ? 'Cancel' : 'Finish'}
+              title={fade?.rising ? 'Full volume now' : fade ? 'Cancel' : 'Finish'}
             >
-              {fade && <i key={fade.startedAt} style={{ animationDuration: `${fade.seconds}s` }} />}
-              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden>
-                <path d="M3 6 C9 6 13 18 21 18 L21 19 L3 19 Z" fill="currentColor" opacity=".32" />
-                <path d="M3 6 C9 6 13 18 21 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-              </svg>
+              {fade && !fade.pending && <i key={fade.startedAt} className={fade.rising ? 'cp-fill' : undefined} style={{ animationDuration: `${fade.seconds}s` }} />}
+              <FadeCurve rising={!!fade?.rising} />
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={onPlay}
-            disabled={!hasChords || isExporting}
-            data-tour="play-button"
-            className="cp-play"
-            aria-label="Play"
-          >
-            <Play size={24} fill="currentColor" strokeWidth={0} className="ml-[3px]" />
-          </button>
+          /* Stopped, the same pill: ▶ plays, the rising curve plays from silence — the app's
+             Reproducir | Entrar. As wide as when it plays, so the tempo does not move. */
+          <div className="cp-split cp-split-idle" data-tour="play-button">
+            <button
+              type="button"
+              className="cp-split-stop"
+              onClick={onPlay}
+              disabled={!hasChords || isExporting}
+              aria-label="Play"
+              title="Play"
+            >
+              <Play size={24} fill="currentColor" strokeWidth={0} className="ml-[3px]" />
+            </button>
+            <button
+              type="button"
+              className="cp-split-fade"
+              onClick={onPlayRise}
+              disabled={!hasChords || isExporting}
+              aria-label={`Start from silence, coming up over ${fadeInLength} seconds`}
+              title="Fade in"
+            >
+              <FadeCurve rising />
+            </button>
+          </div>
         )}
 
         {/* Tempo: meter and feel ride the label line so they cost no height. The meter belongs
@@ -311,6 +339,16 @@ export const TransportControls = memo(function TransportControls(props: Transpor
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
               <ChordSymbolsPicker />
+              <div className="flex items-center justify-between gap-2 px-2 pb-2" onClick={(e) => e.stopPropagation()}>
+                <span className="text-[13px]">Fade-in</span>
+                <div className="cp-seg cp-seg-sm" role="group" aria-label="Fade-in length">
+                  {FADE_IN_LENGTHS.map((s) => (
+                    <button key={s} type="button" className={fadeInLength === s ? 'cp-on' : ''} aria-pressed={fadeInLength === s} onClick={() => setFadeInLength(s)}>
+                      {s} s
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex items-center justify-between gap-2 px-2 pb-2" onClick={(e) => e.stopPropagation()}>
                 <span className="text-[13px]">Fade-out</span>
                 <div className="cp-seg cp-seg-sm" role="group" aria-label="Fade-out length">

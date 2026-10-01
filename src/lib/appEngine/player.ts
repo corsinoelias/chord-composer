@@ -167,7 +167,7 @@ export class AppPlayback {
    * as the song, which comes in exactly one beat after the last — as the app plays it. The
    * state reports the beats left (countInBeats) for the screen.
    */
-  async play(input: AppSong, countInBeats = 0): Promise<void> {
+  async play(input: AppSong, countInBeats = 0, riseSeconds = 0): Promise<void> {
     const e = await getEngine();
     this.current = input;
     this.built = this.build(input, e);
@@ -192,7 +192,7 @@ export class AppPlayback {
         ended?.();
       }
     });
-    await e.play(Math.max(0, Math.min(7, Math.round(countInBeats))));
+    await e.play(Math.max(0, Math.min(7, Math.round(countInBeats))), riseSeconds);
   }
 
   stop(): void {

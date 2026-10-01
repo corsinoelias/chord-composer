@@ -83,7 +83,7 @@ WG(wg_render) void wg_render(float* interleaved, int frames) {
 }
 
 // ── Transport ──
-WG(wg_start) int wg_start(int countInBeats) { return engine.start(countInBeats) ? 1 : 0; }
+WG(wg_start) int wg_start(int countInBeats, float riseSeconds) { return engine.start(countInBeats, riseSeconds) ? 1 : 0; }
 WG(wg_stop) void wg_stop() { engine.stop(); }
 WG(wg_playing) int wg_playing() { return engine.playing() ? 1 : 0; }
 WG(wg_set_bpm) void wg_set_bpm(float bpm) { engine.setBpm(bpm); }

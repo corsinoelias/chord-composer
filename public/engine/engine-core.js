@@ -36,7 +36,7 @@ export const ARGS = {
   fade: ['wg_fade', 'f'],
   strip: ['wg_strip', 'sfffff'],
   metronome: ['wg_metronome', 'ififi'],
-  start: ['wg_start', 'i'],
+  start: ['wg_start', 'if'],
   stop: ['wg_stop', ''],
   previewClick: ['wg_preview_click', ''],
   previewChord: ['wg_preview_chord', 'iisis'],

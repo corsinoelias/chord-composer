@@ -1,10 +1,10 @@
 {
   "note": "Written by npm run engine:sync; checked by npm run check:engine. Do not edit by hand.",
   "app": {
-    "commit": "0d0a57589cf275398a06fa80f87343168aeeec4d",
+    "commit": "1576ad1c33ac08eeb0a02afa2c87e74737f80fda",
     "dirtyEngine": false
   },
-  "syncedAt": "2026-10-01T17:16:05.549Z",
+  "syncedAt": "2026-10-01T22:51:32.284Z",
   "programs": [
     0,
     3,
@@ -81,11 +81,11 @@
     "gm_tambourine"
   ],
   "files": {
-    "engine/vendor/native_audio.cpp": "d92fac5bfc1f67fefef9e91f5ed6c168c803d3d2190dd158e063cd7461b56b6b",
+    "engine/vendor/native_audio.cpp": "1574be011cff6502f985549a590f76ec0f9a5dadec7d9bb7a49dd51df5b3b029",
     "engine/vendor/tsf.h": "b1a65f3e44624a720db0906a4c3d75c0d7a03f408f50bc4bfd92d9008ac84e93",
-    "engine/web_glue.cpp": "fd61857b947d5bc5b04f5c0c0b709c0fa1928db705b4c42c51bcac89a6b138d2",
+    "engine/web_glue.cpp": "368b1fdc2a3d26b71a7c95cc24ac40b3ef07d0842b8ac9f84156c2e2d53ea88d",
     "engine/shim/aaudio/AAudio.h": "e05c86b807d44199f67776d9db135f20d0d0142f5a2c0ffc0b4807eaf6ee859d",
-    "public/engine/engine.wasm": "ac5deb4c00e22e459388f7b4b0863ead78eeeeba695f1e60952389be5fc23c92",
+    "public/engine/engine.wasm": "f25a88efa0834861d9611a03e6e3270ef1b7424e8f5513ae5922707fbde9c3bc",
     "public/engine/sounds.sf2": "cb5f92a3ce0e638f096a6784e9f2c91aa631dc2ed21c975e85b5e9a13462105b",
     "public/engine/sounds-full.sf2": "2b6813f6a0ff0b7627dbe0becbc5d38dee8494a04041e92377cb47a0f004e35b",
     "public/engine/presets.json": "27cd7639597e6511172b60c4b021e176684944f4b64d4b01f6b000c43cc042a4",

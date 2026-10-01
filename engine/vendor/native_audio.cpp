@@ -884,12 +884,15 @@ class Engine {
   /// song's first step lands exactly one beat after the last. The count runs on the same
   /// sample clock as the song: counted anywhere else — a timer on the UI thread, then a
   /// message to start — it drifts, and the song comes in late off the last beat.
-  bool start(int countInBeats) {
+  bool start(int countInBeats, float riseSeconds = 0.0f) {
     if (!openStream()) return false;
     silenceAll();
     resetTransport();
     // A song that ended in a fade starts again at full level.
-    fadeRequest_.store(kFadeReset, std::memory_order_release);
+    // A rise starts from silence and waits for the song's first step: the count-in, if there
+    // is one, is not part of it and is heard at full level (the click does not follow it).
+    riseSeconds_.store(riseSeconds, std::memory_order_relaxed);
+    fadeRequest_.store(riseSeconds > 0 ? kFadeInArm : kFadeReset, std::memory_order_release);
     const int beats = std::max(0, std::min(kMaxCountInBeats, countInBeats));
     countInTotal_ = countInSteps_ = beats * std::max(1, stepsPerBeat_.load(std::memory_order_relaxed));
     countInBeat_.store(beats, std::memory_order_release);
@@ -1493,6 +1496,7 @@ class Engine {
     // The stream is closed, so nothing else is reading these: a file is never faded.
     fading_ = false;
     fadeGain_ = 1.0f;
+    riseArmed_ = riseActive_ = false;
     fadeRequest_.store(kFadeNone, std::memory_order_release);
     reverb_.prepare(static_cast<float>(sampleRate_));
     reverb_.configure(reverbSize_.load(), reverbMix_.load());
@@ -1720,13 +1724,22 @@ class Engine {
         // From wherever the level is now, so a fade asked for again does not jump up first.
         fadeLeft_ = static_cast<int>(fadeTotal_ * sqrtf(fmaxf(0.0f, fminf(1.0f, fadeGain_))));
         fading_ = true;
+        riseArmed_ = riseActive_ = false;  // ending a song that is still coming in
         break;
       case kFadeBack:
         fading_ = false;
+        riseArmed_ = riseActive_ = false;  // taken back: the level returns over a quarter second
         break;
       case kFadeReset:
         fading_ = false;
+        riseArmed_ = riseActive_ = false;
         fadeGain_ = 1.0f;
+        break;
+      case kFadeInArm:
+        fading_ = false;
+        riseActive_ = false;
+        riseArmed_ = true;
+        fadeGain_ = 0.0f;
         break;
       default:
         break;
@@ -1797,6 +1810,13 @@ class Engine {
             countInTotal_ = 0;
             countInBeat_.store(0, std::memory_order_release);
           }
+          if (riseArmed_) {
+            // The song's first step: the level starts to come up from here.
+            riseArmed_ = false;
+            riseActive_ = true;
+            riseTotal_ = std::max(1, static_cast<int>(riseSeconds_.load(std::memory_order_relaxed) * sampleRate_));
+            riseDone_ = 0;
+          }
           const int played = currentStep_;
           triggerStep();
           framesToStep_ += stepFrames_ * swingScale(played);
@@ -1832,6 +1852,15 @@ class Engine {
         if (fadeLeft_ > 0) --fadeLeft_;
         const float share = static_cast<float>(fadeLeft_) / fadeTotal_;
         fadeGain_ = share * share;
+      } else if (riseArmed_) {
+        fadeGain_ = 0.0f;  // the count-in is on the click alone, which is not faded
+      } else if (riseActive_) {
+        // The same curve as the fade-out run backwards: the level leaves silence slowly and
+        // gains speed, the way the ear hears a level come up.
+        if (riseDone_ < riseTotal_) ++riseDone_;
+        const float share = static_cast<float>(riseDone_) / riseTotal_;
+        fadeGain_ = share * share;
+        if (riseDone_ >= riseTotal_) riseActive_ = false;
       } else if (fadeGain_ < 1.0f) {
         fadeGain_ = fminf(1.0f, fadeGain_ + fadeRecover);
       }
@@ -1850,7 +1879,9 @@ class Engine {
       // before both, at a fifth of full scale, so it followed the master fader down and was
       // squashed along with a loud song — and a sine pip under a kick landing on the same
       // beat simply vanished. On its own gain it stays where you put it.
-      clicked *= clickGain * fadeGain_;
+      // The click follows an ending down, but never a rise: the count-in and the first bars
+      // are where a musician needs it most.
+      clicked *= clickGain * ((riseArmed_ || riseActive_) ? 1.0f : fadeGain_);
       const float mixL = tanhf(left * master), mixR = tanhf(right * master);
       peak[kBuses] = fmaxf(peak[kBuses], fmaxf(fabsf(mixL), fabsf(mixR)));
       output[i * 2] = fmaxf(-1.0f, fminf(1.0f, mixL + clicked));
@@ -2940,12 +2971,17 @@ class Engine {
   std::atomic<float> levels_[kBuses + 1]{};
   std::atomic<int> loopOnly_{-1};
   // The fade (see fade()): asked for from the platform thread, carried out by the callback.
-  static constexpr int kFadeNone = 0, kFadeOut = 1, kFadeBack = 2, kFadeReset = 3;
+  static constexpr int kFadeNone = 0, kFadeOut = 1, kFadeBack = 2, kFadeReset = 3, kFadeInArm = 4;
   std::atomic<int> fadeRequest_{kFadeNone};
   std::atomic<float> fadeSeconds_{4.0f};
+  std::atomic<float> riseSeconds_{0.0f};
   float fadeGain_ = 1.0f;
   int fadeTotal_ = 1, fadeLeft_ = 0;
   bool fading_ = false;
+  // The song coming in from silence: armed from Play until the song's first step, active
+  // for [riseTotal_] samples after it. Owned by the render thread.
+  bool riseArmed_ = false, riseActive_ = false;
+  int riseTotal_ = 1, riseDone_ = 0;
   // The Fill-in button: asked for from the platform thread, then the callback's own. 0 is
   // no fill by hand, kFillArmed one waiting for the next bar, kFillPlaying one sounding
   // from manualFrom_ to the end of this bar. Reported with the position (bits 48-49).
@@ -2981,7 +3017,7 @@ void release(JNIEnv* env, jstring value, const char* chars) { if (value) env->Re
 // The Android bridge. The web's counterpart is chord-composer/engine/web_glue.cpp.
 #ifndef CHORD_AUDIO_WEB
 
-extern "C" JNIEXPORT jboolean JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeStart(JNIEnv*, jobject, jint countInBeats) { return engine.start(countInBeats); }
+extern "C" JNIEXPORT jboolean JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeStart(JNIEnv*, jobject, jint countInBeats, jfloat riseSeconds) { return engine.start(countInBeats, riseSeconds); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeStop(JNIEnv*, jobject) { engine.stop(); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeReleaseAudio(JNIEnv*, jobject) { engine.closeStream(); }
 extern "C" JNIEXPORT void JNICALL Java_com_eliascorsino_chord_1sequencer_MainActivity_nativeSetBpm(JNIEnv*, jobject, jfloat bpm) { engine.setBpm(bpm); }

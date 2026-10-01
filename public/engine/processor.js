@@ -70,7 +70,7 @@ class EngineProcessor extends AudioWorkletProcessor {
         const now = hasPerf ? () => performance.now() : () => Date.now();
         const scratch = e.wg_alloc(QUANTUM * 2 * 4);
         const wasPlaying = e.wg_playing();
-        if (!wasPlaying) e.wg_start(0);
+        if (!wasPlaying) e.wg_start(0, 0);
         const began = now();
         for (let i = 0; i < msg.blocks; i++) e.wg_render(scratch, QUANTUM);
         const ms = now() - began;
