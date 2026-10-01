@@ -107,7 +107,8 @@ WG(wg_commit_arrangement) void wg_commit_arrangement() { engine.commitArrangemen
 // [bank] is the variation a pattern belongs to: 0 A, 1 B. The sound of a section is the same
 // for both, so only patterns, bar counts and fills take one.
 WG(wg_set_step) void wg_set_step(int section, const char* track, const char* row, int step, int value, int bank) { engine.setStep(section, track, row, step, value, bank); }
-WG(wg_clear_track) void wg_clear_track(int section, const char* track, int bank) { engine.clearTrack(section, track, bank); }
+// [keep]: the lane is rewritten straight after, so the notes it holds keep sounding (the app's keep).
+WG(wg_clear_track) void wg_clear_track(int section, const char* track, int bank, int keep) { engine.clearTrack(section, track, bank, keep != 0); }
 WG(wg_set_program) void wg_set_program(int section, const char* track, int program, int bank) { engine.setProgram(section, track, program, bank); }
 WG(wg_set_timbre) void wg_set_timbre(int section, const char* track, int value, int bank) { engine.setTimbre(section, track, value, bank); }
 WG(wg_set_note_length) void wg_set_note_length(int section, const char* track, float steps) { engine.setNoteLength(section, track, steps); }

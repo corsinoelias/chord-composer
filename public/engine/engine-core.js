@@ -19,7 +19,7 @@ export const ARGS = {
   // The last argument of these seven is the variation, 0 A or 1 B; left out, it is A. On
   // the three sounds, -1 gives B back to A's.
   setStep: ['wg_set_step', 'issiii'],
-  clearTrack: ['wg_clear_track', 'isi'],
+  clearTrack: ['wg_clear_track', 'isii'],
   setProgram: ['wg_set_program', 'isii'],
   setTimbre: ['wg_set_timbre', 'isii'],
   setNoteLength: ['wg_set_note_length', 'isf'],

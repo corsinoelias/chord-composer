@@ -2355,15 +2355,22 @@ class Engine {
   /// and the note dipped and swelled back each time the pattern wrapped. Such a voice
   /// is kept — marked for the retrigger that follows — and its note in [notes] is
   /// marked in [tied] so it is not struck twice. Anything that differs lets go as ever:
-  /// another cell, another variation, another sound, a note with a length of its own.
+  /// another cell, another section, another sound, a note with a length of its own.
+  ///
+  /// The other variation of the same section counts as the same lane: A and B (and an
+  /// intro or ending, which play from A's bank) live in the section's two banks, and a
+  /// pad held through a switch from A to B was struck again at the bar line when B's
+  /// cell on the same step played the same chord — the pad cut out and swelled back on
+  /// every change of part.
   void tieHeld(int track, int timbre, int slot, int lane, const int* notes, int count, bool* tied) {
     if (!holdsItsNote(timbre, track)) return;
     for (auto& v : voices_) {
       if (!v.active || v.track != track || v.stage == kRelease || v.gate >= 0) continue;
-      if (v.timbre != timbre || v.laneStep != lane || v.laneSlot != slot) continue;
+      if (v.timbre != timbre || v.laneStep != lane || v.laneSlot / kBanks != slot / kBanks) continue;
       if (timbre == kSampled && v.program != appliedProgram_[track]) continue;
       for (int i = 0; i < count; ++i) {
-        if (!tied[i] && notes[i] == v.note) { tied[i] = true; v.tied = true; break; }
+        // Held on, now by this part's cell: what decides when it lets go from here on.
+        if (!tied[i] && notes[i] == v.note) { tied[i] = true; v.tied = true; v.laneSlot = slot; break; }
       }
     }
   }
@@ -2649,7 +2656,11 @@ class Engine {
           v.sustain <= 0.0f) {
         continue;
       }
-      const int packed = v.laneSlot == slot && v.laneStep < length && v.laneStep < kMaxSteps
+      // Read in the part the section plays now, whichever of its two banks: a pad struck
+      // by A's first cell is still held when B, switched to, has a note in that cell too.
+      // Reading A's bank only let it go two steps into B, a cut in a held chord; under a
+      // part without that cell it still goes, as it should.
+      const int packed = v.laneSlot / kBanks == slot / kBanks && v.laneStep < length && v.laneStep < kMaxSteps
                              ? instruments_[slot][track][v.laneStep].load(std::memory_order_relaxed)
                              : 0;
       if (stepVelocity(packed) > 0 && stepDegree(packed) != kRest) {
