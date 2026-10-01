@@ -8,6 +8,8 @@ import type { ChordView } from '@/hooks/useSyncedChordView';
 interface ChordPreviewCardProps {
   isPlaying: boolean;
   chordName: string;
+  /** The name as the chord symbols setting writes it (Do Re Mi, numerals…); the chord name if absent. */
+  displayName?: string;
   /** Beats the chord lasts, plus the tempo and index its dots animate from. */
   duration: number;
   bpm: number;
@@ -28,6 +30,7 @@ interface ChordPreviewCardProps {
 export const ChordPreviewCard = memo(function ChordPreviewCard({
   isPlaying,
   chordName,
+  displayName,
   duration,
   bpm,
   rawIndex,
@@ -71,7 +74,7 @@ export const ChordPreviewCard = memo(function ChordPreviewCard({
 
       <div className="flex flex-col items-center gap-2.5 pb-5 pt-[22px]">
         <span className="cp-mono text-[52px] font-bold leading-none tracking-tight">
-          {chordName || '—'}
+          {displayName || chordName || '—'}
         </span>
         <BeatDots
           duration={duration}

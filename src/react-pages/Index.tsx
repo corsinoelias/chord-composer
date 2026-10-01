@@ -39,6 +39,7 @@ import { downloadBlob } from '@/lib/mp3Encoder';
 import { exportSongWav } from '@/lib/appEngine/player';
 import { currentSongMixer, loadSongMixer } from '@/lib/appEngine/effects';
 import { exportMidi } from '@/lib/midiExporter';
+import { chordNameParts, partsText, useChordDisplay } from '@/lib/chordDisplay';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useStyleInstruments, createInstrumentStatesFromStyle } from '@/hooks/useStyleInstruments';
 import { type Song, createSong, SONG_SCHEMA_VERSION, unknownSongFields, isNewerSongFormat, songNoteLengths, withNoteLengths, songSwing, withSwing, songMixer, withMixer, songDrumSounds, withDrumSounds, songVoicings, withVoicings } from '@/lib/songs';
@@ -1295,6 +1296,13 @@ const Index = ({ songId }: IndexProps) => {
     [visualChord, transposition, preferFlats],
   );
 
+  // The big name over the keyboard, as every chord block writes it (the chord symbols setting).
+  const chordDisplay = useChordDisplay();
+  const currentChordShownName = useMemo(
+    () => (visualChord ? partsText(chordNameParts(visualChord, chordDisplay, { transposition, keyFlats: preferFlats, key: keyBase })) : ''),
+    [visualChord, chordDisplay, transposition, preferFlats, keyBase],
+  );
+
   const currentChordDisplayName = useMemo(
     () => (visualChord ? getTransposedChordName(visualChord, transposition, preferFlats, true) : ''),
     [visualChord, transposition, preferFlats],
@@ -1904,6 +1912,7 @@ const Index = ({ songId }: IndexProps) => {
             <ChordPreviewCard
               isPlaying={isPlaying}
               chordName={currentChordDisplayName}
+              displayName={currentChordShownName}
               duration={visualChord?.duration ?? 4}
               bpm={bpm}
               rawIndex={currentChordIndex}
