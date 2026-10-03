@@ -80,17 +80,17 @@ const webAppSchema = {
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 };
 
-// The <title> changed on 2026-09-29 from "Chord Player Online – Play, Listen & Practice
-// Chords for Free" to name guitar and piano, which people search for and the old title did
-// not say. Baseline to judge it against (Search Console, 2026-08-31 to 09-27): "chord player"
-// 453 clicks / 16,436 impressions / CTR 2.8% / position 5.5; "chord player online" 6.6% at
-// 4.7; "piano chord player" 6.3% at 6.3; "guitar chord player" 4.6% at 7.7. If "chord player"
-// loses CTR or position after four weeks, go back to the old title.
+// The <title> changed twice: 2026-09-29 to "Chord Player Online – Play Guitar & Piano Chords
+// Free", then 2026-10-03 to the shape the SERP leaders use (OneMotion "Chord Player - Online
+// Chord Progression Generator", Musicca "Chord player – Chord progression generator"), because
+// organic sessions fell ~50% week on week. Baseline (Search Console, 2026-08-31 to 09-27):
+// "chord player" 453 clicks / 16,436 impressions / CTR 2.8% / position 5.5; "chord player
+// online" 6.6% at 4.7. Do not read the effect before Google recrawls and 2 weeks pass.
 ---
 
 <BaseLayout
-  title="Chord Player Online – Play Guitar & Piano Chords Free"
-  description={`Free online chord player — hear any progression played by a real band in ${WEB.rhythms} rhythms and see every chord on guitar and piano. Loop a section, export WAV or MIDI.`}
+  title="Chord Player – Free Online Chord Progression Generator"
+  description={`Free online chord player and chord progression generator — hear any progression played by a real band in ${WEB.rhythms} rhythms and see every chord on guitar and piano. Loop a section, export WAV or MIDI.`}
   canonicalUrl="https://chordsequence.com/chord-player/"
   ogImage="https://chordsequence.com/images/blog/chord-sequence-editor.webp"
   ogImageAlt="Chord Player"
