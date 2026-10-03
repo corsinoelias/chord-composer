@@ -162,7 +162,7 @@ export interface AppRhythmEditorProps {
    * The rhythm section [i] is edited on, when it is not [style] itself: one of the web's own,
    * read back per section (webSectionAppStyle), since a web section can pick its own parts.
    */
-  styleOf?: (section: number) => AppStyle;
+  styleOf?: (section: number) => AppStyle | undefined;
   /** The rhythm's own variations of a track (a web rhythm's Var 1… All together), for the strip. */
   variationsOf?: (section: number, track: GrooveTrack) => StripPattern[];
 }
@@ -340,7 +340,17 @@ export function AppRhythmEditor(props: AppRhythmEditorProps) {
     if (audition && i === sec && !sct.stylePart) withPart(out, v === 'b' && !(d?.b ?? true) ? 'a' : v);
     return out;
   }), [sections, styleAt, sec, v]);
-  useEffect(() => { if (open) onDraft(merged(drafts, true), songSounds); }, [open, drafts, merged, songSounds]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Only when what plays actually changed: the draft goes up to the page, which plays it, and a
+  // draft sent again as it was would have the song built and sent to the engine all over for nothing.
+  const sentDraft = useRef('');
+  useEffect(() => {
+    if (!open) { sentDraft.current = ''; return; }
+    const next = merged(drafts, true);
+    const key = JSON.stringify([next, songSounds]);
+    if (key === sentDraft.current) return;
+    sentDraft.current = key;
+    onDraft(next, songSounds);
+  }, [open, drafts, merged, songSounds]); // eslint-disable-line react-hooks/exhaustive-deps
   /** The notes each melodic track holds, while the song plays: the keys light with them. */
   const sounding = useSounding(open && playing);
   const [engine, setEngine] = useState<{ section: number; step: number; bar: number; fillBar: boolean; fillByHand: number } | null>(null);

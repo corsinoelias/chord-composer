@@ -1454,6 +1454,22 @@ const Index = ({ songId }: IndexProps) => {
     });
   }, [sections, appStyleOfSection, currentStyle, sectionStyleLookup]);
   const [appEditor, setAppEditor] = useState<{ style: AppStyle; section: number } | null>(null);
+  const appEditorRef = useRef(appEditor);
+  appEditorRef.current = appEditor;
+  /**
+   * The rhythm section [i] is edited on. One function for as long as the rhythm and the sections
+   * stay put: the editor plays what it is editing through onDraft whenever this changes, and
+   * an arrow made in the JSX is new on every render, so each draft re-rendered the page, which
+   * made a new arrow, which sent the draft again — about 40 times a second while it was open,
+   * each one building the whole song again for the engine.
+   */
+  const editorStyleAt = useCallback(
+    (i: number): AppStyle | undefined => {
+      const section = sectionsRef.current[i];
+      return (section ? editorStyleOfRef.current(section) : undefined) ?? appEditorRef.current?.style;
+    },
+    [],
+  );
   const appEditable = useMemo(() => (appEditor
     ? sections.map((s, i) => (editorStyleOf(s).id === appEditor.style.id ? i : -1)).filter((i) => i >= 0)
     : []), [appEditor, sections, editorStyleOf]);
@@ -2036,7 +2052,7 @@ const Index = ({ songId }: IndexProps) => {
           drumSounds={drumSounds}
           noteLengths={noteLengths}
           voicings={voicings}
-          styleOf={(i) => editorStyleOf(sections[i]) ?? appEditor.style}
+          styleOf={editorStyleAt}
           variationsOf={variationsOf}
           onSave={(next, sounds) => {
             setSections(next);

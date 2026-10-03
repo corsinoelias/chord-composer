@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
   Download,
@@ -25,6 +25,7 @@ import { type DetectedKey, type KeyMode } from '@/lib/keyDetect';
 import { type Section } from '@/lib/sections';
 import { type StylePattern } from '@/lib/styles';
 import { chordPosition, useGlide } from '@/lib/playbackPosition';
+import { usePlayback } from '@/contexts/PlaybackContext';
 import { SWING_OPTIONS, swingOption } from '@/lib/swing';
 import { CLICK_SOUNDS, type ClickSettings } from '@/lib/clickSettings';
 import { ChordSymbolsPicker } from './ChordSymbolsPicker';
@@ -431,6 +432,21 @@ const SongMap = memo(function SongMap({
 }: SongMapProps) {
   const fills = useRef<(HTMLElement | null)[]>([]);
 
+  // A song that is one chord of one pass comes round to the very same chord index, so the
+  // glide's key never changed and the bar stayed full after the first lap. The continuous
+  // position drops back when a lap starts: counting those makes every lap a new glide.
+  const { subscribePlaybackPosition, getPlaybackPosition } = usePlayback();
+  const [lap, setLap] = useState(0);
+  useEffect(() => {
+    if (!isPlaying) { setLap(0); return; }
+    let last = getPlaybackPosition();
+    return subscribePlaybackPosition(() => {
+      const now = getPlaybackPosition();
+      if (now >= 0 && last >= 0 && now < last - 0.5) setLap((n) => n + 1);
+      last = now;
+    });
+  }, [isPlaying, subscribePlaybackPosition, getPlaybackPosition]);
+
   const pos = useMemo(
     () => (isPlaying ? chordPosition(sections, currentChordIndex, loopingSectionIndex) : null),
     [sections, currentChordIndex, isPlaying, loopingSectionIndex],
@@ -440,14 +456,14 @@ const SongMap = memo(function SongMap({
   const tween = useMemo(() => {
     if (!pos || pos.sectionBeats <= 0) return null;
     return {
-      key: currentChordIndex,
+      key: `${currentChordIndex}:${lap}`,
       from: pos.chordStartInSection / pos.sectionBeats,
       to: (pos.chordStartInSection + pos.chordBeats) / pos.sectionBeats,
       ms: (pos.chordBeats * 60000) / bpm,
     };
     // bpm is read when a chord starts; a tempo change mid-chord takes effect on the next.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pos, currentChordIndex]);
+  }, [pos, currentChordIndex, lap]);
 
   useGlide(tween, (v) => {
     fills.current.forEach((el, i) => {
