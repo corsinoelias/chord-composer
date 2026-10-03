@@ -2,7 +2,9 @@
 /**
  * Brings the Android app's audio engine into the web, and builds it.
  *
- *   npm run engine:sync
+ *   npm run engine:sync              everything below
+ *   npm run engine:sync -- --sounds  only the sounds (the SoundFonts, kit, recommended list):
+ *                                    the engine stays as it is, so no wasi-sdk is needed
  *
  * The app owns the engine (chord_sequencer/android/app/src/main/cpp/native_audio.cpp). This
  * copies that file and tsf.h into engine/vendor/ unchanged, compiles engine/web_glue.cpp
@@ -71,6 +73,10 @@ const FULL = ['all', PERCUSSION_KIT, ...RECORDED_PROGRAMS.map((p) => `-${p}`)].j
  * go slowly (its grand piano 1.5-8.6 s, clean guitar 0.8, pick bass 0.5); the web's own
  * sounds stop within 0.04-0.3 s of a note's end, and with the app's tails every track rang on
  * under the next chord (2026-09-22). Only the web's copy is cut; the app keeps its own.
+ * The presets that hold their note (pads, strings, organs, winds, leads, brass: the engine's
+ * own rule, sf2-subset.mjs) are not cut: their tail is the sound, and a pad of 3-step notes
+ * that dies in 0.12 s leaves a silence in every bar where the app's tail runs into the next
+ * note (2026-10-03).
  */
 const RELEASE_SECONDS = 0.12;
 /**
@@ -88,37 +94,44 @@ const fail = (message) => {
   process.exit(1);
 };
 
+const soundsOnly = process.argv.includes('--sounds');
 const cppDir = path.join(app, 'android/app/src/main/cpp');
 if (!fs.existsSync(path.join(cppDir, 'native_audio.cpp'))) fail(`no app engine at ${cppDir} (set CHORD_APP)`);
 const clang = path.join(wasiSdk, 'bin', process.platform === 'win32' ? 'clang++.exe' : 'clang++');
-if (!fs.existsSync(clang)) fail(`no wasi-sdk at ${wasiSdk} (set WASI_SDK; https://github.com/WebAssembly/wasi-sdk/releases)`);
-
-// 1. The engine, byte for byte.
-const vendor = path.join(root, 'engine/vendor');
-fs.mkdirSync(vendor, { recursive: true });
-for (const file of ['native_audio.cpp', 'tsf.h']) fs.copyFileSync(path.join(cppDir, file), path.join(vendor, file));
+if (!soundsOnly && !fs.existsSync(clang)) fail(`no wasi-sdk at ${wasiSdk} (set WASI_SDK; https://github.com/WebAssembly/wasi-sdk/releases)`);
 
 const git = (...args) => execFileSync('git', ['-C', app, ...args]).toString().trim();
-const commit = git('rev-parse', 'HEAD');
-const dirty = git('status', '--porcelain', '--', 'android/app/src/main/cpp') !== '';
-
-// 2. Compile.
 const out = path.join(root, 'public/engine');
-fs.mkdirSync(path.join(out, 'drums'), { recursive: true });
-execFileSync(clang, [
-  `--sysroot=${path.join(wasiSdk, 'share/wasi-sysroot')}`, '--target=wasm32-wasip1', '-O3',
-  '-fno-exceptions', '-std=c++17', '-DCHORD_AUDIO_WEB',
-  `-I${path.join(root, 'engine/shim')}`, `-I${vendor}`,
-  '-mexec-model=reactor', '-Wl,--export=malloc',
-  '-o', path.join(out, 'engine.wasm'), path.join(root, 'engine/web_glue.cpp'),
-], { stdio: 'inherit' });
+const vendor = path.join(root, 'engine/vendor');
+let commit, dirty, imports = [];
+if (soundsOnly) {
+  ({ commit, dirtyEngine: dirty } = JSON.parse(fs.readFileSync(sourceManifestPath(root), 'utf8')).app);
+  fs.mkdirSync(path.join(out, 'drums'), { recursive: true });
+} else {
+  // 1. The engine, byte for byte.
+  fs.mkdirSync(vendor, { recursive: true });
+  for (const file of ['native_audio.cpp', 'tsf.h']) fs.copyFileSync(path.join(cppDir, file), path.join(vendor, file));
 
-// Any import the worklet and the export Worker do not provide would fail at load time in
-// the browser, so it fails here instead.
-const imports = WebAssembly.Module.imports(new WebAssembly.Module(fs.readFileSync(path.join(out, 'engine.wasm'))))
-  .map((i) => `${i.module}.${i.name}`);
-const unexpected = imports.filter((i) => !ALLOWED_IMPORTS.has(i));
-if (unexpected.length) fail(`engine.wasm imports ${unexpected.join(', ')}, which public/engine/processor.js and export-worker.js do not provide`);
+  commit = git('rev-parse', 'HEAD');
+  dirty = git('status', '--porcelain', '--', 'android/app/src/main/cpp') !== '';
+
+  // 2. Compile.
+  fs.mkdirSync(path.join(out, 'drums'), { recursive: true });
+  execFileSync(clang, [
+    `--sysroot=${path.join(wasiSdk, 'share/wasi-sysroot')}`, '--target=wasm32-wasip1', '-O3',
+    '-fno-exceptions', '-std=c++17', '-DCHORD_AUDIO_WEB',
+    `-I${path.join(root, 'engine/shim')}`, `-I${vendor}`,
+    '-mexec-model=reactor', '-Wl,--export=malloc',
+    '-o', path.join(out, 'engine.wasm'), path.join(root, 'engine/web_glue.cpp'),
+  ], { stdio: 'inherit' });
+
+  // Any import the worklet and the export Worker do not provide would fail at load time in
+  // the browser, so it fails here instead.
+  imports = WebAssembly.Module.imports(new WebAssembly.Module(fs.readFileSync(path.join(out, 'engine.wasm'))))
+    .map((i) => `${i.module}.${i.name}`);
+  const unexpected = imports.filter((i) => !ALLOWED_IMPORTS.has(i));
+  if (unexpected.length) fail(`engine.wasm imports ${unexpected.join(', ')}, which public/engine/processor.js and export-worker.js do not provide`);
+}
 
 // 3. Sounds: the SoundFont's programs, and then the web's own recordings written into the
 // same file (one font is all the engine loads).

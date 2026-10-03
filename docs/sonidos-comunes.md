@@ -260,7 +260,7 @@ SoundFont en los duplicados»): la grabación es lo que suena hoy en las cancion
 así que conservarla es además no cambiarlas de sonido.
 
 **Peso: un SoundFont de 19,45 MB** (antes 6,3 MB), una sola descarga que el navegador guarda en
-caché: los 19 programas de la lista ocupan 9,16 MB (release 0,12 s) y las grabaciones, convertidas a
+caché: los 19 programas de la lista ocupan 9,16 MB (release 0,12 s, salvo en los que sostienen la nota —pad, cuerdas, órgano, metales, leads—, que conservan su cola: 2026-10-03) y las grabaciones, convertidas a
 24 kHz y 2 s (lo elegido en §7c), 10,3 MB — 104 muestras: acústica 29, eléctrica 17, nylon 28,
 fender 15, slap 15. Van en el mismo archivo porque el motor carga un solo SoundFont
 (`scripts/build-recordings.mjs`, parte de `npm run engine:sync`), en programas 100-104, que General

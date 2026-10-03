@@ -28,6 +28,8 @@
     "test:groove": "tsx tests/groove/groove.ts && tsx tests/groove/held.ts && tsx tests/groove/variations.ts && tsx tests/groove/sounds.ts && tsx tests/groove/parts.ts && tsx tests/groove/patterns.ts && tsx tests/groove/delta.ts && tsx tests/groove/listen.ts && tsx tests/groove/webread.ts",
     "lab:audition": "node scripts/lab-audition.mjs",
     "lab:gains": "node scripts/measure-list-gains.mjs",
+    "lab:pad": "node scripts/lab-pad.mjs",
+    "check:holds": "node scripts/check-holds.mjs",
     "variations:export": "tsx scripts/variations-export.ts",
     "test:facts": "tsx tests/facts/facts.ts",
     "test:sounds": "tsx tests/sounds/families.ts",

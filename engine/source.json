@@ -4,7 +4,7 @@
     "commit": "1576ad1c33ac08eeb0a02afa2c87e74737f80fda",
     "dirtyEngine": false
   },
-  "syncedAt": "2026-10-01T22:51:32.284Z",
+  "syncedAt": "2026-10-03T12:51:18.048Z",
   "programs": [
     0,
     3,
@@ -86,8 +86,8 @@
     "engine/web_glue.cpp": "368b1fdc2a3d26b71a7c95cc24ac40b3ef07d0842b8ac9f84156c2e2d53ea88d",
     "engine/shim/aaudio/AAudio.h": "e05c86b807d44199f67776d9db135f20d0d0142f5a2c0ffc0b4807eaf6ee859d",
     "public/engine/engine.wasm": "f25a88efa0834861d9611a03e6e3270ef1b7424e8f5513ae5922707fbde9c3bc",
-    "public/engine/sounds.sf2": "cb5f92a3ce0e638f096a6784e9f2c91aa631dc2ed21c975e85b5e9a13462105b",
-    "public/engine/sounds-full.sf2": "2b6813f6a0ff0b7627dbe0becbc5d38dee8494a04041e92377cb47a0f004e35b",
+    "public/engine/sounds.sf2": "716a3a6cc6e1442ddc92eddc2418084fc23a068c657b99542a677a12c610fc38",
+    "public/engine/sounds-full.sf2": "45a17b7a1aa16811b8c75bd3bf406ec88920adf6312660c7c2f00e43479c6152",
     "public/engine/presets.json": "27cd7639597e6511172b60c4b021e176684944f4b64d4b01f6b000c43cc042a4",
     "public/engine/kit.json": "940ade84c51e4c24b3d3a0950a777dd1fccc41f48a867dbdf95a2beb79bab0a3",
     "public/engine/drums/kick.pcm": "43c665669d8a8d5d56bd65b17aebf816154d47ed06fc1040ffe37b18036d8950",

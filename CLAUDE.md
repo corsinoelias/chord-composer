@@ -13,6 +13,8 @@ npm run lint          # ESLint
 npx tsc --noEmit      # TypeScript-only type check (faster for catching errors)
 npm run seed          # Seed songs to Supabase (requires .env)
 npm run engine:sync   # Copy the Android app's audio engine into engine/vendor/ and build public/engine/ (needs wasi-sdk + Chromium for the recordings)
+npm run engine:sync -- --sounds  # Only the SoundFonts, kit and recommended list; leaves the engine alone (no wasi-sdk), needs Chromium for the recordings
+npm run lab:pad       # A held sound (pad, strings, wind) through the shipped SoundFont vs the app's GeneralUser.sf2, with the commands songToEngine really writes; fails on >3 dB; needs a running server (npm run dev) and Chromium, not in the build
 npm run check:engine  # Fails if engine/ or public/engine/ differ from engine/source.json; wired into netlify.toml's build
 npm run check:landing-fit  # Fails if a block of /chord-player-app/ outgrows one screen at any of 10 sizes; needs a running server (npm run dev) and Chromium, not in the build
 
@@ -79,7 +81,12 @@ which plays the real song through the shipped engine and SoundFont one sound at 
 reference sound is named, not taken from the track's default, so changing a default never moves the
 whole track. `fromSong.ts` and
 `preview.ts` read it directly; `npm run shared:export` writes it to `shared/catalog/sounds.json` for
-the app. `engine:sync` cuts the SoundFont to exactly its programs and `scripts/build-recordings.mjs`
+the app. `engine:sync` cuts the SoundFont to exactly its programs. A preset that *holds* its note
+(the engine's `channelHolds` rule, reimplemented in `sf2-subset.mjs`, `node scripts/check-holds.mjs` checks it against tsf over
+every preset: pads, strings, organs, winds, leads, brass) keeps its tail as the font has it; every
+other tail is cut to 0.12 s so a piano or a bass does not ring under the next chord. A pad of
+3-step notes on the old all-cut font left a silence in every bar (the wind "cut off" at each repeat,
+2026-10-03); `npm run lab:pad` is the test. `scripts/build-recordings.mjs` then
 appends the web's own five recordings (three guitars, two basses) to the same file at programs
 100-104 — the engine loads one font — decoding the mp3s in a headless Chromium at 24 kHz, 2 s. It
 comes to 19.45 MB. The ids changed with the list (`sampled` → `grand`, `sf2-steel` → `steel`,
