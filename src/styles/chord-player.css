@@ -1946,3 +1946,17 @@ button.cp-set-row { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .cp-sw, .cp-sw::after, .cp-seg button { transition: none; }
 }
+
+/* A panel that scrolls says so: a soft fade over its bottom edge while there is more below. It is
+   the panel's last child, sticky at the bottom, so it follows the visible edge and falls on the
+   panel's own bottom padding (which is taller) once the end is reached: nothing left to hide. */
+.cp-set-scroll::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  display: block;
+  height: 32px;
+  margin-top: -32px;
+  background: linear-gradient(to bottom, transparent, var(--cp-bg));
+  pointer-events: none;
+}

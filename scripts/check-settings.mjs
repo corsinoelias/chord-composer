@@ -173,6 +173,9 @@ const overflowX = (page) => page.evaluate(() => {
   const dialog = await openSettings(page);
   await page.waitForTimeout(600);
   check(await page.evaluate(() => document.activeElement?.getAttribute('role') === 'dialog'), 'focus lands in the panel when it opens');
+  // While there is more below, a fade over the bottom edge says so; at the end it is gone from the content.
+  check(await page.evaluate(() => { const d = document.querySelector('[role=dialog]'); return d.scrollHeight > d.clientHeight && getComputedStyle(d, '::after').position === 'sticky'; }),
+    '320 × 568: a fade at the bottom edge says there is more to scroll');
   await page.mouse.move(160, 300);
   await page.mouse.wheel(0, 3000);
   await page.waitForTimeout(400);
