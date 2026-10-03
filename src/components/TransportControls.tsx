@@ -8,6 +8,7 @@ import {
   MoreVertical,
   Play,
   Plus,
+  Settings,
   SlidersHorizontal,
   Square,
 } from 'lucide-react';
@@ -15,7 +16,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -27,10 +27,10 @@ import { type StylePattern } from '@/lib/styles';
 import { chordPosition, useGlide } from '@/lib/playbackPosition';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { SWING_OPTIONS, swingOption } from '@/lib/swing';
-import { CLICK_SOUNDS, type ClickSettings } from '@/lib/clickSettings';
-import { ChordSymbolsPicker } from './ChordSymbolsPicker';
-import { FADE_LENGTHS, setFadeLength, useFadeLength } from '@/lib/fadeLength';
-import { FADE_IN_LENGTHS, setFadeInLength, useFadeInLength } from '@/lib/fadeInLength';
+import { type ClickSettings } from '@/lib/clickSettings';
+import { useFadeLength } from '@/lib/fadeLength';
+import { useFadeInLength } from '@/lib/fadeInLength';
+import { MetronomeSheet, SettingsDialog } from './settings/SettingsOverlays';
 import type { FadeState } from '@/contexts/PlaybackContext';
 
 /** Metronome glyph — lucide has no metronome/pendulum icon, so this draws one:
@@ -148,6 +148,22 @@ export const TransportControls = memo(function TransportControls(props: Transpor
   const fadeLength = useFadeLength();
   const fadeInLength = useFadeInLength();
 
+  // Settings, and the metronome on its own. Held here, once, and not in `capsules` below: that
+  // is drawn twice (a phone's row and a wide screen's), and each copy would open its own sheet.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [metronomeOpen, setMetronomeOpen] = useState(false);
+  // A long press on the Click capsule opens the metronome sheet; the click that follows the
+  // release must not also flip the switch.
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressed = useRef(false);
+  const startPress = () => {
+    longPressed.current = false;
+    pressTimer.current = setTimeout(() => { longPressed.current = true; setMetronomeOpen(true); }, 500);
+  };
+  const endPress = () => {
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+  };
+
   const capsules = (
     <>
       <KeyControl
@@ -164,7 +180,15 @@ export const TransportControls = memo(function TransportControls(props: Transpor
         <button
           type="button"
           className="flex items-center gap-1.5 py-1.5 pl-3 pr-1"
-          onClick={() => onMetronomeToggle(!metronomeEnabled)}
+          onClick={() => {
+            if (longPressed.current) { longPressed.current = false; return; }
+            onMetronomeToggle(!metronomeEnabled);
+          }}
+          onPointerDown={startPress}
+          onPointerUp={endPress}
+          onPointerLeave={endPress}
+          onPointerCancel={endPress}
+          onContextMenu={(e) => { e.preventDefault(); endPress(); longPressed.current = true; setMetronomeOpen(true); }}
           disabled={isExporting}
           aria-pressed={metronomeEnabled}
           aria-label="Metronome click"
@@ -173,53 +197,16 @@ export const TransportControls = memo(function TransportControls(props: Transpor
           <MetronomeIcon size={16} />
           <span className="text-xs">Click</span>
         </button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="py-1.5 pl-0.5 pr-2.5 opacity-70"
-              disabled={isExporting}
-              aria-label="Click settings"
-              title="Click settings"
-            >
-              <ChevronDown size={14} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-52">
-            <DropdownMenuLabel className="text-[11px]">Sound</DropdownMenuLabel>
-            {CLICK_SOUNDS.map((sound) => (
-              <DropdownMenuItem key={sound.id} onClick={() => onClickChange({ ...click, sound: sound.id })}>
-                <span className="flex-1">{sound.label}</span>
-                {click.sound === sound.id && <span aria-hidden>✓</span>}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <div className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
-              <label className="cp-lbl mb-1 block text-[11px]" htmlFor="click-volume" style={{ color: 'var(--cp-fa)' }}>
-                Volume {Math.round(click.volume * 100)}%
-              </label>
-              <input
-                id="click-volume"
-                className="cp-rg w-full"
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round(click.volume * 100)}
-                onChange={(e) => onClickChange({ ...click, volume: Number(e.target.value) / 100 })}
-                style={{ ['--cp-p' as string]: `${Math.round(click.volume * 100)}%` }}
-              />
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={(e) => { e.preventDefault(); onClickChange({ ...click, accent: !click.accent }); }}>
-              <span className="flex-1">Accent first beat</span>
-              {click.accent && <span aria-hidden>✓</span>}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => { e.preventDefault(); onClickChange({ ...click, division: click.division === 2 ? 1 : 2 }); }}>
-              <span className="flex-1">Half beats</span>
-              {click.division === 2 && <span aria-hidden>✓</span>}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+          type="button"
+          className="py-1.5 pl-0.5 pr-2.5 opacity-70"
+          disabled={isExporting}
+          onClick={() => setMetronomeOpen(true)}
+          aria-label="Click settings"
+          title="Click settings"
+        >
+          <ChevronDown size={14} />
+        </button>
       </div>
       <div className="min-w-0 flex-1 lg:max-w-[300px]" data-tour="style-selector">
         <StyleSelector
@@ -339,27 +326,9 @@ export const TransportControls = memo(function TransportControls(props: Transpor
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
-              <ChordSymbolsPicker />
-              <div className="flex items-center justify-between gap-2 px-2 pb-2" onClick={(e) => e.stopPropagation()}>
-                <span className="text-[13px]">Fade-in</span>
-                <div className="cp-seg cp-seg-sm" role="group" aria-label="Fade-in length">
-                  {FADE_IN_LENGTHS.map((s) => (
-                    <button key={s} type="button" className={fadeInLength === s ? 'cp-on' : ''} aria-pressed={fadeInLength === s} onClick={() => setFadeInLength(s)}>
-                      {s} s
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-between gap-2 px-2 pb-2" onClick={(e) => e.stopPropagation()}>
-                <span className="text-[13px]">Fade-out</span>
-                <div className="cp-seg cp-seg-sm" role="group" aria-label="Fade-out length">
-                  {FADE_LENGTHS.map((s) => (
-                    <button key={s} type="button" className={fadeLength === s ? 'cp-on' : ''} aria-pressed={fadeLength === s} onClick={() => setFadeLength(s)}>
-                      {s} s
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+                <Settings size={15} className="mr-2" />Settings
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onOpenLibrary}>
                 <FolderOpen size={15} className="mr-2" />My songs
@@ -402,6 +371,22 @@ export const TransportControls = memo(function TransportControls(props: Transpor
           onJump={props.onJumpToSection}
         />
       </div>
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        click={click}
+        onClickChange={onClickChange}
+        metronomeEnabled={metronomeEnabled}
+      />
+      <MetronomeSheet
+        open={metronomeOpen}
+        onOpenChange={setMetronomeOpen}
+        click={click}
+        onClickChange={onClickChange}
+        metronomeEnabled={metronomeEnabled}
+        onToggleSong={onMetronomeToggle}
+        onAllSettings={() => { setMetronomeOpen(false); setSettingsOpen(true); }}
+      />
     </div>
   );
 });

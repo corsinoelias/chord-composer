@@ -1844,3 +1844,80 @@ input.cp-rg:disabled {
 .cp-nt-stack { display: inline-flex; flex-direction: column; font-size: 9px; line-height: 1; margin-left: 1px; }
 .cp-nt-sol { align-items: center; font-weight: 600; }
 .cp-seg button.cp-sign { font-size: 16px; }
+
+/* ───────────── Settings (the app's Ajustes): grouped rows on cards ───────────── */
+/* Everything under .cp-set; the segmented control, switch and notation tiles are the ones
+   used elsewhere, sized and dressed for a settings row (the design's 52 px tiles, 52 × 32
+   switch and lifted white segment). Nothing here changes them outside a settings panel. */
+.cp-set { background: var(--cp-bg); color: var(--cp-tx); font-family: inherit; }
+.cp-set-head {
+  padding: 0 20px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--cp-fa);
+}
+.cp-set-group {
+  margin: 0 16px;
+  background: var(--cp-s1);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.cp-set-group > * { position: relative; }
+.cp-set-group > * + *::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--cp-s2);
+  pointer-events: none;
+}
+.cp-set-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 12px 0 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+button.cp-set-row { cursor: pointer; }
+.cp-set-title { flex: 1 1 auto; font-size: 16px; font-weight: 500; }
+.cp-set-value { font-size: 15px; color: var(--cp-mu); }
+.cp-set-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px 14px 12px;
+}
+.cp-set .cp-nt { height: 52px; border-radius: 12px; gap: 8px; font-size: 15px; background: var(--cp-s1); }
+.cp-set .cp-nt-sign { font-size: 16px; min-width: 34px; justify-content: center; }
+.cp-set .cp-nt-stack { font-size: 10px; }
+.cp-set .cp-seg { background: var(--cp-s2); border: 0; border-radius: 10px; }
+.cp-set .cp-seg button { height: 34px; min-width: 44px; padding: 0 10px; border-radius: 8px; font-size: 14px; }
+.cp-set .cp-seg button.cp-on { background: var(--cp-s1); color: var(--cp-ac); box-shadow: 0 1px 3px rgba(20, 24, 31, 0.12); }
+.cp-set .cp-seg button.cp-sign { font-size: 18px; }
+.cp-set .cp-seg button:disabled { opacity: 0.35; cursor: default; }
+.cp-set .cp-sw { width: 52px; height: 32px; border-radius: 16px; }
+.cp-set .cp-sw::after { top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 12px; }
+.cp-set .cp-sw.cp-on::after { left: 24px; }
+.cp-set-icon-btn {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  color: var(--cp-mu);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cp-set-icon-btn:hover { background: var(--cp-s2); }

@@ -20,6 +20,7 @@ import { useLeftHanded, setLeftHanded } from '@/lib/leftHanded';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { CountdownOverlay } from '@/components/CountdownOverlay';
+import { setCountIn, useCountIn } from '@/lib/countIn';
 import { LEGACY_PRACTICE_PANEL } from '@/lib/songPageFlags';
 import { displayChord } from '@/lib/songNotation';
 import { sectionShort } from '@/lib/sectionKind';
@@ -411,17 +412,11 @@ function SongChordPlayerInner({ song, inline = false }: { song: Song; inline?: b
   // One bar counted in on the engine's cowbell before Play (or a section's ▷) starts the music —
   // on by default, like the prototype; the reader's choice is remembered. `counting` shows the
   // big 4-3-2-1 while the engine counts.
-  const [countIn, setCountIn] = useState(true);
+  const countIn = useCountIn();
   const countInRef = useRef(true);
   countInRef.current = countIn;
   const [counting, setCounting] = useState(false);
-  useEffect(() => {
-    try { if (localStorage.getItem('song-count-in') === '0') setCountIn(false); } catch { /* storage blocked */ }
-  }, []);
-  const handleCountInChange = useCallback((on: boolean) => {
-    setCountIn(on);
-    try { localStorage.setItem('song-count-in', on ? '1' : '0'); } catch { /* storage blocked */ }
-  }, []);
+  const handleCountInChange = setCountIn;
   const [songLoop, setSongLoop] = useState(false);
   const songLoopRef = useRef(false);
   songLoopRef.current = songLoop;

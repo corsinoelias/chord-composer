@@ -15,6 +15,7 @@ npm run seed          # Seed songs to Supabase (requires .env)
 npm run engine:sync   # Copy the Android app's audio engine into engine/vendor/ and build public/engine/ (needs wasi-sdk + Chromium for the recordings)
 npm run engine:sync -- --sounds  # Only the SoundFonts, kit and recommended list; leaves the engine alone (no wasi-sdk), needs Chromium for the recordings
 npm run lab:pad       # A held sound (pad, strings, wind) through the shipped SoundFont vs the app's GeneralUser.sf2, with the commands songToEngine really writes; fails on >3 dB; needs a running server (npm run dev) and Chromium, not in the build
+npm run check:settings  # Settings panel on a phone and a wide screen: every control's key, reload, long press on Click, count-in, and that settings send a playing song live commands only; needs a running server (npm run dev) and Chromium, not in the build
 npm run check:engine  # Fails if engine/ or public/engine/ differ from engine/source.json; wired into netlify.toml's build
 npm run check:landing-fit  # Fails if a block of /chord-player-app/ outgrows one screen at any of 10 sizes; needs a running server (npm run dev) and Chromium, not in the build
 
@@ -94,6 +95,13 @@ comes to 19.45 MB. The ids changed with the list (`sampled` → `grand`, `sf2-st
 `migrateLegacySong` (song schema 6), so never reuse an old id for a different sound. The mix is the
 per-track balance set by ear (`TRACK_TRIM` in `fromSong.ts`) times each sound's gain **relative to
 its track's default sound**, so changing sound changes the timbre and not the level.
+
+**Settings** (`src/components/settings/`) are the app's Ajustes (`settings_screen.dart`): Chord symbols,
+Playback (count-in, fade-in, fade-out) and Metronome, a full-screen page on a phone and a dialog on a wide
+screen, opened from ⋮ › Settings; the Click capsule's caret or a long press opens the metronome on its own
+(`MetronomeSheet`, with this song's switch on top and "All settings"). The panel only calls the stores that
+always held each value (`chordDisplay`, `countIn` — the `song-count-in` key the shared song page already
+used —, `fadeLength`, `fadeInLength`, `clickSettings`), so a saved value never moves. `npm run check:settings`.
 
 **The click** is the person's, not the song's: sound (stick, cowbell, ride, beep — the app's own
 ids), volume, accent and half beats in `src/lib/clickSettings.ts`, kept in `localStorage` and

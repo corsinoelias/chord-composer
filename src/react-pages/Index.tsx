@@ -65,6 +65,7 @@ import { sectionColorMap } from '@/lib/sectionColors';
 import { GuidedTour } from '@/components/GuidedTour';
 import { CountdownOverlay } from '@/components/CountdownOverlay';
 import { getFadeInLength } from '@/lib/fadeInLength';
+import { getCountIn } from '@/lib/countIn';
 import { ProgressionTemplatesModal } from '@/components/ProgressionTemplatesModal';
 import { ShortcutsHelp } from '@/components/ShortcutsHelp';
 import type { ChordView } from '@/hooks/useSyncedChordView';
@@ -1577,8 +1578,10 @@ const Index = ({ songId }: IndexProps) => {
       noteLengths: editorSoundsRef.current?.noteLengths ?? noteLengthsRef.current,
       click: clickRef.current,
     }).catch(() => {});
-    setShowCountdown(true);
-    void startPlayback(true, rise ? getFadeInLength() : 0);
+    // The app's Ajustes › Cuenta atrás: off, and the song starts at once with no overlay.
+    const counting = getCountIn();
+    setShowCountdown(counting);
+    void startPlayback(counting, rise ? getFadeInLength() : 0);
   }, [hasChords, isExporting, selectedStyleId, warmup, startPlayback]);
 
   const handleCountdownComplete = useCallback(() => {

@@ -29,6 +29,7 @@
     "lab:audition": "node scripts/lab-audition.mjs",
     "lab:gains": "node scripts/measure-list-gains.mjs",
     "lab:pad": "node scripts/lab-pad.mjs",
+    "check:settings": "node scripts/check-settings.mjs",
     "check:holds": "node scripts/check-holds.mjs",
     "variations:export": "tsx scripts/variations-export.ts",
     "test:facts": "tsx tests/facts/facts.ts",

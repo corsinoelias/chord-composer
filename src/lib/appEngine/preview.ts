@@ -18,6 +18,7 @@ import { hitTone } from './steps';
 import { engineChord } from './fromSong';
 import { type AppEngine } from './host';
 import { getAppEngine, startedAppEngine } from './player';
+import { type ClickSettings } from '../clickSettings';
 
 const PREVIEW = 31;
 const DEFAULT_KIT = 2;
@@ -200,4 +201,18 @@ export function getAnalyserNode(): AnalyserNode | null {
  */
 export function readyPreviews(): Promise<void> {
   return ready().then(() => undefined);
+}
+
+/**
+ * One accented click on [click]'s sound and volume, heard without starting the song — the
+ * settings' Try it, and each sound as it is picked. The click is sent first, so what sounds
+ * is the choice just made; [metronome] is the song's own switch, sent back as it is so a song
+ * that is playing keeps (or keeps off) its click. From a tap: it may open the audio.
+ */
+export function previewClick(click: ClickSettings, metronome: boolean): void {
+  getAppEngine().then(async (e) => {
+    if (click.sound >= SAMPLED_FIRST) await e.ensureSlots([click.sound - SAMPLED_FIRST]);
+    if (e.ctx.state !== 'running') void e.ctx.resume();
+    e.send([['metronome', metronome, click.volume, click.sound, click.accent, click.division], ['previewClick']]);
+  }).catch(() => {});
 }
