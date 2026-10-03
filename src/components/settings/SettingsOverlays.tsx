@@ -1,11 +1,21 @@
 import type { ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Sheet, SheetClose, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import type { ClickSettings } from '@/lib/clickSettings';
 import { SettingsGroup, SettingsRow, SwitchControl } from './primitives';
 import { MetronomeSettings, SettingsPanel } from './SettingsPanel';
+
+/**
+ * Focus goes to the panel itself when it opens, not to its first control (a tile drawn with a
+ * ring nobody asked for) and not left behind it: a screen reader starts at the title, and the
+ * first Tab lands on the first control.
+ */
+const focusPanel = (e: Event) => {
+  e.preventDefault();
+  (e.target as HTMLElement | null)?.focus();
+};
 
 interface ClickProps {
   click: ClickSettings;
@@ -25,14 +35,15 @@ export function SettingsDialog({ open, onOpenChange, ...click }: ClickProps & { 
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
-          onOpenAutoFocus={(e) => e.preventDefault()}
+          onOpenAutoFocus={focusPanel}
           side="bottom"
-          className="cp-set h-[100dvh] max-h-[100dvh] gap-0 overflow-y-auto rounded-none border-0 bg-[var(--cp-bg)] p-0 pb-[env(safe-area-inset-bottom)] [&>button.absolute]:hidden"
+          className="cp-set h-[100dvh] max-h-[100dvh] gap-0 overflow-y-auto rounded-none border-0 bg-[var(--cp-bg)] focus:outline-none p-0 pb-[env(safe-area-inset-bottom)] [&>button.absolute]:hidden"
         >
-          <div className="flex h-16 items-center gap-5 px-3">
+          <div className="cp-set-sticky flex h-16 shrink-0 items-center gap-5 px-3 pt-[env(safe-area-inset-top)] box-content">
             <SheetClose className="cp-set-icon-btn" style={{ color: 'var(--cp-tx)' }} aria-label="Back"><ArrowLeft size={22} /></SheetClose>
             <SheetTitle className="text-[22px] font-bold text-[var(--cp-tx)]">Settings</SheetTitle>
           </div>
+          <SheetDescription className="sr-only">Chord symbols, playback and the metronome.</SheetDescription>
           {body}
         </SheetContent>
       </Sheet>
@@ -40,8 +51,11 @@ export function SettingsDialog({ open, onOpenChange, ...click }: ClickProps & { 
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="cp-set max-h-[88vh] max-w-[640px] gap-0 overflow-y-auto border-0 bg-[var(--cp-bg)] p-0 sm:rounded-2xl">
-        <DialogTitle className="px-5 pb-1 pt-5 text-[22px] font-bold text-[var(--cp-tx)]">Settings</DialogTitle>
+      <DialogContent onOpenAutoFocus={focusPanel} className="cp-set max-h-[88dvh] max-w-[640px] gap-0 overflow-y-auto border-0 bg-[var(--cp-bg)] focus:outline-none p-0 sm:rounded-2xl">
+        <div className="cp-set-sticky px-5 pb-1 pt-5">
+          <DialogTitle className="text-[22px] font-bold text-[var(--cp-tx)]">Settings</DialogTitle>
+          <DialogDescription className="sr-only">Chord symbols, playback and the metronome.</DialogDescription>
+        </div>
         {body}
       </DialogContent>
     </Dialog>
@@ -79,12 +93,13 @@ export function MetronomeSheet({ open, onOpenChange, onToggleSong, onAllSettings
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
-          onOpenAutoFocus={(e) => e.preventDefault()}
+          onOpenAutoFocus={focusPanel}
           side="bottom"
-          className="cp-set max-h-[92dvh] gap-0 overflow-y-auto rounded-t-3xl border-0 bg-[var(--cp-bg)] p-0 pb-[env(safe-area-inset-bottom)] [&>button.absolute]:hidden"
+          className="cp-set max-h-[92dvh] gap-0 overflow-y-auto rounded-t-3xl border-0 bg-[var(--cp-bg)] focus:outline-none p-0 pb-[env(safe-area-inset-bottom)] [&>button.absolute]:hidden"
         >
           <div className="mx-auto mb-3 mt-2 h-1 w-9 rounded-sm bg-[var(--cp-ln)]" aria-hidden />
           <SheetTitle className="px-5 pb-3.5 text-lg font-bold text-[var(--cp-tx)]">Metronome</SheetTitle>
+          <SheetDescription className="sr-only">The click: this song's switch, volume, sound, accent and clicks per beat.</SheetDescription>
           {body}
         </SheetContent>
       </Sheet>
@@ -92,8 +107,9 @@ export function MetronomeSheet({ open, onOpenChange, onToggleSong, onAllSettings
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="cp-set max-h-[88vh] max-w-[440px] gap-0 overflow-y-auto border-0 bg-[var(--cp-bg)] p-0 sm:rounded-2xl">
+      <DialogContent onOpenAutoFocus={focusPanel} className="cp-set max-h-[88dvh] max-w-[440px] gap-0 overflow-y-auto border-0 bg-[var(--cp-bg)] focus:outline-none p-0 sm:rounded-2xl">
         <DialogTitle className="px-5 pb-3.5 pt-5 text-lg font-bold text-[var(--cp-tx)]">Metronome</DialogTitle>
+        <DialogDescription className="sr-only">The click: this song's switch, volume, sound, accent and clicks per beat.</DialogDescription>
         {body}
       </DialogContent>
     </Dialog>

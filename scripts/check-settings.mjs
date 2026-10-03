@@ -11,6 +11,9 @@
  *   - every control writes the key it has always written, and the page reads it back after a reload;
  *   - a long press on the Click capsule, and its caret, open the metronome sheet without flipping
  *     the switch, and "All settings" goes on to the page;
+ *   - it is usable without a mouse or a big screen: focus lands in the panel and Tab never leaves it,
+ *     every control has a name and a 44 px hit area, and a 320 × 568 screen scrolls to the last row
+ *     with the way back still in view;
  *   - Play counts in unless Count-in is off, in which case it starts at once;
  *   - with a song playing, changing any setting sends the engine live commands only: never the song
  *     again, never a release — the opening of the rhythm editor once did, and the audio cut.
@@ -160,6 +163,54 @@ const overflowX = (page) => page.evaluate(() => {
   check(song.length === 0, 'playing: settings send no song, no release and no stop', `sent ${[...new Set(song)].join(', ')}`);
   check(sent.length < 60, 'playing: settings do not flood the engine', `${sent.length} commands in 1.5 s`);
   check(await page.evaluate(() => window.__appEngine.state.playing), 'playing: the song is still playing');
+  await context.close();
+}
+
+
+// ── Small screen, keyboard ──
+{
+  const { context, page } = await open({ width: 320, height: 568 }, true);
+  const dialog = await openSettings(page);
+  await page.waitForTimeout(600);
+  check(await page.evaluate(() => document.activeElement?.getAttribute('role') === 'dialog'), 'focus lands in the panel when it opens');
+  await page.mouse.move(160, 300);
+  await page.mouse.wheel(0, 3000);
+  await page.waitForTimeout(400);
+  const reach = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('[role=dialog] .cp-set-row')];
+    const last = rows.at(-1).getBoundingClientRect();
+    const back = document.querySelector('[role=dialog] [aria-label=Back]').getBoundingClientRect();
+    return { last: last.bottom <= innerHeight + 1, back: back.top >= 0 && back.bottom <= innerHeight };
+  });
+  check(reach.last, '320 × 568: scrolling reaches the last row');
+  check(reach.back, '320 × 568: the way back stays in view while scrolling');
+  await page.evaluate(() => document.querySelector('[role=dialog]').scrollTo(0, 0));
+  const outside = [];
+  const unnamed = [];
+  for (let i = 0; i < 26; i++) {
+    await page.keyboard.press('Tab');
+    const r = await page.evaluate(() => {
+      const a = document.activeElement;
+      const name = (a.getAttribute('aria-label') || a.textContent || '').trim() || (a.id && document.querySelector(`label[for="${a.id}"]`)?.textContent?.trim());
+      return { inside: !!a.closest('[role=dialog]'), name: name || '', ring: getComputedStyle(a).outlineStyle !== 'none' };
+    });
+    if (!r.inside) outside.push(i);
+    if (!r.name) unnamed.push(i);
+    if (!r.ring) outside.push(`no ring at ${i}`);
+  }
+  check(outside.length === 0, 'Tab stays inside the panel and every stop shows a focus ring', outside.join(', '));
+  check(unnamed.length === 0, 'every control has a name', unnamed.join(', '));
+  const hit = await page.evaluate(() => [...document.querySelectorAll('[role=dialog] .cp-seg button, [role=dialog] .cp-sw')].map((el) => {
+    el.scrollIntoView({ block: 'center' });
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    return document.elementFromPoint(x, y - 21) === el && document.elementFromPoint(x, y + 21) === el;
+  }));
+  check(hit.length > 0 && hit.every(Boolean), 'segments and switches have a 44 px hit area', `${hit.filter(Boolean).length} of ${hit.length}`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+  check(await page.getByRole('dialog').count() === 0, 'Escape closes the panel');
   await context.close();
 }
 

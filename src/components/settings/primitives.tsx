@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
  * Styles are .cp-set-* in chord-player.css.
  */
 
-export const SettingsHead = ({ children }: { children: ReactNode }) => <div className="cp-set-head">{children}</div>;
+export const SettingsHead = ({ id, children }: { id: string; children: ReactNode }) => <h3 id={id} className="cp-set-head">{children}</h3>;
 
 export const SettingsGroup = ({ children }: { children: ReactNode }) => <div className="cp-set-group">{children}</div>;
 

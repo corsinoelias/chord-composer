@@ -21,16 +21,16 @@ export function SettingsPanel({ click, onClickChange, metronomeEnabled }: {
 }) {
   return (
     <div className="flex flex-col gap-7">
-      <section>
-        <SettingsHead>Chord symbols</SettingsHead>
+      <section aria-labelledby="cp-set-chords">
+        <SettingsHead id="cp-set-chords">Chord symbols</SettingsHead>
         <ChordSymbolsGroup />
       </section>
-      <section>
-        <SettingsHead>Playback</SettingsHead>
+      <section aria-labelledby="cp-set-playback">
+        <SettingsHead id="cp-set-playback">Playback</SettingsHead>
         <PlaybackGroup />
       </section>
-      <section>
-        <SettingsHead>Metronome</SettingsHead>
+      <section aria-labelledby="cp-set-metronome">
+        <SettingsHead id="cp-set-metronome">Metronome</SettingsHead>
         <MetronomeSettings click={click} onClickChange={onClickChange} metronomeEnabled={metronomeEnabled} />
       </section>
     </div>
@@ -49,16 +49,18 @@ function ChordSymbolsGroup() {
       type="button"
       className={`cp-nt ${display.notation === notation ? 'cp-on' : ''}`}
       aria-pressed={display.notation === notation}
+      // The sign is a picture of what the tile does (F♯m, 3⁷₅…); the name is what is read out.
+      aria-label={label}
       onClick={() => setChordDisplay({ ...display, notation })}
     >
-      <span className="cp-nt-sign">{sign}</span>
+      <span className="cp-nt-sign" aria-hidden>{sign}</span>
       <span>{label}</span>
     </button>
   );
 
   return (
     <SettingsGroup>
-      <div className="cp-set-tiles">
+      <div className="cp-set-tiles" role="group" aria-label="Chord notation">
         {tile('chord', <>F<sup>♯</sup>m</>, 'Chords')}
         {tile('number', <>3<span className="cp-nt-stack"><span>7</span><span>5</span></span></>, 'Numbers')}
         {tile('roman', 'VII', 'Degrees')}

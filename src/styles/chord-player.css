@@ -1855,7 +1855,9 @@ input.cp-rg:disabled {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.6px;
-  color: var(--cp-fa);
+  /* The muted text colour, not the faint one: 4.5:1 on the page ground, which a 13 px label needs. */
+  color: var(--cp-mu);
+  margin: 0;
 }
 .cp-set-group {
   margin: 0 16px;
@@ -1921,3 +1923,26 @@ button.cp-set-row { cursor: pointer; }
   flex-shrink: 0;
 }
 .cp-set-icon-btn:hover { background: var(--cp-s2); }
+
+/* Touch and keyboard: the controls keep the design's size, their hit area reaches 44 px (the rows
+   are 56 px tall, so the extra never overlaps a neighbour), and the focus ring shows for the
+   keyboard only. */
+.cp-set { overscroll-behavior: contain; }
+.cp-set .cp-seg button, .cp-set .cp-sw { position: relative; }
+.cp-set .cp-seg button::before { content: ""; position: absolute; inset: -6px -2px; }
+.cp-set .cp-sw::before { content: ""; position: absolute; inset: -6px -4px; }
+.cp-set button:focus-visible,
+.cp-set input:focus-visible {
+  outline: 2px solid var(--cp-ac);
+  outline-offset: 2px;
+}
+.cp-set .cp-nt:focus-visible { outline-offset: 1px; }
+/* The slider's track stays 4 px; the input around it is 44 px tall so a thumb is easy to catch. */
+.cp-set input.cp-rg {
+  height: 44px;
+  background: linear-gradient(90deg, var(--cp-ac) var(--cp-p), var(--cp-s3) var(--cp-p)) center / 100% 4px no-repeat;
+}
+.cp-set-sticky { position: sticky; top: 0; z-index: 1; background: var(--cp-bg); }
+@media (prefers-reduced-motion: reduce) {
+  .cp-sw, .cp-sw::after, .cp-seg button { transition: none; }
+}
